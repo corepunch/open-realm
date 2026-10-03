@@ -51,22 +51,22 @@ void pathing_retry_advance(uint32_t const input[8], uint32_t output[4]) {
 }
 
 /* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
+static wc3AccSearch_t adaptive_probe;
 void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {
-    static wc3AccSearch_t search;
     static wc3FineVector_t points[BZ_WC3_FINE_NODES];
     uint32_t offset=0;
     for (unsigned level=0; level<4; level++) {
         uint32_t width=input[0]>>level, height=input[1]>>level;
-        search.maps[level]=(wc3AccMap_t){width,height,classes+offset,malloc(width*height*sizeof(int))};
-        assert(search.maps[level].indices); offset+=width*height;
+        adaptive_probe.maps[level]=(wc3AccMap_t){width,height,classes+offset,malloc(width*height*sizeof(int))};
+        assert(adaptive_probe.maps[level].indices); offset+=width*height;
     }
     wc3AccRequest_t req={{wc3_float(input[4]),wc3_float(input[5])},{wc3_float(input[6]),wc3_float(input[7])},1u<<input[2],input[3]};
-    uint32_t result=wc3_acc_route(&search,&req,points), count=result&0x7fffffffu;
-    output[0]=!(result&0x80000000u); output[1]=search.work.pops; output[2]=search.work.count; output[3]=count;
+    uint32_t result=wc3_acc_route(&adaptive_probe,&req,points), count=result&0x7fffffffu;
+    output[0]=!(result&0x80000000u); output[1]=adaptive_probe.work.pops; output[2]=adaptive_probe.work.count; output[3]=count;
     for (uint32_t i=0; i<count; i++) {
         output[4+i*2]=wc3_float_bits(points[i].x); output[5+i*2]=wc3_float_bits(points[i].y);
     }
-    for (unsigned level=0; level<4; level++) free(search.maps[level].indices);
+    for (unsigned level=0; level<4; level++) free(adaptive_probe.maps[level].indices);
 }
 
 /* Supplied ordinary hierarchy, query size/budget and exact coarse endpoints. */
@@ -710,6 +710,14 @@ uint32_t pathing_yield_advance(uint32_t *delay, uint32_t disabled) {
 }
 
 #ifdef BZ_WC3_FINE_TRACE
+void pathing_adaptive_node_state(uint32_t *out) {
+    out[0]=adaptive_probe.work.count;
+    for(uint32_t i=0;i<adaptive_probe.work.count;i++) {
+        wc3FineNode_t const *n=adaptive_probe.work.nodes+i;
+        uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state,adaptive_probe.levels[i]};
+        memcpy(out+1+8*i,words,sizeof(words));
+    }
+}
 static void fine_probe_pop_trace(void *data, uint32_t const words[10]) {
     uint32_t *out=data;
     uint32_t at=out[0]++;

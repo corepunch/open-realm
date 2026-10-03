@@ -8,16 +8,18 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**157 done / 336 tasks; 179 remaining.** Payoff77 closes existing FINE-03.2
-and MAP-05.2 together without adding or splitting IDs. Actual fine setup
-increments`ffff`,0,1,2 over retained cell metadata while lanes/classes change.
-All1656 final nodes, work and complete route words equal fresh native controls,
-production C and both traversal orders in the real engine route builder. Required
-RoC/TFT suites pass2488 tests/4375834 assertions each;480 Python checks pass.
-See [fine wrap payoff](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
+**158 done / 336 tasks; 178 remaining.** Payoff78 closes existing ACC-05.2
+without adding or splitting IDs. Eight complete adaptive requests cross DWORD
+stamp wrap, four lanes and sizes1/2; all511 final nodes/work/routes match clean
+controls, C and repeated real engine owned routes. Original no-fly-only exclusion/
+restore exposes eight stale engine source/target/parent classifications; rebuild
+now consistently uses original coarse ground6. Required RoC/TFT suites pass2490
+tests/4393170 assertions each;481 Python checks and six fresh corpus contracts pass.
+See [adaptive reuse payoff](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
 
-Next runnable ID is ACC-05.2: complete adaptive stamp/lane/class reuse
-and engine clean-control equivalence. No new TODO IDs.
+Next runnable chunk is MAP-03.3/ACC-02.1: finish producer/classification
+inventory against current engine invalidation and link uncovered domains to
+existing IDs. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -32,7 +34,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | MAP — Map construction and lifetime | 14 | 8 |
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 8 | 4 |
-| ACC — Adaptive search | 3 | 10 |
+| ACC — Adaptive search | 4 | 9 |
 | NUM — Numbers and random state | 24 | 19 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
@@ -407,7 +409,7 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 ### ACC-05 — Adaptive storage lifetime
 
 - [ ] **ACC-05.1** Cross adaptive node/heap/index capacity and growth boundaries; assert failure/partial state and its public consumer result.
-- [ ] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request.
+- [x] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request. Evidence: [adaptive reuse/flag restoration](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications), full original162cb0/164c30 increments DWORD FFFFFFFE/FFFFFFFF/0..5 across four ordinary lanes/sizes1/2;511 final semantic nodes/work/fractional routes equal clean controls and C, with asserted lane/size/warp state.3451 actual lazy lookups warm all searchable metadata before the one counter seed; historical billions of requests/cold zero/capacity/special-edge/public scheduler scopes are excluded. Real engine owned routes repeat twice over retained backing. Three native no-fly-only41/0/41 exclusion controls reproduce eight stale engine ground cells/parents; post-exclusion rebuild now uses coarse6 like initial construction, restoring every cached lane/level with8828 assertions. No new IDs.
 
 - [x] **ACC-05.3** Split the engine derived-hierarchy lifetime from retail storage requirements05.1/02: cache four static lanes by bake epoch, refine adaptive legs with live fine occupancy, free on module shutdown and reproduce saved long-Move continuation. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),public terrain-edit lane isolation, repeated lane/size requests,180 saved continuation ticks with exact positions/heading/velocity/order; existing winding-field regression now retains a legal adaptive turn. Retail capacity/growth/stamp-wrap remain05.1/02.
 

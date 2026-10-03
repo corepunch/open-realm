@@ -217,6 +217,20 @@ def main():
             checked_update(terrain, rectangle, 1)
             assert checked_update(terrain, rectangle, 0) == blocked_baseline
             rectangle_cases += 1
+        # Source/target exclusion must restore the original coarse ground6,
+        # including no-fly-only4 terrain that remains fine-ground2 pathable.
+        terrain=[0xffffff]*(width*height)
+        for y in (8,9):
+            for x in (8,9):terrain[y*width+x]=0x04ffffff
+        write(cells,*terrain);set_levels(initial)
+        before=checked_update(terrain)
+        at=2*(4*sizes[0][0]+4)+1
+        assert before[0][at]>>24==0x41 # native ground lane0 + flight lane6
+        cleared=checked_update(terrain,(8,8,10,10),1)
+        assert cleared[0][at]>>24==0
+        restored=checked_update(terrain,(8,8,10,10),0)
+        assert restored==before and restored[0][at]>>24==0x41
+        rectangle_cases+=1
     # Complete original edits at predecessor/exact/successor boundary words.
     # The original scales by32 directly; whole-map normalization is absent.
     raw_cases=[]
@@ -309,7 +323,7 @@ def main():
                   binary_sha256=digest, terrain_entry='6f04d870', cell_edit='6f054000',
                   hierarchy_entry='6f15d360', coordinate_cases=coordinate_cases,
                   composed_edit_rebuild_restore_cases=composed_cases,
-                  clipped_clear_restore_cases=rectangle_cases,
+                  clipped_clear_restore_cases=rectangle_cases,nofly_exclusion_restore_cases=3,
                   dimensions=dimensions, origins=origins, selected_cells=len(selected_cells),
                   scope='Complete original calls; exact dyadic world inputs; terrain high-bit set/clear, cell selection, no implicit hierarchy mutation; clipped base/parent updates and metadata preservation against independent model. Synthetic maps; constructors, actual origin producers, objects and non-dyadic rounding excluded.')
     args.report.parent.mkdir(parents=True, exist_ok=True)

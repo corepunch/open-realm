@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **295 entries**: **45** distinct original-code oracle
-scripts plus **54** declared variants, **121** archived JSONL audits and **75**
+The inventory now has **296 entries**: **45** distinct original-code oracle
+scripts plus **55** declared variants, **121** archived JSONL audits and **75**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 93 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 94 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Three adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1299,3 +1299,25 @@ live contracts/138 fixtures. Both fresh queue and wrap contracts pass in
 `runtime/fine-wrap-strict77/`. This is a seeded counter boundary, not a full
 historical-cycle or capacity certificate. See
 [engine payoff](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
+
+## Adaptive stamp and class restoration
+
+Payoff78 adds`oracle-adaptive-stamp-wrap-engine`, one variant of the existing
+adaptive oracle. Eight complete original400-work requests traverse the actual
+DWORD stamp boundary over warmed metadata, four lanes and sizes1/2. All511
+final semantic nodes/work/fractional routes equal clean controls and C;
+G_BuildUnitMoveFineRoute repeats the literal states over retained real engine
+maps and buffers. The fixture authenticates native lane order/masks and keeps
+the warmup/seeded-history scope explicit. No new script or capture is added.
+
+Existing`oracle-maps`and`oracle-world-grid-engine`now require three actual
+no-fly-only exclusion/restore cases. Their native flag byte41/0/41 reveals the
+engine post-exclusion ground-mask error; eight reproduced stale classifications
+are fixed and every cached lane/level is restored. Frozen map/scalar expectations
+and adaptive known-reference differences remain required. The inventory is296
+entries/45 scripts/100 oracle contracts/121 archives/75 strict live contracts/
+139 fixtures. New saved adaptive types preserve partial-prefix/unknown-byte
+limits. Six fresh adaptive/wrap/map contracts pass in
+`runtime/adaptive-wrap-strict-final78/`; the adaptive wrap comparison also
+passes at O0. Required RoC/TFT suites pass2490 tests/4393170 assertions per
+edition and481 Python checks. See [engine payoff](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).

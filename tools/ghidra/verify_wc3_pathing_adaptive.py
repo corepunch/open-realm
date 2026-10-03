@@ -34,7 +34,11 @@ def main():
     parser.add_argument('--disable-promotion', action='store_true', help='controlled intervention: mark all parents mixed')
     parser.add_argument('--engine-library', type=Path, help='compare production adaptive search and reconstructed route words')
     parser.add_argument('--budget', type=int, default=100000, help='charged-pop request budget (default100000)')
+    parser.add_argument('--stamp-wrap',action='store_true',help='retained32-bit metadata across all lanes and both stored sizes')
+    parser.add_argument('--wrap-fixture',type=Path,help='assert frozen original adaptive wrap nodes/routes')
     args = parser.parse_args()
+    if args.wrap_fixture and not args.stamp_wrap: parser.error('wrap fixture requires --stamp-wrap')
+    if args.stamp_wrap and (args.disable_promotion or args.force_east_boundary): parser.error('wrap requires ordinary classification policy')
     if not 0 <= args.budget <= 0xffffffff:
         parser.error('--budget must fit an unsigned32-bit word')
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
@@ -300,6 +304,81 @@ def main():
     if engine:
         report['engine_exact_cases']=len(records)
         report['engine_library_sha256']=hashlib.sha256(args.engine_library.read_bytes()).hexdigest()
+    if args.stamp_wrap:
+        border={(x,y) for y in range(width) for x in range(width) if x in (0,31) or y in (0,31)}
+        air=border|{(16,y) for y in range(32) if not 19<=y<25}
+        ground=air|{(x,12) for x in range(32) if not 7<=x<13}
+        floating=border|{(12,y) for y in range(32) if not 9<=y<15}|{(20,y) for y in range(32) if not 19<=y<25}
+        amphibious=border|{(16,y) for y in range(32)}
+        blocked_lanes=[ground,amphibious,floating,air]
+        # A supplied ordinary four-lane map, reduced by the original producer.
+        machine.mem_write(system,bytes(0x400))
+        for level,(tilemap,storage) in enumerate(zip(maps,data)):
+            side=width>>level
+            machine.mem_write(tilemap,bytes(0x100));machine.mem_write(storage,bytes(side*side*8))
+            write(tilemap+0x28,storage);write(tilemap+0x3c,side,side);write(system+0x1c+level*4,tilemap)
+            for y in range(side):
+                for x in range(side):
+                    cell=storage+8*(y*side+x)
+                    if level==0:
+                        write(cell+4,sum((0x40000000>>(2*lane)) for lane,blocked in enumerate(blocked_lanes) if (x,y) in blocked))
+                    else:
+                        for lane in (0,2,4,6):run(0x6f15d1c0,0,cell,maps[level-1],lane,x*2,y*2)
+        write(system+0x5c,nodes);write(system+0x68,4096,0)
+        write(system+0x7c,heap);write(system+0x88,65536,0)
+        write(route+0xc,route_data);write(route+0x18,4096,0)
+        machine.mem_write(source_ptr,struct.pack('<ff',*source));machine.mem_write(target_ptr,struct.pack('<ff',*target))
+        # Warm all searchable cell identities using actual lazy lookup/creation.
+        # This is an explicitly supplied pre-wrap map history; untouched zero
+        # stamps at a forced DWORD zero are a separate diagnostic below.
+        warm_lookups=0
+        for lane,blocked in zip((0,2,4,6),blocked_lanes):
+            run(0x6f164230,system,0);write(system+0x2c,100+lane);write(system+0xd4,lane);write(system+0x90,1)
+            for y in range(width):
+                for x in range(width):
+                    if (x,y) not in blocked:
+                        assert run(0x6f1625f0,system,0,x,y)!=0xffffffff
+                        warm_lookups+=1
+        def adaptive_wrap_request(lane,size):
+            result=run(0x6f162cb0,system,lane,route,source_ptr,target_ptr,400,size,0)
+            count=read(route+0x1c)[0];node_count=read(system+0x6c)[0]
+            assert 0<count<=4096 and node_count<=4096
+            assert read(system+0xd4)[0]==lane and read(system+0x90)[0]==1<<size
+            assert read(system+0xd8)[0]==0 and read(system+0xa0)[0]==0
+            assert all(read(nodes+36*i+32)[0]&255==0 for i in range(node_count))
+            return dict(lane=lane,size_input=size,stamp=read(system+0x2c)[0],result=result,
+                work=read(system+0x9c)[0],nodes=node_count,route_words=read(route_data,count*2),
+                node_state=[[v[0],v[1],v[5],v[6],v[2],v[7],0 if v[3]==0xffffffff else 1 if v[3]==0xfffffffe else 2,(v[8]>>16)&255]
+                    for v in (read(nodes+36*i,9) for i in range(node_count))])
+        write(system+0x2c,0xfffffffd)
+        retained=[adaptive_wrap_request(lane,size) for size in (0,1) for lane in (0,2,4,6)]
+        assert [r['stamp'] for r in retained]==[0xfffffffe,0xffffffff,0,1,2,3,4,5]
+        clean_maps=[bytes(machine.mem_read(storage,(width>>level)**2*8)) for level,storage in enumerate(data)]
+        for index,row in enumerate(retained):
+            for level,(storage,raw) in enumerate(zip(data,clean_maps)):
+                cleaned=bytearray(raw)
+                for offset in range(0,len(raw),8):cleaned[offset:offset+4]=bytes(4);cleaned[offset+4:offset+6]=bytes(2)
+                machine.mem_write(storage,bytes(cleaned))
+            write(system+0x2c,200+index)
+            clean=adaptive_wrap_request(row['lane'],row['size_input'])
+            assert {k:v for k,v in row.items() if k!='stamp'}=={k:v for k,v in clean.items() if k!='stamp'},index
+            if engine:
+                classes=[(struct.unpack_from('<I',raw,8*i+4)[0]>>(30-row['lane']))&3
+                    for raw in clean_maps for i in range(len(raw)//8)]
+                query=(ctypes.c_uint32*8)(32,32,row['size_input'],400,*struct.unpack('<4I',struct.pack('<4f',*source,*target)))
+                out=(ctypes.c_uint32*32772)();engine.pathing_adaptive_route(query,(ctypes.c_uint8*len(classes))(*classes),out)
+                assert list(out[:4])==[row['result'],row['work'],row['nodes'],len(row['route_words'])//2]
+                assert list(out[4:4+len(row['route_words'])])==row['route_words']
+                engine.pathing_adaptive_node_state.argtypes=[ctypes.POINTER(ctypes.c_uint32)]
+                state=(ctypes.c_uint32*(1+8*16386))();engine.pathing_adaptive_node_state(state)
+                assert [list(state[1+8*i:9+8*i]) for i in range(state[0])]==row['node_state']
+
+        report.update(stamp_wrap_cases=retained,stamp_wrap_warmed_lookups=warm_lookups,
+            stamp_wrap_budget=400,stamp_wrap_clean_requests=8,stamp_wrap_engine_requests=8 if engine else 0,
+            stamp_wrap_input_rows=[[sum(1<<x for x in range(32) if (x,y) in blocked) for y in range(32)] for blocked in blocked_lanes])
+        if args.wrap_fixture:
+            frozen=json.loads(args.wrap_fixture.read_text())
+            assert retained==frozen['cases'] and report['stamp_wrap_input_rows']==frozen['input_rows']
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{len(records)} adaptive requests; {len(failures)} reference differences')

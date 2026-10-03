@@ -155,7 +155,11 @@ It selects a two-bit classification using the query's shift at `+0xd4`:
 
 Other flag combinations have not been assigned a semantic name. Cells retain
 a search stamp and a 16-bit node index; `6f163ef0` lazily creates a node for the
-current search and records its level at node `+0x22`.
+current search and records its level at node `+0x22`. The adaptive cell stamp
+is a full DWORD at cell0/system2c, with ushort node index at cell4; the fine
+request uses a different ushort stamp. Payoff78 composes actual adaptive wrap,
+lane/size reuse and complete engine state controls, and fixes post-exclusion
+ground classifications; [adaptive reuse payoff](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
 
 `6f1644d0` aligns the square origin with shifts and uses side length `1 << level`.
 Its side walkers split mixed neighbours by decreasing the level. At level zero,

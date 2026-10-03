@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "99 executable original oracle contracts,121 archive audits and75 strict live contracts;295 total entries.",
+  "scope": "100 executable original oracle contracts,121 archive audits and75 strict live contracts;296 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -352,6 +352,9 @@
         },
         "point_order_clip_engine_cases": {
           "equal": 108
+        },
+        "nofly_exclusion_restore_cases": {
+          "equal": 3
         }
       },
       "evidence": [
@@ -11054,6 +11057,9 @@
         },
         "world_grid_boundary_engine_cases": {
           "equal": 576
+        },
+        "nofly_exclusion_restore_cases": {
+          "equal": 3
         }
       },
       "evidence": [
@@ -25015,6 +25021,63 @@
       ],
       "scope": "One pre-call counter seed FFFE; unchanged original setup naturally increments FFFF/0/1/2 across retained cell metadata. Complete results, work, every normalized final node and fractional route equal fresh-metadata controls and engine C. No historical65K-cycle, heap capacity or public scheduling claim.",
       "exclusions": []
+    },
+    {
+      "id": "oracle-adaptive-stamp-wrap-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--fixture",
+        "gap_4",
+        "--engine-library",
+        "{engine}",
+        "--stamp-wrap",
+        "--wrap-fixture",
+        "tools/ghidra/fixtures/retail-adaptive-stamp-wrap-1.27.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-stamp-wrap-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 4
+        },
+        "engine_exact_cases": {
+          "equal": 4
+        },
+        "stamp_wrap_cases": {
+          "length": 8
+        },
+        "stamp_wrap_warmed_lookups": {
+          "equal": 3451
+        },
+        "stamp_wrap_clean_requests": {
+          "equal": 8
+        },
+        "stamp_wrap_engine_requests": {
+          "equal": 8
+        },
+        "stamp_wrap_budget": {
+          "equal": 400
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original32-bit adaptive stamp wraps naturally through FFFFFFFE/FFFFFFFF/0..5; all searchable metadata was first warmed by3451 actual lazy node lookups across all four supplied ordinary classification lanes. Eight400-work complete requests across stored sizes1/2 equal fresh metadata controls and production C final nodes/work/routes. Classification producers, public scheduler, capacity, warp and billions of historical requests excluded.",
+      "exclusions": []
     }
   ],
   "fixtures": [
@@ -25080,7 +25143,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "23d3c975c29de23d5c068250731ad1f873fd46da004e6872e849fd49719c4aa1"
+      "sha256": "8f3e128d1e9eabc0cbd5644910b54aa054b17d6d7d8c3b9ff6971583de645fb5"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -25570,6 +25633,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-stamp-wrap-1.27.json",
       "sha256": "967fcf1f2f00ae132ceb005704a9852eccd17c5e2aaadc425d9b638ba22d021f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-stamp-wrap-1.27.json",
+      "sha256": "f55dca3fbbf33a36ab1fb0193a4d550afc484c74c8660c5b4d84a73c508f7dc4"
     }
   ]
 }

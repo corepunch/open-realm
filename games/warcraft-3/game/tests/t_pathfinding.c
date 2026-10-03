@@ -33,7 +33,8 @@
 #include "retail_constructed_maps.h"
 #include "retail_passages.h"
 #include "retail_fine_queue.h"
-#include "../../common/wc3_pathing_fine.h"
+#include "../../common/wc3_pathing_adaptive.h"
+#include "retail_adaptive_wrap.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1011,6 +1012,88 @@ TEST(pathfinding, retained_fine_storage_matches_native_stamp_wrap_nodes_and_rout
         free(route.points);
     }
     reset_entities(); setup_test_world();
+}
+
+wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void);
+TEST(pathfinding, owned_adaptive_requests_reuse_all_lanes_sizes_and_partial_node_states) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64], masks[]={2,0x80,0x40,4};
+    FOR_LOOP(y,64) FOR_LOOP(x,64) {
+        unsigned flags=0;
+        FOR_LOOP(lane,4) if(retail_adaptive_wrap_rows[lane][y/2]&(1u<<(x/2))) flags|=masks[lane];
+        cells[y*64+x]=flags;
+    }
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    vec2_t source={4.25f*64,4.75f*64},target={27.25f*64,27.75f*64},selected;
+    edict_t *unit=make_unit_at(source.x,source.y);
+    uint32_t old_counter=level.pathing_counter;
+    moveFineRoute_t route={0};
+    /* Keep the actual cached hierarchy, request nodes/heap and route backing.
+     * Lane/size changes invalidate old coarse buffers through production code. */
+    FOR_LOOP(pass,2) FOR_LOOP(k,8) {
+        retailAdaptiveWrap_t const *row=retail_adaptive_wrap+k;
+        unit->collision=row->size==2 ? 40 : 8;
+        unit->aiflags=row->lane==3 ? AI_FLYING : 0;
+        level.pathing_counter=400+(pass*8+k)*20;
+        /* Each request has a fresh owner work window; scheduler cadence is a
+         * separate contract from retained adaptive storage. */
+        level.move_fine_budgets[0].work=0;
+        movePathQuery_t query={.geometry={&source,&target,unit->collision,masks[row->lane]},.units=true,.mover=unit};
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+        wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();
+        T_EQ(search->size,row->size); T_EQ(search->work.pops,row->work); T_EQ(search->work.count,row->nodes);
+        if(search->work.count==row->nodes) FOR_LOOP(i,row->nodes) {
+            wc3FineNode_t const *n=search->work.nodes+i;
+            uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state,search->levels[i]};
+            FOR_LOOP(j,8) T_EQ(words[j],row->state[i][j]);
+        }
+        T_EQ(route.adaptive_count,row->points);
+        if(route.adaptive_count==row->points) FOR_LOOP(i,row->points) {
+            T_EQ(wc3_float_bits(route.adaptive_points[i].x),row->route[i][0]);
+            T_EQ(wc3_float_bits(route.adaptive_points[i].y),row->route[i][1]);
+        }
+    }
+    free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, adaptive_source_and_target_exclusion_restore_nofly_ground_classes) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    /* Original15d360 emits base flag byte41 ->0 ->41 on no-fly-only4.
+     * Initial/recovery ground classification includes6; fine ground uses2. */
+    FOR_LOOP(y,2) FOR_LOOP(x,2) {
+        cells[(8+y)*64+8+x]=4;
+        cells[(54+y)*64+54+x]=4;
+    }
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    vec2_t source={4.25f*64,4.75f*64},target={27.25f*64,27.75f*64},selected;
+    edict_t *unit=make_unit_at(source.x,source.y),*object=make_unit_at(target.x,target.y);
+    unit->collision=object->collision=8;
+    unsigned before[4][4][41*41];
+    unsigned masks[]={2,4,0x40,0x80};
+    FOR_LOOP(lane,4) FOR_LOOP(level,4) {
+        point2_t size=G_TestMovePathSize(level);
+        FOR_LOOP(y,size.y) FOR_LOOP(x,size.x)
+            before[lane][level][y*size.x+x]=G_TestMovePathClass(masks[lane],level,x,y);
+    }
+    T_EQ(G_TestMovePathClass(2,0,4,4),1); T_EQ(G_TestMovePathClass(4,0,4,4),1);
+    pathAccelParams_t admission={&source,&target,8,2};
+    T_ASSERT(G_MovePathPointIsPathable(&admission));
+    uint32_t old_counter=level.pathing_counter; level.pathing_counter=400;
+    movePathQuery_t query={.geometry=admission,.units=true,.mover=unit,.target=object};
+    moveFineRoute_t route={0}; T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+    /* A successful request restores both excluded rectangles and all parents,
+     * even when the terrain rejects only the original coarse-ground mask. */
+    FOR_LOOP(lane,4) FOR_LOOP(level,4) {
+        point2_t size=G_TestMovePathSize(level);
+        FOR_LOOP(y,size.y) FOR_LOOP(x,size.x)
+            T_EQ(G_TestMovePathClass(masks[lane],level,x,y),before[lane][level][y*size.x+x]);
+    }
+    free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
 TEST(pathfinding, exhausted_fine_budget_keeps_discovered_goal_centre_and_charges_denied_pop) {

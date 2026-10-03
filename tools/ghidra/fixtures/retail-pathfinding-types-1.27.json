@@ -2633,6 +2633,258 @@
           "evidence": "Actual148240 root entries in1068 unchanged full-request pops; original insertion/pop unsigned keys and generations; queue slot0 is sentinel."
         }
       ]
+    },
+    {
+      "name": "WC3AdaptiveNodePrefix",
+      "length": 36,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "x",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 4,
+          "name": "y",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 8,
+          "name": "generation",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 12,
+          "name": "closed_next",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 16,
+          "name": "closed_prev",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 20,
+          "name": "cost",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 24,
+          "name": "heuristic",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 28,
+          "name": "parent",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 32,
+          "name": "warp_tag",
+          "type": "u8",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 34,
+          "name": "level",
+          "type": "u8",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        }
+      ]
+    },
+    {
+      "name": "WC3AdaptiveCellPrefix",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "search_stamp",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 4,
+          "name": "node_index",
+          "type": "u16",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 6,
+          "name": "classes_and_special",
+          "type": "u16",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        }
+      ]
+    },
+    {
+      "name": "WC3AdaptiveMapPrefix",
+      "length": 68,
+      "fields": [
+        {
+          "offset": 40,
+          "name": "cells",
+          "type": "ptr:WC3AdaptiveCellPrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 60,
+          "name": "width",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 64,
+          "name": "height",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        }
+      ]
+    },
+    {
+      "name": "WC3AdaptiveSearchPrefix",
+      "length": 220,
+      "fields": [
+        {
+          "offset": 28,
+          "name": "map0",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 32,
+          "name": "map1",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 36,
+          "name": "map2",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 40,
+          "name": "map3",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 44,
+          "name": "search_stamp",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 92,
+          "name": "nodes",
+          "type": "ptr:WC3AdaptiveNodePrefix",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 108,
+          "name": "node_count",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 124,
+          "name": "heap_entries",
+          "type": "ptr:WC3OpenEntry",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 140,
+          "name": "heap_slots",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 144,
+          "name": "stored_size",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 152,
+          "name": "work_limit",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 156,
+          "name": "charged_work",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 180,
+          "name": "source_x",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 184,
+          "name": "source_y",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 188,
+          "name": "goal_x",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 192,
+          "name": "goal_y",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 196,
+          "name": "source_node",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 200,
+          "name": "goal_node",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 204,
+          "name": "nearest_distance",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 208,
+          "name": "nearest_node",
+          "type": "i32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 212,
+          "name": "lane_shift",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 216,
+          "name": "warp_mode",
+          "type": "u32",
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        }
+      ]
     }
   ],
   "methods": [
@@ -8096,6 +8348,97 @@
           "name": "cls",
           "type": "u32",
           "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f164230",
+      "name": "PathAcc_ResetSearch",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "cleanup",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f163ef0",
+      "name": "PathAcc_CreateCellNode",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "cell",
+          "type": "ptr:WC3AdaptiveCellPrefix",
+          "storage": 4
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f164c30",
+      "name": "PathAcc_SetupSearch",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "lane",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "goal",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "budget",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "size_input",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "warp",
+          "type": "u32",
+          "storage": 24
         }
       ]
     }

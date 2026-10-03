@@ -45,6 +45,20 @@ class QueueCompositionTests(unittest.TestCase):
                 self.assertEqual(actual,expected)
             self.assertEqual(len(row['node_state']),row['nodes'])
 
+    def test_adaptive_wrap_fixture_preserves_every_original_node_and_route(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-adaptive-stamp-wrap-1.27.json').read_text())
+        source=(ROOT/'games/warcraft-3/game/tests/retail_adaptive_wrap.h').read_text()
+        table=source.split('retail_adaptive_wrap_rows[][32]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)],[v for row in fixture['input_rows'] for v in row])
+        self.assertEqual([r['stamp'] for r in fixture['cases']],[0xfffffffe,0xffffffff,0,1,2,3,4,5])
+        for i,row in enumerate(fixture['cases']):
+            for prefix,key,width in [('nodes','node_state',8),('route','route_words',2)]:
+                table=source.split('retail_adaptive_wrap_'+prefix+'_'+str(i)+'[]['+str(width)+']={',1)[1].split('};',1)[0]
+                expected=[v for n in row[key] for v in n] if key=='node_state' else row[key]
+                self.assertEqual([int(v,16) for v in re.findall(r'0x([0-9a-f]+)u',table)],expected)
+            self.assertEqual(len(row['node_state']),row['nodes'])
+        self.assertEqual(sum(r['result']==0 for r in fixture['cases']),2)
+
     def test_denied_goal_pop_remains_a_partial_centre(self):
         self.assertEqual(self.fixture['budget_goal_input']['output'][:3],[0,701,669])
         self.assertEqual(self.fixture['budget_goal_route_words'][:2],[0x422e0000,0x422e0000])

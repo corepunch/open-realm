@@ -6889,3 +6889,49 @@ node/heap growth or spatial repulsion stamps.
 See [corpus](retail-pathfinding-corpus.md#fine-stamp-wrap),
 [search storage](retail-pathfinding-search.md#complete-static-fine-grid-searches-and-stamp-reuse)
 and [backlog](retail-pathfinding-todo.md#fine-03--fine-storage-lifetime).
+
+## Adaptive reuse restores the original ground classifications
+
+Payoff78 completes existing ACC-05.2 with a production fix. Full original162cb0
+requests retain adaptive cell metadata and allocated nodes/heap across the actual
+164c30 DWORD counter increment`fffffffe`,`ffffffff`,0..5. Four ordinary lanes
+(ground/amphibious/float/flight) and both stored sizes1/2 produce six complete
+and two disconnected-goal partial routes. All511 final semantic node records,
+charged work and complete fractional route words equal fresh-metadata controls
+and production C at O0/O2. Setup lane/size/warp words and every node warp tag are also
+asserted. The counter is seeded once;3451 actual1625f0 lazy lookups first warm
+all searchable cell identities. That supplied history is explicit, not a claim
+about billions of historical requests or untouched metadata at a forced zero.
+
+The frozen numeric fixture is`retail-adaptive-stamp-wrap-1.27.json`, with
+native lane masks6/80/40/4. The actual engine G_BuildUnitMoveFineRoute compares
+all expected coarse nodes/work/routes twice over one64x64 fine map, its padded
+cached hierarchy and reused route buffers. Six complete/two partial requests
+per pass change lane and stored size through the production invalidation path.
+Owner work windows are supplied independently; scheduler cadence remains its
+own contract. The two passes match8508 assertions.
+
+The new checks exposed a separate restoration error in g_world.c. Initial
+hierarchy ground classification used mask6, but temporary source/target
+exclusion restored cells using fine-ground mask2. No-fly-only terrain therefore
+became spuriously clear in the retained ground hierarchy after a request.
+Original15d360/15cf80 controls on three map dimensions produce flag byte
+`41 ->0 ->41`, preserving terrain, metadata and all parents. The engine
+regression captures every lane/level before a real owned request and reproduces
+eight changed source/target/parent classifications. Restoration now uses6,
+matching initial construction. All8828 assertions pass; every cached class is
+restored before subsequent routing. Fine-ground admission retains mask2.
+Required release RoC/TFT suites each pass2490 tests/4393170 assertions;481
+Python checks and six fresh corpus contracts pass.
+
+Ghidra now retains623 roles,61 partial layouts/419 verified fields and292
+explicit x86 ABIs. New adaptive search/cell/map/node prefixes distinguish the
+DWORD cell stamp from the ushort node index and type the actual setup/reset/
+creation operands. Unknown bytes remain undefined. One variant of the existing
+adaptive oracle and strengthened existing map contracts preserve these checks;
+no task IDs are added or split. Capacity, special-edge producers and complete
+public scheduler/callback composition remain separate.
+
+See [corpus](retail-pathfinding-corpus.md#adaptive-stamp-and-class-restoration),
+[search evidence](retail-pathfinding-search.md#complete-adaptive-request-oracle)
+and [backlog](retail-pathfinding-todo.md#acc-05--adaptive-storage-lifetime).

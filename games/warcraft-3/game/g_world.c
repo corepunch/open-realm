@@ -175,6 +175,9 @@ static void move_acc_prepare(void) {
 }
 
 #ifdef BZ_TESTS
+wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void) {
+    return &move_acc;
+}
 wc3FineSearch_t const *G_TestMoveFineSearch(void) {
     return &move_fine;
 }
@@ -274,8 +277,10 @@ static void move_acc_object_rectangle(edict_t const *object, bool clear) {
     FOR_LOOP(lane,4) {
         for(int y=miny;y<maxy;y++)for(int x=minx;x<maxx;x++) {
             unsigned blocked=0;
+            /* Original15cf80 restores coarse ground6, including no-fly4,
+             * just as the initial hierarchy bake does. Fine ground stays2. */
             if (!clear) FOR_LOOP(dy,2)FOR_LOOP(dx,2)
-                blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,move_acc_masks[lane]);
+                blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
             move_acc_classes[lane][0][y*move_acc.maps[0].width+x]=clear ? 0 : blocked==4 ? 1 : blocked ? 2 : 0;
         }
         int lo_x=minx,lo_y=miny,hi_x=maxx,hi_y=maxy;

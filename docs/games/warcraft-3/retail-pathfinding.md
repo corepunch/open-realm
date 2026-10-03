@@ -666,3 +666,12 @@ C and both traversal orders in G_BuildUnitMoveLocalRoute. Engine sparse lookup
 clearing needs no new gameplay counter or persistent field. Capacity and
 historical-cycle claims remain excluded. See
 [fine stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state).
+
+Payoff78 closes existing ACC-05.2: eight complete400-work adaptive requests
+cross DWORD stamp wrap, all four native lanes and sizes1/2;511 final node
+states/work/routes match clean controls, C and repeated actual engine owned
+routes. Three full no-fly-only exclusion/restore controls also reproduce eight
+stale engine ground classifications. Post-exclusion rebuild now uses original
+coarse ground6, matching initial loading. Metadata warmup and seeded counter
+history are explicit; capacity/public scheduler/special-edge producers remain
+open. See [adaptive reuse](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications).
