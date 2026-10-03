@@ -587,3 +587,12 @@ changes. The accompanying [engine port](retail-pathfinding-engine.md#public-capt
 matches initial travel through23.8s. The23.91s private fine retry, autonomous
 occupied-home policy and whole moving journeys remain open; these annotations
 do not close the general captain pathfinding contract.
+
+Payoff69 types168b80 `Path_SetDestination`,168740 `Path_ResetBuffers` and1687e0
+`Path_ClearProgressRetryAndDelay` with explicit ECX/stack storage. A changed
+private member destination calls mode-1/clear-retry1/unlink0/clear-results1 before
+route waiting; delay94 and retry98 clear while timestamps, storage and blocker
+identity survive. Counter1821's actual pending20→0 transition is composed with
+the engine's exact27.2-second GoHome continuation. Saved readback now has613
+roles,53 layouts/328 fields,284 explicit ABIs and58 globals. The remaining
+27.27-second one-point refill is [separately recorded](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits).

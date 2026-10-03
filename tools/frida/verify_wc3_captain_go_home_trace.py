@@ -16,7 +16,7 @@ END_WORD = 0x41be6666
 START_WORD = 0x41900000
 
 
-def continuation(rows):
+def continuation(rows, end_word=END_WORD, counter_end=1817):
     movers = births(rows)
     actors = [r for r in rows if r.get('event') == 'movement-mask-publication' and r.get('rawcode') == 0]
     if len(actors) != 1:
@@ -28,7 +28,7 @@ def continuation(rows):
     motion = []
     ranges = []
     for r in rows:
-        if r.get('event') == 'velocity-commit' and r['after'][0] <= END_WORD:
+        if r.get('event') == 'velocity-commit' and r['after'][0] <= end_word:
             if r['mover'] in movers:
                 motion.append([movers.index(r['mover']), *[r['after'][i] for i in (0, 2, 3, 4, 5, 7)]])
             elif r['mover'] == actor['mover'] and r['after'][0] >= START_WORD:
@@ -39,7 +39,7 @@ def continuation(rows):
             if not ranges or ranges[-1] != r['storedRange']:
                 ranges.append(r['storedRange'])
     shared = shared_state(rows)
-    footprints = [[r[0], r[2], r[3], r[4]] for r in shared['footprints'] if r[0] <= 1817]
+    footprints = [[r[0], r[2], r[3], r[4]] for r in shared['footprints'] if r[0] <= counter_end]
     markers = [r['value'] for r in rows if r.get('event') == 'captain-marker']
     return dict(motion=motion, footprints=footprints, virtual_profile=profile,
                 virtual_ranges=ranges, identities=shared['identities'], markers=markers)

@@ -686,3 +686,11 @@ owner updates. Two retail captures and actual public AI/save continuations match
 6251 motion commits and398 footprints through23.8s. Private follow retries after
 that point and autonomous occupied-home admission remain open.
 See [CaptainGoHome evidence and limits](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain).
+
+Payoff69 extends exact moving-captain travel through27.2s (7419 commits and624
+footprints). An accepted changed member destination now resets fine/adaptive
+buffers, retry and delay before advancing the existing neighbour wait. Retail's
+pending20-tick delay clears at the same point; saved continuations agree before
+and after the reset. The next difference at27.27s is a one-point failed fine
+refill, whose caller retains a coarse waypoint; formation destinations already
+match. See [the evidence and remaining scope](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits).

@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "complete_scene_journeys": false,
+  "whole_retail_pathfinder": false,
+  "one_point_refill_remains_open": true,
+  "engine_end_msec": 27200,
+  "engine_commits": 7419,
+  "virtual_commits": 306,
+  "shared_footprints": 624,
+  "base_fixture": "retail-captain-go-home-1.27.json",
+  "base_sha256": "25637b31810436f1e7eefa75c6dd10fbdcab07a5eaefbfdfb4ac93d031bdd5b9",
+  "motion_sha256": "900ce7bc9773599131b9721294a98d935e0be3ee8d27403695e7238e3b1fe186",
+  "footprints_sha256": "27846b128923194d11e739587147fc5bcea0c10c6cb6a403c59fe117131be8ad",
+  "reset_witness": {
+    "before_delay": 20,
+    "after_delay": 0,
+    "source": [
+      1126192892,
+      1113215205
+    ],
+    "destination": [
+      1126531208,
+      1116880010
+    ],
+    "outputs": [
+      0,
+      1073729781,
+      0,
+      0,
+      0
+    ],
+    "changed": 1,
+    "ready": 1,
+    "timestamps": [
+      0,
+      0
+    ]
+  },
+  "engine_header_sha256": "ef5004c264e41e32df2ae6c615cc8191b8dc792561541dcf4da6b712268a2590",
+  "cases": [
+    {
+      "trace": "captain-thirteen-mixed-cancel-all-go-home-south-v1-first-261003.jsonl",
+      "trace_sha256": "6ddf3d6e4b4db7d3db7bc5c2cf9fff50f6b6150bb755b347d8ba0a1fa3ddbdfe",
+      "bytes": 44952361,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "a2302827ca2cdd53fb9d2f73d6bab188bd1171c336d7cb82bb999328a9fb4bd8",
+          "trace_wc3_pathfinding.py": "420c9f997309695312757fc2f1e0fb8df83c2041ea27ed09ce220ff54435b4e0",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "dcec04c8d0d1f96505c3d0956c461a51d0d3973e6651b8d9e2cd224e55c271d3"
+        },
+        "map": "Maps\\PathingRE-CZGS13V1-261003.w3m",
+        "seconds": 150.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 30000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      },
+      "velocity_commits": 10479
+    },
+    {
+      "trace": "captain-thirteen-mixed-cancel-all-go-home-south-v1-repeat-261003.jsonl",
+      "trace_sha256": "3da408c808d5a917508d2e3a95ce0fad793931f22b441332fa145b3c3eb569eb",
+      "bytes": 45140538,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "a2302827ca2cdd53fb9d2f73d6bab188bd1171c336d7cb82bb999328a9fb4bd8",
+          "trace_wc3_pathfinding.py": "420c9f997309695312757fc2f1e0fb8df83c2041ea27ed09ce220ff54435b4e0",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "dcec04c8d0d1f96505c3d0956c461a51d0d3973e6651b8d9e2cd224e55c271d3"
+        },
+        "map": "Maps\\PathingRE-CZGS13V1-261003.w3m",
+        "seconds": 140.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 30000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      },
+      "velocity_commits": 10648
+    }
+  ],
+  "scope": "Accepted changed member destination resets both search buffers, retry and pending20-tick delay before route/wait advancement. Public CaptainGoHome travel matches7419 commits,306 virtual commits and624 shared footprints through27.2s. One-point failed refill at27.27s and complete journey remain open."
+}

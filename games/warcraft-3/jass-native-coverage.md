@@ -58,7 +58,8 @@ Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`
 `CaptainGoHome()` is registered in `api_ai.h` and selects the current AI player's
 attack captain. Move owns its moving virtual actor, retained500-unit request,
 200-unit all-entered arrival request and12+1 roster batching. Public AI travel
-and saved continuations match retail through23.8s; later private follower retries,
+and saved continuations initially match retail through23.8s. Changed-destination
+wait reset extends the verified continuation through27.2s; one-point fine refills,
 autonomous occupied-home admission, empty/larger rosters and general retreat
 policy remain open. See [the implementation and exact scope](../../docs/games/warcraft-3/retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain).
 

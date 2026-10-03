@@ -1165,3 +1165,21 @@ Validation: full debug/release RoC/TFT pass2412 tests/2427132 assertions per edi
 All416 Python pathfinding checks and44 fresh corpus contracts pass with141
 source fingerprints; inventory287 entries/129 fixtures/70 strict live entries.
 The required release `make test` also passes.
+
+## Accepted captain destination clears its old wait
+
+`live-captain-retarget-captures-261003` composes the original GoHome reference
+with only the subsequent1168 motion rows and226 footprint rows through27.2s.
+The total7419 commits include306 virtual commits;624 footprints and10606 saved
+suffix commits are exact in actual engine frames. The native counter1821 witness
+requires pending delay20, changed1/ready1, timestamps0/0 and final delay0 with
+heading3fffd0f5. A stalled old partial route cannot satisfy that contract.
+The first/repeat full captures remain independently authenticated and uncapped.
+One-point fine refill at27.27s and complete moving journey remain explicitly
+open. Inventory is288 entries/130 pinned fixtures/71 strict live entries.
+See [the reset ordering and next mismatch](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits).
+
+Validation: full debug/release RoC/TFT pass2413 tests/2627883 assertions per edition.
+All429 Python checks and45 fresh corpus contracts pass with142 source
+fingerprints. Inventory288 entries/130 fixtures/71 strict live entries.
+The required release `make test` also passes.

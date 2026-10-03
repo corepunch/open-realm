@@ -6347,3 +6347,66 @@ Validation: full debug/release RoC/TFT pass2412 tests/2427132 assertions per edi
 All416 Python pathfinding checks and44 fresh corpus contracts pass with141
 source fingerprints; inventory287 entries/129 fixtures/70 strict live entries.
 The required release `make test` also passes.
+
+## Changed captain destination resets pending waits
+
+Payoff69 fixes the first remaining private follower mismatch from payoff68.
+The extended31-second reference first reproduced birth8's mismatch at23.91s.
+A direct engine breakpoint then showed `wait=20`, `retry=0`, `path.valid=0`,
+old two-point partial fine storage and old adaptive goal165.540665/75.648605,
+even though the member's destination had changed to165.502075/73.118240.
+The cached fine source was not a new prediction failure: the pending neighbour
+wait bypassed the refill and kept the old route. This supersedes payoff68's
+stale-source hypothesis.
+
+Retail counter1821 begins that same member update with delay20. Both the coarse
+and member replan predicates report changed1/ready1 with timestamps0/0.
+`16fbd0` calls `168b80` before advancing the route/wait. `168b80` invokes
+`168740` with mode-1, clear-retry1, unlink0 and clear-results1. Both buffers
+reset; `1687e0` clears path+94 delay, path+98 retry and path+88 progress bit.
+Timestamps, allocated storage and blocker identity are preserved. The member
+then rebuilds its coarse route and its three-point partial fine route with12
+pops. Its heading becomes `3fffd0f5`, speed remains zero, and delay is zero.
+The accepted destination change must reach this reset before the engine's wait
+gate; erasing blocker identity is not part of the native reset.
+
+Move now compares the previous and new member destinations in native shifted
+fine-cell buckets while publishing the member destination. A changed bucket
+clears fine/adaptive counts and indices, partial state, retry and delay before
+`move_group_decide`. This uses the existing destination-admission policy;
+delayed readiness/timestamp producers remain TARGET-02.1. No captain-specific
+branch, numerical kernel, save layout or client contract is added.
+
+The same two readonly public GoHome captures now match7419 exact engine
+commits through27.2s, including306 moving virtual commits and624 shared
+footprints. The new literal header contains only the1168 motion rows and226
+footprint rows after payoff68's prefix, so the previous reference remains
+independently authenticated. Eight additional checkpoints at18030/23000/23820/
+23905/23910/23940/25000/27000ms reproduce10606 exact saved suffix commits,
+including before and after the accepted changed destination. The original
+6251-commit regression also remains exact.
+
+The next mismatch at27.27s is **one-point fine refill behavior**, not a different
+formation destination. Both retail and engine retain birth4's adjusted destination
+151/59. Retail's fine search toward161/47 exhausts701 pops with one reconstructed
+point equal to the current source161.499832/49.912647. The native caller discards
+that fine index, changes its adaptive index7→2, keeps retry6 and turns toward
+the selected coarse waypoint while committing zero speed. The engine publishes a zero-buffer state and turns toward the final adjusted
+member destination. Immediate retry consumption of the new one-point endpoint
+is a hypothesis to check at that caller. This requires a separate refill/return
+policy port; it is not evidence to change formation layout or fine A* ordering.
+Neither27.2s parity nor closed captures prove the whole moving journey.
+
+`retail-captain-retarget-1.27.json` and
+`verify_wc3_captain_retarget_trace.py` retain both capture hashes, the original
+GoHome fixture hash, counter1821's normalized20→0 witness, initial/tail header
+composition and repeated full scalar/primary clock checks. Ghidra adds explicit
+ECX/stack ABIs for168b80,168740 and1687e0 and updates their caller comments;
+saved readback retains613 roles,53 layouts/328 fields,284 explicit ABIs and58
+globals with no unsaved changes. GROUP-03.4.7.2.1 closes this reset slice;
+GROUP-03.4.7.2.2 owns the one-point refill and remaining moving journey.
+
+Validation: full debug/release RoC/TFT pass2413 tests/2627883 assertions per edition.
+All429 Python checks and45 fresh corpus contracts pass with142 source
+fingerprints. Inventory288 entries/130 fixtures/71 strict live entries.
+The required release `make test` also passes.

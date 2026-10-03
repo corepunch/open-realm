@@ -3221,12 +3221,23 @@ static bool move_group_route(moveGroup_t *group) {
     box2_t bounds=CM_GetWorldBounds();
     FOR_LOOP(i,group->count) {
         moveGroupMember_t *member=group->members+i;
+        vec2_t previous=member->destination;
         member->offset=(vec2_t){members[i].offset[0],members[i].offset[1]};
         member->destination=(vec2_t){wc3_add(point.x,member->offset.x),wc3_add(point.y,member->offset.y)};
         member->flags&=~0x70000u;
         if ((member->offset.x!=0 || member->offset.y!=0) &&
             G_AdjustUnitMoveFormationDestination(member->unit,point,&member->destination)) member->flags|=0x40000;
         member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
+        /* Native16fbd0 accepts a changed destination before advancing waits.
+         * 168b80 resets both buffers and1687e0 clears retry/delay; a pending
+         * neighbour wait must not preserve the old partial route. */
+        if (((int32_t)floorf(previous.x)>>1)!=((int32_t)floorf(member->destination.x)>>1) ||
+                ((int32_t)floorf(previous.y)>>1)!=((int32_t)floorf(member->destination.y)>>1)) {
+            edict_t *unit=member->unit; moveFineRoute_t *route=&unit->movement.fine_route;
+            route->count=route->adaptive_count=0;
+            route->index=route->adaptive_index=UINT32_MAX; route->partial=false;
+            unit->movement.retry_count=unit->movement.wait_delay=0;
+        }
         member->unit->movement.path.valid=false;
     }
     return true;

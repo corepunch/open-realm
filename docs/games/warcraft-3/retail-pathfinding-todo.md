@@ -8,24 +8,25 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**144 done / 334 tasks; 190 remaining.** Payoff68 implements the missing
-public CaptainGoHome native and closes GROUP-03.4.7.1 for the initial moving
-captain travel. Both uncapped retail repeats agree on6251 movement commits
-(193 virtual) and398 shared footprints through23.8s. Actual public AI frames
-and eight Save88 checkpoints reproduce11228 exact saved suffix commits.
-Ghidra retains613 saved roles,53 layouts/328 fields,281 explicit ABIs and58
-globals. The500-unit retained request remains distinct from the tightened200-unit
-actor arrival policy. This is a bounded engine port, not whole-journey parity.
-Full debug/release RoC/TFT pass2412 tests/2427132 assertions per edition;416 Python
-checks and44 fresh corpus contracts pass with141 source fingerprints. Inventory
-is287 entries/129 fixtures/70 strict live entries. Required release `make test` passes.
-The next runnable ID is GROUP-03.4.7.2: the private follower fine retry first
-diverges at23.91s. GROUP-03.4.7.3 retains autonomous occupied-home admission,
-empty/larger rosters and other captain policies. Final-binding RemoveUnit/retarget
-still belongs to03.4.6.2.2.2.2.2; the new shared generation in GoHome does not
-prove those controls. Earlier complete stationary mixed13 and largest-only
-journeys remain required regression contracts. Private AI VM restoration stays
-open; all new saved checkpoints occur after the public GoHome call.
+**145 done / 335 tasks; 190 remaining.** Payoff69 closes GROUP-03.4.7.2.1:
+accepted moving-member destinations reset search buffers, retry and pending
+neighbour delay before wait advancement. Counter1821's actual20→0 delay reset
+corrects the stale partial-route heading at23.91s. The existing public GoHome
+scene now matches7419 engine commits (306 virtual) and624 shared footprints
+through27.2s; eight checkpoints match10606 saved suffix commits. Payoff68's
+6251-commit initial reference remains independently exact. Ghidra saves613 roles,
+53 layouts/328 fields,284 explicit ABIs and58 globals.
+Full debug/release RoC/TFT pass2413 tests/2627883 assertions per edition. All429 Python
+checks and45 fresh contracts pass with142 source fingerprints. Inventory288
+entries/130 fixtures/71 strict live entries. Required release `make test` passes.
+The next runnable ID is GROUP-03.4.7.2.2: birth4's one-point exhausted fine refill
+at27.27s. Both formation destinations match151/59; native fine search returns
+one source point, retains retry6 and turns toward a selected coarse waypoint.
+The engine turns toward the final member destination after losing the fine
+buffer; immediate retry consumption of the new endpoint needs a caller check. Whole moving journeys remain open. GROUP-03.4.7.3
+retains wider home/retreat/empty/larger-roster policy. Final-binding RemoveUnit/
+retarget remains03.4.6.2.2.2.2.2. Private AI VM restoration remains open; new
+checkpoints occur after the public GoHome call.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -47,7 +48,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 33 | 12 |
+| GROUP — Shared movement groups | 34 | 12 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -752,7 +753,10 @@ and the wider mixed cancellation/reclamation control:
 **GROUP-03.4.7 — Moving captain policies.** Explicitly split initial public native travel, its private retry continuation and wider home/retreat admission from03.4's moving-captain requirement.
 
 - [x] **GROUP-03.4.7.1** Implement public CaptainGoHome through the AI player's attack captain, retain occupied home requests, virtual minimum roster speed/turn/window,500-versus200 request policy, shared12+1 batching, near-home no-op and idle-member private approach. [Payoff68](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain) compares both uncapped repeats through23.8s:6251 exact engine commits including193 virtual,398 footprints and11228 exact saved suffix commits. Saved Ghidra functions, fields, constants and explicit calling conventions retain the evidence. This closes initial travel only.
-- [ ] **GROUP-03.4.7.2** Continue moving-captain private follower retries through natural completion and saved continuations. First mismatch at23.91s: birth8's retail partial fine route has three points/12 pops; engine retains two points with a source resembling the prior23.82s pose. Trace current predicted pose, route/source publication and dynamic fine blockers at that consumer before changing search policy. Repeated closed captures alone do not prove a completed journey.
+**GROUP-03.4.7.2 — Moving captain retry continuation.** Split accepted destination/wait reset from one-point refill and subsequent complete travel.
+
+- [x] **GROUP-03.4.7.2.1** Reset both member search buffers, retry and pending delay before advancing a newly accepted shifted-cell destination. [Payoff69](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits) authenticates native counter1821's20→0 delay reset and three-point refill; the reproduced engine retained delay20 and its old partial route. Public GoHome now matches7419 commits including306 virtual,624 footprints and10606 exact saved suffix commits through27.2s. Saved Ghidra ABIs/comments retain168b80→168740→1687e0 and the native caller ordering. Timestamp producer domains and later refills remain open.
+- [ ] **GROUP-03.4.7.2.2** Port one-point exhausted fine refill and its retained coarse-waypoint return policy, then continue moving captain travel through natural completion and saved continuations. First mismatch now27.27s: birth4's final adjusted formation destination151/59 already matches, while retail's fine search toward161/47 returns only the source after701 pops. Native fine index invalidates, adaptive index7→2 and retry6 remains; engine loses the fine buffer and turns toward the final destination. Check whether the new one-point endpoint is consumed as a retry immediately. Compare caller output/next owner state before changing search policy. Closed captures do not prove natural completion.
 - [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:

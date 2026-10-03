@@ -7571,6 +7571,75 @@
         }
       ],
       "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f168b80",
+      "name": "Path_SetDestination",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "destination",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "replace_requested",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Complete x86 body; readonly SouthGoHome member1821 starts delay20, accepts changed destination and clears buffers/retry/delay before fine refill. Engine initial continuation verified through27.2s only; one-point refill and full journeys remain open."
+    },
+    {
+      "address": "6f168740",
+      "name": "Path_ResetBuffers",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "clear_retry",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "unlink_request",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "clear_results",
+          "type": "u32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Complete x86 body; readonly SouthGoHome member1821 starts delay20, accepts changed destination and clears buffers/retry/delay before fine refill. Engine initial continuation verified through27.2s only; one-point refill and full journeys remain open."
+    },
+    {
+      "address": "6f1687e0",
+      "name": "Path_ClearProgressRetryAndDelay",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete x86 body; readonly SouthGoHome member1821 starts delay20, accepts changed destination and clears buffers/retry/delay before fine refill. Engine initial continuation verified through27.2s only; one-point refill and full journeys remain open."
     }
   ],
   "globals": [
