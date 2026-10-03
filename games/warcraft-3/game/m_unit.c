@@ -492,6 +492,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "attack", 851983, 0 },
     { "attackground", 851984, 0 },
     { "move", 851986, 0 },
+    { "patrol", 851990, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
@@ -1219,6 +1220,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
      * leave the first group-request heading one word apart from retail. */
     unit->s.angle = wc3_mul(facing,wc3_float(0x3c8efa35));
     G_ActivateUnitFood(unit);
+    G_BotUnitReady(unit);
     return unit;
 }
 
@@ -1950,6 +1952,7 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
             G_HeroModifySkillPoints(ent, 1);
             G_PublishEvent(ent, EVENT_PLAYER_HERO_LEVEL);
             G_PublishEvent(ent, EVENT_UNIT_HERO_LEVEL);
+            G_BotHeroLevelUp(ent);
         }
     }
 }

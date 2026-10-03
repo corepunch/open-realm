@@ -16,7 +16,7 @@ simulation event / JASS native
 
 The server does not move the camera when an alert is emitted, and a ping does not change fog or selection. Recent-alert state is client-local and is not added to `playerState_t`/`entityState_t`.
 
-The wire contract is the generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
+The wire contract is the existing generic `svc_minimap_ping` message: world position, lifetime, RGBA color, and behavior flags. The packet keeps its existing layout and uses the client's generic marker sizing. The authored alert model name is the server-owned `CS_MINIMAP` configstring, following Quake's `CS_SKY` pattern; `client/cl_minimap.c` loads it through the normal configstring lifecycle. No minimap state belongs to a game UI library.
 
 Ordinary minimap unit/building contacts are not pings. Warcraft III assigns its contact classes to the generic three-bit `EFX_GAME_VARIANT_*` payload in `entityState_t.effect_flags`; shared/client code carries that payload opaquely and the WC3 renderer interprets it. See [minimap markers](minimap-markers.md). A ping is a transient attention event, analogous to `svc_sound`, and therefore does not use the automatic-contact variant or survive save/load.
 
@@ -34,7 +34,27 @@ The following high-confidence gameplay completions also call `G_SendOwnerMinimap
 
 The completion path currently uses a one-second alert-ping lifetime. That is an implementation default, not a measured retail constant; do not treat it as proven Warcraft timing.
 
-Under-attack/town/allied alert production is not implemented yet. Its throttling/coalescing policy is not established in the current codebase and should be measured before adding it rather than emitting one alert per damage event. Hero-revive and building-morph completion alerts are likewise separate work.
+Automatic normal-weapon attack alerts are also produced by the WC3 game module. The resolved primary weapon-hit path calls `G_WC3_AttackAlert()` before applying the hit; direct spell, DoT, splash, and scripted `T_Damage()` callers do not automatically become attack alarms. A qualifying remote alert:
+
+- resolves `AttackNotifyDelay` and `AttackNotifyRange` from the active Misc data, with stock fallbacks of 30 seconds and 1250 world units;
+- resolves the stock `Units\\CommandStrings.txt` advisor text (`Unitattack` / `Townattack`) through the same archive/`TRIGSTR` string path used elsewhere; retail comments out the `[AdvisorStrings]` header, so those keys are read from the active `[Errors]` section, with explicit `[AdvisorStrings]` overrides preferred;
+- resolves allied advisor text through `Allyunderattack` / `Allytownattack` and substitutes the attacked player's current name for the stock `%s` token;
+- presents advisor text through the ordinary transient gameplay-message layer, not the command-error HUD and not the persistent Message Log;
+- uses the recipient's race/map skin `UnderAttackSound` or `TownAttackSound`;
+- uses `AllyUnderAttackSound` / `AllyTownUnderAttackSound` for passive allies for whom the attacked owner has `ALLIANCE_HELP_REQUEST`;
+- emits a transient opaque-red minimap attention signal with `MINIMAP_PING_REMEMBER`, using the recipient's `MinimapIndicator` model, so only notifications which survive range/cooldown filtering enter the existing eight-entry Space history;
+- never changes the ordinary minimap contact, fog, selection, or camera position.
+
+The following compatibility choices are deliberately marked in code with `BZ_COMPAT_GUESS` because the available retail-facing data names the feature but does not fully specify the runtime rule:
+
+1. `AttackNotifyRange` is currently interpreted as Euclidean world distance from the recipient's authoritative camera target position to the victim.
+2. All attack-alert classes for a recipient share one `AttackNotifyDelay` cooldown.
+3. An authored building (`G_UnitIsBuilding`) is classified as a town alert; other units use the forces alert.
+4. The attacked signal currently uses opaque red and the recipient's normally authored `MinimapIndicator`, with the existing one-second alert lifetime. Warcraft exposes a dedicated attacked-signal color, but the underlying raw Misc field and exact retail lifetime/animation have not yet been recovered in-tree.
+5. The automatic alarm is currently produced on a resolved primary normal-weapon hit. This intentionally excludes direct spell/DoT/script damage, but direct retail capture is still needed to decide whether a missed/evaded attack should alarm earlier at swing or projectile-launch time.
+6. Advisor text uses the existing gameplay-message overlay's automatic duration rule (message length / 6 + 5 seconds) and no dedicated fade. The retail `[AdvisorStrings]` keys/wording are data-backed; the exact retail advisor position, lifetime, and fade curve still need direct capture.
+
+These guesses are confined to the attack-alert call site and `g_minimap.c`; replacing any of them after direct retail capture must not require changes to generic damage or ordinary minimap contact rendering. The generic ping packet intentionally retains its stable position/lifetime/RGBA/flags layout; matching a unit, building, or Hero alert to its WC3 contact footprint would require an approved wire-format change. Hero-revive and building-morph completion alerts remain separate work.
 
 ## JASS Minimap Pings
 
@@ -50,7 +70,7 @@ For rectangular Warcraft maps, world-space minimap content must **not** be stret
 
 `client/cl_minimap.c` stores up to 16 simultaneously active visual pings. Sixteen is an OpenRealm implementation cap, not a retail Warcraft constant. When all slots are occupied, the oldest active visual ping is replaced. Lifetime uses the normal advancing `cl.time` clock.
 
-`FT_MINIMAP` invokes `CL_LayoutDrawMinimap()`, which first asks the game renderer to draw terrain, fog, entities, and camera bounds, then draws active attention markers. A nonzero model index uses the registered authored model. Model zero, or an unavailable model after a logged warning, uses the generic colored cross/pulse.
+`FT_MINIMAP` invokes `CL_LayoutDrawMinimap()`, which first asks the game renderer to draw terrain, fog, entities, and camera bounds, then draws active attention markers. A nonzero model index uses the registered authored model. Model zero, or an unavailable model after a logged warning, uses the generic colored cross/pulse. The stable packet carries no marker-size field, so pings use the authored model or the generic fallback size.
 
 `MDLX_DrawSpriteTinted()` temporarily replaces `tr.viewDef`. Because minimap pings are drawn after the world, it must restore the previous `tr.viewDef` after its sprite pass; otherwise a post-world sprite can corrupt renderer state expected by subsequent HUD/overlay work.
 

@@ -46,9 +46,9 @@ static bool entity_is_pathing_ignored(edict_t const *ent) {
     return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction.active;
 }
 
-/* WC3 pathing TGAs are transposed relative to model/world axes.  Only bridge
- * targets use the authored angle to select a quarter-turn; ordinary footprints
- * retain their existing unrotated contract. */
+/* WC3 pathing TGAs are transposed relative to model/world axes. Destructable
+ * path textures follow their facing regardless of rawcode or target type;
+ * non-destructable footprints retain their axis-aligned contract. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     pathTex_t const *pt = params ? params->pathtex : NULL;
     float const angle = params && params->ent ? params->ent->s.angle : 0.0f;
@@ -59,7 +59,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
-    if (!params->ent || params->ent->targtype != TARG_BRIDGE)
+    if (!params->ent || !params->ent->destructable.initialized)
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 
@@ -448,11 +448,11 @@ static bool move_foot_ok(moveFineGraph_t const *graph, wc3FinePoint_t pos) {
     return true;
 }
 
-uint32_t G_RequestMovePathField(edict_t const *goal, float radius, uint8_t flags) {
+uint32_t G_RequestMovePathField(edict_t const *mover, edict_t const *goal, float radius, uint8_t flags) {
     pathGridQuery_t query = move_field_shape(radius, flags);
     point2_t target;
     if (!resolve_heatmap_request(goal, &query, &target)) return 0;
-    return request_heatmap_query(target, &query);
+    return request_heatmap_query(target, &query, (edict_t *)mover, (edict_t *)goal);
 }
 
 bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags) {

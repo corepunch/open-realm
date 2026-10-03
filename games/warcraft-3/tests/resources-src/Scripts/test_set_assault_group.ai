@@ -1,0 +1,6 @@
+function main takes nothing returns nothing
+    call InitAssaultGroup()
+    call SetAssaultGroup(2, 5, 'hfoo')
+    call SetAssaultGroup(1, 1, 'hfoo')
+    call FormGroup()
+endfunction

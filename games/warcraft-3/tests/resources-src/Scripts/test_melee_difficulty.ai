@@ -1,0 +1,4 @@
+function main takes nothing returns nothing
+    call SetReplacementCount(MeleeDifficulty())
+    call Sleep(1000.0)
+endfunction

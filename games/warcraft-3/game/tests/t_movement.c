@@ -70,6 +70,7 @@ void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 void CM_ProcessPathJobs(uint32_t work_budget);
 bool run_test_jass(cstring_t src);
+uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius);
 extern void ai_train_build(edict_t *ent);
 
 
@@ -8703,6 +8704,187 @@ TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
     }
 
     T_STREQ(unit->currentmove->animation, "walk");
+}
+
+TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
+    enum { PATH_W = 352, PATH_H = 160 };
+    static uint8_t pathmap[PATH_W * PATH_H];
+    vec2_t const start = { 4652.822f, -1692.506f };
+    vec2_t const tower_pos = { 4736.0f, -1792.0f };
+    vec2_t const target_pos = { -512.0f, -4352.0f };
+    box2_t const bounds = { .min = {-6144.0f, -4608.0f}, .max = {5120.0f, 512.0f} };
+    edict_t *attacker, *tower, *corridor_tower, *target;
+    float start_distance;
+
+    memset(pathmap, 0, sizeof(pathmap));
+    /* The dump's 0x42 tower cells occupy world cells x=146..149, y=-55..-57.
+     * These are the observed static cells; all other cells are deliberately open. */
+    for (int y = -57; y <= -55; y++)
+        for (int x = 146; x <= 149; x++)
+            pathmap[(x + 192) + (y + 144) * PATH_W] = 0x42;
+    /* The follow-up route trace exposed another tower directly ahead of the
+     * unit: about 256 units along the goal line and 20 units off its center. */
+    for (int y = -57; y <= -54; y++)
+        for (int x = 136; x <= 140; x++)
+            pathmap[(x + 192) + (y + 144) * PATH_W] = 0x42;
+
+    attacker = make_moving_unit(start.x, start.y);
+    attacker->class_id = MAKEFOURCC('h','f','o','o');
+    attacker->s.player = 0;
+    attacker->collision = 31.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+
+    tower = alloc_test_unit(MAKEFOURCC('h','c','t','w'), tower_pos.x, tower_pos.y);
+    tower->s.player = 0;
+    tower->collision = 64.0f;
+    tower->aiflags |= AI_IMMOBILE;
+    tower->runtime.flags |= UNIT_BALANCE_BUILDING;
+    tower->bounds = (box2_t){
+        .min = {tower_pos.x - tower->collision, tower_pos.y - tower->collision},
+        .max = {tower_pos.x + tower->collision, tower_pos.y + tower->collision},
+    };
+    gi.LinkEntity(tower);
+
+    corridor_tower = alloc_test_unit(MAKEFOURCC('n','d','g','t'), 4416.0f, -1792.0f);
+    corridor_tower->s.player = 7;
+    corridor_tower->collision = 64.0f;
+    corridor_tower->aiflags |= AI_IMMOBILE;
+    corridor_tower->runtime.flags |= UNIT_BALANCE_BUILDING;
+    corridor_tower->bounds = (box2_t){
+        .min = {corridor_tower->s.origin2.x - corridor_tower->collision,
+                corridor_tower->s.origin2.y - corridor_tower->collision},
+        .max = {corridor_tower->s.origin2.x + corridor_tower->collision,
+                corridor_tower->s.origin2.y + corridor_tower->collision},
+    };
+    gi.LinkEntity(corridor_tower);
+
+    target = alloc_test_unit(MAKEFOURCC('U','k','t','l'), target_pos.x, target_pos.y);
+    target->s.player = 6;
+    target->targtype = TARG_GROUND;
+    target->collision = 32.0f;
+    target->health.value = target->health.max_value = 1000.0f;
+    gi.LinkEntity(target);
+
+    CM_SetupTestPathmap(PATH_W, PATH_H, pathmap);
+    CM_SetupTestWorldBounds(&bounds);
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    start_distance = Vector2_distance(&attacker->s.origin2, &target->s.origin2);
+
+    for (int i = 0; i < 240; i++) {
+        CM_ProcessPathJobs(4096);
+        if (attacker->currentmove && attacker->currentmove->think)
+            attacker->currentmove->think(attacker);
+    }
+
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) < start_distance - 1000.0f);
+    T_ASSERT(attacker->goalentity == target);
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) <=
+        attacker->attack1.range + attacker->collision + target->collision + 16.0f);
+}
+
+TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes) {
+    enum { PATH_W = 256, PATH_H = 256, COMPETING_JOBS = 24 };
+    static uint8_t pathmap[PATH_W * PATH_H];
+    box2_t const bounds = { .min = {-4096.0f, -4096.0f}, .max = {4096.0f, 4096.0f} };
+    edict_t *attacker, *target, *other_goals[COMPETING_JOBS];
+    cmPathJobStatus_t path_job;
+    vec2_t const start = {-1500.0f, 0.0f};
+    vec2_t const target_pos = {1500.0f, 0.0f};
+    vec2_t const start_origin = start;
+    float start_distance;
+    bool resumed = false;
+    int next_competing_job = 1;
+
+    memset(pathmap, 0, sizeof(pathmap));
+    /* A tower footprint makes the attack target's center route require the
+     * shared flow field, matching the long-range CmdAttack trace. */
+    for (int y = 126; y <= 132; y++)
+        for (int x = 126; x <= 130; x++)
+            pathmap[x + y * PATH_W] = 0x42;
+    attacker = make_moving_unit(start.x, start.y);
+    attacker->s.player = 0;
+    attacker->collision = 31.0f;
+    attacker->unitinfo.MoveSpeed = 300.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.range = 100.0f;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+
+    target = alloc_test_unit(MAKEFOURCC('h','c','t','w'), target_pos.x, target_pos.y);
+    target->s.player = 1;
+    target->targtype = TARG_GROUND;
+    target->collision = 64.0f;
+    target->runtime.flags |= UNIT_BALANCE_BUILDING;
+    target->health.value = target->health.max_value = 1000.0f;
+    target->bounds = (box2_t){
+        .min = {target_pos.x - target->collision, target_pos.y - target->collision},
+        .max = {target_pos.x + target->collision, target_pos.y + target->collision},
+    };
+    gi.LinkEntity(target);
+
+    /* Create unrelated long-route destinations that keep competing for the
+     * shared field while the attacker's route request waits. */
+    for (int i = 0; i < COMPETING_JOBS; i++) {
+        float const x = -3000.0f + (float)(i % 6) * 1000.0f;
+        float const y = 3000.0f - (float)(i / 6) * 1000.0f;
+        other_goals[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    }
+    CM_SetupTestPathmap(PATH_W, PATH_H, pathmap);
+    CM_SetupTestWorldBounds(&bounds);
+
+    T_ASSERT(S_OrderAttack(attacker, target));
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    start_distance = Vector2_distance(&attacker->s.origin2, &target->s.origin2);
+    /* Establish a valid route and move several steps before invalidating the
+     * shared field. The retained direction is then tested during contention. */
+    for (int frame = 0; frame < 8; frame++) {
+        CM_ProcessPathJobs(UINT_MAX);
+        attacker->currentmove->think(attacker);
+        level.time += FRAMETIME;
+    }
+    T_ASSERT(attacker->movement.route_resume_valid);
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f);
+
+    /* Replacing the pathmap invalidates cached shared fields while keeping the
+     * mover's goal and recent validated direction intact. */
+    memset(pathmap, 0, sizeof(pathmap));
+    for (int y = 126; y <= 132; y++)
+        for (int x = 126; x <= 130; x++)
+            pathmap[x + y * PATH_W] = 0x42;
+    CM_SetupTestPathmap(PATH_W, PATH_H, pathmap);
+
+    /* A lower-numbered mover starts first, matching production entity order. */
+    T_EQ(CM_RequestHeatmapForRadius(other_goals[0], 0.0f), 0);
+    T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
+    /* Later movers keep submitting distinct requests before this attacker is
+     * thought. FIFO service must preserve the attacker's earlier place in line. */
+    for (int frame = 0; frame < 12 && !resumed; frame++) {
+        if (next_competing_job < COMPETING_JOBS) {
+            T_EQ(CM_RequestHeatmapForRadius(other_goals[next_competing_job], 0.0f), 0);
+            next_competing_job++;
+        }
+        T_ASSERT(attacker->currentmove && attacker->currentmove->think);
+        attacker->currentmove->think(attacker);
+        T_ASSERT(attacker->goalentity == target);
+        T_ASSERT(attacker->currentmove->proc == CAbilityAttack);
+        resumed = Vector2_distance(&attacker->s.origin2, &start_origin) > 0.01f;
+        if (!resumed) {
+            T_ASSERT(attacker->movement.route_resume_active || attacker->movement.path_wait_active);
+            T_FEQ(attacker->s.origin2.x, start_origin.x, 0.01f);
+            T_FEQ(attacker->s.origin2.y, start_origin.y, 0.01f);
+        }
+        CM_ProcessPathJobs(32768);
+        level.time += FRAMETIME;
+    }
+
+    CM_GetPathJobStatus(&path_job);
+    T_ASSERT(resumed);
+    T_ASSERT(next_competing_job < COMPETING_JOBS);
+    T_ASSERT(path_job.active || path_job.pending_jobs > 0);
+    T_ASSERT(attacker->goalentity == target);
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) < start_distance);
 }
 
 TEST(wc3_movement, near_goal_jitter_settles_to_stand) {

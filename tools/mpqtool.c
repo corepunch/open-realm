@@ -1179,15 +1179,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pack requires <src> <archive-file> pairs\n");
             return 1;
         }
-        {
-            char *pairs[256];
-            int pair_count = 0;
-            pairs[pair_count++] = (char *)arg;
-            for (int i = 0; i < extra_count && pair_count < (int)(sizeof(pairs) / sizeof(pairs[0])); i++) {
-                pairs[pair_count++] = extra[i];
-            }
-            return cmd_pack(mpq, pair_count, pairs);
-        }
+        /* The first source immediately precedes extra in argv. Consume all
+         * pairs: a fixed array silently dropped later fixture archive files. */
+        return cmd_pack(mpq, extra_count + 1, extra - 1);
     }
 
     if (!SFileOpenArchive(mpq, 0, 0, &archive)) {

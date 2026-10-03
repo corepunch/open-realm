@@ -879,6 +879,18 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, production_uses_work_animation) {
+    edict_t *producer;
+
+    setup_test_world();
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+
+    TrainSetBuildMove(producer);
+
+    T_NOT_NULL(producer->currentmove);
+    T_STREQ(producer->currentmove->animation, "stand work");
+}
+
 TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
     gameClient_t *client = &game.clients[0];
     edict_t *producer;

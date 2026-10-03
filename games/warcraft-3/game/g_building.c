@@ -1844,6 +1844,10 @@ void G_CompleteConstruction(edict_t *building) {
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);
 #endif
+    G_BOT_TRACE(building->s.player, NULL, "building_completed",
+               "building=%ld type=%.4s point=(%.1f,%.1f)",
+               (long)(building - g_edicts), (cstring_t)&building->class_id,
+               building->s.origin2.x, building->s.origin2.y);
     G_SetUnitFoodMade(building, building->data.UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
     G_SendOwnerMinimapAlert(building);

@@ -9,6 +9,7 @@
 #include "common/common.h"
 #include "common/weather.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/minimap.h"
 #include "common/stb_fdf.h"
 #include "common/stb_slk.h"
 #include "server/game.h"
@@ -1430,6 +1431,11 @@ typedef enum {
     MOVE_FALLBACK_APPLIED,
 } moveFallbackState_t;
 
+typedef enum {
+    MOVE_DIAG_NONE,
+    MOVE_DIAG_ROUTE_WAIT,
+} moveDiagState_t;
+
 typedef struct edictArtillery_s {
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
@@ -1800,6 +1806,16 @@ struct edict_s {
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
         bool turn_blocked;  /* translation decision from the heading error before this tick's turn */
+        vec2_t route_resume_direction;
+        vec2_t route_resume_goal_origin;
+        edict_t *route_resume_goal;
+        uint32_t route_resume_goal_spawn, route_resume_time;
+        float route_resume_radius;
+        uint8_t route_resume_flags;
+        bool route_resume_valid, route_resume_active;
+        bool path_wait_active;
+        uint32_t path_wait_start, path_wait_goal_number, path_wait_goal_spawn;
+        vec2_t path_wait_origin;
         vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
@@ -1967,6 +1983,9 @@ struct game_locals {
         float structureFollowRange;
         float minUnitSpeed, maxUnitSpeed;
         float minBldgSpeed, maxBldgSpeed;
+        /* Automatic attack alarms use stock MiscGame tuning; map Misc overrides win. */
+        float attackNotifyDelay;
+        float attackNotifyRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -2107,6 +2126,8 @@ typedef struct {
     vec2_t home, goal;
     bool home_set, full;
     wc3Clock_t created; /* Native range subscriptions begin when the virtual captain is created. */
+    uint32_t disadvantage_since; /* group-flee persistence timer; valid while disadvantage_active */
+    bool disadvantage_active;
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2118,7 +2139,18 @@ typedef struct {
     uint32_t class_id;
     vec2_t origin;
     edict_t *unit;
+    int32_t replacements_used;
+    bool replacement_pending;
 } botGuardPost_t;
+
+typedef struct {
+    uint32_t entity_number;
+    uint32_t spawn_time;
+    uint32_t hall_id;
+    vec2_t position;
+    bool valid;
+    bool build_accepted;
+} botExpansion_t;
 
 typedef enum {
     BOT_TARGET_HEROES    = 1 << 0,
@@ -2148,12 +2180,25 @@ typedef struct {
     bool stage_valid;
     vec2_t town_spot; /* ShiftTownSpot override for AI construction search; no world entity is moved */
     bool town_spot_valid;
+    botExpansion_t expansion;
+    edict_t *alliance_target; /* common.ai shared assault target; publication never issues orders */
+    edict_t *enemy_base_target; /* completed StartGetEnemyBase result; NULL until discovery finishes */
+    uint32_t enemy_base_ready_time;
+    bool enemy_base_search_active;
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
     botMode_t mode;
     uint32_t flags;
     int32_t replacement_count;
+    uint32_t hero_id;
+    uint32_t hero_level;
+    bool repair_policy_dirty;
+    uint32_t item_policy_last_scan; /* BZ_COMPAT_GUESS cadence for autonomous Hero item policy */
+    uint32_t hero_buy_last_scan; /* BZ_COMPAT_GUESS cadence for autonomous Hero shop purchases */
+    uint32_t flee_policy_last_scan; /* BZ_COMPAT_GUESS cadence for individual flee evaluation */
+    uint32_t defend_policy_last_scan; /* BZ_COMPAT_GUESS cadence for allied-defense response */
+    bool defend_player_active; /* engine-owned defense-captain diversion created by SetDefendPlayer */
     bool paused, stop_requested;
     char script[MAX_PATHLEN];
 } bot_t;
@@ -2396,13 +2441,47 @@ void G_BotRequestStop(uint32_t);
 void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
+void G_BotTrace(uint32_t player, jass_t *vm, cstring_t event, cstring_t format, ...);
+void G_BotTraceAssaultUnit(edict_t *, cstring_t event, cstring_t format, ...);
+void G_BotTraceCoroutine(jass_t *vm, handle_t coroutine, cstring_t function,
+                         cstring_t phase, uint32_t now, uint32_t wake_time,
+                         bool yielded, bool done);
+void G_BotTraceWaits(uint32_t player);
+#ifdef WC3_TRACE_AI
+#define G_BOT_TRACE(...) G_BotTrace(__VA_ARGS__)
+#define G_BOT_TRACE_COROUTINE(...) G_BotTraceCoroutine(__VA_ARGS__)
+#define G_BOT_TRACE_WAITS(...) G_BotTraceWaits(__VA_ARGS__)
+#else
+#define G_BOT_TRACE(...) ((void)0)
+#define G_BOT_TRACE_COROUTINE(...) ((void)0)
+#define G_BOT_TRACE_WAITS(...) ((void)0)
+#endif
 bool G_BotUnitAlive(edict_t *);
+bool G_BotTownThreatened(player_t *);
+bool G_BotIsTowered(player_t *, edict_t *);
+edict_t *G_BotGetMegaTarget(player_t *);
+edict_t *G_BotGetEnemyExpansion(player_t *);
+void G_BotStartGetEnemyBase(player_t *);
+bool G_BotWaitGetEnemyBase(player_t *);
+edict_t *G_BotGetEnemyBase(player_t *);
+edict_t *G_BotGetCreepCamp(player_t *, int32_t, int32_t, bool);
+void G_BotPurchaseZeppelin(player_t *);
+void G_BotSetAllianceTarget(player_t *, edict_t *);
+edict_t *G_BotGetAllianceTarget(player_t *);
 edict_t *G_BotTown(player_t *, int32_t);
+int32_t G_BotTownUnitCount(player_t *, uint32_t, int32_t, bool);
 edict_t *G_BotTownMine(player_t *, int32_t);
 int32_t G_BotTownWithMine(player_t *);
+int32_t G_BotNextExpansion(player_t *);
+edict_t *G_BotExpansionMine(player_t *);
+edict_t *G_BotExpansionFoe(player_t *);
+edict_t *G_BotExpansionPeon(player_t *);
+bool G_BotSetExpansion(player_t *, edict_t *, uint32_t);
+vec2_t G_BotExpansionPosition(player_t *);
 uint32_t G_BotMinesOwned(player_t *);
 uint32_t G_BotGoldOwned(player_t *);
 bool G_BotProduce(player_t *, int32_t, uint32_t, int32_t);
+bool G_BotUpgrade(player_t *, uint32_t);
 void G_BotStopGathering(player_t *);
 void G_BotClearHarvest(player_t *);
 void G_BotHarvest(player_t *, int32_t, int32_t, bool);
@@ -2410,14 +2489,25 @@ void G_BotCreateCaptains(player_t *);
 void G_BotInitAssault(player_t *);
 uint32_t G_BotIgnoredUnits(player_t *, uint32_t);
 bool G_BotCaptainInCombat(player_t *, bool);
+void G_BotAttackMoveKill(player_t *, edict_t *);
 bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
+bool G_BotCaptainRetreating(player_t *);
+void G_BotUpdateGroupFlee(player_t *);
+void G_BotRefreshPeonsRepair(player_t *);
+void G_BotUpdateIndividualFlee(player_t *);
+void G_BotUpdateHeroItems(player_t *);
+void G_BotUpdateDefendPlayer(player_t *);
+void G_BotRemoveInjuries(player_t *);
+void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);
 bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
 void G_BotAddGuardPost(player_t *, uint32_t, float, float);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
+void G_BotHeroLevelUp(edict_t *);
+void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
 uint32_t G_BotCommandsWaiting(player_t *);
 int32_t G_BotLastCommand(player_t *);
@@ -2430,6 +2520,7 @@ void G_BotShiftTownSpot(player_t *, float, float);
 bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);
 bool G_BotSuicidePlayer(player_t *, uint32_t, bool);
 bool G_BotMergeUnits(player_t *, int32_t, uint32_t, uint32_t, uint32_t);
+bool G_BotConvertUnits(player_t *, int32_t, uint32_t);
 
 // g_blight.c
 void G_BlightInit(void);
@@ -2714,6 +2805,7 @@ bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);
 uint32_t unit_spawn_aiflags(uint32_t);
 bool SP_TrainUnit(edict_t *, uint32_t);
+uint32_t G_ProductionQueueCount(edict_t *);
 bool player_pay(player_t *, uint32_t);
 
 // g_food.c
@@ -2836,7 +2928,7 @@ bool G_MovePathPointIsPathable(pathAccelParams_t const *params);
 bool G_MovePathLineIsPathable(pathAccelParams_t const *params);
 bool G_ClosestMovePathPoint(pathAccelParams_t const *params, vec2_t *out);
 bool G_ClosestReachableMovePoint(pathAccelParams_t const *params, vec2_t *out);
-uint32_t G_RequestMovePathField(edict_t const *goal, float radius, uint8_t flags);
+uint32_t G_RequestMovePathField(edict_t const *mover, edict_t const *goal, float radius, uint8_t flags);
 bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 
 // g_abilities.c
@@ -3213,7 +3305,10 @@ void G_QueueReadySound(edict_t *);
 void G_QueueOwnerSoundAlias(edict_t *, cstring_t);
 void G_QueueOwnerUISound(edict_t *, cstring_t);
 void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_t);
+wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *, entityState_t const *);
 void G_SendOwnerMinimapAlert(edict_t *);
+void G_ResetAttackAlerts(void);
+void G_WC3_AttackAlert(edict_t *victim, edict_t *attacker);
 color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
 void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
 void G_CommandErrorReset(void);

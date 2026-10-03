@@ -24,6 +24,20 @@ static inline wc3MinimapContact_t wc3_minimap_contact_get(uint16_t flags) {
     return (wc3MinimapContact_t)EFX_GAME_VARIANT_GET(flags);
 }
 
+/* Capture-calibrated UI-canvas footprint shared by minimap contacts and their alerts. */
+static inline float wc3_minimap_contact_size(wc3MinimapContact_t contact) {
+    switch (contact) {
+    case WC3_MINIMAP_CONTACT_UNIT: return 0.002f;
+    case WC3_MINIMAP_CONTACT_BUILDING: return 0.005f;
+    case WC3_MINIMAP_CONTACT_HERO: return 0.014f;
+    case WC3_MINIMAP_CONTACT_GOLD_MINE:
+    case WC3_MINIMAP_CONTACT_GOLD_ENTANGLED:
+    case WC3_MINIMAP_CONTACT_GOLD_HAUNTED:
+    case WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING: return 0.0105f;
+    default: return 0.0f;
+    }
+}
+
 static inline uint16_t wc3_minimap_contact_set(uint16_t flags, wc3MinimapContact_t contact) {
     return EFX_GAME_VARIANT_SET(flags, contact);
 }

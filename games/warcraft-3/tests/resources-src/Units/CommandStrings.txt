@@ -25,7 +25,6 @@ Outofstock=Out of stock.
 Calltoarms=No Peasants could be found.
 Backtowork=No Militia could be found.
 TestTrigstr=TRIGSTR_0
-
 [Acan]
 Art=TestUI\\CommandButtons\\BTN-Acan.blp
 
@@ -54,3 +53,9 @@ ResearchArt=TestUI\\CommandButtons\\BTN-AHtb.blp
 
 [CmdCancel]
 Art=TestUI\\CommandButtons\\BTN-Cancel.blp
+
+[AdvisorStrings]
+Unitattack=The battle has been joined.
+Townattack=Our town is under siege!
+Allyunderattack=%s is under attack.
+Allytownattack=%s's city is under siege!

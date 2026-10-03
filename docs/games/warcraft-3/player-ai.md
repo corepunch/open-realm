@@ -74,9 +74,10 @@ The map's authored resource setup and recurring resource triggers remain authori
 - **Counts use equivalence classes.** `TownCountEx` treats upgraded halls/towers and transformed units as satisfying requests for their base form. Native counts must expose the raw facts expected by this JASS helper; C must not add a competing hardcoded substitution policy.
 - **Economy assignment is periodically rewritten.** `InitAI` calls `StopGathering`; `CampaignBasicsA` then clears and reapplies desired gold/lumber worker counts per town. When the defense captain is fighting, campaign wood demand becomes zero temporarily.
 - **Defense and assault are distinct captain roles.** `ATTACK_CAPTAIN`, `DEFENSE_CAPTAIN`, and `BOTH_CAPTAINS` are explicit. Defender requests persist in `defense_*`; each wave resets and repopulates transient `harass_*` min/max requests. `CaptainInCombat(false)` refers to defense work while attack formation uses `CaptainInCombat(true)`.
+- **`SetAssaultGroup(qty, max, unitid)` separates production baseline from formation cap.** Stock `common.ai` stores `qty` in `harass_qty` and `max` in `harass_max`. `BuildAttackers` and `PrepTime` plan against `qty`, while `FormGroup` requests `max` when that many completed units exist, all completed units when the count is between `qty` and `max`, and `qty` when the completed count is below baseline. `qty == 0` makes a type optional: the entry is omitted when none are complete, but existing completed copies may be absorbed up to `max`. Entries append rather than merge, so duplicate rawcodes generate separate `AddAssault` requests. Retail-backed recruitment counts existing typed captain members toward each request; a later request for the same rawcode reconciles its total. `AddDefenders` also reconciles per-type totals. See [retail owned-pool ordering](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots).
 - **Attacks are blocking script procedures.** `SuicideOnPlayer` does not enqueue a fire-and-forget order. It prepares and fills the attack captain, starts the player assault, then yields until combat and captain-empty conditions finish or time out before the script advances.
 - **`CommandAI` is a per-player ordered interrupt channel.** `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` support polling and interruptible sleeps. Preserve command/data pairing and determine FIFO versus LIFO behavior from authoritative runtime evidence before implementing it; do not model this as one overwriteable flag.
-- **AI mode is native state.** `StandardAI` and `CampaignAI` select different flee, repair, hero, targeting, timed-life, and artillery policies through setter natives. These settings belong to the player AI runtime even when Human02 does not exercise every one.
+- **AI mode is native state.** `StandardAI` and `CampaignAI` select different flee, repair, hero, targeting, timed-life, and artillery policies through setter natives. These settings belong to the player AI runtime even when Human02 does not exercise every one. `SetPeonsRepair` now consumes the existing Repair-family autocast path rather than inventing a second repair scheduler: each active bot reconciles owned repair-capable workers to the requested state, including workers created later through JASS `CreateUnit`. The established nearest-valid target scan, normal Repair order, pathing, target masks, costs, and repair rates own the actual work.
 - **Alliance capabilities are independent and directional.** Combat/targeting friendship is `ALLIANCE_PASSIVE`; `SHARED_VISION`, `SHARED_XP`, and control flags do not independently make a target friendly. `SetPlayerAlliance` changes only the source player's relation, so Blizzard/map helpers must author the reverse direction separately when they require mutual alliance.
 - **Unit-target Move is persistent follow.** Smart on a passive allied unit (after higher-priority interactions such as Repair) and explicit target `move` retain the live unit as `movement.follow_target`. The follower uses its acquisition range as the stand-off distance, auto-acquires nearby hostiles, and resumes the retained follow after combat. Point Move, Attack-Move, Patrol, Stop, and Hold Position replace that default movement goal.
 - **Local acquisition is controller-agnostic.** `G_FindNearestEnemy` uses the acquiring unit owner's directional `PASSIVE` relation; it is not restricted to fights where one side is the human slot. This allows an allied computer Hero to defend against another computer player while keeping Neutral Passive out of ordinary acquisition. Neutral-owned units still do not initiate through `ai_stand`.
@@ -198,7 +199,7 @@ Use explicit diagnostics for every unresolved native or unsupported semantic. A 
 
 Exit: `CampaignAI` starts both periodic threads, defender requests persist, attack requests fill through ordinary production queues, and the first assault completes through script control flow.
 
-Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include live queued/constructing units because `common.ai` compares them against desired totals; `GetUnitCountDone` excludes training and active construction. All three exclude dead entities. `GetUnitGoldCost`, `GetUnitWoodCost`, and `GetUnitBuildTime` read typed `UnitBalance.slk`; `GetUpgradeLevel` and `UnitAlive` read authoritative tech and entity lifecycle state. `UpgradeData.slk` now provides authoritative base/increment research costs and times for gameplay research. Town partitioning and the AI-side build-upgrade scheduling path remain unresolved.
+Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include live queued/constructing units because `common.ai` compares them against desired totals; `GetUnitCountDone` excludes training and active construction. All three exclude dead entities. `GetUnitGoldCost`, `GetUnitWoodCost`, and `GetUnitBuildTime` read typed `UnitBalance.slk`; `GetUpgradeLevel` and `UnitAlive` read authoritative tech and entity lifecycle state. `GetHeroId` and `GetHeroLevelAI` expose the temporary Hero rawcode/level context while a `SetHeroLevels` callback executes. The callback is evaluated synchronously in an isolated JASS scratch state and its returned ability rawcode is passed through ordinary `G_HeroLearnSkill`, so candidate-skill, required-level, max-rank, and skill-point rules remain shared with human Heroes. Newly trained and immediately JASS-created AI Heroes receive the callback when ready, and each subsequent level transition invokes it after the new skill point is awarded. `SetPeonsRepair` is reconciled for existing owned units when its policy changes, for units that finish training, and for immediately usable units created through JASS `CreateUnit`. `UpgradeData.slk` provides authoritative base/increment research costs and times. `GetUpgradeGoldCost`/`GetUpgradeWoodCost` expose the next researched level, and `SetUpgrade` now selects a legal owned producer and enters the normal `G_QueueResearch` path, so requirements, payment, queueing, in-progress locking, events, cancellation, and completion stay shared with human research. Expansion planning remains unresolved.
 
 `StopGathering` stops only the invoking bot's units whose active movement belongs to lumber, gold, or wisp harvesting. It releases workers hidden inside gold mines through the ordinary mine-membership lifecycle, preserves carried resources, and leaves unrelated orders and other players untouched. A bounded ROC Human02 run now passes this call and reports `CreateCaptains` as the next unresolved native.
 
@@ -226,7 +227,7 @@ admission suffix commits. The native private membership/shared handoff at2s,
 moving virtual captains and full AI VM/roster save restoration remain open;
 see [captain pathfinding evidence](retail-pathfinding-engine.md#captain-home-recruitment-and-formation-retries-reach-move).
 
-`SuicidePlayer(target, check_full)` launches the live attack captain against the target player's valid units, falling back to the bot's staged point when no target is visible. With `check_full`, an undersized captain remains forming and returns false so `common.ai` can retry. Once the deadline permits a partial wave, the same native launches any live roster members, records the staged goal when available, marks the captain active, and returns true.
+`SuicidePlayer(target, check_full)` launches the live attack captain against the target player's valid, visible units, falling back to the bot's staged point when no target is visible. Hidden live units are excluded before nearest-target selection; `S_AttackCanTarget` also rejects hidden targets, so both selection and ordinary order validation enforce player-relative invisibility. With `check_full`, an undersized captain remains forming and returns false so `common.ai` can retry. Once the deadline permits a partial wave, the same native launches any live roster members, records the staged goal when available, marks the captain active, and returns true. `wc3_bot.suicide_player_skips_nearest_hidden_target_for_visible_enemy` covers a hidden nearer enemy and a farther visible enemy; removing the visibility predicate makes it fail by selecting the hidden unit.
 
 ### Captain Readiness Provenance
 
@@ -264,11 +265,27 @@ r2 -q -e bin.cache=true -A -c 's 0x6f3122e0' -c pdf -c q data/Warcraft3demo/Game
 build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Scripts/common.ai | grep -n -C 8 CaptainReadiness
 ```
 
-`AddGuardPost` stores persistent typed map positions authored by campaign AI. `FillGuardPosts` reserves completed owned units not already assigned to captains or another post; assigned guards contribute to `IgnoredUnits`. `ReturnGuardPosts` preserves valid combat targets and returns idle guards that drift more than 64 world units from their authored position. Human02 defines no posts, so its periodic fill/return cycle is observably empty; a bounded ROC run now continues for 6000 frames without a JASS runtime error.
+`AddGuardPost` stores persistent typed map positions authored by campaign AI and tracks how many replacements each post has consumed against the bot's current `SetReplacementCount` limit. `FillGuardPosts` first reserves completed owned units not already assigned to captains or another post; when no spare exists and that post still has replacements, it requests one ordinary trained unit through `SetProduce`/`SP_TrainUnit`, marks that replacement pending so repeated fill passes cannot duplicate the queue request, and decrements the post budget only after training is accepted. The retail default replacement limit is three until `SetReplacementCount` changes it. Assigned guards contribute to `IgnoredUnits`. `ReturnGuardPosts` preserves valid combat targets and returns idle guards that drift more than the documented 82.006 world-unit tolerance from their authored position. Human02 defines no posts, so its periodic fill/return cycle remains observably empty.
 
 TFT `common.ai` uses JASS `debug call`, `debug set`, and `debug if` statements. The parser preserves the following ordinary statement as an AST node marked `TF_DEBUG`, and release execution skips that node. Parser failures now report the source line and next token, while staged bot loading identifies `common.j`, `common.ai`, or the requested script separately.
 
 `DisplayText`, `DisplayTextI`, `DisplayTextII`, and `DisplayTextIII` are AI diagnostics, not client UI messages. They write one player-prefixed line to `stderr`, decode Blizzard's literal `\\n`, and substitute only the native family's zero to three `%d` values into a bounded buffer; unknown format sequences remain literal. With these diagnostics and `GetUnitBuildTime`, a bounded TFT Human02 run starts `h02_red.ai`, reports its authored wave estimates, and completes 6000 frames without a parser, unresolved-native, or JASS runtime error.
+
+For a campaign AI trace, build with `WC3_DEBUG_AI=1` and set `wc3_ai_trace 1`.
+Each Blizzard `DisplayText*` trace then gets a neighboring `WC3_AI_TRACE` record
+with simulation time, player, script, current JASS function, and call chain.
+This instruments the engine-side display native; it does not modify retail map
+or common AI scripts.
+
+For low volume gameplay tracing, build with `WC3_TRACE_AI=1`. It logs accepted
+unit production requests and unit queue/completion, upgrade queue/completion,
+building start/completion, assault formation progress, scripted wave targets,
+explicit attack targets, and when the AI script's `main` coroutine returns. If an
+AI coroutine remains yielded, one wait summary per coroutine is printed every 10
+simulation seconds with its function, call chain, elapsed wait, and scheduled
+wake time. These traces include the simulation timestamp, AI player, and script
+path; they do not trace every JASS native or modify retail scripts.
+`WC3_TRACE_AI` is separate from the broader `WC3_DEBUG_AI` diagnostics.
 
 Human02's allied Uther patrol is map-trigger driven rather than an engine Patrol order. `Trig_Uther_Patrol_to_01_Actions` and `_02_Actions` issue alternating point `attack` orders; the corresponding region-entry triggers disable themselves, wait 12 seconds with `TriggerSleepAction`, enable the opposite reach/patrol triggers, and execute the next leg. Region conditions identify Uther through `GetEnteringUnit()`, so that native must return `JASSCONTEXT.unit` (the event subject), not `JASSCONTEXT.trigger`. Returning the trigger handle causes the generated `GetEnteringUnit() == <Uther>` condition to fail after the first leg and permanently stops the scripted patrol.
 
@@ -331,8 +348,9 @@ This phase is not part of Human02's definition of done.
 Full multiplayer melee AI is tracked by [issue #215](https://github.com/corepunch/open-realm/issues/215). A two-player
 Booty Bay lobby with an Orc computer slot reaches `MeleeStartingAI`, starts the unchanged `Scripts/orc.ai`, and uses the
 same per-player VM as campaign AI. The first confirmed melee-only registration is `SetHeroLevels(function SkillArrays)`:
-the callback is retained as VM-owned bot policy rather than eagerly called during `StandardAI` startup. A level-up
-consumer has not yet been proven/implemented, so the stored callback must not be described as active skill-selection AI.
+the callback is retained as VM-owned bot policy rather than eagerly called during `StandardAI` startup. When an AI-owned
+Hero gains a level, the callback is evaluated synchronously once per crossed level with `GetHeroId()` and
+`GetHeroLevelAI()` set for that Hero/level; its returned ability rawcode enters ordinary `G_HeroLearnSkill` validation.
 
 TFT melee initialization adds `Amic` to each starting town hall and marks it permanent before race AI starts.
 `UnitAddAbility` and `UnitRemoveAbility` therefore maintain per-unit runtime additions and suppressions over immutable
@@ -341,18 +359,31 @@ Duplicate adds, absent removes, and permanence requests for absent abilities ret
 the same overlay, and entity removal, level shutdown, and test resets release its storage.
 
 The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` returns
-`AI_DIFFICULTY_NORMAL` for valid players. `aidifficulty` is a value-like JASS enum handle and must remain in the VM's
-payload-comparison type table. Add a lobby field before supporting newbie or insane; do not infer difficulty from race,
-team, or map settings.
+`AI_DIFFICULTY_NORMAL` for valid players. AI difficulty is independent from map difficulty; do not derive the former
+from the latter. AI-script `MeleeDifficulty()` independently returns the `common.ai` integer
+`MELEE_NORMAL` (`2`); do not return the `aidifficulty` handle payload directly because those enum values are
+`AI_DIFFICULTY_NEWBIE/NORMAL/INSANE = 0/1/2`, while `common.ai` uses `MELEE_NEWBIE/NORMAL/INSANE = 1/2/3`.
+`aidifficulty` is a value-like JASS enum handle and must remain in the VM's payload-comparison type table.
+`MeleeDifficulty()` remains normal until AI-slot difficulty is modeled. Do not infer AI difficulty from race or team.
 
-Hero-policy setters remain registration/state only unless explicitly documented
-otherwise. In particular, `SetHeroLevels`, `SetHeroesFlee`,
-`SetHeroesTakeItems`, `SetHeroesBuyItems`, and `SetTargetHeroes` currently store
-VM-owned policy but do not yet provide a proven generic C consumer for skill
-selection, retreat, item pickup/purchase, or target prioritization. Do not invent
-those behaviors from the flag names; implement them only when the unchanged
-Blizzard AI scripts and runtime contract establish when/how the policy is
-consumed.
+AI policy setters are state-only unless a concrete runtime consumer is documented. `SetTargetHeroes` now affects
+ordinary automatic acquisition for units owned by a running AI: legal enemy Heroes are a higher-priority category, with
+nearest-target selection preserved inside that category. Explicit attack orders are unchanged. `SetSmartArtillery` uses the
+same bounded policy hook for siege-capable AI units, prioritizing legal structures before ordinary targets; it does not
+change attack masks, ranges, or explicit orders. `SetPeonsRepair` drives the existing data-defined Repair/Repair Generic
+autocast path, so authored target categories, alliances, acquisition range, resource costs, and construction-assistance
+rules remain authoritative. Existing dirty-policy reconciliation applies changes to current units, and unit-ready handling
+applies the policy to newly trained or created workers.
+
+`SetHeroesFlee` and `SetUnitsFlee` return qualifying low-health combat units toward the primary town when a hostile is
+nearby. `SetHeroesTakeItems` uses the ordinary pickup order for non-combat Heroes, ranking nearby legal items by
+`ItemData.prio`; `SetHeroesBuyItems` attempts the highest-priority affordable, stocked item only when its Hero is already
+within an accessible shop's activation range. `SetDefendPlayer` redirects only the defense captain to an actively
+attacked, mutually allied player's position and returns it to its authored home after the threat ends. `BZ_COMPAT_GUESS`:
+flee threshold/radius/cadence, primary-town retreat destination, item scan radius/cadence and `ItemData.prio` ranking,
+purchase cadence/ranking, allied-defense scan cadence, and first-threat selection are isolated in `g_bot.c`; retail engine
+policy for these details is not established. These policies use the normal order, item, and shop systems, preserving their
+target, inventory, stock, access, and resource checks.
 
 With these startup APIs, bounded TFT Booty Bay launches start all four unchanged race scripts without a JASS runtime
 error: `Scripts/human.ai`, `Scripts/orc.ai`, `Scripts/undead.ai`, and `Scripts/elf.ai`. Keep slot type fixed at `2`
@@ -361,6 +392,197 @@ in `War3.mpq` are internally consistent. In ROC mode `FS_ArchiveFileVisible` hid
 `War3Local.mpq`, whose patched copies match TFT and are incompatible with ROC `common.ai`; localized non-AI files remain
 visible. TFT mode retains the ordinary expansion archive precedence. Command tests cover both policies, so do not
 register the TFT-only JASS helper `SetSkillArray` as an engine native or disable the whole localization archive.
+
+### AI Native Inventory For Retail Melee Scripts
+
+This inventory is based on the retail TFT `Scripts/common.ai` and the four race libraries (`human.ai`, `orc.ai`,
+`undead.ai`, `elf.ai`) extracted from the installed MPQs. It follows calls reachable from each race library's `main`,
+including function values passed to `StartThread` and common-library worker loops. The common library declares more
+natives than these four scripts use. `StartMeleeAI` is a separate map-facing JASS native which loads a race script; it
+is not declared in `common.ai`.
+
+The same 72 `common.ai` native names are reachable for each race. The race libraries vary their calls to common helper
+functions, but their reachable native surface is the same. All 72 names are registered in OpenRealm's JASS module.
+
+### Alliance Assault Target
+
+Stock `common.ai` uses `SetAllianceTarget(unit)` and `GetAllianceTarget()` to coordinate one shared assault target among
+mutually allied melee AIs. Publishing a target stores the common value for the caller and players with mutual
+`ALLIANCE_PASSIVE`; publishing `null` clears that shared value. `GetAllianceTarget` returns the stored live unit. These
+natives only share target state: Blizzard scripts explicitly form groups and issue `AttackMoveKillA` orders.
+
+OpenRealm implements this coordination contract without minimap signaling or automatic group/order behavior. Other
+alliance arbitration and expiration policies remain separate compatibility work.
+
+`RemoveInjuries()` removes dead entries and live attack-captain members below 50% health from that roster, then orders
+injured units toward the invoking player's primary gold-dropoff when one exists. The AI Editor documents below 50% as
+the injured threshold and describes returning injured assault units home or to a healing location. `BZ_COMPAT_GUESS`:
+the exact preference between a captain home, town, and nearby Fountain of Health is unresolved; OpenRealm uses the main
+gold-dropoff and keeps that destination choice inside this behavior.
+
+### Unit Conversion
+
+`ConvertUnits(qty, id)` consumes owned live units of source type `id` through their authored no-target metamorphosis
+ability. Stock `common.ai` calls `ConvertUnits(desire, OBS_STATUE)` while satisfying a requested Destroyer count, so the
+implementation treats `qty` as the desired final count of the authored target form, counts already-completed target
+units first, and converts only the remaining shortfall. The native uses the ordinary spell path rather than directly
+rebinding the entity, preserving ability validation, spell events, cooldown/mana handling, and the existing in-place
+morph identity.
+
+`BZ_COMPAT_GUESS`: Blizzard does not document the `qty` interpretation directly; deriving it as a desired final target
+count comes from the surrounding stock `Conversions(desire, unitid)` helper and avoids over-converting when target-form
+units already exist. OpenRealm's generic `CAbilityMetamorphosis` path does not yet model Destroyer Form's retail
+gold/lumber/food delta, so that resource-cost parity remains separate ability work rather than special-cased AI-native
+accounting.
+
+### Threatened Town Query
+
+`TownThreatened()` reports whether any live unit or building owned by the invoking AI is currently the target of a live
+hostile unit's active Warcraft attack behavior. The name is misleading: retail-facing `common.ai` documentation records
+that the native covers any owned unit/building, and stock melee AI uses it as a global defense gate before launching
+attacks and while refreshing `AttackMoveKill` pursuit. OpenRealm therefore does not invent a town radius, base
+classifier, or recent-damage timer.
+
+`BZ_COMPAT_GUESS`: retail documentation establishes the broad "any owned unit/building is being attacked" condition,
+but not whether the engine latches that state briefly after an attack order or damage event ends. OpenRealm currently
+uses the live attack-order state itself; keep that timing choice local to `G_BotTownThreatened` if direct retail capture
+later establishes a persistence window.
+
+The query requires the attacker to be executing `CAbilityAttack`, to have a live owned monster/building as its current
+goal, and to be hostile under the ordinary WC3 alliance/targeting rules. Attack-move waypoints, friendly force-fire,
+spell/DoT damage, stale combat links, and an owned unit merely fighting an enemy do not make the town threatened unless
+an enemy is actively attacking an owned unit. This keeps `TownThreatened` a read-only AI query; it does not form the
+defense captain or issue any orders.
+
+### Towered Target Query
+
+`IsTowered(target)` reports whether a live target is defended by an attack-capable building owned by the target's
+player while the target is also in that player's base area. Stock melee AI uses this before attacking an enemy expansion:
+without siege support it avoids a hall that is tower-defended. Retail-facing AI documentation also records that custom
+attack-capable buildings may qualify and that the defending building's authored attack/acquisition ranges do not control
+the query. OpenRealm therefore classifies a defender from ordinary unit metadata (`G_UnitIsBuilding`, enabled attack slot,
+non-`ATK_NONE` attack) rather than hardcoded Guard Tower/Cannon Tower/etc. rawcodes.
+
+`BZ_COMPAT_GUESS`: Blizzard does not expose the internal base-proximity or tower-proximity radii. OpenRealm currently uses
+1024 world units for each test. Those constants live only in `g_bot.c`; direct retail/native capture can replace them without
+changing generic combat range, acquisition, building metadata, or the JASS API. The defending tower is required to share the
+target's owner; the invoking AI player's own towers do not make an enemy expansion "towered".
+
+### Zeppelin Purchase
+
+`PurchaseZeppelin()` implements the `common.ai` convenience action for obtaining a Goblin Zeppelin (`nzep`). Retail-facing
+native documentation says the call requires one of the AI player's Heroes near a Goblin Laboratory. OpenRealm searches
+live Neutral Passive unit shops that sell `nzep`, requires a live owned Hero within the shop's authored `Aneu`/`Aall`
+activation radius plus ordinary unit/shop collision reach, then delegates to `G_ShopPurchaseUnit`.
+
+The neutral-unit shop path remains authoritative for stock/restock, resource and food checks, legal exit placement, and
+unit ownership. This native does not spawn or grant a Zeppelin directly; without a qualifying Hero/shop pair it does
+nothing.
+
+### Creep Camp Query
+
+`GetCreepCamp(min, max, flyers_ok)` searches live `PLAYER_NEUTRAL_AGGRESSIVE` creeps and returns a representative unit
+from the nearest qualifying camp. Retail-facing `common.ai` documentation defines camp power as the sum of the
+`UnitBalance.level` values of all creeps in that camp; the inclusive `min`/`max` bounds filter that total. When
+`flyers_ok` is false, a camp containing a unit whose authored movement type is `fly` is excluded. Stock helpers use
+`GetCreepCamp(0, 9, false)` for minor camps and `GetCreepCamp(10, 100, allow_air_creeps)` for major camps.
+
+`BZ_COMPAT_GUESS`: Blizzard does not expose the internal camp-membership structure or grouping radius. OpenRealm groups
+Neutral Hostile units into connected components where neighboring creeps are at most 600 world units apart, then chooses
+the qualifying component nearest the invoking AI's primary town. If no town exists, the first live owned unit supplies
+the search origin. The returned representative is the camp member nearest that origin. Keep this geometry confined to
+`G_BotGetCreepCamp` so direct retail/native capture can replace it without changing creep ownership, unit level data, or
+assault behavior.
+
+### Enemy Base Discovery
+
+`StartGetEnemyBase()` / `WaitGetEnemyBase()` / `GetEnemyBase()` implement the stock asynchronous enemy-base query
+contract. Retail-facing documentation requires Start before Get, and unchanged melee AI polls Wait once per second until
+it returns false. OpenRealm keeps discovery state per AI player: Start clears any prior result and begins a search, Wait
+reports that search as pending until completion, and Get returns only the completed live hostile town-hall result.
+Calling Get before Start or while discovery remains pending returns null.
+
+The completed search chooses the nearest live hostile AI town hall to the invoking AI's primary town. If the caller has no
+primary town, its first live owned unit supplies the distance origin; without either, stable player/town enumeration wins.
+All current town IDs are eligible because retail/community observation describes `GetEnemyBase()` as finding the closest
+enemy base, while stock `common.ai` separately gives `GetEnemyExpansion()` higher priority before starting this discovery.
+The query is read-only and does not issue captain orders, publish an alliance target, or reveal fog.
+
+`BZ_COMPAT_GUESS`: Warcraft exposes this as an asynchronous search but does not document its exact latency or internal
+search algorithm. OpenRealm currently holds the search pending for 1000 milliseconds, matching the stock script's polling
+cadence, then performs the deterministic nearest-town query above. Keep the delay and target arbitration confined to the
+bot discovery helpers so direct retail/native capture can replace them without changing the JASS API or town bookkeeping.
+
+### Enemy Expansion Query
+
+`GetEnemyExpansion()` returns a live hostile expansion hall using OpenRealm's existing AI town model. Retail
+`common.ai` describes it as the enemy expansion base and calls it before asynchronous
+`StartGetEnemyBase` / `WaitGetEnemyBase` / `GetEnemyBase` discovery. OpenRealm treats hostile town IDs after the primary
+town (`1+`) as expansions. The query does not publish an alliance target, form a captain, issue an attack, or modify
+enemy-base discovery state.
+
+`BZ_COMPAT_GUESS`: Blizzard does not publish how this native chooses among several valid enemy expansions. OpenRealm
+selects the hostile expansion nearest the invoking AI's primary town, with entity order as a stable tie-break. If the
+caller has no primary town, stable player/town enumeration wins. Because town IDs currently enumerate live owned gold
+drop-offs in spawn order, destroying an enemy primary hall can cause a former expansion to become town `0` and no longer
+be classified as an expansion. Stable historical town identity remains separate AI-town parity work.
+
+### Mega Target Query
+
+`GetMegaTarget()` participates only when `SetWatchMegaTargets(true)` has enabled the bot's `BOT_WATCH_MEGA` policy. Stock
+melee AI gives this query priority over ordinary enemy-expansion/base discovery, and contemporary analysis describes the
+mega target as an enemy main base left vulnerable while its defending army is elsewhere. OpenRealm therefore considers
+only each hostile player's primary town hall (`G_BotTown(enemy, 0)`), never an arbitrary unit or expansion.
+
+A main hall is eligible only when it is live, hostile, not `IsTowered`, and has no nearby live non-worker combat unit owned
+by that player. Workers carrying the stock/custom `Ahar` harvest command do not by themselves disqualify a vulnerable main.
+The native is a read-only selector: it does not publish an alliance target, form a captain, issue orders, or ping the minimap.
+
+`BZ_COMPAT_GUESS`: Blizzard does not publish the internal mega-target defender radius, combat-unit weighting, or arbitration
+when several enemy mains are simultaneously vulnerable. OpenRealm currently uses a 1200-world-unit protection radius and,
+when the invoking AI has a primary town, selects the qualifying main nearest that town; otherwise stable player-slot order
+wins. Keep those choices local to `G_BotGetMegaTarget` so direct retail/native capture can replace them without changing
+ordinary enemy-base discovery or captain attack behavior.
+
+`RemoveSiege()` compacts the attack-captain roster and removes live members classified as siege units before the next
+melee assault group is assembled. This matches stock `common.ai`, where `InitMeleeGroup()` calls `RemoveInjuries()` and
+then `RemoveSiege()` before adding the new assault specification. Removed siege units remain ordinary owned world units;
+the native does not issue movement/attack orders or destroy them, leaving artillery policy separate from roster cleanup.
+`BZ_COMPAT_GUESS`: Blizzard does not document the native's exact siege classifier. OpenRealm currently treats a unit as
+siege when either authored attack slot uses `ATK_SIEGE`. This is data-driven and matches the stock siege-engine combat
+profile without baking race/unit rawcodes into AI code, but direct retail/native reverse engineering could reveal an
+additional unit-class or weapon-type test. Keep that classifier local to `G_BotRemoveSiege`.
+
+Expansion support follows Blizzard's `common.ai` sequence: `GetNextExpansion` selects and caches a viable unclaimed gold mine; `GetExpansionX/Y`, `GetExpansionFoe`, and `GetExpansionPeon` query that same selected site; `SetExpansion(peon, hallId)` validates the worker and requested building then submits a normal build order near the selected mine. Accepted construction is paid and placed by the regular WC3 build path, and the resulting completed hall enters the existing town enumeration automatically. No hall is spawned directly. `GetNextExpansion` preserves a selected site while valid and retains it while an accepted hall build project is active; a completed or failed request allows selection to resume. `BZ_COMPAT_GUESS`: candidate ranking uses distance from the first owned town hall; hostile blockers use a 1200-unit radius and nearest-unit priority; hall placement searches deterministic 32-unit cells around the mine, starting just beyond the normal 512-unit resource-dropoff clearance; worker choice is the nearest available construction-capable harvesting worker.
+
+`GetTownUnitCount` is now implemented using the existing stable town IDs and nearest-town ownership rule. It counts
+live owned units of the requested rawcode at that town; `dn == false` includes queued training, active construction, and
+accepted builder projects, while `dn == true` counts completed units only. Invalid town IDs return zero. The nearby
+town assignment uses nearest owned gold drop-off by distance, matching `SetProduce` town selection.
+
+`UnitInvis(unit)` reports the unit's intrinsic active invisibility through `S_UnitHasInvisibilityState()`. It is
+independent of which player can see or detect the unit. Stock `common.ai` checks `UnitInvis(target)` separately from
+`IsUnitDetected(target, ai_player)`. The JASS `IsUnitDetected` and `IsUnitInvisible` callbacks use the player-relative
+detector/shared-vision helpers described in [Warcraft III Invisibility](invisibility.md#ai-and-jass-queries).
+
+The remaining reachable natives are registered: `AddAssault`, `CaptainInCombat`, `CaptainIsEmpty`, `CaptainIsFull`,
+`CaptainRetreating`,
+`CaptainReadiness`, `CaptainReadinessHP`, `ClearHarvestAI`, `CommandsWaiting`, `CreateCaptains`, `DisplayText`,
+`DisplayTextI`, `GetAiPlayer`, `GetGoldOwned`, `GetHeroId`, `GetHeroLevelAI`, `GetMinesOwned`, `GetUnitCount`,
+`GetUnitCountDone`, `GetUnitGoldCost`, `GetUnitWoodCost`, `GetUpgradeGoldCost`, `GetUpgradeLevel`,
+`GetUpgradeWoodCost`, `HarvestGold`, `HarvestWood`, `InitAssault`, `MeleeDifficulty`, `MergeUnits`, `SetDefendPlayer`,
+`SetGroupsFlee`, `SetHeroLevels`, `SetHeroesBuyItems`, `SetHeroesFlee`, `SetHeroesTakeItems`, `SetIgnoreInjured`,
+`SetMeleeAI`, `SetPeonsRepair`, `SetProduce`, `SetSmartArtillery`, `SetTargetHeroes`, `SetUnitsFlee`, `SetUpgrade`,
+`SetWatchMegaTargets`, `Sleep`, `StartThread`, `StopGathering`, `TownHasHall`, `TownHasMine`, `TownWithMine`,
+`UnitAlive`, `GetTownUnitCount`, `UnitInvis`, `GetNextExpansion`, `GetExpansionFoe`, `GetExpansionPeon`,
+`GetExpansionX`, `GetExpansionY`, `SetExpansion`, `GetAllianceTarget`, and `SetAllianceTarget`.
+
+Registration and behavior are separate questions. Remaining policy gaps and the compatibility guesses used by the
+current consumers are described above. `StartMeleeAI`, `StartCampaignAI`, and
+`GetAIDifficulty` are declared by `common.j` rather than `common.ai`; OpenRealm registers all three, and the startup
+functions load the requested player-bound AI script. `CommandAI` is likewise a `common.j` native and is implemented
+through the ordered per-player command queue. `Player`, `GetRandomInt`, `VersionCompatible`, JASS control flow, and
+`GetGameDifficulty` are ordinary JASS/common.j facilities, not `common.ai` natives.
 
 ### Melee Economy And Production
 
@@ -388,6 +610,45 @@ Rivercross proved the following runtime contracts:
 With these rules, a bounded Human ROC Rivercross run repeatedly returns gold and completes five queued Peasants, a
 Barracks, and a Farm without a JASS runtime error. Use `WC3_DEBUG_AI` builds for requested/accepted/completed production
 and captain milestones; detailed traces remain disabled in normal builds.
+
+### Captain Group-Flee Lifecycle
+
+`CaptainRetreating()` reports whether the **attack captain** is in `BOT_CAPTAIN_RETREATING`. Stock `common.ai` uses this
+as an engine-state query in `SleepUntilAtGoal` and `CommonSleepUntilTargetDead`; the defense captain's state does not affect
+this native. `SetGroupsFlee(true)` now has an engine-side consumer rather than remaining registration-only state.
+
+The runtime only evaluates automatic group retreat while the assault captain is `BOT_CAPTAIN_ACTIVE`, `BOT_GROUPS_FLEE`
+is enabled, and at least one live captain member is actually in combat. It compares health-weighted combat power for the
+captain roster with hostile attack-capable units near any captain member. If the disadvantage persists, the captain enters
+`BOT_CAPTAIN_RETREATING` before homeward orders are issued, so the next JASS event pass observes the state. Retreat clears
+live members' combat targets, sends them toward the authored attack-captain `home`, suppresses
+`AttackMoveKill`/`SuicidePlayer`/`SuicideUnit` assault refreshes, and returns the captain to `BOT_CAPTAIN_IDLE` once every
+surviving member is home (or the roster is empty).
+
+The following values are deliberately `BZ_COMPAT_GUESS` because retail exposes the policy/state but not its internal
+battle-strength formula: nearby enemies are collected within 1200 world units of a captain member; unit power is authored
+unit level multiplied by current health fraction; hostile power must exceed captain power by 1.5x for 2.5 seconds; and home
+arrival uses a 128-world-unit tolerance. These constants are isolated in `g_bot.c`. Do not replace the comparison with
+`CaptainReadinessHP() <= 40`: stock `common.ai` checks the readiness threshold separately from `CaptainRetreating()`, proving
+they are distinct escape conditions.
+
+With this lifecycle, every `common.ai` native in the previously inventoried stock melee-AI reachable set has a callback and
+the captain-retreat query has a real state producer. Exact retail disadvantage scoring and retreat-home tolerance still need
+direct capture; the state-machine boundary no longer depends on those guesses.
+
+### Assault Captain Target Orders
+
+`AttackMoveKill(unit)` now activates the attack captain and issues ordinary WC3 attack-move orders to every live assault
+member toward the target's current position. This follows stock `common.ai`: `AttackMoveKillA` calls the native once, then
+`CommonSleepUntilTargetDead` calls it again after each three-second `SuicideSleep`, so a moving target is refreshed by the
+script rather than by a second C-side pursuit scheduler. Null/dead targets and empty assault rosters are no-ops. The native
+does not form the captain; `InitAssault`/`AddAssault`/`FormGroup` remain responsible for roster formation.
+
+Retail-facing documentation also describes an attack-location minimap signal and the surviving group returning after the
+target dies. The generic `SetGroupsFlee` retreat lifecycle now consumes captain `home`, but a target simply dying does not
+automatically trigger retreat/return-home unless the flee policy has already entered `BOT_CAPTAIN_RETREATING`. The exact
+`AttackMoveKill`-specific post-kill return and minimap-signal policy remain unrecovered; do not emulate either by changing
+generic attack-move behavior.
 
 #### Multiplayer Test Map
 

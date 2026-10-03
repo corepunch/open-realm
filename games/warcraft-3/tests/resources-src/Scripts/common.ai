@@ -4,6 +4,9 @@ native DisplayTextI takes integer p, string str, integer val returns nothing
 native DisplayTextII takes integer p, string str, integer v1, integer v2 returns nothing
 native DisplayTextIII takes integer p, string str, integer v1, integer v2, integer v3 returns nothing
 native GetAiPlayer takes nothing returns integer
+native MeleeDifficulty takes nothing returns integer
+native GetHeroId takes nothing returns integer
+native GetHeroLevelAI takes nothing returns integer
 native GetUnitCount takes integer unitid returns integer
 native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
 native GetUnitCountDone takes integer unitid returns integer
@@ -12,7 +15,14 @@ native GetGoldOwned takes nothing returns integer
 native TownWithMine takes nothing returns integer
 native TownHasMine takes integer townid returns boolean
 native TownHasHall takes integer townid returns boolean
+native GetNextExpansion takes nothing returns integer
+native GetExpansionFoe takes nothing returns unit
+native GetExpansionPeon takes nothing returns unit
+native GetExpansionX takes nothing returns real
+native GetExpansionY takes nothing returns real
+native SetExpansion takes unit peon, integer id returns boolean
 native SetProduce takes integer qty, integer id, integer town returns boolean
+native SetUpgrade takes integer id returns boolean
 native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
 native GetUnitBuildTime takes integer unitid returns integer
@@ -21,6 +31,16 @@ native GetUpgradeGoldCost takes integer id returns integer
 native GetUpgradeWoodCost takes integer id returns integer
 native GetUpgradeLumberCost takes integer id returns integer
 native UnitAlive takes unit id returns boolean
+native IsTowered takes unit target returns boolean
+native StartGetEnemyBase takes nothing returns nothing
+native WaitGetEnemyBase takes nothing returns boolean
+native GetEnemyBase takes nothing returns unit
+native GetEnemyExpansion takes nothing returns unit
+native GetMegaTarget takes nothing returns unit
+native GetCreepCamp takes integer min, integer max, boolean flyers_ok returns unit
+native PurchaseZeppelin takes nothing returns nothing
+native TownThreatened takes nothing returns boolean
+native ConvertUnits takes integer qty, integer id returns boolean
 native SetCampaignAI takes nothing returns nothing
 native SetMeleeAI takes nothing returns nothing
 native SetHeroLevels takes code func returns nothing
@@ -37,6 +57,8 @@ native SetCaptainChanges takes boolean state returns nothing
 native SetSmartArtillery takes boolean state returns nothing
 native SetReplacementCount takes integer qty returns nothing
 native GroupTimedLife takes boolean allow returns nothing
+native RemoveInjuries takes nothing returns nothing
+native RemoveSiege takes nothing returns nothing
 native SetNewHeroes takes boolean state returns nothing
 native SetRandomPaths takes boolean state returns nothing
 native SetDefendPlayer takes boolean state returns nothing
@@ -55,6 +77,7 @@ native CaptainGroupSize takes nothing returns integer
 native CaptainIsFull takes nothing returns boolean
 native CaptainIsEmpty takes nothing returns boolean
 native CaptainReadiness takes nothing returns integer
+native CaptainRetreating takes nothing returns boolean
 native CaptainReadinessHP takes nothing returns integer
 native CaptainReadinessMa takes nothing returns integer
 native AddDefenders takes integer qty, integer unitid returns boolean
@@ -72,3 +95,59 @@ native MissingAIValue takes nothing returns integer
 native StartCampaignAI takes player num, string script returns nothing
 
 native CaptainGoHome takes nothing returns nothing
+// Stock assault-group bookkeeping subset used by player-AI integration tests.
+globals
+    integer array harass_qty
+    integer array harass_max
+    integer array harass_units
+    integer harass_length = 0
+endglobals
+
+function TownCountDone takes integer unitid returns integer
+    return GetUnitCountDone(unitid)
+endfunction
+
+function InitAssaultGroup takes nothing returns nothing
+    set harass_length = 0
+endfunction
+
+function Conversions takes integer desire, integer unitid returns nothing
+    // The test fixture has no conversion-capable unit definitions; production uses retail common.ai.
+endfunction
+
+function SetAssaultGroup takes integer qty, integer max, integer unitid returns nothing
+    call Conversions(max, unitid)
+    if qty <= 0 and TownCountDone(unitid) == 0 then
+        return
+    endif
+    set harass_qty[harass_length] = qty
+    set harass_max[harass_length] = max
+    set harass_units[harass_length] = unitid
+    set harass_length = harass_length + 1
+endfunction
+
+function FormGroup takes nothing returns nothing
+    local integer index = 0
+    local integer unitid
+    local integer count
+    local integer desire
+
+    call InitAssault()
+    loop
+        exitwhen index == harass_length
+        set unitid = harass_units[index]
+        set count = TownCountDone(unitid)
+        set desire = harass_max[index]
+        if count >= desire then
+            call AddAssault(desire, unitid)
+        else
+            set desire = harass_qty[index]
+            if count < desire then
+                call AddAssault(desire, unitid)
+            else
+                call AddAssault(count, unitid)
+            endif
+        endif
+        set index = index + 1
+    endloop
+endfunction

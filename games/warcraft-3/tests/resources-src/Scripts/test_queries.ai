@@ -9,6 +9,12 @@ function main takes nothing returns nothing
     if GetUnitCountDone('hfoo') != 1 then
         call MissingAIAction()
     endif
+    if GetTownUnitCount('hfoo', 0, false) != 3 or GetTownUnitCount('hfoo', 0, true) != 1 then
+        call MissingAIAction()
+    endif
+    if GetTownUnitCount('hfoo', 1, false) != 0 then
+        call MissingAIAction()
+    endif
     if GetPlayerUnitTypeCount(Player(2), 'hfoo') != 3 then
         call MissingAIAction()
     endif
@@ -16,6 +22,9 @@ function main takes nothing returns nothing
         call MissingAIAction()
     endif
     if GetUnitGoldCost('hbar') != 235 or GetUnitWoodCost('hbar') != 85 then
+        call MissingAIAction()
+    endif
+    if GetUnitGoldCost('xxxx') != 0 or GetUnitWoodCost('xxxx') != 0 then
         call MissingAIAction()
     endif
     if GetUnitBuildTime('hfoo') != 60 or GetUnitBuildTime('xxxx') != 0 then

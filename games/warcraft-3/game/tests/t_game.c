@@ -841,6 +841,137 @@ TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
     gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
+TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true;
+    game.clients[0].camera.state.position = (vec2_t){ 0.0f, 0.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1);
+    T_EQ(alert_ping_color.r, 255); T_EQ(alert_ping_color.g, 0); T_EQ(alert_ping_color.b, 0);
+    T_ASSERT(alert_ping_flags & MINIMAP_PING_REMEMBER);
+    T_FEQ(alert_ping_position.x, victim->s.origin2.x, 0.001f);
+
+    level.time = 2000;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1); /* shared per-recipient cooldown */
+
+    level.time = 32000;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 2);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
+TEST(wc3_game, attack_alert_shows_advisor_text_without_message_log_entry) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+    gameClient_t *owner = &game.clients[0];
+
+    InitUnitData();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    owner->connected = true;
+    owner->camera.state.position = (vec2_t){ 0.0f, 0.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    memset(&owner->message, 0, sizeof(owner->message));
+    memset(&owner->message_log, 0, sizeof(owner->message_log));
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+
+    T_STREQ(owner->message.text, "The battle has been joined.");
+    T_ASSERT(owner->message.end_time > level.time);
+    T_EQ(owner->message_log.count, 0);
+    T_EQ(alert_ping_count, 1);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
+TEST(wc3_game, allied_attack_alert_formats_attacked_player_name) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);
+    gameClient_t *owner = &game.clients[0];
+    gameClient_t *ally = &game.clients[2];
+
+    InitUnitData();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
+    victim->s.player = 0; attacker->s.player = 1;
+    owner->connected = true; ally->connected = true;
+    strlcpy(owner->jass.name, "Jaina", sizeof(owner->jass.name));
+    owner->ps.name = owner->jass.name;
+    owner->camera.state.position = victim->s.origin2;
+    ally->camera.state.position = (vec2_t){ 3000.0f, 3000.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    G_SetPlayerAlliance(&owner->ps, &ally->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&owner->ps, &ally->ps, ALLIANCE_HELP_REQUEST, true);
+    memset(&ally->message, 0, sizeof(ally->message));
+    memset(&ally->message_log, 0, sizeof(ally->message_log));
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+
+    T_STREQ(ally->message.text, "Jaina is under attack.");
+    T_EQ(ally->message_log.count, 0);
+    T_EQ(alert_ping_count, 1);
+    T_EQ(alert_ping_target, &g_edicts[2]);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
+TEST(wc3_game, attack_alert_suppresses_near_camera_and_honors_help_request) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 100.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200.0f, 100.0f);
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true; game.clients[2].connected = true;
+    game.clients[0].camera.state.position = victim->s.origin2;
+    game.clients[2].camera.state.position = (vec2_t){ 3000.0f, 3000.0f };
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 30.0f;
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[2].ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[2].ps, ALLIANCE_HELP_REQUEST, true);
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping; gi.configstring = alert_test_configstring;
+
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1); /* owner is in range; distant help-request ally receives it */
+    T_EQ(alert_ping_target, &g_edicts[2]);
+
+    gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
+}
+
 TEST(wc3_game, hud_authored_window_frame_uses_offset_codec) {
     FRAMEDEF frame = { .Type = FT_TEXT, .Text = "Window text" };
     uiWindowDef_t def = { .id = 1, .class_id = 2, .flags = UI_WINDOW_MOVABLE };
@@ -4072,6 +4203,43 @@ TEST(wc3_save, movement_guard_state_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-route-resume-runtime.bin";
+    int unit_index;
+    edict_t *unit, *goal;
+
+    reset_entities();
+    unit_index = globals.num_edicts;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    goal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 128, 0);
+    unit->movement.route_resume_direction = (vec2_t){ 1.0f, 0.0f };
+    unit->movement.route_resume_goal_origin = goal->s.origin2;
+    unit->movement.route_resume_goal = goal;
+    unit->movement.route_resume_goal_spawn = goal->spawn_time;
+    unit->movement.route_resume_time = 1234;
+    unit->movement.route_resume_radius = 31.0f;
+    unit->movement.route_resume_flags = CM_PATHING_UNWALKABLE;
+    unit->movement.route_resume_valid = true;
+    unit->movement.route_resume_active = true;
+    unit->movement.path_wait_active = true;
+    unit->movement.path_wait_start = 5678;
+    unit->movement.path_wait_goal_number = goal->s.number;
+    unit->movement.path_wait_goal_spawn = goal->spawn_time;
+    unit->movement.path_wait_origin = unit->s.origin2;
+
+    T_ASSERT(WriteGame(filename));
+    unit->movement.route_resume_goal = (edict_t *)(uintptr_t)1;
+    T_ASSERT(ReadGame(filename));
+    unit = g_edicts + unit_index;
+    T_NULL(unit->movement.route_resume_goal);
+    T_ASSERT(!unit->movement.route_resume_valid);
+    T_ASSERT(!unit->movement.route_resume_active);
+    T_ASSERT(!unit->movement.path_wait_active);
+    T_EQ(unit->movement.route_resume_time, 0);
+    T_EQ(unit->movement.path_wait_start, 0);
+    remove(filename);
+}
+
 TEST(wc3_save, live_guard_return_move_resumes_after_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-live-guard-return.bin";
     int unit_index;
@@ -4937,7 +5105,7 @@ TEST(wc3_save, round_trip_jass_globals) {
         "function ChangedCallback takes nothing returns nothing\n"
         "endfunction\n"
         "function SavedFilter takes nothing returns boolean\n"
-        "  return true\n"
+        "  return false\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  set savedDeformation = TerrainDeformCrater(64.0, 96.0, 48.0, 8.0, 1000, false)\n"
@@ -5410,6 +5578,42 @@ TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(!jass_rterror_pending(level.vm));
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyResumed", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_jass, sleep_in_boolean_expression_resumes_condition_and_branch) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer expressionSleepStage = 0\n"
+        "  integer expressionBranchCount = 0\n"
+        "  integer expressionAfterIf = 0\n"
+        "endglobals\n"
+        "function SleepingCondition takes nothing returns boolean\n"
+        "  set expressionSleepStage = 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set expressionSleepStage = 2\n"
+        "  return false\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  if not SleepingCondition() then\n"
+        "    set expressionBranchCount = expressionBranchCount + 1\n"
+        "  endif\n"
+        "  set expressionAfterIf = 1\n"
+        "endfunction\n"
+        "function verifyExpressionYielded takes nothing returns nothing\n"
+        "  call BJassAssert(expressionSleepStage == 1, \"condition did not suspend inside expression\")\n"
+        "  call BJassAssert(expressionBranchCount == 0, \"condition branch ran before condition returned\")\n"
+        "  call BJassAssert(expressionAfterIf == 0, \"caller continued past yielded condition\")\n"
+        "endfunction\n"
+        "function verifyExpressionResumed takes nothing returns nothing\n"
+        "  call BJassAssert(expressionSleepStage == 2, \"condition did not resume after sleep\")\n"
+        "  call BJassAssert(expressionBranchCount == 1, \"negated false condition did not run branch exactly once\")\n"
+        "  call BJassAssert(expressionAfterIf == 1, \"caller did not continue after condition resumed\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyExpressionYielded", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyExpressionResumed", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 

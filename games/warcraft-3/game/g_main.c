@@ -26,6 +26,8 @@
 #include "common/common.h"
 #include "g_local.h"
 #include "games/warcraft-3/common/wc3_math.h"
+
+#define WC3_PATH_WORK_BUDGET 65536
 #include "common/ui_constants.h"
 #include "games/warcraft-3/common/minimap.h"
 #include "jass/jass.h"
@@ -277,6 +279,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
     gi.configstring(CS_ORDER_MARKER, marker ? marker : "");
     gi.LoadingFrame();
     G_MusicResetState();
+    G_ResetAttackAlerts();
     G_SetMapUnitOverrides(CM_GetMapInfo());
     G_SetMapAbilityOverrides(CM_GetMapInfo());
     /* SV_Map already wiped CS_IMAGES/CS_FONTS. Bind every panel once so write
@@ -397,6 +400,9 @@ static void InitConstants(void) {
     InitMoveSpeedLimit("MaxUnitSpeed", &game.constants.maxUnitSpeed, 522.f);
     InitMoveSpeedLimit("MinBldgSpeed", &game.constants.minBldgSpeed, 1.f);
     InitMoveSpeedLimit("MaxBldgSpeed", &game.constants.maxBldgSpeed, 522.f);
+    /* Stock WC3 Units\MiscData.txt values. war3mapMisc.txt remains authoritative. */
+    InitMiscValueDefault("AttackNotifyDelay", &game.constants.attackNotifyDelay, 30.0f);
+    InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
@@ -1101,7 +1107,7 @@ static void G_RunPathOwner(void) {
 }
 
 static void G_RunFrame(void) {
-    int path_work_budget = BZ_PATH_WORK_BUDGET;
+    int path_work_budget = WC3_PATH_WORK_BUDGET;
     cstring_t path_work_value;
 
     if (!level.started)
@@ -1164,7 +1170,7 @@ static void G_RunFrame(void) {
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep
      * the per-frame relaxation budget runtime-tunable for slower handhelds. */
     path_work_value = gi.CvarString
-        ? gi.CvarString("wc3_path_work_budget", BZ_STRINGIFY(BZ_PATH_WORK_BUDGET)) : NULL;
+        ? gi.CvarString("wc3_path_work_budget", BZ_STRINGIFY(WC3_PATH_WORK_BUDGET)) : NULL;
     if (path_work_value)
         path_work_budget = atoi(path_work_value);
     path_work_budget = MAX(256, MIN(path_work_budget, 65536));
@@ -1582,7 +1588,7 @@ static uint32_t G_HoverResourceValue(edict_t const *ent) {
  * object-editor suppression flags. The distinct uhhm/uhom fields are kept
  * independent: hiding only the Hero icon falls through to the ordinary path,
  * while uhom can suppress that fallback. */
-static wc3MinimapContact_t G_MinimapMarkerForEntity(edict_t const *ent, entityState_t const *state) {
+wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *ent, entityState_t const *state) {
     UnitUI_t const *ui;
 
     if (!ent || !state || !(ent->svflags & SVF_MONSTER) ||
@@ -1623,7 +1629,7 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const *ent) {
     if ((state.renderfx & RF_HIDDEN) && S_UnitUsesInvisibilityRenderFlag(ent) &&
         !S_UnitIsInvisibleToPlayer(ent, player))
         state.renderfx &= ~RF_HIDDEN;
-    return G_MinimapMarkerForEntity(ent, &state) != WC3_MINIMAP_CONTACT_NONE;
+    return G_WC3_MinimapMarkerForEntity(ent, &state) != WC3_MINIMAP_CONTACT_NONE;
 }
 
 /* Selection voices are local feedback; suppress them in snapshots for clients
@@ -1636,7 +1642,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         !S_UnitIsInvisibleToPlayer(ent, player)) {
         state->renderfx &= ~RF_HIDDEN;
     }
-    wc3MinimapContact_t const minimap_marker = G_MinimapMarkerForEntity(ent, state);
+    wc3MinimapContact_t const minimap_marker = G_WC3_MinimapMarkerForEntity(ent, state);
     state->effect_flags = wc3_minimap_contact_set(state->effect_flags, minimap_marker);
 
     bool const hoverable = (ent->svflags & SVF_MONSTER) &&

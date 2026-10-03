@@ -630,6 +630,7 @@ TEST(wc3_pathfinding, invalidation_does_not_recycle_heatmap_generation) {
 }
 
 TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing_later_goal) {
+    cmPathJobStatus_t job;
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -638,10 +639,12 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     edict_t *first = make_waypoint(2.0f, 2.0f);
     edict_t *second = make_waypoint(7.0f, 7.0f);
 
-    /* A cache miss only queues work; a second goal waits rather than being
-     * permanently denied by the old lifetime two-build quota. */
+    /* A cache miss starts work; a second destination joins the FIFO instead
+     * of being forgotten while the first field owns the build slot. */
     T_EQ(CM_RequestHeatmapForRadius(first, 0.0f), 0);
     T_EQ(CM_RequestHeatmapForRadius(second, 0.0f), 0);
+    CM_GetPathJobStatus(&job);
+    T_EQ(job.pending_jobs, 1);
 
     for (int i = 0; i < 200; i++)
         CM_ProcessPathJobs(4);
@@ -649,12 +652,8 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     uint32_t first_gen = CM_RequestHeatmapForRadius(first, 0.0f);
     T_ASSERT(first_gen != 0);
 
-    /* Once the first job completes, the previously waiting destination can
-     * start on the next request and eventually gets its own generation. */
-    T_EQ(CM_RequestHeatmapForRadius(second, 0.0f), 0);
-    for (int i = 0; i < 200; i++)
-        CM_ProcessPathJobs(4);
-
+    /* FIFO service completes the queued destination without requiring a
+     * fresh miss from its caller. */
     uint32_t second_gen = CM_RequestHeatmapForRadius(second, 0.0f);
     T_ASSERT(second_gen != 0);
     T_ASSERT(second_gen != first_gen);
@@ -944,14 +943,14 @@ TEST(wc3_pathfinding, nearby_unit_routes_follow_live_object_eligibility) {
     T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
     query.geometry.blocked_flags = CM_PATHING_UNWALKABLE;
     edict_t *goal = make_waypoint(target.x, target.y);
-    G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE);
+    G_RequestMovePathField(NULL, goal, 0.5f, CM_PATHING_UNWALKABLE);
     CM_ProcessPathJobs(UINT_MAX);
-    uint32_t gen = G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE);
+    uint32_t gen = G_RequestMovePathField(NULL, goal, 0.5f, CM_PATHING_UNWALKABLE);
     T_ASSERT(G_ActivateMovePathField(gen, 0.5f, CM_PATHING_UNWALKABLE));
     idle->movement.velocity.x = 0.2f;
     T_ASSERT(G_UnitMovePathLineIsPathable(&query));
     T_ASSERT(G_ActivateMovePathField(gen, 0.5f, CM_PATHING_UNWALKABLE));
-    T_EQ(G_RequestMovePathField(goal, 0.5f, CM_PATHING_UNWALKABLE), gen);
+    T_EQ(G_RequestMovePathField(NULL, goal, 0.5f, CM_PATHING_UNWALKABLE), gen);
     edict_t *other = make_unit_at(12.5f, 4.5f);
     other->collision = 0.5f;
     gi.LinkEntity(other);

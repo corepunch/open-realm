@@ -1,0 +1,7 @@
+function main takes nothing returns nothing
+    call SetWatchMegaTargets(true)
+    if GetMegaTarget() != null then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

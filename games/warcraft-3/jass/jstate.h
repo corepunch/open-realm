@@ -83,6 +83,7 @@ typedef enum {
     JASS_FRAME_FUNCTION,
     JASS_FRAME_BLOCK,
     JASS_FRAME_LOOP,
+    JASS_FRAME_IF_CONDITION,
 } JASSFRAMETYPE;
 
 struct jass_coroutine_frame {
@@ -93,6 +94,9 @@ struct jass_coroutine_frame {
     token_t const *pc;
     jassdict_t *locals;
     uint32_t loop_count;
+    bool return_boolean;
+    bool negate_condition;
+    bool condition_result;
 };
 
 struct jass_coroutine {

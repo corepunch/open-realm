@@ -108,7 +108,7 @@ terminate parsing, including when a parsed coordinate enters Move. The engine
 regression uses authored object names and public SubString/S2R, preserving the
 byte producer and numerical boundary.
 
-Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interactions such as attack and repair still own their interaction ranges independently of routing. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
+Ground Move, Patrol, Attack-move location orders, and Attack chases use collision-size-aware static routing through direct-line checks, waypoint acceleration, and flow generation. Attack still owns its interaction range independently: reaching a collision-safe route endpoint does not complete the attack. Harvest has an explicit collision split: Gold Mine approach and all resource-return legs use collision-sized **static-only** routing (live units ignored), while tree approach keeps live-unit collision and uses collision-sized resource-worker local avoidance.
 
 Normal movement uses the live `unitinfo.PropWindow`, initialized from `UnitData.propWin` / object field `uprw` and mutable through `SetUnitPropWindow`. The authored value is a propulsion window in degrees: steering may continue turning toward the avoidance-resolved heading every simulation tick, but `unit_moveindirection()` does not translate until the remaining facing error is strictly inside that window. This is shared movement behavior, so Attack chase, Follow, Patrol, Harvest, Repair, Way Gate approach, and ordinary Move inherit the same turn-before-propulsion rule rather than implementing Attack-specific steering. A zero runtime value prevents translation until facing exactly matches the resolved heading, so it can be used to hold movement while retaining turning.
 
@@ -156,13 +156,17 @@ Plain right-click movement is different from an interaction order: `move_selectl
 
 Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.
 
-`G_RequestMovePathField()` supplies WC3 class geometry to the shared-cache miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 32,768 queue pops per frame and is runtime-tunable with:
+`G_RequestMovePathField()` supplies WC3 class geometry to the shared-cache miss path. A cache hit returns its generation immediately; a miss takes a place in a FIFO of distinct target/footprint/pathing-mask requests and returns 0 until its job completes. `G_RunFrame()` advances the active resumable reverse shortest-path job after entity simulation through `CM_ProcessPathJobs()`. On completion, the next queued request is promoted before later entity thinks can claim the slot. Repeated requests for the same field share one queue entry, and a moving goal updates its queued destination without losing its place. This prevents early entities from repeatedly taking the slot after each completion and starving later movers. Static-pathing invalidation clears both the active job and pending requests.
+
+The default relaxation budget is 65,536 queue pops per frame and is runtime-tunable with:
 
 ```sh
-+set wc3_path_work_budget 32768
++set wc3_path_work_budget 65536
 ```
 
-The value is clamped to 256-65,536. This keeps SPFA relaxation bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
+The value is clamped to 256-65,536. The doubled Warcraft III default is a trial aimed at shortening the route-wait frames seen when new and moving units add distinct destinations to the shared FIFO. It keeps SPFA relaxation bounded while allowing each queued destination to make more progress per frame. Only one miss is built at a time; later destinations wait in FIFO order. Route-wait diagnostics can report active flood progress and queued destination fields.
+
+For temporary per-mover wait diagnostics, enable `wc3_route_wait_debug 1`. The log emits one `WC3_ROUTE_WAIT begin` and matching `end` line per route-field wait, with mover and goal identities, wait duration, position delta, active job target, and FIFO depth. Set it back to `0` after capturing the behavior.
 
 Nearby detours do not wait for that whole field. `G_FindUnitMovePathWaypoint()` runs the [ported retail fine-search policy](retail-pathfinding-engine.md#retail-fine-search-drives-nearby-detours) for endpoints within48 pathing cells and charges at most2,048 queue attempts. Static endpoint correction uses the retail1/2/3/4-cell footprint; interior checks and original next-point/progressively-farther waypoint selection use [sampled segments](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection). Location-order queries now include [idle ground-unit rectangles](retail-pathfinding-engine.md#idle-objects-affect-nearby-move-routes), skip moving neighbours and exclude the mover/target. Move retains the turn until reached, the target changes, or current static/live occupancy rejects its segment. Publishing a shared field does not discard it. Shared fields remain static; long routing and interaction abilities retain their existing policy. Location orders also retain [nearest partial routes](retail-pathfinding-engine.md#nearest-partial-routes-survive-blocked-goals) after fine-search exhaustion, while keeping their original destination.
 
@@ -172,7 +176,7 @@ Plain Move also keeps the stand presentation while that pair is clear. The order
 
 The stepper rejects a collision-free candidate along a turn-lagged facing when it points more than 90 degrees away from the resolved route heading or increases distance to the active goal. The old stepper accepted the facing candidate first, so a short scripted cinematic move could advance in the wrong direction while the unit was still rotating; Human02Interlude then left Jaina on Antonidas's later ride-off path. Construction displacement uses its temporary exit point as the active progress goal until it is reached, after which the unit resumes its original order. `unit_commit_step()` and point Move arrival commits keep the network/render `origin` synchronized with authoritative `origin2` for the same reason.
 
-The regression is `wc3_movement.turn_lag_does_not_step_away_from_route_heading` in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
+The route-job fairness regression is `wc3_movement.attack_chase_waits_through_competing_route_jobs_then_resumes`; it keeps distinct route requests arriving while asserting the attacker gets its earlier queued field and resumes before those later requests drain. `wc3_movement.turn_lag_does_not_step_away_from_route_heading` covers turn-lag steering. Both live in `games/warcraft-3/game/tests/t_movement.c`. Run both game variants with:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_movement.*'
@@ -180,7 +184,7 @@ make test-wc3-engine WC3_PATTERN='wc3_movement.*'
 
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
-Production services the shared incremental build with 32,768 queue pops per 10 Hz server frame. A 256x256 open field therefore completes in at most two frames instead of the previous sixteen-frame (1.6 second) delay. Override `wc3_path_work_budget` for slower targets. Complete destination-rooted publication remains the long-route fallback; the bounded accelerator is what removes that publication delay from nearby obstacle detours.
+Production services the shared incremental build with 65,536 queue pops per 10 Hz server frame. A 256x256 open field can therefore complete within one frame. Override `wc3_path_work_budget` for slower targets. Complete destination-rooted publication remains the long-route fallback; the bounded accelerator is what removes that publication delay from nearby obstacle detours.
 
 WC3 Move requests fields through `G_RequestMovePathField()`, using the verified1/2/3/4-cell class bounds. Field expansion, flow sampling, destination correction and closest-reachable fallback consume the same geometry as Move. Cache keys include the adjusted target cell, half-open footprint offsets and blocked mask; `G_ActivateMovePathField()` checks those bounds rather than allowing a small radius difference to cross a class boundary. Shared `CM_BuildHeatmapForRadius()` and radius request APIs retain symmetric ceil-radius geometry for their existing callers; zero-radius `CM_BuildHeatmap()` routes a point. See [long field geometry](retail-pathfinding-engine.md#long-fields-use-the-same-class-geometry-as-move).
 
@@ -204,6 +208,16 @@ When a clicked destination is in another static connected component, the destina
 Ordinary destination fields remain incremental and frame-budgeted. The mover-component flood is synchronous only after a completed destination field proves the click unreachable, so this exceptional recovery does not add input-time work to reachable orders.
 
 The current router is now deliberately hybrid. Direct collision-sized lines handle open ground, bounded per-mover A* handles nearby static detours, destination-cached integration fields amortize long routes shared by groups, and local avoidance handles live units. This is closer to retail's split between mover-owned route state and a global pathing system without claiming its unrecovered accelerator implementation.
+
+### Route-wait diagnostics
+
+Route-wait begin/end records are compiled only with `WC3_DEBUG_ROUTING=1`. In
+that build, set `wc3_route_wait_debug 1` to write `WC3_ROUTE_WAIT` records to
+`stderr`; leave it at `0` to keep the diagnostics quiet.
+
+```sh
+make WC3_DEBUG_ROUTING=1 openwarcraft3
+```
 
 ### Retail Game.dll path audit
 
@@ -358,7 +372,7 @@ make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 
 ### Interaction-owned route endpoints
 
-Generic radius-0 point fields are still used for mine entry, resource return, attack, and other behaviors whose real target centre may be blocked. Their flow vectors nevertheless strictly descend to the adjusted legal route endpoint. Once that endpoint is reached, `unit_changeangle()` exposes `flow_goal_reached` and steers toward the real entity target. The owning behavior decides what that means: attack/range behaviors continue using their range test, while Gold Mine entry/return may hand off immediately at the route goal or after Move's bounded near-goal settle detector proves a crowded worker has stopped making progress at the interaction edge. This keeps routing monotonic without turning a distant blocked route into a successful interaction.
+Radius-0 point fields remain available to callers whose interaction contract specifically needs point routing. Attack chases instead use the attacker's collision radius so their field cannot route through a gap the move-time validator rejects. Both forms strictly descend to their adjusted legal route endpoint. Once that endpoint is reached, `unit_changeangle()` exposes `flow_goal_reached` and steers toward the real entity target; the attack behavior continues to use its own range test. Gold Mine entry/return may hand off immediately at the route goal or after Move's bounded near-goal settle detector proves a crowded worker has stopped making progress at the interaction edge. This keeps routing monotonic without turning a distant blocked route into a successful interaction.
 
 ## Authored movement profiles and public speed
 
@@ -694,3 +708,33 @@ pending20-tick delay clears at the same point; saved continuations agree before
 and after the reset. The next difference at27.27s is a one-point failed fine
 refill, whose caller retains a coarse waypoint; formation destinations already
 match. See [the evidence and remaining scope](retail-pathfinding-engine.md#changed-captain-destination-resets-pending-waits).
+
+### Upstream AI integration and retail movement
+
+The October 2026 upstream integration brings production-queue filling, visible
+assault target selection, sleeping JASS condition resumption, melee policy
+natives, patrol tests and destructable path-texture rotation into the retail
+pathfinding branch. These policy implementations remain the documented engine
+approximations; merging them does not establish numerical retail parity.
+
+The route FIFO retains game-authored half-open footprint bounds in pending
+requests, active jobs and cache identities. Repeated requests share a slot;
+queued moving targets update that slot without losing their place. WC3 passes
+mover and goal identities through `G_RequestMovePathField()` for diagnostics.
+Interaction movement can resume a previously resolved heading while a field
+builds; scheduled point cohorts retain the retail fine-route consumer and
+pre-turn movement window. Accepted motion still commits software scalar
+velocity and retained fine pose.
+
+Two upstream hypotheses conflict with existing repeated retail evidence.
+`AddAssault` continues to reconcile the retained typed roster, and repeated
+`StartCampaignAI` retains the existing initialized VM. The merged common.ai
+formation regression exercises its authored maximum through that backend.
+See [owned-pool recruitment](retail-pathfinding-engine.md#captain-owned-pool-order-survives-transfer-and-reused-slots)
+and [AI initialization](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).
+Save format89 rejects earlier layouts and clears the process-local
+route-resume/wait record while retaining serialized retail movement state.
+
+The larger fixture set exposed a128-file truncation in `mpqtool pack`. The
+tool now consumes every supplied pair; the140-file archive regression in
+`tests/test_parity_maps.py` verifies files on both sides of the old limit.

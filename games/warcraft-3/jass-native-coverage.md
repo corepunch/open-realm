@@ -19,6 +19,20 @@ calling strict `jass_checkcode()`; non-null handlers still require the exact
 fast-forward or ESC skip. HiveWorkshop's timer reset examples confirm the same
 native behavior, commonly followed by `PauseTimer` when resetting getter state.
 
+The AI-only `UnitInvis(unit)` native reports intrinsic active invisibility through `S_UnitHasInvisibilityState()`; it
+does not incorporate owner/shared vision or detector coverage. Stock `common.ai` calls it separately from
+`IsUnitDetected(target, ai_player)`. The latter and `IsUnitInvisible(unit, player)` remain placeholders in
+`api_unit.h`; their player-relative meanings must not be folded into `UnitInvis`. See
+[Warcraft III Invisibility](../../docs/games/warcraft-3/invisibility.md#ai-and-jass-queries).
+
+The expansion native family shares one per-AI-player candidate selected by `GetNextExpansion()`. It chooses a viable,
+unclaimed harvestable gold mine and returns `0`, or `-1` when none is available. `GetExpansionX/Y`, `GetExpansionFoe`,
+and `GetExpansionPeon` all query that selected mine. `SetExpansion(peon, hallId)` validates the supplied worker and
+hall rawcode, then routes placement through `G_IssueBuildOrder`; ordinary placement, resources, race-specific builder
+behavior, and town discovery remain owned by the construction and town systems. The candidate remains selected after
+a failed request for retries. Candidate ranking, blocker radius/priority, worker preference, and hall placement offset
+are `BZ_COMPAT_GUESS` policies documented in [Player AI](../../docs/games/warcraft-3/player-ai.md).
+
 ## Baseline
 
 The registry currently contains 919 callbacks. The last conservative source
@@ -515,8 +529,11 @@ assertion. Both natives now consume `jass_checkhandle(..., "version")`.
 This correction preserves the existing RoC-only version-reporting policy (`VersionGet` returns 0); expansion-aware
 version reporting remains a separate conformance gap.
 
-After the handle correction, the bounded Twisted Meadows lobby reached gameplay. Its Orc AI then stopped with
-the existing `MeleeDifficulty` unimplemented-native diagnostic; that separate API gap does not abort the process.
+After the handle correction, the bounded Twisted Meadows lobby reached gameplay. `MeleeDifficulty` is now registered
+for the AI VM and returns `MELEE_NORMAL` (`2`). The lobby does not model per-slot AI difficulty, so `GetAIDifficulty`
+returns `AI_DIFFICULTY_NORMAL` for valid players rather than deriving AI difficulty from map difficulty. Its
+`aidifficulty` enum-handle scale remains distinct from `MeleeDifficulty`'s integer scale. See
+[Player AI documentation](../../docs/games/warcraft-3/player-ai.md).
 
 ### Shared Galaxy Error Boundaries
 

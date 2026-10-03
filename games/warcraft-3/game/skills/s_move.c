@@ -314,6 +314,94 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
 static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy);
 static bool move_displacement_steer(edict_t *self, moveAvoidPolicy_t policy);
 
+#define MOVE_ROUTE_RESUME_MS 500u
+
+static void move_route_resume_save(edict_t *self, edict_t *goal, float radius,
+                                  uint8_t blocked_flags, vec2_t const *direction) {
+    if (!self || !goal || !direction || Vector2_len(direction) <= 0.001f) return;
+    self->movement.route_resume_direction = *direction;
+    self->movement.route_resume_goal = goal;
+    self->movement.route_resume_goal_origin = goal->s.origin2;
+    self->movement.route_resume_goal_spawn = goal->spawn_time;
+    self->movement.route_resume_time = level.time;
+    self->movement.route_resume_radius = radius;
+    self->movement.route_resume_flags = blocked_flags;
+    self->movement.route_resume_valid = true;
+}
+
+static bool move_route_resume(edict_t *self, edict_t *goal, float radius,
+                              uint8_t blocked_flags, vec2_t *direction) {
+    if (!self || !goal || !direction || !self->movement.route_resume_valid ||
+        self->movement.route_resume_goal != goal ||
+        self->movement.route_resume_goal_spawn != goal->spawn_time ||
+        Vector2_distance(&self->movement.route_resume_goal_origin, &goal->s.origin2) > 128.0f ||
+        fabsf(self->movement.route_resume_radius - radius) >= 0.01f ||
+        self->movement.route_resume_flags != blocked_flags ||
+        (uint32_t)(level.time - self->movement.route_resume_time) > MOVE_ROUTE_RESUME_MS)
+        return false;
+    *direction = self->movement.route_resume_direction;
+    return Vector2_len(direction) > 0.001f;
+}
+
+#ifdef WC3_DEBUG_ROUTING
+static bool move_route_wait_debug_enabled(void) {
+    cstring_t value = gi.CvarString ? gi.CvarString("wc3_route_wait_debug", "0") : "0";
+    return value && atoi(value) != 0;
+}
+
+static cstring_t move_diag_state_name(moveDiagState_t state) {
+    return state == MOVE_DIAG_ROUTE_WAIT ? "route_wait" : "none";
+}
+
+static void move_route_wait_diag(edict_t *self, bool waiting, moveDiagState_t resume_state) {
+    cmPathJobStatus_t job;
+    edict_t *goal;
+    if (!self) return;
+    goal = self->goalentity && self->goalentity->inuse ? self->goalentity : NULL;
+    if (waiting) {
+        if (self->movement.path_wait_active) return;
+        self->movement.path_wait_active = true;
+        self->movement.path_wait_start = level.time;
+        self->movement.path_wait_goal_number = goal ? goal->s.number : 0;
+        self->movement.path_wait_goal_spawn = goal ? goal->spawn_time : 0;
+        self->movement.path_wait_origin = self->s.origin2;
+        if (!move_route_wait_debug_enabled()) return;
+        CM_GetPathJobStatus(&job);
+        fprintf(stderr,
+            "WC3_ROUTE_WAIT begin t=%u unit=%u rawcode=%08x owner=%u pos=%.1f,%.1f goal=%u@%u goal_rawcode=%08x goal_owner=%u goalpos=%.1f,%.1f collision=%.1f active=%u requester=%u jobgoal=%u target=%d,%d pending=%u queued=%u work=%u\n",
+            (unsigned)level.time, (unsigned)self->s.number, (unsigned)self->class_id,
+            (unsigned)self->s.player, self->s.origin2.x, self->s.origin2.y,
+            (unsigned)(goal ? goal->s.number : 0), (unsigned)(goal ? goal->spawn_time : 0),
+            (unsigned)(goal ? goal->class_id : 0), (unsigned)(goal ? goal->s.player : 0),
+            goal ? goal->s.origin2.x : 0.0f, goal ? goal->s.origin2.y : 0.0f,
+            self->collision, job.active, job.requester_number,
+            job.goal_number, job.target_cell_x, job.target_cell_y,
+            (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
+        return;
+    }
+    if (!self->movement.path_wait_active) return;
+    self->movement.path_wait_active = false;
+    if (!move_route_wait_debug_enabled()) return;
+    CM_GetPathJobStatus(&job);
+    fprintf(stderr,
+        "WC3_ROUTE_WAIT end t=%u unit=%u rawcode=%08x duration=%u start_goal=%u@%u goal=%u@%u pos=%.1f,%.1f dpos=%.1f,%.1f result=%s flow=%u direct=%u route=%u active=%u requester=%u jobgoal=%u target=%d,%d pending=%u queued=%u work=%u\n",
+        (unsigned)level.time, (unsigned)self->s.number, (unsigned)self->class_id,
+        (unsigned)(level.time - self->movement.path_wait_start),
+        (unsigned)self->movement.path_wait_goal_number, (unsigned)self->movement.path_wait_goal_spawn,
+        (unsigned)(goal ? goal->s.number : 0), (unsigned)(goal ? goal->spawn_time : 0),
+        self->s.origin2.x, self->s.origin2.y,
+        self->s.origin2.x - self->movement.path_wait_origin.x,
+        self->s.origin2.y - self->movement.path_wait_origin.y,
+        move_diag_state_name(resume_state), (unsigned)self->movement.flow_generation,
+        self->movement.flow_direct, self->movement.path.valid,
+        job.active, job.requester_number,
+        job.goal_number, job.target_cell_x, job.target_cell_y,
+        (unsigned)job.pending_cells, (unsigned)job.pending_jobs, (unsigned)job.work_done);
+}
+#else
+#define move_route_wait_diag(self, waiting, resume_state) ((void)0)
+#endif
+
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
 static bool move_fallback_throttled(edict_t *self, vec2_t const *target, float radius) {
@@ -589,6 +677,11 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     self->s.origin.x = cand->x;
     self->s.origin.y = cand->y;
     gi.LinkEntity(self);
+    if (self->movement.route_resume_active && self->movement.route_resume_goal &&
+        self->movement.route_resume_goal->inuse) {
+        self->movement.route_resume_time = level.time;
+        self->movement.route_resume_goal_origin = self->movement.route_resume_goal->s.origin2;
+    }
 }
 
 /* Preserve native low bits on unchanged axes; world position writers reproject changed axes. */
@@ -1091,6 +1184,11 @@ static void unit_commit_motion(edict_t *self, moveStep_t const *step) {
     float grid_y = wc3_mul(v->vel[1], wc3_float(0x3d000000));
     self->s.angle = v->speed > 0 ? wc3_velocity_heading(grid_x, grid_y, self->s.angle) : wc3_facing_angle(v->heading);
     unit_commit_pose(self, &step->pose);
+    if (self->movement.route_resume_active && self->movement.route_resume_goal &&
+        self->movement.route_resume_goal->inuse) {
+        self->movement.route_resume_time = level.time;
+        self->movement.route_resume_goal_origin = self->movement.route_resume_goal->s.origin2;
+    }
 #ifdef BZ_TESTS
     if (level.scheduled_think && move_test_motion_commit) move_test_motion_commit(self);
 #endif
@@ -1125,6 +1223,7 @@ static void unit_moveindirection_policy(edict_t *self,
         if (level.scheduled_think && self->movement.turn_blocked && !(self->aiflags & AI_IMMOBILE) && move_test_motion_commit)
             move_test_motion_commit(self);
 #endif
+        move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
 
@@ -1134,8 +1233,10 @@ static void unit_moveindirection_policy(edict_t *self,
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0) {
+    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
+        !self->movement.route_resume_active) {
         self->movement.velocity = (vec2_t){0};
+        move_route_wait_diag(self, true, MOVE_DIAG_ROUTE_WAIT);
         return;
     }
 
@@ -1159,11 +1260,13 @@ static void unit_moveindirection_policy(edict_t *self,
          (Vector2_dot(&facing_dir, &heading_dir) >= 0.0f && facing_progress)) &&
         move_is_valid_policy(self, &by_facing, collision_policy)) {
         unit_commit_motion(self, &motion);
+        move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
     vec2_t const by_heading = unit_step_heading(self, self->movement.heading, &motion);
     if (move_is_valid_policy(self, &by_heading, collision_policy)) {
         unit_commit_motion(self, &motion);
+        move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
     }
     self->movement.velocity = (vec2_t){0};
@@ -1618,9 +1721,17 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         return;
     if (move_fallback_steer(self, policy))
         return;
+    self->movement.route_resume_active = false;
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
-    float const radius = unit_routes_to_location(self) ? self->collision : 0.0f;
+    /* Attack retains an entity/range goal, but its route must still fit the
+     * attacker's footprint. A point-only field can thread a tower gap that
+     * move-time collision rejects, leaving local slide to stall at the obstacle.
+     * flow_goal_reached below still hands the real target to the attack behavior
+     * for its authored interaction-range check. */
+    float const radius = (unit_routes_to_location(self) ||
+        (self->currentmove && self->currentmove->proc == CAbilityAttack))
+        ? self->collision : 0.0f;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
@@ -1674,6 +1785,14 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         if (heatmap && !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y)) fine = false;
         if (fine && unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
             unit_apply_heading(self, &dir, policy);
+            if (!self->movement.route_resume_active)
+                move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
+            return;
+        }
+        if (!heatmap && !unit_routes_to_location(self) &&
+            move_route_resume(self, self->goalentity, radius, blocked_flags, &dir)) {
+            self->movement.route_resume_active = true;
+            unit_apply_heading(self, &dir, policy);
             return;
         }
         if (!heatmap) {
@@ -1690,10 +1809,10 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         self->movement.path.valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
-             * the owning behavior.  Interaction orders use a point field whose
-             * raw target may be blocked (mine/building/unit centre); once the
-             * adjusted route end is reached they must steer toward the real
-             * target so the behavior's footprint/range check can complete. */
+             * the owning behavior. Interaction goals may be blocked or have
+             * their own range boundary; once the adjusted route end is reached
+             * they steer toward the real entity target so the behavior's
+             * range check can complete. */
             self->movement.flow_goal_reached = true;
             dir = to_goal;
         } else {
@@ -1742,7 +1861,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         }
     }
 
+    self->movement.route_resume_active = false;
     unit_apply_heading(self, &dir, policy);
+    move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
 void unit_changeangle(edict_t *self) {
@@ -1763,9 +1884,11 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                bool continue_to_target) {
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
+    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
     self->movement.heading = self->s.angle;
+    self->movement.route_resume_active = false;
     self->movement.flow_generation = 0;
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
@@ -1779,9 +1902,14 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
-            if (!unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))
-                return; /* long incremental route is still building */
+            if (!unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
+                if (!move_route_resume(self, self->goalentity, radius, blocked_flags, &dir))
+                    return; /* long incremental route is still building */
+                self->movement.route_resume_active = true;
+            }
             unit_apply_heading(self, &dir, policy);
+            if (!self->movement.route_resume_active)
+                move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
         }
         self->movement.path.valid = false;
@@ -1806,7 +1934,9 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         }
     }
 
+    self->movement.route_resume_active = false;
     unit_apply_heading(self, &dir, policy);
+    move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
 void unit_changeangle_for_radius(edict_t *self, float radius) {
@@ -1892,7 +2022,7 @@ uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float rad
      * target while its replacement is being built; fixed goals with
      * no field simply wait until a later tick instead of steering straight into
      * the obstacle that caused routing to be needed. */
-    generation = G_RequestMovePathField(route, radius, blocked_flags);
+    generation = G_RequestMovePathField(mover, route, radius, blocked_flags);
     if (!generation)
         return cached ? route->heatmap2 : 0;
 
@@ -2668,6 +2798,7 @@ static void ai_move_walk(edict_t *ent) {
 
     if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
+        move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
         ent->stand(ent);
         return;
     }
@@ -2786,9 +2917,12 @@ static void ai_move_walk(edict_t *ent) {
             unit_moveindirection(ent);
             return;
         }
-        if (!ent->movement.flow_direct && !ent->movement.path.valid && !ent->movement.flow_generation) {
+        if (!ent->movement.flow_direct && !ent->movement.path.valid && !ent->movement.flow_generation &&
+            !ent->movement.route_resume_active) {
+            move_route_wait_diag(ent, true, MOVE_DIAG_ROUTE_WAIT);
             return; /* resumable route field is still being built */
         }
+        move_route_wait_diag(ent, false, MOVE_DIAG_NONE);
         if (ent->movement.flow_goal_reached) {
             return;
         }

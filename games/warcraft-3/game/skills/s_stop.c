@@ -59,6 +59,8 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
 }
 
 void order_stop(edict_t *ent) {
+    if (ent) {
+    }
     G_ClearUnitOrderQueue(ent);
     order_stop_state(ent, false, true);
 }

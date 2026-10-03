@@ -102,10 +102,12 @@ bool G_TestMapObjectCreatedByMapScript(uint32_t id) { return G_MapObjectCreatedB
 bool G_TestFixOrc07BridgeRestoreScript(char *script) { return G_FixOrc07BridgeRestoreScript(script); }
 #endif
 
-static void G_JassCoroutineTrace(handle_t trigger_handle, cstring_t function, cstring_t phase,
-                                 uint32_t now, uint32_t wake_time, bool yielded, bool done) {
+static void G_JassCoroutineTrace(jass_t *vm, handle_t coroutine, handle_t trigger_handle,
+                                 cstring_t function, cstring_t phase, uint32_t now,
+                                 uint32_t wake_time, bool yielded, bool done) {
     trigger_t *trigger = trigger_handle;
     int32_t ordinal;
+    G_BOT_TRACE_COROUTINE(vm, coroutine, function, phase, now, wake_time, yielded, done);
     if (!G_TutorialFlowDebugEnabledForMapSource() || !trigger ||
         trigger < level.triggers || trigger >= level.triggers + level.num_triggers) {
         return;
@@ -117,6 +119,20 @@ static void G_JassCoroutineTrace(handle_t trigger_handle, cstring_t function, cs
             phase ? phase : "unknown", (long)ordinal,
             function ? function : "(none)", (unsigned)now, (unsigned)wake_time,
             (int)yielded, (int)done);
+}
+
+static void G_JassFunctionTrace(jass_t *vm, handle_t coroutine, cstring_t function, cstring_t phase) {
+#ifdef WC3_TRACE_AI
+    bot_t *bot = NULL;
+    jass_t *root = jass_getroot(vm);
+    FOR_LOOP(player, MAX_PLAYERS) if (level.bots[player].vm == root) { bot = level.bots + player; break; }
+    if (!bot) return;
+    fprintf(stderr, "WC3_AI_TRACE time=%u player=%u script=\"%s\" event=function_%s name=%s coroutine=%p\n",
+            (unsigned)G_Time(), PLAYER_NUM(bot->player), bot->script,
+            phase ? phase : "unknown", function ? function : "(unknown)", coroutine);
+#else
+    (void)vm; (void)coroutine; (void)function; (void)phase;
+#endif
 }
 
 void G_InitJassHost(void) {
@@ -131,6 +147,7 @@ void G_InitJassHost(void) {
         .SaveHandle = G_SaveJassHandle,
         .LoadHandle = G_LoadJassHandle,
         .CoroutineTrace = G_JassCoroutineTrace,
+        .FunctionTrace = G_JassFunctionTrace,
         .VariableChanged = G_JassVariableChanged,
     ));
 }

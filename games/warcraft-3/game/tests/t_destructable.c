@@ -515,6 +515,8 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
     bridge->data.DestructableData = &bridge_data;
     bridge->destructable.alive_pathtex = (pathTex_t *)&destructable_bridge_band_pathtex;
     bridge->pathtex = bridge->destructable.alive_pathtex;
+    bridge->targtype = TARG_BRIDGE;
+    bridge->s.angle = (float)M_PI / 2.0f;
 
     CM_BakeStaticObstacles();
 
@@ -630,6 +632,93 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         G_KillDestructable(bridge, NULL);
         T_ASSERT(!CM_LineIsWalkableForRadius(&from, &to, 0.0f));
     }
+}
+
+TEST(wc3_destructable, gate_path_texture_rotation_covers_all_quarter_turns) {
+    human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
+
+    FOR_LOOP(angle, 4) {
+        edict_t *gate;
+        pathTexTransform_t transform;
+
+        reset_entities();
+        setup_test_world();
+        gate = make_test_destructable(2500.0f, 0.0f, 0.0f);
+        gate->class_id = MAKEFOURCC('D', 'T', 'g', '3');
+        gate->s.class_id = gate->class_id;
+        gate->s.angle = angle * (float)M_PI / 2.0f;
+        gate->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        gate->pathtex = (pathTex_t *)&pathtex;
+
+        transform = CM_GetPathTexTransform(gate);
+
+        T_EQ(transform.turn, (angle + 1) % 4);
+        T_EQ(transform.width, !(angle & 1) ? 22 : 32);
+        T_EQ(transform.height, !(angle & 1) ? 32 : 22);
+    }
+}
+
+TEST(wc3_destructable, non_gate_path_texture_orientation_follows_facing_in_pathing) {
+    typedef struct {
+        uint16_t width, height;
+        color32_t map[3];
+    } path_blocker_texture_t;
+    static path_blocker_texture_t const pathtex = {
+        .width = 3,
+        .height = 1,
+        .map = { { 0, 0, 1, 255 }, { 0, 0, 1, 255 }, { 0, 0, 1, 255 } },
+    };
+
+    FOR_LOOP(angle, 4) {
+        uint8_t cells[64 * 64] = { 0 };
+        vec2_t const center = { 0.0f, 0.0f };
+        vec2_t const along_x = { 32.0f, 0.0f };
+        vec2_t const along_y = { 0.0f, 32.0f };
+        edict_t *elevator;
+
+        reset_entities();
+        setup_test_world();
+        setup_test_pathmap(64, 64, cells);
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+        elevator = make_test_destructable(2500.0f, center.x, center.y);
+        elevator->class_id = MAKEFOURCC('D', 'T', 'e', 'p');
+        elevator->s.class_id = elevator->class_id;
+        elevator->s.origin2 = center;
+        elevator->s.angle = angle * (float)M_PI / 2.0f;
+        elevator->destructable.alive_pathtex = (pathTex_t *)&pathtex;
+        elevator->pathtex = (pathTex_t *)&pathtex;
+
+        CM_BakeStaticObstacles();
+
+        if (angle & 1) {
+            T_ASSERT(CM_PointIsPathableForRadius(&along_y, 0.0f));
+            T_ASSERT(!CM_PointIsPathableForRadius(&along_x, 0.0f));
+        } else {
+            T_ASSERT(!CM_PointIsPathableForRadius(&along_y, 0.0f));
+            T_ASSERT(CM_PointIsPathableForRadius(&along_x, 0.0f));
+        }
+    }
+}
+
+TEST(wc3_destructable, non_destructable_path_texture_keeps_axis_aligned_contract) {
+    human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
+    edict_t *building;
+    pathTexTransform_t transform;
+
+    reset_entities();
+    setup_test_world();
+    building = G_Spawn();
+    building->class_id = MAKEFOURCC('h', 't', 'o', 'w');
+    building->s.class_id = building->class_id;
+    building->svflags |= SVF_MONSTER;
+    building->s.angle = (float)M_PI / 2.0f;
+    building->pathtex = (pathTex_t *)&pathtex;
+
+    transform = CM_GetPathTexTransform(building);
+
+    T_EQ(transform.turn, 0);
+    T_EQ(transform.width, 32);
+    T_EQ(transform.height, 22);
 }
 
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {

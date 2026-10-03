@@ -10,6 +10,8 @@ KNOWN_AS(jass_module, jassModule_t);
 
 typedef uint32_t (*jassCFunction_t)(jass_t *);
 typedef bool (*jassSnapshotIo_t)(void *context, void *data, uint32_t size);
+typedef void (*jassFunctionTrace_t)(jass_t *vm, handle_t coroutine, cstring_t function,
+                                   cstring_t phase);
 
 typedef struct {
     void *context;
@@ -41,12 +43,14 @@ typedef struct {
     void (*RuntimeError)(cstring_t message);
     bool (*SaveHandle)(cstring_t type, handle_t value, uint32_t *id);
     handle_t (*LoadHandle)(cstring_t type, uint32_t id);
-    /* Optional host-side diagnostics for coroutine wake/resume. The VM keeps
-     * this generic: trigger is the opaque context handle supplied by the host. */
-    void (*CoroutineTrace)(handle_t trigger, cstring_t function, cstring_t phase,
-                           uint32_t now, uint32_t wake_time, bool yielded, bool done);
+    /* Optional host-side diagnostics for coroutine wake/resume. The VM passes
+     * borrowed VM/coroutine handles and the host-owned trigger context. */
+    void (*CoroutineTrace)(jass_t *vm, handle_t coroutine, handle_t trigger,
+                           cstring_t function, cstring_t phase, uint32_t now,
+                           uint32_t wake_time, bool yielded, bool done);
     bool (*TimerCoroutineValid)(handle_t timer, uint32_t generation);
     void (*VariableChanged)(cstring_t name, float before, float after);
+    jassFunctionTrace_t FunctionTrace;
 } jassHost_t;
 
 /* VM lifecycle */

@@ -1,0 +1,4 @@
+function main takes nothing returns nothing
+    call RemoveInjuries()
+    call Sleep(10.0)
+endfunction

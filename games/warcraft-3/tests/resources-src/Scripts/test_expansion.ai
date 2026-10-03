@@ -1,0 +1,11 @@
+function main takes nothing returns nothing
+    local integer town = GetNextExpansion()
+    local unit foe = GetExpansionFoe()
+    local unit peon = GetExpansionPeon()
+    local real x = GetExpansionX()
+    local real y = GetExpansionY()
+
+    if town == 0 and foe == null and peon != null and x == 700.0 and y == 0.0 then
+        call SetExpansion(peon, 'hhou')
+    endif
+endfunction

@@ -193,9 +193,21 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
-static void attack_finish_after_combat(edict_t *attacker, edict_t const *target) {
+static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason) {
     if (!attacker || M_IsDead(attacker) || !attacker->currentmove ||
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
+    G_BotTraceAssaultUnit(attacker, "assault_attack_ended",
+        "reason=%s target=%u target_inuse=%d target_alive=%d target_type=%c%c%c%c target_spawn_matches=%d distance=%.1f retained_attackmove=%d patrol=%d follow=%d",
+        reason ? reason : "unspecified", target ? target->s.number : UINT32_MAX,
+        target && target->inuse, target && target->inuse && !M_IsDead((edict_t *)target),
+        target ? (char)(target->class_id & 255) : '-',
+        target ? (char)((target->class_id >> 8) & 255) : '-',
+        target ? (char)((target->class_id >> 16) & 255) : '-',
+        target ? (char)((target->class_id >> 24) & 255) : '-',
+        target && attacker->attack_target_spawn_time == target->spawn_time,
+        target ? Vector2_distance(&attacker->s.origin2, &target->s.origin2) : 0.0f,
+        attacker->movement.attackmove_waypoint != NULL,
+        attacker->movement.patrol_a != NULL, attacker->movement.follow_target != NULL);
     unit_leavecombat(attacker);
     attacker->goalentity = NULL;
     attacker->attack_target_spawn_time = 0;
@@ -232,7 +244,7 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
         attacker->attack_target_spawn_time == target->spawn_time) {
         return false;
     }
-    if (attacker) attack_finish_after_combat(attacker, attacker->goalentity);
+    if (attacker) attack_finish_after_combat(attacker, attacker->goalentity, "target_invalid");
     return true;
 }
 
@@ -309,7 +321,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     if (damage <= 0) return;
     if (G_IsDestructable(target)) {
         if (G_DestructableApplyDamage(target, attacker, (float)damage)) {
-            attack_finish_after_combat(attacker, target);
+            attack_finish_after_combat(attacker, target, "destructable_destroyed");
         }
         return;
     }
@@ -332,7 +344,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         G_SetHealth(target, 0);
         unit_leavecombat(target);
         target->die(target, attacker);
-        attack_finish_after_combat(attacker, target);
+        attack_finish_after_combat(attacker, target, "target_killed");
         return;
     } else {
         G_AddHealth(target, -damage);
@@ -370,6 +382,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     damage = S_PossessionDamageTaken(target, damage);
     damage = S_HardenedSkinDamage(target, damage);
     if (damage <= 0) return;
+    G_WC3_AttackAlert(target, attacker);
     G_PlayCombatImpactSound(attacker, target);
     S_IncinerateOnHit(attacker, target);
     T_Damage(target, attacker, damage);
@@ -734,7 +747,7 @@ static void ai_attack_walk(edict_t *ent) {
          * out-of-range target.  Finish the attack behavior instead of leaving
          * an immobile tower stuck forever in attack_walk. */
         if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
-            attack_finish_after_combat(ent, ent->goalentity);
+            attack_finish_after_combat(ent, ent->goalentity, "immobile_target_out_of_range");
             return;
         }
         if (!S_UnitCanTranslate(ent)) return;
@@ -744,7 +757,7 @@ static void ai_attack_walk(edict_t *ent) {
         /* Artillery minimum range is a real dead zone. Mobile siege units back
          * away until they can fire; Hold Position/immobile attackers cannot. */
         if (ent->movement.holding_position || (ent->aiflags & AI_IMMOBILE)) {
-            attack_finish_after_combat(ent, ent->goalentity);
+            attack_finish_after_combat(ent, ent->goalentity, "immobile_target_too_close");
             return;
         }
         if (!S_UnitCanTranslate(ent)) return;

@@ -444,6 +444,9 @@ static jassCoroutineframe_t *jass_coroutine_pushframe(jasscoroutine_t *co,
     frame->pc = body;
     frame->locals = locals;
     frame->loop_count = 0;
+    frame->return_boolean = false;
+    frame->negate_condition = false;
+    frame->condition_result = false;
     ADD_TO_LIST(frame, co->frames);
     return frame;
 }
@@ -681,6 +684,11 @@ static void jass_missingcall(jass_t *j, cstring_t name, bool native) {
         root->missing = item;
     }
     snprintf(message, sizeof(message), "%s: %s", native ? "unimplemented native" : "unknown function", name);
+#ifdef WC3_TRACE_AI
+    if (native && (!strcmp(name, "AddAssault") || !strcmp(name, "SuicidePlayer") ||
+                   !strcmp(name, "CommandsWaiting") || !strcmp(name, "GetLastCommand")))
+        fprintf(stderr, "WC3_JASS_TRACE missing_native=%s\n", name);
+#endif
     if (root->current_coroutine || root->sync_rterror_jmp_set) jass_rterror(j, message);
     else jass_setruntimeerror(j, message);
 }
@@ -762,27 +770,6 @@ static bool jass_coroutine_callstatement(jass_t *j, jasscoroutine_t *co, token_t
     return true;
 }
 
-static token_t const *jass_coroutine_selectifbody(jass_t *j, token_t const *token) {
-    if (uses_localplayer(token->condition) && currentplayer) {
-        if (jass_dotoken(j, token->condition) && jass_popboolean(j)) {
-            return token->body;
-        }
-        return NULL;
-    }
-
-    while (token) {
-        if (!token->condition) {
-            return token->body;
-        }
-        jass_dotoken(j, token->condition);
-        if (jass_popboolean(j)) {
-            return token->body;
-        }
-        token = token->elseblock;
-    }
-    return NULL;
-}
-
 static bool jass_coroutine_runlocalplayerif(jass_t *j, jasscoroutine_t *co, token_t const *token) {
     player_t *previous_player;
 
@@ -806,9 +793,60 @@ static bool jass_coroutine_runlocalplayerif(jass_t *j, jasscoroutine_t *co, toke
     return true;
 }
 
+/* Keep a sleeping JASS function used as an if condition on the coroutine
+ * stack. This handles direct calls and the common.ai `not Function(...)` form.
+ */
+static bool jass_coroutine_schedule_if(jass_t *j, jasscoroutine_t *co, token_t const *branch) {
+    while (branch) {
+        token_t const *condition = branch->condition;
+        token_t const *call = condition;
+        bool negate = false;
+        jassFunc_t const *func;
+
+        if (!condition) {
+            if (branch->body)
+                jass_coroutine_pushframe(co, JASS_FRAME_BLOCK, NULL, branch->body, NULL);
+            return true;
+        }
+        if (call->type == TT_CALL && call->primary && !strcmp(call->primary, "__not") &&
+            call->args && !call->args->next) {
+            call = call->args;
+            negate = true;
+        }
+        func = call->type == TT_CALL && call->primary ? find_function(j, call->primary) : NULL;
+        if (func && !func->native && !func->nativefunc && !uses_localplayer(condition)) {
+            jassdict_t *locals = jass_coroutine_buildlocals(j, func, call->args);
+            jassCoroutineframe_t *continuation = jass_coroutine_pushframe(
+                co, JASS_FRAME_IF_CONDITION, NULL, (token_t *)branch, NULL);
+            continuation->negate_condition = negate;
+            jass_coroutine_pushframe(co, JASS_FRAME_FUNCTION, func, func->code, locals)->return_boolean = true;
+            return true;
+        }
+        jass_dotoken(j, condition);
+        if (jass_popboolean(j)) {
+            if (branch->body)
+                jass_coroutine_pushframe(co, JASS_FRAME_BLOCK, NULL, branch->body, NULL);
+            return true;
+        }
+        branch = branch->elseblock;
+    }
+    return true;
+}
+
 static void jass_coroutine_return(jasscoroutine_t *co) {
     while (co->frames) {
+        jassCoroutineframe_t *frame = co->frames;
         JASSFRAMETYPE type = co->frames->type;
+        if (type == JASS_FRAME_FUNCTION && frame->return_boolean && frame->next &&
+            frame->next->type == JASS_FRAME_IF_CONDITION && co->state->num_stack > 1)
+            frame->next->condition_result = jass_toboolean(co->state, -1);
+        if (type == JASS_FRAME_FUNCTION && jass_host.FunctionTrace && frame->func &&
+            (!strcmp(jass_functionname(frame->func), "main") ||
+             !strcmp(jass_functionname(frame->func), "CampaignAI") ||
+             !strcmp(jass_functionname(frame->func), "WaitForSignal") ||
+             !strcmp(jass_functionname(frame->func), "SuicideOnPlayer") ||
+             !strcmp(jass_functionname(frame->func), "SuicideUnits")))
+            jass_host.FunctionTrace(co->state, co, jass_functionname(frame->func), "return");
         jass_coroutine_popframe(co);
         if (type == JASS_FRAME_FUNCTION) {
             return;
@@ -841,6 +879,19 @@ static void jass_resumecoroutine(jasscoroutine_t *co) {
         token_t const *token = frame->pc;
         token_t const *next;
 
+        if (frame->type == JASS_FRAME_IF_CONDITION) {
+            token_t const *branch = frame->body;
+            bool condition = frame->condition_result != frame->negate_condition;
+            jass_coroutine_popframe(co);
+            if (condition) {
+                if (branch->body)
+                    jass_coroutine_pushframe(co, JASS_FRAME_BLOCK, NULL, branch->body, NULL);
+            } else {
+                jass_coroutine_schedule_if(j, co, branch->elseblock);
+            }
+            continue;
+        }
+
         jass_coroutine_useframe(j, co);
         if (!token) {
             if (frame->type == JASS_FRAME_LOOP) {
@@ -859,20 +910,22 @@ static void jass_resumecoroutine(jasscoroutine_t *co) {
         switch (token->type) {
             case TT_CALL:
                 frame->pc = next;
+                if (jass_host.FunctionTrace && token->primary &&
+                    (!strcmp(token->primary, "CampaignAI") || !strcmp(token->primary, "WaitForSignal") ||
+                     !strcmp(token->primary, "CommonSuicideOnPlayer") || !strcmp(token->primary, "SuicideOnPlayer") ||
+                     !strcmp(token->primary, "SuicideUnits") || !strcmp(token->primary, "InitAssaultGroup") ||
+                     !strcmp(token->primary, "FormGroup") || !strcmp(token->primary, "PrepSuicideOnPlayer")))
+                    jass_host.FunctionTrace(j, co, token->primary, "call");
                 if (!jass_coroutine_callstatement(j, co, token)) {
                     eval_SINGLETOKEN(j, token);
                 }
                 break;
             case TT_IF: {
-                token_t const *body;
                 frame->pc = next;
                 if (jass_coroutine_runlocalplayerif(j, co, token)) {
                     break;
                 }
-                body = jass_coroutine_selectifbody(j, token);
-                if (body) {
-                    jass_coroutine_pushframe(co, JASS_FRAME_BLOCK, NULL, body, NULL);
-                }
+                jass_coroutine_schedule_if(j, co, token);
                 break;
             }
             case TT_LOOP:
@@ -897,6 +950,13 @@ static void jass_resumecoroutine(jasscoroutine_t *co) {
                 frame->pc = NULL;
                 if (token->body) {
                     jass_dotoken(j, token->body);
+                }
+                if (frame->type == JASS_FRAME_FUNCTION && frame->func &&
+                    !strcmp(jass_functionname(frame->func), "PrepSuicideOnPlayer") &&
+                    jass_host.FunctionTrace) {
+                    bool result = token->body && jass_toboolean(j, -1);
+                    jass_host.FunctionTrace(j, co, jass_functionname(frame->func),
+                                            result ? "return_true" : "return_false");
                 }
                 jass_coroutine_return(co);
                 break;
@@ -952,6 +1012,12 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
             !jass_host.TimerCoroutineValid(co->state->context.timer,
                                            co->state->context.timer_generation)) {
             co->done = true;
+            if (jass_host.CoroutineTrace) {
+                jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
+                jass_host.CoroutineTrace(root, co, co->state->context.trigger,
+                                        frame && frame->func ? jass_functionname(frame->func) : NULL,
+                                        "done", now, co->wake_time, false, true);
+            }
             return false;
         }
     }
@@ -972,7 +1038,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     currentunit = co->state->context.unit;
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
-        jass_host.CoroutineTrace(co->state->context.trigger,
+        jass_host.CoroutineTrace(root, co, co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 "resume", now, co->wake_time,
                                 co->yielded, co->done);
@@ -980,7 +1046,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     jass_resumecoroutine(co);
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
-        jass_host.CoroutineTrace(co->state->context.trigger,
+        jass_host.CoroutineTrace(root, co, co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 co->done ? "done" : (co->yielded ? "yield" : "return"),
                                 jass_gettime(), co->wake_time,
@@ -1099,6 +1165,29 @@ bool jass_evaluateplayerexpr(jass_t *j, jassFunc_t const *expr, player_t *player
     jass_pushfunction(&tmp_state, expr);
     uint32_t result_count = jass_call(&tmp_state, 0);
     return result_count == 1 && jass_popboolean(&tmp_state);
+}
+
+/* AI hero-level callbacks are ordinary zero-argument code functions that return
+ * an ability rawcode. Evaluate them in an isolated scratch state so their
+ * player context does not disturb a sleeping common.ai coroutine. */
+bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *player, int32_t *result) {
+    jass_t tmp_state;
+    uint32_t result_count;
+    if (result) *result = 0;
+    if (!j || !expr) return false;
+    memcpy(&tmp_state, j, sizeof(struct jass_s));
+    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
+    tmp_state.num_stack = 0;
+    tmp_state.context.playerState = player;
+    jass_pushfunction(&tmp_state, expr);
+    result_count = jass_call(&tmp_state, 0);
+    if (result_count != 1 || jass_gettype(&tmp_state, -1) != jasstype_integer) {
+        if (result_count) jass_pop(&tmp_state, result_count);
+        return false;
+    }
+    if (result) *result = jass_checkinteger(&tmp_state, -1);
+    jass_pop(&tmp_state, 1);
+    return true;
 }
 
 static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
@@ -1755,7 +1844,24 @@ uint32_t VM_EvalCall(jass_t *j, token_t const *token) {
             }
             args++;
         }
+#ifdef WC3_TRACE_AI
+        if (!strcmp(token->primary, "PrepSuicideOnPlayer") && jass_host.FunctionTrace)
+            jass_host.FunctionTrace(j, jass_root(j)->current_coroutine,
+                                    token->primary, "expression_enter");
+#endif
         jass_call(j, args);
+#ifdef WC3_TRACE_AI
+        if (!strcmp(token->primary, "PrepSuicideOnPlayer") && jass_host.FunctionTrace) {
+            jasscoroutine_t *co = jass_root(j)->current_coroutine;
+            if (co && co->yielded) {
+                jass_host.FunctionTrace(j, co, token->primary, "expression_yielded");
+            } else {
+                bool result = j->num_stack > stacksize && jass_toboolean(j, -1);
+                jass_host.FunctionTrace(j, co, token->primary,
+                                        result ? "expression_return_true" : "expression_return_false");
+            }
+        }
+#endif
         return j->num_stack - stacksize;
     } else if ((cf = find_cfunction(j, token->primary))) {
         uint32_t args = 0;

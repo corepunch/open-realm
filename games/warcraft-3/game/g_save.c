@@ -78,9 +78,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format88 retains the player AI VM creation gate independently of physical
- * and logical captain state; private AI VM continuations remain runtime-only. */
-static uint32_t const save_version = 88;
+/* Format89 adds process-local interaction-route state to the movement layout.
+ * The AI creation gate and retail captain/movement state remain persistent. */
+static uint32_t const save_version = 89;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -828,6 +828,23 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, wait_blocker, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, group_id, F_INT),
     TF(edictMovement_s, previous_request_id, F_INT),
+    /* Shared route jobs and resumable movement directions are process-local
+     * caches. In particular route_resume_goal is an edict pointer, so clear
+     * the complete route-resume/wait record on save and rebuild it after load. */
+    TF(edictMovement_s, route_resume_direction, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal_origin, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_radius, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_flags, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_valid, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, route_resume_active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_active, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_start, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_goal_number, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_goal_spawn, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(edictMovement_s, path_wait_origin, F_IGNORE, 0, FIELD_RUNTIME),
     TF(edictMovement_s, waygate_target, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, waygate_goal, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, attackmove_waypoint, F_EDICT, 0, FIELD_NONE),

@@ -2,10 +2,10 @@
 
 ## Contract
 
-Warcraft III exposes `GetUpgradeGoldCost(integer id)`, `GetUpgradeWoodCost(integer id)`, and
-`ShiftTownSpot(real x, real y)` through `common.ai`. OpenRealm implements them in the AI JASS
-context, so the current AI player comes from `jass_getcontext(j)->playerState`; there is no
-explicit player parameter.
+Warcraft III exposes `GetUpgradeGoldCost(integer id)`, `GetUpgradeWoodCost(integer id)`,
+`SetUpgrade(integer id)`, and `ShiftTownSpot(real x, real y)` through `common.ai`. OpenRealm
+implements them in the AI JASS context, so the current AI player comes from
+`jass_getcontext(j)->playerState`; there is no explicit player parameter.
 
 `GetUpgradeGoldCost` and `GetUpgradeWoodCost` are next-level queries. They read the AI player's
 researched level, add one, and pass that target level through the same `UpgradeData.slk`
@@ -13,6 +13,14 @@ base/mod cost helpers used by research. An unknown upgrade, missing AI player, o
 `maxLevel` returns zero. `GetUpgradeLumberCost` remains registered only as an OpenRealm
 compatibility alias for older local scripts; retail `common.ai` names the native
 `GetUpgradeWoodCost`.
+
+`SetUpgrade` is a one-shot request. `common.ai` owns desired-level planning, next-level cost
+checks, retry timing, and build-loop ordering. OpenRealm selects a live, completed, owned producer
+whose ordinary research command is currently available and calls the shared `G_QueueResearch`
+path. That path remains authoritative for requirements, resource payment, per-player in-progress
+locking, queue limits, research time, events, cancellation/refund, and completion. A duplicate
+request therefore returns false while the same upgrade is already in progress instead of creating
+a second AI-only research state.
 
 `ShiftTownSpot` stores a persistent per-AI construction-search override. It does not move a Town
 Hall, worker, captain, camera, pathing state, or any other world entity. While the override is
@@ -29,6 +37,13 @@ GetUpgradeWoodCost(id)
   -> UpgradeData.maxLevel guard
   -> G_UpgradeLumberCost(id, next_level)
   -> integer lumber cost
+
+SetUpgrade(id)
+  -> current AI player
+  -> find owned completed producer with BUILD_COMMAND_AVAILABLE
+  -> G_QueueResearch(producer, id)
+  -> ordinary research validation/payment/queue/events/completion
+  -> boolean accepted
 
 ShiftTownSpot(x, y)
   -> current AI player's bot_t.town_spot
@@ -59,6 +74,11 @@ existing safe zero convention for those cases.
 level 3 differs from level 1 and 2, proving that the AI query follows the player's researched
 level rather than a fixed base cost. The same script exercises both retail `GetUpgradeWoodCost`
 and the legacy `GetUpgradeLumberCost` alias.
+
+`wc3_bot.set_upgrade_uses_normal_research_queue_and_rejects_duplicate_request` executes
+`SetUpgrade('Rhme')` from a player-private AI VM, verifies that the normal producer queue owns the
+research, that standard level-one costs are deducted, and that an immediate duplicate request is
+rejected by the shared in-progress lock.
 
 `wc3_bot.shift_town_spot_redirects_subsequent_build_search` executes `ShiftTownSpot` from an AI
 script, then asks `G_BotProduce` for a building and verifies the accepted build waypoint is near

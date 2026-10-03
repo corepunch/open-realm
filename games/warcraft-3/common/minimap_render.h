@@ -21,17 +21,7 @@ static inline rect_t WC3_MinimapContentRect(rect_t const *frame, vec2_t const *m
 
 /* Capture-calibrated sizes are UI-canvas units, not pixels. */
 static inline vec2_t wc3_minimap_marker_size(wc3MinimapContact_t contact) {
-    float size;
-    switch (contact) {
-    case WC3_MINIMAP_CONTACT_UNIT: size = 0.002f; break;
-    case WC3_MINIMAP_CONTACT_BUILDING: size = 0.005f; break;
-    case WC3_MINIMAP_CONTACT_HERO: size = 0.014f; break;
-    case WC3_MINIMAP_CONTACT_GOLD_MINE:
-    case WC3_MINIMAP_CONTACT_GOLD_ENTANGLED:
-    case WC3_MINIMAP_CONTACT_GOLD_HAUNTED:
-    case WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING: size = 0.0105f; break;
-    default: size = 0.0f; break;
-    }
+    float const size = wc3_minimap_contact_size(contact);
     return MAKE(vec2_t, size, size);
 }
 
