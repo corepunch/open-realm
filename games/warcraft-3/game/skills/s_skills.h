@@ -529,6 +529,7 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
 edict_t *S_SpellProjectileTarget(edict_t *missile);
 bool S_SpellBounceTargetAllowed(edict_t *caster, uint32_t code, edict_t const *from, edict_t *target, float radius, bool friendly);
 bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const *target);
+void S_SpellCommitRelocation(edict_t *unit, vec2_t const *position);
 void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position);
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration);

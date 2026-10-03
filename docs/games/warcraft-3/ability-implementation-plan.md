@@ -208,7 +208,7 @@ which records the concrete ability alias on every point/ring result; specialized
 point summons use `S_SummonAbilityAt()` instead of open-coding
 `summon_ability`. The owning ability still controls effects, buffs, facing,
 corpse handling, replacement and other summon policy. See
-[Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
+[Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so FOW dirtiness, relinking and position-change events stay consistent even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
 
 ### 6. Verify the focused pattern, then the family
 

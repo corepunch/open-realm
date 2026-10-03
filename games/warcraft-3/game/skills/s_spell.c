@@ -1154,19 +1154,29 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     return missile;
 }
 
-/* Commit an already-resolved spell relocation and emit the standard Warcraft
- * SpecialArt at both ends. Destination search/failure policy remains with the
- * owning ability; this helper owns only the identical move/presentation step. */
-void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
-    vec2_t source, old_position;
+/* Commit an already-resolved spell relocation without choosing presentation.
+ * Destination search/failure policy and source/destination art remain with the
+ * owning ability; this helper owns the authoritative position/FOW/event step. */
+void S_SpellCommitRelocation(edict_t *unit, vec2_t const *position) {
+    vec2_t old_position;
 
     if (!unit || !position) return;
-    source = old_position = unit->s.origin2;
-    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
+    old_position = unit->s.origin2;
     unit->s.origin2 = *position;
     if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(unit);
     G_UnitPositionChanged(unit, &old_position);
+}
+
+/* Standard relocation presentation used by Mass Teleport/Way Gate: SpecialArt
+ * at both ends layered over the presentation-neutral commit primitive. */
+void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
+    vec2_t source;
+
+    if (!unit || !position) return;
+    source = unit->s.origin2;
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
+    S_SpellCommitRelocation(unit, position);
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
 }
 
