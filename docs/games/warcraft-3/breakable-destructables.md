@@ -25,6 +25,15 @@ The resource lookup is data-driven: `dest_schema` maps the `pathTex` and
 formats used by WC3 pathing resources. It validates the complete header, ID
 field, dimensions, allocation size, and pixel payload before decoding.
 
+When a destructable's path texture blocks or opens the wrong cells in game,
+check whether its orientation is implemented in `entity_pathtex_transform()`
+in `games/warcraft-3/game/g_world.c`. Path textures are authored relative to
+the destructable's facing, and supporting path-texture loading alone does not
+ensure the footprint is rotated correctly. Confirm the rawcode is covered by
+the orientation rules and that quarter-turn behavior has a regression test;
+otherwise, a gate or other rotated destructable can have a pathing footprint
+misaligned with its model.
+
 ## Walkable Model Height
 
 Walkable destructable routing remains a 2D pathing concern, but their visible
