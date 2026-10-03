@@ -13,7 +13,7 @@ static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
      * obstacle. Once construction starts, the real structure blocks movement. */
-    return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !(ent->construction && ent->construction->active);
+    return G_UnitIsStructure(ent) && (ent->s.flags & EF_NOT_SELECTABLE) && !ent->construction;
 }
 
 /* WC3 pathing TGAs are transposed relative to model/world axes. Destructable

@@ -96,7 +96,7 @@ gold/lumber acceptance flags. This preserves the same capability model for custo
 Lumber Mill rawcode checks to worker logic.
 
 `S_FindNearestResourceDropoff` scans live, in-use, completed entities owned by the worker's player and chooses the compatible
-candidate with the smallest `Vector2_distance` from the worker. `construction.active` structures are not valid return points even if
+candidate with the smallest `Vector2_distance` from the worker. Structures with non-null `construction` are not valid return points even if
 their unit data already exposes `Artn`/`Argd`/`Arlm`/`Argl`. This applies equally to lumber-only drop-offs such as War Mills and to
 gold/lumber drop-offs such as Town Halls: workers must ignore them until construction finishes. This is geometric distance; it does
 not pathfind to every candidate and compare route lengths. A completed Human Lumber Mill therefore competes with a completed Town

@@ -388,7 +388,7 @@ bool S_CargoTryLoad(edict_t *transport, edict_t *target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
     /* Retail permits Wisps to rally to an unfinished Entangled Mine, but the
      * cargo transition itself must wait until its construction is complete. */
-    if (cargo_is_entangled_mine(transport) && (transport->construction && transport->construction->active)) return false;
+    if (cargo_is_entangled_mine(transport) && transport->construction) return false;
     if (target->s.player != transport->s.player) return false;
     /* Amtc is the Meat Wagon corpse hold, not a normal transport hold.  Keep
      * living-unit Load/Smart boarding on Acar/Abun/Aenc so a Wagon can never
@@ -595,7 +595,7 @@ static void ai_cargo_board_walk(edict_t *unit) {
         return;
     }
     if (cargo_target_in_range(transport, unit)) {
-        if (cargo_is_entangled_mine(transport) && (transport->construction && transport->construction->active)) {
+        if (cargo_is_entangled_mine(transport) && transport->construction) {
             if (unit->goalentity && unit->goalentity != transport &&
                 unit->goalentity->class_id == 0)
                 G_FreeEdict(unit->goalentity);
@@ -637,7 +637,7 @@ static umove_t cargo_board_move_wait = { "stand", ai_cargo_board_walk, NULL, CAb
 bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
     if (!cargo_board_target_valid(unit, transport)) return false;
     if (cargo_target_in_range(transport, unit)) {
-        if (cargo_is_entangled_mine(transport) && (transport->construction && transport->construction->active)) {
+        if (cargo_is_entangled_mine(transport) && transport->construction) {
             G_ClearUnitOrderQueue(unit);
             unit->goalentity = transport;
             unit->secondarygoal = transport;

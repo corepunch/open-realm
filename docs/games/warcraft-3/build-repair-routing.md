@@ -31,7 +31,7 @@ for additional power-build workers; a zero/missing `DataD` must not reject the
 primary builder.
 
 Construction owns the building `birth` sequence while
-`construction.active`.  `AI_HOLD_FRAME` prevents wall-clock animation drift,
+`ent->construction` is non-null.  `AI_HOLD_FRAME` prevents wall-clock animation drift,
 but `G_UpdateConstructionAnimation()` maps authoritative
 `construction.progress` onto the authored birth frame.  Construction pausing
 therefore freezes both progress and the visible model frame.

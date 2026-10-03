@@ -38,7 +38,7 @@ static bool sacrifice_validate(edict_t *caster, spellTarget_t st, abilityitem_t 
         !sacrifice_pair(caster, st.entity, spell->code, &pit, &worker)) return false;
     /* Warsmash's Sacrifice is a producer queue item and a pit can own only one
      * sacrifice worker.  Do not displace ordinary training/research state. */
-    if (pit->build || (pit->construction && pit->construction->active) || G_BuildingUpgradeActive(pit)) return false;
+    if (pit->build || pit->construction || G_BuildingUpgradeActive(pit)) return false;
     return G_UnitBalance(ID_SHADE) != NULL;
 }
 

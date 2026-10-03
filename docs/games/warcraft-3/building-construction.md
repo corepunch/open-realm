@@ -36,7 +36,7 @@ UnitProfile.Builds
 
 `G_GetPlayerTechCountValue()` counts researched levels plus live owned entities of the requested rawcode. In-progress structures therefore count against a maximum as soon as they exist.
 
-`-1` is the unlimited/default sentinel for `SetPlayerTechMaxAllowed`; non-negative values are exact maxima. Starting a queued unit spawns its hidden entity immediately, so it also counts against the maximum before training completes. The queued entity carries `edict.training` until `ShowTrainedUnit()` succeeds; requirement counts exclude both `construction.active` structures and `training` units so in-progress production cannot satisfy a prerequisite early.
+`-1` is the unlimited/default sentinel for `SetPlayerTechMaxAllowed`; non-negative values are exact maxima. Starting a queued unit spawns its hidden entity immediately, so it also counts against the maximum before training completes. The queued entity carries `edict.training` until `ShowTrainedUnit()` succeeds; requirement counts exclude both structures with non-null `construction` and `training` units so in-progress production cannot satisfy a prerequisite early.
 Training queues are linked through each queued entity's `edict.build` pointer. Completion preserves the next queue pointer before calling `ShowTrainedUnit()`, because the reveal path calls `unit_stand()` and standing clears the completed unit's `build` field. The producer then advances to the saved next entry, so completing the head cannot discard later paid queue entries.
 
 Training command flow is:
@@ -285,7 +285,7 @@ Build-on-target structures (`UnitData.isBuildOn`) are intentionally excluded fro
 
 ### Spawned construction cancellation
 
-Once a race-specific structure has spawned, cancellation is owned by the unfinished structure rather than by the worker's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `construction.active` is true, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
+Once a race-specific structure has spawned, cancellation is owned by the unfinished structure rather than by the worker's placement mode. `G_GetCommandButtons()` exposes Warcraft's `CmdCancelBuild` while `ent->construction` is non-null, and the active construction icon in the info panel submits the same command. `CmdCancelBuild` resolves through the shared Cancel handler to `G_CancelStructureConstruction()`.
 
 The authoritative lifecycle is:
 
@@ -324,7 +324,7 @@ See [Race Mechanics](race-mechanics.md) for the clean-room comparison, state own
 A successfully started Human structure uses explicit construction state on the building:
 
 ```text
-construction.active = true
+construction = allocated construction record
 construction.paused = true
 construction.primary_builder = original Peasant
 construction.progress = 0
@@ -346,7 +346,7 @@ progress += frame_time * DataD
 
 and accumulates incremental gold/lumber cost from the building's `goldRep` / `lumberRep`, build time, and `DataC`. An additional repairer stops when that incremental payment cannot be made. `+set wc3_build_all 1` suppresses those debug-time costs.
 
-Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically. Human power building additionally requires `construction.active && construction.paused` and a positive `DataD`; standard `Aren` / `Arst` Repair rejects an unfinished structure.
+Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically. Human power building additionally requires `ent->construction && ent->construction->paused` and a positive `DataD`; standard `Aren` / `Arst` Repair rejects an unfinished structure.
 
 Construction HP is additive. Each builder contributes the same fraction of `(max_life - 10% start_life)` as its construction-time contribution, rather than snapping HP back to the value implied by total progress. Damage dealt while a structure is incomplete therefore remains damage until separately repaired or construction completes.
 

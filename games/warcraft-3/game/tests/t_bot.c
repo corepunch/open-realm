@@ -129,7 +129,6 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     training->training = true;
     builder->s.player = 2; builder->health.value = 100; builder->build_project = MAKEFOURCC('h','b','a','r');
     mine->resources = 1000;
@@ -154,7 +153,6 @@ TEST(wc3_bot, town_unit_count_scopes_owned_units_and_completion_to_nearest_town)
     building = alloc_test_unit(footman, 96, 0); building->s.player = 2; building->svflags |= SVF_MONSTER;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     training = alloc_test_unit(footman, 1024, 0); training->s.player = 2; training->svflags |= SVF_MONSTER;
     training->training = true;
     pending_builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128, 0);
@@ -1006,7 +1004,6 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     edict_t *enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));

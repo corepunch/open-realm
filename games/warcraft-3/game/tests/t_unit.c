@@ -1378,14 +1378,13 @@ TEST(wc3_unit, worker_death_does_not_walk_construction_target_as_production_queu
 
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->construction->active = true;
     building->build = building;
     worker->build = building;
 
     unit_die(worker, NULL);
 
     T_ASSERT(worker->svflags & SVF_DEADMONSTER);
-    T_ASSERT(building->construction->active);
+    T_ASSERT(building->construction);
     T_ASSERT(building->build == building);
 }
 
@@ -1400,13 +1399,12 @@ TEST(wc3_unit, ownership_change_does_not_walk_constructing_revive_altar) {
     altar->s.player = old_client->ps.number;
     if (!altar->construction) altar->construction = G_AllocConstruction();
     assert(altar->construction);
-    altar->construction->active = true;
     altar->build = altar;
 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(altar->construction->active);
+    T_ASSERT(altar->construction);
     T_ASSERT(altar->build == altar);
 }
 
@@ -1423,7 +1421,7 @@ TEST(wc3_unit, ownership_change_does_not_walk_legacy_constructing_revive_altar) 
     G_SetUnitPlayer(altar, new_client->ps.number);
 
     T_EQ(altar->s.player, new_client->ps.number);
-    T_ASSERT(!altar->construction || !altar->construction->active);
+    T_ASSERT(!altar->construction);
     T_ASSERT(altar->build == altar);
 }
 

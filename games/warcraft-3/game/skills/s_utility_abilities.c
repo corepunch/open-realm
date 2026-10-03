@@ -214,7 +214,7 @@ static void moon_well_update_effect(edict_t * well) {
     if (!well || !(alias = moon_well_alias(well)) || M_IsDead(well)) return;
     /* An authored Moon Well can enter an in-place upgrade construction state.
      * Keep its presentation suppressed while that state is active. */
-    if ((well->construction && well->construction->active)) {
+    if (well->construction) {
         S_MoonWellEffectsRelease(well);
         return;
     }
@@ -348,7 +348,7 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
                 moon_well_warn_missing_data(code);
                 return true;
             }
-            return (ent->construction && ent->construction->active) ||
+            return ent->construction ||
                    (data->level[0].data[4].number != 0.0f && !G_IsNight()); /* DataE */
         }
     case A_DEATH:
@@ -500,7 +500,7 @@ static void ancient_root_command(edict_t *clent) {
         unit->ancient_root->mode = G_UnitIsStructure(unit) ? ANCIENT_ROOTED : ANCIENT_UPROOTED;
     }
     if (unit->ancient_root->mode == ANCIENT_ROOTED) {
-        if (unit->training || (unit->construction && unit->construction->active) || unit->build || G_BuildingUpgradeActive(unit)) {
+        if (unit->training || unit->construction || unit->build || G_BuildingUpgradeActive(unit)) {
             G_ShowCommandErrorKey(clent, "Cantrootunit", "Unable to uproot while this Ancient is busy.");
             return;
         }
@@ -598,7 +598,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
         if (ent && (!ent->ancient_root || ent->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED))
             ancient_root_update(ent);
         if (!strcmp(call->order, "unroot") && ent && ent->ancient_root && ent->ancient_root->mode == ANCIENT_ROOTED &&
-            !ent->training && !(ent->construction && ent->construction->active) && !ent->build && !G_BuildingUpgradeActive(ent)) {
+            !ent->training && !ent->construction && !ent->build && !G_BuildingUpgradeActive(ent)) {
             ent->ancient_root->destination = ent->s.origin2;
             S_ReleaseEntangledMineForTree(ent);
             S_AncientBeginMorph(ent, false);

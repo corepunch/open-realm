@@ -2936,7 +2936,6 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     make_live_dropoff(mill, &return_lumber_abilities);
     if (!mill->construction) mill->construction = G_AllocConstruction();
     assert(mill->construction);
-    mill->construction->active = true;
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
 
@@ -2946,7 +2945,7 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
     T_ASSERT(worker->goalentity == hall);
     T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
 
-    mill->construction->active = false;
+    G_FreeConstruction(mill);
     T_ASSERT(S_CanReturnResourceAt(worker, mill, RETURN_RESOURCE_LUMBER));
 }
 
@@ -2961,7 +2960,6 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
     if (!unfinished_hall->construction) unfinished_hall->construction = G_AllocConstruction();
     assert(unfinished_hall->construction);
-    unfinished_hall->construction->active = true;
     S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 10);
 
     T_ASSERT(!S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
@@ -2971,7 +2969,7 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
     T_EQ(worker->harvested_gold, 10);
     T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
 
-    unfinished_hall->construction->active = false;
+    G_FreeConstruction(unfinished_hall);
     T_ASSERT(S_CanReturnResourceAt(worker, unfinished_hall, RETURN_RESOURCE_GOLD));
     T_ASSERT(S_FindNearestResourceDropoff(worker, RETURN_RESOURCE_GOLD) == unfinished_hall);
 }
@@ -4612,7 +4610,7 @@ TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
     T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && (!overlay->construction || !overlay->construction->active));
+    T_ASSERT(overlay && !overlay->construction);
     T_ASSERT(overlay && overlay->build != overlay);
     T_ASSERT(parent->s.renderfx & RF_HIDDEN);
     T_ASSERT(parent->paused);
@@ -4650,7 +4648,7 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     T_ASSERT(G_UnitStartNextQueuedOrder(caster));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && (!overlay->construction || !overlay->construction->active));
+    T_ASSERT(overlay && !overlay->construction);
     T_EQ(G_UnitQueuedOrderCount(caster), 0);
 
     gi.Write = old_write;
@@ -4723,7 +4721,7 @@ TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
     T_ASSERT(S_AutoEntangleNearby(caster, false));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction->active);
+    T_ASSERT(overlay && overlay->construction);
 
     gi.Write = old_write;
     gi.unicast = old_unicast;
@@ -4770,7 +4768,7 @@ TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
     T_EQ(caster->ancient_root->mode, ANCIENT_ROOTED);
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
-    T_ASSERT(overlay && overlay->construction->active);
+    T_ASSERT(overlay && overlay->construction);
     T_NULL(movement_find_entangle_overlay(caster, far_parent));
 
     S_RunAbilityUpdates(caster);
@@ -4795,7 +4793,6 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     mine->s.player = wisp->s.player = 0;
     if (!mine->construction) mine->construction = G_AllocConstruction();
     assert(mine->construction);
-    mine->construction->active = true;
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->stand = unit_stand;
     unit_stand(wisp);
@@ -4807,7 +4804,7 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     T_STREQ(wisp->currentmove->animation, "stand");
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
 
-    mine->construction->active = false;
+    G_FreeConstruction(mine);
     wisp->currentmove->think(wisp);
     T_EQ(mine->cargo->count, 1);
     T_EQ(mine->cargo->units[0], wisp);
@@ -4881,7 +4878,6 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
     mine->data.UnitAbilities = &test_entangled_mine;
     if (!mine->construction) mine->construction = G_AllocConstruction();
     assert(mine->construction);
-    mine->construction->active = true;
     mine->health.value = mine->health.max_value = 1000.0f;
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
     wisp->data.UnitBalance = &balance;
@@ -4910,7 +4906,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
     T_STREQ(wisp->currentmove->animation, "stand");
 
-    mine->construction->active = false;
+    G_FreeConstruction(mine);
     wisp->currentmove->think(wisp);
     T_EQ(mine->cargo->count, 1);
     T_EQ(mine->cargo->units[0], wisp);
@@ -4964,7 +4960,7 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
     T_ASSERT(overlay && overlay->mineoverlay->entangle_permanent_before);
-    T_ASSERT(overlay && overlay->construction->active);
+    T_ASSERT(overlay && overlay->construction);
 
     T_ASSERT(WriteGame(filename));
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));

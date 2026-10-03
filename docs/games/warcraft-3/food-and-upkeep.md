@@ -27,7 +27,7 @@ placement accepted
     -> validate Food Used against current cap
     -> spawn foundation
     -> foundation owns its Food Used
-    -> Food Made remains zero while construction.active
+    -> Food Made remains zero while construction is non-null
     -> completion assigns UnitBalance.foodMade to the building
 ```
 

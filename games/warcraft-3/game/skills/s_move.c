@@ -177,7 +177,7 @@ static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            G_UnitIsStructure(ent) && (ent->construction && ent->construction->active))
+            G_UnitIsStructure(ent) && ent->construction)
             return true;
     }
     return false;

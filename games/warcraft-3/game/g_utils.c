@@ -66,7 +66,7 @@ void G_FreeEdict(edict_t *ent) {
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */
     if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
-    if ((ent->construction && ent->construction->active)) G_StopConstruction(ent);
+    if (ent->construction) G_StopConstruction(ent);
     if ((ent->mineoverlay && ent->mineoverlay->parent) || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);

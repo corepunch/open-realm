@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 62 persists every sparse lifecycle record and its pointer fixups. */
-static uint32_t const save_version = 62;
+/* Version 63 removes construction.active; pointer presence owns its lifetime. */
+static uint32_t const save_version = 63;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2351,8 +2351,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-59.bin",
         "/tmp/openwarcraft3-wc3-save-version-60.bin",
         "/tmp/openwarcraft3-wc3-save-version-61.bin",
+        "/tmp/openwarcraft3-wc3-save-version-62.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62 };
 
     reset_entities();
     setup_test_world();
@@ -2495,7 +2496,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
         void *slot = save_pools[i].alloc();
         memcpy((uint8_t *)unit + save_pools[i].offset, &slot, sizeof(slot));
     }
-    unit->construction->active = true;
+
     unit->construction->progress = 13.5f;
     unit->construction->worker = target;
     unit->research->upgrade = MAKEFOURCC('R','h','m','e');
@@ -2534,7 +2535,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
         T_NOT_NULL(SavePoolSlot(unit, save_pools + i));
         T_NULL(SavePoolSlot(target, save_pools + i));
     }
-    T_ASSERT((unit->construction && unit->construction->active));
+    T_ASSERT(unit->construction);
     T_FEQ(unit->construction->progress, 13.5f, 0.001f);
     T_ASSERT(unit->construction->worker == target);
     T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));

@@ -969,7 +969,7 @@ static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
         return false;
     if (!G_UnitCanControl(viewer, unit))
         return false;
-    return (unit->construction && unit->construction->active) || G_BuildingUpgradeActive(unit) || unit->build != NULL;
+    return unit->construction || G_BuildingUpgradeActive(unit) || unit->build != NULL;
 }
 
 #ifdef BZ_TESTS
