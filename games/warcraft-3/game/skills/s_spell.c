@@ -817,7 +817,7 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
  * unit or point remains authoritative while this thinker watches the ordinary
  * Move order; replacing that order cancels the pending cast. */
 void S_SpellTargetApproachThink(edict_t *thinker) {
-    edict_t *caster = thinker ? thinker->owner : NULL;
+    edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
@@ -829,7 +829,6 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     float range;
     spellTarget_t st;
 
-    caster = S_SpellChannelOwner(thinker);
     if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (!point_target && spell->target_type != SPELL_TARGET_UNIT &&

@@ -226,7 +226,7 @@ static void ai_unsummon_walk(edict_t *worker) {
             ent->owner == worker && ent->class_id == worker->unsummon->ability &&
             ent->channel->serial == worker->channel->serial &&
             ent->unsummon->target == building &&
-            ent->channel->target_spawn_time == building->spawn_time) {
+            S_SpellChannelTarget(ent) == building) {
             thinker = ent;
             break;
         }

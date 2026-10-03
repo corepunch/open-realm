@@ -187,10 +187,11 @@ this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
 For channel thinkers, resolve the captured caster incarnation through
 `S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
-Delayed non-channel ability helpers may use the same resolver when they explicitly snapshot
-`channel->owner_spawn_time` as an identity token. Reincarnation, Flare, and timed Metamorphosis reversion use that owner
-contract, while Acid Bomb also uses `S_SpellChannelTarget()` for its saved victim incarnation. Their timing/effect semantics
-remain ability-owned.
+Non-channel ability helpers may use the same resolver when they explicitly snapshot
+`channel->owner_spawn_time` as an identity token. Spell approaches, Chain Lightning marker/thinker ownership,
+Mass Teleport cancellation, delayed Incinerate/death-AOE helpers, Land Mine, Reincarnation, Flare, and timed
+Metamorphosis reversion use that contract. Once the token is stored, route subsequent owner-incarnation reads through
+the resolver rather than open-coding the pointer/inuse/generation test. Their timing/effect semantics remain ability-owned.
 Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
 an incarnation token use the same resolver; this is identity plumbing only and
 does not make spell approaches, Chain Lightning markers, delayed explosions, or
@@ -200,8 +201,10 @@ owning procedure has validated the target. It layers the common goal pointer and
 target-incarnation snapshot onto `S_SpellChannelThinker()`; later ticks/cleanup
 resolve that snapshot through `S_SpellChannelTarget()`. Non-channel approach
 thinkers may reuse `S_SpellChannelTarget()` only when they already store the same
-`goalentity` + `channel->target_spawn_time` identity pair. Range rechecks,
-duration, pulse cadence, pause/ownership changes, cancellation side effects and
+`goalentity` + `channel->target_spawn_time` identity pair; spell-target approaches,
+Cannibalize/corpse-cargo approaches, Unsummon thinker lookup, and Acid Bomb use that
+contract. Route later reads of the captured target generation through the resolver.
+Range rechecks, duration, pulse cadence, pause/ownership changes, cancellation side effects and
 cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
 channel constructor: the constructor already owns that lifecycle storage.
 For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
