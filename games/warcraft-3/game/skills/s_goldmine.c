@@ -925,11 +925,10 @@ static void haunted_mine_ensure_effects(edict_t *mine) {
 
         if (haunted_ring_effect(mine, alias, i)) continue;
         haunted_mine_slot_position(mine, i, capacity, &point);
-        effect = G_SpawnAbilityEffectAtPoint(alias, WC3_EFFECT_EFFECT, 0, &point, false);
+        effect = G_SpawnOwnedAbilityEffectAtPoint(mine, alias, WC3_EFFECT_EFFECT, 0, &point);
         if (!effect) continue;
 
         angle = ((M_PI * 2.0) / (double)capacity) * (double)i + (M_PI / 2.0);
-        effect->owner = mine;
         effect->summon_ability = alias;
         effect->resources = i + 1;
         /* Entity angles are radians; the old degree conversion rotated each

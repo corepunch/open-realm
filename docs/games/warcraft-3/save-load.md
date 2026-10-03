@@ -103,6 +103,8 @@ Version 37 adds the timer callback generation/pending fields, expands the bounde
 
 Save format version 45 adds Way Gate destination/activation values and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The exact version guard rejects version 44 saves independently of the `sizeof(edict_t)` header check. See [Way Gates](way-gates.md).
 
+Ability-owned temporary summons rely on three already-persisted parts of the edict contract together: the `owner` `F_EDICT` fixup, the scalar `summon_ability` alias, and the raw timed-status record carrying `BTLF` (`timestamp`/`duration_ms`). The save regression suite covers that combined lifecycle so a loaded temporary summon keeps both provenance and its remaining timed-life state; no additional save-format field is required.
+
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`, `AI_CORPSE_RESERVED`, and `AI_CORPSE_IN_CARGO`) rides in the already-persisted `aiflags` edict field, while the existing persisted `cargo.units[]`/`cargo.count` links the Meat Wagon to the actual stored corpse edicts. Thus cargo occupancy, corpse identity, decay move/timer, and active corpse-consumer reservation survive save/load without a new format field. Graveyard `Agyd` production uses an ordinary owner-linked thinker plus `freetime`; `graveyard_think` is in the saved callback roster, so its cadence resumes without a format change. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
 

@@ -227,7 +227,10 @@ source/destination `SpecialArt`, FOW blocker invalidation, relink, and
 `G_UnitPositionChanged()`. Mass Teleport and Way Gate intentionally keep different
 destination/search, grouping, failure, and order-cleanup policy. Gameplay-owned persistent presentation should use the owned-effect helpers where
 possible rather than open-coding effect ownership or maintaining a parallel
-registry. Use `G_SpawnOwnedAbilityEffectAtPoint()` for world-space art and
+registry. This applies equally to attached effects and point-space effects (such
+as Haunted Gold Mine ring slots); ability-local tags and slot metadata stay local
+rather than being pushed into the generic effect helper. Use
+`G_SpawnOwnedAbilityEffectAtPoint()` for world-space art and
 `G_SpawnOwnedAbilityEffectTarget()` for attached target/caster art; the owning
 ability still controls extra tags, offsets, and the cleanup trigger.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with

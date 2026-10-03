@@ -3977,6 +3977,39 @@ SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
+
+TEST(wc3_save, ability_owned_timed_summon_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-ability-owned-timed-summon.bin";
+    edict_t *owner, *summon;
+    heroabilitystatus_t *timed_life;
+
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('H', 'a', 'm', 'g'), 0.0f, 0.0f);
+    summon = alloc_test_unit(MAKEFOURCC('h', 'w', 'a', 't'), 64.0f, 0.0f);
+    summon->owner = owner;
+    summon->summon_ability = MAKEFOURCC('A', 'H', 'w', 'e');
+    timed_life = &summon->abilstatus[2];
+    *timed_life = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B', 'T', 'L', 'F'),
+        .level = 1,
+        .timestamp = 1234,
+        .duration_ms = 45000,
+    };
+
+    T_ASSERT(WriteGame(filename));
+    summon->owner = NULL;
+    summon->summon_ability = 0;
+    memset(timed_life, 0, sizeof(*timed_life));
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(summon->owner == owner);
+    T_EQ(summon->summon_ability, MAKEFOURCC('A', 'H', 'w', 'e'));
+    T_EQ(timed_life->code, MAKEFOURCC('B', 'T', 'L', 'F'));
+    T_EQ(timed_life->level, 1);
+    T_EQ(timed_life->timestamp, 1234);
+    T_EQ(timed_life->duration_ms, 45000);
+    remove(filename);
+}
 SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
 SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
