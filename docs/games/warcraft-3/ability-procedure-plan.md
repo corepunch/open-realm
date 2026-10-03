@@ -145,6 +145,7 @@ the owning ability.
 Use the same rule for future consolidation:
 
 - unit-target projectile families share authored MissileArt, source/player/team presentation, target-incarnation tracking, homing movement, and projectile presentation through `S_SpawnUnitTargetSpellMissile()` / `S_SpellProjectileTarget()`; Death Coil and Thunder/Fire Bolt keep their own impact validation and heal/damage/stun effects;
+- relocation families share only the final already-resolved move/presentation step through `S_SpellRelocateUnit()`: source/destination `SpecialArt`, FOW blocker dirtiness, relinking, and explicit position-change notification. Mass Teleport keeps SetUnitPosition-style fallback and group policy; Way Gate keeps strict destination validity, entry/order state, and cancellation policy. Channel-owned Mass Teleport area effects use the existing `G_SpawnOwnedAbilityEffectAtPoint()` / `G_DestroyOwnedEffects()` lifetime instead of a private effect registry;
 - channel families share channel ownership/interruption and thinker lifecycle but keep tick policy;
 - aura families share source/recipient reconciliation, including friendly-vs-hostile source relation, but keep the numeric modifier consumer and any final clamp;
 - summon families share unit creation/timed-life ownership but keep recast, replacement and corpse policies; simple `UnitID` + DataA count + Dur summons use `S_SummonAbilityUnits()`;

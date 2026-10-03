@@ -175,6 +175,13 @@ inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
 semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
 this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
+For relocation abilities, resolve destination legality and fallback in the owner,
+then use `S_SpellRelocateUnit()` only for the demonstrated common commit step:
+source/destination `SpecialArt`, FOW blocker invalidation, relink, and
+`G_UnitPositionChanged()`. Mass Teleport and Way Gate intentionally keep different
+destination/search, grouping, failure, and order-cleanup policy. Channel-owned
+presentation should use the existing owned-effect helpers where possible rather
+than maintaining a parallel effect registry.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
 animation, expiry, or other side effects retain their own wrappers. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).

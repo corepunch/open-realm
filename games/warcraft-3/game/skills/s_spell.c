@@ -1145,6 +1145,22 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     return missile;
 }
 
+/* Commit an already-resolved spell relocation and emit the standard Warcraft
+ * SpecialArt at both ends. Destination search/failure policy remains with the
+ * owning ability; this helper owns only the identical move/presentation step. */
+void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
+    vec2_t source, old_position;
+
+    if (!unit || !position) return;
+    source = old_position = unit->s.origin2;
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
+    unit->s.origin2 = *position;
+    if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    gi.LinkEntity(unit);
+    G_UnitPositionChanged(unit, &old_position);
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+}
+
 /* Resolve the original unit incarnation carried by a homing spell missile.
  * Callers still decide whether caster death, relation changes, or other impact
  * conditions invalidate their ability-specific effect. */

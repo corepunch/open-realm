@@ -451,35 +451,17 @@ static void mass_teleport_cleanup(edict_t *thinker) {
     if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time &&
         thinker->wait < 0.5f)
         target->paused = false;
-    FILTER_EDICTS(effect, effect->inuse && effect->owner == thinker &&
-                  effect->summon_ability == thinker->class_id) {
-        effect->owner = NULL;
-        effect->summon_ability = 0;
-        G_DestroyEffect(effect);
-    }
-}
-
-static void mass_teleport_track_effect(edict_t *thinker, edict_t *effect) {
-    if (!thinker || !effect) return;
-    effect->owner = thinker;
-    effect->summon_ability = thinker->class_id;
+    G_DestroyOwnedEffects(thinker);
 }
 
 static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vec2_t const *requested) {
-    vec2_t source, position;
+    vec2_t position;
 
     if (!unit || !requested) return;
-    source = unit->s.origin2;
-    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
     /* SetUnitPosition keeps the requested point as a fallback when no spiral
      * candidate is open.  Mass Teleport uses the same relocation contract. */
     (void)G_FindUnitUnstuckPosition(unit, requested, &position);
-    unit->s.origin2 = position;
-    unit->s.origin.x = position.x;
-    unit->s.origin.y = position.y;
-    if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-    gi.LinkEntity(unit);
-    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+    S_SpellRelocateUnit(unit, code, &position);
 }
 
 void mass_teleport_think(edict_t *thinker) {
@@ -547,7 +529,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
     }
     if (msg == A_EXECUTE) {
         spellTarget_t st = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-        edict_t *target = st.entity, *thinker, *effect;
+        edict_t *target = st.entity, *thinker;
         uint32_t level;
         float delay;
 
@@ -564,10 +546,8 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         thinker->freetime = G_Time() + (uint32_t)(delay * 1000.0f);
         thinker->think = mass_teleport_think;
 
-        effect = G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_AREA_EFFECT, 0, &ent->s.origin2, false);
-        mass_teleport_track_effect(thinker, effect);
-        effect = G_SpawnAbilityEffectAtPoint(spell->code, WC3_EFFECT_AREA_EFFECT, 0, &target->s.origin2, false);
-        mass_teleport_track_effect(thinker, effect);
+        G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &ent->s.origin2);
+        G_SpawnOwnedAbilityEffectAtPoint(thinker, spell->code, WC3_EFFECT_AREA_EFFECT, 0, &target->s.origin2);
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, ent, NULL, true);
         target->paused = true;
         mass_teleport_think(thinker);
