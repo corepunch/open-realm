@@ -14,11 +14,10 @@ static bool siphon_mana_validate(edict_t *caster, spellTarget_t st, abilityitem_
 
 /* Recheck both edict incarnations and the cast serial before every pulse; cancelled drains cannot revive on recast. */
 void siphon_mana_think(edict_t *ent) {
-    edict_t *caster = ent->owner, *target = ent->goalentity;
+    edict_t *caster = ent->owner, *target = S_SpellChannelTarget(ent);
     uint32_t now = G_Time(), code = ent->class_id, rank = ent->resources;
     float amount, before;
-    if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != ent->channel->target_spawn_time || !S_SpellAllowsTarget(code, caster, target) ||
+    if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) || !S_SpellAllowsTarget(code, caster, target) ||
         !S_SpellTargetInRange(caster, target, ent->collision)) { S_SpellEndChannel(ent); return; }
     if (now < ent->freetime) return;
     if (S_SpellIsFriend(caster, target)) {

@@ -225,7 +225,7 @@ static float death_coil_missile_speed(uint32_t code) {
 }
 
 static void death_coil_projectile_hit(edict_t *missile) {
-    edict_t *target = S_SpellProjectileTarget(missile), *caster = missile->owner;
+    edict_t *target = S_SpellProjectileTarget(missile), *caster = S_SpellProjectileOwner(missile);
     cstring_t race = target && target->data.UnitData ? target->data.UnitData->race : NULL;
     bool applied = false;
 
@@ -442,11 +442,10 @@ static void acid_bomb_think(edict_t *thinker) {
  * target death, save/load continuation and successful completion all use the
  * same cleanup path. */
 static void mass_teleport_cleanup(edict_t *thinker) {
-    edict_t *target = thinker ? thinker->goalentity : NULL;
+    edict_t *target = S_SpellChannelTarget(thinker);
 
     if (!thinker) return;
-    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time &&
-        thinker->wait < 0.5f)
+    if (target && thinker->wait < 0.5f)
         target->paused = false;
     G_DestroyOwnedEffects(thinker);
 }
@@ -463,7 +462,7 @@ static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vec2_t const *
 
 void mass_teleport_think(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
-    edict_t *target = thinker ? thinker->goalentity : NULL;
+    edict_t *target = S_SpellChannelTarget(thinker);
     uint32_t now = G_Time(), level, limit, count = 1;
     float area;
     bool cluster;
@@ -475,8 +474,7 @@ void mass_teleport_think(edict_t *thinker) {
         S_SpellEndChannel(thinker);
         return;
     }
-    if (!target || !target->inuse || target->spawn_time != thinker->channel->target_spawn_time ||
-        !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
+    if (!target || !S_SpellAllowsTarget(thinker->class_id, caster, target)) {
         mass_teleport_cleanup(thinker);
         S_SpellEndChannel(thinker);
         return;

@@ -204,7 +204,11 @@ destination/search, grouping, failure, and order-cleanup policy. Channel-owned
 presentation should use the existing owned-effect helpers where possible rather
 than maintaining a parallel effect registry.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
-animation, expiry, or other side effects retain their own wrappers. Simple
+animation, expiry, or other side effects retain their own wrappers.
+Homing spell missiles likewise resolve the captured caster and target incarnations through
+`S_SpellProjectileOwner()` / `S_SpellProjectileTarget()`, and unit-target channel thinkers
+resolve their target through `S_SpellChannelTarget()`; the owning procedure still decides
+liveness, relation, range, impact/tick policy, and cleanup. Simple
 `UnitID` + DataA count + Dur summon procedures use `S_SummonAbilityUnits()`,
 which records the concrete ability alias on every point/ring result; specialized
 point summons use `S_SummonAbilityAt()` instead of open-coding

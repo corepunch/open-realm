@@ -380,8 +380,7 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
 }
 
 static bool cannibalize_reserved_corpse_valid(edict_t const *thinker, edict_t const *corpse) {
-    return thinker && corpse && corpse->inuse &&
-        corpse->spawn_time == thinker->channel->target_spawn_time &&
+    return thinker && corpse && S_SpellChannelTarget(thinker) == corpse &&
         (corpse->svflags & SVF_DEADMONSTER) && M_IsDead(corpse);
 }
 
@@ -630,8 +629,8 @@ static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
 }
 
 static void possession_strip_channel(edict_t *thinker) {
-    edict_t *caster = thinker->owner, *target = thinker->goalentity;
-    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time) {
+    edict_t *caster = thinker->owner, *target = S_SpellChannelTarget(thinker);
+    if (target) {
         possession_clear_status(target, BZ_BPOS);
         possession_refresh_stun(target);
         if (thinker->damage) target->invulnerable = thinker->invulnerable;

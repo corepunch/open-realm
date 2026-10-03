@@ -382,11 +382,11 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
 
 /* A cancelled cast must release its lock without erasing a replacement cast's lock on the same victim. */
 static void shackles_end(edict_t *thinker) {
-    edict_t *target = thinker->goalentity;
+    edict_t *target = S_SpellChannelTarget(thinker);
     bool retained = false;
-    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time) {
-        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think && other->goalentity == target &&
-            other->resources == thinker->resources && other->channel->target_spawn_time == target->spawn_time) {
+    if (target) {
+        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
+            S_SpellChannelTarget(other) == target && other->resources == thinker->resources) {
             if (S_SpellChannelActive(other)) { retained = true; break; }
         }
         if (!retained) human_remove_status(target, thinker->resources);
@@ -396,19 +396,19 @@ static void shackles_end(edict_t *thinker) {
 
 void human_ability_think(edict_t *thinker) {
     uint32_t now = G_Time();
+    edict_t *target;
     if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
         if (now >= thinker->spawn_time || !thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
         G_FowSetStateRadius(&(fogWrite_t){ thinker->owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
                             S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, 1));
         return;
     }
-    if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) ||
-        !S_SpellIsAliveTarget(thinker->goalentity) ||
-        thinker->goalentity->spawn_time != thinker->channel->target_spawn_time) {
+    target = S_SpellChannelTarget(thinker);
+    if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target)) {
         shackles_end(thinker); return;
     }
     if (!thinker->freetime || now >= thinker->freetime) {
-        S_SpellDamage(thinker->goalentity, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
+        S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
     }
 }
 

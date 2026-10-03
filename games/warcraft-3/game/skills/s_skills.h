@@ -526,6 +526,7 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range);
 edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *target, float speed, umove_t *move);
+edict_t *S_SpellProjectileOwner(edict_t *missile);
 edict_t *S_SpellProjectileTarget(edict_t *missile);
 bool S_SpellBounceTargetAllowed(edict_t *caster, uint32_t code, edict_t const *from, edict_t *target, float radius, bool friendly);
 bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const *target);
@@ -568,6 +569,7 @@ bool S_SpellIsChanneling(edict_t *caster);
 void S_SpellCancelChannel(edict_t *caster);
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code);
 edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target);
+edict_t *S_SpellChannelTarget(edict_t const *thinker);
 bool S_SpellChannelActive(edict_t *thinker);
 void S_SpellEndChannel(edict_t *thinker);
 

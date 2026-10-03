@@ -585,6 +585,14 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
     return ent;
 }
 
+/* Resolve the unit incarnation captured by a target-channel thinker. Liveness,
+ * range, relation and completion policy remain with the owning ability. */
+edict_t *S_SpellChannelTarget(edict_t const *ent) {
+    edict_t *target;
+    if (!ent || !ent->channel || !(target = ent->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == ent->channel->target_spawn_time ? target : NULL;
+}
+
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
     edict_t *caster = ent ? ent->owner : NULL;
@@ -1145,6 +1153,7 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     missile->goalentity = target;
     if (!missile->channel) missile->channel = G_AllocChannel();
     assert(missile->channel);
+    missile->channel->owner_spawn_time = caster->spawn_time;
     missile->channel->target_spawn_time = target->spawn_time;
     missile->owner = caster;
     missile->velocity = MAX(0.0f, speed) / 1000.0f;
@@ -1178,6 +1187,15 @@ void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
     S_SpellCommitRelocation(unit, position);
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+}
+
+/* Resolve the original caster incarnation carried by a homing spell missile.
+ * This mirrors target-incarnation tracking so a recycled owner edict cannot be
+ * attributed an older projectile impact. */
+edict_t *S_SpellProjectileOwner(edict_t *missile) {
+    edict_t *owner;
+    if (!missile || !missile->channel || !(owner = missile->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == missile->channel->owner_spawn_time ? owner : NULL;
 }
 
 /* Resolve the original unit incarnation carried by a homing spell missile.

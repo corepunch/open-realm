@@ -78,8 +78,7 @@ static bool unsummon_target_valid(edict_t *worker, edict_t *building) {
 }
 
 static bool unsummon_thinker_target_valid(edict_t *thinker, edict_t *building) {
-    return thinker && building && building->inuse &&
-        building->spawn_time == thinker->channel->target_spawn_time &&
+    return thinker && building && S_SpellChannelTarget(thinker) == building &&
         S_SpellIsAliveTarget(building) && building->s.player == thinker->s.player &&
         G_UnitIsStructure(building);
 }
@@ -159,8 +158,7 @@ void unsummon_think(edict_t *thinker) {
     if (!thinker) return;
     if (thinker->unsummon->approaching) return;
     if (!unsummon_thinker_target_valid(thinker, building) || M_IsDead(building)) {
-        if (building && building->inuse && building->spawn_time == thinker->channel->target_spawn_time)
-            unsummon_remove_status(building);
+        if (S_SpellChannelTarget(thinker) == building) unsummon_remove_status(building);
         unsummon_end_effect(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -297,9 +295,8 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         if (!thinker->unsummon->approaching) {
             continue;
         }
-        if (thinker->goalentity && thinker->goalentity->inuse &&
-            thinker->goalentity->spawn_time == thinker->channel->target_spawn_time)
-            unsummon_remove_status(thinker->goalentity);
+        edict_t *target = S_SpellChannelTarget(thinker);
+        if (target) unsummon_remove_status(target);
         thinker->unsummon->target = NULL;
         thinker->unsummon->approaching = false;
         thinker->goalentity = NULL;

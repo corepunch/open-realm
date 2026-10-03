@@ -1661,6 +1661,40 @@ TEST(wc3_spell, spell_is_channeling_detects_active) {
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 
+TEST(wc3_spell, channel_target_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    edict_t *thinker;
+    uint32_t spawn_time;
+
+    if (!caster->channel) caster->channel = G_AllocChannel();
+    assert(caster->channel);
+    caster->channel->serial = 7;
+    thinker = S_SpellChannelTargetThinker(caster, MAKEFOURCC('A','H','d','r'), target);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    spawn_time = target->spawn_time;
+    target->spawn_time++;
+    T_NULL(S_SpellChannelTarget(thinker));
+    target->spawn_time = spawn_time;
+    G_FreeEdict(thinker);
+}
+
+TEST(wc3_spell, projectile_owner_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *missile = G_Spawn();
+    uint32_t spawn_time = caster->spawn_time;
+
+    missile->owner = caster;
+    if (!missile->channel) missile->channel = G_AllocChannel();
+    assert(missile->channel);
+    missile->channel->owner_spawn_time = caster->spawn_time;
+    T_ASSERT(S_SpellProjectileOwner(missile) == caster);
+    caster->spawn_time++;
+    T_NULL(S_SpellProjectileOwner(missile));
+    caster->spawn_time = spawn_time;
+    G_FreeEdict(missile);
+}
+
 TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X6\n"
