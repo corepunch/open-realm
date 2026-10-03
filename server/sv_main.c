@@ -9,6 +9,7 @@
  * Entry point called from the platform main loop: SV_Frame().
  */
 #include "server.h"
+#include "common/online.h"
 
 //#define PRINT_ANIMATIONS
 
@@ -273,6 +274,21 @@ void SV_SetPaused(bool paused) {
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
 void SV_Frame(uint32_t msec) {
+    if (Cvar_Integer("online_mode", 0) && SV_IsActive() && !Online_Ready()) {
+        fprintf(stderr, "Internet host lost its online session: %s\n", Online_Status());
+        SV_Shutdown();
+        return;
+    }
+    if (sv.state == ss_lobby && Cvar_Integer("online_mode", 0) && svs.lobby.active) {
+        uint32_t humans = 0, capacity = 0;
+        for (uint32_t i = 0; i < svs.lobby.slot_count; i++) {
+            lobbySlot_t const *slot = &svs.lobby.slots[i];
+            if (!slot->visible) continue;
+            if (slot->type == LOBBY_SLOT_HUMAN || slot->type == LOBBY_SLOT_OPEN) capacity++;
+            if (slot->type == LOBBY_SLOT_HUMAN && slot->occupied) humans++;
+        }
+        Online_Host(svs.lobby.map_path, svs.lobby.map_name, humans, capacity, svs.lobby.game_speed);
+    }
     svs.realtime += msec;
     SV_ReapZombieClients();
     SV_ReadPackets();

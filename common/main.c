@@ -1,3 +1,5 @@
+#include "common/common.h"
+#include "common/online.h"
 #include "../client/client.h"
 #include "server_api.h"
 
@@ -544,6 +546,7 @@ int main(int argc, string_t argv[]) {
         Uint64 frameStart = SDL_GetPerformanceCounter();
         uint32_t currentTime = SDL_GetTicks();
         uint32_t msec = currentTime - startTime;
+        Online_Frame(msec);
         if (SV_IsActive()) {
             SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }

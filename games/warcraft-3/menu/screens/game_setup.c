@@ -183,11 +183,16 @@ static bool GameSetup_IsHost(void) {
     return !connect || !connect[0];
 }
 
+static bool GameSetup_CanStart(void) {
+    bool const internet = !strcmp(mi.Cvar_String("online_mode", "0"), "1");
+    return GameSetup_IsHost() && (!internet || (mi.Online_HostReady && mi.Online_HostReady()));
+}
+
 static void GameSetup_UpdateStartButton(void) {
     if (!setup.start_button) {
         return;
     }
-    if (GameSetup_IsHost()) {
+    if (GameSetup_CanStart()) {
         UI_SetOnClick(setup.start_button, "menu_game_setup_start");
         UI_SetEnabled(setup.start_button, true);
     } else {
@@ -934,6 +939,9 @@ static void GameSetup_Shutdown(void) {
 
 static void GameSetup_Refresh(int msec) {
     (void)msec;
+    GameSetup_UpdateStartButton();
+    if (!strcmp(mi.Cvar_String("online_mode", "0"), "1") && mi.Online_Status)
+        GameSetup_SetTextIfPresent(setup.game_name, "%s", mi.Online_Status());
 }
 
 static void GameSetup_Draw(void) {
@@ -958,7 +966,7 @@ bool GameSetup_StartGame(void) {
     uint32_t slot_count;
     size_t used = 0;
 
-    if (!GameSetup_IsHost() || !setup.map_path[0]) {
+    if (!GameSetup_CanStart() || !setup.map_path[0]) {
         return false;
     }
     command[0] = '\0';

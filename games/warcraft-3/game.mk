@@ -15,6 +15,70 @@ WC3_GAME_DIR := $(WC3_DIR)/game
 
 WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -I$(WC3_DIR)/game -I$(WC3_DIR)/game/api -I$(WC3_DIR)/game/skills -DWC3 -DUSE_FOGOFWAR -DBZ_GAME=\"warcraft-3\"
 
+# EOS is proprietary and supplied by the developer; SDK-free builds remain supported.
+EOS ?= 0
+EOS_SDK_ROOT ?= data/eos/SDK
+WC3_EOS_CFLAGS :=
+WC3_EOS_LIBS :=
+WC3_EOS_RUNTIME :=
+EOS_CONFIG_FILE ?=
+EOS_CODESIGN_IDENTITY ?= -
+EOS_RUNTIME_SIGN :=
+ifeq ($(EOS),1)
+ifeq ($(wildcard $(EOS_SDK_ROOT)/Include/eos_sdk.h),)
+$(error EOS=1 requires the C SDK at EOS_SDK_ROOT=$(EOS_SDK_ROOT))
+endif
+WC3_EOS_CFLAGS := -DBZ_EOS -I$(EOS_SDK_ROOT)/Include
+ifeq ($(OS),Windows_NT)
+EOS_RUNTIME_NAME := EOSSDK-Win64-Shipping.dll
+EOS_RUNTIME_DIR := $(BIN_DIR)
+WC3_EOS_LIBS := -L$(EOS_SDK_ROOT)/Bin -l:$(EOS_RUNTIME_NAME)
+else ifeq ($(UNAME_S),Darwin)
+EOS_RUNTIME_NAME := libEOSSDK-Mac-Shipping.dylib
+EOS_RUNTIME_DIR := $(LIB_DIR)
+WC3_EOS_LIBS := -L$(EOS_SDK_ROOT)/Bin -lEOSSDK-Mac-Shipping
+# Sign the build copy; preserve the SDK archive and its original library.
+EOS_RUNTIME_SIGN := codesign --force --sign '$(EOS_CODESIGN_IDENTITY)'
+else ifeq ($(UNAME_S),Linux)
+EOS_RUNTIME_DIR := $(LIB_DIR)
+ifeq ($(shell uname -m),aarch64)
+EOS_RUNTIME_NAME := libEOSSDK-LinuxArm64-Shipping.so
+WC3_EOS_LIBS := -L$(EOS_SDK_ROOT)/Bin -lEOSSDK-LinuxArm64-Shipping
+else
+EOS_RUNTIME_NAME := libEOSSDK-Linux-Shipping.so
+WC3_EOS_LIBS := -L$(EOS_SDK_ROOT)/Bin -lEOSSDK-Linux-Shipping
+endif
+else
+$(error EOS=1 is supported on macOS, Linux and Windows x64)
+endif
+WC3_EOS_RUNTIME := $(EOS_RUNTIME_DIR)/$(EOS_RUNTIME_NAME)
+$(WC3_EOS_RUNTIME): $(EOS_SDK_ROOT)/Bin/$(EOS_RUNTIME_NAME) | $(EOS_RUNTIME_DIR)
+	@rm -f $@
+	@$(if $(EOS_RUNTIME_SIGN),cat $< > $@,cp $< $@)
+	@$(if $(EOS_RUNTIME_SIGN),$(EOS_RUNTIME_SIGN) $@,true)
+endif
+
+# Bundle a restricted player credential only when explicitly supplied by packaging.
+.PHONY: install-eos-config
+install-eos-config: install-share
+ifeq ($(EOS),1)
+ifneq ($(EOS_CONFIG_FILE),)
+	@test -f '$(EOS_CONFIG_FILE)' || { echo 'EOS_CONFIG_FILE does not exist' >&2; exit 1; }
+	@cp '$(EOS_CONFIG_FILE)' $(SHARE_INSTALL)/warcraft-3/eos.cfg
+endif
+endif
+
+# Rebuild executables when changing SDK mode even when source timestamps are unchanged.
+EOS_BUILD_CONFIG := $(BIN_DIR)/.eos-build-config
+.PHONY: eos-build-config-force
+$(EOS_BUILD_CONFIG): eos-build-config-force | $(BIN_DIR)
+	@echo '$(EOS) $(abspath $(EOS_SDK_ROOT)) $(EOS_CODESIGN_IDENTITY)' > $@.tmp
+	@cmp -s $@.tmp $@ || cp $@.tmp $@
+	@rm -f $@.tmp
+ifeq ($(EOS),1)
+$(WC3_EOS_RUNTIME): $(EOS_BUILD_CONFIG)
+endif
+
 # Optional long-form media support (pre-rendered movies and background music).
 # Keep the dependency surface to the five FFmpeg libraries required for container
 # demux, decode, pixel conversion and audio resampling; the default build has no
@@ -72,7 +136,7 @@ sheet:       $(SHEET_LIB)
 renderer:    $(RENDERER_LIB)
 game:        $(GAME_LIB)
 menu:          $(MENU_LIB)
-openwarcraft3: $(BINARY)
+openwarcraft3: $(BINARY) install-eos-config
 
 run: $(BINARY) install-share
 	$(BINARY) -data $(WC3DATA) -tft
@@ -147,7 +211,7 @@ $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(SHEET_LIB
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(MENU_LIB),$(UI_BASE_DEPS) $(MENU_HEADERS) common/mpq.c common/mpq.h $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/menu),menu,$(WC3_DIR)/menu $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
 # The remote client loads collision data before any game imports exist; compile its format reader into the engine.
-$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD,-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD,-lsheet -lshared -ljass -lgame -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c))
 
 # ---------------------------------------------------------------------------
 # In-engine tests (see CONTRIBUTING.md)
@@ -164,7 +228,7 @@ GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
 WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
 $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_GAME_DIR)),game-wc3-test,$(WC3_GAME_DIR) $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(MENU_LIB) $(WC3_EOS_RUNTIME) $(EOS_BUILD_CONFIG) $(APP_SRCS) $(WC3_COMMON_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(WC3_TEST_DIR)/test_coordinates.c,openwarcraft3-tests,$(WC3_FDF_CFLAGS) $(WC3_EOS_CFLAGS) -DBZ_CLIENT_WORLD -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lmenu $(LIBS) $(WC3_FFMPEG_LIBS) $(WC3_EOS_LIBS) -lz,$(WC3_DIR)/common/world_w3.c $(WC3_TEST_DIR)/test_coordinates.c))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
@@ -207,9 +271,9 @@ TEST_JOBS ?= 16
  test: test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
-		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_tool_common.c \
+		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c \
 		$(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c \
-		common/net.c common/msg.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c \
+		common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-core.xml" TEST_JUNIT_SUITE="test-core" $(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.

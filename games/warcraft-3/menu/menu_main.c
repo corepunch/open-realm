@@ -37,6 +37,7 @@ static bool ui_menu_commands_registered;
 
 static void UI_ClearScreen(void);
 static void M_ShowSinglePlayerSkirmishMenu(void);
+static void M_ShowOnlineBrowserMenu(void);
 
 typedef struct { cstring_t name; void (*func)(void); } menucommand_t;
 
@@ -78,6 +79,7 @@ static const menucommand_t menu_commands[] = {
     { "menu_main", UI_MenuMain_f },
     { "menu_game", UI_MenuGame_f },
     { "menu_multiplayer", M_ShowLanBrowserMenu },
+    { "menu_online", M_ShowOnlineBrowserMenu },
     { "menu_options", M_ShowOptionsMenu },
     { "menu_video", UI_MenuVideo_f },
     { "menu_keys", UI_MenuKeys_f },
@@ -202,6 +204,10 @@ uiScreen_t *UI_GetCurrentScreen(void) {
 }
 
 __attribute__((visibility("hidden"))) void M_ShowMainMenu(void) {
+    if (mi.Cvar_String && !strcmp(mi.Cvar_String("online_mode", "0"), "1")) {
+        if (mi.Online_Leave) mi.Online_Leave();
+        if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "0");
+    }
     UI_RequestScreen(&mainMenuScreen, mainMenuScreen.glue, MainMenu_ShowMainPanel);
 }
 
@@ -220,7 +226,16 @@ static void M_ShowSinglePlayerSkirmishMenu(void) {
     UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, LAN_ShowSinglePlayerCreate);
 }
 
+static void M_ShowOnlineBrowserMenu(void) {
+    if (mi.Online_Leave) mi.Online_Leave();
+    if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "1");
+    if (mi.Online_Begin) mi.Online_Begin();
+    UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
+}
+
 void M_ShowLanBrowserMenu(void) {
+    if (mi.Online_Leave) mi.Online_Leave();
+    if (mi.Cvar_Set) mi.Cvar_Set("online_mode", "0");
     UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
 }
 
@@ -254,6 +269,10 @@ static void UI_MenuPlayerConfig_f(void) {
 }
 
 static void UI_MenuStartServer_f(void) {
+    if (mi.Cvar_String && !strcmp(mi.Cvar_String("online_mode", "0"), "1")) {
+        if (mi.Online_Leave) mi.Online_Leave();
+        if (mi.Online_Begin) mi.Online_Begin();
+    }
     LAN_ApplyPlayerName();
     M_ShowLanCreateMenu();
 }

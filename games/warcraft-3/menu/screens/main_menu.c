@@ -84,7 +84,7 @@ static void MainMenu_InitFrames(void) {
 
     UI_SetOnClick(main_menu.RealmButton, "menu_realm_select");
     UI_SetOnClick(main_menu.SinglePlayerButton, "menu_game");
-    UI_SetOnClick(main_menu.BattleNetButton, "menu_multiplayer");
+    UI_SetOnClick(main_menu.BattleNetButton, "menu_online");
     UI_SetOnClick(main_menu.LocalAreaNetworkButton, "menu_multiplayer");
     UI_SetOnClick(main_menu.OptionsButton, "menu_options");
     UI_SetOnClick(main_menu.CreditsButton, "menu_credits");
