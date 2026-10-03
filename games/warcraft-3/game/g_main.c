@@ -998,6 +998,7 @@ static void G_StartScripts(void) {
     jass_runevents(level.vm);
 
     G_SetDestructableScriptBinding(false);
+    G_FinishMovePathingInitialization();
 }
 
 bool G_IsSinglePlayer(void) {

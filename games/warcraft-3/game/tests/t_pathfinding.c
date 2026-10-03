@@ -179,6 +179,7 @@ static edict_t *make_unit_at(float x, float y) {
  * a separate .2-radian arrival tolerance, and stops at the predicted pose. */
 unsigned G_TestStaticPathMask(unsigned x, unsigned y);
 int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y);
+void G_TestMovePathRefresh(point2_t,point2_t);
 point2_t G_TestMovePathSize(unsigned level);
 void CM_ReadPathMap(handle_t archive);
 
@@ -306,6 +307,8 @@ TEST(pathfinding, constructed_negative_uneven_maps_match_retail_corners_padding_
         }
         path_load_expand(retail_constructed_runs+map->fine[0],map->fine[1],cells,w*h);
         FOR_LOOP(y,h) FOR_LOOP(x,w) T_EQ(G_TestStaticPathMask(x,y)&0xc6,cells[y*w+x]);
+        assert_constructed_classes(map,map->initial);
+        G_TestMovePathRefresh((point2_t){0,0},(point2_t){w,h});
         assert_constructed_classes(map,map->edited);
         for(int i=15;i>=0;i--) {
             uint32_t const *e=retail_constructed_edits[m][i];
@@ -313,6 +316,8 @@ TEST(pathfinding, constructed_negative_uneven_maps_match_retail_corners_padding_
             T_ASSERT(G_SetTerrainPathingFlags(&edit));
         }
         FOR_LOOP(y,h) FOR_LOOP(x,w) T_EQ(G_TestStaticPathMask(x,y)&0xc6,0);
+        assert_constructed_classes(map,map->edited);
+        G_TestMovePathRefresh((point2_t){0,0},(point2_t){w,h});
         assert_constructed_classes(map,map->initial);
         free(cells);
     }

@@ -8,19 +8,23 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**164 done / 336 tasks; 172 remaining.** Payoff82 closes existing NUM-01.21
-without new IDs/splits. The engine script producer now preserves left arithmetic
-association, wrapping integer intermediates, truncating real promotion and
-retail software scalar operations. Two complete27-expression captures repeat
-all raw inputs/results and ten operand-side-effect calls. The expression-authored
-Move matches432 commits and1,825 suffix commits across eight Save92 continuations
-in both editions. Mixed JASS/Galaxy VMs retain each source arithmetic contract.
-Required full suites pass2,499 tests/4,466,637 assertions per edition and506
-Python checks; three fresh strict corpus contracts pass. See [expression payoff](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
+**167 done / 336 tasks; 169 remaining.** Payoff83 closes existing E2E-06.2,
+E2E-07.1 and E2E-07.2 without new IDs/splits. Public terrain edits now preserve
+retail's independently published regional hierarchy and retained routes; the
+engine performs the witnessed full post-main initialization publication.
+Save93 preserves pending terrain publication instead of rebuilding it away.
+Two complete original captures repeat all geometry/search/motion events. The
+production regression matches724 commits, all seven fine/hierarchy snapshots
+and4164 suffix commits from eight saves in both editions. Required full suites
+pass2501 tests/4,944,161 assertions per edition and514 Python checks; seven fresh
+strict corpus contracts and O0/O2 comparisons pass. Ghidra retains628 function
+roles,65 layouts/437 fields,295 ABIs and60 globals. See [terrain payoff](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication),
+[state/ownership contract](retail-pathfinding-engine.md#pathing-update-state-and-ownership-contract)
+and [replacement interfaces](retail-pathfinding-engine.md#openrealm-replacement-interfaces-and-lifecycle-boundaries).
 
-Next implementation chunk is E2E-06.2: resolve fine-terrain versus adaptive
-publication timing with the existing producer inventory, preserving route
-and saved-state ownership.
+Next runnable chunk is MOVE-02.1 and MOVE-02.2: complete long oblique motion
+with timed speed/heading changes and stationary-turn/Stop/boundary restart,
+including committed occupancy and saved continuations in the engine.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -47,7 +51,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
-| E2E — Combined scenarios and handoff | 1 | 18 |
+| E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
 BASE-02.7 explicitly adds the missing ordinary path-activation/adaptive-admission policy; the wider scheduler and group-budget contracts remain open. ROUTE-05.3 explicitly adds the parallel engine ordered-wait port; it does not close05.1/05.2 producer/cycle requirements.
@@ -924,12 +928,12 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 ### E2E-06 — Implementation specification
 
 - [ ] **E2E-06.1** Freeze structures, units, coordinate/lane/footprint and numeric/PRNG contracts with links to runnable evidence.
-- [ ] **E2E-06.2** Freeze state machines, result codes, update/event order, ownership and invalidation contracts with limits/failure behavior and evidence links. Resolve the documented engine/native terrain-edit adaptive-cache timing and dynamic hierarchy publication differences from the completed MAP-03.3 inventory before freezing that contract.
+- [x] **E2E-06.2** Frozen ordinary state/result, update/event-order, ownership and invalidation contracts with explicit limits/failure behavior and evidence links. Payoff83 resolves the MAP-03.3 terrain-edit/regional hierarchy timing, retains active paths, restores the original full post-main publication and saves independently published classes in Save93. Two complete repeated public captures and both-edition RunFrame/save continuations check every observed fine/hierarchy value and all724 motion commits. Evidence: [state contract](retail-pathfinding-engine.md#pathing-update-state-and-ownership-contract), [engine payoff](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication); wider categorical/reentrant/allocation scopes retain FOOT-03/MAP-04/05/06.
 
 ### E2E-07 — OpenRealm integration design
 
-- [ ] **E2E-07.1** Map current Move-owned routing/steering, server clock/order dispatch and world/collision entry points to replacement interfaces; name files and call sites.
-- [ ] **E2E-07.2** Specify group ownership, serialization/rebuild and cleanup boundaries; review against Quake2-style module/function-table contracts without implementing behavior.
+- [x] **E2E-07.1** Mapped Move-owned routing/steering, primary/owner clocks, order dispatch, world/collision, static publication and save entry points to named files/call sites. Payoff83 implements the typed game-private publication/save interfaces and include-local map initialization hook; no client/network gameplay policy is added. Evidence: [replacement interfaces](retail-pathfinding-engine.md#openrealm-replacement-interfaces-and-lifecycle-boundaries).
+- [x] **E2E-07.2** Specified route/group/shared-owner allocations, incarnation/generation references, queue ownership, serialization, backing rebuild and cleanup at the Quake2 game-module/function-table boundary. Payoff83 distinguishes disposable search backing from authoritative published hierarchy state and verifies saved continuation without republishing pending terrain. Evidence: [ownership and cleanup](retail-pathfinding-engine.md#openrealm-replacement-interfaces-and-lifecycle-boundaries), [Save93](save-load.md); original full teardown/reentrant composition retains existing MAP/E2E-04 tasks.
 
 ### E2E-08 — Differential adapter design
 

@@ -34,9 +34,20 @@ static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
 static wc3AccSearch_t move_acc;
 static wc3FineVector_t move_acc_points[BZ_WC3_FINE_NODES];
 static void *move_acc_storage;
-static uint32_t move_acc_revision, move_acc_width, move_acc_height;
+static uint32_t move_map_revision, move_acc_width, move_acc_height;
 static uint8_t *move_acc_classes[4][4];
 static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
+typedef struct {
+    wc3FineBox_t box;
+    pathTex_t const *texture;
+    uint64_t pixels;
+    uint32_t birth, turn, flags;
+    bool active, surface;
+} moveStaticPathing_t;
+static moveStaticPathing_t move_static[MAX_ENTITIES];
+static void move_acc_prepare(void);
+static void move_acc_initialize(void);
+static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear);
 typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; moveFineRoute_t *route; } moveAdaptiveQuery_t;
 static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out);
 
@@ -98,7 +109,11 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #pragma GCC visibility push(hidden)
 #include "common/world.c"
 #include "common/world_w3.c"
+#define PATHMAP_SETUP_COMPLETE move_acc_initialize
+#define CM_BakeStaticObstacles CM_BakeStaticMasks
 #include "server/sv_routing.c"
+#undef CM_BakeStaticObstacles
+#undef PATHMAP_SETUP_COMPLETE
 
 /* Use the bake's predicate for lifecycle invalidation, including dead rubble
  * and live bridge decks that replace terrain rather than adding a blocker. */
@@ -135,7 +150,7 @@ static vec2_t move_world_from_grid(float x, float y) {
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
     free(move_acc_storage); move_acc_storage = NULL;
-    move_acc_width = move_acc_height = move_acc_revision = 0;
+    move_acc_width = move_acc_height = 0;
 }
 
 /* Four ordinary static lanes share node-index scratch; cache the retail 2x fine base and three parents. */
@@ -143,8 +158,8 @@ static void move_acc_prepare(void) {
     /* Original15ab60 adds16 fine cells, truncates division by2, then adds1.
      * Padding is allocation space, not additional blocked terrain. */
     uint32_t width=(pathmap.width+16)/2+1, height=(pathmap.height+16)/2+1;
-    if (move_acc_storage && move_acc_width == width && move_acc_height == height &&
-        move_acc_revision == pathmap.revision) return;
+    if (!pathmap.width || !pathmap.height) return;
+    if (move_acc_storage && move_acc_width == width && move_acc_height == height) return;
     if (move_acc_width != width || move_acc_height != height || !move_acc_storage) {
         G_FreeMovePathCache();
         uint32_t cells = 0;
@@ -160,33 +175,157 @@ static void move_acc_prepare(void) {
         }
         move_acc_width = width; move_acc_height = height;
     }
-    FOR_LOOP(lane,4) FOR_LOOP(level,4) {
-        wc3AccMap_t const *map = move_acc.maps+level;
-        uint8_t *classes = move_acc_classes[lane][level];
-        memset(classes,0,(size_t)map->width*map->height);
-        unsigned cols=MIN(map->width,pathmap.width/(2u<<level)+1);
-        unsigned rows=MIN(map->height,pathmap.height/(2u<<level)+1);
-        FOR_LOOP(y,rows) FOR_LOOP(x,cols) {
-            unsigned blocked = 0;
+    FOR_LOOP(lane,4) FOR_LOOP(level,4)
+        memset(move_acc_classes[lane][level],0,(size_t)move_acc.maps[level].width*move_acc.maps[level].height);
+    move_acc_rebuild_rectangle((wc3FineBox_t){{0,0},{pathmap.width,pathmap.height}},false);
+}
+
+/* Original15d360 clips once in fine coordinates. Each level independently
+ * visits floor(min/scale)..floor(max/scale), including the upper edge. */
+static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear) {
+    box.min.x=MAX(0,box.min.x); box.min.y=MAX(0,box.min.y);
+    box.max.x=MIN((int)pathmap.width,box.max.x); box.max.y=MIN((int)pathmap.height,box.max.y);
+    if (box.min.x>=box.max.x || box.min.y>=box.max.y) return;
+    FOR_LOOP(level,4) {
+        wc3AccMap_t const *map=move_acc.maps+level;
+        unsigned scale=2u<<level;
+        unsigned minx=box.min.x/scale,miny=box.min.y/scale;
+        unsigned maxx=MIN(map->width,box.max.x/scale+1),maxy=MIN(map->height,box.max.y/scale+1);
+        FOR_LOOP(lane,4) for(unsigned y=miny;y<maxy;y++) for(unsigned x=minx;x<maxx;x++) {
+            unsigned value=0;
             if (!level) {
-                FOR_LOOP(dy,2) FOR_LOOP(dx,2)
-                    blocked += !is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
-                classes[y*map->width+x] = blocked == 4 ? 1 : blocked ? 2 : 0;
+                unsigned blocked=0;
+                if (!clear) FOR_LOOP(dy,2) FOR_LOOP(dx,2)
+                    blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
+                value=blocked==4 ? 1 : blocked ? 2 : 0;
             } else {
-                uint32_t w = move_acc.maps[level-1].width;
-                uint8_t const *child = move_acc_classes[lane][level-1];
-                uint8_t first = child[y*2*w+x*2]; bool same = true;
-                FOR_LOOP(dy,2) FOR_LOOP(dx,2) same &= child[(y*2+dy)*w+x*2+dx] == first;
-                classes[y*map->width+x] = same && first < 2 ? first : 2;
+                wc3AccMap_t const *child_map=move_acc.maps+level-1;
+                uint8_t const *child=move_acc_classes[lane][level-1];
+                unsigned first=1; bool same=true;
+                FOR_LOOP(dy,2) FOR_LOOP(dx,2) {
+                    unsigned cx=x*2+dx,cy=y*2+dy;
+                    unsigned v=cx<child_map->width && cy<child_map->height ? child[cy*child_map->width+cx] : 1;
+                    if (!dx && !dy) first=v;
+                    same&=v==first;
+                }
+                value=same && first<2 ? first : 2;
             }
+            move_acc_classes[lane][level][y*map->width+x]=value;
         }
     }
-    /* TODO MAP/ACC: special bytes, dynamic classification/exclusion and stale retail terrain-edit
-     * invalidation producers remain separate. This cache follows the engine's static bake epoch. */
-    move_acc_revision = pathmap.revision;
+}
+
+static void move_acc_initialize(void) {
+    G_FreeMovePathCache(); memset(move_static,0,sizeof(move_static));
+    if (!++move_map_revision) ++move_map_revision;
+    move_acc_prepare();
+}
+
+/* A footprint producer publishes even when its pixels were already blocked
+ * by terrain. Comparing baked bytes alone would miss that refresh. Textures
+ * are game resources; retain identity/contents, never ownership of them. */
+static moveStaticPathing_t move_static_pathing(edict_t const *ent) {
+    moveStaticPathing_t state={0};
+    if (!entity_blocks_static_pathing(ent)) return state;
+    point2_t p=LocationToPathMap(&ent->s.origin2);
+    pathTexTransform_t transform=CM_GetPathTexTransform(ent);
+    unsigned width=transform.width,height=transform.height;
+    if (!ent->pathtex) width=height=MAX(1,collision_radius_cells(ent->collision)*2);
+    state.active=true; state.texture=ent->pathtex; state.birth=ent->spawn_time;
+    state.turn=transform.turn; state.flags=entity_static_pathing_flags(ent);
+    state.surface=entity_is_live_walkable_surface(ent);
+    state.box=(wc3FineBox_t){{p.x-(int)width/2,p.y-(int)height/2},
+        {p.x-(int)width/2+(int)width+1,p.y-(int)height/2+(int)height+1}};
+    if (ent->pathtex) {
+        state.pixels=UINT64_C(14695981039346656037);
+        FOR_LOOP(i,ent->pathtex->width*ent->pathtex->height) {
+            uint8_t const *pixel=(uint8_t const *)(ent->pathtex->map+i);
+            FOR_LOOP(k,sizeof(*ent->pathtex->map)) state.pixels=(state.pixels^pixel[k])*UINT64_C(1099511628211);
+        }
+    }
+    return state;
+}
+
+/* Original1eab40 publishes the full hierarchy after generated map main and
+ * bulk widget setup. Subsequent terrain natives have no such full refresh. */
+void G_FinishMovePathingInitialization(void) {
+    CM_BakeStaticMasks();
+    move_acc_prepare();
+    move_acc_rebuild_rectangle((wc3FineBox_t){{0,0},{pathmap.width,pathmap.height}},false);
+    FOR_LOOP(i,MAX_ENTITIES)
+        move_static[i]=i<globals.num_edicts ? move_static_pathing(g_edicts+i) : (moveStaticPathing_t){0};
+}
+
+/* Fine masks/legacy fields follow every bake. Adaptive lanes follow only
+ * footprint producers; existing paths remain owned until their normal retry,
+ * completion or replacement, rather than inheriting a fine-field epoch. */
+void CM_BakeStaticObstacles(void) {
+    if (!pathmap.terrain || !pathmap.original) return;
+    move_acc_prepare();
+    CM_BakeStaticMasks();
+    FOR_LOOP(i,MAX_ENTITIES) {
+        moveStaticPathing_t next=i<globals.num_edicts ? move_static_pathing(g_edicts+i) : (moveStaticPathing_t){0};
+        moveStaticPathing_t *before=move_static+i;
+        if (before->active==next.active && before->texture==next.texture && before->pixels==next.pixels &&
+            before->birth==next.birth && before->turn==next.turn && before->flags==next.flags && before->surface==next.surface &&
+            before->box.min.x==next.box.min.x && before->box.min.y==next.box.min.y &&
+            before->box.max.x==next.box.max.x && before->box.max.y==next.box.max.y) continue;
+        if (before->active) move_acc_rebuild_rectangle(before->box,false);
+        if (next.active) move_acc_rebuild_rectangle(next.box,false);
+        *before=next;
+    }
+}
+
+uint32_t G_GetMoveAdaptiveStateSize(void) {
+    if (!pathmap.width || !pathmap.height) return 0;
+    move_acc_prepare(); uint32_t size=0;
+    FOR_LOOP(level,4) size+=move_acc.maps[level].width*move_acc.maps[level].height*4;
+    return size;
+}
+
+point2_t G_GetMoveAdaptiveMapSize(unsigned level) {
+    move_acc_prepare();
+    if (level>=4 || !pathmap.width || !pathmap.height) return (point2_t){0,0};
+    return (point2_t){move_acc.maps[level].width,move_acc.maps[level].height};
+}
+
+bool G_GetMoveAdaptiveState(uint8_t *data, uint32_t size) {
+    if (size!=G_GetMoveAdaptiveStateSize() || (size && !data)) return false;
+    if (!size) return true;
+    FOR_LOOP(level,4) FOR_LOOP(lane,4) {
+        uint32_t n=move_acc.maps[level].width*move_acc.maps[level].height;
+        memcpy(data,move_acc_classes[lane][level],n); data+=n;
+    }
+    return true;
+}
+
+bool G_SetMoveAdaptiveState(uint8_t const *data, uint32_t size) {
+    if (size!=G_GetMoveAdaptiveStateSize() || (size && !data)) return false;
+    FOR_LOOP(i,size) if (data[i]>2) return false;
+    if (!size) return true;
+    FOR_LOOP(level,4) FOR_LOOP(lane,4) {
+        uint32_t n=move_acc.maps[level].width*move_acc.maps[level].height;
+        memcpy(move_acc_classes[lane][level],data,n); data+=n;
+    }
+    return true;
+}
+
+/* Saved publication state is authoritative: rebuilding all adaptive classes
+ * here would expose pending terrain edits that were not visible when saved. */
+void G_RebuildSavedMovePathing(void) {
+    CM_BakeStaticMasks();
+    FOR_LOOP(i,MAX_ENTITIES)
+        move_static[i]=i<globals.num_edicts ? move_static_pathing(g_edicts+i) : (moveStaticPathing_t){0};
+    G_RebindSavedMoveRoutes();
 }
 
 #ifdef BZ_TESTS
+/* Construction oracles explicitly call15d360 after terrain writes. Public
+ * terrain natives intentionally do not perform this producer operation. */
+void G_TestMovePathRefresh(point2_t min, point2_t max) {
+    move_acc_prepare();
+    move_acc_rebuild_rectangle((wc3FineBox_t){{min.x,min.y},{max.x,max.y}},false);
+}
 wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void) {
     return &move_acc;
 }
@@ -310,32 +449,7 @@ static void move_acc_object_rectangle(edict_t const *object, bool clear) {
     vec2_t p=move_object_point(object);
     wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(object->collision/pathmap_cell_world_size()),
         (wc3FinePoint_t){(int)floorf(p.x),(int)floorf(p.y)});
-    int minx=MAX(0,box.min.x)/2,miny=MAX(0,box.min.y)/2;
-    int maxx=(MIN((int)pathmap.width,box.max.x)+1)/2,maxy=(MIN((int)pathmap.height,box.max.y)+1)/2;
-    if(minx>=maxx || miny>=maxy)return;
-    /* TODO MAP-03.3: dynamic coarse cell-link composition and spatial dirty
-     * publication remain separate; these lanes retain static terrain geometry. */
-    FOR_LOOP(lane,4) {
-        for(int y=miny;y<maxy;y++)for(int x=minx;x<maxx;x++) {
-            unsigned blocked=0;
-            /* Original15cf80 restores coarse ground6, including no-fly4,
-             * just as the initial hierarchy bake does. Fine ground stays2. */
-            if (!clear) FOR_LOOP(dy,2)FOR_LOOP(dx,2)
-                blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
-            move_acc_classes[lane][0][y*move_acc.maps[0].width+x]=clear ? 0 : blocked==4 ? 1 : blocked ? 2 : 0;
-        }
-        int lo_x=minx,lo_y=miny,hi_x=maxx,hi_y=maxy;
-        for(unsigned level=1;level<4;level++) {
-            lo_x/=2;lo_y/=2;hi_x=(hi_x+1)/2;hi_y=(hi_y+1)/2;
-            uint32_t w=move_acc.maps[level-1].width;
-            uint8_t const *child=move_acc_classes[lane][level-1];
-            for(int y=lo_y;y<hi_y;y++)for(int x=lo_x;x<hi_x;x++) {
-                uint8_t first=child[y*2*w+x*2];bool same=true;
-                FOR_LOOP(dy,2)FOR_LOOP(dx,2)same&=child[(y*2+dy)*w+x*2+dx]==first;
-                move_acc_classes[lane][level][y*move_acc.maps[level].width+x]=same && first<2 ? first : 2;
-            }
-        }
-    }
+    move_acc_rebuild_rectangle(box,clear);
 }
 
 /* A segment uses area-tree pruning; a fine detour may leave that rectangle,
@@ -442,7 +556,7 @@ bool G_SetTerrainPathingFlags(terrainPathingEdit_t const *edit) {
         G_SetBlightPathCell(index%pathmap.width,index/pathmap.width,(*flags & WC3_PATH_BLIGHTED)!=0);
     /* The legacy field cache consumes baked masks. Invalidate it when the
      * mutable terrain changes; retail adaptive classification remains separate. */
-    CM_BakeStaticObstacles();
+    CM_BakeStaticMasks();
     return true;
 }
 
@@ -691,7 +805,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     moveFineRoute_t *route=query->route;
     bool retained=route && route->adaptive_points && route->adaptive_count &&
         route->adaptive_index<route->adaptive_count && route->mask==input->geometry.blocked_flags &&
-        route->adaptive_revision==pathmap.revision && route->adaptive_radius==input->geometry.radius &&
+        route->adaptive_revision==move_map_revision && route->adaptive_radius==input->geometry.radius &&
         route->adaptive_goal.x==target.x && route->adaptive_goal.y==target.y;
     wc3FineVector_t point;
     if (retained) {
@@ -717,7 +831,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             if (!points) gi.error("WC3 adaptive routing: cannot retain %u points",count);
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
-            route->adaptive_revision=pathmap.revision;
+            route->adaptive_revision=move_map_revision;
             FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
         }
     }
@@ -761,7 +875,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */
     bool retained=route->group_points && route->group_count && route->group_index<route->group_count &&
-        route->group_revision==pathmap.revision && route->mask==input->geometry.blocked_flags &&
+        route->group_revision==move_map_revision && route->mask==input->geometry.blocked_flags &&
         route->group_goal.x==goal.x && route->group_goal.y==goal.y;
     if (!retained) {
         unsigned lane=0;
@@ -786,7 +900,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         vec2_t *points=realloc(route->group_points,count*sizeof(*points));
         if (!points) gi.error("WC3 group routing: cannot retain %u points",count);
         route->group_points=points; route->group_count=count; route->group_index=selected.index;
-        route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=pathmap.revision;
+        route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=move_map_revision;
         route->mask=input->geometry.blocked_flags;
         route->adaptive_count=route->count=0;
         FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
@@ -912,7 +1026,7 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
         move_query_source(input) : move_grid_from_world(source.x,source.y);
     vec2_t b=input->fine_target && target.x==input->geometry.target->x && target.y==input->geometry.target->y ?
         *input->fine_target : move_grid_from_world(target.x,target.y);
-    if (route && route->adaptive_count && (route->adaptive_revision!=pathmap.revision ||
+    if (route && route->adaptive_count && (route->adaptive_revision!=move_map_revision ||
         route->mask!=input->geometry.blocked_flags || route->adaptive_radius!=input->geometry.radius ||
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
         route->adaptive_count=route->adaptive_index=0;
@@ -923,18 +1037,18 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
     return G_BuildUnitMoveLocalRoute(input,route,out);
 }
 
-/* A loaded world has a new process-local bake epoch, with its saved terrain and
- * obstacles already restored. Retained routes belong to that rebuilt world. */
+/* A loaded world has a new process-local map lifetime. Retained routes belong
+ * to its saved fine masks and independently saved hierarchy publication. */
 void G_RebindSavedMoveRoutes(void) {
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
         moveFineRoute_t *route=&level.move_groups[i]->route;
-        if (route->adaptive_count) route->adaptive_revision=pathmap.revision;
-        if (route->group_count) route->group_revision=pathmap.revision;
+        if (route->adaptive_count) route->adaptive_revision=move_map_revision;
+        if (route->group_count) route->group_revision=move_map_revision;
     }
     FILTER_EDICTS(ent,ent->inuse) {
         moveFineRoute_t *route=&ent->movement.fine_route;
-        if (route->adaptive_count) route->adaptive_revision=pathmap.revision;
-        if (route->group_count) route->group_revision=pathmap.revision;
+        if (route->adaptive_count) route->adaptive_revision=move_map_revision;
+        if (route->group_count) route->group_revision=move_map_revision;
     }
 }
 
@@ -964,7 +1078,7 @@ bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *r
         if (!input->geometry.target) return false;
         vec2_t goal=input->fine_target ? *input->fine_target : move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
         if (!route->adaptive_points || route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
-            route->adaptive_revision!=pathmap.revision || route->adaptive_radius!=input->geometry.radius ||
+            route->adaptive_revision!=move_map_revision || route->adaptive_radius!=input->geometry.radius ||
             route->adaptive_goal.x!=goal.x || route->adaptive_goal.y!=goal.y) return false;
         if (route->adaptive_index) {
             vec2_t point=route->adaptive_points[route->adaptive_index];

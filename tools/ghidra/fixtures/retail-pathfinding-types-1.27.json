@@ -2957,6 +2957,66 @@
           "evidence": "91b460 decoded instruction loads and arithmetic case operands; NUM-01.21"
         }
       ]
+    },
+    {
+      "name": "WC3PathIntegerRectangle",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "min_y",
+          "type": "i32",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 4,
+          "name": "min_x",
+          "type": "i32",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 8,
+          "name": "max_y",
+          "type": "i32",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 12,
+          "name": "max_x",
+          "type": "i32",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathScalarRectangle",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "min_y",
+          "type": "WC3PathScalar",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 4,
+          "name": "min_x",
+          "type": "WC3PathScalar",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 8,
+          "name": "max_y",
+          "type": "WC3PathScalar",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 12,
+          "name": "max_x",
+          "type": "WC3PathScalar",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        }
+      ]
     }
   ],
   "methods": [
@@ -5514,17 +5574,17 @@
     {
       "address": "6f05ee40",
       "name": "Rect_FloorToCellBounds",
-      "returns": "ptr:i32",
+      "returns": "ptr:WC3PathIntegerRectangle",
       "convention": "__stdcall",
       "parameters": [
         {
           "name": "output",
-          "type": "ptr:i32",
+          "type": "ptr:WC3PathIntegerRectangle",
           "storage": 4
         },
         {
           "name": "bounds",
-          "type": "ptr:WC3PathScalar",
+          "type": "ptr:WC3PathScalarRectangle",
           "storage": 8
         }
       ]
@@ -8542,6 +8602,37 @@
           "storage": 12
         }
       ]
+    },
+    {
+      "address": "6f15ba80",
+      "name": "PathMaps_FloorUpdateBounds",
+      "returns": "ptr:WC3PathIntegerRectangle",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 4
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f651160",
+      "name": "Widget_SetHierarchyRefreshEnabled",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [
@@ -8898,6 +8989,12 @@
       "name": "PathWorld_Owner",
       "type": "ptr:WC3PathOwnerCounterPrefix",
       "evidence": "04c860/15ab60 global owner publication and both complete file-backed captures"
+    },
+    {
+      "address": "6fce5f10",
+      "name": "WidgetHierarchyRefreshEnabled",
+      "type": "u32",
+      "evidence": "651160 direct ECX store;650c00/6501a0/6514d0/6544f0 regional publication gates"
     }
   ]
 }

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **301 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **78**
+The inventory now has **302 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **79**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1413,3 +1413,51 @@ variable presentation subdivisions and bounded spatial samples; common primary
 clocks, operand/public-order timeline, route/task lifetime and movement words
 must repeat exactly. Full lexical/opcode grammar, arithmetic-fault VM lifetime
 and unrelated scenario construction remain their existing tasks.
+
+## Regional terrain publication and retained movement
+
+Payoff83 adds `live-terrain-cache-captures-261003`, pinned to complete
+`runtime/terrain83-first.jsonl` / `runtime/terrain83-repeat.jsonl`. The fixture
+`retail-terrain-cache-1.27.json` retains every observed terrain write, seven
+regional fine/adaptive snapshots,12 owned searches, public marker/task lifetime,
+724 literal motion commits and the complete primary clock. Both runs have
+identical geometry, routing, decisions, ownership phases and motion. Presentation
+subdivision and sampled observer extents remain pinned per run separately.
+
+`verify_wc3_terrain_cache_trace.py` checks native producers before numerical
+C/retail motion and primary-clock comparisons. It rejects premature terrain
+publication, global publication of the remote patch, missing second publication,
+lost terrain on footprint removal, an adaptive search substituted for the local
+fine retry, incomplete parent/marker/motion lifetimes and changed motion words.
+The C literal header is regenerated from the frozen native data and checked
+against it. Original assets/binary/decompilation remain external.
+
+Strict O0/O2 reports are `runtime/terrain83-o0-verification.json` and
+`runtime/terrain83-o2-verification.json`. The fresh
+`runtime/terrain83-strict-final/corpus-results.json` passes seven fresh contracts:
+numeric-engine, blocked goal, Captain blocked goal, widget overlap, map load,
+compiled expressions and terrain publication (7/7). The inventory is
+302 entries/45 original scripts/102 oracle contracts/121 archived audits/79
+stronger live contracts/144 fixtures. A copied ancillary capture reference in
+the expression entry now correctly pins its actual second expression capture;
+the existing strict expression verifier already checked both actual inputs.
+
+The production game regression independently runs public JASS orders/terrain
+edits/trees and normal5ms RunFrame through all three natural completions. It
+checks724 motion commits, all seven snapshots and4164 suffix commits after
+eight Save93 states in each edition. Save-record rejection tests cover malformed
+shape, class and extent. See [engine publication and ownership](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication).
+General categorical/special accelerator eligibility, nested/reentrant exclusions
+and original allocator/unload lifetimes retain FOOT-03/MAP-04/05/06.
+
+```sh
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /path/to/game.dll --archive /path/to/pathfinding-1.27 \
+  --output /new/output/directory \
+  --only numeric-engine-exact \
+  --only live-chained-expression-captures-261003 \
+  --only live-terrain-cache-captures-261003
+```
+
+The output directory must not exist. The archive contains both recorded native
+captures; observer/source/map/binary hashes and completion controls are required.

@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format92 rejects continuations compiled with right-associated arithmetic. */
-static uint32_t const save_version = 92;
+/* Format93 retains independently published adaptive cells across terrain edits. */
+static uint32_t const save_version = 93;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2312,6 +2312,34 @@ static bool ReadTerrainPathing(FILE *f) {
     return ok;
 }
 
+typedef struct { uint32_t size; point2_t maps[4]; } moveAdaptiveHeader_t;
+
+static moveAdaptiveHeader_t MoveAdaptiveHeader(void) {
+    moveAdaptiveHeader_t header={.size=G_GetMoveAdaptiveStateSize()};
+    FOR_LOOP(i,4) header.maps[i]=G_GetMoveAdaptiveMapSize(i);
+    return header;
+}
+
+static bool WriteMoveAdaptive(FILE *f) {
+    moveAdaptiveHeader_t header=MoveAdaptiveHeader();
+    if (!SaveBytes(f,&header,sizeof(header))) return false;
+    if (!header.size) return true;
+    uint8_t *data=gi.MemAlloc(header.size);
+    if (!data) return false;
+    bool ok=G_GetMoveAdaptiveState(data,header.size) && SaveBytes(f,data,header.size);
+    gi.MemFree(data); return ok;
+}
+
+static bool ReadMoveAdaptive(FILE *f) {
+    moveAdaptiveHeader_t header,expected=MoveAdaptiveHeader();
+    if (!LoadBytes(f,&header,sizeof(header)) || memcmp(&header,&expected,sizeof(header))) return false;
+    if (!header.size) return true;
+    uint8_t *data=gi.MemAlloc(header.size);
+    if (!data) return false;
+    bool ok=LoadBytes(f,data,header.size) && G_SetMoveAdaptiveState(data,header.size);
+    gi.MemFree(data); return ok;
+}
+
 static bool WriteBlight(FILE *f) {
     uint32_t const size = G_GetBlightStateSize();
     uint8_t *data = NULL;
@@ -2546,6 +2574,7 @@ bool WriteGame(cstring_t filename) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
     if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
+    if (!WriteMoveAdaptive(f)) { fprintf(stderr,"WC3 SaveGame: failed at adaptive publication state\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
@@ -2657,6 +2686,7 @@ bool ReadGame(cstring_t filename) {
         fclose(f); return false;
     }
     if (!ReadTerrainPathing(f)) { fprintf(stderr, "WC3 LoadGame: failed at terrain pathing state\n"); fclose(f); return false; }
+    if (!ReadMoveAdaptive(f)) { fprintf(stderr,"WC3 LoadGame: failed at adaptive publication state\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
@@ -2724,8 +2754,7 @@ bool ReadGame(cstring_t filename) {
         if (ent->destructable) G_RestoreDestructableData(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
-    CM_BakeStaticObstacles();
-    G_RebindSavedMoveRoutes();
+    G_RebuildSavedMovePathing();
     fclose(f);
     /* Cinefilters are transient client presentation, not part of the save
      * contract. Map reload can leave its baseline black filter displayed;
@@ -2757,6 +2786,31 @@ bool ReadGame(cstring_t filename) {
 
 #ifdef BZ_TESTS
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
+
+TEST(wc3_save, adaptive_publication_rejects_invalid_shape_class_and_truncation) {
+    reset_entities(); setup_test_world();
+    uint32_t size=G_GetMoveAdaptiveStateSize();
+    uint8_t *before=malloc(size),*after=malloc(size);
+    T_ASSERT(before && after); if(!before || !after){free(before);free(after);return;}
+    T_ASSERT(G_GetMoveAdaptiveState(before,size));
+    FOR_LOOP(i,6) {
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)break;
+        moveAdaptiveHeader_t header=MoveAdaptiveHeader();
+        if(i==0)header.size++;
+        if(i==1)header.maps[0].x++;
+        if(i==2)header.maps[3].y++;
+        memcpy(after,before,size);
+        if(i==3)after[0]=3;
+        if(i==4)after[size-1]=255;
+        T_ASSERT(SaveBytes(file,&header,sizeof(header)));
+        T_ASSERT(SaveBytes(file,after,size-(i==5)));
+        rewind(file);T_ASSERT(!ReadMoveAdaptive(file));fclose(file);
+        T_ASSERT(G_GetMoveAdaptiveState(after,size));T_ASSERT(!memcmp(before,after,size));
+    }
+    FILE *file=tmpfile();T_NOT_NULL(file);
+    if(file){T_ASSERT(WriteMoveAdaptive(file));rewind(file);T_ASSERT(ReadMoveAdaptive(file));fclose(file);}
+    free(before);free(after);reset_entities();setup_test_world();
+}
 
 TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
     int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
@@ -3210,8 +3264,11 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-87.bin",
         "/tmp/openwarcraft3-wc3-save-version-88.bin",
         "/tmp/openwarcraft3-wc3-save-version-89.bin",
+        "/tmp/openwarcraft3-wc3-save-version-90.bin",
+        "/tmp/openwarcraft3-wc3-save-version-91.bin",
+        "/tmp/openwarcraft3-wc3-save-version-92.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92 };
 
     reset_entities();
     setup_test_world();

@@ -1897,7 +1897,13 @@ uint32_t IsNoVictoryCheat(jass_t *j) {
 uint32_t IsNoDefeatCheat(jass_t *j) {
     return jass_pushboolean(j, 0);
 }
+#ifdef BZ_TESTS
+void (*test_preload_marker)(cstring_t);
+#endif
 uint32_t Preload(jass_t *j) {
+#ifdef BZ_TESTS
+    if (test_preload_marker) test_preload_marker(jass_checkstring(j,1));
+#endif
     //cstring_t filename = jass_checkstring(j, 1);
     return 0;
 }

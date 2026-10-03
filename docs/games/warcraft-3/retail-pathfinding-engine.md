@@ -7261,3 +7261,163 @@ Add `-tft` for the second edition. The native map builder's
 `wc3_expression_inputs.json` preserves every authored case. The strict corpus
 runner can select `--only live-chained-expression-captures-261003` with the
 external archive; a fresh output directory is required. See [corpus workflow](retail-pathfinding-corpus.md#compiled-chained-expressions-and-public-movement).
+
+## Fine terrain edits retain regional hierarchy publication
+
+Payoff83 implements the ordinary producer/update contract from MAP-03.3.
+`SetTerrainPathable` changes fine terrain immediately and invalidates legacy
+flow fields. It does not rebuild adaptive classifications or discard a Move's
+retained group/member paths. A local obstruction causes the existing fine
+retry mechanism to replan; a later footprint producer publishes its own region
+from the current fine masks. Pending edits outside that region remain pending.
+This temporal state is part of the simulation, not a disposable cache.
+
+Two complete original public captures use an empty64×64 map, a collision40
+Footman, three point Moves and two separate4×4 terrain patches. Both patches
+are edited during the first active Move. At tick100 a tree is created/removed
+over the first patch; tick200 repeats over the remote patch. Seven snapshots
+retain every fine byte and all four traversal lanes at each observed hierarchy
+level. Both repetitions match724 motion commits,721 steering decisions,
+12 complete searches,6000 primary advances and1000 owner callbacks.
+
+The first Move retains its9-node adaptive route through the terrain writes;
+when the obstruction reaches its local leg, it executes a94-pop/156-node fine
+retry. The first footprint publication changes the subsequent group/member
+adaptive searches to10 nodes and a different intermediate destination. The
+remote patch's classes remain zero until its own footprint publication. All
+three public orders reach natural completion. A global rebuild on each terrain
+write or each widget bake would erase this distinction.
+
+`g_world.c` now initializes the hierarchy when the fine map is created, performs the original full post-main publication through `G_FinishMovePathingInitialization`, retains
+four independently published lanes, and rebuilds only old/new static footprint
+rectangles. Producer snapshots retain entity incarnation, texture identity and
+contents, orientation, dimensions, surface policy and bounds. Comparing baked
+bytes alone is insufficient: a footprint must publish even when terrain already
+blocks its pixels. Ordinary unit pose updates publish fine occupancy separately
+and do not rebuild static adaptive lanes. Legacy field generations still follow
+the fine/static bake. Retained route revisions identify map lifetime rather than
+that field generation.
+
+Original15d360 clips the fine rectangle once. Base/parents independently visit
+`floor(min/scale)..floor(max/scale)` inclusive; they do not recursively round
+previous-level bounds. Widget world rectangles first obtain the additional
+upper edge through05ee40. Missing parent children classify blocked. The engine
+shares this reducer with request exclusions, including ground6 restoration.
+Original construction tests now explicitly invoke their observed full refresh
+after writes/reversal instead of attributing that refresh to the terrain native.
+
+Save93 stores exact hierarchy dimensions and all published class bytes after
+terrain state. Load validates shape, extent and classes before copying any
+classes, restores static fine masks and producer snapshots, and rebinds saved
+routes to the new map lifetime. It preserves pending terrain publication.
+Malformed shape, class3/255 and truncated records are rejected. JSVM remains8;
+formats39..92 are rejected by the current exact-version guard.
+
+The actual engine JASS/RunFrame regression compares all724 commits and4164
+suffix commits from eight saved states:1995/2000/2005/3000/9995/10000/19995/20000ms.
+It also checks every observed fine/adaptive value at the public lifecycle
+markers, including saves before, during and after each publication. The fixture's
+minimal common.j omits the Walkability constant; the regression therefore passes
+`ConvertPathingType(1)`, the same original enum value. Its script, movements and
+geometry are independent inputs; no production branch recognizes this scene.
+
+Saved Ghidra state has628 function roles,65 partial layouts/437 fields,
+295 explicit ABIs and60 globals. The integer/scalar rectangle types and
+15ba80 stdcall operand storage retain the upper-edge rules. O0/O2 strict native
+checks pass. Reproduction inputs and exclusions are in
+[the terrain publication corpus](retail-pathfinding-corpus.md#regional-terrain-publication-and-retained-movement).
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_movement.public_terrain_edits_match_original_regional_publication_and_saved_continuations \
+  +com_frame_limit 100
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test wc3_save.adaptive_publication_rejects_invalid_shape_class_and_truncation \
+  +com_frame_limit 100
+```
+
+Add `-tft` for the second edition. The native builder's
+`--scenario terrain_cache` selects `wc3_terrain_cache_probe.j`.
+Required full suites pass2501 tests/4,944,161 assertions per edition and514
+Python checks. Seven fresh strict corpus contracts pass; both O0/O2 reports
+check the complete repeated native captures. Payoff83 closes E2E-06.2 and
+E2E-07.1/02 without adding tasks:167 done/169 remaining.
+
+## Pathing update state and ownership contract
+
+E2E-06.2 freezes the implemented ordinary contracts below. This is a bounded
+handoff contract backed by the linked original evidence; READY gates still
+require the remaining categorical, special, allocation, portal and reentrant
+branches. Those extensions retain their existing IDs rather than inferred
+behavior or a fallback that claims retail parity.
+
+| State/operation | Transition, result and owner | Evidence and remaining limits |
+| --- | --- | --- |
+| Fine-map construction | Setup replaces terrain/storage, initializes all four padded adaptive maps and advances map lifetime. Generated main/bulk objects are followed by a full publication; later edits have no such global refresh. Padding starts zero; full update includes the clipped upper edge | [File-backed construction](#file-backed-maps-retain-native-hierarchy-allocation), MAP-01/02; active unload/reload allocator graph remains MAP-06.1 |
+| Terrain write | Accepted in-bounds edit changes requested fine flags synchronously; outside is rejected. Fine occupancy history and unrelated flags survive. Legacy fields become stale; retained adaptive publication and routes survive | [Public terrain natives](#terrain-pathing-natives-reach-the-engine), Payoff83 above; complete terrain producer inventory MAP-03.3 |
+| Static footprint change | New fine masks are visible before the next query. Changed old/new footprint rectangles publish base and three parents, preserving other regions; independent overlap/death texture survives | [Widget lifecycle](#blocker-removal-owns-static-route-invalidation), [authored footprints](#authored-widget-creation-preserves-snapped-pose-and-rotation), Payoff83; wider eligibility table remains FOOT-03 |
+| Ordinary moving pose | Commit elapsed old velocity/fine pose and clock, then publish linked occupancy history. Predicted presentation samples do not publish occupancy or alter hierarchy | [Fine insertion history](#overlapping-targets-retain-fine-cell-insertion-history), NUM-02.3/FINE-01.6; allocator/stamp storage remains MAP-05/06 |
+| Path request | Group adaptive budget5000, member adaptive400, fine700; source/target exclusion is scoped to admission and restores ground6/current terrain. Returned length high bit records a nearest partial route; nonempty partial is usable | [Reduced passage](#producer-built-size2-passage-reaches-full-retail-failure), [reuse](#adaptive-reuse-restores-the-original-ground-classifications); capacity/error recovery FINE-03/ACC-05.1, nested/reentrant scopes MAP-04 |
+| Deferred fine admission | Owner work uses strict `>1100` veto, independent per-player FIFO/countdown and ten-owner-visit interval; below64 accumulated work admits the fast retry. Denial retains request state and resumes through owner dispatch | [Twelve-member ownership](#twelve-member-public-group-retains-fine-admission-and-committed-occupancy); other scheduler buckets/eligibility SCHED-01/02/04 |
+| Retained path progression | Group and member coarse chains have distinct storage/indices; local fine exhaustion/refill retains the coarse owner. .49-cell progression/arrival uses original scalar words. Terrain writes do not force wholesale replacement | [Group point lifecycle](#public-oblique-move-retains-the-singleton-group-destination), [coarse progress](#retained-coarse-progress-refills-the-fine-route), Payoff83; portals and dynamic yielding remain ROUTE/GATE |
+| Owner update | Primary5ms scalar source dispatches periodic path owner, shared speed publication/reset, shared radius accumulation, all-member decisions then commits. Cohort creation sequence prevents same-pass reuse | [Clock ownership](#primary-clock-reaches-move-and-predicted-positions), [group phases](#public-pair-movement-uses-a-shared-move-owner); wider callback mutation SCHED/ORDER |
+| Completion/replacement/Stop | Previous velocity commits before zero/final completion; public order owns its task chain. Empty bound groups survive their physical owner visit; the following shared prepass collects zero references. Replacement frees owned route buffers | [Final binding lifecycle](#final-captain-binding-stop-and-repeated-ai-initialization), ORDER/GROUP; broader destruction/reentrant branches retain their named tasks |
+| Save/load | Persist semantic state and generations, restore typed references after entities/pools, retain separately published hierarchy and fine history, rebuild only process-owned backing, then rebind routes | [Save contract](save-load.md), Payoff83; cross-feature original retail save/load and active reload remain MAP-06.2/E2E-04.2 |
+
+Numerical/PRNG structures are separately assigned E2E-06.1. Unsupported
+movement masks log an error and fail admission; allocator failures are fatal
+with a diagnostic. Corrupt current-format state is rejected, with no older
+layout migration or silent route replacement. The engine's bounded work/storage
+limits are declared in `wc3_pathing_limits.h`; they are not proof of original
+allocation boundaries. Each linked fixture states its original result/status
+and producer extent, rather than treating an empty route as universal failure.
+
+## OpenRealm replacement interfaces and lifecycle boundaries
+
+E2E-07.1/02 map the working replacement to the Q2 game-module boundary.
+Gameplay inputs, order policy, path ownership, group scheduling and numeric
+motion remain inside `games/warcraft-3/game/`. The universal client consumes
+authored snapshots; these interfaces add no client or network gameplay policy.
+
+| Owner/file | Replacement interface and caller |
+| --- | --- |
+| `skills/s_move.c` | `CAbilityMove`, `S_IssueMoveOrder`, `S_IssueFollowOrder` and group admission own validation, task dispatch, steering, retry, interruption and cleanup. `move_route_query` supplies typed world/fine geometry and mover/target to routing |
+| `g_world.c` | `G_UnitMoveGroupDestination` owns the group adaptive plan; `G_BuildUnitMoveFineRoute`/`G_BuildUnitMoveLocalRoute` and `G_AdvanceUnitMoveFineRoute` consume member-owned buffers. Line/step blocker queries use committed active-cell history. `G_ClosestMovePathPoint` handles placement |
+| `common/wc3_pathing_*.h` | Numeric/grid transforms, fine/adaptive graph kernels, route selection, segment predicates, spatial history and widget transforms consume supplied data. They do not own edicts, orders, public scripts or game clocks |
+| `g_main.c` / `g_monster.c` | `G_RunFrame` owns the primary scalar source and timer/event order; `M_RunScheduledThinks` dispatches Move through shared lifecycle machinery. Ability-specific rules remain in Move |
+| `g_spawn.c`, `g_destructable.c`, `g_utils.c` | Spawn/footprint reapply/death/restore/removal call the game `CM_BakeStaticObstacles`; it updates fine masks/fields and publishes changed regional static producers. Ordinary movement calls `G_PublishMoveSpatialObject` through pose commit |
+| `g_world.c` / included `server/sv_routing.c` | Shared routing owns fine/static field storage and field jobs. `PATHMAP_SETUP_COMPLETE` is an include-local initialization hook; the WC3 game owns its hierarchy lifetime/publication. `G_FinishMovePathingInitialization` publishes the full map once after generated main/bulk setup; ordinary terrain callbacks retain regional timing. No WC3 policy is added to server exports |
+| `g_save.c` | `WriteMoveRouteBuffers`, `WriteMoveSpatial`, typed pool/group/shared records and `WriteMoveAdaptive` serialize semantic state. `ReadMoveAdaptive` validates current dimensions/classes; `G_RebuildSavedMovePathing` rebuilds fine masks/producer snapshots without publishing pending edits |
+
+`moveFineRoute_t` owns its three allocations: fine, member adaptive and group
+adaptive points. A query borrows mover/target/geometry only for the call; it
+cannot retain stack geometry or claim ownership of an edict. `S_FreeMoveRoute`
+and `move_free_group_routes` release corresponding allocations; reset/load
+release old process-owned buffers before reading new records. Saved counts,
+indices, masks and points are validated before the restored owner can run.
+
+`moveGroup_t` belongs to Move, independently of a JASS group collection handle.
+Member unit plus incarnation guards prevent attachment to a reused edict.
+Creation sequence, request ID, shared generation ID and target incarnation
+retain their distinct meanings. `moveShared_t` uses a generation ID rather than
+a pointer into its growing array; physical groups retain references, and only
+the shared owner prepass collects the final unreferenced generation. Fine-work
+queues retain typed unit references, FIFO links, countdown and charged work.
+
+The fine map owns terrain and baked/current masks. Static producer snapshots
+borrow texture identity and hash current pixels; they do not free textures or
+persist resource pointers. Map replacement resets snapshots and hierarchy
+backing and advances the runtime lifetime. Ordinary edits keep that lifetime.
+Hierarchy search node-index scratch is disposable, but published classification
+bytes are authoritative across saves because they may intentionally lag terrain.
+A saved continuation therefore rebuilds masks and resource bindings while
+restoring these classification bytes verbatim. This distinction implements the
+ownership design rather than treating every derived allocation as reloadable.
+
+`G_GetMoveAdaptiveStateSize`, `G_GetMoveAdaptiveMapSize` and typed byte-state
+get/set functions are private game/save interfaces. They neither export native
+retail object addresses nor enlarge engine/network entity contracts. Current
+Save93 rejects incompatible streams; load does not synthesize missing state.
+Remaining original full teardown/allocator, cross-feature save and nested-query
+lifetimes retain MAP-04/05/06 and E2E-04 IDs. Their unresolved behavior is not
+filled by a compatibility bridge or scene-dependent choice.

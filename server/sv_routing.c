@@ -8,6 +8,12 @@
 #include <limits.h>
 #include <stdlib.h>  /* abs (CM_LineIsWalkable) */
 
+/* An including game may initialize its own derived routing state when the
+ * fine map is replaced. This does not change the universal routing contract. */
+#ifndef PATHMAP_SETUP_COMPLETE
+#define PATHMAP_SETUP_COMPLETE() ((void)0)
+#endif
+
 /* Upper bound on flow-field BFS expansion.  Each cell is closed at most once,
  * so the connected pathable component is fully covered in at most width*height
  * iterations, after which the open queue empties and the loop exits naturally.
@@ -47,7 +53,7 @@ typedef struct {
 struct {
     uint32_t width;
     uint32_t height;
-    uint32_t revision; /* Static routing-cache epoch; derived game grids follow the same invalidation. */
+    uint32_t revision; /* Fine/static field-cache epoch. */
     pathMapCell_t *terrain;  /* authored/mutable terrain before entity footprints */
     pathMapCell_t *original;
     pathMapCell_t *data;
@@ -302,6 +308,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     pathmap.height = height;
     if (!n) {
         heatmap_cache_invalidate();
+        PATHMAP_SETUP_COMPLETE();
         return;
     }
 
@@ -329,6 +336,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     rebuild_static_obstacle_prefix();
 
     heatmap_cache_invalidate();
+    PATHMAP_SETUP_COMPLETE();
 }
 
 static point2_t LocationToPathMap(vec2_t const *location);

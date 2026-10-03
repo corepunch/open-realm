@@ -6,7 +6,8 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 92, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 93, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -1033,3 +1034,14 @@ serializer round-trip are covered by
 `wc3_save.fine_spatial_history_rejects_invalid_records`. The public overlapping
 Smart scenario matches eight saved continuations in both editions. Network
 layouts are unchanged. See [pathfinding insertion history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history).
+
+Version93 stores independently published adaptive hierarchy state after terrain:
+all four map dimensions and the exact four-lane class bytes. A terrain write
+can leave the hierarchy stale until a regional footprint refresh; recomputing
+it globally during load would change subsequent routing. Read validates the
+complete shape/extent/classes before copying; restored entities then rebuild
+fine masks and static producer snapshots without publishing pending edits.
+Route revisions rebind to the loaded map lifetime rather than the legacy field
+epoch. Eight saved public terrain-edit/Move continuations retain4164 original
+commits and all observed regional classes. JSVM remains8; format92 and all older
+layouts are rejected. See [regional publication](retail-pathfinding-engine.md#fine-terrain-edits-retain-regional-hierarchy-publication).

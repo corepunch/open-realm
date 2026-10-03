@@ -53,6 +53,7 @@
 #include "retail_adaptive_passage.h"
 #include "retail_target_overlap.h"
 #include "retail_expressions.h"
+#include "retail_terrain_cache.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -74,6 +75,8 @@ void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 void CM_ProcessPathJobs(uint32_t work_budget);
 bool run_test_jass(cstring_t src);
+void G_TestMovePathRefresh(point2_t,point2_t);
+int G_TestMovePathClass(uint8_t,unsigned,unsigned,unsigned);
 uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius);
 extern void ai_train_build(edict_t *ent);
 
@@ -1401,7 +1404,8 @@ TEST(wc3_movement, ordinary_default_route_matches_original_maze_handoff) {
     reset_entities(); setup_test_world();
 }
 
-/* Cache identity must include the map bake epoch, lane and size selected by each mover. */
+/* Fine edits retain adaptive publication until an explicit regional producer;
+ * independent requests still select their own lane and footprint size. */
 TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
     edict_t *unit=make_moving_unit(272,304);
     uint8_t cells[64*64]={0};
@@ -1430,9 +1434,14 @@ TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
         "call SetTerrainPathable(1072,y*32+16,ConvertPathingType(1),y>=12 and y<20)\nset y=y+1\nendloop\nendfunction\n"));
     level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
-    T_ASSERT(waypoint.y<before.y);
+    T_EQ(G_TestMovePathClass(2,0,16,8),1);
     movePathQuery_t leg=query; leg.geometry.target=&waypoint;
     T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
+    G_TestMovePathRefresh((point2_t){32,0},(point2_t){34,64});
+    T_EQ(G_TestMovePathClass(2,0,16,8),0);
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_ASSERT(waypoint.y<before.y);
     query.geometry.blocked_flags=4;
     level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
     T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
@@ -11532,10 +11541,12 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
         "set mover=CreateUnit(Player(0),'hBGM',-1936,%g,90)\ncall SetUnitMoveSpeed(mover,%g)\n%s\n"
         "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
-        "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,PATHING_TYPE_WALKABILITY,false)\n"
+        "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,ConvertPathingType(1),false)\n"
         "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
         "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",mixed ? "call StartCampaignAI(Player(0),\"test_captain_mixed.ai\")" : pair ? "call StartCampaignAI(Player(0),\"test_captain_pair.ai\")" : captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,mixed ? "set peer=CreateUnit(Player(0),'hBGP',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : pair ? "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : "",blocked ? 5u : 0u);
     T_ASSERT(run_test_jass(script));
+    /* The retail map owner publishes again after generated main returns. */
+    G_FinishMovePathingInitialization();
     edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==custom.newUnitID || (mixed && ent->class_id==types[1].newUnitID))){if(!unit)unit=ent;else peer=ent;}
     T_NOT_NULL(unit);if(mixed && peer){T_EQ(peer->collision,32);T_EQ(peer->data.UnitData->turnRate,.5f);}
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
@@ -11876,6 +11887,171 @@ TEST(wc3_movement, public_chained_expression_move_matches_original_and_saved_con
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+extern void (*test_preload_marker)(cstring_t);
+unsigned G_TestStaticPathMask(unsigned,unsigned);
+int G_TestMovePathClass(uint8_t,unsigned,unsigned,unsigned);
+static unsigned terrain83_stage;
+
+static void terrain83_assert_publication(cstring_t marker) {
+    if (strncmp(marker,"PATHLIFE label=",15)) return;
+    unsigned stage=terrain83_stage++,fine=0,adaptive=0;
+    T_ASSERT(stage<7); if(stage>=7)return;
+    unsigned shown=0;
+    for(unsigned y=16;y<48;y++)for(unsigned x=16;x<48;x++) {
+        unsigned actual=G_TestStaticPathMask(x,y),expected=terrain83_fine[stage][fine++];
+        if(actual!=expected && shown++<4)fprintf(stderr,"Terrain fine stage%u cell%u,%u actual%u expected%u\n",stage,x,y,actual,expected);
+        T_EQ(actual,expected);
+    }
+    uint8_t const masks[]={2,0x80,0x40,4};
+    FOR_LOOP(level,4) {
+        unsigned scale=2u<<level;
+        for(unsigned y=16/scale;y<=47/scale;y++)for(unsigned x=16/scale;x<=47/scale;x++)
+            FOR_LOOP(lane,4) {
+                int actual=G_TestMovePathClass(masks[lane],level,x,y),expected=terrain83_adaptive[stage][adaptive++];
+                if(actual!=expected && shown++<8)fprintf(stderr,"Terrain adaptive stage%u level%u lane%u cell%u,%u actual%d expected%d\n",stage,level,lane,x,y,actual,expected);
+                T_EQ(actual,expected);
+            }
+    }
+    T_EQ(fine,1024);T_EQ(adaptive,1360);
+}
+
+TEST(wc3_movement, public_terrain_edits_match_original_regional_publication_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;Y2;X8;D0\n"
+        "C;Y1;X1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"targType\"\nC;X4;K\"HP\"\n"
+        "C;X5;K\"radius\"\nC;X6;K\"pathTex\"\nC;X7;K\"fixedRot\"\nC;X8;K\"numVar\"\n"
+        "C;Y2;X1;K\"LTlt\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"tree\"\nC;X4;K50\nC;X5;K0\nC;X6;K\"PathTextures\\4x4Default.tga\"\nC;X7;K270\nC;X8;K1\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    terrain83_stage=0; test_preload_marker=terrain83_assert_publication;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathTerrainPatch takes integer first returns nothing\n"
+        " local integer x=first\n"
+        " local integer y=first\n"
+        " loop\n"
+        "  exitwhen y==first+4\n"
+        "  set x=first\n"
+        "  loop\n"
+        "   exitwhen x==first+4\n"
+        "   call SetTerrainPathable(I2R(x*32+16),I2R(y*32+16),ConvertPathingType(1),false)\n"
+        "   set x=x+1\n"
+        "  endloop\n"
+        "  set y=y+1\n"
+        " endloop\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " local destructable tree=null\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"initial_move\")\n"
+        " elseif udg_PathProbeTick==20 then\n"
+        "  call PathTerrainPatch(18)\n"
+        "  call PathTerrainPatch(40)\n"
+        "  call Preload(\"PATHLIFE label=terrain_edits\")\n"
+        "  call PathProbeRecord(\"terrain_edits\")\n"
+        " elseif udg_PathProbeTick==85 or udg_PathProbeTick==185 then\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,272.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,304.0)\n"
+        "  call PathProbeRecord(\"reset\")\n"
+        " elseif udg_PathProbeTick==100 then\n"
+        "  set tree=CreateDestructable('LTlt',640.0,640.0,0.0,1.0,0)\n"
+        "  call Preload(\"PATHLIFE label=first_footprint_insert\")\n"
+        "  call RemoveDestructable(tree)\n"
+        "  call Preload(\"PATHLIFE label=first_footprint_remove\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"first_refresh_move\")\n"
+        " elseif udg_PathProbeTick==200 then\n"
+        "  set tree=CreateDestructable('LTlt',1344.0,1344.0,0.0,1.0,0)\n"
+        "  call Preload(\"PATHLIFE label=second_footprint_insert\")\n"
+        "  call RemoveDestructable(tree)\n"
+        "  call Preload(\"PATHLIFE label=second_footprint_remove\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"second_refresh_move\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call Preload(\"PATHLIFE label=complete\")\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,100.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_terrain_cache\")\n"
+        " call Preload(\"PATHLIFE label=baseline\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        "call PathProbeInit()\n"
+        "endfunction\n"));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={1995,2000,2005,3000,9995,10000,19995,20000};
+    char files[8][64];unsigned saved[8]={0},saved_stage[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-terrain-cache-%u.bin",times[i]);
+    FOR_LOOP(pass,9) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];terrain83_stage=saved_stage[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(terrain83_motion)/sizeof(*terrain83_motion));
+                if(steps>=sizeof(terrain83_motion)/sizeof(*terrain83_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=terrain83_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Terrain commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]){saved[i]=steps;saved_stage[i]=terrain83_stage;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(terrain83_motion)/sizeof(*terrain83_motion));T_EQ(terrain83_stage,7);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Terrain native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
 }
 
 TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
