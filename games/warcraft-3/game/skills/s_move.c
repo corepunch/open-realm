@@ -302,6 +302,7 @@ static void move_detach_group(edict_t *unit) {
 
 static void move_run_group_updates(void);
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
+static void move_leave(edict_t *self);
 
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
@@ -676,19 +677,20 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
         if (*(uint8_t *)&ent->movement.captain_home.active>1 ||
             *(uint8_t *)&ent->movement.captain_home.entered>1 ||
             (ent->movement.captain_home.entered && !ent->movement.captain_home.active)) return false;
-        if (ent->movement.captain_home.active && (!actor || !actor->movement.captain_actor_members ||
+        if (ent->movement.captain_home.active && !actor) return false;
+        if (actor && (!actor->movement.captain_actor_members ||
             actor->movement.captain_actor_members>13 ||
             ent->movement.captain_home.member_index>=actor->movement.captain_actor_members)) return false;
         if (actor && (!actor->inuse || !actor->movement.captain_actor_type ||
             actor->movement.captain_actor_type>BOT_CAPTAIN_COUNT)) return false;
-        if (ent->movement.captain_home.active &&
+        if (actor &&
             (!isfinite(ent->movement.captain_home.due.time) || !isfinite(ent->movement.captain_home.due.span) ||
              ent->movement.captain_home.due.span<=0 || !isfinite(ent->movement.captain_home.home.x) ||
              !isfinite(ent->movement.captain_home.home.y))) return false;
     }
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active)
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor)
         for (edict_t *peer=g_edicts;peer<ent;peer++)
-            if (peer->inuse && peer->movement.captain_home.active &&
+            if (peer->inuse && peer->movement.captain_home.actor &&
                 peer->movement.captain_home.actor==ent->movement.captain_home.actor &&
                 peer->movement.captain_home.member_index==ent->movement.captain_home.member_index) return false;
     if (rebind) FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
@@ -700,7 +702,7 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
 
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
-    if (!self->movement.captain_home.active) return;
+    if (!self->movement.captain_home.actor) return;
     wc3Clock_t *due=&self->movement.captain_home.due,next=level.pathing_clock;
     wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
     bool ready=next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
@@ -718,6 +720,27 @@ static void move_captain_home_update(edict_t *self) {
     float delta[2];
     FOR_LOOP(k,2) delta[k]=wc3_sub(target.grid[k],pose.grid[k]);
     uint32_t members=actor->movement.captain_actor_members;
+    if (!self->movement.captain_home.active) {
+        /* Native d01cd leaves the registered outer circle and replaces the
+         * shared point leg with a private virtual-target approach. Retain the
+         * creation-phase deadline through the shared leg, including on load. */
+        float outer=wc3_add(wc3_div(wc3_add(1000,wc3_mul(25,members)),32),wc3_div(self->collision,32));
+        if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))>=wc3_mul(outer,outer)) {
+            typeof(self->movement.captain_home) retained=self->movement.captain_home;
+            /* Transfer the physical reference without briefly releasing the
+             * final follower of an actor whose logical captain was retired. */
+            self->movement.captain_home.actor=NULL;
+            move_leave(self);
+            S_RecoverStoppedUnitPosition(self);
+            S_IssueMoveOrder(self,self->goalentity,G_OrderId("move"));
+            self->movement.captain_home=retained;
+            self->movement.captain_home.active=true;
+            self->movement.captain_home.entered=false;
+            move_start_follow_group(self,actor,true);
+        }
+        level.pathing_clock=now;
+        return;
+    }
     float radius=wc3_add(wc3_div(wc3_add(800,wc3_mul(25,members)),32),wc3_div(self->collision,32));
     if (wc3_add(wc3_mul(delta[0],delta[0]),wc3_mul(delta[1],delta[1]))<wc3_mul(radius,radius))
         self->movement.captain_home.entered=true;
@@ -760,7 +783,7 @@ static void move_captain_home_update(edict_t *self) {
 /* Dispatch after a due path owner, before ordinary timer/event actions. Pose
  * sampling is observational and must not replace tasks ahead of that owner. */
 void S_RunMoveTimers(void) {
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.active) move_captain_home_update(ent);
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.actor) move_captain_home_update(ent);
 }
 
 /* Queries predict from the retained fine pose without committing its time origin. */

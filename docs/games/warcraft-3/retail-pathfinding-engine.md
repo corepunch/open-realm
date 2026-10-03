@@ -6046,3 +6046,58 @@ unchanged; `retail-captain-shared-1.27.json` adds the generation/publication/
 footprint contract, and `retail_captain_shared.h` is its literal127-row reference.
 `verify_wc3_captain_shared_trace.py` checks both accepted original captures and
 explicitly refuses a whole-engine or recovery-reentry parity claim.
+
+
+## Captain range departure into a private approach
+
+Payoff64 extends the mixed thirteen-recruit engine journey to **4867 exact
+physical movement commits before15000ms**, with **7917 continuation commits
+from eight saves** around the handoff and departure. The complete5462-row
+retail reference remains unchanged. Move retains the one-second, creation-phase
+range deadline while a physical follower runs its shared point leg. At the
+outer-circle departure it consumes the old velocity at the exact deadline,
+performs the bounded stopped-position recovery, and admits a new private
+virtual-target owner. The newest physical owner runs before the remaining
+shared batch. Its arrival range remains `(70+.6*90+31)/32 = 4.84375` fine units.
+
+Two complete read-only captures,
+`runtime/captain-thirteen-mixed-membership-v1-first-261003.jsonl` and
+`runtime/captain-thirteen-mixed-membership-v1-repeat-261003.jsonl`, retain304
+markers,1000 path-owner updates and5465 velocity commits each. All34 range-count
+changes,38 callback begin/end observations and15 member-order calls repeat.
+Thirteen calls are initial private admission; the later calls occur at4 seconds
+and12 seconds. The4-second call already targets the captain and does not replace
+that private task. The12-second call replaces the shared point order for
+physical birth12. Canonical unit births are authenticated by task admission
+between the corresponding mover publications, authored rawcodes and both
+roster-order shared preparations; authored-range first-seen order is different.
+
+Ghidra bodies9d05e0/9d8d50/9d8eb0/9d87d0 establish the counter and admission
+chain. `9d05e0(mode1)` changes captainc4; mode0 changesc8. Initial outer-circle
+registration through9d8d50 incrementsc8 and registersd01cd. Subsequent departure
+is9d8eb0(mode0), which decrementsc8 and reissues target Move. At12 seconds the
+raw clock is`413fffff`, owner counter1424, c8 changes13-to-12 and c4 stays12.
+The callback consumes the old pose through05ca50 before the new12.03-second
+owner. This is a range event, not a can't-path event or a member-sort fix.
+The outer contact threshold is `(1000+25*13+31)/32`; the virtual actor's radius
+is zero. Native group binding leaves`[1843,2123]`, passes through the unbound
+state, and publishes private`[1820,2170]`.
+
+`retail-captain-departure-1.27.json` pins both complete capture hashes and the
+literal counter/callback/reissue/stop/binding contract. Its strict verifier
+also reruns the complete existing numerical, primary-clock, authored-range and
+shared-parameter contracts. Eight mutation tests reject wrong counts, deadlines,
+births, generations, stopped velocity, arrival range and expanded parity claims.
+Saved Ghidra readback retains604 roles,51 layouts/318 fields,270 explicit ABIs
+and53 globals. Save86 already stores the actor and exact deadline; no serialized
+field changes are needed. Validation now checks inactive shared followers'
+finite deadlines, home coordinates and unique roster indexes as well. Engine
+regressions reject six malformed shared-follower saves and preserve the last
+physical reference across reissue after logical actor ownership is retired.
+
+Full logical membership after individual physical tasks finish is still
+GROUP-03.4.6.2.3.2. The engine does not yet publish the second shared generation
+at16 seconds: its physical reference lifetime currently loses completed roster
+members. That task must retain logical c4/c8 membership separately and reproduce
+the full5462 commits and353 shared footprint observations. Dynamic roster
+mutation and mixed cancellation remain their own explicit controls.

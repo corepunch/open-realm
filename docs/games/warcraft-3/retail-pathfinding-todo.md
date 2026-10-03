@@ -8,29 +8,30 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**139 done / 329 tasks; 190 remaining.** Payoff63 integrates the shared
-parameter owner for mixed13 captain batches (GROUP-03.4.6.2.2.1). Both physical
-batches sample the global63/32 maximum; after the largest recruit completes,
-the live maximum falls to31/32 while the cached path keeps63/32. Captain
-admission now stops/recovers the private approach before binding the new owner.
-The engine matches4560 physical commits through12000ms,127 footprint
-observations and9618 saved suffix commits. Save86 retains the stable owner,
-published/pending speed, references, radius, group binding and cooldown.
-Full native5462-row captures remain unchanged; the first engine mismatch now
-occurs at12.03s when retail starts a new private approach after a captain range departure.
-Saved Ghidra readback has600 roles,51 layouts/318 fields,266 explicit ABIs and53
-globals. Full debug/release RoC/TFT passes2405 tests and1484868 assertions per edition.
-The required release repository suite,365 pathfinding Python checks and39 fresh
-corpus contracts pass with136 matching source fingerprints. Inventory is282
-entries/124 fixtures/65 strict live entries.
-The next runnable ID is GROUP-03.4.6.2.3.1: port the actual captain range-departure
-callback into a fresh private captain approach, retaining the actor, authored
-range, cohort creation order and subsequent range-listener state. The later
-all-entered/second shared publication is03.4.6.2.3.2; mixed13 cancellation and
-reference reclamation remain03.4.6.2.2.2. General attack eligibility,
-ranged-roster policy, Hero/default/summoned producers remain03.4.6.2.1.2.
-Live membership changes, moving captains, town homes and dynamic coarse
-publication remain separate requirements.
+**140 done / 329 tasks; 189 remaining.** Payoff64 ports the observed captain
+range-departure reissue (GROUP-03.4.6.2.3.1). Move retains the creation-phase
+range deadline across the shared point leg, integrates/stops/recovers the old
+pose and creates a newest private virtual-target owner with the authored attack
+approach range. The engine matches4867 movement commits before15000ms and7917
+saved suffix commits from eight checkpoints, including11995/12000/12030ms.
+Two full native repeats preserve304 markers,1000 owner updates,5465 velocity
+commits and the unchanged5462-row physical reference. All34 range-counter
+changes and15 member-order calls repeat; the12-second callback decrementsc8
+13-to-12 while c4 stays12. Save86 retains the existing actor/deadline; validation
+now rejects malformed inactive shared-follower state. The last reference to a
+retired actor survives the stop/reissue transfer. Saved Ghidra readback retains
+604 roles,51 layouts/318 fields,270 explicit ABIs and53 globals.
+Full debug/release RoC/TFT suites pass2406 tests and1613585 assertions per edition.
+The required release repository suite,373 pathfinding Python checks and40 fresh
+corpus contracts pass with137 matching source fingerprints.
+Inventory is283 entries/125 fixtures/66 strict live entries.
+The next runnable ID is GROUP-03.4.6.2.3.2: retain logical roster membership
+and inner/outer counters after physical completion, then port the16-second
+all-entered callback, second shared generation and complete5462-commit journey.
+Mixed13 cancellation and reference reclamation remain03.4.6.2.2.2. General
+attack eligibility, ranged-roster policy, Hero/default/summoned producers remain
+03.4.6.2.1.2. Live membership changes, moving captains, town homes and dynamic
+coarse publication remain separate requirements.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -752,8 +753,8 @@ and the wider mixed cancellation/reclamation control:
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:
 
-- [ ] **GROUP-03.4.6.2.3.1** Port the captain range-departure callback that starts a new private captain approach at12.03s: retain actor identity, attack-derived approach range, request replacement/recovery, new physical creation order and range-listener counters. Extend actual engine frames and saved continuations beyond the first4560 reference commits. A broader deferred-member-removal experiment did not fix this transition and was excluded after control regressions.
-- [ ] **GROUP-03.4.6.2.3.2** Compose the later all-entered callback and second shared owner generation through the complete5462-commit mixed13 journey, largest reentry/departure, natural cleanup and saved continuations. Native second publication at owner1558 initially restores63/32, then live maximum falls31/32 at1561; retaining one owner for the captain actor would alias recycled generations.
+- [x] **GROUP-03.4.6.2.3.1** Port the observed captain range-departure callback into a fresh private approach at12.03s: retain actor identity, attack-derived approach range, exact deadline, old-velocity stop/recovery and new physical creation order. [Payoff64](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach):4867 exact movement commits before15000ms and7917 saved suffix commits. Two complete new captures authenticate34 native inner/outer counter changes and the12-second c8 departure. Save86 validates inactive shared followers and preserves a retired actor through reference transfer. Full logical counters after physical completion and the second shared gate are03.4.6.2.3.2. The broader deferred-member-removal experiment remains excluded after control regressions.
+- [ ] **GROUP-03.4.6.2.3.2** Retain logical roster membership and exact inner/outer c4/c8 counters independently of completed physical tasks, then compose the later all-entered callback and second shared owner generation through the complete5462-commit mixed13 journey, largest reentry/departure, natural cleanup and saved continuations. Native second publication at owner1558 initially restores63/32, then live maximum falls31/32 at1561; retaining one owner for the captain actor would alias recycled generations.
 
 
 ### GROUP-04 — Membership mutation

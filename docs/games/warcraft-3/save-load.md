@@ -949,5 +949,17 @@ finite nonnegative scalars, exact bound-group reference counts and the cooldown
 range, then releases both partial registries if validation fails. A zero-reference
 owner can await collection by the next Move prepass. Eight mixed thirteen-recruit
 continuations preserve4560 reference commits through12 seconds and9618 resumed
-commits; later captain recovery/reentry remains unimplemented. Version85 payloads
+commits. The range-departure extension below uses those same stored deadlines;
+the16-second second shared publication remains open. Version85 payloads
 are rejected before restoring the world.
+
+
+Captain range-departure reissue uses the existing Save86 actor reference and
+creation-phase deadline across the shared point leg. The eight-save regression
+covers11995/12000/12030ms around the exact12-second callback and reproduces7917
+continuation commits. Inactive shared followers now receive the same finite
+home/deadline and unique roster-index validation as private approaches. Six
+malformed saves are rejected. Reissue transfers the final physical reference
+without freeing a logically retired virtual actor between old-task stop and new
+private-target admission. Full logical roster retention after physical completion
+remains [the next movement task](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach).

@@ -1067,3 +1067,22 @@ Fresh `runtime/captain-shared-strict-final-v2-261003/corpus-results.json` passes
 RoC/TFT suites pass2405 tests/1484868 assertions per edition; required repository
 tests and365 pathfinding Python checks pass. Saved Ghidra readback confirms600
 roles,51 layouts/318 fields,266 explicit ABIs,53 globals and no unsaved changes.
+
+
+Checkpoint64 adds `live-captain-departure-captures-261003` and
+`retail-captain-departure-1.27.json`. Inventory is283 entries,125 fixtures and66
+strict live entries. Two complete newly instrumented read-only captures preserve
+the existing5462-row native journey and both shared-owner generations. The
+strict contract additionally authenticates unit births against original task
+admissions, all34 inner/outer counter changes,38 callback begin/end observations,
+15 target-order calls and the12-second old-velocity stop/private-group binding.
+Engine scope is4867 physical commits before15000ms and7917 saved suffix commits;
+full logical roster retention and the second shared publication remain open.
+The verifier rejects any full-engine claim while those fields remain unresolved.
+
+Fresh `runtime/captain-range-strict-final-261003/corpus-results.json` passes40/40
+contracts with137 matching source fingerprints. Saved Ghidra readback confirms
+604 roles,51 layouts/318 fields,270 explicit ABIs,53 globals and no unsaved
+changes. Full debug/release RoC/TFT suites pass2406 tests and1613585 assertions per edition.
+The required release repository suite,373 pathfinding Python checks and40 fresh
+corpus contracts pass with137 matching source fingerprints.

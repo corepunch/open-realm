@@ -638,3 +638,11 @@ Save86 retains the published/pending speed and regroup cooldown. The next engine
 gap is range-departure private approach at12.03 seconds, followed by the second
 shared publication. Full5462-commit mixed parity remains open. See
 [shared captain parameters](retail-pathfinding-engine.md#shared-captain-parameters-across-unequal-physical-batches).
+
+
+The mixed thirteen-recruit captain regression now also covers range departure
+from a shared point leg into a private target approach:4867 exact movement
+commits before15 seconds and7917 saved continuation commits. Move owns the
+retained deadline, stopped-pose recovery and new physical admission. See
+[captain range departure](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach)
+for original captures and the remaining logical-roster/second-generation gap.

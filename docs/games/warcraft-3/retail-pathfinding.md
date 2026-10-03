@@ -529,3 +529,12 @@ observations and9618 Save86 suffix commits through12 seconds. The native full
 captures retain two shared generations,353 footprints and325 publications.
 Saved Ghidra roles/layouts retain the shared prefix and66-tick cooldown; full
 engine parity remains open at range-departure private reentry12.03 seconds.
+
+
+Payoff64 ports the [captain range departure](retail-pathfinding-engine.md#captain-range-departure-into-a-private-approach)
+from the shared point leg into a new private virtual-target owner. Retaining the
+exact range deadline and old-velocity stop/recovery extends the mixed13 engine
+match to4867 commits before15 seconds and7917 saved suffix commits. Two complete
+new read-only captures pin all34 membership counter changes and the12-second
+c8 departure. Logical roster survival after physical completion and the second
+shared generation at16 seconds remain GROUP-03.4.6.2.3.2.

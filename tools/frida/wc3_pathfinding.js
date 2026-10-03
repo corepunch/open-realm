@@ -1372,6 +1372,24 @@ function install(module) {
     hook(0x063560,{onEnter(args){this.observe=captainRangeDepth>0;if(!this.observe)return;this.p=captainRegion(this.context.ecx);captainRanges.add(this.p.toString());this.row={requested:args[0].readU32(),before:captainRangeState(this.p),caller:this.returnAddress.sub(base).toUInt32(),...captainClock()};},onLeave(){if(this.observe)emit('captain-range-publish',{...this.row,after:captainRangeState(this.p)});}});
     hook(0x15f210,{onEnter(args){this.p=this.context.ecx;this.observe=captainScenario&&captainRanges.has(this.p.toString());if(!this.observe)return;this.row={before:captainRangeState(this.p),flag:args[0].toUInt32(),stack:Thread.backtrace(this.context,Backtracer.ACCURATE).map(v=>v.sub(base).toString()),...captainClock()};},onLeave(){if(this.observe)emit('captain-range-update',{...this.row,after:captainRangeState(this.p)});}});
     hook(0x9d9020,{onEnter(args){this.observe=captainScenario;if(!this.observe)return;this.p=this.context.ecx;this.row={captain:this.p.toString(),counts:ints(this.p.add(0xb8),6),packet:ints(args[0],6),stack:Thread.backtrace(this.context,Backtracer.ACCURATE).map(v=>v.sub(base).toString()),...captainClock()};emit('captain-range-enter-begin',this.row);},onLeave(){if(this.observe)emit('captain-range-enter-end',{...this.row,countsAfter:ints(this.p.add(0xb8),6)});}});
+    if(config.captainMembershipEvents) {
+        for(const [name,rva,mode] of [['outer-leave',0x9d8d50,false],['member-notify',0x9d8eb0,true]])
+            hook(rva,{onEnter(args){this.observe=captainScenario;if(!this.observe)return;this.p=this.context.ecx;
+                const packet=args[mode ? 1 : 0];
+                this.row={name,captain:this.p.toString(),mode:mode ? args[0].toInt32() : null,
+                    counts:ints(this.p.add(0xb8),6),packet:ints(packet,6),
+                    unit:packet.add(0x10).readPointer().toString(),...captainClock()};
+                emit('captain-membership-begin',this.row);
+            },onLeave(){if(this.observe)emit('captain-membership-end',{...this.row,countsAfter:ints(this.p.add(0xb8),6)});}});
+        hook(0x9d05e0,{onEnter(args){this.observe=captainScenario;if(!this.observe)return;this.p=this.context.ecx;
+            this.row={captain:this.p.toString(),mode:args[0].toInt32(),unit:args[1].toString(),delta:args[2].toInt32(),
+                counts:ints(this.p.add(0xb8),6),...captainClock()};
+        },onLeave(result){if(this.observe)emit('captain-membership-counter',{...this.row,result:result.toUInt32(),countsAfter:ints(this.p.add(0xb8),6)});}});
+        hook(0x9d87d0,{onEnter(args){if(!captainScenario)return;
+            emit('captain-member-reissue',{captain:this.context.ecx.toString(),unit:args[0].toString(),
+                order:args[1].toUInt32(),target:args[2].toString(),point:[args[3].readU32(),args[4].readU32()],...captainClock()});
+        }});
+    }
     for(const [name,rva] of [['start-wrapper',0x215d90],['load',0x9c0140],['compile',0x9cbc00],['create',0x9b9630],['init',0x9bc0f0],['add',0x9b79b0],['attack',0x9b88f0]])hook(rva,{onEnter(args){this.observe=captainScenario;if(this.observe)emit('captain-native-begin',{name,words:[args[0].toUInt32(),args[1].toUInt32()]});},onLeave(retval){if(this.observe)emit('captain-native-end',{name,result:retval.toUInt32()});}});
     hook(0x9d16c0,{onEnter(){if(captainScenario)emit('captain-update',{captain:this.context.ecx.toString(),state:this.context.ecx.add(0x64).readU32(),flags:this.context.ecx.add(0x6c).readU32(),order:this.context.ecx.add(0x70).readU32(),counts:ints(this.context.ecx.add(0xbc),5).map(v=>v>>>0),target:ints(this.context.ecx.add(0x114),2),roster:ints(this.context.ecx.add(0xac),2)});}});
     hook(0x9d1040,{onEnter(args){this.observe=captainScenario;if(this.observe){this.wrapper=args[1];this.count=args[3];this.index=args[2];emit('captain-prepare-begin',{unit:this.context.ecx.toString(),target:this.context.edx.toString(),point:args[0].isNull()?null:ints(args[0],2).map(v=>v>>>0),index:this.index.readU32(),count:this.count.readU32(),policy:args[4].toUInt32(),bindShared:args[5].toUInt32(),sharedWrapper:args[6].toString(),sharedIdentity:args[6].isNull()?null:ints(args[6].add(8),2)});}},onLeave(){if(this.observe){const p=this.wrapper.readPointer();emit('captain-prepare-end',{wrapper:p.toString(),identity:p.isNull()?null:ints(p.add(8),2),index:this.index.readU32(),count:this.count.readU32()});}}});

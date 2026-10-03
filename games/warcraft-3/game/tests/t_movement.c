@@ -11564,13 +11564,14 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
     if(mixed)memcpy(times,(unsigned[]){995,1500,1995,2010,4000,5000,7750,8750},sizeof(times));
     if(phase==2)memcpy(times,(unsigned[]){995,8995,9000,9030,9800,9850,11000,11995},sizeof(times));
+    if(phase==3)memcpy(times,(unsigned[]){995,9030,11000,11995,12000,12030,13000,14000},sizeof(times));
     char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-roster-%u-%u.bin",members,i);
     groupRadiusTrace_t radii_trace={0}; unsigned footprints=0,saved_footprints[8]={0};
     if(phase==2){group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;}
     unsigned steps=0,suffix=0; bool mismatch=false;
     FOR_LOOP(pass,9) {
         if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];footprints=saved_footprints[pass-1];T_NULL(level.bots[0].vm);}
-        while(level.time<(phase==2 ? 12000 : mixed ? 9000 : 31000) && !mismatch) {
+        while(level.time<(phase==3 ? 15000 : phase==2 ? 12000 : mixed ? 9000 : 31000) && !mismatch) {
             trace.count=radii_trace.count=0; level.time+=5; globals.RunFrame();
             FOR_LOOP(i,radii_trace.count) {
                 T_ASSERT(footprints<sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints));
@@ -11581,6 +11582,22 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
             if(level.time==1000) {
                 T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),members);
                 FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[mixed ? (i+1)%members : i]);
+            }
+            if(phase==3 && (level.time==11995 || level.time==12000 || level.time==12030)) {
+                edict_t *unit=trace.units[12];
+                moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                T_NOT_NULL(group); T_NOT_NULL(unit->movement.captain_home.actor);
+                bool reissued=level.time>=12000;
+                T_EQ(unit->movement.captain_home.active,reissued);
+                if(group) {
+                    T_EQ(group->shared_id==0,reissued);
+                    if(reissued) {
+                        T_EQ(group->count,1); T_EQ(group->target,unit->movement.captain_home.actor);
+                        T_EQ(wc3_float_bits(group->members[0].arrival_range),0x409b0000u);
+                        T_EQ(wc3_float_bits(unit->movement.captain_home.due.time),0x414fffffu);
+                    }
+                }
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
             }
             FOR_LOOP(i,trace.count) {
                 T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
@@ -11603,7 +11620,36 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
         if(pass)suffix+=steps-saved[pass-1];
         if(mismatch)break;
     }
-    fprintf(stderr,"Captain roster%u%s exact commits=%u saved suffix=%u\n",members,phase==2 ? " shared prefix" : mixed ? " private prefix" : "",count,suffix);
+    fprintf(stderr,"Captain roster%u%s exact commits=%u saved suffix=%u\n",members,phase==3 ? " range departure" : phase==2 ? " shared prefix" : mixed ? " private prefix" : "",count,suffix);
+    if(phase==3 && !mismatch) {
+        FOR_LOOP(i,6) {
+            T_ASSERT(ReadGame(files[1]));
+            edict_t *unit=trace.units[12];
+            T_ASSERT(!unit->movement.captain_home.active);
+            T_NOT_NULL(unit->movement.captain_home.actor);
+            if(i==0)unit->movement.captain_home.due.time=NAN;
+            if(i==1)unit->movement.captain_home.due.span=0;
+            if(i==2)unit->movement.captain_home.member_index=13;
+            if(i==3)unit->movement.captain_home.home.x=INFINITY;
+            if(i==4)unit->movement.captain_home.actor->movement.captain_actor_members=0;
+            if(i==5)unit->movement.captain_home.member_index=trace.units[1]->movement.captain_home.member_index;
+            T_ASSERT(!S_ValidateCaptainHomeActors(false));
+            T_ASSERT(!WriteGame("/tmp/wc3-captain-shared-invalid.bin"));
+        }
+        remove("/tmp/wc3-captain-shared-invalid.bin");
+        T_ASSERT(ReadGame(files[2]));
+        edict_t *unit=trace.units[12],*actor=unit->movement.captain_home.actor;
+        T_NOT_NULL(actor); S_ReleaseCaptainHomeActor(actor);
+        FOR_LOOP(i,12)move_release_captain_reference(trace.units[i]);
+        T_ASSERT(actor->inuse); T_ASSERT(!actor->movement.captain_actor_owned);
+        while(level.time<12030) {
+            trace.count=0; level.time+=5; globals.RunFrame();
+        }
+        T_ASSERT(actor->inuse); T_EQ(unit->movement.captain_home.actor,actor);
+        T_ASSERT(unit->movement.captain_home.active);
+        T_EQ(move_find_group(unit->movement.group_id)->target,actor);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+    }
     FOR_LOOP(i,8)remove(files[i]);
     move_test_motion_commit=NULL; follow_commit_trace=NULL; move_test_group_route=NULL; group_radius_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
@@ -11638,6 +11684,14 @@ TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_shared_prefix)
         captain_thirteen_mixed_motion[count][1]<0x41400000u)count++;
     T_EQ(count,4560);
     public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,2);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_range_departure) {
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41700000u)count++;
+    T_EQ(count,4867);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,3);
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {
