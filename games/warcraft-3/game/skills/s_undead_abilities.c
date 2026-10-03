@@ -447,11 +447,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
             S_SpellCancelChannel(ent); return false;
         }
         S_SpellReserveCorpse(corpse, spell->code, level);
-        thinker = S_SpellChannelThinker(ent, spell->code);
-        thinker->goalentity = corpse;
-        if (!thinker->channel) thinker->channel = G_AllocChannel();
-        assert(thinker->channel);
-        thinker->channel->target_spawn_time = corpse->spawn_time;
+        thinker = S_SpellChannelTargetThinker(ent, spell->code, corpse);
         thinker->velocity = MAX(0.0f, S_SpellData(spell->code, level, 1));
         thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellDuration(spell->code, level, false)) * 1000.0f);
         thinker->think = cannibalize_think;
@@ -675,32 +671,16 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
     if (buffs && sscanf(buffs, "%4[^,],%4s", target_buff, caster_buff) != 2)
         fprintf(stderr, "WC3 Possession: BuffID expected Bpos,Bpoc for %08x\n", spell->code);
 
-    thinker = S_SpellChannelThinker(caster, spell->code);
-    thinker->goalentity = st.entity;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->target_spawn_time = st.entity->spawn_time;
+    thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->damage = invuln > 0.0f ? 1 : 0;
     thinker->invulnerable = st.entity->invulnerable;
     thinker->think = possession_two_think;
 
-    unit_addtimedstatus(st.entity, target_buff, level, duration);
-    unit_addtimedstatus(caster, caster_buff, level, duration);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        slot = st.entity->abilstatus + i;
-        if (slot->level && slot->code == *((uint32_t const *)target_buff)) {
-            slot->data = magic_imm > 0.0f ? BZ_POS_MAGIC_IMMUNE : 0;
-            break;
-        }
-    }
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
-        slot = caster->abilstatus + i;
-        if (slot->level && slot->code == *((uint32_t const *)caster_buff)) {
-            slot->data = (uint32_t)(damage_mult * 1000.0f + 0.5f);
-            break;
-        }
-    }
+    slot = S_SpellApplyTimedStatus(st.entity, target_buff, level, duration);
+    if (slot) slot->data = magic_imm > 0.0f ? BZ_POS_MAGIC_IMMUNE : 0;
+    slot = S_SpellApplyTimedStatus(caster, caster_buff, level, duration);
+    if (slot) slot->data = (uint32_t)(damage_mult * 1000.0f + 0.5f);
     if (invuln > 0.0f) st.entity->invulnerable = true;
 }
 

@@ -52,7 +52,7 @@ void stasis_trap_think(edict_t *thinker) {
 	FILTER_EDICTS(t, stasis_land_enemy(ward, t, area)) {
 		if (!t->data.UnitBalance) continue;
 		stun = G_UnitIsHero(t) ? S_SpellDuration(code, level, true) : S_SpellData(code, level, 4);
-		unit_addtimedstatus(t, buff, 1, stun);
+		(void)S_SpellApplyTimedStatus(t, buff, 1, stun);
 	}
 	FILTER_EDICTS(peer, peer != ward && peer->inuse && peer->summon_ability == ID_ASTA &&
 	              Vector2_distance(&peer->s.origin2, &ward->s.origin2) <= area)

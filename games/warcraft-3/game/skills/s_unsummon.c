@@ -259,11 +259,7 @@ static void unsummon_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
         S_SpellCancelChannel(caster);
         return;
     }
-    thinker = S_SpellChannelThinker(caster, spell->code);
-    thinker->goalentity = st.entity;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->target_spawn_time = st.entity->spawn_time;
+    thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->s.player = st.entity->s.player;
     thinker->resources = level;
     thinker->think = unsummon_think;

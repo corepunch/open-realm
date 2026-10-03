@@ -154,7 +154,9 @@ fallback and exact duration; direct `unit_addtimedstatus()` remains appropriate
 for lifecycle tokens such as timed life, morph expiry, or other deliberately
 special state. This
 presentation-neutral primitive returns the authoritative status slot, so special
-abilities can attach payload without rescanning `abilstatus`. Ordinary target buffs
+abilities can attach payload without rescanning `abilstatus`; this also replaces
+manual post-apply status lookups in Avatar/Polymorph and preserves presentation-
+neutral transfer/pulse uses such as Spell Steal, Stasis Trap, and Earthquake. Ordinary target buffs
 that also use standard authored TargetArt layer `S_SpellApplyTimedTargetStatus()`
 on top. Use `S_SpellBuffId()` for the common authored
 primary-BuffID validity check while keeping ROC/TFT fallback choice local. Use
@@ -175,6 +177,12 @@ inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
 semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
 this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
+For unit-target channel thinkers, use `S_SpellChannelTargetThinker()` after the
+owning procedure has validated the target. It layers the common goal pointer and
+target-incarnation snapshot onto `S_SpellChannelThinker()`; range rechecks,
+duration, pulse cadence, pause/ownership changes, cancellation side effects and
+cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
+channel constructor: the constructor already owns that lifecycle storage.
 For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
 demonstrated common candidate contract (alive, authored target mask, friendly or
 enemy relation, and jump radius) and `S_SpellTargetVisited()` for small

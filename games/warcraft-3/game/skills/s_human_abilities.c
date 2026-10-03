@@ -111,8 +111,7 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
     if ((caster->avatar && caster->avatar->level)) return;
-    unit_addtimedstatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false));
-    if (!G_UnitStatusLevel(caster, BZ_AVATAR_BUFF)) {
+    if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
     if (!caster->avatar) caster->avatar = G_AllocAvatar();
@@ -329,8 +328,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     }
 
     duration = S_SpellDuration(spell->code, level, false);
-    unit_addtimedstatus(st.entity, buff, level, duration);
-    if (!G_UnitStatusLevel(st.entity, buff_code)) {
+    if (!S_SpellApplyTimedStatus(st.entity, buff, level, duration)) {
         fprintf(stderr, "WC3 Polymorph: failed to apply buff %08x to target %08x\n",
                 buff_code, st.entity->class_id);
         return;
@@ -372,15 +370,13 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 
 static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->goalentity = st.entity; thinker->channel->target_spawn_time = st.entity->spawn_time;
+    edict_t *thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
         (uint32_t)(S_SpellHeroDuration(spell->code, level, st.entity) * 1000.0f);
     thinker->think = human_ability_think;
-    unit_addtimedstatus(st.entity, GetClassName(thinker->resources), level, S_SpellHeroDuration(spell->code, level, st.entity));
+    (void)S_SpellApplyTimedStatus(st.entity, GetClassName(thinker->resources), level,
+                                  S_SpellHeroDuration(spell->code, level, st.entity));
     human_ability_think(thinker);
 }
 
@@ -433,8 +429,8 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
                   Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
     if (!receiver) receiver = caster;
-    unit_addtimedstatus(receiver, (cstring_t)&stolen.code, stolen.level,
-                        stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
+    (void)S_SpellApplyTimedStatus(receiver, (cstring_t)&stolen.code, stolen.level,
+                                  stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
 }
 
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */

@@ -148,7 +148,7 @@ void earthquake_think(edict_t *ent) {
         if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
         } else if (G_UnitTargetType(target) == TARG_GROUND && buff) {
-            unit_addtimedstatus(target, buff, level, 1.5f);
+            (void)S_SpellApplyTimedStatus(target, buff, level, 1.5f);
         }
     }
     FILTER_EDICTS(target, earthquake_hits_destructable(target, targets, radius, &ent->s.origin2))
@@ -533,11 +533,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         if (!spell || !target) return false;
         level = S_SpellLevel(ent, spell->code);
         delay = MAX(0.0f, S_SpellData(spell->code, level, 2));
-        thinker = S_SpellChannelThinker(ent, spell->code);
-        thinker->goalentity = target;
-        if (!thinker->channel) thinker->channel = G_AllocChannel();
-        assert(thinker->channel);
-        thinker->channel->target_spawn_time = target->spawn_time;
+        thinker = S_SpellChannelTargetThinker(ent, spell->code, target);
         thinker->variation = level;
         thinker->wait = target->paused ? 1.0f : 0.0f;
         thinker->freetime = G_Time() + (uint32_t)(delay * 1000.0f);

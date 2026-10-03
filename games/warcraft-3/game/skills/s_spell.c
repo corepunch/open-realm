@@ -576,6 +576,15 @@ edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
     return ent;
 }
 
+/* Unit-target channels all need the same target identity snapshot. The owning
+ * ability still decides range checks, duration, tick policy and cleanup. */
+edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target) {
+    edict_t *ent = S_SpellChannelThinker(caster, code);
+    ent->goalentity = target;
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
+    return ent;
+}
+
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
     edict_t *caster = ent ? ent->owner : NULL;
