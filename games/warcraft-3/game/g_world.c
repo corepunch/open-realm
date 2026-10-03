@@ -390,10 +390,17 @@ static vec2_t move_object_point(edict_t const *ent) {
 /* TODO: the complete authored category table is BASE-02. This game adapter
  * uses the observed foot/horse/hover/float/amph categoryca;
  * flyers and disabled rows publish0. Buildings/destructables already own static footprints. */
-static bool move_has_dynamic_occupancy(edict_t const *ent) {
+static bool move_has_spatial_record(edict_t const *ent) {
     if (ent->movement.captain_actor_type) return ent->inuse;
     return !IS_HOLLOW(ent) && ent->data.UnitData && !G_UnitIsStructure(ent) &&
-        !M_UnitMoveDisabled(ent) && ent->collision>0 && !(ent->aiflags&AI_FLYING);
+        !M_UnitMoveDisabled(ent) && ent->collision>0;
+}
+
+/* Flight publishes an active fine rectangle with category zero. Spatial
+ * lifetime is independent of eligibility for a ground collision query. */
+static bool move_has_dynamic_occupancy(edict_t const *ent) {
+    return move_has_spatial_record(ent) &&
+        (ent->movement.captain_actor_type || !(ent->aiflags&AI_FLYING));
 }
 
 /* Pose commits own publication. A query also observes authored size/category
@@ -401,7 +408,7 @@ static bool move_has_dynamic_occupancy(edict_t const *ent) {
  * links survive; leaving/re-entering prepends even within one JASS callback. */
 void G_PublishMoveSpatialObject(edict_t const *ent) {
     if (!ent || !pathmap.width || !pathmap.height) return;
-    if (!ent->inuse || !move_has_dynamic_occupancy(ent)) {
+    if (!ent->inuse || !move_has_spatial_record(ent)) {
         G_RemoveMoveSpatialObject(ent); return;
     }
     vec2_t point=move_object_point(ent);
@@ -879,6 +886,12 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
     vec2_t clipped={wc3_point_order_coordinate(input->geometry.target->x,bounds.min.x,bounds.max.x,cell),
         wc3_point_order_coordinate(input->geometry.target->y,bounds.min.y,bounds.max.y,cell)};
     vec2_t goal=move_grid_from_world(clipped.x,clipped.y);
+    /* Original16e430 ignores members without path88 bit200000. Flight
+     * profiles clear that adaptive policy;16de50 passes the full destination. */
+    if (input->mover && (input->mover->aiflags&AI_FLYING)) {
+        route->group_count=route->group_index=0;
+        *fine=goal; return true;
+    }
     /* Original16ce10 resamples16c940 and writes path+b4 only when it admits a
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */
@@ -1038,6 +1051,13 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
         route->adaptive_mask!=move_adaptive_mask(input) || route->adaptive_radius!=input->geometry.radius ||
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
         route->adaptive_count=route->adaptive_index=0;
+    /* Original165b60 uses one adjusted destination when adaptive routing is
+     * disabled. Flight still performs the ordinary budget700 fine search,
+     * including partial results and flight-blocking terrain. */
+    if (input->mover && (input->mover->aiflags&AI_FLYING)) {
+        if (route) route->adaptive_count=route->adaptive_index=0;
+        return G_BuildUnitMoveLocalRoute(input,route,out);
+    }
     int dx=abs((int)floorf(a.x)-(int)floorf(b.x)),dy=abs((int)floorf(a.y)-(int)floorf(b.y));
     if ((input->units && input->mover) || (route && route->adaptive_count) ||
         dx>PATH_ACCEL_MAX_DISTANCE || dy>PATH_ACCEL_MAX_DISTANCE)

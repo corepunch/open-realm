@@ -422,7 +422,7 @@
           "offset": 136,
           "name": "flags",
           "type": "u32",
-          "evidence": "scheduler/route/reset oracles"
+          "evidence": "scheduler/route/reset oracles\n168c00 resets route buffers then writes movement class in high2 bits; repeated public ground/flight/ground retains class0/3 independently of query mask and ordinary active category."
         },
         {
           "offset": 140,
@@ -8998,6 +8998,52 @@
           "name": "unit",
           "type": "ptr:WC3UnitOrdersPrefix",
           "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f685db0",
+      "name": "UnitMovementType_ToPathClassFlags",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f05c6f0",
+      "name": "UnitMoverBridge_PublishMovementClass",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "flags",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f168c00",
+      "name": "Path_SetMovementClass",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "kind",
+          "type": "u32",
+          "storage": 4
         }
       ]
     }

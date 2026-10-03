@@ -20,6 +20,11 @@ BZ_ABILITY_PROC(CAbilityChaos) {
     abilityAliasRef_t ability;
     uint32_t target;
 
+    if (msg==A_PRIMARY_TIMER) {
+        FILTER_EDICTS(unit,unit->inuse && unit->chaos.code && unit->chaos.phase && unit->chaos.phase!=3)
+            CAbilityChaos(unit,A_UPDATE,NULL);
+        return true;
+    }
     if (ent && msg==A_ENABLE && call && call->item) {
         chaos_schedule(ent,call->item->code,1);return true;
     }

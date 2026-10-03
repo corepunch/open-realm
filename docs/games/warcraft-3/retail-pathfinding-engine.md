@@ -7635,3 +7635,70 @@ Python checks. `bypass86-full-test-final.log` records the final successful run;
 the earlier failing log retains the disproved implicit-zero and inactive-cache
 expectations. The external `bypass86-validation.json` pins the final commit,
 production build and strict/O0/O2 reports.
+
+## Movement modes select routing policy independently of spatial membership
+
+Payoff87 covers MOVE-04.3 with `wc3_movement_modes_probe.j`: a radius40
+singleton crosses a wall during ordinary Move, acquires Chaos flight, teleports,
+receives another Move, returns to ground through Chaos, teleports again and
+finishes another Move. The wall's `0xc6` flags block both ground and flight.
+Two independent native captures repeat737 commits,734 decisions,15 searches,
+309 public markers, nine boundary states and all ownership phases. Readonly
+queries of the mover's own fine-record chains repeat643 observations. An empty
+watched wall cell is not evidence that a flight mover lacks spatial membership.
+
+`685db0` maps authored movement types to path selectors; `05c6f0` resolves the
+bridge's path and `168c00` writes its top two flag bits after resetting buffers.
+Flight has class3, query`04000004` and category`01000000`. Category zero still
+has an active class-sized fine rectangle. Ground has class0, query`02000002`
+and category`010000ca`. Spatial publication must preserve flight links while
+ground collision collectors exclude them. Native allocator/live/refcount words
+remain in external captures but are not claimed as engine allocation parity.
+
+Class and adaptive enablement are independent. `165b60` tests path88 bit200000;
+when clear, it retains one adjusted-destination waypoint for the fine search.
+`16e430` excludes such members from accelerated group-lane selection, and
+`16de50` clears the group's adaptive enablement when none qualify. Both flight
+orders perform fine-budget700 searches directly, including partial results.
+Returning to ground restores group5000/member400/fine700 requests. The first
+engine mismatch was commit101: retained pose/time agreed while ground-style
+hierarchy selection changed velocity and facing. Flight now uses ordinary fine
+routing with the full destination, independently of distance.
+
+Chaos and Move's retained-head reactivation own primary-clock deadlines.
+Dispatching only at `monster_think` made saved10/25/50ms server frames postpone
+those callbacks and consume the old velocity for extra quanta. The generic
+`AB_PRIMARY_TIMER`/`A_PRIMARY_TIMER` procedure hook runs after a due path owner,
+before public timer/event actions, on every5ms quantum. Concrete abilities own
+their pending-unit filters and state transitions. Other persistent abilities
+retain their existing per-frame update contract.
+
+Native Unit position retains support Z separately from fly-height presentation.
+The fixture compares this against `s.origin.z - unitinfo.FlyHeight`; the engine
+snapshot already includes the authored presentation offset. This capture does
+not establish fly-height interpolation or arbitrary morph/order equivalence.
+Raw binary/map/decompilation/captures remain external under `runtime/mode87-*`.
+
+The final focused engine check passes80,971 assertions:737 complete original
+commits and6534 saved suffix commits through ten checkpoints and5/10/25/50ms
+frames. All309 markers, nine fine rectangles/profile states and retained
+primary clocks agree. Required whole-suite verification is recorded separately.
+
+Additional type-rebind producer inventory (engine source, not a claim of retail
+parity for these families): `s_raven.c` owns Crow Form's ordered rebind;
+`s_stone_form.c` owns Stone Form's rebind/inverse; `s_militia.c` owns Call to
+Arms and timed return; `s_campaign_abilities.c` owns campaign Avatar;
+`s_requested_abilities.c` owns Metamorphosis and its timed `morph_end` inverse.
+`g_building.c` additionally rebinds a building during upgrade. All converge on
+`G_TransformUnitType`'s old/new-type lifecycle notifications. Their wider active
+order/cast behavior belongs to existing ORDER-01.13/E2E tasks. ORDER-06.6's
+single relevant transition is the fully captured Chaos witness; no new IDs.
+
+Both required edition suites pass2507 tests/5,212,644 assertions each and546
+Python checks (`mode87-full-test-final.log`, exit0). Production build also exits0.
+The earlier full log retains the two synthetic adaptive controls disproved by
+ordinary flight policy: they now force adaptive queries through an ordinary
+caller in each supplied lane, while the new public flight regression exercises
+native disabled-adaptive policy. `mode87-validation.json` pins the final commit,
+strict fresh corpus and O0/O2 reports. Save96 changes spatial-history meaning;
+network messages/layouts are unchanged.

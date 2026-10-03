@@ -851,7 +851,12 @@ Split behavior by the ability that owns it; do not grow `g_monster.c`, `m_unit.c
 Keep an ability's order strings, validation, state transitions, animation moves, completion functions, and timed effects in its
 `skills/s_*.c` owner. For immediate orders outside the spell pipeline, register `ability_t.orders` and handle `A_ORDER`;
 for effects that outlive an active order, register `AB_UPDATE` and handle `A_UPDATE`. `s_skills.c` owns generic dispatch and deduplicates shared
-update handlers at initialization. Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
+update handlers at initialization. Primary-clock deadlines use `AB_PRIMARY_TIMER`/`A_PRIMARY_TIMER`;
+`s_skills.c` deduplicates these procedures and dispatches them after a due path owner, before public
+timer/event actions in each5ms quantum. The concrete owner selects pending units and executes its own
+transitions; frame batches must not delay its deadlines. Move and Chaos exercise this through
+[exact saved mode transitions](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
+Do not add a spell-name branch or direct spell update to `m_unit.c`/`g_monster.c`.
 See [Raven Form](unit-animation-properties.md) for the order/update contract and persistence tests.
 Unit-data behaviors use `AB_INNATE` and `S_UnitAbilityEvent` for spawn/rebind, idle acquisition,
 move interruption, damage, entity removal, and automatic-target eligibility. Each message carries

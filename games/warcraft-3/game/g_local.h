@@ -767,6 +767,7 @@ typedef enum {
 #define AB_OWNER_UPDATE (1u << 12) // bit 12; receives begin/update around scheduled owner-clock moves
 #define AB_ENGINE_EVENTS (1u << 13) // bit 13; engine-wide lifecycle/order notifications reach this ability
 #define AB_QUEUEABLE    (1u << 14) // bit 14; the command button accepts the generic Shift queue modifier
+#define AB_PRIMARY_TIMER (1u << 15) // bit 15; receives primary-clock timer passes independent of server frames
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -850,6 +851,7 @@ typedef enum {
     A_GROUP_POINT_ORDER, /* Batch producer: call->group_order; return abilityOrderResult_t. */
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
+    A_PRIMARY_TIMER,    /* After a due path owner, before public timer/event callbacks. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
     A_UNIT_TYPE_CHANGING, /* Old type is still bound; behaviors retire physical movement state. */
     A_UNIT_TYPE_CHANGED, /* New type is bound; behaviors resume retained orders with the new profile. */
@@ -2991,6 +2993,7 @@ bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 void S_RunAbilityOwnerUpdates(void);
+void S_RunAbilityTimers(void);
 void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 void S_UnitTargetRemoved(edict_t *);

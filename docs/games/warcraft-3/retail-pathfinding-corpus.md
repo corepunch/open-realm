@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **305 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **82**
+The inventory now has **306 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **83**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1563,3 +1563,24 @@ The earlier `bypass86-startup-aborted.jsonl` lacks a footer and used an older ma
 when the builder correctly refused overwrite. It is preserved externally as
 excluded scratch evidence; the fresh86b map and accepted pair carry matching
 embedded-source, map and observer hashes.
+
+## Ground/flight/ground and public teleports
+
+`live-movement-modes-captures-261003` pins both complete
+`runtime/mode87-spatial-first.jsonl` and `mode87-spatial-repeat.jsonl` captures.
+`tools/frida/verify_wc3_movement_modes_trace.py` checks their original binary,
+map/source hashes, complete observer extents, authored terrain/hierarchy,
+public markers, profile/query/category publication, Chaos primary phases,
+737 committed poses/velocities/facings,734 decisions and15 complete route
+searches per capture. It also compares643 own-record observations, excluding
+allocator stamps/refcounts but retaining record kinds, rectangles, flags and
+query/class/category. The literal C header comes from the frozen fixture and
+is checked byte-for-byte. Original presentation clocks are excluded explicitly.
+
+Reproduce with the existing isolated Frida/Wine setup and
+`--scenario movement_modes` in `make_wc3_pathfinding_map.py`, then the ordinary trace
+flags for task/map/motion/velocity/clock/heading/profile/numeric events. Retain
+`--watch-cell 24 26 --samples 10000 --seconds 170`. The observer additionally
+reads the active mover's own fine chain during native position queries without
+calling new retail functions. `runtime/mode87-source-v2` preserves the exact
+capture sources; the earlier v1 captures lack own-record proof.

@@ -1040,7 +1040,9 @@ TEST(pathfinding, owned_adaptive_requests_reuse_all_lanes_sizes_and_partial_node
     FOR_LOOP(pass,2) FOR_LOOP(k,8) {
         retailAdaptiveWrap_t const *row=retail_adaptive_wrap+k;
         unit->collision=row->size==2 ? 40 : 8;
-        unit->aiflags=row->lane==3 ? AI_FLYING : 0;
+        /* The original oracle explicitly enables adaptive routing in every
+         * query lane; ordinary flight profiles instead disable that policy. */
+        unit->aiflags=0;
         level.pathing_counter=400+(pass*8+k)*20;
         /* Each request has a fresh owner work window; scheduler cadence is a
          * separate contract from retained adaptive storage. */
@@ -1134,7 +1136,9 @@ TEST(pathfinding, terrain_producers_preserve_retail_size2_passage_veto_and_parti
     uint32_t old_counter=level.pathing_counter;
     moveFineRoute_t route={0};
     FOR_LOOP(pass,2) FOR_LOOP(lane,4) {
-        unit->aiflags=lane==3 ? AI_FLYING : 0;
+        /* This oracle forces adaptive requests in every query lane. Keep the
+         * ordinary adaptive caller; authored flight disables that policy. */
+        unit->aiflags=0;
         level.pathing_counter=400+(pass*4+lane)*20; level.move_fine_budgets[0].work=0;
         movePathQuery_t query={.geometry={&source,&target,40,masks[lane]},.units=true,.mover=unit};
         T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));

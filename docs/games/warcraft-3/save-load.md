@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 95, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 96, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1065,3 +1065,13 @@ restores route ownership and delayed reactivation through the normal Move
 scheduler. Eight checkpoints reproduce6171 original suffix commits, including
 10/25/50ms frame batches. Older versions are rejected; no migration is supplied.
 See [pathing/pause lifecycle](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+
+## Flight spatial history and primary-clock morph deadlines
+
+Save96 preserves active flight fine rectangles and link ranks. These records
+have category zero but remain spatially linked; older engine saves removed
+them and cannot provide the same return-to-ground history. The field layout
+is unchanged, but its meaning changes, so older versions are rejected.
+Chaos deadlines and Move's retained type-rebind deadline use the saved primary
+clock and now dispatch every primary quantum through the ability timer hook.
+See [movement-mode policy](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).

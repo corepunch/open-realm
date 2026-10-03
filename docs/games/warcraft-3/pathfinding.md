@@ -785,3 +785,10 @@ unpause. Fractional axis displacement while paused becomes the next route's
 source. Save95 retains these independent lanes and the resume deadline; actual
 RunFrame and saved continuations match the complete original wall journey.
 See [query and pause ownership](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+
+
+Ordinary authored flight now bypasses adaptive group/member planning and runs
+budget700 fine searches against flight-blocking terrain, preserving partial
+fine routes. Its category-zero active fine rectangles remain linked; collision
+eligibility is separate from spatial lifetime. Chaos/rebind deadlines run on the
+primary clock, including saved batched-frame continuation. See [mode transitions](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).

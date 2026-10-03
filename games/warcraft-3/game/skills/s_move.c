@@ -960,6 +960,16 @@ void S_RunMoveTimers(void) {
         if(ent->goalentity && ent->currentmove==&move_move_walk)
             S_IssueMoveOrder(ent,ent->goalentity,order);
     }
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.type_rebind_pending) {
+        wc3Clock_t const *due=&ent->movement.type_rebind_deadline;
+        bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
+            (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
+        if (!ready)continue;
+        ent->movement.type_rebind_pending=false;
+        if (ent->currentmove==&move_move_walk && ent->goalentity)
+            S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
+    }
+
 }
 
 /* Queries predict from the retained fine pose without committing its time origin. */
@@ -3839,18 +3849,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
             ent->movement.pose_clock=level.pathing_clock;
         }
         return true;
-    case A_UPDATE:
-        if (ent->movement.type_rebind_pending) {
-            wc3Clock_t const *due=&ent->movement.type_rebind_deadline;
-            bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
-                (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
-            if (ready) {
-                ent->movement.type_rebind_pending=false;
-                if (ent->currentmove==&move_move_walk && ent->goalentity)
-                    S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
-            }
-        }
-        return true;
+    case A_PRIMARY_TIMER:
+        S_RunMoveTimers(); return true;
     case A_UNIT_TYPE_CHANGED:
         G_PublishMoveSpatialObject(ent);
         /* Original670950 retires the physical task and reissues the retained

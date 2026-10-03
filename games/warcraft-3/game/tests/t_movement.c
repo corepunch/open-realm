@@ -57,6 +57,7 @@
 #include "retail_movement_lifecycle.h"
 #include "retail_region_callbacks.h"
 #include "retail_movement_bypasses.h"
+#include "retail_movement_modes.h"
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
@@ -12594,6 +12595,180 @@ TEST(wc3_movement, pathing_pause_and_displacement_match_original_and_saved_conti
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+static unsigned mode87_stage,mode87_marker;
+
+static void mode87_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=mode87_marker++;
+    T_ASSERT(index<sizeof(mode87_markers)/sizeof(*mode87_markers));
+    if(index<sizeof(mode87_markers)/sizeof(*mode87_markers))T_STREQ(marker,mode87_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=mode87_stage++;
+    T_ASSERT(stage<(sizeof(mode87_states)/sizeof(*mode87_states)));if(stage>=(sizeof(mode87_states)/sizeof(*mode87_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==MAKEFOURCC('h','V','8','0') || ent->class_id==MAKEFOURCC('h','A','I','R')))if(!unit)unit=ent;
+    typeof(mode87_states[0]) *expected=mode87_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Mode stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
+    T_ASSERT(unit && !G_IsDeferredFree(unit));
+    if(unit) {
+        T_EQ(unit->class_id,MAKEFOURCC((expected->rawcode>>24)&255,(expected->rawcode>>16)&255,(expected->rawcode>>8)&255,expected->rawcode&255));
+        T_EQ(M_UnitStaticPathingFlags(unit),expected->mask&0x00ffffff);
+        T_EQ(!!(unit->aiflags&AI_FLYING),expected->category==0x01000000);
+    }
+    T_NOT_NULL(unit);if(!unit)return;
+    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    int box[]={links->box.min.y,links->box.min.x,links->box.max.y,links->box.max.x};
+    FOR_LOOP(k,4)T_EQ(box[k],expected->box[k]);
+    T_ASSERT(wc3_spatial_rank(links,links->box.min)!=0);
+    /* Native Unit position stores support Z; OpenRealm snapshots add the
+     * separately authored fly-height presentation offset. */
+    uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z-unit->unitinfo.FlyHeight)};
+    FOR_LOOP(k,3)T_EQ(world[k],expected->world[k]);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Movement modes stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+}
+
+TEST(wc3_movement, teleport_and_movement_modes_match_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,height=60,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t ground_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t air_mods[]={
+        ground_mods[0],ground_mods[1],
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"},
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height}};
+    unitData_t units[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=ground_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','I','R'),.numbeOfModifications=4,.modifications=air_mods}};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hV80" : "hAIR"};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','G','r') : MAKEFOURCC('A','C','F','l'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=units,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    for(unsigned y=0;y<48;y++) {cells[y*64+24]=0xc6;cells[y*64+25]=0xc6;}
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    /* Match the captured file-shaped17x17 W3E: height8192, cliff baseline2. */
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    mode87_stage=mode87_marker=0;test_preload_marker=mode87_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHMODE type=\"+I2S(GetUnitTypeId(udg_PathProbeUnit)))\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==40 then\n"
+        "  call UnitAddAbility(udg_PathProbeUnit,'ACFl')\n"
+        "  call PathProbeRecord(\"fly_requested\")\n"
+        " elseif udg_PathProbeTick==85 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,272.125,848.25)\n"
+        "  call PathProbeRecord(\"fly_teleport\")\n"
+        " elseif udg_PathProbeTick==90 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"fly_move\")\n"
+        " elseif udg_PathProbeTick==120 then\n"
+        "  call UnitAddAbility(udg_PathProbeUnit,'ACGr')\n"
+        "  call PathProbeRecord(\"ground_requested\")\n"
+        " elseif udg_PathProbeTick==150 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,336.25,368.125)\n"
+        "  call PathProbeRecord(\"ground_teleport\")\n"
+        " elseif udg_PathProbeTick==160 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"ground_move\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=movement_modes\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " call Preload(\"PATHPOSE case=movement_modes\")\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,200.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_movement_modes\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={3995,4000,4010,8495,8500,11995,12000,12010,15000,16000};
+    char files[10][64];unsigned saved[10]={0},saved_stage[10]={0},saved_marker[10]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"/tmp/wc3-movement-mode-%u.bin",times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==11 ? 10 : pass==12 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];mode87_stage=saved_stage[slot];mode87_marker=saved_marker[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(mode87_motion)/sizeof(*mode87_motion)));
+                if(steps>=(sizeof(mode87_motion)/sizeof(*mode87_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=mode87_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Movement modes commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=mode87_stage;saved_marker[i]=mode87_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(mode87_motion)/sizeof(*mode87_motion)));T_EQ(mode87_stage,(sizeof(mode87_states)/sizeof(*mode87_states)));
+        T_EQ(mode87_marker,sizeof(mode87_markers)/sizeof(*mode87_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->paused && !unit->no_pathing);}
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Movement modes native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 

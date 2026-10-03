@@ -51,7 +51,9 @@ composition closes a gap.
   Applying and rerunning the script, then saving `game.dll`, produced the
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
-  644 function names/comments applied and saved. Latest pause readback:
+  647 function names/comments applied and saved. Latest mode readback:
+  `runtime/mode87-ghidra-types.json`:67 layouts/441 fields,315 ABIs and60 globals.
+  Latest pause readback:
   `runtime/bypass86-ghidra-types.json`. Latest captain readbacks:
   `runtime/captain-home-ghidra-readback-saved-261002.json` and
   `runtime/captain-home-ghidra-types-saved-261002.json`. Prior group-radius readbacks:
@@ -724,3 +726,7 @@ and matches scripted pause's suspension head, physical route release and delayed
 point-order reactivation. Complete original travel, occupancy and saved motion
 remain exact after fractional paused displacement. See
 [pathing and pause ownership](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+
+Payoff87 separates active flight spatial membership from collision category and
+fine-only flight routing from adaptive ground routing. See [mode policy](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership)
+and [paired capture](retail-pathfinding-corpus.md#groundflightground-and-public-teleports).

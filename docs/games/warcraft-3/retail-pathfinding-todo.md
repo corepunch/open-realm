@@ -8,23 +8,24 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**173 done / 336 tasks; 163 remaining.** Payoff86 closes existing MOVE-04.1
-and MOVE-04.2 without new IDs/splits. Complete repeated original wall journeys
-agree on773 motion commits,769 decisions,13 searches,10 states and9 cell chains.
-The engine preserves coarse/adaptive lanes across fine query toggles, retains
-ordinary occupancy, releases physical routing on pause and resumes the retained
-point head after the original ten-ms delay. Eight Save95 checkpoints reproduce
-6171 suffix commits, including10/25/50ms frames. Required suites pass2506 tests/
-5,131,664 assertions per edition and538 Python checks; three fresh strict corpus
-contracts and O0/O2 comparisons pass. Ghidra retains644 function roles,
-67 layouts/441 fields,312 ABIs and60 globals. See
-[pathing and pause payoff](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
+**175 done / 336 tasks; 161 remaining.** Payoff87 closes existing MOVE-04.3
+and ORDER-06.6 without new IDs. Two complete original ground/flight/ground
+journeys repeat737 commits,734 decisions,15 searches,309 markers, nine states
+and643 own-spatial observations. Flight retains category-zero active links and
+uses fine-only routing; ground restoration re-enables hierarchy requests.
+Primary-clock ability timers preserve Chaos/type-rebind deadlines across frame
+batches. Actual engine RunFrame and ten Save96 checkpoints reproduce6534 suffix
+commits across5/10/25/50ms frames. Both required edition suites pass2507 tests/
+5,212,644 assertions each, plus546 Python checks; production build, fresh three-
+contract corpus and O0/O2 comparisons pass. The mapper retains647 roles,
+67 layouts/441 fields,315 ABIs and60 globals. See
+[movement-mode payoff](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
 
-Next runnable chunk is MOVE-04.3: original public teleport and Chaos movement-mode
-switches through ground/flight/ground travel, retaining distinct query/category,
-route and physical task lifetimes. Two complete original captures already repeat
-737 commits and all ownership phases; compare actual engine/save continuations.
-No new TODO IDs.
+Next runnable chunk is MOVE-01.2: temporary Slow/Bloodlust speed changes during
+travel, public buff-removal filters and immediate velocity restoration. Original
+captures already expose the missing UnitRemoveBuffs engine native and status
+queries; native policy is being recovered before implementing the shared owner
+mechanism. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -636,7 +637,7 @@ publication state; it does not close the original bonus writer or other effects.
 
 - [x] **MOVE-04.1** Disable then enable pathing during travel; assert route/occupancy invalidation and the first resumed step. Payoff86: the original changes the fine query to0 while retaining category010000ca and the acquired hierarchy/fine leg. Separate coarse/adaptive masks and zero-query fine refinement now match773 complete commits and all13 original searches without direct-steering substitution. [Evidence](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
 - [x] **MOVE-04.2** Pause/resume and force-displace a mover; assert clock, velocity and route retention or reset. Payoff86: original suspension head851973, synchronous pause getter, zero velocity/physical route release, fractional paused axis displacement and delayed point-head reactivation. Real RunFrame and eight Save95 states repeat6171 suffix commits across5/10/25/50ms frames; all310 public markers and literal boundary/occupancy states match. Other order families and nested suspension ownership remain existing ORDER tasks. [Evidence](retail-pathfinding-engine.md#pathing-queries-and-scripted-pause-preserve-distinct-owners).
-- [ ] **MOVE-04.3** Teleport and switch movement mode via producers inventoried in BASE-01; assert grids/lanes and next request. Split additional producer paths into new IDs.
+- [x] **MOVE-04.3** Teleport and switch movement mode via public producers; assert grids/lanes and next request. Payoff87: Chaos ground/flight/ground plus two fractional SetUnitPosition cancellations, exact own rectangles/category/query, fine-only flight searches and restored ground hierarchy. Engine737 commits and6534 saved suffix commits agree across four frame sizes. Other morph/cast families remain ORDER-01.13 and cross-feature E2E controls; no new IDs. [Evidence](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
 
 ## ORDER — Orders and reclamation
 
@@ -696,7 +697,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [ ] **ORDER-06.3** Run Stop/replacement while waiting, searching and turning; assert surviving queue, active flags and reclaimed allocations at each phase.
 - [ ] **ORDER-06.4** Run interruption during group completion and deferred release; assert no duplicate arrival/release and correct resumed order.
 - [ ] **ORDER-06.5** Kill/remove the mover during travel and one pending phase; assert scheduler unlink and all order/group/path lifetimes.
-- [ ] **ORDER-06.6** Exercise one relevant ability transition during movement; assert command preservation/cancellation and routing inverse. Inventory additional distinct transitions as new tasks.
+- [x] **ORDER-06.6** Exercise one relevant ability transition during movement; assert command preservation/cancellation and routing inverse. Payoff87: actual Chaos retains public Move through deferred type commit and ten-ms physical-task reissue, switches ground/flight routing and returns through the inverse; separate teleports cancel the head before placement. Saved pending transitions reproduce every subsequent native commit. Additional engine producer inventory is documented beside the witness; broader morph/cast lifetimes remain existing ORDER-01.13/E2E tasks without new IDs. [Evidence](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
 
 ## GROUP — Shared movement groups
 

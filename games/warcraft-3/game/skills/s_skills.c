@@ -104,7 +104,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE | AB_UPDATE, SPELL_TARGET_NONE, move_orders },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_OWNER_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, move_orders },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */
@@ -490,7 +490,7 @@ static ability_t abilitylist[] = {
     { "Aspl", CAbilitySpiritLink, AB_SPELL, SPELL_TARGET_UNIT },  /* Spirit Link */
     { "Aliq", CAbilityLiquidFire, AB_PASSIVE },  /* Liquid Fire */
     { "Auco", CAbilityUnstableConcoction, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Unstable Concoction */
-    { "Acha", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos */
+    { "Acha", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos */
     { "Achl", CAbilityCargoLoad, AB_COMMAND },  /* Chaos Cargo Load */
     { "Awar", CAbilityPulverize, AB_PASSIVE },  /* Pulverize */
     { "Aens", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
@@ -687,12 +687,12 @@ static ability_t abilitylist[] = {
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
     { "Awrs", CAbilityStomp, AB_SPELL },  /* War Stomp (creep) */
-    { "Sca1", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grunt) */
-    { "Sca2", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Raider) */
-    { "Sca3", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Shaman) */
-    { "Sca4", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Kodo) */
-    { "Sca5", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Peon) */
-    { "Sca6", CAbilityChaos, AB_PASSIVE | AB_UPDATE },  /* Chaos (Grom) */
+    { "Sca1", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Grunt) */
+    { "Sca2", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Raider) */
+    { "Sca3", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Shaman) */
+    { "Sca4", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Kodo) */
+    { "Sca5", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Peon) */
+    { "Sca6", CAbilityChaos, AB_PASSIVE | AB_UPDATE | AB_PRIMARY_TIMER },  /* Chaos (Grom) */
     { "Sch2", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Meat Wagon) */
     { "Sch3", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Transport) */
     { "Sch4", CAbilityCargoHold, AB_PASSIVE },  /* Cargo Hold (Tank) */
@@ -728,6 +728,8 @@ static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0]
 static uint32_t num_updates;
 static abilityProc_t owner_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_owner_updates;
+static abilityProc_t timer_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static uint32_t num_timer_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
 static uint32_t num_innate;
 static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
@@ -766,6 +768,11 @@ void S_BeginAbilityOwnerUpdates(void) {
 
 void S_RunAbilityOwnerUpdates(void) {
     FOR_LOOP(i, num_owner_updates) owner_updates[i](NULL, A_OWNER_UPDATE, NULL);
+}
+
+/* Each procedure owns its active timer list and deadline checks. */
+void S_RunAbilityTimers(void) {
+    FOR_LOOP(i, num_timer_updates) timer_updates[i](NULL, A_PRIMARY_TIMER, NULL);
 }
 
 /* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
@@ -1237,7 +1244,7 @@ void S_AbilityCommand(edict_t *clent, ability_t const *ability) {
 
 void InitAbilities(void) {
     game.num_abilities = sizeof(abilitylist)/sizeof(abilitylist[0]);
-    num_updates = num_owner_updates = 0;
+    num_updates = num_owner_updates = num_timer_updates = 0;
     num_innate = 0;
     num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
@@ -1256,6 +1263,10 @@ void InitAbilities(void) {
         if (entry->flags & AB_OWNER_UPDATE) {
             for (n = 0; n < num_owner_updates && owner_updates[n] != entry->proc; n++) {}
             if (n == num_owner_updates) owner_updates[num_owner_updates++] = entry->proc;
+        }
+        if (entry->flags & AB_PRIMARY_TIMER) {
+            for (n = 0; n < num_timer_updates && timer_updates[n] != entry->proc; n++) {}
+            if (n == num_timer_updates) timer_updates[num_timer_updates++] = entry->proc;
         }
         for (n = 0; n < num_ability_index_procs && ability_index_procs[n] != entry->proc; n++) {}
         if (n == num_ability_index_procs) {
