@@ -111,6 +111,7 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_combat.c` and `ga
 - `GlobalExperience` fallback when no eligible Hero is inside `HeroExpRange`;
 - creep reduction indexed by receiving Hero level and restricted to Neutral Aggressive victims;
 - summoned-victim XP factor, max-level drain toggle, building killer/victim rules, and receiving-player XP handicap;
+- lethal damage through the ordinary unit-death path with Prologue01's 300% XP handicap;
 - `GrantNormalXP` and `GrantHeroXP` formula extension beyond their authored tables;
 - JASS `main()` granting startup XP through the ordinary Hero progression path;
 - JASS `GetHeroSkillPoints` and signed `UnitModifySkillPoints` changes, including zero clamping and non-Hero rejection;

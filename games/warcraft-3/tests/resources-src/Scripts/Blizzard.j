@@ -34,3 +34,11 @@ endfunction
 function IsUnitAliveBJ takes unit whichUnit returns boolean
     return GetWidgetLife(whichUnit) > 0.405
 endfunction
+
+function SetPlayerHandicapXPBJ takes player whichPlayer, real handicapPercent returns nothing
+    call SetPlayerHandicapXP(whichPlayer, handicapPercent * 0.01)
+endfunction
+
+function GetPlayerHandicapXPBJ takes player whichPlayer returns real
+    return GetPlayerHandicapXP(whichPlayer) * 100
+endfunction

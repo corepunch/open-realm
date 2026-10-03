@@ -1621,6 +1621,28 @@ TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
     Stb_IniCacheFree(&custom);
 }
 
+TEST(wc3_combat, unit_death_awards_prologue_300_percent_xp) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1.0f, 50.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim->die = unit_die;
+    game.clients[0].jass.handicap_xp = 3.0f; /* SetPlayerHandicapXPBJ(..., 300.00). */
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPPrologue.txt"));
+    game.config.misc.source = custom.source;
+
+    T_Damage(victim, hero, 1);
+
+    T_FEQ(victim->health.value, 0.0f, 0.001f);
+    T_EQ((int)hero->hero.xp, 75); /* level-1 25 XP victim x Prologue01's 300% XP handicap */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
 TEST(wc3_combat, grant_kill_xp_extends_normal_table_with_formula) {
     edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
