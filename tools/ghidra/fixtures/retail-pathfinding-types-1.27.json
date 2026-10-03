@@ -1919,6 +1919,18 @@
       "length": 296,
       "fields": [
         {
+          "offset": 88,
+          "name": "current_point_x",
+          "type": "WC3PathScalar",
+          "evidence": "Complete9d44d0/9d16c0/9cff90 bodies and readonlySouthGoHome captures261003; FloatMini value halves. All-entered policy0 retains rangee4=500 while virtual arrival publishes200."
+        },
+        {
+          "offset": 96,
+          "name": "current_point_y",
+          "type": "WC3PathScalar",
+          "evidence": "Complete9d44d0/9d16c0/9cff90 bodies and readonlySouthGoHome captures261003; FloatMini value halves. All-entered policy0 retains rangee4=500 while virtual arrival publishes200."
+        },
+        {
           "offset": 100,
           "name": "state",
           "type": "u32",
@@ -2019,6 +2031,12 @@
           "name": "request_y",
           "type": "WC3PathScalar",
           "evidence": "9d4615..4627 reads FloatMini scalar value halves;9d44d0 retains point through virtual writes at d0/d8. Payoff65 logical all-entered reentry uses the retained destination after physical members finish."
+        },
+        {
+          "offset": 228,
+          "name": "retained_request_range",
+          "type": "WC3PathScalar",
+          "evidence": "Complete9d44d0/9d16c0/9cff90 bodies and readonlySouthGoHome captures261003; FloatMini value halves. All-entered policy0 retains rangee4=500 while virtual arrival publishes200."
         },
         {
           "offset": 252,
@@ -7404,6 +7422,155 @@
         }
       ],
       "evidence": "Complete x86 thiscallECX AI, stack4 filename,RET4/void.9c87f0 reads common.j/common.ai/requested source before AI+248 null guard;9146f0 creates VM,90cb10 environment,9c8d10 initializes entry only under guard. Sources release through0669d0 afterward. Payoff67 public second StartCampaignAI after all13 Stop reloads sources but creates no new captain and no physical movement. Engine admission gate persists inSave88; private VM continuation restoration remains open."
+    },
+    {
+      "address": "6f9c40c0",
+      "name": "AI_CaptainGoHome",
+      "returns": "void",
+      "parameters": [],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open.",
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f9d2670",
+      "name": "CaptainAI_GoHome",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9d3480",
+      "name": "CaptainAI_IsNearAuthoredHome",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9d2ee0",
+      "name": "CaptainAI_IsNearWorldPoint",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9d4c20",
+      "name": "CaptainAI_QueryMovementSpeed",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9cff90",
+      "name": "CaptainAI_IsNearRetainedRequest",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9d8a90",
+      "name": "CaptainAI_HandleIdleRosterMember",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
+    },
+    {
+      "address": "6f9d44d0",
+      "name": "CaptainAI_PublishPointRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "retain_request",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "prepare",
+          "type": "u32",
+          "storage": 20
+        }
+      ],
+      "evidence": "Complete x86 body and publicSouthCaptainGoHome readonly witnesses261003. ExplicitECX/stack operand storage; normalized predicates XOREAX/SETNCAL return full0/1. Verified engine initial23.8-second travel only; moving private retry continuation remains open."
     }
   ],
   "globals": [
@@ -7724,6 +7891,36 @@
       "name": "CaptainAI_UnarmedApproachRange300",
       "type": "WC3PathScalar",
       "evidence": "Read-only CaptainAI_GetAuthoredApproachRange full mixed13 captures261003, same runtime words in both repeats; on-disk BSS zero is not the initialized value."
+    },
+    {
+      "address": "6fd77fa8",
+      "name": "CaptainAI_NearPointDefaultSquared20000",
+      "type": "WC3PathScalar",
+      "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
+    },
+    {
+      "address": "6fd77fac",
+      "name": "CaptainAI_NearPointSquaredBias5000",
+      "type": "WC3PathScalar",
+      "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
+    },
+    {
+      "address": "6fd3c74c",
+      "name": "Math_IntegerTwo",
+      "type": "WC3PathScalar",
+      "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
+    },
+    {
+      "address": "6fd3c7b8",
+      "name": "Math_IntegerOneHundred",
+      "type": "WC3PathScalar",
+      "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
+    },
+    {
+      "address": "6fd77f60",
+      "name": "CaptainAI_GoHomeRange500",
+      "type": "WC3PathScalar",
+      "evidence": "Read initializer MOVEDX immediate; tailcall070d80 softwareinteger constructor:019870/019890/001c30/001ab0/019720 respectively. On-disk zero is not runtime value."
     }
   ]
 }

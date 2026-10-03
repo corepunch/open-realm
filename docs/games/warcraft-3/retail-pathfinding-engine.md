@@ -6270,3 +6270,80 @@ contracts with140 matching source fingerprints. Inventory is286 entries/128
 fixtures/69 strict live entries. Final-binding RemoveUnit/retarget, new parameter
 reuse after explicit cancellation, dynamic roster ownership and moving captains
 remain separate.
+
+## Public CaptainGoHome and moving virtual captain
+
+Payoff68 implements the missing `CaptainGoHome()` AI native through the current
+AI player's attack captain. `api_ai.h` and `g_bot.c` only dispatch; Move owns the
+virtual actor, retained roster, point requests and idle-member handoff. The public
+retail wrapper `9c40c0` resolves the attack captain through `9c64c0`, then jumps
+to `9d2670`. It has no arguments and uses cdecl; the captain methods use ECX.
+
+The owned readonly south scene stops all thirteen recruits at9.2s, repeats
+StartCampaignAI at17s without restarting main, then changes the occupied home
+from(-1936,-144) to(-1936,-1424) and calls CaptainGoHome at18s. Only the AI
+member changes in the97228-byte map; the inherited terrain, units and wrapper
+remain identical. Both uncapped captures reproduce the same initial6251 commits:
+6058 physical commits and193 moving virtual-actor commits through23.8 seconds.
+They also agree on398 shared footprints. The exact literal reference is
+`games/warcraft-3/game/tests/retail_captain_go_home.h`; the public AI regression
+runs ordinary simulation frames and matches11228 saved suffix commits across
+eight checkpoints at18030/18100/19000/20000/21000/23000/23500/23700ms. Save88
+already stores the relevant movement parameters, callbacks and references;
+no save layout or network contract changes.
+
+`SetCaptainHome` on an occupied logical roster authors the new request point
+without teleporting the actor. Explicit GoHome admits a radius-zero, category2
+virtual mover with the minimum effective roster speed (150world units/second in
+this scene), turn0.4 and movement window0.1. This actor has no ordinary unit data
+or health; movement must neither dereference UnitData nor prune it as dead.
+Its fine object keeps `01000002`, path mask `02000002`, and publishes the moving
+object flag through the same consumer as other movers. Treating it as permanently
+stationary first diverged at23.07s when birth10 incorrectly avoided retail's
+four-tick yield. The engine now preserves that moving-object distinction.
+
+`9d44d0` retains the authored request in captain+d4/dc and its range in+e4,
+while+58/60 hold the current point request. GoHome's retained range is500world
+units; an all-entered callback at23s replaces the actor's physical request with
+range200 while preserving500 for the idle-roster policy. `9d2ee0` compares
+predicted world distance squared with `2*r*r+5000` for these ranges; it returns
+normalized full EAX0/1 (`XOR EAX,EAX; SETNC AL`). The near-home wrapper `9d3480`
+uses500. Initializers019720/019890/001c30 establish500/5000/2; reading the
+uninitialized PE global bytes gives zeros and is not evidence of runtime values.
+The near-home public regression checks that a64-unit home change followed by
+GoHome leaves the actor and existing physical approach request in place.
+
+Shared roster requests retain native12+1 batching. After the23-second callback,
+identical active AI point requests keep their shared generation rather than
+replacing it. Initial and moving generations are1471/1941 and1471/2237. The
+native idle-roster path `9d8a90` calls `9cff90` with the retained point/range:
+birth8 finishes at23.37s while the captain is still outside that request area
+and starts a private approach; birth1 finishes after the captain has entered
+that area and becomes idle. Comparing only the actor's tightened200-unit
+arrival range incorrectly reissued birth1. First target refresh also preserves
+the admission destination when both points have the same `floor(fine)>>1` cell.
+
+The full moving journey is **not** certified. The first remaining mismatch is
+a private birth8 fine retry at23.91s: retail produces three reconstructed points
+`(159.5,55.5),(159.5,54.5),(160.3397827,54.5789986)` with result-1 and12 pops;
+the engine retains a two-point partial route. Its source endpoint resembles
+the prior23.82s pose; stale route/source publication is a hypothesis requiring
+a direct consumer trace, not a confirmed cause. The engine regression ends
+before that mismatch. The captures themselves close normally and their velocity
+observers are uncapped, but their wall-time endings do not prove natural journey
+completion. Autonomous occupied-home admission, retreat/empty-captain defaults,
+larger rosters and other moving-captain policies remain separately open.
+
+Evidence: `retail-captain-go-home-1.27.json`,
+`verify_wc3_captain_go_home_trace.py`, and frozen archive sources
+`runtime/captain-thirteen-mixed-cancel-all-go-home-south-source-v1-261003`.
+The strict verifier authenticates both full capture hashes and observer/footer
+counts, verifies their scalar commits and primary clocks, then compares only the
+bounded engine motion/footprint reference. It rejects whole-journey claims.
+Saved Ghidra readback contains613 roles,53 layouts/328 fields,281 explicit ABIs
+and58 globals with `unsaved=false`.
+
+Validation: full debug/release RoC/TFT pass2412 tests/2427132 assertions per edition.
+All416 Python pathfinding checks and44 fresh corpus contracts pass with141
+source fingerprints; inventory287 entries/129 fixtures/70 strict live entries.
+The required release `make test` also passes.

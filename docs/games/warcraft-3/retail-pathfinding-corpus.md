@@ -1140,3 +1140,28 @@ full debug/release RoC/TFT pass2410 tests/2236214 assertions per edition, and th
 required repository suite passes. Inventory is286 entries/128 fixtures/69
 strict live entries. Historical largest-only and natural-completion contracts
 retain their narrower claims.
+
+## Moving captain initial travel
+
+`live-captain-go-home-captures-261003` authenticates the first/repeat south
+GoHome captures with30000-sample velocity limits. Unlike the capped eastern
+controls, each complete capture has as many recorded velocity commits as its
+footer reports. The strict contract verifies scalar commits and the1000 observed
+primary owner callbacks, then compares the same6251-commit engine reference
+through23.8s:6058 physical commits,193 moving virtual commits and398 shared
+footprints. Both motion and footprint digests repeat exactly.
+
+The scope explicitly requires `complete_scene_journeys=false` and
+`private_retry_continuation_remains_open=true`. A closed capture is not proof
+that the private follower has naturally completed. Whole-pathfinder claims,
+31-second engine claims, missing virtual motion, ordinary-unit actor profiles,
+capped captures, lost500-versus200 range state and reused shared generations
+are rejected by separate negative controls. The literal header is authenticated
+against the capture-derived reference. Inventory is287 entries/129 pinned
+fixtures/70 strict live entries. See [the native implementation](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain)
+for the first remaining retry mismatch at23.91s.
+
+Validation: full debug/release RoC/TFT pass2412 tests/2427132 assertions per edition.
+All416 Python pathfinding checks and44 fresh corpus contracts pass with141
+source fingerprints; inventory287 entries/129 fixtures/70 strict live entries.
+The required release `make test` also passes.

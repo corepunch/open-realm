@@ -206,7 +206,8 @@ static bool move_object_collect(edict_t const *ent) {
     moveFineGraph_t *graph = move_scan->graph;
     movePathQuery_t const *query = move_scan->query;
     if (ent==query->mover || ent==query->target || !move_has_dynamic_occupancy(ent)) return false;
-    uint32_t flags=ent->movement.captain_actor_type ? 0 : S_UnitMoveFineObjectFlags(ent);
+    /* Virtual captains publish ordinary velocity flags once they move. */
+    uint32_t flags=S_UnitMoveFineObjectFlags(ent);
     uint32_t mask = graph->flags;
     mask |= mask << 24;
     if (!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type ? 0x01000002 : 0x010000ca, flags, true}, mask, graph->endpoint)) return false;

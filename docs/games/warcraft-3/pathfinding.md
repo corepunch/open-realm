@@ -675,3 +675,14 @@ prepass collects their zero-reference owner. Ghidra retains the AI+248 creation
 gate and opaque+24c environment. Private AI VM restoration, RemoveUnit/retarget
 and fresh parameter reuse after cancellation remain open.
 See [final-binding evidence](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).
+
+`CaptainGoHome()` now dispatches through the AI player's attack captain into
+Move. Occupied home changes retain the virtual actor's position; explicit GoHome
+moves that radius-zero actor at the slowest retained roster speed and submits
+shared12+1 roster requests. The all-entered callback tightens actor arrival from
+500 to200 while retaining the original500-unit request policy for idle members.
+The actor publishes moving fine-object flags and survives healthless virtual
+owner updates. Two retail captures and actual public AI/save continuations match
+6251 motion commits and398 footprints through23.8s. Private follow retries after
+that point and autonomous occupied-home admission remain open.
+See [CaptainGoHome evidence and limits](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain).

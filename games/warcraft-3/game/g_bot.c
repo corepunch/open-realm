@@ -431,6 +431,11 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     }
 }
 
+void G_BotCaptainGoHome(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (bot) S_CaptainGoHome(bot->captains+BOT_CAPTAIN_ATTACK);
+}
+
 void G_BotSetStagePoint(player_t *player, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;

@@ -608,6 +608,24 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     T_ASSERT(enemy != NULL);
 }
 
+TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_request) {
+    setup_test_world();
+    player_t *player=&game.clients[2].ps;
+    edict_t *unit=make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'),32,64,2,NULL);
+    uint64_t before=level.next_move_group_sequence;
+    T_ASSERT(G_BotStart(player,"test_captain_go_home_near.ai",BOT_CAMPAIGN));
+    G_BotRunFrame();
+    botCaptain_t const *captain=level.bots[2].captains+BOT_CAPTAIN_ATTACK;
+    T_NOT_NULL(level.bots[2].vm); T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_NOT_NULL(captain->home_actor);
+    T_EQ(captain->home_actor->s.origin2.x,128); T_EQ(captain->home_actor->s.origin2.y,256);
+    T_EQ(captain->home_actor->movement.group_id,0);
+    T_EQ(level.next_move_group_sequence,before+1);
+    T_EQ(unit->movement.captain_home.home.x,192);
+    T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+    T_ASSERT(unit->movement.captain_home.active);
+}
+
 TEST(wc3_bot, captain_full_tracks_formation_retry_without_reordering_retained_members) {
     player_t *player = &game.clients[2].ps;
     uint32_t type = MAKEFOURCC('h','f','o','o');

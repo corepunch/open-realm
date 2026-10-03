@@ -1,0 +1,8 @@
+function main takes nothing returns nothing
+    call CreateCaptains()
+    call SetCaptainHome(1,128.0,256.0)
+    call InitAssault()
+    call AddAssault(1,'hfoo')
+    call SetCaptainHome(1,192.0,256.0)
+    call CaptainGoHome()
+endfunction

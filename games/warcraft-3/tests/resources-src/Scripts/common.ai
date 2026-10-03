@@ -70,3 +70,5 @@ native Sleep takes real seconds returns nothing
 native MissingAIAction takes nothing returns nothing
 native MissingAIValue takes nothing returns integer
 native StartCampaignAI takes player num, string script returns nothing
+
+native CaptainGoHome takes nothing returns nothing

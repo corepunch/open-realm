@@ -567,3 +567,23 @@ prepass collects their zero-reference owner. Ghidra retains the AI+248 creation
 gate and opaque+24c environment. Private AI VM restoration, RemoveUnit/retarget
 and fresh parameter reuse after cancellation remain open.
 See [final-binding evidence](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization).
+
+## CaptainGoHome: retained request and moving actor
+
+Payoff68 recovers public `AI_CaptainGoHome` at6f9c40c0, near-home predicate
+6f9d3480, general world-point predicate6f9d2ee0, minimum movement-speed query
+6f9d4c20, retained-request predicate6f9cff90 and idle-roster handler6f9d8a90.
+The public no-argument wrapper is cdecl; captain methods take ECX. Near predicates
+return full normalized EAX0/1 rather than an unspecified upper24 bits.
+`WC3CaptainAIPrefix` keeps length0x128 and now names current point+58/60 and
+retained request range+e4. Existing retained request coordinates+d4/dc remain
+distinct from the current actor destination.
+
+Five typed globals record the500/20000/5000/2/100 constants and their initializer
+addresses. Static PE slots are zero until initialized; the initializer assembly
+is the relevant static evidence. Roles, field names and ABIs are saved and read
+back:613 roles,53 layouts/328 fields,281 explicit ABIs,58 globals, no unsaved
+changes. The accompanying [engine port](retail-pathfinding-engine.md#public-captaingohome-and-moving-virtual-captain)
+matches initial travel through23.8s. The23.91s private fine retry, autonomous
+occupied-home policy and whole moving journeys remain open; these annotations
+do not close the general captain pathfinding contract.
