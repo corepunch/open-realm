@@ -1610,7 +1610,7 @@ TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
 
     hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
     victim->s.player = 1;
-    game.clients[0].jass.handicap_xp = 50.0f;
+    game.clients[0].jass.handicap_xp = 0.5f; /* native multiplier: 50% */
     T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
     game.config.misc.source = custom.source;
 

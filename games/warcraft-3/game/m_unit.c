@@ -1964,6 +1964,10 @@ static float const WC3_XP_CREEP_FACTOR_DEFAULT[] = {
     80.0f, 70.0f, 60.0f, 50.0f, 0.0f
 }; /* BZ_HARDCODED_DATA_FALLBACK: stock HeroFactorXP table. */
 
+static bool G_KillXPDebugEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_kill_xp_debug", "0")) != 0;
+}
+
 static float G_MiscNum(cstring_t key, float fallback) {
     cstring_t const v = Stb_IniCacheFind(&game.config.misc, "Misc", key);
     return (v && *v) ? (float)atof(v) : fallback;
@@ -2111,21 +2115,28 @@ bool G_UnitIsHero(edict_t const *ent) {
          ent->data.UnitBalance->intelligence > 0);
 }
 
+static cstring_t G_HeroKillXPRejectReason(edict_t const *hero, edict_t const *victim,
+                                         edict_t const *killer, float range) {
+    if (!hero->inuse) return "unused";
+    if (!(hero->svflags & SVF_MONSTER)) return "not-monster";
+    if (!hero->data.UnitBalance) return "no-unit-balance";
+    if (hero->health.value <= 0) return "dead";
+    if (hero->hero.suspend_xp) return "xp-suspended";
+    if (hero->aiflags & AI_ILLUSION) return "illusion";
+    if (!G_UnitIsHero(hero)) return "not-hero";
+    if (G_KillXPMiscNum("MaxLevelHeroesDrainExp", 1.0f) == 0.0f &&
+        hero->hero.level >= G_MaxHeroLevel()) return "max-level";
+    if (range >= 0.0f && Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range)
+        return "out-of-range";
+    if (hero->s.player != killer->s.player &&
+        !(hero->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
+          (level.alliances[killer->s.player][hero->s.player] & (1 << ALLIANCE_SHARED_XP))))
+        return "not-owned-or-shared-xp";
+    return NULL;
+}
+
 static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edict_t const *killer, float range) {
-    if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
-        hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
-        !G_UnitIsHero(hero) ||
-        (G_KillXPMiscNum("MaxLevelHeroesDrainExp",
-            1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock max-level Heroes drain XP. */) == 0.0f &&
-         hero->hero.level >= G_MaxHeroLevel()) ||
-        (range >= 0.0f && Vector2_distance(&hero->s.origin2, &victim->s.origin2) > range)) {
-        return false;
-    }
-    if (hero->s.player == killer->s.player) {
-        return true;
-    }
-    return hero->s.player < MAX_PLAYERS && killer->s.player < MAX_PLAYERS &&
-           (level.alliances[killer->s.player][hero->s.player] & (1 << ALLIANCE_SHARED_XP));
+    return G_HeroKillXPRejectReason(hero, victim, killer, range) == NULL;
 }
 
 static bool G_StructureGrantsKillXP(edict_t const *victim) {
@@ -2138,19 +2149,33 @@ static bool G_StructureGrantsKillXP(edict_t const *victim) {
  * divides the available victim XP across all eligible nearby heroes before
  * applying each receiving Hero's creep/player modifiers. */
 void G_GrantKillXP(edict_t *victim, edict_t *killer) {
-    if (!victim || !killer || !victim->data.UnitBalance || (victim->aiflags & AI_ILLUSION)) return;
+    bool const debug = G_KillXPDebugEnabled();
+    if (!victim || !killer) return;
+    if (!victim->data.UnitBalance || (victim->aiflags & AI_ILLUSION)) {
+        if (debug) fprintf(stderr, "WC3 kill XP: skip victim=%u killer=%u reason=%s\n",
+            (unsigned)(victim - globals.edicts), (unsigned)(killer - globals.edicts),
+            !victim->data.UnitBalance ? "no-unit-balance" : "illusion");
+        return;
+    }
     uint32_t receivers = 0;
     if (G_PlayerTreatsPlayerAsAlly(killer->s.player, victim->s.player)) {
+        if (debug) fprintf(stderr, "WC3 kill XP: skip victim=%u owner=%u killer=%u owner=%u reason=allied-victim\n",
+            (unsigned)(victim - globals.edicts), victim->s.player,
+            (unsigned)(killer - globals.edicts), killer->s.player);
         return; /* forced attacks on passive allies do not award Hero XP */
     }
     /* Retail grants no Hero XP when the killing blow comes from a building,
      * unless the map explicitly enables BuildingKillsGiveExp. */
     if (G_UnitIsStructure(killer) && G_KillXPMiscNum("BuildingKillsGiveExp", WC3_XP_BUILDING_KILLS_DEFAULT) == 0.0f) {
+        if (debug) fprintf(stderr, "WC3 kill XP: skip victim=%u killer=%u reason=building-killer\n",
+            (unsigned)(victim - globals.edicts), (unsigned)(killer - globals.edicts));
         return;
     }
     /* Enemy buildings award XP only when they have an authored attack (towers,
      * attacking Ancients, etc.); passive structures such as Farms do not. */
     if (!G_StructureGrantsKillXP(victim)) {
+        if (debug) fprintf(stderr, "WC3 kill XP: skip victim=%u killer=%u reason=passive-structure\n",
+            (unsigned)(victim - globals.edicts), (unsigned)(killer - globals.edicts));
         return;
     }
 
@@ -2183,10 +2208,29 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         baseXP = (uint32_t)(summoned + 0.5);
     }
 
+    if (debug) fprintf(stderr,
+        "WC3 kill XP: death victim=%u code=%08x owner=%u level=%u hero=%u summoned=%u killer=%u code=%08x owner=%u pos=(%.1f,%.1f) base=%u range=%.1f global-config=%.1f hero-table='%s' normal-table='%s'\n",
+        (unsigned)(victim - globals.edicts), victim->data.UnitBalance->id, victim->s.player,
+        victimLevel, victimHero, victim->summon_ability != 0,
+        (unsigned)(killer - globals.edicts), killer->data.UnitBalance ? killer->data.UnitBalance->id : 0,
+        killer->s.player, victim->s.origin2.x, victim->s.origin2.y, baseXP,
+        G_KillXPMiscNum("HeroExpRange", WC3_XP_RANGE_DEFAULT),
+        G_KillXPMiscNum("GlobalExperience", 1.0f),
+        Stb_IniCacheFind(&game.config.misc, "Misc", "GrantHeroXP") ?: "<default>",
+        Stb_IniCacheFind(&game.config.misc, "Misc", "GrantNormalXP") ?: "<default>");
+
     float const range = G_KillXPMiscNum("HeroExpRange", WC3_XP_RANGE_DEFAULT);
 
     FOR_LOOP(i, globals.num_edicts) {
-        if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, range)) {
+        edict_t const *hero = &globals.edicts[i];
+        cstring_t const reason = G_HeroKillXPRejectReason(hero, victim, killer, range);
+        if (reason) {
+            if (debug && hero->inuse)
+                fprintf(stderr, "WC3 kill XP: range candidate hero=%u code=%08x owner=%u level=%u rejected=%s distance=%.1f\n",
+                    i, hero->data.UnitBalance ? hero->data.UnitBalance->id : 0,
+                    hero->s.player, hero->hero.level, reason,
+                    Vector2_distance(&hero->s.origin2, &victim->s.origin2));
+        } else {
             receivers++;
         }
     }
@@ -2198,12 +2242,27 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             1.0f /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 default. */) != 0.0f;
     if (global) {
         FOR_LOOP(i, globals.num_edicts) {
-            if (G_HeroReceivesKillXP(&globals.edicts[i], victim, killer, -1.0f)) {
+            edict_t const *hero = &globals.edicts[i];
+            cstring_t const reason = G_HeroKillXPRejectReason(hero, victim, killer, -1.0f);
+            if (reason) {
+                if (debug && hero->inuse)
+                    fprintf(stderr, "WC3 kill XP: global candidate hero=%u code=%08x owner=%u level=%u rejected=%s distance=%.1f\n",
+                        i, hero->data.UnitBalance ? hero->data.UnitBalance->id : 0,
+                        hero->s.player, hero->hero.level, reason,
+                        Vector2_distance(&hero->s.origin2, &victim->s.origin2));
+            } else {
                 receivers++;
             }
         }
     }
-    if (!receivers || !baseXP) return;
+    if (debug) fprintf(stderr, "WC3 kill XP: receivers victim=%u count=%u mode=%s base=%u\n",
+        (unsigned)(victim - globals.edicts), receivers,
+        global ? "global-fallback" : "range", baseXP);
+    if (!receivers || !baseXP) {
+        if (debug) fprintf(stderr, "WC3 kill XP: no-award victim=%u reason=%s\n",
+            (unsigned)(victim - globals.edicts), !receivers ? "no-eligible-heroes" : "zero-base-xp");
+        return;
+    }
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *h = &globals.edicts[i];
@@ -2212,6 +2271,8 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         }
 
         double factor = 1.0;
+        double creepFactor = 1.0;
+        double handicap = 1.0;
         /* HeroFactorXP is the neutral-creep reduction table indexed by the
          * receiving Hero's level. Enemy player-controlled units and Heroes do
          * not use this reduction, so level-5+ Heroes can keep progressing. */
@@ -2220,11 +2281,16 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
             uint32_t const fallbackIndex = MIN(index,
                 (uint32_t)(sizeof(WC3_XP_CREEP_FACTOR_DEFAULT) /
                            sizeof(WC3_XP_CREEP_FACTOR_DEFAULT[0]) - 1));
-            factor *= (double)G_MiscListNum("HeroFactorXP", index,
+            creepFactor = (double)G_MiscListNum("HeroFactorXP", index,
                 WC3_XP_CREEP_FACTOR_DEFAULT[fallbackIndex]) / 100.0;
+            factor *= creepFactor;
         }
         if (h->s.player < game.max_clients) {
-            factor *= (double)MAX(0.0f, game.clients[h->s.player].jass.handicap_xp) / 100.0;
+            /* The JASS native stores an XP multiplier (1.0 = 100%, 3.0 =
+             * 300%); Blizzard.j's *BJ wrapper converts authored percentages
+             * to this scale before calling SetPlayerHandicapXP. */
+            handicap = (double)MAX(0.0f, game.clients[h->s.player].jass.handicap_xp);
+            factor *= handicap;
         }
 
         double awardValue = ((double)baseXP / (double)receivers) * factor + 0.5;
@@ -2235,11 +2301,19 @@ void G_GrantKillXP(edict_t *victim, edict_t *killer) {
         }
         if (awardValue < 0.0) awardValue = 0.0;
         uint32_t const award = (uint32_t)awardValue;
+        if (debug) fprintf(stderr,
+            "WC3 kill XP: award hero=%u code=%08x owner=%u level=%u xp-before=%u victim=%u receivers=%u base=%u creep-factor=%.3f handicap-multiplier=%.3f total-factor=%.3f award=%u\n",
+            i, h->data.UnitBalance->id, h->s.player, h->hero.level, h->hero.xp,
+            (unsigned)(victim - globals.edicts), receivers, baseXP,
+            creepFactor, handicap, factor,
+            award);
         if (award > 0 && UINT32_MAX - h->hero.xp >= award) {
             G_HeroSetXP(h, h->hero.xp + award);
         } else if (award > 0) {
             G_HeroSetXP(h, UINT32_MAX);
         }
+        if (debug) fprintf(stderr, "WC3 kill XP: result hero=%u xp-after=%u level-after=%u\n",
+            i, h->hero.xp, h->hero.level);
     }
 }
 
