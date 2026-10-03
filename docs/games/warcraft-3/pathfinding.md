@@ -6,6 +6,13 @@ rebuilds static lane classifications after terrain edits, and resumes saved
 travel with exact position/heading/velocity words. Special edges, original route
 handoff timing and complete retail trajectories remain work in progress.
 
+Static blocker removal now publishes its footprint change before subsequent
+requests. Direct free clears live/dead-rubble footprints; public `RemoveUnit`
+invalidates them immediately when hiding a building, before deferred free.
+Overlapping objects and terrain remain authoritative, and obsolete fields and
+adaptive classifications cannot be reused. Actual gold depletion and public
+same-callback Move are covered. See [blocker lifecycle integration](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).
+
 Public JASS Move/Smart batches now have a [Move-owned shared physical group](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner):
 a separate group route, retained formation slots and all-member decisions before
 velocity commits. A complete public pair matches115 original commits and87 saved

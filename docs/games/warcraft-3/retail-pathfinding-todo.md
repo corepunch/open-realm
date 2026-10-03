@@ -8,22 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**146 done / 336 tasks; 190 remaining.** Payoff70 closes GROUP-03.4.7.2.2.1:
-one-point exhausted fine reconstruction retains its exact source, intermediate
-coarse consumption preserves retry and explicitly stops motion independently
-of the turn window. The public GoHome scene matches7933 commits (327 virtual)
-and812 shared footprints through the30-second observer completion marker;
-eight checkpoints reproduce7310 exact saved suffix commits. Existing6251/7419
-references remain independently exact after the upstream AI merge. Ghidra saves
-613 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
-Inventory289 entries/131 fixtures/72 strict live entries. Full validation is
-recorded with [the engine payoff](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
-The next runnable ID is GROUP-03.4.7.2.2.2: extend observation beyond the
-authored30-second marker and compare later private retry travel through natural
-completion. GROUP-03.4.7.3 retains autonomous occupied-home, retreat, empty and
-larger-roster policy. Final-binding RemoveUnit/retarget remains
-03.4.6.2.2.2.2.2. Private AI VM restoration remains open; new checkpoints occur
-after the public GoHome call.
+**148 done / 336 tasks; 188 remaining.** Payoff71 closes existing MAP-03.5
+and MAP-03.6 together, with no new TODO IDs: actual resource depletion,
+destructible destruction/restoration and final removal preserve overlapping
+footprints and restore the hierarchy before the next request. The engine now
+owns static invalidation in direct/deferred free, including public same-callback
+Move after building removal. Two retail repeats agree on26 geometry snapshots,
+eight fresh fine requests and764 exact velocity/position/facing commits.
+Release RoC/TFT each pass2481 tests/2804207 assertions; required `make test`,
+454 Python checks and four fresh lifecycle/widget contracts pass. Saved Ghidra
+readback has616 roles,53 layouts/328 fields,284 explicit ABIs and58 globals.
+Inventory290 entries/132 fixtures/73 strict live contracts. See
+[blocker lifecycle integration](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).
+Next work prioritizes existing ordinary map/footprint tasks. MAP-02.3's authored
+creation-order experiment already exposes public destructible position snapping
+and the engine's missing authored fixed-rotation angle; neither is counted as
+completed yet. Extended captain travel and its existing follow-ups remain open.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -35,7 +35,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | Area | Done | Remaining |
 | --- | ---: | ---: |
 | BASE — Baseline and reproducibility | 16 | 10 |
-| MAP — Map construction and lifetime | 7 | 15 |
+| MAP — Map construction and lifetime | 9 | 13 |
 | FOOT — Footprints and query policy | 11 | 7 |
 | FINE — Fine search | 6 | 6 |
 | ACC — Adaptive search | 3 | 10 |
@@ -291,8 +291,8 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 - [x] **MAP-03.2** Widget rasterization covers 144 overlapping sequences and 96 paired reapply/remove lifecycles. Evidence: [widget lifecycle][widgets]; file loading, growth and full gameplay travel remain excluded.
 - [ ] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered producers separate IDs.
 - [x] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; retain its original produced query masks/region state and assert footprint refresh and route state throughout. Evidence: [stock Footman journey](retail-pathfinding-search.md#stock-footman-mask-through-widget-escape), original rawcode/profile getters and05c7e0 bridge publish02000002 before uninterrupted admission; unchanged proposal/footprint,13 exact velocity/position ticks, frozen per-tick route indices/count/flags, arrival, queue drain and complete reclamation. Seven-tick terrain-only control remains explicit. [Idle engine admission](retail-pathfinding-engine.md#widget-escape-idle-admission) is integrated/tested. Observed profile/cache/custom radius and direct group cadence are supplied; full public constructor/notification and authored parsing remain BASE-03.1/MAP-02/03.3; inside-footprint engine integration is03.7.
-- [ ] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request.
-- [ ] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker.
+- [x] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request. Evidence: [blocker lifecycle](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation), actual lumber and six-gold mine depletion repeat, preserve an overlapping tree, restore the fine patch and all four hierarchy levels before fresh point requests. Engine partial final gold extraction invalidates the cached field and warmed adaptive map; public building removal refreshes the same-callback Move and reaches its goal.
+- [x] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker. Same [lifecycle evidence](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation): complete original collection retirement through real Storm403 free and Widget+34=NULL; gate Kill/Restore/Remove restores all observed grids before the next request. Reproduce six engine failures, then central direct/deferred free invalidates static fields/classifications while preserving independent terrain, overlap and retained nonempty death textures until actual removal.
 - [x] **MAP-03.7** Explicitly add inside-footprint engine escape integration: retain static terrain/object masks, reproduce idle(0,-64) inside9×9 active construction, verify failure and interruption/Stop cleanup through normal frames. Evidence: [solid recovery](retail-pathfinding-search.md#solid-widget-cant-path-recovery), frozen original stock-mask solid9×9 variant completes after seven stationary1/32 group ticks and restores queues/group/path/task/order/wrapper pools; fresh134/134 corpus. [Engine integration](retail-pathfinding-engine.md#solid-footprint-escape-failure-and-cleanup) reproduces three stuck-lifecycle failures, then uses existing progress budget for statically blocked displacement and normal stand/queue completion. Margin escape, replacement Move, Stop, terrain and unrelated-building blocking pass. Exact engine retry/task cadence remains NUM-02.3; no static collision bypass or whole-trajectory claim.
 
 - [x] **MAP-03.8** Port public terrain pathing queries/writes into the engine, preserve independent bits/cells, compose blocked placement, and retain the mutable terrain through save/load. Evidence: [terrain natives reach the engine](retail-pathfinding-engine.md#terrain-pathing-natives-reach-the-engine), 1,040 complete original public query/write cases (3,130 native calls), exact production scalar/flag helpers at O0/O2 twice, real JASS queries/edits and six frozen public placement endpoints, Save64 terrain/Blight round-trip. Legacy field-cache invalidation is explicit; original adaptive update timing and the broader invalidation producers remain03.3.

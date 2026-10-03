@@ -9171,10 +9171,34 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
-    edict_t *miner = add_gold_worker(0.0f, 0.0f);
-    edict_t *waiter = add_gold_worker(0.0f, 0.0f);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 1024,1024);
+    edict_t *miner = add_gold_worker(752,1024);
+    edict_t *waiter = add_gold_worker(752,1152);
     setup_test_goldmine(mine, &test_goldmine_cap1, 6);
+    mine->svflags|=SVF_MONSTER;
+    miner->svflags|=SVF_MONSTER;
+    waiter->svflags|=SVF_MONSTER;
+    mine->pathtex=movement_make_goldmine_pathtex();
+    mine->s.flags|=EF_BUILDING;
+    mine->die=unit_die;
+    CM_BakeStaticObstacles();
+    vec2_t center=mine->s.origin2, source={752,1024}, target={1296,1024}, out;
+    uint32_t generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536);
+    T_ASSERT(CM_ActivateCachedFlow(generation));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                          .mover=miner,.units=true};
+    moveFineRoute_t route={0};
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0);
+    miner->movement.fine_route=route;
+    S_FreeMoveRoute(miner);
+    memset(&route,0,sizeof(route));
     HARVEST_GOLD_CAPACITY = 10.0f;
     miner->goalentity = miner->secondarygoal = mine;
     waiter->goalentity = waiter->secondarygoal = mine;
@@ -9192,9 +9216,79 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     T_ASSERT(!S_GoldMineWorkerIsInside(waiter));
     T_ASSERT(!(waiter->s.renderfx & RF_HIDDEN));
     T_STREQ(waiter->currentmove->animation, "stand");
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    /* The pre-depletion query charged this mover's ordinary fine-search
+     * throttle; the next request runs at its next admissible pathing tick. */
+    level.pathing_counter+=BZ_WC3_FINE_REQUEST_INTERVAL;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0 && !route.partial);
+    miner->movement.fine_route=route;
+    S_FreeMoveRoute(miner);
+    gi.MemFree(mine->pathtex);
+    mine->pathtex=NULL;
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+    reset_entities(); setup_test_world();
+}
+
+/* Public RemoveUnit hides the building before deferred reclamation. Both the
+ * same-callback request and the following normal frames must use that grid. */
+TEST(wc3_movement, removed_buildings_refresh_same_callback_route_and_field) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit b\nunit c\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set b=CreateUnit(Player(0),'hbar',1024,1024,0)\n"
+        "set c=CreateUnit(Player(0),'hbar',1024,1024,0)\n"
+        "set mover=CreateUnit(Player(0),'hfoo',752,1024,0)\nendfunction\n"
+        "function first takes nothing returns nothing\ncall RemoveUnit(b)\nendfunction\n"
+        "function second takes nothing returns nothing\ncall RemoveUnit(c)\n"
+        "call IssuePointOrder(mover,\"move\",1296,1024)\nendfunction\n"));
+    edict_t *buildings[2]={0}, *mover=NULL; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse) {
+        if(ent->class_id==MAKEFOURCC('h','b','a','r') && count<2) buildings[count++]=ent;
+        if(ent->class_id==MAKEFOURCC('h','f','o','o')) mover=ent;
+    }
+    T_EQ(count,2); T_ASSERT(mover);
+    if(count!=2 || !mover) return;
+    pathTex_t *texture=movement_make_goldmine_pathtex();
+    FOR_LOOP(i,2) { buildings[i]->pathtex=texture; buildings[i]->s.flags|=EF_BUILDING; }
+    CM_BakeStaticObstacles();
+    vec2_t center={1024,1024}, source=mover->s.origin2, target={1296,1024};
+    uint32_t generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536); T_ASSERT(CM_ActivateCachedFlow(generation));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                          .mover=mover,.units=true};
+    moveFineRoute_t route={0}; vec2_t out;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0);
+    mover->movement.fine_route=route;
+    S_FreeMoveRoute(mover);
+    jass_callbyname(level.vm,"first",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IsDeferredFree(buildings[0]));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536); T_ASSERT(CM_ActivateCachedFlow(generation));
+    jass_callbyname(level.vm,"second",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IsDeferredFree(buildings[1]));
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    G_RunDeferredFrees();
+    FOR_LOOP(i,2) T_ASSERT(!buildings[i]->inuse);
+    gi.MemFree(texture);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,100) {level.time+=100;globals.RunFrame();}
+    T_ASSERT(Vector2_distance(&mover->s.origin2,&target)<16);
+    T_EQ(mover->current_order_id,0);
+    reset_entities(); setup_test_world();
 }
 
 /* Haunted mining keeps the underlying Agld unit as the sole resource pool.

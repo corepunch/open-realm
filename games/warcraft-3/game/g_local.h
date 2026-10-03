@@ -3363,6 +3363,7 @@ void T_Damage(edict_t *, edict_t *, int);
 // g_utils.c
 bool G_UnitIsWorldActive(edict_t const *);
 void G_FreeEdict(edict_t *);
+bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
 bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);

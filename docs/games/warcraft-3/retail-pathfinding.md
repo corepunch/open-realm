@@ -606,3 +606,13 @@ layouts/328 fields,284 explicit ABIs and58 globals. The engine matches7933
 motion commits,812 footprints and7310 saved suffix commits through the30-second
 observer marker. Natural completion remains open. See
 [partial refill and stopped handoff](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff).
+
+Payoff71 completes public lumber/gold depletion, overlapping destructible
+retirement and gate destruction/restoration through real final collection free.
+`650c00` retires regions and calls Storm403 before clearing Widget+34;
+`6c12f0` swaps alive/dead pathing and `6c3790` restores the alive footprint.
+Saved readback now has616 roles,53 layouts/328 fields,284 explicit ABIs and58
+globals, no unsaved changes. The engine invalidates static fields and adaptive
+classifications in direct and deferred free, including same-callback public
+Move after building removal. Two repeats preserve26 geometry snapshots and764
+exact numerical commits. See [blocker lifecycle integration](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).

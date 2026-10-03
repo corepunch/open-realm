@@ -156,6 +156,9 @@ static vec2_t flow_at_cell(float cell_x, float cell_y) {
  * G_SolveCollisions (which skips entities with model == 0). */
 static edict_t *make_unit_at(float x, float y) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    /* Runtime units are dynamic occupants. In particular, freeing an idle
+     * peer must not bake the surviving mover into the static terrain. */
+    ent->svflags |= SVF_MONSTER;
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = 16.0f;
     ent->s.model   = 1;

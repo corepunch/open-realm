@@ -89,6 +89,12 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #include "common/world_w3.c"
 #include "server/sv_routing.c"
 
+/* Use the bake's predicate for lifecycle invalidation, including dead rubble
+ * and live bridge decks that replace terrain rather than adding a blocker. */
+bool G_EntityHasStaticPathing(edict_t const *ent) {
+    return entity_blocks_static_pathing(ent);
+}
+
 /* Map extents/dimensions describe cell sizes; simulation coordinates then use
  * the direct software transform. Stock WC3 WPM cells are32 world units. */
 static vec2_t move_grid_from_world(float x, float y) {

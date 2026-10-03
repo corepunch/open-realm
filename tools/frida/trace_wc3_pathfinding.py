@@ -106,7 +106,7 @@ def main():
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
     source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
-                    Path(__file__).with_name('wc3_pathfinding_probe.j'),
+                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
                     Path(__file__).with_name('wc3_angle_inputs.json'),
@@ -215,7 +215,7 @@ def main():
                             'pixel':point_plan[clicked]['pixel'],'key':'m','button':1,'shift':args.point_click_shift})
                     clicked += 1
                 time.sleep(0.1)
-            record({'event': 'trace-end', **script.exports_sync.status()})
+            record({'event': 'trace-end', **script.exports_sync.finish()})
             if errors:
                 raise RuntimeError('; '.join(errors))
         except Exception as error:
@@ -223,14 +223,16 @@ def main():
             raise
         finally:
             try:
-                if session is not None:
-                    session.detach()
-            finally:
+                # An owned target may keep entering hot hooks while detach waits.
+                # Finish freezes the footer first; kill only our spawned process.
                 if args.pid is None and pid is not None:
                     try:
                         device.kill(pid)
                     except frida.ProcessNotFoundError:
                         record({'event': 'owned-process-already-exited', 'pid': pid})
+            finally:
+                if session is not None:
+                    session.detach()
 
 
 if __name__ == '__main__':

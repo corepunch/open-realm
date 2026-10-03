@@ -1,5 +1,5 @@
 // WC3 1.27.1.7085. Entry/exit observers; no gameplay calls or target data writes.
-let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
+let installed = false, samples = 0, serial = 0, rebuildSamples = 0, recording = true;
 let widgetScenario = false;
 let numericCase = null;
 let randomCase = null;
@@ -11,8 +11,8 @@ const resizeTargets = new Map();
 let clockScenario = false, clockSerial = 0;
 const counts = {}, active = new Map();
 const headingActive = new Map();
-const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
-const bump = kind => {counts[kind] = (counts[kind] || 0) + 1;};
+const emit = (event, data = {}) => {if (recording) send({event, ms: Date.now(), ...data});};
+const bump = kind => {if (!recording) return; counts[kind] = (counts[kind] || 0) + 1;};
 const ints = (p, n) => Array.from({length: n}, (_, i) => p.add(i * 4).readS32());
 
 // Preserve arbitrary byte strings; UTF-8 readCString would reject some public inputs.
@@ -1698,6 +1698,49 @@ function install(module) {
         }
         emit('oblique-geometry', {width,height,terrainRuns:runs(terrain),objectRuns:runs(objects),hierarchy});
     }
+    function snapshotBlockerGeometry(marker) {
+        const owner = base.add(0xd53a48).readPointer();
+        if (owner.isNull()) throw new Error('Blocker snapshot without pathing owner');
+        const fine = owner.add(0x238).readPointer(), [width,height] = ints(fine.add(0x3c),2);
+        const minX=config.watchCell[0]-8, minY=config.watchCell[1]-8, size=16;
+        if (minX<0 || minY<0 || minX+size>width || minY+size>height)
+            throw new Error('Blocker snapshot outside fine grid');
+        const data=fine.add(0x28).readPointer(), links=fine.add(0x78).readPointer(), masks=[];
+        for (let y=minY;y<minY+size;y++) for (let x=minX;x<minX+size;x++) {
+            const word=data.add((y*width+x)*4).readU32(), seen=new Set();
+            let blocked=(word>>>24)&2, at=word&0xffffff, count=0;
+            while (at!==0xffffff) {
+                if (++count>4096) throw new Error('Blocker snapshot link chain did not terminate');
+                const link=links.add(at*8), head=link.readU32(), kind=head>>>24;
+                if (kind!==2) {
+                    const object=link.add(4).readPointer(), key=object.toString();
+                    const category=object.add(0x34).readU32();
+                    if (object.add(0x38).readS32()!==-1 && (category&0x01000000) && !seen.has(key)) {
+                        // 1489a0 visits before testing kind: a retired newer link
+                        // suppresses older active history for this same region.
+                        seen.add(key);
+                        if (kind===1 && (category&255)===0xc2 &&
+                            !(object.add(0x40).readU32()&0xefffffff)) blocked=2;
+                    }
+                }
+                at=head&0xffffff;
+            }
+            masks.push(blocked);
+        }
+        const hierarchy=[];
+        for (let level=0;level<4;level++) {
+            const map=owner.add(0x23c+level*4).readPointer(), [w,h]=ints(map.add(0x3c),2);
+            const shift=level+1, box=[minX>>shift,minY>>shift,(minX+size-1)>>shift,(minY+size-1)>>shift];
+            const cells=map.add(0x28).readPointer(), values=[];
+            for(let y=box[1];y<=box[3];y++) for(let x=box[0];x<=box[2];x++) {
+                if(x>=w || y>=h) throw new Error('Blocker snapshot outside hierarchy');
+                const word=cells.add((y*w+x)*8+4).readU32();
+                values.push([0,2,4,6].map(s=>(word>>>(30-s))&3));
+            }
+            hierarchy.push({level,box,values});
+        }
+        emit('blocker-geometry',{marker,width,height,box:[minX,minY,minX+size,minY+size],masks,hierarchy});
+    }
     function snapshotCells(marker) {
         if (!config.watchCell) return;
         const owner = base.add(0xd53a48).readPointer(), cells = [];
@@ -1732,6 +1775,10 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if (value.startsWith('PATHLIFE ')) {
+            emit('blocker-lifecycle-marker',{value});
+            if (config.watchCell) snapshotBlockerGeometry(value);
+        }
         if (value.startsWith('PATHCAPTAIN ')) emit('captain-marker',{value});
         if (value.startsWith('PATHPAIR ')) emit('pair-marker',{value});
         if (value.startsWith('PATHDOZEN ')) emit('twelve-marker',{value});
@@ -1763,7 +1810,7 @@ function install(module) {
         if (value.startsWith('PATHTRACE ')) {
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
-            if (value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
+            if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))
                 widgetScenario = true;
             if ((value.includes('label=start_captain_home ') || value.includes('label=start_captain_point ') || value.includes('label=start_point_bound_matrix ') || value.includes('label=start_outside_west ') || value.includes('label=start_blocked_goal ') || value.includes('label=start_group_radius_grow ') || value.includes('label=start_group_radius_shrink ') || value.includes('label=start_group_radius_remove ') || value.includes('label=start_moving_radius_matrix ') || value.includes('label=start_moving_radius ') || value.includes('label=start_group_pair ') || value.includes('label=start_group_twelve ') || value.includes('label=start_selected_point_pair ') || value.includes('label=start_selected_point_queued_pair ') || value.includes('label=start_selected_point_mixed_pair ') || value.includes('label=start_selected_point_independent_pair ') || value.includes('label=start_follow_velocity ') || value.includes('label=start_follow_target_remove_reuse ') || value.includes('label=start_follow_target_kill_reuse ') || value.includes('label=start_follow_target_xy ') || value.includes('label=start_follow_target_position ') || value.includes('label=start_follow_target_travel_xy ') || value.includes('label=start_follow_target_travel_position ') || value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate '))) pairScenario = true;
             if (value.includes('label=start_follow_target_grow ') || value.includes('label=start_follow_target_shrink ') || value.includes('label=start_follow_target_resize_gate ')) resizeScenario = true;
@@ -1865,4 +1912,5 @@ function install(module) {
 }
 
 Process.attachModuleObserver({onAdded: install});
-rpc.exports = {status() {return {installed, samples, counts};}};
+rpc.exports = {status() {return {installed, samples, counts};},
+    finish() {recording = false; return {installed, samples, counts};}};

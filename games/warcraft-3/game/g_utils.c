@@ -59,6 +59,7 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
+    bool const had_static_pathing = G_EntityHasStaticPathing(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
@@ -99,6 +100,7 @@ void G_FreeEdict(edict_t *ent) {
     gi.UnlinkEntity(ent);
     memset(ent, 0, sizeof(*ent));
     ent->freetime = level.time;
+    if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
 /* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
@@ -110,7 +112,11 @@ void G_DeferFreeEdict(edict_t *ent) {
         fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
         return;
     }
+    bool const had_static_pathing = G_EntityHasStaticPathing(ent);
     ent->s.renderfx |= RF_HIDDEN;
+    /* RemoveUnit becomes absent now; a route issued in the same JASS callback
+     * must already see the remaining footprints and terrain baseline. */
+    if (had_static_pathing) CM_BakeStaticObstacles();
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);

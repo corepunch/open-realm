@@ -366,7 +366,6 @@ bool G_RemoveDestructable(edict_t *ent) {
     }
     unit_leavecombat(ent);
     G_FreeEdict(ent);
-    CM_BakeStaticObstacles();
     return true;
 }
 

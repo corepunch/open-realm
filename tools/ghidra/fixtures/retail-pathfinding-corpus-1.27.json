@@ -24319,6 +24319,153 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-blocker-lifecycle-captures-261003",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_blocker_lifecycle_trace.py",
+        "{archive}/runtime/blocker-lifecycle-v2-first-261003.jsonl",
+        "{archive}/runtime/blocker-lifecycle-v2-repeat-261003.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-blocker-lifecycle-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "report": "blocker-lifecycle-captures.json",
+      "inputs": {
+        "capture": "runtime/blocker-lifecycle-v2-first-261003.jsonl",
+        "sha256": "972b377ff83b2374829338f27d311e98ba00dbda2effe3f4e9d7028b7fbb4202",
+        "bytes": 6613200,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+            "wc3_pathfinding.js": "497c2d7b97b93fbe8b59d1a00e9517d69217ac5c66f5cb0d600d4cda85837a0c",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "048ab80a9c95515994228e7615b86cf07f75c5c3770bfa01fa8aae3e07893daa"
+          },
+          "map": "Maps\\PathingRE-BlockerLifecycleV2-261003.w3m",
+          "seconds": 150.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": [
+            163,
+            78
+          ],
+          "blockers": false,
+          "taskEvents": true,
+          "widgetEvents": true,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "expected_exit": 0,
+      "expected_status": "pass",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "snapshots": {
+          "equal": 26
+        },
+        "fresh_requests": {
+          "equal": 8
+        },
+        "exact_velocity_commits": {
+          "equal": 764
+        },
+        "whole_retail_pathfinder": {
+          "equal": false
+        }
+      },
+      "scope": "Public lumber and gold depletion, overlapping trees, gate destruction/restoration and actual collection free restore fine/static footprints and all hierarchy parents before four subsequent requests per repeat. Engine direct/deferred removal invalidates fields and adaptive maps; ordinary Move reaches the reopened goal.",
+      "evidence": "SOCL",
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/blocker-lifecycle-v2-repeat-261003.jsonl",
+            "sha256": "a5d7bef6aa8a904e8efa42d5b1cc8e951c047a3084a30ea2cf211b8ace239d3a",
+            "bytes": 6613201,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "d0bcfb3647d9aa3768ec5ed32301bad34c6bf31c980cfbca697e488b92f48f1a",
+                "wc3_pathfinding.js": "497c2d7b97b93fbe8b59d1a00e9517d69217ac5c66f5cb0d600d4cda85837a0c",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "make_wc3_pathfinding_map.py": "c9355da4b91165342c581f62507c5db783cd38be1b8c3a6f1456b07550ad6c51",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "048ab80a9c95515994228e7615b86cf07f75c5c3770bfa01fa8aae3e07893daa"
+              },
+              "map": "Maps\\PathingRE-BlockerLifecycleV2-261003.w3m",
+              "seconds": 150.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": [
+                163,
+                78
+              ],
+              "blockers": false,
+              "taskEvents": true,
+              "widgetEvents": true,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -24846,6 +24993,10 @@
     {
       "path": "tools/ghidra/fixtures/retail-captain-refill-1.27.json",
       "sha256": "9f7600f35070d851e2a3d3f63781e2e7aadb35f04e53b099bad20bb5b07061ef"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocker-lifecycle-1.27.json",
+      "sha256": "f49503524935ac76f3935491c86cb05a5c06cc266f6fff8c9c472138be6792d6"
     }
   ]
 }

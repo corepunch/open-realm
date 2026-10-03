@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **274 entries**: **45** distinct original-code oracle
-scripts plus **51** declared variants, **121** archived JSONL audits and **57**
+The inventory now has **290 entries**: **45** distinct original-code oracle
+scripts plus **51** declared variants, **121** archived JSONL audits and **73**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1206,3 +1206,12 @@ Payoff70 validation:46 fresh contracts pass with143 source fingerprints;447
 Python pathfinding checks and the required release `make test` pass. Debug/
 release RoC/TFT each pass2477 tests/2804132 assertions. These results certify
 the30-second combined observer domain; longer travel remains open.
+
+Payoff71 adds `live-blocker-lifecycle-captures-261003`: two actual public
+resource/destructible lifetimes,26 fine/hierarchy snapshots, eight following
+fine requests and764 exact scalar velocity/position/facing commits. Seven
+nonnull collections per run retire through the complete native free. Negative
+controls reject retained footprints/hierarchy, missing depletion, missing fine
+requests, incomplete collection retirement and failed/late observation.
+The inventory now has290 entries/132 fixtures/73 strict live contracts.
+See [the engine removal fix](retail-pathfinding-engine.md#blocker-removal-owns-static-route-invalidation).

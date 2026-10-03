@@ -6478,3 +6478,89 @@ The required release `make test` passes, as do all447 Python pathfinding checks
 and46 fresh strict corpus contracts with143 source fingerprints. Corpus
 inventory is289 entries/131 fixtures/72 strict live entries. The saved Ghidra
 readback and both earlier GoHome references remain green.
+
+## Blocker removal owns static route invalidation
+
+Payoff71 closes the existing MAP-03.5 and MAP-03.6 lifecycle tasks together.
+`G_FreeEdict` previously cleared a static blocker without rebuilding its baked
+footprint. Deferred public `RemoveUnit` also hid a building without publishing
+that change to the static map. Both paths could retain an obsolete flow field
+and adaptive classification. The regression reproduces six failures across
+live destructibles and retained dead rubble: the removed cell stays blocked,
+the old field still activates, and the next direct segment remains obstructed.
+
+The game now uses the bake's existing static-entity predicate before removal.
+Direct free rebuilds after the edict is cleared; deferred removal rebuilds as
+soon as `RF_HIDDEN` becomes authoritative. Final reclamation of that already
+hidden unit needs no second bake. `G_RemoveDestructable` delegates invalidation
+to central free. Rebuilding from the mutable terrain baseline preserves other
+objects at the same location and live bridge decks. Nonempty death textures
+remain blocking until their owner is actually removed. The existing revision
+invalidates flow fields and causes Move to rebuild all static adaptive lanes
+on its next request. No saved state or client contract changes.
+
+The dedicated public `blocker_lifecycle` JASS scene uses actual worker Harvest
+orders, overlapping stock `LTlt` trees, a six-gold `ngol`, and an `LTg1` gate.
+Two uninterrupted retail runs agree on all13 lifecycle snapshots and all376
+motion decisions/382 velocity, position and facing commits per run. Four fresh
+point orders per run execute fine searches after the new grids are published.
+Seven nonnull pathing collections per run return from complete `650c00` with
+`Widget+34 == NULL`; Ghidra identifies the real region retirement and Storm403
+free before that store. This closes the former emulator's final-free exclusion
+for these public lifetimes.
+
+The watched16×16 fine patch is `[155,70,171,86)` on the original384×256 map.
+Effective **static blue** occupancy includes terrain and eligible widgetc2
+regions, excludes dynamic unitca regions, and respects the original lazy-link
+visit order: mark an eligible object seen before testing link kind. A retired
+newer link suppresses older active history for that same object. The observer
+uses a local set and writes no game state. All four native hierarchy levels,
+including an unchanged highest mixed parent, are compared separately.
+
+| Public state | Blocked fine cells | Changed hierarchy cells by level vs baseline |
+| --- | ---: | --- |
+| Baseline | 80 | 0 / 0 / 0 / 0 |
+| Both trees / first tree harvested with peer retained | 96 | 4 / 4 / 2 / 0 |
+| Both trees removed | 80 | 0 / 0 / 0 / 0 |
+| Mine with six gold | 144 | 16 / 4 / 2 / 0 |
+| Mine depleted / finally removed | 80 | 0 / 0 / 0 / 0 |
+| Gate alive / restored | 120 | 10 / 5 / 2 / 0 |
+| Gate killed / finally removed | 80 | 0 / 0 / 0 / 0 |
+
+Engine tests exercise direct live/dead-rubble free, death/restoration/removal
+with overlapping footprints and independent terrain, real partial final gold
+extraction with a waiting worker, warmed adaptive routing, and two overlapping
+buildings removed through public JASS. The latter submits Move in the same
+callback and reaches its goal through ordinary frames. Field activation fails
+for obsolete generations before reclamation. The allocator-only mining fixture
+must explicitly use `SVF_MONSTER`, like runtime units; otherwise its workers
+become static blockers. Its next fine search also respects the ordinary request
+throttle instead of requesting twice at the same pathing counter.
+
+Frozen acceptance is `tools/ghidra/fixtures/retail-blocker-lifecycle-1.27.json`
+and `live-blocker-lifecycle-captures-261003` in the strict corpus. Raw captures,
+map and authenticated controller/observer sources remain under
+`runtime/blocker-lifecycle-v2-{first,repeat}-261003.jsonl` and
+`runtime/blocker-lifecycle-source-v2-261003/` outside the repository. The first
+probe spawned the worker in terrain and failed depletion; it is rejected,
+not a resource witness. The corrected scene approaches from the open south.
+The observer freezes its own output/counts before its footer and kills only
+its owned spawned process before detaching, avoiding cleanup stalls in hot
+hooks. Attached processes retain their lifecycle.
+
+Saved Ghidra readback adds `Destructable_EnterDeath`,
+`Destructable_RestoreLife`, and `Widget_RetirePathing`:616 roles, unchanged53
+layouts/328 fields,284 explicit ABIs and58 globals, `unsaved=false`.
+General dynamic coarse publication and the complete producer inventory remain
+MAP-03.3. This contract covers blue widget lifetimes, not every authored mask
+or complete retail resource-worker motion in OpenRealm.
+
+Payoff71 validation: required release `make test` passes; RoC/TFT each pass2481
+tests/2804207 assertions. Debug affected suites pass:45 destructible tests/318
+assertions,79 pathfinding tests/650 assertions, and the focused mining/removal
+checks. The initial full debug run exposed an allocator-only idle-unit fixture
+without `SVF_MONSTER`; the corrected helper mirrors runtime dynamic occupancy.
+454 Python pathfinding checks and four fresh strict widget/lifecycle contracts
+pass with145 source fingerprints. Backlog148 done/188 remaining; no task IDs
+were added. This validates removal and next-request behavior, not a complete
+OpenRealm reproduction of the retail worker trajectories.

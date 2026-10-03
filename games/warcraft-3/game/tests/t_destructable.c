@@ -467,6 +467,84 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
 }
 
+/* Free is also a pathing producer: callers need not issue a separate bake.
+ * Keep a field alive across the removal so stale cache reuse is observable. */
+TEST(wc3_destructable, final_free_retires_static_footprint_and_cached_field) {
+    uint8_t cells[32 * 32] = {0};
+    vec2_t center = {272,272}, source = {144,272}, target = {496,272}, out;
+
+    FOR_LOOP(dead,2) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+        CM_SetupTestPathmap(32,32,cells);
+        edict_t *dest=make_test_destructable(10,center.x,center.y);
+        dest->pathtex=dest->destructable.alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+        if(dead) {
+            dest->destructable.death_pathtex=dest->pathtex;
+            T_ASSERT(G_KillDestructable(dest,NULL));
+        } else CM_BakeStaticObstacles();
+        edict_t *goal=Waypoint_add(&target);
+        uint32_t generation=CM_BuildHeatmapForRadius(goal,16);
+        CM_ProcessPathJobs(8192);
+        T_ASSERT(CM_ActivateCachedFlow(generation));
+        T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+
+        G_FreeEdict(dest);
+        T_ASSERT(!dest->inuse);
+        T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+        T_ASSERT(!CM_ActivateCachedFlow(generation));
+        edict_t *mover=make_destructable_test_attacker(source.x,source.y);
+        mover->collision=16;
+        movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                              .mover=mover,.units=true};
+        moveFineRoute_t route={0};
+        T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+        T_ASSERT(route.adaptive_count>0);
+        T_ASSERT(!route.partial);
+        mover->movement.fine_route=route;
+        S_FreeMoveRoute(mover);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_destructable, death_restore_remove_preserve_overlapping_blocker_and_terrain) {
+    uint8_t cells[32 * 32]={0};
+    vec2_t center={272,272}, terrain={592,272}, target={496,272};
+    reset_entities(); setup_test_world();
+    cells[18+8*32]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+    CM_SetupTestPathmap(32,32,cells);
+    edict_t *a=make_test_destructable(10,center.x,center.y);
+    edict_t *b=make_test_destructable(10,center.x,center.y);
+    a->pathtex=a->destructable.alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    b->pathtex=b->destructable.alive_pathtex=a->pathtex;
+    b->destructable.death_pathtex=b->pathtex;
+    CM_BakeStaticObstacles();
+    edict_t *goal=Waypoint_add(&target);
+    uint32_t old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+
+    T_ASSERT(G_DestructableApplyDamage(a,NULL,10));
+    T_ASSERT(a->destructable.dead);
+    T_ASSERT(!a->destructable.pathing_active);
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_RestoreDestructable(a,10,false));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_KillDestructable(b,NULL));
+    T_ASSERT(b->destructable.pathing_active);
+    T_ASSERT(G_RemoveDestructable(a));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+    G_FreeEdict(b);
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&terrain,0));
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     static DestructableData_t const bridge_data = { .walkable = true };
     uint8_t cells[8 * 8] = { 0 };
