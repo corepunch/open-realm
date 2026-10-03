@@ -19,7 +19,7 @@ static float bolt_missile_speed(uint32_t code) {
 }
 
 static void thunderbolt_projectile_hit(edict_t *missile) {
-    edict_t *target = missile->goalentity;
+    edict_t *target = S_SpellProjectileTarget(missile);
     edict_t *caster = missile->owner;
 
     if (S_SpellIsAliveTarget(target)) {
@@ -34,26 +34,16 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     edict_t *target = st.entity;
     uint32_t code = spell->code;
     uint32_t level = S_SpellLevel(caster, code);
-    cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     float speed = bolt_missile_speed(code);
     float duration = S_SpellResistantDuration(code, level, target);
+    umove_t *move = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
     edict_t *missile;
 
     unit_setmove(caster, &spell_cast_move);
-    missile = G_Spawn();
-    missile->s.origin = caster->s.origin;
-    missile->s.angle = caster->s.angle;
-    missile->s.model = art ? G_RegisterModel(art) : 0;
-    missile->s.player = caster->s.player;
-    G_InheritUnitTeamColor(missile, caster);
-    missile->goalentity = target;
-    missile->owner = caster;
-    missile->velocity = speed / 1000.0f;
+    missile = S_SpawnUnitTargetSpellMissile(caster, code, target, speed, move);
+    if (!missile) return;
     missile->damage = (uint32_t)S_SpellData(code, level, 1);
     missile->wait = duration;
-    missile->movetype = MOVETYPE_FLYMISSILE;
-    G_StartProjectilePresentation(missile);
-    missile->currentmove = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
 }
 
 #define BZ_BOLT_PROC(NAME, SPEED) \

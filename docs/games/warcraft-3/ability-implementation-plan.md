@@ -167,6 +167,14 @@ duration policy. For simple area nukes whose demonstrated contract is exactly
 “damage living enemies inside this radius,” use `S_SpellDamageEnemiesInRadius()`;
 do not force ground-only, cone, target-mask, capped-damage, or status-bearing
 variants through it.
+For homing unit-target spell missiles whose launch contract is the same, use
+`S_SpawnUnitTargetSpellMissile()` for authored MissileArt, source player/team
+presentation, target-incarnation tracking, movement and projectile presentation,
+and resolve impact targets through `S_SpellProjectileTarget()`. Keep impact policy
+inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
+semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
+this helper to artillery/fixed-point attacks or add flags for unrelated missile
+policies.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
 animation, expiry, or other side effects retain their own wrappers. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).

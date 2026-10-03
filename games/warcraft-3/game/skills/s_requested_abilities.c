@@ -225,12 +225,11 @@ static float death_coil_missile_speed(uint32_t code) {
 }
 
 static void death_coil_projectile_hit(edict_t *missile) {
-    edict_t *target = missile->goalentity, *caster = missile->owner;
+    edict_t *target = S_SpellProjectileTarget(missile), *caster = missile->owner;
     cstring_t race = target && target->data.UnitData ? target->data.UnitData->race : NULL;
     bool applied = false;
 
-    if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race &&
-        target->spawn_time == missile->channel->target_spawn_time) {
+    if (caster && caster->inuse && S_SpellIsAliveTarget(target) && race) {
         if (!strcmp(race, STR_UNDEAD) && S_SpellIsFriend(caster, target)) {
             S_SpellHeal(target, missile->damage);
             applied = true;
@@ -244,22 +243,12 @@ static void death_coil_projectile_hit(edict_t *missile) {
 
 static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t art = G_AbilityEffectArt(spell->code, WC3_EFFECT_MISSILE, 0);
-    edict_t *missile = G_Spawn();
+    edict_t *missile = S_SpawnUnitTargetSpellMissile(caster, spell->code, st.entity,
+                                                     death_coil_missile_speed(spell->code),
+                                                     &death_coil_projectile_move);
 
-    missile->class_id = spell->code;
-    missile->s.origin = caster->s.origin;
-    missile->s.angle = caster->s.angle;
-    missile->s.model = art ? G_RegisterModel(art) : 0;
-    missile->goalentity = st.entity;
-    if (!missile->channel) missile->channel = G_AllocChannel();
-    assert(missile->channel);
-    missile->channel->target_spawn_time = st.entity->spawn_time;
-    missile->owner = caster;
-    missile->velocity = death_coil_missile_speed(spell->code) / 1000.0f;
+    if (!missile) return;
     missile->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
-    missile->movetype = MOVETYPE_FLYMISSILE;
-    missile->currentmove = &death_coil_projectile_move;
 }
 
 /* Resolve chained damage jumps while keeping target selection separate from spell metadata. */

@@ -144,7 +144,7 @@ the owning ability.
 
 Use the same rule for future consolidation:
 
-- target/projectile families share cast, target and impact machinery but keep ability-specific effects;
+- unit-target projectile families share authored MissileArt, source/player/team presentation, target-incarnation tracking, homing movement, and projectile presentation through `S_SpawnUnitTargetSpellMissile()` / `S_SpellProjectileTarget()`; Death Coil and Thunder/Fire Bolt keep their own impact validation and heal/damage/stun effects;
 - channel families share channel ownership/interruption and thinker lifecycle but keep tick policy;
 - aura families share source/recipient reconciliation, including friendly-vs-hostile source relation, but keep the numeric modifier consumer and any final clamp;
 - summon families share unit creation/timed-life ownership but keep recast, replacement and corpse policies; simple `UnitID` + DataA count + Dur summons use `S_SummonAbilityUnits()`;

@@ -524,6 +524,8 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code);
 bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range);
+edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *target, float speed, umove_t *move);
+edict_t *S_SpellProjectileTarget(edict_t *missile);
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration);
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration);

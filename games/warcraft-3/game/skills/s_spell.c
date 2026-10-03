@@ -1116,6 +1116,44 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
     return best && S_CastUnitTargetSpell(caster, code, best);
 }
 
+/* Common homing spell-missile launch contract.  The ability owns payload and
+ * impact policy; this helper owns authored MissileArt, source presentation,
+ * target identity, movement, and projectile presentation lifecycle. */
+edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *target, float speed, umove_t *move) {
+    cstring_t art;
+    edict_t *missile;
+
+    if (!caster || !target || !code || !move) return NULL;
+    missile = G_Spawn();
+    if (!missile) return NULL;
+    art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+    missile->class_id = code;
+    missile->s.origin = caster->s.origin;
+    missile->s.angle = caster->s.angle;
+    missile->s.model = art ? G_RegisterModel(art) : 0;
+    missile->s.player = caster->s.player;
+    G_InheritUnitTeamColor(missile, caster);
+    missile->goalentity = target;
+    if (!missile->channel) missile->channel = G_AllocChannel();
+    assert(missile->channel);
+    missile->channel->target_spawn_time = target->spawn_time;
+    missile->owner = caster;
+    missile->velocity = MAX(0.0f, speed) / 1000.0f;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->currentmove = move;
+    G_StartProjectilePresentation(missile);
+    return missile;
+}
+
+/* Resolve the original unit incarnation carried by a homing spell missile.
+ * Callers still decide whether caster death, relation changes, or other impact
+ * conditions invalidate their ability-specific effect. */
+edict_t *S_SpellProjectileTarget(edict_t *missile) {
+    edict_t *target;
+    if (!missile || !missile->channel || !(target = missile->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == missile->channel->target_spawn_time ? target : NULL;
+}
+
 /* Common authored metadata used by status-family procedures.  Keep fallback
  * policy in the owning ability; this only validates the primary BuffID field. */
 cstring_t S_SpellBuffId(uint32_t code, uint32_t level) {
