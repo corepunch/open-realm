@@ -54,8 +54,8 @@ def main():
     parser.add_argument('--point-click-sample-ticks', action='store_true', help='interpret click times as observed integer scenario sample ticks')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    if not 0 < args.seconds <= 3600 or not 0 < args.samples <= 10000:
-        parser.error('seconds must be in (0, 3600], samples in [1, 10000]')
+    if not 0 < args.seconds <= 3600 or not 0 < args.samples <= 30000:
+        parser.error('seconds must be in (0, 3600], samples in [1, 30000]')
     if args.watch_cell and any(v < 0 or v > 65535 for v in args.watch_cell):
         parser.error('watch-cell coordinates must be in [0, 65535]')
     if args.continue_at is not None and (not args.x11_display or not 0 < args.continue_at < args.seconds or args.pid):

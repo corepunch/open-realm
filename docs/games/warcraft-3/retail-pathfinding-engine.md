@@ -7768,3 +7768,55 @@ is `runtime/modifier88-validation.json`. Both required edition suites pass2508
 tests/5,276,169 assertions each, plus553 Python checks; production build passes. This closes the temporary modifier
 contract; combined effect-stack precedence, other speed/turn producers and the
 independent spell-casting scheduler retain their existing tasks.
+
+
+## Extended captain travel ends in a retained visible Follow owner
+
+Payoff89 extends GROUP-03.4.7.2.2.2's combined group/footprint observation
+from30 to120 authored seconds. The original13 births, all-Stop input, terrain,
+object modifications and embedded captain AI are unchanged. An external member
+manifest proves that only the sampling completion condition changes300→1200;
+all17 map members are retained. The new map hash is
+`c1cf8f1bc0c1b0118afd38919d4e2ff50cf8dd59dcbd222c0768fb3209f716be`.
+Both owned captures complete and reproduce the previously accepted7933 motion
+commits/812 footprints exactly, followed by the longer domain's total10986
+commits/865 shared footprints and identical normalized decision/commit group
+states. Native addresses are normalized only after checking each row's embedded
+mover pointer against its resolved physical/virtual actor.
+
+The earlier assumption that this scene must eventually reclaim every task is
+incorrect. Birth8's private target request has flag1, and its visible virtual
+captain leaves the unseen counter0. Original16c390 therefore skips completion,
+even after member10000 marks arrival. The final physical group retains137217,
+completion counter0 and a zero-velocity, in-range follower. The other physical
+point tasks and the virtual point task finish. This is a natural standing
+Follow lifetime, not an unresolved retry or a missing cleanup to synthesize.
+Original05a5c0→16dc30 produces the persistent flag;16c390 permits completion only
+when that flag is clear or unseen count exceeds32. The backlog's natural
+completion requirement is corrected to preserve this verified terminal state.
+Target loss, later orders and wider captain policies keep their existing tasks.
+
+The scalar owner timer also disproves an indefinitely fixed six-quantum
+cadence. Its first later seven-quantum interval is visible after about35 seconds.
+The engine already retains and saves the native scalar deadline; the verifier
+now checks that deadline through the longer domain rather than assuming modulo6.
+The authored120-second completion has24010 complete primary advances plus the
+completion-boundary advance and4000 owner callbacks. Its matching engine
+boundary is120050ms. Neither a nominal24000-quanta cutoff nor the old30-second
+observer extent certifies this journey.
+
+`retail_captain_go_home_complete.h` freezes the original commits/footprints.
+Normal engine frames reproduce all10986 commits, all865 footprints and27703
+saved suffix commits at5/10/25/50ms. Eight Save97 checkpoints preserve late
+arrivals, shared-owner retirement and the retained standing Follow; final public
+heads, target ownership and saved group validation are checked. The owning
+production algorithm already reproduces these later states, so no scene-based
+routing or forced retirement is added. The paired O0/O2 numerical checks also
+verify all14688/14719 raw captured commits; host-duration commits after authored
+completion are outside the repeated group/primary domain.
+
+Saved Ghidra annotations retain655 roles,68 layouts/450 fields,324 explicit
+ABIs and60 globals, including the typed completion gate and its captured
+persistent-owner evidence. Raw maps/captures/source/member proofs and logs remain
+under external `runtime/captain89-*`; `captain89-validation.json` pins final
+verification. Full engine/corpus validation is recorded there when complete.

@@ -8,21 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**176 done / 336 tasks; 160 remaining.** Payoff88 closes existing MOVE-01.2
-without adding IDs. Paired original Slow/Bloodlust journeys prove immediate speed
-publication, polarity/magic/physical removal filters and restoration. The engine
-reproduces590 original velocity commits and4356 saved continuation commits at
-5/10/25/50ms frame sizes. Applying abilities own status policy and notify Move;
-public UnitRemoveBuffs natives now use that shared mechanism. Both required
-edition suites pass2508 tests/5,276,169 assertions each, plus553 Python checks;
-production build, fresh strict corpus and O0/O2 comparisons pass. Saved Ghidra
-mapping retains655 roles,68 layouts/450 fields,323 ABIs and60 globals. See
-[temporary-modifier payoff](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
+**177 done / 336 tasks; 159 remaining.** Payoff89 closes existing
+GROUP-03.4.7.2.2.2 without adding IDs. Two original120-second observations
+repeat10,986 motion commits,865 shared footprints and all group states. The
+engine reproduces the complete translation and retained standing Follow owner,
+plus27,703 saved continuation commits at5/10/25/50ms frame sizes. The original
+visible-target persistent gate disproves the old natural-reclamation premise;
+completion is not forced. Both edition suites pass2509 tests/5,672,199 assertions
+each, plus560 Python checks; production build, fresh strict corpus and O0/O2
+comparisons pass. Saved Ghidra mapping retains655 roles,68 layouts/450 fields,
+324 ABIs and60 globals. See
+[extended captain payoff](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner).
 
-Next runnable chunk is GROUP-03.4.7.2.2.2: extend the captain return-home
-observation through natural completion and verify the full engine/save journey.
-The previous30-second domain leaves later private retry travel unverified;
-fresh extended captures retain the same authored roster and AI policy.
+Next runnable chunk is FINE-03.1: recover fine node/heap growth and capacity
+failure, then exercise engine storage reuse and request recovery. The aim is a
+general search-storage contract, not another scene-specific trajectory.
 No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
@@ -45,7 +45,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 11 | 4 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 35 | 12 |
+| GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -756,7 +756,7 @@ and the wider mixed cancellation/reclamation control:
 **GROUP-03.4.7.2.2 — Partial refill and later moving travel.** Split the ordinary engine consumer from the longer observation/journey domain.
 
 - [x] **GROUP-03.4.7.2.2.1** Preserve exact source in one-point exhausted fine reconstruction, consume the retained intermediate coarse waypoint without reducing retry, and stop translation for native status2 independently of heading error. [Payoff70](retail-pathfinding-engine.md#partial-fine-refill-and-stopped-coarse-handoff) authenticates counter1933's701/700 search/source point/adaptive7→2/retry6 and counter1996's2→0 explicit stop. Public GoHome matches7933 motion commits,327 virtual commits,812 shared footprints and7310 saved suffix commits through30s. Both earlier references, fresh strict capture checks and saved Ghidra consumer comments remain exact.
-- [ ] **GROUP-03.4.7.2.2.2** Extend Frida group/footprint observation beyond the authored30-second completion marker, capture/repeat later private retry travel through natural completion, and compose that domain with actual engine motion/save continuations. Existing velocity capture continues past the marker while pair/footprint observation stops at counter2024. Closed uncapped files are not proof of natural completion; a private follower remains active later. Do not silently extend the accepted combined observer domain or change search ordering from an unverified later mismatch.
+- [x] **GROUP-03.4.7.2.2.2** Extend Frida group/footprint observation beyond the authored30-second marker and compose the full later private retry translation with actual engine/save continuations. [Payoff89](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner) repeats10,986 commits/865 shared footprints and exact group states through120 seconds, with27,703 saved suffix commits and stable ownership at5/10/25/50ms. Corrected acceptance premise: natural task reclamation is not expected under these unchanged inputs. Original16c390 retains the arrived private Follow owner while group bit1 is set and its target remains visible; two captures and the engine preserve that standing task without inventing cleanup. Target visibility loss and unrelated subsequent orders remain TARGET/ORDER. The primary-clock verifier now consumes the original scalar deadline rather than assuming six steps forever; production already uses that deadline. Source/map pins, O0/O2, fresh strict corpus, both full suites and saved Ghidra gate/ABI evidence pass.
 - [ ] **GROUP-03.4.7.3** Compose autonomous occupied SetCaptainHome, empty/larger roster defaults, retreat and other public captain goal policies with moving actor/physical roster lifetimes. Near-home and explicit GoHome initial travel do not establish these producers; preserve diagnostics and add actual public-frame/save regressions for each independently recovered policy.
 
 Mixed recovery and reentry (GROUP-03.4.6.2.3) require two separate producers:

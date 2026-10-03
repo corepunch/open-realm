@@ -52,7 +52,7 @@ composition closes a gap.
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
   655 function names/comments applied and saved. Latest modifier readback:
-  `runtime/modifier88-ghidra-types.json`:68 layouts/450 fields,323 ABIs and60 globals.
+  `runtime/modifier88-ghidra-types.json`:68 layouts/450 fields,324 ABIs and60 globals.
   Prior mode readback:
   `runtime/mode87-ghidra-types.json`:67 layouts/441 fields,315 ABIs and60 globals.
   Latest pause readback:

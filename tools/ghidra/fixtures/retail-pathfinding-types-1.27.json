@@ -308,7 +308,7 @@
           "offset": 108,
           "name": "unseen_counter",
           "type": "u32",
-          "evidence": "16a790/16c390 fog and completion"
+          "evidence": "16a790/16c390 fog and completion\nPayoff89 repeated occupied-home private Follow remains visible with counter0 and arrived member10000 through120s; natural completion gate stays closed."
         },
         {
           "offset": 112,
@@ -326,7 +326,7 @@
           "offset": 128,
           "name": "flags",
           "type": "u32",
-          "evidence": "16c150/16d9d0"
+          "evidence": "16c150/16d9d0\nPayoff89 private target request6145 becomes group137217, bit1 suppresses completion while unseen<=32."
         }
       ]
     },
@@ -9279,6 +9279,18 @@
       "returns": "u32",
       "parameters": [],
       "convention": "__cdecl"
+    },
+    {
+      "address": "6f16c390",
+      "name": "PathGroup_CompleteReadyMembers",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

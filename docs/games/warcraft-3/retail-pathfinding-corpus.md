@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **307 entries**: **45** distinct original-code oracle
-scripts plus **57** declared variants, **121** archived JSONL audits and **84**
+The inventory now has **308 entries**: **45** distinct original-code oracle
+scripts plus **57** declared variants, **121** archived JSONL audits and **85**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1606,3 +1606,15 @@ commits remain ORDER-01.13; this contract does not claim those as engine matches
 The caster retains actual occupancy during reverse routing. Nine Save97
 checkpoints reproduce4356 suffix commits across four server frame sizes, with
 all literal speed/buff and movement markers checked.
+
+
+The extended captain contract `live-captain-extended-captures-261004` retains
+120 authored seconds of group and footprint observation. Both captures repeat
+the accepted30-second prefix and total10986 engine commits/865 shared footprints.
+The visible birth8 Follow task remains standing under the original persistent
+completion gate; the contract explicitly rejects claiming natural task
+reclamation. Scalar-clock verification accepts the observed24010 primary
+advances/4000 owner callbacks, with the completion boundary separate. Additional
+host-duration velocity commits receive numerical checks but are outside the
+repeated group/clock domain. See the
+[extended engine journey](retail-pathfinding-engine.md#extended-captain-travel-ends-in-a-retained-visible-follow-owner).

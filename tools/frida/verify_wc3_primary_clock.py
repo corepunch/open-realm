@@ -28,8 +28,12 @@ def digest(rows):
 def verify_primary(rows, engine, fixture):
     records = primary(rows)
     engine.pathing_clock_advance.argtypes = [ctypes.POINTER(ctypes.c_uint32)] * 2
+    advances = fixture.get('primary_advances', 6000)
+    if type(advances) is not int or advances <= 0:
+        raise ValueError('primary observation extent must be a positive integer')
     index = 0
     state = [0, 0, 0x43960000, 4096]
+    deadline = [0x3cf5c290, 0, 0x43960000, 0]
     owners = 0
     def take(event):
         nonlocal index
@@ -37,20 +41,27 @@ def verify_primary(rows, engine, fixture):
             raise ValueError('primary clock event order differs at ' + str(index))
         row = records[index]; index += 1
         return row
-    for tick in range(6001):
+    for tick in range(advances + 1):
         source = take('clock-source-begin')
         if source.get('source') != 'direct' or source.get('input') != 0x3ba3d70a or source.get('maximum') != 0x43958000 or source.get('caller') != '0x36aba8' or source.get('before') != [state]:
             raise ValueError('primary source input/state differs')
-        if tick and tick % 6 == 0:
+        out = (ctypes.c_uint32 * 4)()
+        engine.pathing_clock_advance((ctypes.c_uint32 * 5)(*state, 0x3ba3d70a), out)
+        expected = list(out)[:3] + [4096]
+        # Timer stage precedes request-clock publication. Its scalar deadline
+        # accumulates the native period; integer six-tick cadence diverges later.
+        due = (expected[1] > deadline[1] or
+               (expected[1] == deadline[1] and expected[0] >= deadline[0]))
+        if due:
             before = take('clock-owner-begin'); after = take('clock-owner-end')
             counter = fixture['owner_counter'] + owners
             if before.get('clock') != [state] or after.get('clock') != [state] or before.get('counter') != counter or after.get('counter') != counter + 1:
                 raise ValueError('primary owner cadence/state differs')
             owners += 1
-        out = (ctypes.c_uint32 * 4)()
-        engine.pathing_clock_advance((ctypes.c_uint32 * 5)(*state, 0x3ba3d70a), out)
-        expected = list(out)[:3] + [4096]
-        if tick < 6000:
+            timer_out = (ctypes.c_uint32 * 4)()
+            engine.pathing_clock_advance((ctypes.c_uint32 * 5)(*deadline, 0x3cf5c290), timer_out)
+            deadline = list(timer_out)[:3] + [0]
+        if tick < advances:
             before = take('clock-advance-begin'); after = take('clock-advance-end')
             if before.get('domain') != 20 or before.get('input') != 0x3ba3d70a or before.get('caller') != '0x4f7ed' or before.get('before') != state or after.get('domain') != 20 or after.get('after') != expected or type(after.get('output')) is not int or after.get('output') != 1 or out[3]:
                 raise ValueError('primary advance/C words differ')
@@ -58,11 +69,11 @@ def verify_primary(rows, engine, fixture):
         if end.get('source') != 'direct' or end.get('after') != [expected]:
             raise ValueError('primary source completion differs')
         state = expected
-    if index != len(records) or owners != 1000:
+    if index != len(records) or owners != fixture.get('owner_callbacks', advances // 6):
         raise ValueError('primary clock capture truncated or extended')
     observed = digest(rows)
     if observed != fixture['primary_sha256']: raise ValueError('primary clock sequence differs')
-    return dict(primary_advances=6000, owner_callbacks=owners, completion_boundary_advances=1,
+    return dict(primary_advances=advances, owner_callbacks=owners, completion_boundary_advances=1,
                 primary_sha256=observed)
 
 
