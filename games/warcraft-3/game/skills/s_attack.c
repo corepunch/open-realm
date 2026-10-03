@@ -388,7 +388,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
-        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
+        S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));
     } }
     damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
     S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);

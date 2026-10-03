@@ -958,11 +958,8 @@ BZ_VALIDATED_SPELL_PROC(AbilityResurrection, resurrection_validate, resurrection
  */
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFire) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
-                  Vector2_distance(&target->s.origin2, &st.point) <= radius)
-        S_SpellDamage(target, caster, damage);
+    S_SpellDamageEnemiesInRadius(caster, &st.point, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level),
+                                 (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
 }
 /* Name=Howl of Terror
  * Ubertip="Reduces the attack damage of nearby enemy units."

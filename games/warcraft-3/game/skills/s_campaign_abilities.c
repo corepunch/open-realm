@@ -8,10 +8,8 @@ static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityit
 
 static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area)
-        S_SpellDamage(target, caster, damage);
+    S_SpellDamageEnemiesInRadius(caster, &st.point, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level),
+                                 (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
 }
 
 static void campaign_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
@@ -46,7 +44,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && G_UnitTargetType(target) == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         S_SpellDamage(target, caster, damage);
-        if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
+        if (!M_IsDead(target) && duration > 0.0f) S_SpellApplyStun(target, duration);
     }
 }
 BZ_SIMPLE_SPELL_PROC(AbilityFeralSpiritCampaign) { S_SummonAbilityUnits(caster, spell->code, &st); }
@@ -291,7 +289,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     S_SpellDamage(st.entity, caster, (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
-    if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellHeroDuration(spell->code, level, st.entity));
+    if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }

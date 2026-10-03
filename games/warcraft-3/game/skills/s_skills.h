@@ -527,6 +527,8 @@ bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool w
 cstring_t S_SpellBuffToken(cstring_t list, uint32_t index);
 heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration);
 heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration);
+void S_SpellApplyStun(edict_t *target, float duration);
+void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float radius, uint32_t damage);
 void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level);
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);

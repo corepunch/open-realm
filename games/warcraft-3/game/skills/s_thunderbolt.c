@@ -1,7 +1,6 @@
 #include "s_skills.h"
 
 #define ID_FIRE_BOLT MAKEFOURCC('A', 'N', 'f', 'b')
-#define ID_STUN_BUFF "Bstu"
 
 static float thunderbolt_missile_speed;
 static float firebolt_missile_speed;
@@ -25,7 +24,7 @@ static void thunderbolt_projectile_hit(edict_t *missile) {
 
     if (S_SpellIsAliveTarget(target)) {
         if (S_SpellDamage(target, caster, missile->damage) && !M_IsDead(target)) {
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, missile->wait);
+            S_SpellApplyStun(target, missile->wait);
         }
     }
     G_FreeEdict(missile);

@@ -1,7 +1,6 @@
 #include "s_skills.h"
 
 #define ID_TIMED_LIFE "BTLF"
-#define ID_STUN_BUFF "Bstu"
 
 static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
@@ -113,7 +112,7 @@ static void inferno_impact(edict_t *caster, uint32_t code, uint32_t level, vec2_
     FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellResistantDuration(code, level, target));
+            S_SpellApplyStun(target, S_SpellResistantDuration(code, level, target));
     }
     if (!unit_id) {
         fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (cstring_t)&code);

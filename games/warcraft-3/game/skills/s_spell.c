@@ -1129,6 +1129,22 @@ heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t cod
     return status;
 }
 
+/* Warcraft's standard stun lifecycle is always Bstu at status level one.
+ * Callers own hit validation and the exact authored/resistant duration. */
+void S_SpellApplyStun(edict_t *target, float duration) {
+    if (!target) return;
+    unit_addtimedstatus(target, "Bstu", 1, duration);
+}
+
+/* Fixed-damage point/radius family used by simple area nukes. More selective
+ * ground/cone/target-mask/status variants keep their own enumeration policy. */
+void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float radius, uint32_t damage) {
+    if (!caster || !center) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, center) <= radius)
+        S_SpellDamage(target, caster, damage);
+}
+
 /* Simple persistent on/off status family. Specialized toggles such as Defend
  * keep their own wrapper so animation and expiry policy remain ability-owned. */
 void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {

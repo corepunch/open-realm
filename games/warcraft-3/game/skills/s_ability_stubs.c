@@ -52,7 +52,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
                            Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= radius)
     FILTER_EDICTS(target, WAR_STOMP_HITS(target)) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && duration > 0.0f)
-            unit_addtimedstatus(target, "Bstu", 1, duration);
+            S_SpellApplyStun(target, duration);
     }
 #undef WAR_STOMP_HITS
 }

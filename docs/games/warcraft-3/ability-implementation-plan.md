@@ -155,7 +155,12 @@ primary-BuffID validity check while keeping ROC/TFT fallback choice local. Use
 `S_SpellHeroDuration()` or `S_SpellResistantDuration()` for the two established
 duration policies instead of repeating the predicate at every call site.
 `S_SpellBuffToken()` only parses ordered BuffID fields; the owning ability still
-decides which token is correct.
+decides which token is correct. `S_SpellApplyStun()` similarly owns only the
+standard `Bstu`/level-one status application; callers keep hit validation and
+duration policy. For simple area nukes whose demonstrated contract is exactly
+“damage living enemies inside this radius,” use `S_SpellDamageEnemiesInRadius()`;
+do not force ground-only, cone, target-mask, capped-damage, or status-bearing
+variants through it.
 Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
 animation, expiry, or other side effects retain their own wrappers. See
 [Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families).
