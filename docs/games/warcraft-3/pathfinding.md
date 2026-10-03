@@ -608,9 +608,8 @@ Stationary captain-home admission now supports three verified ground recruits.
 The all-entered gate hands their private followers to one shared point group,
 whose active membership and retry budget survive completion and save/load.
 [The complete three-member journey](retail-pathfinding-engine.md#stationary-captain-three-member-shared-journey)
-matches 608 retail commits and 2,352 saved continuation commits. Larger captain
-rosters still report the unresolved handoff; thirteen-member batch admission is
-the next explicit extension.
+matches 608 retail commits and 2,352 saved continuation commits. Rosters beyond the verified thirteen-member boundary still report the unresolved
+handoff; cross-batch shared parameters and live membership remain explicit extensions.
 
 
 Stationary captain admission now spans the native twelve-member boundary.
@@ -621,3 +620,11 @@ admission timestamp. All3647 retail commits and15768 saved suffix commits agree,
 with public placement using the original W3E levels and normal startup PRNG.
 The mixed-radius cross-batch shared owner remains GROUP-03.4.6.2; live/moving
 captains and rosters beyond13 remain separate extensions.
+
+
+Private captain home followers now use authored weapon range independently of
+collision size. [Retail payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision)
+corrects premature stopping for large recruits and keeps physical range through
+save/load. Map-local weapon edits now reach spawned/restored typed data. The
+mixed13 regression matches3471 commits and17368 saved suffix commits through
+activation; shared12+1 parameter publication and subsequent recovery remain open.

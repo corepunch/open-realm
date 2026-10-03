@@ -51,6 +51,7 @@
 #include "retail_captain_pool.h"
 #include "retail_captain_three.h"
 #include "retail_captain_thirteen.h"
+#include "retail_captain_thirteen_mixed.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 
@@ -11136,17 +11137,22 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    float weapon_range=90; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
-        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
-    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
-    float peer_radius=32,peer_turn=.5f;
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods};
+    float peer_radius=32,peer_turn=.5f,peer_weapon_range=100;
     unitModification_t peer_mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&peer_radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
-        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&peer_turn}};
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&peer_turn},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&peer_weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
     unitData_t types[2]={custom,{.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','P'),
-        .numbeOfModifications=3,.modifications=peer_mods}};
+        .numbeOfModifications=5,.modifications=peer_mods}};
     mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
@@ -11228,7 +11234,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
                     T_EQ(peer->movement.captain_home.member_index,mixed ? 0 : 1);
                     T_NE(unit->movement.group_id,peer->movement.group_id);
                     T_ASSERT(move_find_member(unit)->arrival_range==wc3_div(155,32));
-                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(mixed ? 160 : 155,32));
+                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(mixed ? 162 : 155,32));
                 } else if(goal_case!=6 ? i<7 : save_times[i]<8610)T_EQ(unit->movement.group_id,peer->movement.group_id);
                 if(goal_case!=6 && i==7){T_EQ(peer->current_order_id,0);T_NE(unit->current_order_id,0);}
                 if(goal_case==6) {
@@ -11369,10 +11375,13 @@ static void public_captain_pool_journey(unsigned mode) {
     G_BotStop(0); reset_entities(); setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    float weapon_range=90; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
-        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
-    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods};
     mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
     mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
@@ -11453,18 +11462,29 @@ TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { publ
 TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
 TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
 
-static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members) {
+static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members,bool mixed) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0); reset_entities(); setup_test_world();
     uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
     FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    float weapon_range=90; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
-        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
-    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=2,.modifications=mods};
-    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    float large_radius=63;
+    unitModification_t large_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=4,.modifications=large_mods}};
+    mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
     FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
@@ -11493,11 +11513,11 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
         "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
         "if tick==10 then\ncall StartCampaignAI(Player(0),\"%s\")\nendif\nendfunction\n"
         "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
-        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",members==3 ? "test_captain_three.ai" : "test_captain_thirteen.ai");
+        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",mixed ? "test_captain_thirteen_mixed.ai" : members==3 ? "test_captain_three.ai" : "test_captain_thirteen.ai");
     FOR_LOOP(i,members) {
         int x=-1936+(members==3 ? i : i%4)*80,y=-976-(members==3 ? 0 : i/4)*80;
         length+=snprintf(script+length,sizeof(script)-length,
-            "set roster[%u]=CreateUnit(Player(0),'hBGM',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",i,x,y,i);
+            "set roster[%u]=CreateUnit(Player(0),'%s',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",i,mixed && i==0 ? "hBGL" : "hBGM",x,y,i);
     }
     length+=snprintf(script+length,sizeof(script)-length,
         "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n");
@@ -11513,7 +11533,7 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
     followCommitTrace_t trace={0};
     unsigned found=0;
-    FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID) {
+    FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || (mixed && unit->class_id==types[1].newUnitID))) {
         T_ASSERT(found<members); if(found<members)trace.units[found++]=unit;
     }
     T_EQ(found,members);
@@ -11521,15 +11541,16 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
     if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
+    if(mixed)memcpy(times,(unsigned[]){995,1500,1995,2010,4000,5000,7750,8750},sizeof(times));
     char files[8][64]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-roster-%u-%u.bin",members,i);
     unsigned steps=0,suffix=0; bool mismatch=false;
     FOR_LOOP(pass,9) {
         if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
-        while(level.time<31000 && !mismatch) {
+        while(level.time<(mixed ? 9000 : 31000) && !mismatch) {
             trace.count=0; level.time+=5; globals.RunFrame();
             if(level.time==1000) {
                 T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),members);
-                FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[i]);
+                FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[mixed ? (i+1)%members : i]);
             }
             FOR_LOOP(i,trace.count) {
                 T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
@@ -11544,14 +11565,14 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
                 saved[i]=steps; T_ASSERT(WriteGame(files[i]));
             }
         }
-        T_EQ(steps,count); FOR_LOOP(i,members)T_EQ(trace.units[i]->current_order_id,0);
-        T_EQ(level.pathing_random.sum,members==13 ? 591832212u : 3022241195u);
-        T_EQ(level.pathing_random.index,members==13 ? 1015043152u : 141606968u);
+        T_EQ(steps,count); if(!mixed)FOR_LOOP(i,members)T_EQ(trace.units[i]->current_order_id,0);
+        if(!mixed)T_EQ(level.pathing_random.sum,members==13 ? 591832212u : 3022241195u);
+        if(!mixed)T_EQ(level.pathing_random.index,members==13 ? 1015043152u : 141606968u);
         T_ASSERT(!jass_rterror_pending(level.vm));
         if(pass)suffix+=steps-saved[pass-1];
         if(mismatch)break;
     }
-    fprintf(stderr,"Captain roster%u exact commits=%u saved suffix=%u\n",members,count,suffix);
+    fprintf(stderr,"Captain roster%u%s exact commits=%u saved suffix=%u\n",members,mixed ? " private prefix" : "",count,suffix);
     FOR_LOOP(i,8)remove(files[i]);
     move_test_motion_commit=NULL; follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
@@ -11563,11 +11584,21 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
 }
 
 TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey) {
-    public_captain_roster_journey(captain_three_motion,sizeof(captain_three_motion)/sizeof(*captain_three_motion),3);
+    public_captain_roster_journey(captain_three_motion,sizeof(captain_three_motion)/sizeof(*captain_three_motion),3,false);
 }
 
 TEST(wc3_movement, public_captain_thirteen_recruits_match_original_complete_journey) {
-    public_captain_roster_journey(captain_thirteen_motion,sizeof(captain_thirteen_motion)/sizeof(*captain_thirteen_motion),13);
+    public_captain_roster_journey(captain_thirteen_motion,sizeof(captain_thirteen_motion)/sizeof(*captain_thirteen_motion),13,false);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_private_prefix) {
+    /* The complete5462-row retail reference is retained. Cross-batch owner
+     * publication first differs at9.03s and remains GROUP-03.4.6.2.2/3. */
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41100000u)count++;
+    T_EQ(count,3471);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,true);
 }
 
 TEST(wc3_movement, public_group_move_matches_original_member_growth) {

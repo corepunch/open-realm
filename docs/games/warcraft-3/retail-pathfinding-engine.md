@@ -5449,7 +5449,9 @@ and corpus require `whole_engine_parity=false` and
 complete stationary-home journey matches. The recorded first failed full
 comparison remains `runtime/captain-home-first-port-261002.log`.
 
-Initial native target range is five times recruit collision radius; the
+The initial Footman target range was first described as five radii.
+[Payoff62](#private-captain-approach-range-is-independent-of-collision) corrects
+that inference: authored124 plus collision31 happens to equal155. The
 private point handoff uses minimum.49. The virtual captain has radius0,
 category2, object-category0x01000002 and path-mask0x02000002, distinct from
 Footman's radius31 and category202. Its actor range changes from500 to200
@@ -5933,3 +5935,67 @@ The required full release repository suite,350 pathfinding Python checks and37
 fresh corpus contracts pass. `runtime/captain-thirteen-strict-final-v2-261003/`
 records all fresh reports with134 matching final source fingerprints.
 `captain-thirteen-validation-final-261003.json` pins logs and saved Ghidra readback.
+
+
+## Private captain approach range is independent of collision
+
+Payoff62 ports ordinary ground captain recruits' actual approach range into
+Move. The complete mixed13 reference places one radius63 Footman in the final
+singleton batch and twelve radius31 Footmen in the first physical batch. The
+old engine5*collision/32 formula first stops the large recruit at commit1572,
+4620ms. Original `9d86f0` instead calls the enabled attack maximum getter
+`4985c0`: Footman range90 times software.6 plus70 gives124 world units.
+`05a5c0` adds source collision and target collision before dividing32; the
+virtual captain contributes0. Private arrival ranges are4.84375 and5.84375,
+not a common multiple of each mover's radius. The older mixed pair's range100
+recruit uses(70+.6*100+32)/32=5.0625; its previous engine assertion of5 was
+also corrected from the retained original arrival observer.
+
+Readonly `captain-thirteen-mixed-range-v2-first/repeat-261003.jsonl` each retain
+304 markers,1000 owners,5462 physical commits,5194 decisions and5465 complete
+velocity/arrival/route-step events. All14 authored-range calls repeat, including
+one later reentry; the initial13 distinct units/attack objects report90 and124.
+Runtime constants are70,600 and300. Auxiliary attack getter call counts differ
+with host-time AI work; the captured scalar inputs and simulation movement are
+stable. The first extra probe's hooks were accidentally inside the disabled
+numeric-event option. That capture does not establish helper execution and is
+excluded from this range contract.
+
+Production Move stores the computed range in the existing physical member,
+which Save85 already serializes and validates. It remains independent of later
+weapon changes. Map-local UnitWeapons rows previously resolved straight to the
+base table and ignored authored edits. Stable per-map merges now inherit
+original-object edits before custom edits, preserve custom identity, and supply
+range/enable bits to normal public spawning and restored data bindings. A
+nonstock177.25/288.75 inheritance regression checks both slots, independent
+original/custom rows, enabled-mask semantics and cleanup. The literal movement
+scene supplies actual90/100 weapon inputs through object data; no pose, velocity,
+route, clock or expected output is injected.
+
+`public_captain_thirteen_mixed_matches_original_private_prefix` matches3471
+commits through9000ms and17368 saved suffix commits across995/1500/1995/2010/
+4000/5000/7750/8750ms. Homogeneous three/thirteen and owned-pool controls retain
+whole-journey parity. The full mixed comparison now first differs at commit3478,
+9030ms, when separate batch radii require the missing common shared owner.
+The complete5462-row reference is retained in `retail_captain_thirteen_mixed.h`
+and [the approach fixture](../../../tools/ghidra/fixtures/retail-captain-approach-1.27.json).
+Its strict verifier explicitly requires `whole_engine_parity=false` and
+`shared_owner_remains_open=true`. A bounded prefix is not full mixed closure.
+
+Ghidra retains named range/attack/eligibility functions, two explicit ABIs
+(RET8 and RET4), and the three runtime constants. Saved readback verifies597
+roles,50 layouts/311 fields,265 ABIs and53 globals with `unsaved=false`.
+`--captain-approach-events` exposes the reusable readonly Frida hooks.
+No-attack/disabled attack, Hero/summoned producers, native40000000 policy,
+ranged-roster bonus and target-adjusted eligibility remain03.4.6.2.1.2.
+Shared publication/cached footprint and full mixed recovery/cancellation remain
+03.4.6.2.2/3.
+
+
+Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
+The required full release repository suite and357 pathfinding Python checks pass.
+Fresh `runtime/captain-approach-strict-final-261003/corpus-results.json` passes38
+selected contracts with135 matching final source fingerprints.
+`captain-approach-validation-final-261003.json` pins validation logs and saved
+Ghidra readback. Failed initial range-probe/corpus/test runs remain archived and
+do not certify this final result.

@@ -509,3 +509,13 @@ map-startup PRNG are fixture inputs; poses are produced by normal simulation.
 Both uninterrupted native captures repeat. Saved Ghidra comments retain the
 batch cursor, shared wrapper and timestamp reset. Cross-batch mixed-radius owner
 lifetime remains GROUP-03.4.6.2, despite complete repeated native evidence.
+
+
+The private captain approach range is recovered separately from group batching:
+[engine payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision)
+ports70+.6*enabled attack maximum, followed by source/target radii and division32.
+The previous five-radius formula only happened to match a radius31 Footman.
+Both repeated mixed13 captures retain the full native journey; engine parity is
+currently3471 pre-batch/activation commits with saved continuations. Common
+cross-batch parameter ownership and wider AI range producers remain explicit
+backlog work.

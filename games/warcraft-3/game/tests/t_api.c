@@ -3616,7 +3616,7 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
         T_FEQ(created->s.origin.y, 256.0f, 0.001f);
         T_EQ(created->data.UnitData->id, custom_id);
         T_ASSERT(M_UnitMoveDisabled(created));
-        T_EQ(created->data.UnitWeapons->id, MAKEFOURCC('n','f','r','m'));
+        T_EQ(created->data.UnitWeapons->id, custom_id);
         T_EQ(created->data.UnitBalance->id, custom_id);
         T_FEQ(created->data.UnitBalance->maxHealth, custom_health, 0.001f);
     }

@@ -1029,3 +1029,24 @@ all37 selected parity contracts with134 matching final source fingerprints.
 The earlier runner invocation rejected the new entry's malformed additional
 capture envelope before verification; it is retained as failed and certifies
 nothing. The corrected final run executes both immutable captures freshly.
+
+
+Checkpoint62 adds `live-captain-approach-captures-261003` and
+`retail-captain-approach-1.27.json`. Inventory is281 entries,123 fixtures and64
+strict live entries. Two full native mixed13 captures retain5462 physical commits
+each and14 original authored-range calls each. The engine regression is explicitly
+bounded to3471 pre-batch/activation commits through9000ms, plus17368 saved suffix
+commits. The strict contract rejects whole-engine parity claims and a closed
+shared-owner gap. Physical arrival ranges and actual enabled attack maximum90
+are independent inputs; all primary clock and scalar integration events are
+checked. Auxiliary getter call counts outside simulation movement are not a
+determinism claim. Accepted source trees and traces remain frozen externally.
+
+
+Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
+The required full release repository suite and357 pathfinding Python checks pass.
+Fresh `runtime/captain-approach-strict-final-261003/corpus-results.json` passes38
+selected contracts with135 matching final source fingerprints.
+`captain-approach-validation-final-261003.json` pins validation logs and saved
+Ghidra readback. Failed initial range-probe/corpus/test runs remain archived and
+do not certify this final result.

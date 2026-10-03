@@ -1255,6 +1255,36 @@ TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
     G_SetSLKRows("UnitWeapons", saved); free_slk_rows(rows);
 }
 
+TEST(wc3_slk, map_weapon_edits_inherit_original_rows_and_keep_custom_identity) {
+    setup_test_world();
+    mapInfo_t const *old_info=level.mapinfo;
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;X2;K\"rangeN1\"\nC;X3;K\"rangeN2\"\nC;X4;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"hRTE\"\nC;X2;K90\nC;X3;K611\nC;X4;K3\nE\n");
+    slkTestData_t *saved=G_SetSLKRows("UnitWeapons",rows);
+    float original_range=177.25f,custom_range=288.75f; uint32_t enabled=2;
+    unitModification_t original_mod={.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&original_range};
+    unitModification_t custom_mods[]={
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&custom_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled}};
+    unitData_t original={.originalUnitID=MAKEFOURCC('h','R','T','E'),.numbeOfModifications=1,.modifications=&original_mod};
+    unitData_t custom={.originalUnitID=original.originalUnitID,.newUnitID=MAKEFOURCC('h','W','P','N'),
+        .numbeOfModifications=2,.modifications=custom_mods};
+    mapInfo_t info={.num_originalUnits=1,.originalUnits=&original,.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    UnitWeapons_t const *base=G_UnitWeapons(original.originalUnitID),*weapon=G_UnitWeapons(custom.newUnitID);
+    T_EQ(base->id,original.originalUnitID); T_FEQ(base->attack1.range,177.25f,0); T_EQ(base->attacksEnabled,3);
+    T_EQ(weapon->id,custom.newUnitID); T_FEQ(weapon->attack1.range,288.75f,0);
+    T_FEQ(weapon->attack2.range,611,0); T_EQ(weapon->attacksEnabled,2);
+    T_FEQ(g_UnitWeapons[0].attack1.range,90,0); T_EQ(g_UnitWeapons[0].attacksEnabled,3);
+    edict_t unit={.class_id=custom.newUnitID}; G_BindEntityData(&unit);
+    T_ASSERT(unit.data.UnitWeapons==weapon); T_ASSERT(!S_UnitAttackSlotEnabled(&unit,0)); T_ASSERT(S_UnitAttackSlotEnabled(&unit,1));
+    T_ASSERT(G_UnitWeapons(original.originalUnitID)==base); T_ASSERT(G_UnitWeapons(custom.newUnitID)==weapon);
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    T_FEQ(G_UnitWeapons(original.originalUnitID)->attack1.range,90,0);
+    G_SetSLKRows("UnitWeapons",saved); free_slk_rows(rows);
+}
+
 TEST(wc3_slk, optional_tables_tolerate_absent_files) {
     T_ASSERT(G_SLKStoreOptional("AbilityBuffData")); /* expansion-only: War3x.mpq, hidden when fs_expansion==0 */
     T_ASSERT(G_SLKStoreOptional("AbilitySounds"));

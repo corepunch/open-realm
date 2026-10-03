@@ -209,6 +209,22 @@ function install(module) {
             }
         });
     }
+    if (config.captainApproachEvents) {
+        hook(0x9d86f0, {
+            onEnter(args) {
+                this.unit=args[1]; this.output=args[0];
+                this.row={unit:this.unit.toString(),rawcode:this.unit.add(0x30).readU32(),
+                    aiFlags:this.context.ecx.add(0x6c).readU32(),unitFlags:this.unit.add(0x5c).readU32(),
+                    attack:this.unit.add(0x1e8).readPointer().toString(),
+                    constants:ints(base.add(0xd77fb0),6).map(v=>v>>>0)};
+            },
+            onLeave() { emit('captain-authored-follow-range',{...this.row,range:this.output.readU32()}); }
+        });
+        hook(0x4985c0, {
+            onEnter(args) { this.output=args[0]; this.attack=this.context.ecx; },
+            onLeave() { emit('captain-max-attack-range',{attack:this.attack.toString(),range:this.output.readU32()}); }
+        });
+    }
     if (config.numericEvents) {
         for (const [name, rva] of [['S2R',0x211080], ['I2R',0x204c80], ['R2I',0x2103a0],
                                   ['Sin',0x215d00], ['Cos',0x1f9580], ['Acos',0x1f75d0],

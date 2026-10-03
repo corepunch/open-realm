@@ -2427,7 +2427,8 @@ static bool move_point_arrival(edict_t *ent) {
     vec2_t forecast = {pose.world[0], pose.world[1]};
     float cell = CM_PathCellWorldSize();
     float target[2] = {ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y};
-    wc3Arrival_t a = { .heading = ent->s.angle, .range = ent->movement.captain_home.active ? wc3_div(wc3_mul(5,ent->collision),32) : wc3_float(0x3efae148),
+    moveGroupMember_t const *member=move_find_member(ent);
+    wc3Arrival_t a = { .heading = ent->s.angle, .range = member ? member->arrival_range : wc3_float(0x3efae148),
         .flags = ent->movement.point_forced_arrival ? 0x10000u : 0 };
     /* Stock WPM cells are32. Preserve authoritative cell geometry for synthetic maps,
      * while the native retained pose remains in32-unit scalar coordinates. */
@@ -2729,7 +2730,8 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
         (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
     self->movement.captain_home.active=true;
     /* Native admission creates a private target-follow physical owner for
-     * each recruit. Its range is five mover radii, with no formation offset. */
+     * each recruit. The task retains an AI approach range plus mover radius,
+     * independently of its later shared formation destination. */
     move_start_follow_group(self,captain->home_actor,true);
     return true;
 }
@@ -2787,7 +2789,25 @@ static void move_group_seed_route(moveGroup_t *group);
 /* Original5fd270 admits a nearby target with half its current edge distance;
  * its later persistent task restores the authored FollowRange. */
 static float move_follow_approach_range(edict_t *unit, edict_t *target, bool persistent) {
-    if (target->movement.captain_actor_type) return wc3_div(wc3_mul(5,unit->collision),32);
+    if (target->movement.captain_actor_type) {
+        /* Original9d86f0:70 + .6*maximum enabled attack range. The target
+         * wrapper05a5c0 subsequently adds both physical radii and divides32.
+         * A virtual captain has zero radius. The physical member stores this
+         * result, including across save/load and later weapon changes.
+         * TODO GROUP-03.4.6.2.1: ranged-roster flag20 and target-adjusted attack
+         * range eligibility and native unit5c.40000000 need their own original
+         * public producer captures. */
+        float attack_range=0;
+        if (S_UnitAttackSlotEnabled(unit,0)) attack_range=MAX(attack_range,unit->attack1.range);
+        if (S_UnitAttackSlotEnabled(unit,1)) attack_range=MAX(attack_range,unit->attack2.range);
+        if (attack_range>200)
+            fprintf(stderr,"WC3 Move: ranged captain approach policy unresolved unit=%.4s range=%.9g\n",GetClassName(unit->class_id),attack_range);
+        float world=unit->data.UnitWeapons && unit->data.UnitWeapons->attacksEnabled ?
+            wc3_add(wc3_mul(attack_range,wc3_float(0x3f19999a)),70) : 300;
+        if (G_UnitIsHero(unit)) world=MAX(world,600);
+        if (unit_findstatus(unit,MAKEFOURCC('B','T','L','F'))) world=0;
+        return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,unit->collision)),32));
+    }
     float range=wc3_div(G_FollowStopRange(unit,target),32);
     if (persistent) return range;
     wc3GridPose_t source,point;

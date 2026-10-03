@@ -7062,6 +7062,47 @@
         }
       ],
       "evidence": "Complete RET10 body; retains and traverses owned head28/2c and link24/28. Quantity decrements synchronously after attach9cf680."
+    },
+    {
+      "address": "6f9d86f0",
+      "name": "CaptainAI_GetAuthoredApproachRange",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 8
+        }
+      ],
+      "evidence": "Complete body ends87b8/87cb RET8; live readonly inputs/output stack slots and ECX captured twice261003. Output pointer is EAX return. Unassigned Unit attack bytes remain outside the partial prefix."
+    },
+    {
+      "address": "6f4985c0",
+      "name": "Attack_GetMaximumEnabledRange",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete body ends8659/866a RET4; readonly native attack maximum90 observed during all13 captain range admissions. Attack backing is opaque until a verified partial layout exists."
     }
   ],
   "globals": [
@@ -7364,6 +7405,24 @@
       "name": "CaptainAI_MemberRangePeriodOne",
       "type": "WC3PathScalar",
       "evidence": "Decoded static initializer019880/001d50/019620/0196a0 and original range receiver snapshots."
+    },
+    {
+      "address": "6fd77fb0",
+      "name": "CaptainAI_AttackRangeBase70",
+      "type": "WC3PathScalar",
+      "evidence": "Read-only CaptainAI_GetAuthoredApproachRange full mixed13 captures261003, same runtime words in both repeats; on-disk BSS zero is not the initialized value."
+    },
+    {
+      "address": "6fd77fc0",
+      "name": "CaptainAI_HeroApproachMinimum600",
+      "type": "WC3PathScalar",
+      "evidence": "Read-only CaptainAI_GetAuthoredApproachRange full mixed13 captures261003, same runtime words in both repeats; on-disk BSS zero is not the initialized value."
+    },
+    {
+      "address": "6fd77fc4",
+      "name": "CaptainAI_UnarmedApproachRange300",
+      "type": "WC3PathScalar",
+      "evidence": "Read-only CaptainAI_GetAuthoredApproachRange full mixed13 captures261003, same runtime words in both repeats; on-disk BSS zero is not the initialized value."
     }
   ]
 }

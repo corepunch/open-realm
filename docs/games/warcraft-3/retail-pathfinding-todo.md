@@ -8,23 +8,27 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**137 done / 323 tasks; 186 remaining.** Payoff61 closes the homogeneous
-thirteen-ground-recruit stationary home journey (GROUP-03.4.6.1). All13 enter
-before Move creates the native12+1 physical batches. Replacement activation
-clears the private follower's fine-search timestamp. All3647 physical retail
-commits,57 retry/PRNG transitions and15768 saved continuation commits match
-normal engine frames with original W3E support levels and map-startup inputs.
-Both complete native captures repeat. Save85 validates13 retained references
-without a format change. Saved Ghidra readback retains593 roles,50 layouts/
-311 fields,263 explicit ABIs and50 globals. Full debug/release RoC/TFT passes
-2401 tests and1127850 assertions per edition. The full release repository suite,
-350 pathfinding Python checks and37 fresh corpus contracts pass.
-Inventory is280 entries/122 fixtures/63 strict live entries. The next runnable
-ID is GROUP-03.4.6.2: complete mixed-radius13 captures already prove the largest
-singleton publishes shared63/32 into both batches, then the maximum decreases
-after its departure. Engine cross-batch shared-owner lifetime remains open.
-Live membership changes, moving captains, town homes and dynamic coarse
-publication remain separate requirements.
+**138 done / 327 tasks; 189 remaining.** Payoff62 corrects private captain
+approach range independently of collision radius (GROUP-03.4.6.2.1.1). Original
+Footman attack maximum90 produces70+.6*90=124 world units; the target wrapper
+then adds collision31/63 and divides32. The engine matches3471 mixed13 private
+and activation commits through9000ms, plus17368 saved suffix commits. Stable
+map-local UnitWeapons merges now preserve authored range and enabled slots.
+The complete5462-row native reference remains retained; full mixed engine
+parity first diverges at9.03s and remains explicitly open. Two original full
+captures repeat the authored inputs and absolute movement. Save85 retains the
+physical member's range without a format change. Saved Ghidra readback has597
+roles,50 layouts/311 fields,265 explicit ABIs and53 globals.
+Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
+The required release repository suite,357 pathfinding Python checks and38 fresh
+corpus contracts pass with135 matching source fingerprints.
+Inventory is281 entries/123 fixtures/64 strict live entries. The next runnable
+ID is GROUP-03.4.6.2.2: bind the two physical batches to one shared parameter
+owner, publish its previous speed accumulator and collect live radius before
+routing either batch. General attack eligibility, ranged-roster policy,
+Hero/default/summoned producers remain03.4.6.2.1.2. Full recovery/reentry and
+cancellation remain03.4.6.2.3. Live membership changes, moving captains, town
+homes and dynamic coarse publication remain separate requirements.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -46,7 +50,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | SCHED — Scheduling and owner updates | 4 | 9 |
 | MOVE — Stepping and callbacks | 4 | 11 |
 | ORDER — Orders and reclamation | 12 | 24 |
-| GROUP — Shared movement groups | 26 | 8 |
+| GROUP — Shared movement groups | 27 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
 | GATE — Way Gates | 1 | 10 |
@@ -731,6 +735,15 @@ Evidence: [group evidence][M]. Tools/artifacts: motion.
 
 - [x] **GROUP-03.4.6.1** Compose the homogeneous thirteen-Footman stationary home scene through actual W3E-supported birth placement, private followers, 12+1 shared batches, all3,647 physical commits, cleanup and saved continuations. [Complete engine journey](retail-pathfinding-engine.md#stationary-captain-thirteen-member-batch-boundary): two complete retail repeats, all57 retry/PRNG transitions and15,768 exact saved suffix commits. Move batches13 into12+1 and resets replaced-path search admission; Save85 validates retained13-member references. Saved Ghidra notes retain batch cursors, shared wrapper and activation timestamps. Mixed-radius shared ownership remains03.4.6.2.
 - [ ] **GROUP-03.4.6.2** Put the largest mover in the thirteenth/singleton batch and prove the shared parameter owner publishes that maximum into both physical groups through member completion, cancellation and saved continuations. Two complete native mixed13 repeats now match: initial shared63/32 spans both batches, then falls to31/32 after departure while cached path footprints remain independent. Port this mutable cross-batch owner and its lifecycle; homogeneous batches do not establish it.
+
+Private captain range (GROUP-03.4.6.2.1) is split into a verified ground recruit
+increment and the remaining broader producer policies:
+
+- [x] **GROUP-03.4.6.2.1.1** Recover and port ordinary ground recruits' authored private captain approach range independently of collision radius. [Payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision) observes original9d86f0/4985c0 and70/600/300 runtime constants in two full mixed13 repeats. Footman maximum90 yields124 authored world units, then physical31/63 gives4.84375/5.84375 fine cells. Engine3471 exact pre-batch/activation commits and17368 saved suffix commits replace the incorrect five-radius shortcut; map-local weapon overrides preserve the actual input. Full mixed engine parity remains open at9.03s.
+- [ ] **GROUP-03.4.6.2.1.2** Verify the private captain range's wider public producers: no attack class versus disabled weapons, Hero minimum, BTLF and native unit5c.40000000, ranged-roster6c.20 bonus, attack-slot suppression and target-adjusted range. Assert creation/replacement and retained physical range across weapon changes and saves. Static body and constants alone do not certify these game lifecycles.
+- [ ] **GROUP-03.4.6.2.2** Port the shared parameter object: publish prior speed accumulator, clear radius, accumulate every bound physical group's live generations before routing; preserve cached path footprints separately. Verify13-member handoff,63→31 maximum changes, reference release, cancellation and saved continuations.
+- [ ] **GROUP-03.4.6.2.3** Compose the complete mixed13 journey including blocked-completion/recovery and later captain request re-entry, all5,462 physical commits plus cancellation control and saved continuations. Native largest member leaves its initial shared group, later rejoins with shared63, and finally leaves again; bounded handoff alone does not certify this lifetime.
+
 
 ### GROUP-04 — Membership mutation
 
