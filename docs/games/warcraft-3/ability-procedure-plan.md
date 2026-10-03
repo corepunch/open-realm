@@ -155,6 +155,8 @@ Use the same rule for future consolidation:
 - standard stun users share `S_SpellApplyStun()`, which owns only the retail `Bstu`/level-one status contract; each attack or spell still owns hit validation and the exact normal, Hero, or resistant duration it passes in.
 - simple fixed-damage point/radius nukes may use `S_SpellDamageEnemiesInRadius()` when their existing contract is exactly “living enemy units within radius.” Ground-only, cone, authored-target-mask, capped-damage, status-bearing, and structure/destructable variants keep their own enumeration policy rather than growing flags on the helper.
 
+Save-safe ability helper thinkers that use `channel->owner_spawn_time` only as an incarnation token also resolve that owner through `S_SpellChannelOwner()`. This includes deferred spell approaches, Chain Lightning bookkeeping, delayed Incinerate/death-AoE effects, ward arming, and channel cancellation scans; the helper validates identity only and does not imply channel gameplay semantics.
+
 Prefer a small shared function with explicit parameters over a flag-heavy generic interpreter. If two abilities only look similar but differ in authored range source, target filtering, duration class, ownership, or cleanup, leave them separate until the common contract is demonstrated.
 
 ## Ownership and lifecycle

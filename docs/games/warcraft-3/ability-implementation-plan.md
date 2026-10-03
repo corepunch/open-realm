@@ -187,7 +187,11 @@ this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
 For channel thinkers, resolve the captured caster incarnation through
 `S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
-For unit-target channel thinkers, use `S_SpellChannelTargetThinker()` after the
+Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
+an incarnation token use the same resolver; this is identity plumbing only and
+does not make spell approaches, Chain Lightning markers, delayed explosions, or
+ward arming thinkers into channel abilities. For unit-target channel thinkers,
+use `S_SpellChannelTargetThinker()` after the
 owning procedure has validated the target. It layers the common goal pointer and
 target-incarnation snapshot onto `S_SpellChannelThinker()`; later ticks/cleanup
 resolve that snapshot through `S_SpellChannelTarget()`. Non-channel approach

@@ -6,10 +6,10 @@
 /* TFT stores full/outer damage in DataB/D and radii in DataC/E; Area is deliberately zero. */
 void incinerate_explode_think(edict_t *ent) {
     uint32_t code = ent->class_id, rank = ent->resources;
-    edict_t *source = ent->owner;
+    edict_t *source = S_SpellChannelOwner(ent);
     float full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
     if (G_Time() < ent->freetime) return;
-    if (source && source->inuse && source->spawn_time == ent->channel->owner_spawn_time) {
+    if (source) {
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, source, target)) {
             float dist = Vector2_distance(&target->s.origin2, &ent->s.origin2);
             float damage = dist <= full ? S_SpellData(code, rank, 2) :

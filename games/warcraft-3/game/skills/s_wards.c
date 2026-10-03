@@ -151,13 +151,13 @@ static bool land_mine_trigger_target(edict_t *mine, edict_t *target, float radiu
  * Cast Range is the proximity trigger radius. The mine kills itself through
  * the normal death path so Amnx and scripted death events still fire. */
 void land_mine_think(edict_t *thinker) {
-	edict_t *mine = thinker ? thinker->owner : NULL;
+	edict_t *mine = S_SpellChannelOwner(thinker);
 	uint32_t code, level;
 	float radius;
 	bool trigger = false;
 
 	if (!thinker || !thinker->inuse) return;
-	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel->owner_spawn_time || M_IsDead(mine)) {
+	if (!mine || M_IsDead(mine)) {
 		G_FreeEdict(thinker);
 		return;
 	}

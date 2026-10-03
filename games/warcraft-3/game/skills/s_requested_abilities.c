@@ -286,9 +286,9 @@ static void bounce_execute(bounceParams_t const *params) {
  * edicts remember target identity (pointer + spawn generation) so simultaneous
  * or delayed jumps cannot revisit an earlier unit. */
 static bool chain_lightning_visited(edict_t *thinker, edict_t const *target) {
-    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
-                  marker->channel->owner_spawn_time == thinker->spawn_time &&
-                  marker->goalentity == target && marker->resources == target->spawn_time)
+    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT &&
+                  S_SpellChannelOwner(marker) == thinker && marker->goalentity == target &&
+                  marker->resources == target->spawn_time)
         return true;
     return false;
 }
@@ -309,8 +309,8 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
 static void chain_lightning_finish(edict_t *thinker) {
     edict_t *markers[32];
     uint32_t count = 0;
-    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
-                  marker->channel->owner_spawn_time == thinker->spawn_time)
+    FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT &&
+                  S_SpellChannelOwner(marker) == thinker)
         if (count < 32) markers[count++] = marker;
     FOR_LOOP(i, count) G_FreeEdict(markers[i]);
     G_FreeEdict(thinker);
@@ -321,8 +321,8 @@ void chain_lightning_think(edict_t *thinker) {
     float nearest_distance = 0.0f;
 
     if (!thinker || !thinker->inuse) return;
-    caster = thinker->owner;
-    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel->owner_spawn_time || !thinker->resources) {
+    caster = S_SpellChannelOwner(thinker);
+    if (!caster || !thinker->resources) {
         chain_lightning_finish(thinker);
         return;
     }
@@ -517,9 +517,8 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
 
     if (msg == A_CANCEL) {
         uint32_t code = spell ? spell->code : 0;
-        FILTER_EDICTS(thinker, thinker->inuse && thinker->owner == ent && thinker->class_id == code &&
-                      thinker->think == mass_teleport_think &&
-                      thinker->channel->owner_spawn_time == ent->spawn_time)
+        FILTER_EDICTS(thinker, thinker->inuse && S_SpellChannelOwner(thinker) == ent &&
+                      thinker->class_id == code && thinker->think == mass_teleport_think)
             mass_teleport_cleanup(thinker);
         return true;
     }

@@ -585,8 +585,9 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
     return ent;
 }
 
-/* Resolve the caster incarnation captured by a channel thinker. Channel state,
- * liveness and cancellation policy remain with the owning lifecycle. */
+/* Resolve the owner incarnation captured in shared channel storage. True channel
+ * casts and save-safe ability helper thinkers both use this identity carrier;
+ * liveness, timing and cancellation policy remain with the owning lifecycle. */
 edict_t *S_SpellChannelOwner(edict_t const *ent) {
     edict_t *owner;
     if (!ent || !ent->channel || !(owner = ent->owner) || !owner->inuse) return NULL;
@@ -752,8 +753,8 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     if (!caster || !caster->inuse) return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
-        if (thinker->channel->owner_spawn_time == caster->spawn_time &&
-            move_is_active_order_walk(caster) && caster->goalentity == spell_approach_move_goal(thinker)) {
+        if (S_SpellChannelOwner(thinker) == caster && move_is_active_order_walk(caster) &&
+            caster->goalentity == spell_approach_move_goal(thinker)) {
             caster->goalentity = NULL;
             stop_move = true;
         }
@@ -828,21 +829,20 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     float range;
     spellTarget_t st;
 
-    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel->owner_spawn_time ||
-        M_IsDead(caster) || !target || !spell ||
+    caster = S_SpellChannelOwner(thinker);
+    if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (!point_target && spell->target_type != SPELL_TARGET_UNIT &&
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
         (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
-        if (caster && caster->inuse && caster->spawn_time == thinker->channel->owner_spawn_time &&
-            caster->goalentity == thinker) {
+        if (caster && caster->goalentity == thinker) {
             caster->goalentity = NULL;
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
         return;
     }
-    if (!point_target && (!target->inuse || target->spawn_time != thinker->channel->target_spawn_time)) {
+    if (!point_target && S_SpellChannelTarget(thinker) != target) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
             caster->goalentity = NULL;
             unit_stand(caster);
