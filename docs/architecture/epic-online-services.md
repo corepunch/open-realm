@@ -17,9 +17,11 @@ for this adapter to connect.
 
 Downloaded and built against C SDK **1.19.2.1-CL58105819** on macOS arm64.
 The SDK lives under ignored `data/eos/SDK`; its headers, binaries and archive
-are not committed. Live login, two-installation multiplayer, forced relay and
-host-crash cleanup require a configured client and remain separate acceptance
-checks. A successful build does not establish live service access.
+are not committed to the game repository. The restricted release player client
+and Live deployment are configured, with credentials stored in Actions secrets
+and ignored private local configuration. A compact SDK archive is stored in a
+separate private mirror. Two-installation gameplay, forced relay and host-crash
+cleanup remain separate acceptance checks.
 
 ## Build and configuration
 
@@ -78,38 +80,57 @@ a local build. Do not upload the private config as a public CI debug artifact.
 ## GitHub release builds
 
 `.github/workflows/release.yml` downloads the C SDK for Linux x64, macOS x64,
-Windows x64 and Flatpak releases. Set these **repository Actions secrets** before
-publishing a release or dispatching the workflow:
+Windows x64 and Flatpak releases from a private GitHub mirror. The repository
+Actions configuration is:
 
-| Secret | Value |
-| --- | --- |
-| `EOS_SDK_DOWNLOAD_URL` | Runner-accessible HTTPS URL for the licensed C SDK ZIP **1.19.2.1-CL58105819** |
-| `OPENREALM_EOS_PRODUCT_ID` | Product ID |
-| `OPENREALM_EOS_SANDBOX_ID` | Sandbox ID |
-| `OPENREALM_EOS_DEPLOYMENT_ID` | Official deployment ID |
-| `OPENREALM_EOS_CLIENT_ID` | Restricted player client ID |
-| `OPENREALM_EOS_CLIENT_SECRET` | Restricted player client secret |
+| Name | Kind | Value |
+| --- | --- | --- |
+| `EOS_SDK_REPOSITORY` | Variable | `corepunch/open-realm-eos-sdk` (private) |
+| `EOS_SDK_REF` | Variable | Pinned mirror commit `7306233848a55de428d0bb600c1effd4325f476c` |
+| `EOS_SDK_DEPLOY_KEY` | Secret | SSH private key whose public key is a read-only deploy key on the mirror |
+| `OPENREALM_EOS_PRODUCT_ID` | Secret | Product ID |
+| `OPENREALM_EOS_SANDBOX_ID` | Secret | Sandbox ID |
+| `OPENREALM_EOS_DEPLOYMENT_ID` | Secret | Official Live deployment ID |
+| `OPENREALM_EOS_CLIENT_ID` | Secret | `OpenRealm release player` client ID |
+| `OPENREALM_EOS_CLIENT_SECRET` | Secret | Restricted player client secret |
 
-Use an authorized archive download endpoint or private artifact mirror that the
-runner can access directly. A Developer Portal page or store slug is not an
-archive URL. An expired signed URL must be replaced. The workflow does not log
-in to Epic or store your developer account password. Secret configuration and
-live deployment access have not been completed by this change.
+Epic's portal issues signed archive URLs containing `Expires`, `Key-Pair-Id` and
+`Signature`. The recorded download URL had expired and returned HTTP 403 when
+tested without browser authentication. It is unsuitable as a durable CI input.
+The mirror instead contains a 37,438,691-byte SDK-only ZIP derived from the
+checksum-verified official archive: C headers, the three desktop runtimes and
+third-party notices. Its README records original/derived checksums and licensing.
+Keep the mirror private. It contains no player credentials.
 
-`dist-scripts/eos/prepare_release.py` verifies this pinned SHA-256 before
-extracting C headers, the requested platform runtime and third-party notices:
+The deploy key grants read access only to that SDK repository. It cannot write
+the mirror or access the rest of the GitHub account. `actions/checkout` pins the
+mirror commit, and `persist-credentials: false` removes its authentication after
+checkout. No Epic developer password or account-wide GitHub token is stored in
+Actions. The five player credentials are separate secrets in `open-realm`.
+
+`dist-scripts/eos/prepare_release.py` accepts only these pinned archive hashes:
 
 ```text
+# Official C SDK 1.19.2.1-CL58105819
 56a3bd805df426606946d74ba662f25223ffe24159e7884a625225ba80b582fb
+# Compact archive EOS-SDK-1.19.2.1-CL58105819-runtime.zip in the private mirror
+7fdb37c88c9dbb0dc321306cd1475e94f542d623259f7099dc85ebd6f29bb342
 ```
 
 Tools and samples are excluded. Missing configuration, invalid ZIP contents,
-unsafe paths, download failures or checksum mismatches fail the release job
+unsafe paths, checkout failures or checksum mismatches fail the release job
 explicitly. URLs and configuration values are omitted from downloader errors.
 The helper creates ignored `data/eos/eos.cfg` with private file permissions and
 the build passes `BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg`.
-SDK upgrades require updating the version and checksum in this helper after
-checking the official archive; a mutable download URL alone cannot upgrade it.
+The workflow passes `--archive` for the checked-out compact ZIP. The helper also
+supports an HTTPS download via `EOS_SDK_DOWNLOAD_URL` for manual preparation;
+that variable is not required by release CI.
+
+SDK upgrades require validating the official ZIP, creating the compact archive,
+updating the helper's version/checksums, publishing a new private mirror commit
+and updating `EOS_SDK_REF`. Changing the mirror variable alone cannot introduce
+different SDK bytes. To rotate CI access, add a new read-only mirror deploy key,
+replace `EOS_SDK_DEPLOY_KEY`, verify checkout, then remove the old public key.
 
 Unix archives preserve `bin/`, `lib/` and `share/` so the executable's runtime
 lookup paths work after extraction; run `bin/openwarcraft3`. macOS x64 uses an
@@ -123,6 +144,16 @@ runtime under `/app/lib` and notices under `/app/share/licenses/EOS`, then
 publishes the final bundle only. Flatpak source/build caches are disabled so
 SDK files and private configuration are not saved as cache artifacts.
 
+Published-release events upload assets normally. Manual dispatch supports
+`publish=false` to build/package all platforms without uploading release assets
+or Flatpak artifacts. It does not require creating a release for the supplied
+tag, because upload steps are skipped:
+
+```sh
+gh workflow run release.yml --ref feature/eos-online-multiplayer \
+    -f tag=eos-setup-check -f publish=false
+```
+
 Validate release preparation without any SDK or service access using
 `make test-eos-release` (also included in `make test`). To check a downloaded
 official archive locally, supply the five configuration variables and a fresh
@@ -135,15 +166,36 @@ python3 dist-scripts/eos/prepare_release.py --platform macOS \
 ```
 
 The actual official archive passed checksum/extraction checks for all three
-platforms locally. The SDK-free macOS build passed with a nonexistent SDK root
-and its dependency list contains no EOS library. Eight preparation regressions
+platforms locally. The compact mirror archive passed the same three-platform
+checks, and the approved deploy key fetched the pinned mirror commit over SSH.
+The SDK-free macOS build passed with a nonexistent SDK root
+and its dependency list contains no EOS library. Nine preparation regressions
 cover platform selection, checksum rejection, required files, traversal/symlink
 rejection, private config, existing-file preservation and download error
 redaction. A fresh optimized macOS arm64 EOS executable and test executable built
 successfully; its SDK state checks passed 31 assertions in three tests, and the
 full SDK-free `make test TEST_JOBS=4` passed with local UDP socket access.
-Hosted release builds still require running the release
-workflow with configured secrets; these checks do not establish live play.
+These checks do not establish two-installation gameplay or relay behavior.
+
+## Live configuration check
+
+On 2026-10-03, a bounded native C SDK probe using the configured release player
+client completed desktop Device ID login, created an isolated public lobby,
+read its ownership/data, found the lobby through a bucket-filtered public search
+and destroyed it. All service calls returned `EOS_Success`. The setup lobby used
+`OpenRealmConfigurationProbe`, separate from the engine's game/protocol/edition
+bucket, and was cleaned up after the check. Public indexing was asynchronous:
+the first two searches returned zero matches, and the third found the lobby.
+This verifies the configured Connect and three lobby permissions, not game
+packet transport, another player's join, relay behavior or crash cleanup.
+
+A headless macOS C SDK probe must pump the native run loop while ticking EOS.
+`EOS_Platform_Tick` plus `usleep` alone timed out before the Device ID callback,
+with native HTTP errors reported during teardown. Adding
+`CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false)` in the bounded tick loop
+completed the same operations. The normal SDL client already pumps native
+events. Do not diagnose an unpumped headless probe as invalid credentials or
+disable TLS validation to work around its HTTP errors.
 
 ## Ownership and lifecycle
 
