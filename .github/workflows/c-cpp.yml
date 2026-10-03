@@ -8,6 +8,17 @@ on:
     branches: ["main"]
 
 jobs:
+  notifications:
+    name: Discord notification fixtures
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 tests/test_discord_notifications.py
+
   test:
     runs-on: ubuntu-latest
     container:
