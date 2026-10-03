@@ -1661,6 +1661,23 @@ TEST(wc3_spell, spell_is_channeling_detects_active) {
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 
+TEST(wc3_spell, channel_owner_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *thinker;
+    uint32_t spawn_time;
+
+    if (!caster->channel) caster->channel = G_AllocChannel();
+    assert(caster->channel);
+    caster->channel->serial = 6;
+    thinker = S_SpellChannelThinker(caster, MAKEFOURCC('A','H','d','r'));
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    spawn_time = caster->spawn_time;
+    caster->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    caster->spawn_time = spawn_time;
+    G_FreeEdict(thinker);
+}
+
 TEST(wc3_spell, channel_target_resolves_only_captured_incarnation) {
     edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);

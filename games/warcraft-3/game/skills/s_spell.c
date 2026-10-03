@@ -585,6 +585,14 @@ edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *ta
     return ent;
 }
 
+/* Resolve the caster incarnation captured by a channel thinker. Channel state,
+ * liveness and cancellation policy remain with the owning lifecycle. */
+edict_t *S_SpellChannelOwner(edict_t const *ent) {
+    edict_t *owner;
+    if (!ent || !ent->channel || !(owner = ent->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == ent->channel->owner_spawn_time ? owner : NULL;
+}
+
 /* Resolve the unit incarnation captured by a target-channel thinker. Liveness,
  * range, relation and completion policy remain with the owning ability. */
 edict_t *S_SpellChannelTarget(edict_t const *ent) {
@@ -595,8 +603,8 @@ edict_t *S_SpellChannelTarget(edict_t const *ent) {
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
-    edict_t *caster = ent ? ent->owner : NULL;
-    if (!caster || !caster->inuse || caster->spawn_time != ent->channel->owner_spawn_time) return false;
+    edict_t *caster = S_SpellChannelOwner(ent);
+    if (!caster) return false;
     spell_run_frame(caster);
     return !M_IsDead(caster) && caster->channel && caster->channel->code == ent->class_id &&
         caster->channel->serial == ent->channel->serial;
@@ -604,9 +612,9 @@ bool S_SpellChannelActive(edict_t *ent) {
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
 void S_SpellEndChannel(edict_t *ent) {
-    edict_t *caster = ent->owner;
-    if (caster && caster->inuse && caster->spawn_time == ent->channel->owner_spawn_time &&
-        caster->channel && caster->channel->code == ent->class_id && caster->channel->serial == ent->channel->serial)
+    edict_t *caster = S_SpellChannelOwner(ent);
+    if (caster && caster->channel && caster->channel->code == ent->class_id &&
+        caster->channel->serial == ent->channel->serial)
         S_SpellCancelChannel(caster);
     G_FreeEdict(ent);
 }

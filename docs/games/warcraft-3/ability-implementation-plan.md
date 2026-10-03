@@ -181,9 +181,14 @@ inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
 semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
 this helper to artillery/fixed-point attacks or add flags for unrelated missile
 policies.
+For channel thinkers, resolve the captured caster incarnation through
+`S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
 For unit-target channel thinkers, use `S_SpellChannelTargetThinker()` after the
 owning procedure has validated the target. It layers the common goal pointer and
-target-incarnation snapshot onto `S_SpellChannelThinker()`; range rechecks,
+target-incarnation snapshot onto `S_SpellChannelThinker()`; later ticks/cleanup
+resolve that snapshot through `S_SpellChannelTarget()`. Non-channel approach
+thinkers may reuse `S_SpellChannelTarget()` only when they already store the same
+`goalentity` + `channel->target_spawn_time` identity pair. Range rechecks,
 duration, pulse cadence, pause/ownership changes, cancellation side effects and
 cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
 channel constructor: the constructor already owns that lifecycle storage.

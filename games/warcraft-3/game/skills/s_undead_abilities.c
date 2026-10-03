@@ -324,11 +324,10 @@ static void cannibalize_approach_cancel(edict_t *thinker) {
 
 void cannibalize_approach_think(edict_t *thinker) {
     edict_t *caster = thinker ? thinker->owner : NULL;
-    edict_t *corpse = thinker ? thinker->goalentity : NULL;
+    edict_t *corpse = S_SpellChannelTarget(thinker);
     edict_t *approach = cannibalize_approach_target(corpse);
 
-    if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
-        corpse->spawn_time != thinker->channel->target_spawn_time || !approach ||
+    if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !approach ||
         !cannibalize_corpse_allowed(caster, thinker->class_id, corpse)) {
         cannibalize_approach_cancel(thinker);
         return;
@@ -629,20 +628,18 @@ static void possession_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
 }
 
 static void possession_strip_channel(edict_t *thinker) {
-    edict_t *caster = thinker->owner, *target = S_SpellChannelTarget(thinker);
+    edict_t *caster = S_SpellChannelOwner(thinker), *target = S_SpellChannelTarget(thinker);
     if (target) {
         possession_clear_status(target, BZ_BPOS);
         possession_refresh_stun(target);
         if (thinker->damage) target->invulnerable = thinker->invulnerable;
     }
-    if (caster && caster->inuse && caster->spawn_time == thinker->channel->owner_spawn_time)
-        possession_clear_status(caster, BZ_BPOC);
+    if (caster) possession_clear_status(caster, BZ_BPOC);
 }
 
 void possession_two_think(edict_t *thinker) {
-    edict_t *caster = thinker->owner, *target = thinker->goalentity;
-    if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != thinker->channel->target_spawn_time) {
+    edict_t *caster = S_SpellChannelOwner(thinker), *target = S_SpellChannelTarget(thinker);
+    if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target)) {
         possession_strip_channel(thinker);
         S_SpellEndChannel(thinker);
         return;
