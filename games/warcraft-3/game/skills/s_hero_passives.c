@@ -735,7 +735,7 @@ static void mana_shield_remove(edict_t *unit, uint32_t buff) {
 
 /* Mana Shield owns its authored buff so learned-but-inactive abilities never intercept damage. */
 BZ_ABILITY_PROC(CAbilityManaShield) {
-    uint32_t code = call &E_item_get(call) &E_item_get(call)->code ? call->item->code : 0;
+    uint32_t code = call && call->item && call->item->code ? call->item->code : 0;
     auraAbilityRef_t ref;
     uint32_t level, buff;
     bool active;

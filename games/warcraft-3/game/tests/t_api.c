@@ -3668,14 +3668,14 @@ TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     if (!mine || !worker || !building) goto cleanup;
     mine->birth(mine);
     T_ASSERT(G_StartUndeadConstruction(worker, mine));
-    T_ASSERT(E_construction_get(mine)->active);
+    T_ASSERT(mine->construction->active);
     T_STREQ(mine->currentmove->animation, "birth");
 
     jass_callbyname(level.vm, "cancelIntro", false);
     jass_runevents(level.vm);
     T_ASSERT(mine->svflags & SVF_DEADMONSTER);
     T_STREQ(mine->currentmove->animation, "death");
-    T_ASSERT(!E_construction_get(mine)->active);
+    T_ASSERT(!mine->construction || !mine->construction->active);
     T_ASSERT(worker->inuse);
     T_ASSERT(G_IsDeferredFree(worker));
     T_ASSERT(G_IsDeferredFree(building));
@@ -4195,7 +4195,9 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
     building = find_test_unit(MAKEFOURCC('h','b','a','r'));
     T_NOT_NULL(building);
     building->stand = unit_stand;
-    E_construction(building)->active = true;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
+    building->construction->active = true;
     saved = g_edicts[0].client;
     g_edicts[0].client = NULL;
     G_CompleteConstruction(building);
@@ -4837,10 +4839,11 @@ TEST(wc3_api, customize_entity_publishes_overlay_parent_gold) {
         .s = { .flags = EF_RESOURCE_SOURCE },
         .resources = 4500,
     };
+    mineOverlay_t overlay_state = { .parent = &parent, .parent_spawn_time = 91 };
     edict_t overlay = {
         .svflags = SVF_MONSTER,
         .s = { .player = 3 },
-        .mineoverlay = { .parent = &parent, .parent_spawn_time = 91 },
+        .mineoverlay = &overlay_state,
     };
     parent.health.value = 100.0f;
     overlay.health.value = 100.0f;
@@ -4882,7 +4885,8 @@ TEST(wc3_api, customize_entity_packs_hover_cargo_count_and_capacity) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 }, .data = { .UnitAbilities = &abilities } };
 
     ent.health.value = 100.0f;
-    ent.cargo.count = 3;
+    cargo_t cargo_state = { .count = 3 };
+    ent.cargo = &cargo_state;
     globals.CustomizeEntity(3, &ent, &state);
     T_EQ(EntityCargoCount(state.stats[ENT_CARGO]), 3);
     T_EQ(EntityCargoCapacity(state.stats[ENT_CARGO]), 4);
@@ -6333,8 +6337,10 @@ static edict_t *alloc_world_test_item(uint32_t class_id) {
     edict_t *item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
-    E_item(item)->in_world = true;
-    E_item(item)->inventory_slot = -1;
+    if (!item->item) item->item = G_AllocItem();
+    assert(item->item);
+    item->item->in_world = true;
+    item->item->inventory_slot = -1;
     return item;
 }
 
@@ -7260,23 +7266,26 @@ TEST(wc3_api, stock_slots_propagate_override_clamp_and_inherit) {
     edict_t *second = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 32, 0);
     edict_t *future;
 
+    G_SetStockSlots(first, true, level.stock.item_slots);
+    G_SetStockSlots(second, true, level.stock.item_slots);
     G_SetAllStockSlots(true, 11); G_SetAllStockSlots(false, 9);
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 9);
-    T_EQ(E_stock_get(first)->item_slots, 11); T_EQ(E_stock_get(second)->item_slots, 11);
-    T_EQ(E_stock_get(first)->unit_slots, 9); T_EQ(E_stock_get(second)->unit_slots, 9);
+    T_EQ(first->stock->item_slots, 11); T_EQ(second->stock->item_slots, 11);
+    T_EQ(first->stock->unit_slots, 9); T_EQ(second->stock->unit_slots, 9);
 
     G_SetStockSlots(first, true, 3); G_SetStockSlots(first, false, -1);
-    T_EQ(E_stock_get(first)->item_slots, 3); T_EQ(E_stock_get(first)->unit_slots, 0);
-    T_EQ(E_stock_get(second)->item_slots, 11); T_EQ(E_stock_get(second)->unit_slots, 9);
+    T_EQ(first->stock->item_slots, 3); T_ASSERT(!first->stock || first->stock->unit_slots == 0);
+    T_EQ(second->stock->item_slots, 11); T_EQ(second->stock->unit_slots, 9);
 
     future = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 64, 0);
-    G_InitStockSlots(future);
-    T_EQ(E_stock_get(future)->item_slots, 11); T_EQ(E_stock_get(future)->unit_slots, 9);
+    G_SetStockSlots(future, true, level.stock.item_slots);
+    T_EQ(future->stock->item_slots, 11); T_EQ(future->stock->unit_slots, 9);
 }
 
 TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
     edict_t *shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
     edict_t *created = NULL;
+    G_SetStockSlots(shop, true, level.stock.item_slots);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\nlocal unit shop\n"
@@ -7287,10 +7296,10 @@ TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
         "call SetUnitTypeSlots(shop,4)\n"
         "endfunction"));
     T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 10);
-    T_EQ(E_stock_get(shop)->item_slots, 11); T_EQ(E_stock_get(shop)->unit_slots, 10);
+    T_EQ(shop->stock->item_slots, 11); T_EQ(shop->stock->unit_slots, 10);
     FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) created = g_edicts + i;
     T_NOT_NULL(created);
-    T_EQ(E_stock_get(created)->item_slots, 3); T_EQ(E_stock_get(created)->unit_slots, 4);
+    T_EQ(created->stock->item_slots, 3); T_EQ(created->stock->unit_slots, 4);
 }
 
 TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
@@ -7305,16 +7314,16 @@ TEST(wc3_api, item_stock_natives_override_and_remove_runtime_stock) {
         "call AddItemToStock(null,'spro',1,2)\n"
         "call RemoveItemFromStock(null,'spro')\n"
         "endfunction"));
-    T_EQ(E_stock_get(shop)->item_count, 1);
-    T_EQ(E_stock_get(shop)->items[0].id, MAKEFOURCC('s','p','r','o'));
-    T_EQ(E_stock_get(shop)->items[0].current, 1);
-    T_EQ(E_stock_get(shop)->items[0].maximum, 2);
+    T_EQ(shop->stock->item_count, 1);
+    T_EQ(shop->stock->items[0].id, MAKEFOURCC('s','p','r','o'));
+    T_EQ(shop->stock->items[0].current, 1);
+    T_EQ(shop->stock->items[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveItemFromAllStock('spro')\n"
         "endfunction"));
-    T_EQ(E_stock_get(shop)->item_count, 0);
+    T_ASSERT(!shop->stock || shop->stock->item_count == 0);
 }
 
 TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
@@ -7329,16 +7338,16 @@ TEST(wc3_api, unit_stock_natives_override_and_remove_runtime_stock) {
         "call AddUnitToStock(null,'nmer',1,2)\n"
         "call RemoveUnitFromStock(null,'nmer')\n"
         "endfunction"));
-    T_EQ(E_stock_get(shop)->unit_count, 1);
-    T_EQ(E_stock_get(shop)->units[0].id, MAKEFOURCC('n','m','e','r'));
-    T_EQ(E_stock_get(shop)->units[0].current, 1);
-    T_EQ(E_stock_get(shop)->units[0].maximum, 2);
+    T_EQ(shop->stock->unit_count, 1);
+    T_EQ(shop->stock->units[0].id, MAKEFOURCC('n','m','e','r'));
+    T_EQ(shop->stock->units[0].current, 1);
+    T_EQ(shop->stock->units[0].maximum, 2);
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "call RemoveUnitFromAllStock('nmer')\n"
         "endfunction"));
-    T_EQ(E_stock_get(shop)->unit_count, 0);
+    T_ASSERT(!shop->stock || shop->stock->unit_count == 0);
 }
 
 TEST(wc3_api, weather_effect_native_preserves_bounds_id_and_enable_state) {
@@ -8068,9 +8077,10 @@ TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
 
 TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "WESTRING_DEST_ELVEN_GATE_HORIZONTAL" };
+    destructable_t destructable_state = { .initialized = true };
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('A','T','g','1'),
         .svflags = SVF_STATIC_SCENERY, .targtype = TARG_STRUCTURE,
-        .data = { .DestructableData = &row }, .destructable = { .initialized = true },
+        .data = { .DestructableData = &row }, .destructable = &destructable_state,
         .health = { .value = 500, .max_value = 500 } };
     entityState_t state = { .number = 7, .model = 11 };
     globals.CustomizeEntity(0, &ent, &state);
@@ -8081,10 +8091,10 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
                                     "Ancient Elven Gate"));
     T_ASSERT(state.flags & EF_NEUTRAL);
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
-    ent.destructable.dead = true; ent.health.value = 0;
+    ent.destructable->dead = true; ent.health.value = 0;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
-    ent.destructable.dead = false; ent.health.value = 500;
+    ent.destructable->dead = false; ent.health.value = 500;
     state.flags |= EF_NOT_SELECTABLE;
     globals.CustomizeEntity(0, &ent, &state);
     T_EQ(state.name, 0);

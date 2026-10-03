@@ -169,7 +169,7 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
     edict_t *thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
-    T_EQ(E_channel_get(fix.caster)->code, BZ_APS2);
+    T_EQ(fix.caster->channel->code, BZ_APS2);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 1);
     T_EQ(G_UnitStatusLevel(fix.caster, BZ_BPOC), 1);
     T_ASSERT(fix.enemy->stunned);
@@ -181,7 +181,7 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     level.time = thinker->spawn_time; G_RunEntities();
     T_EQ(fix.enemy->s.player, 0);
     T_ASSERT(M_IsDead(fix.caster));
-    T_EQ(E_channel_get(fix.caster)->code, 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 0);
     T_ASSERT(!fix.enemy->invulnerable);
     pos_done(fix);

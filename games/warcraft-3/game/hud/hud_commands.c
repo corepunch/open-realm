@@ -243,7 +243,7 @@ void UI_WriteBuildQueue(edict_t *ent) {
      * repeated queue icons that Warcraft creates in code. */
     buildtimer_number = UI_WriteBuildingQueueShell(
         ent, constructing ? "CONSTRUCTING" : upgrading ? "UPGRADING" :
-             (ent && ent->build && E_research_get(ent->build)->upgrade != 0 ? "RESEARCHING" : "TRAINING"),
+             (ent && ent->build && ent->build->research && ent->build->research->upgrade != 0 ? "RESEARCHING" : "TRAINING"),
         !hide_queue_slots);
     if (!buildtimer_number) {
         fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");

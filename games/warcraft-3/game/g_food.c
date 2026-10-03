@@ -104,9 +104,12 @@ void G_SetUnitFoodUsed(edict_t *unit, int32_t amount) {
     int32_t value, delta;
 
     if (!unit) return;
+    if (!unit->food && amount <= 0) return;
+    if (!unit->food) unit->food = G_AllocFood();
+    assert(unit->food);
     value = MAX(0, amount);
-    delta = value - E_food_get(unit)->used;
-    E_food(unit)->used = value;
+    delta = value - unit->food->used;
+    unit->food->used = value;
     client = G_FoodClient(unit->s.player);
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_USED, delta);
 }
@@ -116,9 +119,12 @@ void G_SetUnitFoodMade(edict_t *unit, int32_t amount) {
     int32_t value, delta;
 
     if (!unit) return;
+    if (!unit->food && amount <= 0) return;
+    if (!unit->food) unit->food = G_AllocFood();
+    assert(unit->food);
     value = MAX(0, amount);
-    delta = value - E_food_get(unit)->made;
-    E_food(unit)->made = value;
+    delta = value - unit->food->made;
+    unit->food->made = value;
     client = G_FoodClient(unit->s.player);
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_CAP, delta);
 }
@@ -154,7 +160,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */
-    if (E_revival_get(unit)->reviving) G_CancelHeroRevive(E_revival_get(unit)->producer, unit);
+    if ((unit->revival && unit->revival->reviving)) G_CancelHeroRevive(unit->revival->producer, unit);
     G_CancelHeroRevives(unit);
     G_CancelTrainingQueue(unit, true);
     if (G_BuildingUpgradeActive(unit)) G_CancelBuildingUpgrade(unit);
@@ -162,13 +168,13 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     old_client = G_FoodClient(old_player);
     new_client = G_FoodClient(player);
 
-    if (E_food_get(unit)->used) {
-        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_USED, -E_food_get(unit)->used);
-        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_USED, E_food_get(unit)->used);
+    if (unit->food && unit->food->used) {
+        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_USED, -unit->food->used);
+        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_USED, unit->food->used);
     }
-    if (E_food_get(unit)->made) {
-        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -E_food_get(unit)->made);
-        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, E_food_get(unit)->made);
+    if (unit->food && unit->food->made) {
+        G_AdjustFoodStat(old_client, PLAYERSTATE_RESOURCE_FOOD_CAP, -unit->food->made);
+        G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
     unit->s.player = player;
     G_PublishChangeOwnerEvents(unit, old_player);
@@ -184,8 +190,11 @@ bool G_ReserveTrainingFood(edict_t *unit) {
 
     if (!unit || !unit->data.UnitBalance) return false;
     cost = MAX(0, unit->data.UnitBalance->foodUsed);
-    if (E_food_get(unit)->used == cost) return true;
-    if (E_food_get(unit)->used != 0) return false;
+    if (cost == 0 && !unit->food) return true;
+    if (!unit->food) unit->food = G_AllocFood();
+    assert(unit->food);
+    if (unit->food->used == cost) return true;
+    if (unit->food->used != 0) return false;
     if (cost == 0) return true;
     client = G_FoodClient(unit->s.player);
     if (!G_PlayerHasFoodFor(client, cost)) return false;

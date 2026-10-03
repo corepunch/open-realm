@@ -25,7 +25,7 @@ void monsoon_think(edict_t *ent) {
 
 /* The generic channel thinker has no position: initialize it from the cast before the first pulse. */
 BZ_ABILITY_PROC(CAbilityMonsoon) {
-    uint32_t code = call &E_item_get(call) ? call->item->code : 0, rank;
+    uint32_t code = call && call->item ? call->item->code : 0, rank;
     edict_t *thinker;
     if (msg != A_VALIDATE && msg != A_EXECUTE) return CAbilitySimpleSpell(ent, msg, call);
     rank = S_SpellLevel(ent, code);

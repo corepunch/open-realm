@@ -50,8 +50,8 @@ static float G_SnapBlightCorner(float value, float minimum) {
 static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
     pathTex_t const *pathtex;
 
-    if (!ent || !G_IsDestructable(ent) || E_destructable_get(ent)->dead) return false;
-    pathtex = E_destructable_get(ent)->alive_pathtex;
+    if (!ent || !G_IsDestructable(ent) || ent->destructable->dead) return false;
+    pathtex = ent->destructable->alive_pathtex;
     if (!pathtex || !pathtex->width || !pathtex->height)
         return G_IsPointBlighted(&ent->s.origin2);
     FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
@@ -69,8 +69,8 @@ void G_BlightMarkDestructable(edict_t *ent) {
     PATHSTR blight_texture;
     cstring_t dot;
 
-    if (!ent || !G_IsDestructable(ent) || E_destructable_get(ent)->blighted) return;
-    E_destructable(ent)->blighted = true;
+    if (!ent || !G_IsDestructable(ent) || ent->destructable->blighted) return;
+    ent->destructable->blighted = true;
     ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
     ent->vertex_color_set = true;
     data = ent->data.DestructableData;
@@ -103,7 +103,7 @@ void G_BlightUpdateDestructables(box2_t const *region) {
     expanded.max.x += WC3_BLIGHT_TERRAIN_CELL;
     expanded.max.y += WC3_BLIGHT_TERRAIN_CELL;
     FILTER_EDICTS(ent, ent->inuse && G_IsDestructable(ent) &&
-        !E_destructable_get(ent)->blighted && Box2_containsPoint(&expanded, &ent->s.origin2)) {
+        !ent->destructable->blighted && Box2_containsPoint(&expanded, &ent->s.origin2)) {
         if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
     }
 }

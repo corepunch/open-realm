@@ -40,9 +40,12 @@ static void blight_growth_reset(edict_t *ent, uint32_t code, uint32_t now) {
     uint32_t const level = code ? MAX(1u, G_UnitAbilityLevel(ent, code)) : 0;
     float const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
 
-    E_blight_growth(ent)->ability = code;
-    E_blight_growth(ent)->radius = 0.0f;
-    E_blight_growth(ent)->next_update = code ? now + (uint32_t)(MAX(0.0f, interval) * 1000.0f) : 0;
+    if (!code) { G_FreeBlightGrowth(ent); return; }
+    if (!ent->blight_growth) ent->blight_growth = G_AllocBlightGrowth();
+    assert(ent->blight_growth);
+    ent->blight_growth->ability = code;
+    ent->blight_growth->radius = 0.0f;
+    ent->blight_growth->next_update = code ? now + (uint32_t)(MAX(0.0f, interval) * 1000.0f) : 0;
 }
 
 /* Warsmash CAbilityBlight semantics: DataA selects create/remove, DataB is the
@@ -61,16 +64,16 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
         blight_growth_reset(ent, code, G_Time());
         return code != 0;
     case A_ENABLE:
-        code = call &E_item_get(call) ? call->item->code : 0;
+        code = call && call->item ? call->item->code : 0;
         if (code) blight_growth_reset(ent, code, G_Time());
         return code != 0;
     case A_DISABLE:
-        code = call &E_item_get(call) ? call->item->code : 0;
-        if (!code || E_blight_growth_get(ent)->ability == code)
-            G_PoolDrop_blight_growth(ent);
+        code = call && call->item ? call->item->code : 0;
+        if (ent->blight_growth && (!code || ent->blight_growth->ability == code))
+            G_FreeBlightGrowth(ent);
         return true;
     case A_UNIT_REMOVE:
-        G_PoolDrop_blight_growth(ent);
+        G_FreeBlightGrowth(ent);
         return true;
     case A_UPDATE:
         break;
@@ -78,14 +81,14 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
         return false;
     }
 
-    if (!ent->inuse || M_IsDead(ent) || !(code = E_blight_growth_get(ent)->ability)) return false;
+    if (!ent->inuse || !ent->blight_growth || M_IsDead(ent) || !(code = ent->blight_growth->ability)) return false;
     /* Construction owns the building's incomplete lifecycle.  Passive Abli
      * ticks resume only after the structure is complete. */
-    if (E_construction_get(ent)->active) return false;
+    if ((ent->construction && ent->construction->active)) return false;
     if (!G_IsUnitAbilityAvailable(ent, code)) return false;
     level = G_UnitAbilityLevel(ent, code);
     if (!level) {
-        G_PoolDrop_blight_growth(ent);
+        G_FreeBlightGrowth(ent);
         return false;
     }
     interval = S_SpellDuration(code, level, false);
@@ -95,15 +98,15 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
 
     if (interval <= 0.0f || expansion <= 0.0f || max_radius <= 0.0f) return false;
     /* Data changes affect future growth, not already-painted world state. */
-    E_blight_growth(ent)->radius = MIN(E_blight_growth_get(ent)->radius, max_radius);
-    if (now < E_blight_growth_get(ent)->next_update) return false;
+    ent->blight_growth->radius = MIN(ent->blight_growth->radius, max_radius);
+    if (now < ent->blight_growth->next_update) return false;
 
-    if (E_blight_growth_get(ent)->radius < max_radius) {
+    if (ent->blight_growth->radius < max_radius) {
         bool const creates = S_SpellData(code, level, 1) != 0.0f;
-        E_blight_growth(ent)->radius = MIN(max_radius, E_blight_growth_get(ent)->radius + expansion);
-        G_SetBlightRadius(&ent->s.origin2, E_blight_growth_get(ent)->radius, creates);
-        BLIGHT_LOG("growth tick radius=%.3f max=%.3f\n", E_blight_growth_get(ent)->radius, max_radius);
+        ent->blight_growth->radius = MIN(max_radius, ent->blight_growth->radius + expansion);
+        G_SetBlightRadius(&ent->s.origin2, ent->blight_growth->radius, creates);
+        BLIGHT_LOG("growth tick radius=%.3f max=%.3f\n", ent->blight_growth->radius, max_radius);
     }
-    E_blight_growth(ent)->next_update = now + (uint32_t)(interval * 1000.0f);
+    ent->blight_growth->next_update = now + (uint32_t)(interval * 1000.0f);
     return true;
 }

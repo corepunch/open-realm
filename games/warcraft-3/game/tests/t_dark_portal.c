@@ -82,7 +82,7 @@ TEST(wc3_spell, dark_portal_reads_authored_data) {
 TEST(wc3_spell, dark_portal_schedules_authored_exits) {
     dpFix_t fix = dp_setup();
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANDP, &fix.point));
-    T_EQ(E_channel_get(fix.caster)->code, 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     T_EQ(dp_troops(fix.caster), 1);
     T_NOT_NULL(dp_thinker(fix.caster));
 
@@ -103,7 +103,7 @@ TEST(wc3_spell, dark_portal_continues_after_caster_moves) {
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANDP, &fix.point));
     T_EQ(dp_troops(fix.caster), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
-    T_EQ(E_channel_get(fix.caster)->code, 0);
+    T_ASSERT(!fix.caster->channel || fix.caster->channel->code == 0);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(dp_troops(fix.caster), 2);
     level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();

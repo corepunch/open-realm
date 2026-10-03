@@ -57,8 +57,10 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     target = rally_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
     producer->data.UnitProfile = &rally_train_profile;
     producer->data.UnitAbilities = &rally_ancient_abilities;
-    E_ancient_root(producer)->ability = MAKEFOURCC('A','r','o','1');
-    E_ancient_root(producer)->mode = ANCIENT_ROOTED;
+    if (!producer->ancient_root) producer->ancient_root = G_AllocAncientRoot();
+    assert(producer->ancient_root);
+    producer->ancient_root->ability = MAKEFOURCC('A','r','o','1');
+    producer->ancient_root->mode = ANCIENT_ROOTED;
     producer->s.flags |= EF_BUILDING;
     producer->aiflags |= AI_IMMOBILE;
 
@@ -67,7 +69,7 @@ TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
     T_EQ(G_ResolveRallyTarget(producer, NULL, &rally_target), RALLY_TARGET_ENTITY);
     T_ASSERT(rally_target == target);
 
-    E_ancient_root(producer)->mode = ANCIENT_UPROOTED;
+    producer->ancient_root->mode = ANCIENT_UPROOTED;
     producer->s.flags &= ~EF_BUILDING;
     producer->aiflags &= ~AI_IMMOBILE;
     producer->runtime.flags &= ~UNIT_BALANCE_BUILDING;
@@ -401,7 +403,7 @@ TEST(wc3_rally, training_completion_leaves_unit_idle_on_default_rally) {
     T_NULL(trained->goalentity);
     T_NULL(trained->movement.follow_target);
     T_NULL(trained->build);
-    T_EQ(E_buildwork_get(trained)->ability, 0);
+    T_ASSERT(!trained->buildwork || trained->buildwork->ability == 0);
 }
 
 #endif
