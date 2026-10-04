@@ -4010,6 +4010,108 @@ TEST(wc3_save, ability_owned_timed_summon_round_trip) {
     T_EQ(timed_life->duration_ms, 45000);
     remove(filename);
 }
+
+TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-homing-spell-projectile.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'H', 't', 'b');
+    edict_t *caster, *target, *missile;
+
+    setup_test_world();
+    reset_entities();
+    caster = alloc_test_unit(MAKEFOURCC('H', 'm', 't', 'k'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128.0f, 0.0f);
+    caster->s.player = 0;
+    target->s.player = 1;
+    missile = S_SpawnUnitTargetSpellMissile(caster, ability, target, 900.0f, &holdpos_move_stand);
+
+    T_NOT_NULL(missile);
+    T_ASSERT(missile->owner == caster);
+    T_ASSERT(missile->goalentity == target);
+    T_ASSERT(missile->channel);
+    T_EQ(missile->channel->owner_spawn_time, caster->spawn_time);
+    T_EQ(missile->channel->target_spawn_time, target->spawn_time);
+    T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    T_ASSERT(WriteGame(filename));
+
+    missile->owner = NULL;
+    missile->goalentity = NULL;
+    missile->class_id = 0;
+    missile->velocity = 0.0f;
+    missile->movetype = MOVETYPE_NONE;
+    missile->currentmove = NULL;
+    missile->channel->owner_spawn_time = 0;
+    missile->channel->target_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(S_SpellProjectileOwner(missile) == caster);
+    T_ASSERT(S_SpellProjectileTarget(missile) == target);
+    T_EQ(missile->class_id, ability);
+    T_FEQ(missile->velocity, 0.9f, 0.001f);
+    T_EQ(missile->movetype, MOVETYPE_FLYMISSILE);
+    T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    remove(filename);
+}
+
+TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-corpse-reservation.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'u', 'c', 'a');
+    edict_t *corpse;
+    heroabilitystatus_t *reservation;
+
+    reset_entities();
+    corpse = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    corpse->health.value = 0;
+    S_SpellReserveCorpse(corpse, ability, 2);
+
+    T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
+    T_ASSERT(unit_findstatus(corpse, ability));
+    T_ASSERT(WriteGame(filename));
+
+    corpse->aiflags &= ~AI_CORPSE_RESERVED;
+    memset(corpse->abilstatus, 0, sizeof(corpse->abilstatus));
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
+    reservation = unit_findstatus(corpse, ability);
+    T_NOT_NULL(reservation);
+    if (reservation) T_EQ(reservation->level, 2);
+    S_SpellReleaseCorpse(corpse, ability);
+    T_ASSERT(!(corpse->aiflags & AI_CORPSE_RESERVED));
+    T_NULL(unit_findstatus(corpse, ability));
+    remove(filename);
+}
+
+TEST(wc3_save, owned_target_effect_round_trip_preserves_owner_and_target_generation) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-owned-target-effect.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'H', 'h', 'b');
+    edict_t *owner, *target, *effect;
+
+    setup_test_world();
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    effect = G_SpawnOwnedAbilityEffectTarget(owner, ability, WC3_EFFECT_TARGET, 0, target, NULL);
+
+    T_NOT_NULL(effect);
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(WriteGame(filename));
+
+    effect->owner = NULL;
+    effect->goalentity = NULL;
+    effect->damage = 0;
+    effect->movetype = MOVETYPE_NONE;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(effect->s.flags & EF_NOT_SELECTABLE);
+    remove(filename);
+}
 SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
 SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)

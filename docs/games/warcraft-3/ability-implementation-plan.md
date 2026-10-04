@@ -882,7 +882,7 @@ Each new ability needs focused tests for:
   the status through the real expire path;
 - duration, cancellation, expiry, and repeated casts where applicable — assert the
   gameplay lock ended, not only the buff or helper;
-- save/load when the ability adds persistent entity state or a thinker;
+- save/load when the ability adds persistent entity state or a thinker; for shared lifecycle helpers prefer an end-to-end round trip of the combined contract (for example projectile owner/target generations, corpse reservation flag + marker, or owned-effect owner + target generation) rather than only independent scalar field tests;
 - ROC and TFT rows when the archives differ.
 
 For Raven Form, reproduce both completion of Morph and replacement by Move before its end callback, followed by ascent,
