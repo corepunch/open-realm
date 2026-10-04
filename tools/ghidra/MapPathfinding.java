@@ -8,6 +8,10 @@ import ghidra.program.model.symbol.SourceType;
 public class MapPathfinding extends GhidraScript {
     static final String HASH = "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236";
     static final String[][] ROWS = {
+        {"6f210c10", "JassNative_RemoveUnit", "Cdecl stack4 handle,plainRET/void. Resolve1eef90,virtual84 then694690(1,1). Public gate96c boundary probe shows poolID1 still reserved/active on native return; deferred ability cleanup releases it later. Same-callback replacement takesID2; next-callback replacement takesID1."},
+        {"6f694690", "Unit_QueueRemovalTasks", "ECX Unit,stack4/8 flags,RET8/void. Retire order chain673610,suspend688d90,queue d015a/d0164/d0156/d0178/d0144 and action0,then67df00 dispatch. Flags are observed as1,1 from RemoveUnit; broader meanings and exact scheduler boundaries remain unassigned."},
+        {"6f48e860", "Unit_RemoveAllAbilities", "Loop canonical ability_head untilinvalid/unresolved; each resolvedpayload is removed through48e8a0. Native gate96c release stack48e898 is inside THIS loop,not48e8a0. Queued receiver690490 via scheduledbridge060ca0 reaches43b8b0 after RemoveUnit returned. Engine keeps allocation until A_UNIT_REMOVE."},
+
         {"6f04e550", "Waygate_SetWorldDestination", "ECX nonzeroID<256,EDX worldXY,RETplain. Subtract maporiginX6c/Y70,software divide32 then15cd50 inverse base scale. Public retarget records27/27 then19/22; existing retained route still warps54.5/55.5, fresh route39.5/45.5 fine."},
         {"6f15cd50", "PathOwner_SetGateFineDestination", "ECX owner,stack4 ID,8 fineXY,RET8. Multiply by accelerator base map inverse scale68 then164ba0 floor/coarse record write. Recorded coordinates feed special searches; current retained consumer uses its own cached exit."},
         {"6f164ba0", "PathAcc_SetGateScalarDestination", "ECX accelerator,stack4 ID,8 coarseXY,RET8. Software floor070c80 then integer070120 separately per coordinate;164bf0 commits 12-byte record coordinates. Does not rewrite existing path buffers."},

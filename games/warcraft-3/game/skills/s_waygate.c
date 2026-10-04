@@ -318,10 +318,15 @@ BZ_ABILITY_PROC(CAbilityWarp) {
             waygate_initialize(ent);
             return true;
         case A_DISABLE:
-        case A_UNIT_REMOVING:
             if(!ent)return false;
             if(waygate_behavior_active(ent))waygate_clear_order(ent);
             waygate_release(ent);
+            return true;
+        case A_UNIT_REMOVING:
+            if(!ent)return false;
+            if(waygate_behavior_active(ent))waygate_clear_order(ent);
+            /* Original RemoveUnit returns with its allocation retained. Same
+             * callback replacement must allocate before deferred cleanup. */
             return true;
         case A_TARGET_ORDER:
             return call && call->target_order.issuer && call->target_order.order &&

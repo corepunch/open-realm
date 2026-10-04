@@ -85,14 +85,19 @@ TEST(wc3_waygate, exhausted_gate_stays_unallocated_until_ability_recreation) {
      * bridge ignores exhausted edge0 and IsActive remains false. */
     T_NOT_NULL(strstr(gates[255]->animation_props,"alternate"));
     G_DeferFreeEdict(gates[16]);
-    T_NULL(gates[16]->waygate);
+    T_NOT_NULL(gates[16]->waygate);
+    T_EQ(gates[16]->waygate->edge_id,17);
     T_ASSERT(!S_WaygateIsActive(gates[16]));
     S_WaygateSetActive(gates[255],true);T_ASSERT(!S_WaygateIsActive(gates[255]));
+    /* Recreating before cleanup still exhausts the pool, as retail does. */
+    T_ASSERT(G_ActorRemoveSkill(gates[255],BZ_TEST_WARP));
+    T_ASSERT(G_ActorAddSkill(gates[255],BZ_TEST_WARP));
+    T_EQ(gates[255]->waygate->edge_id,0);
+    G_RunDeferredFrees();
     T_ASSERT(G_ActorRemoveSkill(gates[255],BZ_TEST_WARP));
     T_ASSERT(G_ActorAddSkill(gates[255],BZ_TEST_WARP));
     S_WaygateSetActive(gates[255],true);T_ASSERT(S_WaygateIsActive(gates[255]));
     T_EQ(gates[255]->waygate->edge_id,17);
-    G_RunDeferredFrees();
     waygate_done(fix);reset_entities();setup_test_world();
 }
 

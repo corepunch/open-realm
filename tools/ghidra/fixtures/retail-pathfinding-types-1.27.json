@@ -10170,6 +10170,42 @@
           "storage": 16
         }
       ]
+    },
+    {
+      "address": "6f210c10",
+      "name": "JassNative_RemoveUnit",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f694690",
+      "name": "Unit_QueueRemovalTasks",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "flag1",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "flag2",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

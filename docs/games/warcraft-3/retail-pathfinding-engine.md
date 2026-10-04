@@ -8010,12 +8010,13 @@ Ability41c270 stores the allocation result at6c even when zero. Setters/getters
 do not silently retry. The43b840 ability still updates alternate presentation
 when04e210 rejects ID zero. Engine initialization retains this attempt, exposes
 zero/false getters for an exhausted gate and separates animation from actual
-activation. Removing and readding Awrp permits a new attempt. Generic semantic
-removal notification releases ownership before deferred memory reclamation;
-ordinary later cleanup remains idempotent. Availability derives from ability
+activation. Removing and readding Awrp permits a new attempt. Payoff96 corrects the original engine release boundary: semantic removal
+retains the reservation until deferred ability cleanup. Same-callback
+replacement allocates another ID; next-callback replacement can reuse it.
+Ordinary later cleanup remains idempotent. Availability derives from ability
 ownership instead of introducing a second independently serialized registry.
 Save98 retains this state and rejects duplicate identities or active/configured
-zero IDs. The public engine tests cover all256 gates, immediate removal/reuse,
+zero IDs. The public engine tests cover all256 gates, deferred removal/reuse,
 no implicit retry, ability recreation, duplicate ownership and two save/load
 round trips.
 
@@ -8182,3 +8183,68 @@ isolated28-assertion control and full suites pass with native SDL2,the same
 validation library used previously. `runtime/gate95-validation.json` pins final
 logs,environment and the committed artifact. Existing ACC-04.2/GATE-02.3 close;
 151 tasks remain. The subsequent lifetime witnesses are not part of this closure.
+
+
+## Way Gate destruction preserves deferred ID ownership
+
+Payoff96 closes GATE-02.2 and GATE-04.2 together. Two completed public JASS
+journeys each repeat all movement, pool, marker and route observations exactly.
+Both destroy an approached gate, complete ordinary walking, then start another
+cached gate route. The replacement timing distinguishes the allocation boundary:
+
+| Replacement | Allocation IDs | Motion commits / decisions | Searches / routes | Warps |
+| --- | --- | --- | --- | --- |
+| Inside the same timer callback as RemoveUnit | 1,1,2 | 514 / 512 | 8 / 8 | 0 |
+| In the next timer callback | 1,1,1 | 299 / 297 | 7 / 7 | 1 |
+
+A cached route names ID1. Same-callback replacement takes ID2 while ID1 remains
+reserved; after cleanup the consumer skips the inactive old record and walks.
+Next-callback replacement takes the released ID1, so the consumer revalidates
+its current active bit and crosses to the **old cached exit54.5/55.5 fine**.
+The new record's destination19/22 and new source768/512 do not rewrite that
+retained route. Each witness has three allocations/activations/destination
+writes, two releases, five complete marker publications and four route consumers.
+All256 availability bytes and complete marker planes are retained, not summaries.
+
+The first production regression diverged at movement commit297: releasing the
+reservation from `A_UNIT_REMOVING` let same-callback replacement take ID1 and
+warp. `CAbilityWarp` now releases at `A_UNIT_REMOVE`; explicit ability removal
+still releases immediately. Deferred-free entities remain ineligible for engine
+gate queries. This changes ability-owned lifecycle, not the generic scheduler.
+The exhaustion test checks no availability before cleanup, no implicit retry,
+and a successful ID17 attempt after cleanup and ability recreation.
+
+A separate read-only native boundary diagnostic, `gate96c-remove-boundaries.jsonl`,
+confirms both RemoveUnit calls return with the identical used-ID1/active pool.
+It is one completed capture, not a repeated parity contract. Release43b8b0 comes
+later through `Unit_RemoveAllAbilities`48e860 (return site48e898), queued unit
+receiver690490 and scheduled event bridge060ca0 (return site060d12).
+`JassNative_RemoveUnit`210c10 resolves a stack handle, calls virtual84 and
+`Unit_QueueRemovalTasks`694690 with1,1. That queue retires current order chains,
+suspends movement, appends d015a/d0164/d0156/d0178/d0144 and action0, then
+67df00 dispatches. The two flags' broader meanings remain unassigned. Ghidra
+saves three descriptive roles and the instruction-established cdecl/plainRET
+and thiscall/RET8 signatures; readback is688 roles,72 layouts/493 fields,
+354 explicit ABIs and61 globals, with no unsaved changes.
+
+`retail_gate_lifetime.h` supplies all813 original motion words and the exact
+public producers to the production JASS/Move world. Ten checkpoints per journey
+span removal, both replacement times and arrival. They reproduce2692 immediate
+and757 delayed continuation commits. The existing410-commit cached/fresh/disable
+journey and3094 saved commits also pass after sharing the scene harness.
+`retail-gate-lifetime-{same,reuse}-live-1.27.json` pins four external raw captures,
+observer/map/PE provenance, exact semantic rows and producer hashes.
+`verify_wc3_gate_traversal_trace.py` retains its existing traversal contract and
+accepts the additional fixture-declared pool/publication events. Python mutation
+checks reject missing releases, changed availability, marker planes, route words,
+consumer indices, motion words, incomplete tails and altered provenance.
+
+Validation: both complete Classic/TFT runs pass2520 tests/5,755,638 assertions
+each;586 Python checks,production and five fresh strict corpus contracts pass.
+`runtime/gate96-validation.json` pins the logs, supporting evidence and commit.
+Boundary diagnostic SHA256 is
+`63ec39a3d23b38c573d7b5c32a6cfe305c1eae17bcacddd64d7a9cc48dbc5ab5`.
+Its archived observer adds read-only hooks at210c10 and43b8b0 to the pinned gate
+observer; no native writes or replacement implementations. These single-member
+witnesses do not establish all deferred deletion scheduler boundaries, getters
+inside RemoveUnit callbacks, paired groups or blocked exit behavior.

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **327 entries**: **51** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **91**
+The inventory now has **329 entries**: **51** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **93**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1717,3 +1717,15 @@ commits. The strict checker pins source/map/PE and capture bytes and compares al
 407 decisions,410 commits,11 requests/routes,six consumers and two warps. It
 normalizes only wall timestamps and declared heap addresses. Failed/unfinished
 captures and the host-duration timer tail remain outside this accepted contract.
+
+
+Payoff96 adds two completed gate lifetime contracts: same-callback replacement
+allocates ID2 and walks; next-callback replacement reuses ID1 and traverses its
+old cached exit. Each strict contract compares both complete external captures,
+all pool availability bytes, complete marker planes, all route/consumer words
+and every motion commit (514/299). Failed or incomplete producers cannot certify
+these fixtures. The native boundary/backtrace diagnostic is a single capture,
+recorded as supporting evidence, not repeat acceptance. Engine matches813 motion
+commits and3449 saved continuation commits. Inventory is329 entries:115 original
+oracle contracts,121 archives,93 strict live contracts and169 pinned fixtures.
+See [deferred gate ownership](retail-pathfinding-engine.md#way-gate-destruction-preserves-deferred-id-ownership).

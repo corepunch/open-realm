@@ -10,8 +10,8 @@ EVENTS={'motion-decision','velocity-commit','route','search','gate-destination',
 ADDRESSES={'motion-decision':{'mover'},'velocity-commit':{'mover','fineObject'},'route':{'path'},'search':{'path','system'},'gate-consumer':{'path'}}
 
 
-def semantic(rows):
-    return [{k:v for k,v in row.items()if k!='ms'and k not in ADDRESSES.get(row['event'],set())}for row in rows if row.get('event')in EVENTS]
+def semantic(rows,events=EVENTS):
+    return [{k:v for k,v in row.items()if k!='ms'and k not in ADDRESSES.get(row['event'],set())}for row in rows if row.get('event')in events]
 
 
 def verify(rows,fixture,capture):
@@ -22,7 +22,7 @@ def verify(rows,fixture,capture):
     if not all(metadata[0].get(k)for k in ('motionEvents','velocityEvents','gatePoolEvents','gateMarkerEvents')):raise ValueError('gate traversal observers not enabled')
     completion=[r for r in rows if r.get('event')=='marker'and r.get('value')==fixture['completion']]
     if len(completion)!=1:raise ValueError('gate traversal producer did not complete exactly once')
-    observed=semantic(rows)
+    observed=semantic(rows,fixture.get('events',EVENTS))
     if observed!=fixture['observations']:raise ValueError('complete gate traversal words/requests/consumers differ')
     return observed
 
