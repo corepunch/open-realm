@@ -1,6 +1,7 @@
 # Contributing
 
 For repository webhook formatting and local payload checks, see [Discord notifications](docs/discord-notifications.md).
+For release publication and artifact verification, see [GitHub Releases](docs/releasing.md).
 
 ## Developer Documentation
 
