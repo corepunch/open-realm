@@ -200,7 +200,8 @@ the resolver rather than open-coding the pointer/inuse/generation test. Their ti
 Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
 an incarnation token use the same resolver; this is identity plumbing only and
 does not make spell approaches, Chain Lightning markers, delayed explosions, or
-ward arming thinkers into channel abilities. For unit-target channel thinkers,
+ward arming thinkers into channel abilities. Reveal lifecycles are intentionally not unified beyond the shared FOW writer. Far Sight owns a player-scoped, caster-independent timed reveal thinker; Flare owns a caster-bound reveal thinker and resolves its captured caster incarnation through `S_SpellChannelOwner()`. Do not replace those with one generic reveal thinker unless retail-equivalent ownership and cancellation semantics are demonstrated.
+For unit-target channel thinkers,
 use `S_SpellChannelTargetThinker()` after the
 owning procedure has validated the target. It layers the common goal pointer and
 target-incarnation snapshot onto `S_SpellChannelThinker()`; later ticks/cleanup

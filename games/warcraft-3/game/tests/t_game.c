@@ -4052,6 +4052,46 @@ TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
     remove(filename);
 }
 
+TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-flare-reveal-thinker.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'f', 'l', 'a');
+    edict_t *caster, *thinker;
+
+    reset_entities();
+    caster = alloc_test_unit(MAKEFOURCC('h', 'r', 'i', 'f'), 0.0f, 0.0f);
+    caster->s.player = 2;
+    thinker = G_Spawn();
+    thinker->owner = caster;
+    thinker->class_id = ability;
+    thinker->s.origin2 = (vec2_t){ 192.0f, -64.0f };
+    thinker->spawn_time = 34567;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
+    thinker->think = human_ability_think;
+
+    T_ASSERT(WriteGame(filename));
+    thinker->owner = NULL;
+    thinker->class_id = 0;
+    thinker->s.origin2 = (vec2_t){ 0 };
+    thinker->spawn_time = 0;
+    thinker->channel->owner_spawn_time = 0;
+    thinker->think = NULL;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(thinker->think == human_ability_think);
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    T_EQ(thinker->class_id, ability);
+    T_FEQ(thinker->s.origin2.x, 192.0f, 0.001f);
+    T_FEQ(thinker->s.origin2.y, -64.0f, 0.001f);
+    T_EQ(thinker->spawn_time, 34567);
+    T_EQ(thinker->channel->owner_spawn_time, caster->spawn_time);
+
+    caster->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    remove(filename);
+}
+
 TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-corpse-reservation.bin";
     uint32_t const ability = MAKEFOURCC('A', 'u', 'c', 'a');
