@@ -9002,7 +9002,11 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
     vec2_t dest = {100.0f, 0.0f};
 
+    unit->svflags |= SVF_MONSTER;
+    unit->s.model = 1;
+    unit->think = monster_think;
     unit->collision = 16.0f;
+    blocker->svflags |= SVF_MONSTER;
     blocker->collision = 16.0f;
     blocker->s.model = 1;            /* non-hollow so it is a collision obstacle */
     blocker->stand = unit_stand;
@@ -9012,19 +9016,23 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     gi.LinkEntity(unit);
     gi.LinkEntity(blocker);
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     unit_issueorder(unit, "move", &dest);
 
     /* Move-time collision blocks the unit short of the occupied goal (it never
-     * steps into the blocker), then the blocked-frame accumulator settles it to
-     * stand.  No post-move solver is involved any more.  Track the closest the
-     * unit ever comes to the goal: it should reach right up against the blocker
-     * (just outside the combined collision radius) but never inside it. */
+     * steps into the blocker), then the production partial-route retry chain settles it to
+     * stand. Track actual approach and nonpenetration. The fine footprint and
+     * partial endpoint own the stopping distance; a circle-only step budget
+     * is not an upper bound on the retail grid's failure endpoint. */
     float min_goal_dist = M_DistanceToGoal(unit);
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 120; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        level.time += FRAMETIME;
+        globals.RunFrame();
         float d = M_DistanceToGoal(unit);
         if (d < min_goal_dist) min_goal_dist = d;
     }
@@ -9032,7 +9040,14 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     float combined = unit->collision + blocker->collision;
     T_STREQ(unit->currentmove->animation, "stand");/* settled, didn't walk forever */
     T_ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
-    T_ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
+    T_ASSERT(min_goal_dist < Vector2_distance(&(vec2_t){0,0}, &dest));
+    T_ASSERT(unit->movement.fine_route.partial);
+    T_EQ(unit->movement.fine_route.count, 1);
+    if (unit->movement.fine_route.count) {
+        T_FEQ(unit->movement.fine_pose.x, unit->movement.fine_route.points[0].x, 0.00001f);
+        T_FEQ(unit->movement.fine_pose.y, unit->movement.fine_route.points[0].y, 0.00001f);
+    }
+    T_EQ(unit->current_order_id, 0);
 }
 
 /* Without a town hall the worker exits the mine carrying gold but has nowhere
@@ -10309,6 +10324,9 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     transport->movetype = MOVETYPE_STEP;
     transport->collision = 0;
     G_SelectEntity(clent->client, transport);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     level.time = 1000;
     G_ClientCommand(clent, 2, drop);
     T_ASSERT(clent->client->menu.on_location_selected(clent, &unload_point));
@@ -10318,7 +10336,7 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     T_EQ(transport->goalentity->s.origin2.y, replacement.y);
     for (int i = 0; i < 600 && transport->currentmove && transport->currentmove->proc == CAbilityMove; i++) {
         level.time += FRAMETIME;
-        G_RunEntities();
+        globals.RunFrame();
     }
     T_EQ(transport->cargo->count, 3);
     T_ASSERT(!transport->movement.cargo_unload_pending);
@@ -11169,7 +11187,7 @@ static void record_follow_commit(edict_t *unit) {
 
 #include "retail_gate_traversal.h"
 static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_count,char const *script,
-        unsigned const *times,unsigned checkpoint_count,char const *name) {
+        unsigned const *times,unsigned checkpoint_count,char const *name,unsigned end_msec,unsigned unit_count,uint8_t const *supplied_cells) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();G_FreeMovePathCache();
     float radius=8,speed=270,gate_radius=50,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
@@ -11192,12 +11210,22 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
     slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
-    uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    uint8_t cells[64*64]={0};if(supplied_cells)memcpy(cells,supplied_cells,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
     war3mapVertex_t vertices[17*17]={0};
     FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
     war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
     level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    /* Match the locked map's four fixed and eight random race preferences.
+     * Fine retries consume the map owner's stream, not prior tests' draws. */
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12];
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;game.clients[i].jass.race_pref=i<4 ? 1 : 32;}
+    G_InitLockedMapRandom();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=old_prefs[i];
     T_ASSERT(run_test_jass(script));G_FinishMovePathingInitialization();
     unsigned active_timers=0;FOR_LOOP(i,level.num_timers)if(level.timers[i].running)active_timers++;
     T_EQ(active_timers,1);
@@ -11209,16 +11237,27 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     FOR_LOOP(pass,checkpoint_count+1) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
-        while(level.time<20500 && !mismatch) {
+        while(level.time<end_msec && !mismatch) {
         trace.count=0;level.time+=5;globals.RunFrame();
         if(jass_rterror_pending(level.vm)){fprintf(stderr,"%s JASS at%u: %s\n",name,level.time,jass_rterror_message(level.vm));mismatch=true;}
-        if(!trace.units[0])FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom[0].newUnitID)trace.units[0]=ent;
+        if(!trace.units[0]) {
+            unsigned count=0;
+            FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom[0].newUnitID) {
+                T_ASSERT(count<unit_count);
+                if(count<unit_count)trace.units[count++]=ent;
+            }
+            if(count)T_EQ(count,unit_count);
+        }
         FOR_LOOP(i,trace.count) {
             T_ASSERT(steps<motion_count);
             if(steps>=motion_count){mismatch=true;break;}
             uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
             FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
             if(mismatch)fprintf(stderr,"%s motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",name,steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            if(mismatch && trace.units[0]) {
+                moveFineRoute_t const *r=&trace.units[0]->movement.fine_route;
+                fprintf(stderr,"%s route fine=%u/%u partial=%u adaptive=%u/%u group=%u/%u heading=%.9g wait=%u goal=%.9g/%.9g endpoint=%.9g/%.9g\n",name,r->index,r->count,r->partial,r->adaptive_index,r->adaptive_count,r->group_index,r->group_count,trace.units[0]->movement.heading,trace.units[0]->movement.wait_delay,r->adaptive_goal.x,r->adaptive_goal.y,r->count?r->points[0].x:0,r->count?r->points[0].y:0);
+            }
         }
         if(!pass && !mismatch)FOR_LOOP(i,checkpoint_count)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
         }
@@ -11228,7 +11267,10 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     fprintf(stderr,"%s native motion=%u saved continuation commits=%u\n",name,steps,suffix);
     FOR_LOOP(i,checkpoint_count)remove(files[i]);
     T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
-    if(trace.units[0]&&!mismatch)T_EQ(trace.units[0]->current_order_id,0);
+    if(!mismatch)FOR_LOOP(i,unit_count) {
+        T_NOT_NULL(trace.units[i]);
+        if(trace.units[i])T_EQ(trace.units[i]->current_order_id,0);
+    }
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
@@ -11239,16 +11281,42 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
 TEST(wc3_movement, retail_gate_cached_fresh_and_disabled_routes_match_all_motion) {
     unsigned const times[]={1295,1320,2995,3010,4315,4340,8995,9010,9510,10200};
     public_gate_journey(retail_gate95_motion,sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion),
-        retail_gate95_script,times,sizeof(times)/sizeof(*times),"gate95");
+        retail_gate95_script,times,sizeof(times)/sizeof(*times),"gate95",20500,1,NULL);
 }
 
 #include "retail_gate_lifetime.h"
 TEST(wc3_movement, retail_gate_destroy_and_immediate_or_delayed_reuse_match_all_motion) {
     unsigned const times[]={495,510,8995,9010,9495,9510,9545,9570,10200,20000};
     public_gate_journey(retail_gate96_same_motion,sizeof(retail_gate96_same_motion)/sizeof(*retail_gate96_same_motion),
-        retail_gate96_same_script,times,sizeof(times)/sizeof(*times),"gate96-same");
+        retail_gate96_same_script,times,sizeof(times)/sizeof(*times),"gate96-same",20500,1,NULL);
     public_gate_journey(retail_gate96_reuse_motion,sizeof(retail_gate96_reuse_motion)/sizeof(*retail_gate96_reuse_motion),
-        retail_gate96_reuse_script,times,sizeof(times)/sizeof(*times),"gate96-reuse");
+        retail_gate96_reuse_script,times,sizeof(times)/sizeof(*times),"gate96-reuse",20500,1,NULL);
+}
+
+#include "retail_gate_exit.h"
+TEST(wc3_movement, retail_gate_blocked_and_outside_exits_match_all_motion) {
+    unsigned const times[]={495,510,1295,1320,1995,2010,5995,6010,13995,14010};
+    public_gate_journey(retail_gate97_near_motion,sizeof(retail_gate97_near_motion)/sizeof(*retail_gate97_near_motion),
+        retail_gate97_near_script,times,sizeof(times)/sizeof(*times),"gate97-near",26000,1,NULL);
+    public_gate_journey(retail_gate97_sealed_motion,sizeof(retail_gate97_sealed_motion)/sizeof(*retail_gate97_sealed_motion),
+        retail_gate97_sealed_script,times,sizeof(times)/sizeof(*times),"gate97-sealed",26000,1,NULL);
+}
+
+#include "retail_gate_group.h"
+TEST(wc3_movement, retail_group_gate_traversal_skip_and_only_edge_failure_match_all_motion) {
+    unsigned const times[]={145,175,1295,1320,1395,1420,5995,6010,6495,6510,8000,20000};
+    public_gate_journey(retail_gate98_open_motion,sizeof(retail_gate98_open_motion)/sizeof(*retail_gate98_open_motion),
+        retail_gate98_open_script,times,sizeof(times)/sizeof(*times),"gate98-open",26000,2,NULL);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+    public_gate_journey(retail_gate98_wall_motion,sizeof(retail_gate98_wall_motion)/sizeof(*retail_gate98_wall_motion),
+        retail_gate98_wall_script,times,sizeof(times)/sizeof(*times),"gate98-wall",26000,2,cells);
+}
+
+#include "retail_gate_chain.h"
+TEST(wc3_movement, retail_chained_gates_all_activation_combinations_match_all_motion) {
+    unsigned const times[]={1295,1320,1395,1420,7995,8010,15995,16010,23995,24010,30000,33000};
+    public_gate_journey(retail_gate99_motion,sizeof(retail_gate99_motion)/sizeof(*retail_gate99_motion),
+        retail_gate99_script,times,sizeof(times)/sizeof(*times),"gate99-chain",34000,1,NULL);
 }
 
 typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION, FOLLOW_GROW, FOLLOW_SHRINK, FOLLOW_RESEARCH, FOLLOW_GROW_CONTROL, FOLLOW_SHRINK_CONTROL } followScenario_t;

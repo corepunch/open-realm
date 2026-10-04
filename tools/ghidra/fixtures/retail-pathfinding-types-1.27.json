@@ -3395,6 +3395,78 @@
           "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
         }
       ]
+    },
+    {
+      "name": "WC3PathPlacementContext",
+      "length": 44,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "accelerator",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 4,
+          "name": "inverse_scale",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 8,
+          "name": "distance_filter",
+          "type": "u32",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 12,
+          "name": "query_budget",
+          "type": "u32",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 16,
+          "name": "size_shift",
+          "type": "u32",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 20,
+          "name": "movement_lane",
+          "type": "u32",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 24,
+          "name": "requested_x",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 28,
+          "name": "requested_y",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 32,
+          "name": "effective_callback",
+          "type": "ptr:void",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 36,
+          "name": "outer_callback",
+          "type": "ptr:void",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        },
+        {
+          "offset": 40,
+          "name": "outer_context",
+          "type": "ptr:void",
+          "evidence": "Payoff97 original16ecc0 assignments and16ee00 uses. Public32/24/6 are distance filter/query budget/six placement rings; blocked/surrounded/outside repeat and full production motion distinguish the previous mistaken argument names."
+        }
+      ]
     }
   ],
   "methods": [
@@ -10155,17 +10227,17 @@
           "storage": 4
         },
         {
-          "name": "attempts",
+          "name": "distance_filter",
           "type": "u32",
           "storage": 8
         },
         {
-          "name": "distance_filter",
+          "name": "query_budget",
           "type": "u32",
           "storage": 12
         },
         {
-          "name": "query_budget",
+          "name": "placement_limit",
           "type": "u32",
           "storage": 16
         }
@@ -10204,6 +10276,92 @@
           "name": "flag2",
           "type": "u32",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f16ecc0",
+      "name": "PathOwner_FindPlacement",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": "EDX"
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 4
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "movement_lane",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "distance_filter",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "query_budget",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "placement_limit",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 28
+        },
+        {
+          "name": "callback_context",
+          "type": "ptr:void",
+          "storage": 32
+        },
+        {
+          "name": "scan_policy",
+          "type": "u32",
+          "storage": 36
+        },
+        {
+          "name": "integer_result",
+          "type": "u32",
+          "storage": 40
+        }
+      ]
+    },
+    {
+      "address": "6f16ee00",
+      "name": "PathPlacement_AcceptBoundedAdaptiveDistance",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "candidate",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "context",
+          "type": "ptr:WC3PathPlacementContext",
+          "storage": "EDX"
         }
       ]
     }

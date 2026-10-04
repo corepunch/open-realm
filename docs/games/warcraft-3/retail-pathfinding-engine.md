@@ -8131,8 +8131,10 @@ Group165e30 selects reverse1, then reverse0 when it encounters a sentinel. The
 group can therefore publish the destination beyond a portal while each member
 retains its own entry/exit path. The production group regression reproduces
 native four-point cached and five-point fresh plans through real ability creation,
-retarget and group planning. Portal exit admission uses32 fine placement attempts,
-bounded adaptive distance<=24 with budget6 and warp enabled. Its callback runs
+retarget and group planning. Portal exit admission uses six fine placement rings,
+bounded adaptive distance<=32 with budget24 and warp enabled. Payoff97 corrects
+the formerly misassigned32/24/6 argument meanings; this flat unblocked journey
+did not distinguish them. Its callback runs
 before ring-centre conversion and does not use public SetUnitPosition's terrain
 level callback. Successful placement integrates the old velocity at current time,
 commits the software position delta and notifies regions without replacing the
@@ -8248,3 +8250,117 @@ Its archived observer adds read-only hooks at210c10 and43b8b0 to the pinned gate
 observer; no native writes or replacement implementations. These single-member
 witnesses do not establish all deferred deletion scheduler boundaries, getters
 inside RemoveUnit callbacks, paired groups or blocked exit behavior.
+
+
+## Blocked gate exits preserve stopped retry state
+
+Payoff97 implements the shared placement and route-progress rules exposed by
+GATE-01.2. Two complete public journeys repeat all original movement, searches,
+route consumers and gate pool/marker states. One blocks only the requested
+exit cell; the other blocks650 cells around it. Both then issue fresh orders
+with positive and negative outside-map destinations.
+
+| Exit witness | Motion commits / decisions | Searches / routes | Warp attempts | Saved suffix commits |
+| --- | --- | --- | --- | --- |
+| Single blocked requested cell | 568 / 563 | 15 / 24 | 1 successful | 4747 |
+| Surrounded exit | 712 / 708 | 13 / 13 | 8 rejected | 5591 |
+
+The first regression failed at nearby-placement commit41 and surrounded-exit
+commit39. Original16ec00 passes distancefilter32, querybudget24 and **six
+placement rings** to16ecc0. Earlier unblocked witnesses accepted the first
+candidate and did not distinguish these parameters; the engine and old Ghidra
+comments had incorrectly assigned32 rings/filter24/budget6. The corrected shared
+placement query now admits the nearby point54.5/54.5 fine, while the surrounded
+exit never reaches a valid footprint within six rings.16ee00 runs only after
+footprint acceptance; no callback is invoked in this rejected case.
+
+Two further movement rules explain the remaining failures. An empty or denied
+admitted fine refill stops and turns toward the held destination, as16fbd0 does;
+falling back to the previous heading diverged at the first post-warp empty refill.
+Retained coarse progress is checked before every fine refill, even with an
+invalid fine index. Native165b60/165f10 retries the surrounded crossing after
+its wait. All eight failures preserve cached crossing index2 and emit no warp;
+the old engine instead rebuilt a fine leg and started walking toward its entrance.
+These rules apply to production admitted Move routing without scenario-specific
+branches. Generic ability routes without an admitted fine destination retain
+their existing caller policy. The first full suite exposed that boundary; it
+also caught tests that advanced G_RunEntities/direct thinkers while leaving the
+fine-request owner clock frozen. Collision and queued-construction witnesses
+now drive RunFrame. Collision fixture units publish SVF_MONSTER like real unit
+spawn, so the production map bake does not stamp their own cells as static
+obstacles. Assertions still require detouring, stationary blockers, and the
+queued construction lifecycle.
+
+`retail_gate_exit.h` supplies every native motion word and byte-identical public
+JASS producer, with the two common.j constants and main entry supplied by the
+engine harness. Ten save checkpoints per journey cover admission, wait/retry,
+unblocking and outside orders. All1280 commits and10338 restored continuation
+commits match clock, fine position, velocity and committed facing exactly. The
+earlier gate95/96 trajectories and saved continuations remain exact.
+`retail-gate-exit-{near,sealed}-live-1.27.json` pins the four completed original
+captures and full semantic streams; empty loading attempts are excluded.
+The surrounded pair uses individually pinned60/90-second host capture windows.
+The inherited shadow-map member was oversized for these flat maps; accepted
+captures completed after the retail loading dialog was dismissed. Later group
+fixtures supply the correct4096-byte member. Loading failures are never parity
+evidence, and raw archive/map hashes preserve that distinction.
+
+Ghidra saves the corrected formal argument names, complete fastcall16ecc0 and
+16ee00 signatures, and the44-byte placement context with all eleven assigned
+fields. Saved readback is688 roles,73 layouts/504 fields,356 explicit ABIs and61
+globals with no unsaved changes. Merged-upstream Classic and TFT each pass
+2539 tests/6,061,924 assertions, with593 Python checks. Production builds and
+eleven fresh strict gate contracts pass. This closes GATE-01.2; activation
+threshold equality remains separate.
+
+
+### Group gate continuation and consecutive portal admission
+
+Payoff98 records two complete two-member public GroupPointOrder journeys. Both
+units cross the active gate, Stop/reset, then retain the cached crossing after
+WaygateActivate(false). The open map walks and regroups; a full-height WPM
+NOWALK column31 makes that disabled edge the only crossing, so each member
+approaches a partial endpoint and completes the ordinary retry/forced-arrival
+lifecycle. Repeats retain every consumer, request, route, pool/marker state and
+motion word, with explicit creation-order member indices. Raw mover addresses
+are mapped per capture; unknown, swapped or missing identities fail verification.
+No route/request ordinal or numerical word is normalized.
+
+Production matches610 open and635 blocked commits plus5750 and6025 continuation
+commits from twelve saves per journey. An apparent early terminal mismatch was
+a harness ownership error: prior tests had consumed the engine owner's random
+stream. Native raw retry-init/result rows showed the initial4273436052/209508436
+owner words and every later draw. The harness now calls G_InitLockedMapRandom
+with the map's four fixed/eight random race preferences. Retries consume that
+same production stream; this is not a fixture-specific production seed. Invalid
+149/179-millisecond checkpoints were corrected to145/175 on the five-millisecond
+harness schedule. Unwritten saves and stale reports remain rejected evidence.
+
+Payoff99 adds a two-gate chain with both active, A off/B on, A on/B off and both
+off. Native first crosses to35.5/39.5 fine, then acquires a new member coarse
+route whose source already lies inside the second entrance.165b60 checks165f10
+immediately after acquiring that route, before any fine request. The former
+engine built a one-point fine leg and attempted movement at commit43 instead
+of crossing. G_BuildUnitMoveFineRouteStatus now propagates this coarse progress
+status; the same helper checks retained routes. The caller stops and turns
+for the admission visit, preserving normal translation and retry policy.
+All575 chain commits and4564 continuation commits match after this fix.
+
+The unchanged162cb0/1627e0 multi-gate oracle compares512 complete requests:
+chain/equal-distance alternatives, both publication orders, four active states,
+four lanes, two footprint sizes, budgets10/400 and warp off/on. Full ten-word
+node records, route points, work, distances and eight publication states match
+production kernels. Equal single-A and single-B routes each cost58; both active
+selects ID1 at58 independently of publication order; ordinary walking costs59.
+Native rectangles are stored Ymin/Xmin/Ymax/Xmax; the C publication API accepts
+XY bounds. Original physical placement and owner lookup are not stubbed in the
+public trajectories; controlled search supplies empty fine storage/map headers.
+
+`retail_gate_group.h` and `retail_gate_chain.h` carry complete native motion and
+byte-identical public producers. Strict live fixtures pin six completed captures
+with correct4096-byte flat-map shadow members. Map/raw hashes remain external.
+Saved Ghidra comments retain immediate coarse checking and multi-edge distance
+scope;688 roles,73 layouts/504 fields,356 ABIs,61 globals and no unsaved changes.
+Merged-upstream Classic/TFT each pass2539 tests/6,061,924 assertions, with593
+Python checks, production builds and eleven fresh strict contracts. These
+results close GATE-02.4/GATE-03.2/GATE-04.3. GATE-01.1 remains open.

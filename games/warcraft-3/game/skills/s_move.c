@@ -1715,11 +1715,23 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
          * cached turn as its fractional source crosses sample-cell boundaries.
          * Advance checks terrain epoch/mask; the step collector handles peers. */
         if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
-            fabsf(path->radius-point.radius) >= .01f ||
-            !G_AdvanceUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance))) path->valid = false;
+            fabsf(path->radius-point.radius) >= .01f)) path->valid=false;
+        /* Native165b60 checks the retained coarse point before every fine
+         * refill. A failed portal must retry after its wait without walking
+         * toward that point merely because the fine leg was invalidated. */
+        if ((path->valid || curve->adaptive_count) &&
+            !G_AdvanceUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance)) path->valid=false;
         if(advance){*dir=held;return MOVE_ROUTE_STOP;}
         if (!path->valid) {
-            if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return MOVE_ROUTE_FAILED;
+            if (!G_BuildUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance)) {
+                if (advance) {*dir=held;return MOVE_ROUTE_STOP;}
+                /* Native16fbd0 stops and turns toward the held destination
+                 * when an admitted fine refill is denied or empty. Other
+                 * ability routes retain their caller's movement policy until
+                 * they enter the same member admission path. */
+                if (!query.fine_target) return MOVE_ROUTE_FAILED;
+                *dir=held;return MOVE_ROUTE_STOP;
+            }
             path->target = *point.point; path->radius = point.radius; path->valid = true;
         }
         *dir = G_MoveFineRouteDirection(&query,curve);

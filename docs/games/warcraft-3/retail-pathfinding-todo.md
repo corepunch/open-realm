@@ -8,20 +8,24 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**187 done / 336 tasks; 149 remaining.** Payoff96 closes existing GATE-02.2
-and GATE-04.2 without new IDs. CAbilityWarp retains the gate ID until deferred
-ability cleanup. Same-callback replacement allocates ID2 and walks; next-callback
-replacement reuses ID1 and crosses to its retained route's old exit. Four completed
-public captures repeat all813 motion commits and complete pool/marker states.
-Twenty Save99 checkpoints reproduce3449 continuation commits. Both editions pass
-2520 tests/5,755,638 assertions each,plus586 Python checks; production and five
-fresh strict contracts pass. Saved Ghidra retains688 roles,72 layouts/493 fields,
-354 ABIs and61 globals.
-See [deferred gate ownership](retail-pathfinding-engine.md#way-gate-destruction-preserves-deferred-id-ownership).
+**191 done / 336 tasks; 145 remaining.** Payoffs97–99 close existing
+GATE-01.2, GATE-02.4, GATE-03.2 and GATE-04.3 without new IDs. Move now uses the
+native six-ring portal-placement limit, preserves failed crossing retries, and
+checks newly acquired coarse routes before fine refill for consecutive gates.
+Completed original repeats and production RunFrame agree on all3080 motion
+commits and26677 saved continuation commits across blocked exits, outside
+orders, two-member active/disabled crossings and four chained-gate combinations.
+The unchanged multi-gate kernels match512 complete original search/distance
+requests, including equal-cost alternatives and both publication orders. Classic
+and TFT each pass2539 tests/6,061,924 assertions;593 Python checks, production
+builds and eleven fresh strict contracts pass. Saved Ghidra checkpoint99 retains
+688 roles,73 layouts/504 fields,356 ABIs and61 globals.
+See [blocked exits](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state)
+and [group/chain continuation](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission).
 
-Next runnable chunk is GATE-01.2: completed repeated blocked-cell, surrounded-exit,
-and positive/negative outside-destination witnesses are ready for engine checks.
-Group traversal/disabled crossing is also being captured. No new TODO IDs.
+The remaining gate task is GATE-01.1. Native threshold controls and repeated
+birth/type-rebind flight captures are ready for the next engine regression:
+adaptive eligibility is a separate path policy, not a synonym for ground movement.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -46,7 +50,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
-| GATE — Way Gates | 6 | 5 |
+| GATE — Way Gates | 10 | 1 |
 | E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
@@ -869,25 +873,25 @@ Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adapt
 ### GATE-01 — Gate eligibility and exit
 
 - [ ] **GATE-01.1** Test activation/approach threshold equality and adjacent values with eligible/ineligible movers; assert route consumer decisions.
-- [ ] **GATE-01.2** Block the exit and test outside-map/unreachable destinations; assert placement rejection, fallback or failure and retained route state.
+- [x] **GATE-01.2** Block the exit and test outside-map/unreachable destinations; assert placement rejection, fallback or failure and retained route state. [Payoff97](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state) corrects placement filter32/budget24/six-ring admission and retained crossing retry before every fine refill. Two repeated public journeys include a nearby admitted exit, surrounded failure, unblocking and both outside-map signs. Production matches1280 complete motion commits and10338 saved continuations; failure preserves index2 through all eight retries. Both editions, strict captures and saved placement-context/ABI readback pass.
 
 ### GATE-02 — Gate mutation
 
 - [x] **GATE-02.1** Live outside approach, cached retarget and disable-to-walking witnesses are recorded. Evidence: [gate mutation][gate-mutation]; fresh retarget/destroy/impassable cases remain open.
 - [x] **GATE-02.2** Destroy a gate during approach; assert stale-record handling and subsequent walking/failure. [Payoff96](retail-pathfinding-engine.md#way-gate-destruction-preserves-deferred-id-ownership) matches all813 production commits across two complete destruction/replacement journeys and3449 saved continuations. Removed ID1 is skipped after cleanup; immediate replacement allocates2 and walks. Both pairs of original captures retain complete pool/marker/route state and exact motion; full editions,586 Python checks,production,five strict contracts and saved Ghidra pass. Getters inside RemoveUnit callbacks and all deferred scheduler boundaries are excluded.
 - [x] **GATE-02.3** Retarget then issue a fresh order; compare cached versus fresh destination use through final arrival. [Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes) integrates current ability-owned active records and retained-route cached exits into Move. Two completed public journeys repeat cached54.5/55.5 versus fresh39.5/45.5 fine exits and disabled walking through final arrival:407 decisions,410 commits,11 requests/routes,six consumers,two warps. The production game matches every clock/position/velocity/facing word; ten save checkpoints reproduce3094 continuation commits. Both editions,582 Python checks,production,five fresh strict contracts and saved Ghidra pass. Destroy/reuse,blocked exit,impassable disable and paired groups retain their existing leaves.
-- [ ] **GATE-02.4** Disable the only edge across impassable terrain; assert retries/failure rather than assuming walking succeeds.
+- [x] **GATE-02.4** Disable the only edge across impassable terrain; assert retries/failure rather than assuming walking succeeds. [Payoff98](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission) exercises two members against a full-height unwalkable column after disabling the sole crossing. The actual partial-route retry and forced-arrival lifecycle matches all635 native commits and6025 restored continuations. The harness initializes the production locked-map random owner; no production seed or route case is hardcoded. Complete original repeats, both editions and strict member-identity checks pass.
 
 ### GATE-03 — Multiple gates
 
 - [x] **GATE-03.1** Construct two overlapping sources in both orders; assert marker overwrite, cleanup and hierarchy propagation. [Payoff94](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history) ports eight native publication states,64 exact ordinary searches and24 unequal-origin/reversed/clipped/zero/odd-boundary controls. Two complete public witnesses repeat all marker/parent bytes. Real ability removal and group requests reproduce overwrite and unconditional erasure; Save99 retains both erased overlaps and published parent history. Both editions,579 Python checks, production, six fresh strict contracts and saved Ghidra roles/ABIs pass. Portal traversal and retained special-edge consumers remain separate.
-- [ ] **GATE-03.2** Run chained gates with active/inactive combinations and equal-cost alternatives; assert route choice and consumer event order.
+- [x] **GATE-03.2** Run chained gates with active/inactive combinations and equal-cost alternatives; assert route choice and consumer event order. [Payoff99](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission) adds immediate coarse-route progress before fine refill, reproducing both active, A off, B off and both off chains through all575 motion commits and4564 saved continuations. The unchanged native multi-gate search/distance oracle matches512 full requests and eight publications. Equal-cost A/B alternatives select ID1 with both active independently of publication order; route nodes, points, distances and event order are exact. Both editions, fresh strict contracts and saved Ghidra pass.
 
 ### GATE-04 — Gate ID lifetime
 
 - [x] **GATE-04.1** Allocate through IDs1..255 and one further request; assert zero/exhaustion behavior and pool state. Evidence: [payoff93](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation), unchanged original256 initial calls/duplicate activation/invalid and duplicate releases/refills17/255/0,259 exact C allocations and full availability bytes atO0/O2, two complete public259-birth witnesses with776 repeated semantic events. Engine CAbilityWarp retains failed allocation, zero/false getters, independent alternate presentation, semantic removal/reuse and ability recreation; Save98 round trips256 gates and rejects duplicate/invalid ownership. Both editions, production,575 Python checks and six fresh strict contracts pass; Ghidra roles/types/ABIs are saved. Existing-route reuse remains04.2, source overlap03.1, portal search/physical traversal01/03/04.3.
 - [x] **GATE-04.2** Free/reuse an ID referenced by an existing route; assert revalidation and destination selection. [Payoff96](retail-pathfinding-engine.md#way-gate-destruction-preserves-deferred-id-ownership) contrasts same-callback ID2 allocation before ID1 release against next-callback ID1 reuse. The current active bit is revalidated, while the cached54.5/55.5 exit survives replacement record19/22 and changed source. The new production lifetime boundary repairs the former commit297 divergence. All299 delayed-reuse and514 immediate-replacement commits plus3449 saved suffixes match; both editions and strict public contracts pass.
-- [ ] **GATE-04.3** Traverse a gate with a group, then fail/skip it; assert regrouping and ordinary fine-route continuation.
+- [x] **GATE-04.3** Traverse a gate with a group, then fail/skip it; assert regrouping and ordinary fine-route continuation. [Payoff98](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission) follows both members through active crossing, Stop/reset and cached disabled-edge skip. The open map walks/regroups; the sole-edge wall control follows ordinary partial-route retry. Production matches1245 full motion commits and11775 restored continuations from24 saves. Strict capture mappings reject unknown, missing or swapped member identities; both editions and full route/consumer repeats pass.
 
 ## E2E — Combined scenarios and handoff
 

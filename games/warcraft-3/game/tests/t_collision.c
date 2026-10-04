@@ -29,6 +29,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t source);
 
 
 
@@ -44,6 +45,7 @@ void setup_test_world(void);
 static edict_t *make_collision_unit(float x, float y, float radius) {
     edict_t *ent   = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
+    ent->svflags  |= SVF_MONSTER;
     ent->collision = radius;
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
     ent->stand     = unit_stand;
@@ -148,23 +150,32 @@ TEST(wc3_collision, idle_unit_is_immovable_obstacle) {
  * far side.  The obstacle stays put. */
 TEST(wc3_collision, mover_slides_around_idle_unit) {
     reset_collision_world();
-    edict_t *blocker = make_collision_unit(60.0f, 0.0f, 16.0f);
+    edict_t *blocker = make_collision_unit(96.0f, 0.0f, 16.0f);
     edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    vec2_t dest = {120.0f, 0.0f};
+    vec2_t dest = {192.0f, 0.0f};
+    /* Use a clear fine-grid source; continuous circles at the old60-unit
+     * spacing were disjoint but their rasterized occupancy overlapped. */
 
+    mover->unitinfo.MoveSpeed = 190.0f;
     unit_issueorder(mover, "move", &dest);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    mover->think = monster_think;
     bool went_lateral = false;
     for (int i = 0; i < 80; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
-        mover->currentmove->think(mover);
+        /* Fine-request waits require the production owner clock to advance. */
+        level.time += FRAMETIME;
+        globals.RunFrame();
         if (fabsf(mover->s.origin2.y) > 1.0f) went_lateral = true;
     }
 
     T_ASSERT(went_lateral);                                  /* slid around */
-    T_FEQ(blocker->s.origin2.x, 60.0f, 0.001f);  /* not pushed */
+    T_FEQ(blocker->s.origin2.x, 96.0f, 0.001f);  /* not pushed */
     T_FEQ(blocker->s.origin2.y,  0.0f, 0.001f);
-    T_ASSERT(mover->s.origin2.x > 60.0f);                    /* got past it */
+    T_ASSERT(mover->s.origin2.x > 96.0f);                    /* got past it */
 }
 
 TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {

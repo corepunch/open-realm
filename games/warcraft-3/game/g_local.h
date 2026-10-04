@@ -2984,6 +2984,7 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_BuildUnitMoveFineRouteStatus(movePathQuery_t const *query,moveFineRoute_t *route,vec2_t *out,uint32_t *status);
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **329 entries**: **51** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **93**
+The inventory now has **335 entries**: **52** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **98**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 108 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 109 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1729,3 +1729,35 @@ recorded as supporting evidence, not repeat acceptance. Engine matches813 motion
 commits and3449 saved continuation commits. Inventory is329 entries:115 original
 oracle contracts,121 archives,93 strict live contracts and169 pinned fixtures.
 See [deferred gate ownership](retail-pathfinding-engine.md#way-gate-destruction-preserves-deferred-id-ownership).
+
+
+## Blocked and outside portal exit contracts
+
+Payoff97 adds two strict completed public contracts,
+`live-gate-exit-{near,sealed}-captures-261004`, using the gate traversal verifier.
+The single-cell witness repeats568 motion commits,563 decisions,15 searches,
+24 routes and one successful nearby placement. The surrounded witness repeats
+712 commits,708 decisions,13 searches/routes and eight rejected placements
+with unchanged crossing index2. Each includes positive/negative outside-map
+fresh orders through completion and complete gate pool/marker observations.
+Raw length/hash and per-capture metadata are pinned; only wall time and declared
+heap addresses are normalized. Empty startup attempts are excluded.
+
+The inventory is331 entries:115 oracle contracts,121 archived captures and95
+live contracts, with174 pinned fixtures. The engine compares all1280 original
+commits and10338 save/load suffix commits. See [placement and stopped retries](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state)
+for the argument correction and the inherited shadow-member provenance limit.
+
+
+Payoffs98/99 add `live-gate-group-{open,wall}-captures-261004`,
+`live-gate-chain-captures-261004` and `oracle-multiple-gates-engine`. Complete
+public streams compare610/635/575 commits, including canonical member identities
+for the paired cases; the verifier rejects unknown, missing or swapped movers.
+The eight publication states and512 unchanged original two-edge route/distance
+requests retain full semantic nodes, route words and work. Equal-cost alternatives
+preserve ID1 selection across publication order. Every public producer is pinned
+against its engine header. Inventory is335 entries,116 oracle contracts,121
+archive audits,98 strict live contracts and183 repository fixture pins. Production
+checks1800 commits and16339 saved continuation commits across36 saves. Raw captures
+and map members remain outside the repository; physical placement is validated
+by public trajectories independently of the supplied search storage.

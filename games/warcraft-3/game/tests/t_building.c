@@ -5311,10 +5311,12 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
     T_ASSERT(G_UnitHasActiveOrder(worker));
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
@@ -5354,10 +5356,12 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
