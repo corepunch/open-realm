@@ -532,6 +532,8 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     moved += own3->s.origin2.x > 1000;
     T_EQ(moved, 2);
     T_ASSERT(caster->s.origin2.x > 1000);
+    T_FEQ(caster->s.origin.x, caster->s.origin2.x, 0.001f);
+    T_FEQ(caster->s.origin.y, caster->s.origin2.y, 0.001f);
     T_ASSERT(ally->s.origin2.x < 1000);
     T_ASSERT(building->s.origin2.x < 1000);
     /* Relocation must also update the server broad phase: the caster vacated

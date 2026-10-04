@@ -3860,6 +3860,8 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     T_ASSERT(unit_issueorder(caster, "blink", &point));
     T_FEQ(caster->s.origin2.x, point.x, 0.001f);
     T_FEQ(caster->s.origin2.y, point.y, 0.001f);
+    T_FEQ(caster->s.origin.x, point.x, 0.001f);
+    T_FEQ(caster->s.origin.y, point.y, 0.001f);
     T_EQ(G_GetIssuedOrderId(caster), 852525);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);

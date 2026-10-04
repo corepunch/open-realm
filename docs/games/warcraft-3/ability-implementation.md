@@ -144,8 +144,9 @@ radius, while the helper owns nearest-candidate scanning and re-enters the norma
 Well thresholds or Barkskin's existing-buff exclusion through that helper. The
 same rule applies to passive and lifecycle families: Endurance Aura and hostile
 Slow Aura consume the shared aura cache instead of open-coding recipient scans;
-the cache key owns source relation while the consumer retains value-specific
-normalization/clamping. Temporary corpse revival uses `G_ReviveCorpseAsSummon()`
+the cache key owns source relation while the consumer retains any genuinely
+ability-specific clamping. Endurance Aura DataA/DataB are already fractional
+real values and must not be divided by 100 again. Temporary corpse revival uses `G_ReviveCorpseAsSummon()`
 rather than repeating the ordinary corpse teardown, and corpse-ranking policy
 reads the shared `G_CorpseUnitLevel()` accessor while each ability keeps its own
 highest/lowest and tie-break selection rule. Timed-status procedures should use `S_SpellApplyTimedStatus()` for ordinary
@@ -249,7 +250,7 @@ which records the concrete ability alias on every point/ring result; specialized
 point summons use `S_SummonAbilityAt()` instead of open-coding
 `summon_ability`. The owning ability still controls effects, buffs, facing,
 corpse handling, replacement and other summon policy. See
-[Ability Message Procedures](ability-procedures.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so FOW dirtiness, relinking and position-change events stay consistent even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
+[Ability Message Procedures](ability-procedures.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so `s.origin2` and `s.origin.x/y` stay synchronized before FOW dirtiness, relinking and position-change events even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
 
 ### 6. Verify the focused pattern, then the family
 

@@ -626,8 +626,6 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
                          * not realdef, agility, upgrades, or current runtime armor. */
                         amount *= balance ? (float)balance->baseArmor : 0.0f;
                     }
-                    if (aura_cache_keys[j].code == ID_ENDURANCE_AURA)
-                        amount *= 0.01f; /* AOae DataA/DataB are authored as percentages. */
                     aura_cache[unit->s.number][j] = MAX(aura_cache[unit->s.number][j], amount);
                 }
             }

@@ -1200,6 +1200,8 @@ void S_SpellCommitRelocation(edict_t *unit, vec2_t const *position) {
     if (!unit || !position) return;
     old_position = unit->s.origin2;
     unit->s.origin2 = *position;
+    unit->s.origin.x = position->x;
+    unit->s.origin.y = position->y;
     if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(unit);
     G_UnitPositionChanged(unit, &old_position);
