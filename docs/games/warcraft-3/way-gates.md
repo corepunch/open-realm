@@ -157,3 +157,11 @@ is idempotent. Save98 retains allocation attempts, allocated IDs and exhaustion,
 rejects duplicate ownership and invalid active/configured zero IDs, and rejects
 older save versions. Two full 256-gate save/load cycles and immediate ID reuse
 are covered by the normal game tests. Automatic portal routing remains open.
+
+## Source overlap publication
+
+Source creation publishes even while inactive; later creation overwrites overlap
+IDs. Removal clears its full source rectangle without restoring another live
+gate's overwritten bytes. The adaptive parents subdivide clear marked cells,
+so this affects ordinary routes even with traversal disabled. Save99 retains
+marker and class history directly. See [the verified engine port](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).

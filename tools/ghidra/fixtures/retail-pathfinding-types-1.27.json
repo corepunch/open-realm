@@ -3320,7 +3320,7 @@
     },
     {
       "name": "WC3WaygatePoolOwnerPrefix",
-      "length": 88,
+      "length": 116,
       "fields": [
         {
           "offset": 76,
@@ -3339,6 +3339,18 @@
           "name": "active_count",
           "type": "u32",
           "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 108,
+          "name": "world_origin_x",
+          "type": "WC3PathScalar",
+          "evidence": "Original04d870 point bridge and map construction;04e360 input rectangle stores world minY/minX/maxY/maxX"
+        },
+        {
+          "offset": 112,
+          "name": "world_origin_y",
+          "type": "WC3PathScalar",
+          "evidence": "Original04d870 point bridge and map construction;04e360 input rectangle stores world minY/minX/maxY/maxX"
         }
       ]
     },
@@ -9911,6 +9923,93 @@
           "name": "id",
           "type": "u32",
           "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f04e360",
+      "name": "Waygate_PublishWorldSourceRectangle",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "marker",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "rectangle",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f15c000",
+      "name": "PathMaps_PublishScalarGateRectangle",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "marker",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "rectangle",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15bf60",
+      "name": "PathMaps_ClipAndPublishGateRectangle",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "marker",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "rectangle",
+          "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15c030",
+      "name": "PathMaps_WriteGateMarkerBytes",
+      "returns": "void",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "marker",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "rectangle",
+          "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 8
+        },
+        {
+          "name": "map",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "storage": 12
         }
       ]
     }

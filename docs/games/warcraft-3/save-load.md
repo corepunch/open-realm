@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 98, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 99, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1088,3 +1088,13 @@ The sparse Way Gate record retains its native1..255 edge ID and allocation
 attempt. Exhausted zero IDs survive load and do not retry on activation or
 destination queries. Duplicate ownership and active/configured zero IDs are
 rejected. See [the runtime contract](way-gates.md#native-allocation-lifetime).
+
+## Way Gate source publication history (Save99)
+
+The sparse ability record retains authored source half extents. The adaptive
+payload appends the base marker plane after the four lanes' published hierarchy
+classes. Class bytes must be0..2; source IDs use the entire byte domain.
+Loading restores both arrays directly, preserving unconditional overlap erasure
+rather than restamping surviving gates. Two actual removal/save/load sequences
+retain complete native publication hashes and subsequent ordinary routes.
+Older versions are rejected. See [overlap routing](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).

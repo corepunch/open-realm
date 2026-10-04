@@ -52,6 +52,20 @@ function install(module) {
             }
         });
     }
+    if(config.gateMarkerEvents) {
+        hook(0x04e360,{onEnter(){this.id=this.context.ecx.toUInt32();this.rectangle=ints(this.context.edx,4);},onLeave(){
+            const owner=base.add(0xd53a48).readPointer(),maps=[];
+            for(let level=0;level<4;level++){
+                const map=owner.add(0x23c+4*level).readPointer(),width=map.add(0x3c).readU32(),height=map.add(0x40).readU32(),data=map.add(0x28).readPointer();
+                if(width*height>4096)throw new Error('Unexpected marker map extent');
+                const markers=[],classes=[];for(let i=0;i<width*height;i++){markers.push(data.add(8*i+6).readU8());classes.push(data.add(8*i+7).readU8());}
+                maps.push({width,height,markers,classes});
+            }
+            emit('gate-marker-publish',{id:this.id,rectangle:this.rectangle,maps});
+        }});
+
+
+    }
     if(config.gatePoolEvents) {
         const pool=()=>{const owner=base.add(0xd3c82c).readPointer();if(owner.isNull())return null;const n=owner.add(0x4c).readU32(),p=owner.add(0x50).readPointer();if(n!==256)throw new Error('Unexpected warp pool '+n);const used=[];for(let i=0;i<n;i++)used.push(p.add(i).readU8());return {used,active:owner.add(0x54).readU32()};};
         hook(0x04e510,{onEnter(){this.before=pool();},onLeave(ret){emit('gate-pool-allocate',{id:ret.toUInt32(),before:this.before,after:pool()});}});

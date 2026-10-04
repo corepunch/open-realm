@@ -1119,6 +1119,63 @@ static uint64_t adaptive_storage_node_hash(wc3AccSearch_t const *search) {
     return hash;
 }
 
+#include "retail_gate_overlap.h"
+static uint64_t gate_overlap_bytes_hash(uint8_t const *data,uint32_t size) {
+    uint64_t hash=UINT64_C(14695981039346656037);
+    FOR_LOOP(i,size)hash=(hash^data[i])*UINT64_C(1099511628211);
+    return hash;
+}
+TEST(pathfinding, waygate_source_overlap_preserves_publication_routes_and_saved_erasure) {
+    reset_entities();setup_test_world();G_FreeMovePathCache();S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    vec2_t source={4.25f*64,4.75f*64},target={27.25f*64,27.75f*64},selected;
+    uint8_t masks[]={2,0x80,0x40,4};edict_t *gates[2]={0};
+    FOR_LOOP(stage,8) {
+        unsigned step=stage%4;
+        if(step<2) {
+            unsigned pos=(stage<4?step:1-step);
+            gates[step]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),pos?768:512,pos?768:512);
+            T_ASSERT(G_ActorAddSkill(gates[step],MAKEFOURCC('Z','w','r','p')));
+        } else {G_DeferFreeEdict(gates[step-2]);G_RunDeferredFrees();}
+        uint32_t size=G_GetMoveAdaptiveStateSize();T_EQ(size,2206*4+1681);
+        uint8_t *state=malloc(size);T_NOT_NULL(state);
+        if(state){T_ASSERT(G_GetMoveAdaptiveState(state,size));T_ASSERT(gate_overlap_bytes_hash(state,size)==retail_gate_overlap_stages[stage].state);free(state);}
+        FOR_LOOP(k,8) {
+            moveFineRoute_t route={0};
+            movePathQuery_t query={.geometry={&source,&target,k%2?40:8,masks[k/2]}};
+            T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+            retailGateOverlapSearch_t const *row=&retail_gate_overlap_searches[stage][k];
+            wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();
+            T_EQ(search->work.pops,row->work);T_EQ(search->work.count,row->nodes);
+            T_ASSERT(adaptive_storage_node_hash(search)==row->node_hash);T_EQ(route.group_count,row->count);
+            if(route.group_points&&route.group_count==row->count)FOR_LOOP(i,row->count){
+                T_EQ(wc3_float_bits(route.group_points[i].x),row->route[i][0]);T_EQ(wc3_float_bits(route.group_points[i].y),row->route[i][1]);
+            }
+            free(route.points);free(route.adaptive_points);free(route.group_points);
+        }
+        if(stage==2||stage==6){
+            cstring_t file="/tmp/wc3-waygate-marker-erasure.bin";
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            size=G_GetMoveAdaptiveStateSize();state=malloc(size);T_NOT_NULL(state);
+            if(state){T_ASSERT(G_GetMoveAdaptiveState(state,size));T_ASSERT(gate_overlap_bytes_hash(state,size)==retail_gate_overlap_stages[stage].state);free(state);}
+        }
+    }
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    FOR_LOOP(k,sizeof(retail_gate_boundaries)/sizeof(*retail_gate_boundaries)) {
+        vec2_t origin=retail_gate_boundaries[k].origin;
+        CM_SetupTestWorldBounds(&(box2_t){origin,{origin.x+2048,origin.y+2048}});
+        CM_SetupTestPathmap(64,64,cells);
+        if(!retail_gate_boundaries[k].id)G_PublishWaygateSource(&(box2_t){origin,{origin.x+2048,origin.y+2048}},1);
+        G_PublishWaygateSource(&retail_gate_boundaries[k].box,retail_gate_boundaries[k].id);
+        uint32_t size=G_GetMoveAdaptiveStateSize();uint8_t *state=malloc(size);T_NOT_NULL(state);
+        if(state){T_ASSERT(G_GetMoveAdaptiveState(state,size));T_ASSERT(gate_overlap_bytes_hash(state,size)==retail_gate_boundaries[k].state);free(state);}
+    }
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+}
+
 TEST(pathfinding, group_adaptive_storage_grows_and_reuses_backing_for_owned_partial_routes) {
     reset_entities(); setup_test_world(); G_FreeMovePathCache(); S_ClearMoveFineRequests();
     uint8_t *cells=malloc(1024*1024); T_NOT_NULL(cells); if(!cells)return;

@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **320 entries**: **48** distinct original-code oracle
-scripts plus **62** declared variants, **121** archived JSONL audits and **89**
+The inventory now has **324 entries**: **49** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **90**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 103 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 106 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1687,3 +1687,23 @@ pool/public-state witnesses, not portal trajectories or overlap evidence.
 Inventory is320 entries,110 oracle contracts (48 scripts/62 variants),121
 archives,89 strict live contracts and159 pinned fixtures. See the
 [engine allocation lifetime](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation).
+
+## Source-marker overlap and ordinary route effects
+
+`oracle-gate-markers` and its engine variant execute the original world-to-fine
+bridge, inclusive source writes and parent publications for both creation orders
+and their removals. They compare64 complete ordinary adaptive requests, every
+route word and every final semantic node word. `oracle-cells-engine` additionally
+compares the actual production parent reducer against20736 original controls.
+
+`live-gate-markers-captures-261004` pins two complete public producers, each with
+eight full marker/class snapshots and the explicit tick9 completion marker.
+All2206 hierarchy class bytes and base source IDs repeat and match the native
+fixture. Strict checks retain PE/map/observer provenance, footer and raw lengths.
+Accepted archived JASS used the capacity filename; the committed overlap probe
+is byte-identical. No portal search or physical traversal claim is made.
+
+[Engine payoff94](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history)
+retains these publications and erased overlap history through Save99. Inventory
+is324 entries,113 original oracle contracts from49 scripts/64 variants,121
+archives,90 strict live contracts and162 pinned fixtures.

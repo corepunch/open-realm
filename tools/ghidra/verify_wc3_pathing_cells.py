@@ -5,6 +5,7 @@ Requires Unicorn and a local, matching game.dll. No retail bytes are distributed
 This checks the recovered contract against the original x86, not an OpenRealm port.
 """
 import argparse
+import ctypes
 import hashlib
 import itertools
 import json
@@ -18,7 +19,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--engine-library',type=Path)
     args = parser.parse_args()
+    engine=ctypes.CDLL(str(args.engine_library.resolve()))if args.engine_library else None
+    exact=0
+    if engine:engine.pathing_gate_parent.argtypes=[ctypes.c_uint32,ctypes.c_uint32,ctypes.POINTER(ctypes.c_uint8),ctypes.POINTER(ctypes.c_uint8)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -71,6 +76,12 @@ def main():
                         raise RuntimeError('retail reducer exceeded instruction budget')
                     stamp, actual = struct.unpack('<II', machine.mem_read(parent, 8))
                     wanted = initial | (expected << (30 - shift))
+                    if engine:
+                        compact_states=[states[y*2+x]for y in range(height)for x in range(width)]
+                        compact_markers=[markers[y*2+x]for y in range(height)for x in range(width)]
+                        result=engine.pathing_gate_parent(width,height,(ctypes.c_uint8*len(compact_states))(*compact_states),(ctypes.c_uint8*len(compact_markers))(*compact_markers))
+                        if result!=((actual>>(30-shift))&3):raise RuntimeError('C marker-aware parent reducer differs')
+                        exact+=1
                     cases += 1
                     if stamp != 0x13579bdf or actual != wanted:
                         failures.append({'dimensions': [width, height], 'shift': shift, 'states': states,
@@ -78,7 +89,7 @@ def main():
                         if len(failures) >= 20:
                             raise RuntimeError('20 reducer mismatches; inspect the recovered contract')
     report = {'binary_sha256': digest, 'function': '6f15d1c0', 'cases': cases,
-              'mismatches': failures, 'scope': 'valid 00/01/10 classes; byte +6 markers; clipped 2x2 children; metadata preservation'}
+              'mismatches': failures,'engine_exact_cases':exact, 'scope': 'valid 00/01/10 classes; byte +6 markers; clipped 2x2 children; metadata preservation'}
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{cases} retail parent-cell cases; {len(failures)} mismatches')

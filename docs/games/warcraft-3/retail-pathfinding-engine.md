@@ -8037,3 +8037,59 @@ reports, Ghidra readback and validation logs remain under external runtime/gate9
 Both required edition suites pass2,516 tests/5,676,211 assertions each, plus
 575 Python tests. Production builds and six fresh strict contracts pass.
 `runtime/gate93-validation.json` pins the final logs and committed artifact.
+
+## Way Gate overlap publishes ordinary routing history
+
+Payoff94 ports source markers and their parent classifications into the production
+adaptive hierarchy. Original04e360 normalizes world corners, subtracts map origin
+and scales by32. Original15c000 floors the scalar rectangle and adds one to both upper bounds;15bf60 clips it to
+fine bounds;15c030 overwrites base byte6 over inclusive floor-scaled ends. The
+three parent publications do not rebuild base terrain classes or expose pending
+terrain edits. Marker-bearing clear children force class2; blocked children
+retain class1. Parent marker bytes remain zero.
+
+Two stock400-by400 sources at(512,512) and(768,768) are created and removed in
+both orders. Creation overwrites the overlap. Removal unconditionally zeroes
+the whole rectangle; it does not restore a surviving source's overwritten bytes.
+Inactive gates still publish sources. Exhausted ID zero also publishes at
+creation, but its cleanup skips publication. CAbilityWarp retains authored half
+extents at initialization and uses the current source position at removal,
+including removal after its ability registry row is gone.
+
+The unchanged world bridge, empty fine producer, marker writer, parent reducers
+and64 complete warp-disabled adaptive requests execute over supplied storage.
+All four lanes and both selected sizes compare every route word and final node
+word. The shared production stamp/reducer also matches20736 native parent
+controls, including blocked marked children and clipped missing children.
+
+The production regression first failed210 assertions. The final port passes1622
+assertions through real ability creation, semantic removal and ordinary group
+route entry points. Eight complete publication states and64 complete engine
+requests match the frozen original route/work/node fixtures. Save99 preserves
+the marker plane and the exact published hierarchy: reconstructing markers from
+live gates would incorrectly restore erased overlaps. Two save/load checkpoints
+retain that erasure and reproduce subsequent route state.
+
+Two bounded public JASS witnesses repeat all eight complete marker planes and
+all2206 hierarchy class bytes. The checker requires the explicit tick9 producer
+completion, installed footer and pinned PE/map/source hashes. The accepted
+producer was archived under the capacity probe filename; the committed overlap
+probe is byte-identical. These witnesses certify source publication and ordinary
+routing effects; automatic portal traversal remains separate.
+
+Ghidra retains677 saved roles,72 layouts/491 fields,345 explicit ABIs and61
+globals. Native/live fixtures are `retail-gate-markers-1.27.json` and
+`retail-gate-markers-live-1.27.json`; raw captures/reports and saved readback stay
+under external runtime/gate94.
+
+An asymmetric boundary control caught the upper-bound plus-one hidden by the
+stock square footprints. Twenty-four complete native publications cover unequal
+negative origins, reversed corners, clipping, zero extent and odd fine upper
+bounds at IDs1/255/0. The world rectangle ABI is minY/minX/maxY/maxX, while the
+map origin words6c/70 are X/Y. Engine coordinates keep their normal XY order.
+
+Both required edition suites pass2,517 tests/5,677,836 assertions each, plus
+579 Python tests. Production and six fresh strict contracts pass. Saved Ghidra
+readback confirms all677 roles,72 layouts/491 fields,345 ABIs and61 globals
+with no unsaved changes. `runtime/gate94-validation.json` pins final validation
+and the committed artifact. Existing GATE-03.1 closes;153 tasks remain.

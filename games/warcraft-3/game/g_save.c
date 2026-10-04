@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format98 retains the ability-owned Way Gate allocation attempt and native edge ID. */
-static uint32_t const save_version = 98;
+/* Format99 retains Way Gate source extents and exact overlapping marker publication history. */
+static uint32_t const save_version = 99;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2814,7 +2814,8 @@ TEST(wc3_save, adaptive_publication_rejects_invalid_shape_class_and_truncation) 
         if(i==2)header.maps[3].y++;
         memcpy(after,before,size);
         if(i==3)after[0]=3;
-        if(i==4)after[size-1]=255;
+        /* Marker IDs use all byte values; retain rejection at the last class byte. */
+        if(i==4)after[size-header.maps[0].x*header.maps[0].y-1]=255;
         T_ASSERT(SaveBytes(file,&header,sizeof(header)));
         T_ASSERT(SaveBytes(file,after,size-(i==5)));
         rewind(file);T_ASSERT(!ReadMoveAdaptive(file));fclose(file);
@@ -3298,8 +3299,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-95.bin",
         "/tmp/openwarcraft3-wc3-save-version-96.bin",
         "/tmp/openwarcraft3-wc3-save-version-97.bin",
+        "/tmp/openwarcraft3-wc3-save-version-98.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98 };
 
     reset_entities();
     setup_test_world();

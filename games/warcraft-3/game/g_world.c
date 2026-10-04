@@ -1,3 +1,4 @@
+#include "../common/wc3_pathing_gate.h"
 #include "g_local.h"
 #include "../common/wc3_pathing_route.h"
 #include "../common/wc3_pathing_coordinates.h"
@@ -36,6 +37,7 @@ static wc3FineVector_t move_acc_points[BZ_WC3_ACC_ROUTE_NODES];
 static void *move_acc_storage;
 static uint32_t move_map_revision, move_acc_width, move_acc_height;
 static uint8_t *move_acc_classes[4][4];
+static uint8_t *move_acc_markers;
 static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
 typedef struct {
     wc3FineBox_t box;
@@ -149,7 +151,7 @@ static vec2_t move_world_from_grid(float x, float y) {
 
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
-    free(move_acc_storage); move_acc_storage = NULL;
+    free(move_acc_storage); move_acc_storage = NULL; move_acc_markers = NULL;
     wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
     move_acc_width = move_acc_height = 0;
 }
@@ -165,7 +167,7 @@ static void move_acc_prepare(void) {
         G_FreeMovePathCache();
         uint32_t cells = 0;
         FOR_LOOP(level,4) cells += (width>>level)*(height>>level);
-        move_acc_storage = malloc((size_t)cells*(sizeof(int)+4));
+        move_acc_storage = malloc((size_t)cells*(sizeof(int)+4)+(size_t)width*height);
         if (!move_acc_storage) gi.error("WC3 adaptive routing: cannot allocate %u hierarchy cells",cells);
         int *indices = move_acc_storage;
         uint8_t *classes = (uint8_t *)(indices+cells);
@@ -174,6 +176,7 @@ static void move_acc_prepare(void) {
             move_acc.maps[level] = (wc3AccMap_t){.width=w,.height=h,.indices=indices}; indices += w*h;
             FOR_LOOP(lane,4) { move_acc_classes[lane][level] = classes; classes += w*h; }
         }
+        move_acc_markers=classes;memset(move_acc_markers,0,(size_t)width*height);
         move_acc_width = width; move_acc_height = height;
     }
     FOR_LOOP(lane,4) FOR_LOOP(level,4)
@@ -183,11 +186,11 @@ static void move_acc_prepare(void) {
 
 /* Original15d360 clips once in fine coordinates. Each level independently
  * visits floor(min/scale)..floor(max/scale), including the upper edge. */
-static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear) {
+static void move_acc_rebuild_rectangle_from(wc3FineBox_t box, bool clear, unsigned first_level) {
     box.min.x=MAX(0,box.min.x); box.min.y=MAX(0,box.min.y);
     box.max.x=MIN((int)pathmap.width,box.max.x); box.max.y=MIN((int)pathmap.height,box.max.y);
     if (box.min.x>=box.max.x || box.min.y>=box.max.y) return;
-    FOR_LOOP(level,4) {
+    for(unsigned level=first_level;level<4;level++) {
         wc3AccMap_t const *map=move_acc.maps+level;
         unsigned scale=2u<<level;
         unsigned minx=box.min.x/scale,miny=box.min.y/scale;
@@ -202,18 +205,36 @@ static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear) {
             } else {
                 wc3AccMap_t const *child_map=move_acc.maps+level-1;
                 uint8_t const *child=move_acc_classes[lane][level-1];
-                unsigned first=1; bool same=true;
-                FOR_LOOP(dy,2) FOR_LOOP(dx,2) {
-                    unsigned cx=x*2+dx,cy=y*2+dy;
-                    unsigned v=cx<child_map->width && cy<child_map->height ? child[cy*child_map->width+cx] : 1;
-                    if (!dx && !dy) first=v;
-                    same&=v==first;
-                }
-                value=same && first<2 ? first : 2;
+                value=wc3_gate_parent(child,level==1?move_acc_markers:NULL,
+                    child_map->width,child_map->height,x*2,y*2);
             }
             move_acc_classes[lane][level][y*map->width+x]=value;
         }
     }
+}
+
+static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear) {
+    move_acc_rebuild_rectangle_from(box,clear,0);
+}
+
+/* Marker publication does not expose pending terrain edits by rebuilding base
+ * classes. It overwrites the source byte and publishes only the three parents. */
+void G_PublishWaygateSource(box2_t const *rectangle,uint8_t id) {
+    if(!rectangle)return;
+    if(!pathmap.width || !pathmap.height) {
+        fprintf(stderr,"WC3 Waygate: source publication before path map construction id=%u\n",id);return;
+    }
+    move_acc_prepare();
+    vec2_t min=move_grid_from_world(MIN(rectangle->min.x,rectangle->max.x),MIN(rectangle->min.y,rectangle->max.y));
+    vec2_t max=move_grid_from_world(MAX(rectangle->min.x,rectangle->max.x),MAX(rectangle->min.y,rectangle->max.y));
+    wc3FineBox_t box={{(int)floorf(min.x),(int)floorf(min.y)},
+        {(int)(wc3_int_bits(wc3_floor_bits(wc3_float_bits(max.x)))+1u),
+         (int)(wc3_int_bits(wc3_floor_bits(wc3_float_bits(max.y)))+1u)}};
+    box.min.x=MAX(0,box.min.x);box.min.y=MAX(0,box.min.y);
+    box.max.x=MIN((int)pathmap.width,box.max.x);box.max.y=MIN((int)pathmap.height,box.max.y);
+    if(box.min.x>=box.max.x || box.min.y>=box.max.y)return;
+    wc3_gate_stamp(move_acc_markers,move_acc_width,move_acc_height,box.min.x,box.min.y,box.max.x,box.max.y,id);
+    move_acc_rebuild_rectangle_from(box,false,1);
 }
 
 static void move_acc_initialize(void) {
@@ -281,7 +302,7 @@ uint32_t G_GetMoveAdaptiveStateSize(void) {
     if (!pathmap.width || !pathmap.height) return 0;
     move_acc_prepare(); uint32_t size=0;
     FOR_LOOP(level,4) size+=move_acc.maps[level].width*move_acc.maps[level].height*4;
-    return size;
+    return size+move_acc_width*move_acc_height;
 }
 
 point2_t G_GetMoveAdaptiveMapSize(unsigned level) {
@@ -297,17 +318,19 @@ bool G_GetMoveAdaptiveState(uint8_t *data, uint32_t size) {
         uint32_t n=move_acc.maps[level].width*move_acc.maps[level].height;
         memcpy(data,move_acc_classes[lane][level],n); data+=n;
     }
+    memcpy(data,move_acc_markers,(size_t)move_acc_width*move_acc_height);
     return true;
 }
 
 bool G_SetMoveAdaptiveState(uint8_t const *data, uint32_t size) {
     if (size!=G_GetMoveAdaptiveStateSize() || (size && !data)) return false;
-    FOR_LOOP(i,size) if (data[i]>2) return false;
+    FOR_LOOP(i,size-move_acc_width*move_acc_height) if (data[i]>2) return false;
     if (!size) return true;
     FOR_LOOP(level,4) FOR_LOOP(lane,4) {
         uint32_t n=move_acc.maps[level].width*move_acc.maps[level].height;
         memcpy(move_acc_classes[lane][level],data,n); data+=n;
     }
+    memcpy(move_acc_markers,data,(size_t)move_acc_width*move_acc_height);
     return true;
 }
 

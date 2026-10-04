@@ -8,23 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**182 done / 336 tasks; 154 remaining.** Payoff93 closes existing GATE-04.1
-without adding IDs. The complete original allocator/active/getter/release
-bridges and two public259-birth tails retain1..255 IDs, zero exhaustion and
-first-free reuse17/255/0. All776 semantic live events repeat. CAbilityWarp now
-owns the allocation attempt, never silently retries exhaustion, releases IDs
-at semantic removal before deferred reclamation, and preserves requested
-alternate presentation separately from active state. Save98 retains allocation
-and exhaustion and rejects duplicate ownership. Both editions pass2516 tests/
-5,676,211 assertions each plus575 Python checks; production and six fresh
-strict contracts pass. Ghidra retains673 saved roles,72 layouts/489 fields,
-341 ABIs and61 globals. See [Way Gate allocation payoff](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation).
+**183 done / 336 tasks; 153 remaining.** Payoff94 closes existing GATE-03.1
+without adding IDs. Source publication, overwrite and unconditional cleanup now
+update the engine's marker plane and adaptive parents. Eight native publication
+states,64 ordinary searches and24 asymmetric boundary controls match exact
+route/work/node and full hierarchy state. Two complete public witnesses repeat
+all source/parent bytes. Save99 retains erased overlaps rather than reconstructing
+them from surviving gates. Both editions pass2517 tests/5,677,836 assertions
+each plus579 Python checks; production and six fresh strict contracts pass.
+Ghidra retains677 saved roles,72 layouts/491 fields,345 ABIs and61 globals.
+See [source overlap payoff](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
 
-Next runnable chunk closes GATE-03.1: port source markers, overlap overwrite,
-unconditional rectangle cleanup and parent publication into the engine's
-adaptive hierarchy, retaining exact ordinary routes and saved marker history.
-Two public overlap captures and64 complete original searches are already
-available for this port. No new TODO IDs.
+Next runnable chunk integrates special edges, portal distance accounting and the
+cached-exit consumer into Move. Complete original requests and repeated public
+traversal witnesses already support the port; retarget/disable controls will
+exercise fresh versus retained routes. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -49,7 +47,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
-| GATE — Way Gates | 2 | 9 |
+| GATE — Way Gates | 3 | 8 |
 | E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
@@ -883,7 +881,7 @@ Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adapt
 
 ### GATE-03 — Multiple gates
 
-- [ ] **GATE-03.1** Construct two overlapping sources in both orders; assert marker overwrite, cleanup and hierarchy propagation.
+- [x] **GATE-03.1** Construct two overlapping sources in both orders; assert marker overwrite, cleanup and hierarchy propagation. [Payoff94](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history) ports eight native publication states,64 exact ordinary searches and24 unequal-origin/reversed/clipped/zero/odd-boundary controls. Two complete public witnesses repeat all marker/parent bytes. Real ability removal and group requests reproduce overwrite and unconditional erasure; Save99 retains both erased overlaps and published parent history. Both editions,579 Python checks, production, six fresh strict contracts and saved Ghidra roles/ABIs pass. Portal traversal and retained special-edge consumers remain separate.
 - [ ] **GATE-03.2** Run chained gates with active/inactive combinations and equal-cost alternatives; assert route choice and consumer event order.
 
 ### GATE-04 — Gate ID lifetime

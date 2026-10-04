@@ -799,3 +799,36 @@ void pathing_fine_queue_trace(uint32_t const *input,fineObjectInput_t const *dat
 
 #include "games/warcraft-3/common/wc3_pathing_gate.h"
 uint32_t pathing_waygate_id_allocate(uint8_t used[BZ_WC3_GATE_RECORDS]) { return wc3_gate_allocate(used); }
+
+/* Diagnostic owner of the same marker plane/reducer used by g_world.c.
+ * State is four lane arrays per level, followed by base marker bytes. */
+void pathing_waygate_publish(uint32_t const q[8],uint32_t id,uint8_t *state) {
+    uint32_t widths[4],heights[4];uint8_t *classes[4][4],*cursor=state;
+    if(id>=BZ_WC3_GATE_RECORDS)return;
+    for(unsigned level=0;level<4;level++) {
+        widths[level]=((q[0]+16)/2+1)>>level;heights[level]=((q[1]+16)/2+1)>>level;
+        for(unsigned lane=0;lane<4;lane++){classes[level][lane]=cursor;cursor+=widths[level]*heights[level];}
+    }
+    float ax=wc3_float(q[2]),ay=wc3_float(q[3]),bx=wc3_float(q[4]),by=wc3_float(q[5]);
+    float minx=wc3_grid_coordinate(ax<bx?ax:bx,wc3_float(q[6]),32),miny=wc3_grid_coordinate(ay<by?ay:by,wc3_float(q[7]),32);
+    float maxx=wc3_grid_coordinate(ax>bx?ax:bx,wc3_float(q[6]),32),maxy=wc3_grid_coordinate(ay>by?ay:by,wc3_float(q[7]),32);
+    int x0=(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(minx))),y0=(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(miny)));
+    int x1=(int)(wc3_int_bits(wc3_floor_bits(wc3_float_bits(maxx)))+1u),y1=(int)(wc3_int_bits(wc3_floor_bits(wc3_float_bits(maxy)))+1u);
+    if(x0<0)x0=0;
+    if(y0<0)y0=0;
+    if(x1>(int)q[0])x1=q[0];
+    if(y1>(int)q[1])y1=q[1];
+    if(x0>=x1 || y0>=y1)return;
+    wc3_gate_stamp(cursor,widths[0],heights[0],x0,y0,x1,y1,(uint8_t)id);
+    for(unsigned level=1;level<4;level++) {
+        unsigned scale=2u<<level,right=(unsigned)x1/scale+1,bottom=(unsigned)y1/scale+1;
+        if(right>widths[level])right=widths[level];
+        if(bottom>heights[level])bottom=heights[level];
+        for(unsigned lane=0;lane<4;lane++)for(unsigned y=(unsigned)y0/scale;y<bottom;y++)for(unsigned x=(unsigned)x0/scale;x<right;x++)
+            classes[level][lane][y*widths[level]+x]=wc3_gate_parent(classes[level-1][lane],level==1?cursor:NULL,widths[level-1],heights[level-1],x*2,y*2);
+    }
+}
+
+uint32_t pathing_gate_parent(uint32_t width,uint32_t height,uint8_t const *classes,uint8_t const *markers) {
+    return wc3_gate_parent(classes,markers,width,height,0,0);
+}

@@ -160,7 +160,7 @@ def main():
     build=None
     if any('{engine}' in e['command'] for e in selected):
         build=['cc','-O2','-shared','-fPIC','-MMD','-MF',str(output/'engine.d'),'-I',str(REPO),str(REPO/'tools/ghidra/wc3_pathing_engine_probe.c'),'-o',str(engine),'-lm']
-        if any('--queue-composition' in e['command'] or '--stamp-wrap' in e['command'] or '--terrain-producer' in e['command'] or any(script in e['command'] for script in ('tools/ghidra/verify_wc3_pathing_storage.py','tools/ghidra/verify_wc3_pathing_adaptive_storage.py')) for e in selected): build.insert(1,'-DBZ_WC3_FINE_TRACE')
+        if any('--queue-composition' in e['command'] or '--stamp-wrap' in e['command'] or '--terrain-producer' in e['command'] or any(script in e['command'] for script in ('tools/ghidra/verify_wc3_pathing_storage.py','tools/ghidra/verify_wc3_pathing_adaptive_storage.py','tools/ghidra/verify_wc3_pathing_gate_markers.py')) for e in selected): build.insert(1,'-DBZ_WC3_FINE_TRACE')
         subprocess.run(build,cwd=REPO,check=True)
     sources=set((REPO/'tools/ghidra').glob('*wc3_path*.py'))
     sources.update((REPO/'tools/frida').glob('*pathfinding*'))

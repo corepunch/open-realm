@@ -1,5 +1,6 @@
 #include "s_skills.h"
 #include "../../common/wc3_pathing_gate.h"
+#include "../../common/wc3_math.h"
 
 #define BZ_AWRP MAKEFOURCC('A','w','r','p')
 #define BZ_AMOV MAKEFOURCC('A','m','o','v')
@@ -41,6 +42,19 @@ static bool waygate_dimensions(edict_t const *gate, float *width, float *height)
     return *width > 0.0f && *height > 0.0f;
 }
 
+static void waygate_publish_source(edict_t const *gate,uint8_t id) {
+    vec2_t half=gate->waygate->source_half;
+    box2_t rectangle={{wc3_sub(gate->s.origin2.x,half.x),wc3_sub(gate->s.origin2.y,half.y)},
+        {wc3_add(gate->s.origin2.x,half.x),wc3_add(gate->s.origin2.y,half.y)}};
+    G_PublishWaygateSource(&rectangle,id);
+}
+
+static void waygate_release(edict_t *gate) {
+    if(!gate->waygate)return;
+    if(gate->waygate->edge_id)waygate_publish_source(gate,0);
+    G_FreeWaygate(gate);
+}
+
 /* The saved ability state owns allocation; reconstructing availability avoids
  * a second pool whose restore/free lifetime could disagree with the edicts. */
 static void waygate_initialize(edict_t *gate) {
@@ -49,11 +63,17 @@ static void waygate_initialize(edict_t *gate) {
     if (gate->waygate->initialized) return;
     FOR_LOOP(i,globals.num_edicts) {
         edict_t const *ent=g_edicts+i;
-        if(ent->inuse && ent->waygate && ent->waygate->initialized)
+        if(ent->inuse && ent->waygate && ent->waygate->initialized && ent->waygate->edge_id)
             used[ent->waygate->edge_id]=1;
     }
     gate->waygate->edge_id=(uint8_t)wc3_gate_allocate(used);
     gate->waygate->initialized=true;
+    float width=0,height=0;
+    if(!waygate_dimensions(gate,&width,&height))
+        fprintf(stderr,"WC3 Waygate: nonpositive authored source dimensions unit=%u\n",gate->s.number);
+    gate->waygate->source_half=(vec2_t){wc3_mul(width,.5f),wc3_mul(height,.5f)};
+    /* Original setup publishes zero too: exhausted creation can erase overlap. */
+    waygate_publish_source(gate,gate->waygate->edge_id);
     if(!gate->waygate->edge_id)
         fprintf(stderr,"WC3 Waygate: native1..255 edge pool exhausted for unit %u\n",gate->s.number);
 }
@@ -276,7 +296,7 @@ BZ_ABILITY_PROC(CAbilityWarp) {
         case A_UNIT_REMOVING:
             if(!ent)return false;
             if(waygate_behavior_active(ent))waygate_clear_order(ent);
-            if(ent->waygate)G_FreeWaygate(ent);
+            waygate_release(ent);
             return true;
         case A_TARGET_ORDER:
             return call && call->target_order.issuer && call->target_order.order &&
@@ -302,7 +322,7 @@ BZ_ABILITY_PROC(CAbilityWarp) {
         case A_UNIT_REMOVE:
             if(!ent)return false;
             if(waygate_behavior_active(ent))waygate_clear_order(ent);
-            if(ent->waygate)G_FreeWaygate(ent);
+            waygate_release(ent);
             return true;
         default:
             return false;

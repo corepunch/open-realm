@@ -1691,6 +1691,7 @@ typedef struct {
     bool active;
     uint8_t edge_id; /* Native1..255, zero after the original allocation attempt exhausts. */
     bool initialized; /* Exhaustion is retained until the ability is recreated. */
+    vec2_t source_half; /* Authored setup dimensions retained for cleanup after ability removal. */
 } waygate_t;
 
 typedef struct {
@@ -3648,6 +3649,7 @@ edict_t *S_CargoUnitAt(edict_t const *, uint32_t);
 bool S_CargoUnloadAt(edict_t *, uint32_t);
 bool S_CargoBeginUnloadAll(edict_t *);
 void S_CargoStandDown(edict_t *);
+void G_PublishWaygateSource(box2_t const *, uint8_t);
 bool S_ValidateWaygateIds(void);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
