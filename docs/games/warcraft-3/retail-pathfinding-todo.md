@@ -8,24 +8,20 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**191 done / 336 tasks; 145 remaining.** Payoffs97–99 close existing
-GATE-01.2, GATE-02.4, GATE-03.2 and GATE-04.3 without new IDs. Move now uses the
-native six-ring portal-placement limit, preserves failed crossing retries, and
-checks newly acquired coarse routes before fine refill for consecutive gates.
-Completed original repeats and production RunFrame agree on all3080 motion
-commits and26677 saved continuation commits across blocked exits, outside
-orders, two-member active/disabled crossings and four chained-gate combinations.
-The unchanged multi-gate kernels match512 complete original search/distance
-requests, including equal-cost alternatives and both publication orders. Classic
-and TFT each pass2539 tests/6,061,924 assertions;593 Python checks, production
-builds and eleven fresh strict contracts pass. Saved Ghidra checkpoint99 retains
-688 roles,73 layouts/504 fields,356 ABIs and61 globals.
-See [blocked exits](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state)
-and [group/chain continuation](retail-pathfinding-engine.md#group-gate-continuation-and-consecutive-portal-admission).
+**192 done / 336 tasks; 144 remaining.** Payoff100 closes GATE-01.1 without
+new IDs, completing the eleven gate leaves. Move now preserves the distinct
+adaptive policy of authored flight birth, flight type rebind and ground
+restoration. Repeated original public journeys and production RunFrame agree on
+all383 motion commits and2811 saved continuation commits. The unchanged original
+crossing oracle matches320 complete states at O0/O2, including threshold equality,
+adjacent scalar values, disabled edges and placement rejection. Classic and TFT
+each pass2540 tests/6,093,939 assertions;595 Python checks, debug/release production
+builds and fourteen fresh strict contracts pass. Saved Ghidra checkpoint100 retains
+690 roles,73 layouts/505 fields,359 ABIs and61 globals.
+See [adaptive eligibility and threshold](retail-pathfinding-engine.md#adaptive-eligibility-survives-flight-birth-and-changes-on-type-rebind).
 
-The remaining gate task is GATE-01.1. Native threshold controls and repeated
-birth/type-rebind flight captures are ready for the next engine regression:
-adaptive eligibility is a separate path policy, not a synonym for ground movement.
+Next runnable task: NUM-04.2, comparing interleaved entity retry/overlap draws
+against the shared owner and production movement across repeat and save/load.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -50,7 +46,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
-| GATE — Way Gates | 10 | 1 |
+| GATE — Way Gates | 11 | 0 |
 | E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
@@ -872,7 +868,7 @@ Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adapt
 
 ### GATE-01 — Gate eligibility and exit
 
-- [ ] **GATE-01.1** Test activation/approach threshold equality and adjacent values with eligible/ineligible movers; assert route consumer decisions.
+- [x] **GATE-01.1** Test activation/approach threshold equality and adjacent values with eligible/ineligible movers; assert route consumer decisions. [Payoff100](retail-pathfinding-engine.md#adaptive-eligibility-survives-flight-birth-and-changes-on-type-rebind) separates birth and type-rebind adaptive policy from movement class. Two completed public repeats match383 full production commits and2811 saved continuations. All320 unchanged original consumer controls match O0/O2, including equality, adjacent values, active-bit eligibility and retained rejection status2. Both editions, fourteen strict contracts and saved Ghidra setter/field/ABI readback pass.
 - [x] **GATE-01.2** Block the exit and test outside-map/unreachable destinations; assert placement rejection, fallback or failure and retained route state. [Payoff97](retail-pathfinding-engine.md#blocked-gate-exits-preserve-stopped-retry-state) corrects placement filter32/budget24/six-ring admission and retained crossing retry before every fine refill. Two repeated public journeys include a nearby admitted exit, surrounded failure, unblocking and both outside-map signs. Production matches1280 complete motion commits and10338 saved continuations; failure preserves index2 through all eight retries. Both editions, strict captures and saved placement-context/ABI readback pass.
 
 ### GATE-02 — Gate mutation

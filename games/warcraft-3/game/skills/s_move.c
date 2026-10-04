@@ -3909,6 +3909,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;
     case A_UNIT_TYPE_CHANGED:
+        ent->movement.adaptive_disabled=G_UnitIsStructure(ent) || (ent->aiflags&AI_FLYING);
         G_PublishMoveSpatialObject(ent);
         /* Original670950 retires the physical task and reissues the retained
          * point head after binding the replacement speed/radius. */
@@ -3921,6 +3922,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
         }
         return true;
     case A_UNIT_INIT:
+        /* Native68a060 enables nonstructures before publishing movement type;
+         * a newly created flyer retains adaptive routing.670950 rebind differs. */
+        ent->movement.adaptive_disabled=G_UnitIsStructure(ent);
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
     case A_UNIT_OWNER_CHANGING:

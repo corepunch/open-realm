@@ -868,13 +868,12 @@ static bool move_adaptive_progress(movePathQuery_t const *input,vec2_t source,
         moveFineRoute_t *route,uint32_t *status) {
     if (!route->adaptive_index) return false;
     vec2_t point=route->adaptive_points[route->adaptive_index];
-    float dx=wc3_sub(wc3_mul(source.x,.5f),point.x),dy=wc3_sub(wc3_mul(source.y,.5f),point.y);
-    float range=wc3_float(0x3efae148);
-    if (wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(range,range)) return false;
+    if (!wc3_acc_in_range((wc3FineVector_t){wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
+        (wc3FineVector_t){point.x,point.y})) return false;
     bool warped=false;
     if (!G_AdvanceUnitMoveAdaptiveDestination(input->mover,route,&warped)) {
         if (input->mover) input->mover->movement.wait_delay=MAX(input->mover->movement.wait_delay,20u);
-        *status=1;
+        *status=2;
     } else if (warped) *status=1;
     return true;
 }
@@ -973,9 +972,9 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
     vec2_t clipped={wc3_point_order_coordinate(input->geometry.target->x,bounds.min.x,bounds.max.x,cell),
         wc3_point_order_coordinate(input->geometry.target->y,bounds.min.y,bounds.max.y,cell)};
     vec2_t goal=move_grid_from_world(clipped.x,clipped.y);
-    /* Original16e430 ignores members without path88 bit200000. Flight
-     * profiles clear that adaptive policy;16de50 passes the full destination. */
-    if (input->mover && (input->mover->aiflags&AI_FLYING)) {
+    /* Original16e430 tests path88.200000 independently of movement class.
+     * Creation enables nonstructures; a later flight rebind disables it. */
+    if (input->mover && input->mover->movement.adaptive_disabled) {
         route->group_count=route->group_index=0;
         *fine=goal; return true;
     }
@@ -1135,9 +1134,9 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
         route->adaptive_goal.x!=b.x || route->adaptive_goal.y!=b.y))
         route->adaptive_count=route->adaptive_index=0;
     /* Original165b60 uses one adjusted destination when adaptive routing is
-     * disabled. Flight still performs the ordinary budget700 fine search,
-     * including partial results and flight-blocking terrain. */
-    if (input->mover && (input->mover->aiflags&AI_FLYING)) {
+     * disabled. It still performs the ordinary budget700 fine search with
+     * its own terrain mask, including partial results. */
+    if (input->mover && input->mover->movement.adaptive_disabled) {
         if (route) route->adaptive_count=route->adaptive_index=0;
         return G_BuildUnitMoveLocalRoute(input,route,out);
     }

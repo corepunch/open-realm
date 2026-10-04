@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **335 entries**: **52** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **98**
+The inventory now has **337 entries**: **53** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **99**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 109 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 110 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1761,3 +1761,29 @@ archive audits,98 strict live contracts and183 repository fixture pins. Producti
 checks1800 commits and16339 saved continuation commits across36 saves. Raw captures
 and map members remain outside the repository; physical placement is validated
 by public trajectories independently of the supplied search storage.
+
+
+## Adaptive eligibility and exact crossing threshold
+
+Payoff100 adds `live-gate-eligibility-captures-261004` and
+`oracle-gate-threshold-engine`. Two complete public captures repeat383 motion
+commits and three crossings across ground birth, authored flight birth, retained
+identity flight rebind and ground restoration. The transformed flyer performs
+ordinary direct fine routing with no crossing consumer. The byte-identical JASS
+producer clears removed-unit globals; earlier probes retaining those handles
+remain external and are not substituted for this contract.
+
+The controlled original165f10 oracle preserves320 complete threshold/consumer
+states: equality and two adjacent scalar values on each side, two accelerator
+origins, index0/2, force0/1, active bits0..3 and physical-placement result0/1.
+Owner lookup and physical placement are explicit stand-ins. The production range
+and cached-exit kernels match resultAL, coarse/fine indices, retry delay and
+scaled placement at O0/O2. Force1 is a helper control; the sole direct165b60
+caller supplies force0. Complete public captures separately verify real placement
+and the birth/type-rebind eligibility policy. Inventory is337 entries,117 oracle
+contracts,121 archives,99 strict live contracts and187 repository pins.
+See [adaptive policy](retail-pathfinding-engine.md#adaptive-eligibility-survives-flight-birth-and-changes-on-type-rebind).
+
+Fourteen fresh strict contracts pass against the frozen final sources; both full
+editions and595 Python checks pass. Final log fingerprints and source verification
+are recorded in runtime/gate100-final-validation.json.

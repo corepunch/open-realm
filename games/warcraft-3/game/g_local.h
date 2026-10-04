@@ -1840,6 +1840,7 @@ struct edict_s {
         moveFallbackState_t flow_fallback_state;
         routePath_t path; /* mover-owned waypoint cache; geometry contract shared with other server games */
         moveFineRoute_t fine_route;
+        bool adaptive_disabled; /* Path88.200000 defaults enabled; type rebind changes policy independently of movement class. */
         edict_t *fine_prev, *fine_next; /* Move-owned ordinary fine admission FIFO. */
         bool fine_queued;
         uint32_t fine_class; /* Retain the old player row until its pending request is unlinked. */

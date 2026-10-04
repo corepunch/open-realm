@@ -11,6 +11,12 @@ typedef struct {
 
 typedef struct { uint32_t index; bool gate; } wc3AccSelection_t;
 
+/* Original165f10 includes equality at .49 accelerator units. */
+static inline bool wc3_acc_in_range(wc3FineVector_t source,wc3FineVector_t point) {
+    float dx=wc3_sub(source.x,point.x),dy=wc3_sub(source.y,point.y),range=wc3_float(0x3efae148);
+    return wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))<=wc3_mul(range,range);
+}
+
 /* Original167ae0 walks the reverse coarse route to ten accelerator units.
  * Index zero is never inspected. A gate sentinel selects its adjoining point;
  * selection alone does not execute portal traversal. */

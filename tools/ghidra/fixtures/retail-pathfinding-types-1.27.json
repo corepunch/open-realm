@@ -710,7 +710,7 @@
     },
     {
       "name": "WC3UnitOrdersPrefix",
-      "length": 496,
+      "length": 512,
       "fields": [
         {
           "offset": 0,
@@ -795,6 +795,12 @@
           "name": "move_ability",
           "type": "ptr:WC3MoveSpeedPrefix",
           "evidence": "685310/698af0 cached Move,48e8a0 Amov removal clears pointer"
+        },
+        {
+          "offset": 508,
+          "name": "movement_type",
+          "type": "u32",
+          "evidence": "670b06 writes the replacement movement enum;670ddb CMP [EBX+1fc],2/SETZ gates0594a0 adaptive enablement. New-unit68a060 sets policy before movement class; rebind distinguishes fly enum2."
         }
       ]
     },
@@ -10362,6 +10368,62 @@
           "name": "context",
           "type": "ptr:WC3PathPlacementContext",
           "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f0594a0",
+      "name": "UnitMoverBridge_SetAdaptiveEnabled",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f05c4d0",
+      "name": "Path_SetAdaptiveEnabled",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f165f10",
+      "name": "Path_CheckAcceleratedWaypoint",
+      "returns": "u8",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "force",
+          "type": "u32",
+          "storage": 8
         }
       ]
     }

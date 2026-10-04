@@ -8364,3 +8364,65 @@ scope;688 roles,73 layouts/504 fields,356 ABIs,61 globals and no unsaved changes
 Merged-upstream Classic/TFT each pass2539 tests/6,061,924 assertions, with593
 Python checks, production builds and eleven fresh strict contracts. These
 results close GATE-02.4/GATE-03.2/GATE-04.3. GATE-01.1 remains open.
+
+
+### Adaptive eligibility survives flight birth and changes on type rebind
+
+Payoff100 fixes the unconditional AI_FLYING adaptive bypass in both member and
+group routing. Retail path88 bit200000 is an independent policy. Path_Activate
+166060 defaults it on; unit initialization68a060 enables nonstructures before
+publishing movement class. A newly created authored flyer therefore retains
+class3/lane6 adaptive routing and can traverse a Way Gate. The first production
+regression diverged at motion43/5100ms, using direct flight while retail turned
+toward its coarse gate leg.
+
+Type rebind670950 behaves differently. Instructions670ddb/670de2 compare the
+new movement enum at Unit+1fc with2 and record SETZ. The later call0594a0 disables
+adaptive routing for that flying type; ground rebind restores it.0594a0 resolves
+the canonical bridge's owned path, resets its buffers, then sets/clears bit200000
+without touching class bits.05c4d0 applies the same write to a direct path and has
+no direct callers. Captain9d6e60 explicitly passes movementType!=2; this does not
+mean captain selector2 is a flying movement type. Structure/construction flags
+in68c190 remain a distinct predicate; the public parity scene here uses mobile
+nonstructures and does not claim a complete construction-class table.
+
+Move now stores adaptive_disabled independently of collision-layer flags,
+initializes it on unit birth and updates it after type rebind. Group planning
+and member refinement consult that state while retaining their authored lane
+and current fine-query mask. Save100 preserves the policy and rejects prior
+Save99 layout/version. No client state or scenario-specific production branch
+is added.
+
+A complete public script contrasts ground birth, authored flight birth, a ground
+unit transformed to flight and restoration to ground. Three crossings and the
+transformed flyer's direct-route control repeat all383 motion commits. Production
+RunFrame matches every clock, fine-position, velocity and facing word; twelve
+saves reproduce2811 continuation commits. Earlier ground/flight/ground movement
+controls still match737 commits and6534 saved suffix commits. Earlier blocked
+exit journeys remain exact. The corrected producer clears each removed-unit
+variable; stale handles in earlier exploratory producers logged serializer
+diagnostics and are not the committed save fixture.
+
+The shared wc3_acc_in_range comparison includes equality at software scalar
+0x3efae148 (0.49 accelerator units) and rejects the next positive source scalar
+at origin0.320 complete original165f10 cases cover two origins, +/-2 source ULPs,
+index0/2, force0/1, all active-bit combinations and placement failure/success.
+Complete165d10/166030/165200/167ae0 and scalar calls execute unchanged; owner lookup
+and physical placement are explicit stand-ins. Production range and consumer
+kernels reproduce every output at O0/O2. Success consumes the cached crossing,
+invalidates the fine index and returnsAL1; disabled crossing consumes it without
+placement and returns0; failed placement returns2, preserves both indices and
+raises delay to20. Production propagation now retains that failure status2.
+The sole direct165b60 caller supplies force0; force1 is not claimed as a public
+movement producer.
+
+Ghidra saved readback verifies690 roles,73 layouts/505 fields,359 explicit ABIs
+and61 globals, with no unsaved changes. UnitOrdersPrefix now includes the proven
+movement enum at1fc; both policy setters and165f10 have explicit instruction-backed
+signatures. Fourteen fresh strict contracts pass, including prior gate kernels,
+all complete gate journeys and the earlier movement-mode captures. The required
+full editions each pass2540 tests/6,093,939 assertions and595 Python checks pass.
+Debug/release WC3, SC2 and WoW production builds finish without warnings. Source
+fingerprints remain unchanged through the full run; final evidence is recorded
+in runtime/gate100-final-validation.json. GATE-01.1 closes, completing all eleven
+gate leaves without claiming whole-pathfinding fidelity.

@@ -177,7 +177,7 @@ class GateExitTests(unittest.TestCase):
 
 class MultipleGateTests(unittest.TestCase):
     def test_group_member_identity_and_complete_chain_are_strict(self):
-        for label in ('group-open','group-wall','chain'):
+        for label in ('group-open','group-wall','chain','eligibility'):
             fixture=json.loads((ROOT/f'tools/ghidra/fixtures/retail-gate-{label}-live-1.27.json').read_text())
             for capture in fixture['captures']:
                 motion=copy.deepcopy(fixture['observations'])
@@ -186,7 +186,7 @@ class MultipleGateTests(unittest.TestCase):
                 rows=[dict(event='metadata',**capture['metadata'])]+motion+[dict(event='trace-end',installed=True)]
                 self.assertEqual(verify(rows,fixture,capture),fixture['observations'])
                 for change in ('completion','motion','consumer','route','unmapped','swapped','missing','mapping'):
-                    if label=='chain' and change in ('unmapped','swapped','missing','mapping'):continue
+                    if label in ('chain','eligibility') and change in ('unmapped','swapped','missing','mapping'):continue
                     bad=copy.deepcopy(rows);contract=copy.deepcopy(capture)
                     if change=='completion':bad=[r for r in bad if r.get('value')!=fixture['completion']]
                     elif change=='motion':next(r for r in bad if r.get('event')=='velocity-commit')['after'][4]^=1
@@ -204,7 +204,8 @@ class MultipleGateTests(unittest.TestCase):
         for label,header,symbol,producer in (
                 ('group-open','group','gate98_open','group_open'),
                 ('group-wall','group','gate98_wall','group_wall'),
-                ('chain','chain','gate99','chain')):
+                ('chain','chain','gate99','chain'),
+                ('eligibility','eligibility','gate100','eligibility')):
             fixture=json.loads((ROOT/f'tools/ghidra/fixtures/retail-gate-{label}-live-1.27.json').read_text())
             source=(ROOT/f'games/warcraft-3/game/tests/retail_gate_{header}.h').read_text()
             array=source.split(f'retail_{symbol}_motion[][7]={{',1)[1].split('};',1)[0]
@@ -232,3 +233,29 @@ class MultipleGateTests(unittest.TestCase):
                 self.assertEqual(row['route_words'][sentinel+1],0x3f800000)
 
 if __name__=='__main__':unittest.main()
+
+class GateThresholdTests(unittest.TestCase):
+    def test_equality_next_scalar_and_failed_crossing_retain_native_state(self):
+        cases=json.loads((ROOT/'tools/ghidra/fixtures/retail-gate-threshold-1.27.json').read_text())['cases']
+        self.assertEqual(len(cases),320)
+        selected=[r for r in cases if r['point']==[0,0] and r['index']==2 and not r['force'] and r['active']==1]
+        self.assertEqual(len(selected),10)
+        for row in selected:
+            admitted=row['source'][0]<=0x3efae148
+            self.assertEqual(row['result'],(1 if row['placement_result'] else 2) if admitted else 0)
+            self.assertEqual(row['next_index'],0 if admitted and row['placement_result'] else 2)
+            self.assertEqual(row['fine_index'],0xffffffff if admitted and row['placement_result'] else 7)
+            self.assertEqual(row['delay'],20 if admitted and not row['placement_result'] else 5)
+            self.assertEqual(len(row['placed']),int(admitted))
+        for row in cases:
+            if not row['index']:self.assertEqual((row['result'],row['next_index'],row['placed']),(0,0,[]))
+
+    def test_public_flight_lifecycle_has_three_crossings_and_disabled_direct_control(self):
+        rows=json.loads((ROOT/'tools/ghidra/fixtures/retail-gate-eligibility-live-1.27.json').read_text())['observations']
+        self.assertEqual(sum(r['event']=='velocity-commit' for r in rows),383)
+        self.assertEqual(sum(r['event']=='gate-traversal' for r in rows),3)
+        start=next(i for i,r in enumerate(rows) if r['event']=='marker' and 'gate_rebound_flight' in r['value'])
+        end=next(i for i,r in enumerate(rows) if r['event']=='marker' and 'gate_restored_ground' in r['value'])
+        self.assertTrue(any(r['event']=='velocity-commit' for r in rows[start:end]))
+        self.assertFalse(any(r['event']=='gate-traversal' for r in rows[start:end]))
+        self.assertFalse(any(r['event']=='gate-consumer' for r in rows[start:end]))

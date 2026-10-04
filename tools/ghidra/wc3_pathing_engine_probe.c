@@ -886,3 +886,17 @@ void pathing_adaptive_gate_consumer(uint32_t const *q,uint32_t const *words,uint
     out[0]=wc3_acc_advance(&route,q[2],gate_probe_active,gate_probe_place,&probe,&warped);
     out[1]=route.index;out[2]=warped;out[3]=probe.calls;out[4]=probe.point[0];out[5]=probe.point[1];
 }
+
+/* Original165f10: controlled force0/1 and supplied placement result. */
+void pathing_adaptive_gate_threshold(uint32_t const *q,uint32_t const *words,uint32_t *out) {
+    wc3FineVector_t points[8];assert(q[0]<=8 && q[1]<q[0]);
+    for(uint32_t i=0;i<q[0];i++)points[i]=(wc3FineVector_t){wc3_float(words[2*i]),wc3_float(words[2*i+1])};
+    gateConsumerProbe_t probe={q[3],q[4],0,{0,0}};wc3FineRoute_t route={points,q[1]};bool warped;
+    out[0]=0;out[2]=q[7];out[3]=q[8];
+    if(route.index && (q[2] || wc3_acc_in_range((wc3FineVector_t){wc3_float(q[5]),wc3_float(q[6])},points[route.index]))) {
+        if(!wc3_acc_advance(&route,true,gate_probe_active,gate_probe_place,&probe,&warped)) {
+            out[0]=2;if(out[3]<20)out[3]=20;
+        } else {out[0]=warped;out[2]=UINT32_MAX;}
+    }
+    out[1]=route.index;out[4]=probe.calls;out[5]=probe.point[0];out[6]=probe.point[1];
+}
