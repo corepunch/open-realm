@@ -38,6 +38,7 @@
 #include "../../common/wc3_pathing_adaptive.h"
 #include "retail_adaptive_wrap.h"
 #include "retail_adaptive_producer.h"
+#include "retail_adaptive_storage.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1108,6 +1109,47 @@ TEST(pathfinding, retained_fine_storage_matches_native_stamp_wrap_nodes_and_rout
 }
 
 wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void);
+static uint64_t adaptive_storage_node_hash(wc3AccSearch_t const *search) {
+    uint64_t hash=UINT64_C(14695981039346656037);
+    FOR_LOOP(i,search->work.count) {
+        wc3FineNode_t const *n=search->work.nodes+i;
+        uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state,search->levels[i]};
+        FOR_LOOP(j,8) FOR_LOOP(b,4) hash=(hash^((words[j]>>(8*b))&255))*UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+TEST(pathfinding, group_adaptive_storage_grows_and_reuses_backing_for_owned_partial_routes) {
+    reset_entities(); setup_test_world(); G_FreeMovePathCache(); S_ClearMoveFineRequests();
+    uint8_t *cells=malloc(1024*1024); T_NOT_NULL(cells); if(!cells)return;
+    FOR_LOOP(y,1024) FOR_LOOP(x,1024) cells[y*1024+x]=(x/2==384 || ((x/2)&1 && (y/2)&1))?2:0;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{32768,32768}}); CM_SetupTestPathmap(1024,1024,cells);
+    vec2_t source={4.25f*64,4.75f*64},goal={448.25f*64,400.75f*64},selected;
+    edict_t *unit=make_unit_at(source.x,source.y); unit->collision=8; unit->aiflags=0;
+    movePathQuery_t query={.geometry={&source,&goal,8,2},.units=true,.mover=unit};
+    FOR_LOOP(pass,2) FOR_LOOP(k,2) {
+        moveFineRoute_t route={0};
+        level.pathing_counter=400+40*pass+20*k;level.move_fine_budgets[0].work=0;
+        if(!k) T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+        else T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
+        wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();
+        retailAccStorage_t const *row=retail_acc_storage+k;
+        T_EQ(search->work.pops,row->work); T_EQ(search->work.count,row->nodes);
+        T_EQ(search->work.node_capacity,6144); T_EQ(search->work.heap_capacity,2048);
+        T_EQ(search->level_capacity,6144); T_ASSERT(adaptive_storage_node_hash(search)==row->node_hash);
+        vec2_t const *points=k?route.adaptive_points:route.group_points;
+        uint32_t count=k?route.adaptive_count:route.group_count;
+        T_EQ(count,row->points);
+        if(points && count==row->points)FOR_LOOP(i,count){
+            T_EQ(wc3_float_bits(points[i].x),row->route[i][0]);T_EQ(wc3_float_bits(points[i].y),row->route[i][1]);
+        }
+        free(route.points);free(route.adaptive_points);free(route.group_points);
+    }
+    G_FreeMovePathCache(); T_NULL(G_TestMoveAdaptiveSearch()->levels);
+    T_NULL(G_TestMoveAdaptiveSearch()->work.nodes);T_NULL(G_TestMoveAdaptiveSearch()->work.heap);
+    free(cells); reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+}
+
 TEST(pathfinding, owned_adaptive_requests_reuse_all_lanes_sizes_and_partial_node_states) {
     reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
     uint8_t cells[64*64], masks[]={2,0x80,0x40,4};

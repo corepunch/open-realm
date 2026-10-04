@@ -53,7 +53,7 @@ void pathing_retry_advance(uint32_t const input[8], uint32_t output[4]) {
 /* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
 static wc3AccSearch_t adaptive_probe;
 void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {
-    static wc3FineVector_t points[BZ_WC3_FINE_NODES];
+    static wc3FineVector_t points[BZ_WC3_ACC_ROUTE_NODES];
     uint32_t offset=0;
     for (unsigned level=0; level<4; level++) {
         uint32_t width=input[0]>>level, height=input[1]>>level;
@@ -67,6 +67,28 @@ void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uin
         output[4+i*2]=wc3_float_bits(points[i].x); output[5+i*2]=wc3_float_bits(points[i].y);
     }
     for (unsigned level=0; level<4; level++) free(adaptive_probe.maps[level].indices);
+}
+
+/* Read retained production backing and reset for an independent constructor control. */
+void pathing_adaptive_storage(uint32_t reset, uint32_t out[3]) {
+    if (reset) wc3_acc_free(&adaptive_probe);
+    out[0] = adaptive_probe.work.node_capacity;
+    out[1] = adaptive_probe.work.heap_capacity;
+    out[2] = adaptive_probe.work.count;
+}
+
+/* Explicit legal enqueue/pop prefix over nodes from the most recent search;
+ * exercise retained backing growth independently from gameplay reachability. */
+void pathing_adaptive_heap_prefix(uint32_t count, uint32_t *out) {
+    wc3FineSearch_t *work = &adaptive_probe.work;
+    uint32_t initial = work->queued;
+    assert(count >= initial && work->count);
+    for (uint32_t i=0; i<count-initial; i++) wc3_fine_enqueue(work,i%work->count);
+    out[0] = work->heap_capacity;
+    for (uint32_t i=0; i<count; i++) {
+        wc3FineEntry_t entry = wc3_fine_pop(work);
+        out[1+3*i]=entry.key; out[2+3*i]=entry.node; out[3+3*i]=entry.gen;
+    }
 }
 
 /* Supplied ordinary hierarchy, query size/budget and exact coarse endpoints. */

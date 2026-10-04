@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **314 entries**: **46** distinct original-code oracle
-scripts plus **60** declared variants, **121** archived JSONL audits and **87**
+The inventory now has **317 entries**: **47** distinct original-code oracle
+scripts plus **61** declared variants, **121** archived JSONL audits and **88**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 99 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 101 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1649,3 +1649,22 @@ source. These producer paths remain distinct. The strict checker reconstructs
 all terrain transactions and compares every full request; it does not certify
 velocity or full physical recovery parity. Inventory is314 entries,106 oracle
 contracts/46 scripts/60 variants,121 archives,87 live contracts and155 fixtures.
+
+## Adaptive storage and ushort metadata
+
+`oracle-adaptive-storage` and its engine variant execute original constructors,
+all hierarchy reducers, six complete searches and five path-owned wrappers.
+They pin all semantic node hashes, exact fractional route words and retained
+capacities, including native65536/65537→0/1 metadata alias. A4,096-entry
+explicit enqueue/pop prefix proves2,048/4,096 open growth and exact queue order;
+a following public request clears it over retained backing. That prefix does
+not certify naturally occurring gameplay heap saturation. Storm OOM, physical
+trajectories and the Way Gate ID allocator remain excluded.
+
+`live-adaptive-storage-captures-261004` independently repeats constructor,
+fixed256-record index backing and initial node/open allocation in two bounded
+read-only captures. These are storage witnesses, not full movement matches.
+[Engine payoff92](retail-pathfinding-engine.md#adaptive-storage-grows-beyond-the-fine-identity-limit)
+ports dynamic level/node backing, adaptive open growth, ushort metadata and
+route/save extent discipline. Inventory is317 entries,108 oracle contracts
+from47 scripts/61 variants,121 archives,88 live contracts and157 fixtures.

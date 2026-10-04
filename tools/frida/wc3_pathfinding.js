@@ -52,6 +52,18 @@ function install(module) {
             }
         });
     }
+    if (config.adaptiveStorageEvents) {
+        const tables = new Map();
+        const table = p => ({bytes:p.add(0x10).readU32(),grow:p.add(0x14).readU32(),capacity:p.add(0x18).readU32(),count:p.add(0x1c).readU32()});
+        hook(0x14f570,{
+            onEnter(){this.search=this.context.ecx;tables.set(this.search.add(0x50).toString(),'nodes');tables.set(this.search.add(0x70).toString(),'heap');},
+            onLeave(){emit('adaptive-storage-constructed',{search:this.search.toString(),index:table(this.search.add(0x30)),nodes:table(this.search.add(0x50)),heap:table(this.search.add(0x70))});}
+        });
+        for (const [kind,rva] of [['nodes',0x148670],['heap',0x1486f0]]) hook(rva,{
+            onEnter(args){this.row=null;const p=this.context.ecx;if(tables.get(p.toString())!==kind)return;const before=table(p),amount=args[1].toUInt32();if(before.count+amount<=before.capacity)return;this.p=p;this.row={kind,table:p.toString(),amount,before};},
+            onLeave(result){if(this.row)emit('adaptive-storage-growth',{...this.row,result:result.toUInt32(),after:table(this.p)});}
+        });
+    }
     if (config.fineStorageEvents) {
         const fineTables = new Map();
         const table = p => ({bytes:p.add(0x10).readU32(),grow:p.add(0x14).readU32(),capacity:p.add(0x18).readU32(),count:p.add(0x1c).readU32()});

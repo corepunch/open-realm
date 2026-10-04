@@ -32,7 +32,7 @@ static moveObjectScan_t *move_scan;
 static wc3FineSearch_t move_fine;
 static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
 static wc3AccSearch_t move_acc;
-static wc3FineVector_t move_acc_points[BZ_WC3_FINE_NODES];
+static wc3FineVector_t move_acc_points[BZ_WC3_ACC_ROUTE_NODES];
 static void *move_acc_storage;
 static uint32_t move_map_revision, move_acc_width, move_acc_height;
 static uint8_t *move_acc_classes[4][4];
@@ -150,7 +150,7 @@ static vec2_t move_world_from_grid(float x, float y) {
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
     free(move_acc_storage); move_acc_storage = NULL;
-    wc3_fine_free(&move_fine); wc3_fine_free(&move_acc.work);
+    wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
     move_acc_width = move_acc_height = 0;
 }
 
@@ -1095,7 +1095,7 @@ bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *r
     if (route->adaptive_count) {
         if (!input->geometry.target) return false;
         vec2_t goal=input->fine_target ? *input->fine_target : move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
-        if (!route->adaptive_points || route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
+        if (!route->adaptive_points || route->adaptive_count>BZ_WC3_ACC_ROUTE_NODES || route->adaptive_index>=route->adaptive_count ||
             route->adaptive_revision!=move_map_revision || route->adaptive_radius!=input->geometry.radius ||
             route->adaptive_goal.x!=goal.x || route->adaptive_goal.y!=goal.y) return false;
         if (route->adaptive_index) {

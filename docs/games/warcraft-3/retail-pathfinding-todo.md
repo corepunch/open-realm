@@ -8,22 +8,24 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**180 done / 336 tasks; 156 remaining.** Payoff91 closes existing FINE-04.1
-and FINE-04.2 without adding IDs. Complete original path-owned setup, build,
-selected-point and progress callers cover all four footprint classes and six
-result families, plus retained same-cell reuse. Production Move preserves the
-published fine source, takes the original zero-work same-cell path and records
-endpoint mismatch independently of search success. O0/O2 compares every route
-word in24 controls, four reuse controls and292 complete live requests. Two
-read-only140-second captures repeat all requests and terrain changes. Both
-edition suites pass2512 tests/5,673,489 assertions each plus567 Python checks;
-production and five fresh strict corpus contracts pass. Saved Ghidra retains
-660 roles,69 layouts/468 fields,335 ABIs and60 globals. See
-[fine public-results payoff](retail-pathfinding-engine.md#fine-setup-and-caller-outcomes-preserve-the-published-source).
+**181 done / 336 tasks; 155 remaining.** Payoff92 closes existing ACC-05.1
+without adding IDs. Complete unchanged original searches cross2,048-node
+allocation, the inherited fine32,768 limit and ushort65,535/65,536/65,537
+metadata boundaries. All six complete searches and five path-owned wrappers
+match C routes and final semantic nodes atO0/O2. An explicit original4,096-entry
+queue prefix crosses adaptive2,048/4,096 open growth, drains exactly and clears
+on the next public request. Production Move uses growable level/node backing,
+separate adaptive heap growth and native ushort lookup; real group/owned routes
+repeat over retained storage with636 exact assertions. Save buffers cover the
+65,536-parent extent. Both edition suites pass2514 tests/5,674,131 assertions
+each plus571 Python checks; production and six fresh strict contracts pass.
+Two read-only live constructor/initial-growth witnesses repeat. Saved Ghidra
+retains660 roles,69 layouts/478 fields,335 ABIs and60 globals. See
+[adaptive storage payoff](retail-pathfinding-engine.md#adaptive-storage-grows-beyond-the-fine-identity-limit).
 
-Next runnable chunk covers ACC-05.1 and GATE-04.1: recover adaptive storage
-growth and ushort index behavior, then integrate the bounded1..255 Way Gate
-index pool with its exhaustion contract. No new TODO IDs.
+Next runnable chunk closes GATE-04.1: integrate the bounded1..255 Way Gate
+index pool and its native exhaustion result, with public allocation/getter
+witnesses and saved lifetime validation. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -38,7 +40,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 12 | 0 |
-| ACC — Adaptive search | 7 | 6 |
+| ACC — Adaptive search | 8 | 5 |
 | NUM — Numbers and random state | 25 | 18 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
@@ -412,7 +414,7 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 ### ACC-05 — Adaptive storage lifetime
 
-- [ ] **ACC-05.1** Cross adaptive node/heap/index capacity and growth boundaries; assert failure/partial state and its public consumer result.
+- [x] **ACC-05.1** Complete original adaptive searches cross2,048-node growth,32,768 identities and ushort65,535/65,536/65,537 aliases; five actual166c30 wrappers retain partial flags/adjusted goals/indices and subsequent-request reset. Explicit4,096-entry original enqueue/pop storage control crosses2,048/4,096 heap growth and preserves every pop, followed by an unchanged public recovery request. Engine dynamic levels/nodes, separate adaptive open growth, ushort metadata and65,536-parent route/save extents match atO0/O2; actual group/owned production requests repeat636 assertions. Evidence: [payoff92](retail-pathfinding-engine.md#adaptive-storage-grows-beyond-the-fine-identity-limit), six complete searches/five wrappers, two read-only live constructor/initial-growth repeats, both editions, production, six strict contracts and saved Ghidra fields. Storm OOM/naturally occurring live heap saturation are not claimed; fixed256-record special index allocator lifetime remains GATE-04.1/04.2.
 - [x] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request. Evidence: [adaptive reuse/flag restoration](retail-pathfinding-engine.md#adaptive-reuse-restores-the-original-ground-classifications), full original162cb0/164c30 increments DWORD FFFFFFFE/FFFFFFFF/0..5 across four ordinary lanes/sizes1/2;511 final semantic nodes/work/fractional routes equal clean controls and C, with asserted lane/size/warp state.3451 actual lazy lookups warm all searchable metadata before the one counter seed; historical billions of requests/cold zero/capacity/special-edge/public scheduler scopes are excluded. Real engine owned routes repeat twice over retained backing. Three native no-fly-only41/0/41 exclusion controls reproduce eight stale engine ground cells/parents; post-exclusion rebuild now uses coarse6 like initial construction, restoring every cached lane/level with8828 assertions. No new IDs.
 
 - [x] **ACC-05.3** Split the engine derived-hierarchy lifetime from retail storage requirements05.1/02: cache four static lanes by bake epoch, refine adaptive legs with live fine occupancy, free on module shutdown and reproduce saved long-Move continuation. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),public terrain-edit lane isolation, repeated lane/size requests,180 saved continuation ticks with exact positions/heading/velocity/order; existing winding-field regression now retains a legal adaptive turn. Retail capacity/growth/stamp-wrap remain05.1/02.

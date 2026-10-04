@@ -32,7 +32,7 @@ typedef struct {
 typedef struct {
     wc3FineNode_t *nodes;
     wc3FineEntry_t *heap;
-    uint32_t node_capacity, heap_capacity;
+    uint32_t node_capacity, heap_capacity, heap_growth;
     uint32_t hash[BZ_WC3_FINE_HASH];
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
@@ -54,7 +54,8 @@ static inline void wc3_fine_reserve(wc3FineSearch_t *search, uint32_t nodes, uin
         search->nodes = data; search->node_capacity = capacity;
     }
     if (slots > search->heap_capacity) {
-        uint32_t capacity = (slots + BZ_WC3_FINE_HEAP_GROW - 1) / BZ_WC3_FINE_HEAP_GROW * BZ_WC3_FINE_HEAP_GROW;
+        uint32_t growth = search->heap_growth ? search->heap_growth : BZ_WC3_FINE_HEAP_GROW;
+        uint32_t capacity = (slots + growth - 1) / growth * growth;
         wc3FineEntry_t *data = realloc(search->heap, (size_t)capacity * sizeof(*data));
         if (!data) { fprintf(stderr, "WC3 fine search: cannot allocate %u open slots\n", capacity); abort(); }
         search->heap = data; search->heap_capacity = capacity;

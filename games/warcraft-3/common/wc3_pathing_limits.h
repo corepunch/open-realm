@@ -13,6 +13,8 @@
 #define BZ_WC3_FINE_NODES 32768 // original147af0 refuses a new identity at0x8000; existing nodes still resolve
 #define BZ_WC3_FINE_NODE_GROW 2048 // original147600 node table growth, independent of search work
 #define BZ_WC3_FINE_HEAP_GROW 1024 // original147600 open table growth; includes slot0 sentinel
+#define BZ_WC3_ACC_HEAP_GROW 2048 // original14f570 adaptive open table; includes slot0 sentinel
+#define BZ_WC3_ACC_ROUTE_NODES 65536 // adaptive parent identities are ushort; physical storage can exceed this
 #define BZ_WC3_FINE_HASH 65536 // sparse lookup; at most half full at the native node limit
 
 #endif

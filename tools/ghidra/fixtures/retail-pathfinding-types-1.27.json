@@ -2861,10 +2861,52 @@
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
         },
         {
+          "offset": 64,
+          "name": "index_storage_bytes",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 68,
+          "name": "index_growth",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 72,
+          "name": "index_capacity",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 76,
+          "name": "index_count",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
           "offset": 92,
           "name": "nodes",
           "type": "ptr:WC3AdaptiveNodePrefix",
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 96,
+          "name": "node_storage_bytes",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 100,
+          "name": "node_growth",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 104,
+          "name": "node_capacity",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
         },
         {
           "offset": 108,
@@ -2877,6 +2919,24 @@
           "name": "heap_entries",
           "type": "ptr:WC3OpenEntry",
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 128,
+          "name": "heap_storage_bytes",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 132,
+          "name": "heap_growth",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
+        },
+        {
+          "offset": 136,
+          "name": "heap_capacity",
+          "type": "u32",
+          "evidence": "Original14f570 and14f280: fixed256x12 index pool, node36/open12 growth2048. Complete162cb0 searches cross2048/32768/65535 identities;163ef0 appends without cap and1625f0 returns ushort alias. Original enqueue/pop prefix crosses2048/4096 slots;166c30 clears counts while retaining grown backing."
         },
         {
           "offset": 140,

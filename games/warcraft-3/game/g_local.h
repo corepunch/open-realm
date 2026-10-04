@@ -30,7 +30,7 @@ typedef struct {
     vec2_t *points;
     uint32_t count, index;
     uint8_t mask;
-    bool partial; /* Fine search retained the nearest chain rather than the requested endpoint. */
+    bool partial; /* Fine route endpoint differs from the requested point, including target-perimeter success. */
     vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
     uint32_t adaptive_count, adaptive_index;
     vec2_t adaptive_goal;

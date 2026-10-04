@@ -7930,3 +7930,63 @@ globals. Verified ECX and RET28/24/8/8 contracts type the full builder, setup,
 request wrapper and selected-point getter. Native reports, paired captures,
 map/member/source proofs and validation logs stay under external
 `runtime/fine91-*`; `fine91-validation.json` records final checks and commit.
+
+## Adaptive storage grows beyond the fine identity limit
+
+Payoff92 closes ACC-05.1 without adding IDs. `14f570` gives adaptive nodes and
+open entries2,048-element growth, while the fine open table grows by1,024.
+The adaptive `CPaWarp` container is a distinct fixed256×12-byte allocation with
+zero growth; Way Gate allocation/exhaustion remains GATE-04.1.
+
+Unlike fine `147af0`, adaptive `163ef0` has no32,768-node admission cap. It
+stamps the cell and stores the low16 bits of the physical node count before
+appending. `1625f0` returns that ushort. Complete unchanged original searches
+on a producer-reduced512×512 checkerboard/wall hierarchy give:
+
+| Budget | Charged work | Physical nodes | Node capacity | Result / route points |
+| ---: | ---: | ---: | ---: | --- |
+| 400 | 401 | 452 | 2048 | partial /32 |
+| 2048 | 2049 | 2118 | 4096 | partial /73 |
+| 5000 | 5001 | 5100 | 6144 | partial /118 |
+| 10000 | 10001 | 10136 | 10240 | partial /172 |
+| 40000 | 40001 | 40241 | 40960 | partial /378 |
+| 65535 | 65250 | 65538 | 67584 | success /423 |
+
+The last success is an original index-alias consequence: new identities65536
+and65537 look up as0 and1. The latter aliases the original goal across the
+otherwise disconnected wall. Three actual cached lookups prove
+65535/65536/65537→65535/0/1. C retains this behavior through the general ushort
+metadata store; it does not recognize the fixture or substitute a route.
+
+Five complete `166c30` wrappers retain route indices, adjusted endpoints,
+partial bit20000000, admission success and request time100. The400-work
+follow-up matches the first request over67,584 retained physical slots. An
+explicit original enqueue/pop prefix over real search nodes then crosses
+2,048/4,096 open-slot boundaries (including sentinel), drains all4,096 entries
+with exact unsigned keys/generations/ties and retains6,144-slot backing. The
+next complete public request clears that prefix and reproduces the original
+400-work route. This prefix is a storage control, not a live crowd producer.
+Storm imports receive host memory; no native OOM claim is made.
+
+Production Move replaces the fixed adaptive level array and inherited fine
+identity assertion with growable retained storage, keeps adaptive open growth
+separate from fine growth, and releases both arrays at map teardown. Adaptive
+and group route/save bounds now cover all65,536 ushort parent identities;
+physical node backing may exceed that extent. The existing serializer shape
+is unchanged. A maximum-extent route payload round-trip and corrupt extent
+rejections pass. A real5,000-work group adapter followed by the separate
+400-work owned adapter compares every original route word and all final node
+words by a pinned FNV64, repeats over retained backing and checks teardown:
+636 assertions pass. The old engine's1,024-slot adaptive heap fails the frozen
+capacity control. O0/O2 matches all six complete searches and five wrappers,
+all final nodes, grown queue order and recovery.
+
+Two bounded read-only45-second live witnesses independently repeat the fixed
+index allocation, original adaptive constructor/sentinel and first node
+allocation. They do not certify live saturation or full motion. All six fresh
+strict contracts pass, including existing fine-storage/public-result and
+numeric contracts. Both editions pass2,514 tests/5,674,131 assertions each,
+plus571 Python tests; production builds pass. Saved Ghidra retains660 roles,
+69 layouts/478 fields,335 explicit ABIs and60 globals. Evidence and limitations
+are frozen in `retail-adaptive-storage-1.27.json` and
+`retail-adaptive-storage-live-1.27.json`; raw captures/reports stay external.

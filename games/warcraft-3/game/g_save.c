@@ -1968,12 +1968,12 @@ static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
         fprintf(stderr,"WC3 SaveGame: invalid fine route count=%u index=%u\n",route->count,route->index);
         return false;
     }
-    if (route->adaptive_count>BZ_WC3_FINE_NODES ||
+    if (route->adaptive_count>BZ_WC3_ACC_ROUTE_NODES ||
         (route->adaptive_count && (!route->adaptive_points || route->adaptive_index>=route->adaptive_count))) {
         fprintf(stderr,"WC3 SaveGame: invalid adaptive route count=%u index=%u\n",route->adaptive_count,route->adaptive_index);
         return false;
     }
-    if (route->group_count>BZ_WC3_FINE_NODES ||
+    if (route->group_count>BZ_WC3_ACC_ROUTE_NODES ||
         (route->group_count && (!route->group_points || route->group_index>=route->group_count))) {
         fprintf(stderr,"WC3 SaveGame: invalid group route count=%u index=%u\n",route->group_count,route->group_index);
         return false;
@@ -1996,7 +1996,7 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
         }
     }
     if (route->adaptive_count) {
-        if (route->adaptive_count>BZ_WC3_FINE_NODES || route->adaptive_index>=route->adaptive_count ||
+        if (route->adaptive_count>BZ_WC3_ACC_ROUTE_NODES || route->adaptive_index>=route->adaptive_count ||
             !isfinite(route->adaptive_goal.x) || !isfinite(route->adaptive_goal.y) || !isfinite(route->adaptive_radius)) {
             free(route->points); route->points=NULL; return false;
         }
@@ -2009,7 +2009,7 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
         }
     }
     if (route->group_count) {
-        if (route->group_count>BZ_WC3_FINE_NODES || route->group_index>=route->group_count ||
+        if (route->group_count>BZ_WC3_ACC_ROUTE_NODES || route->group_index>=route->group_count ||
             !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
             free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
         }
@@ -2931,6 +2931,19 @@ TEST(wc3_save, owned_pool_order_survives_save_and_rejects_invalid_sequences) {
 /* The raw curve tail is untrusted even after the outer checksum succeeds.
  * Reject impossible extents/indices, nonfinite points and truncated payloads
  * without retaining serialized process addresses or failed allocations. */
+TEST(wc3_save, adaptive_route_extents_preserve_all_ushort_parent_identities) {
+    vec2_t *points=malloc(BZ_WC3_ACC_ROUTE_NODES*sizeof(*points));T_NOT_NULL(points);if(!points)return;
+    FOR_LOOP(i,BZ_WC3_ACC_ROUTE_NODES)points[i]=(vec2_t){(float)i+.25f,(float)i+.75f};
+    moveFineRoute_t written={.adaptive_points=points,.adaptive_count=BZ_WC3_ACC_ROUTE_NODES,
+        .adaptive_index=BZ_WC3_ACC_ROUTE_NODES-1,.group_points=points,.group_count=BZ_WC3_ACC_ROUTE_NODES,
+        .group_index=BZ_WC3_ACC_ROUTE_NODES-1},restored=written;
+    FILE *file=tmpfile();T_NOT_NULL(file);if(!file){free(points);return;}
+    T_ASSERT(WriteMoveRouteBuffers(file,&written));rewind(file);T_ASSERT(ReadMoveRouteBuffers(file,&restored));
+    T_ASSERT(restored.adaptive_points && !memcmp(points,restored.adaptive_points,BZ_WC3_ACC_ROUTE_NODES*sizeof(*points)));
+    T_ASSERT(restored.group_points && !memcmp(points,restored.group_points,BZ_WC3_ACC_ROUTE_NODES*sizeof(*points)));
+    free(restored.adaptive_points);free(restored.group_points);fclose(file);free(points);
+}
+
 TEST(wc3_save, rejects_invalid_fine_route_payloads) {
     FOR_LOOP(i,12) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
@@ -2941,13 +2954,13 @@ TEST(wc3_save, rejects_invalid_fine_route_payloads) {
         if (i>=4 && i<8) {
             raw.movement.fine_route.adaptive_points=(vec2_t *)(uintptr_t)1;
             raw.movement.fine_route.adaptive_count=1;
-            if (i==4) raw.movement.fine_route.adaptive_count=BZ_WC3_FINE_NODES+1;
+            if (i==4) raw.movement.fine_route.adaptive_count=BZ_WC3_ACC_ROUTE_NODES+1;
             if (i==5) raw.movement.fine_route.adaptive_index=1;
         }
         if (i>=8) {
             raw.movement.fine_route.group_points=(vec2_t *)(uintptr_t)1;
             raw.movement.fine_route.group_count=1;
-            if (i==8) raw.movement.fine_route.group_count=BZ_WC3_FINE_NODES+1;
+            if (i==8) raw.movement.fine_route.group_count=BZ_WC3_ACC_ROUTE_NODES+1;
             if (i==9) raw.movement.fine_route.group_index=1;
         }
         T_ASSERT(SaveBytes(file,&raw,sizeof(raw)));
@@ -3143,7 +3156,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==20) raw.shared_id=1;
         if (i==21) raw.cooldown=67;
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
-        if (i==7) raw.route.group_count=BZ_WC3_FINE_NODES+1;
+        if (i==7) raw.route.group_count=BZ_WC3_ACC_ROUTE_NODES+1;
         if (i==8) raw.route.group_index=1;
         T_ASSERT(SaveBytes(file,&count,sizeof(count)));
         T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));

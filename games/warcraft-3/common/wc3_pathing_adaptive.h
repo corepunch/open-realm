@@ -6,12 +6,18 @@ typedef struct { uint32_t width, height; uint8_t const *classes; int *indices; }
 typedef struct {
     wc3FineSearch_t work;
     wc3AccMap_t maps[4];
-    uint8_t levels[BZ_WC3_FINE_NODES];
+    uint8_t *levels;
+    uint32_t level_capacity;
     uint32_t size;
     wc3FinePoint_t goal;
 } wc3AccSearch_t;
 typedef struct { int parent, level, side; wc3FinePoint_t pos; } wc3AccEdge_t;
 typedef struct { wc3FineVector_t start, goal; uint32_t size, budget; } wc3AccRequest_t;
+
+static inline void wc3_acc_free(wc3AccSearch_t *search) {
+    wc3_fine_free(&search->work);
+    free(search->levels); search->levels = NULL; search->level_capacity = 0;
+}
 
 /* Original1d58e0 uses integer Newton iteration and signed division towards zero. */
 static uint32_t wc3_acc_sqrt(uint32_t n) {
@@ -46,12 +52,16 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
     }
     if (map->indices[cell] < 0) {
         wc3FineSearch_t *work = &search->work;
-        /* Adaptive capacity policy remains separately owned; use the shared
-         * host backing without changing this algorithm's admission contract. */
-        assert(work->count < BZ_WC3_FINE_NODES);
+        /* Original163ef0 appends without a fine-style identity cap, but
+         * 1625f0 publishes only the low16 bits in the cell metadata. */
         wc3_fine_reserve(work, work->count + 1, 0);
+        if (search->level_capacity < work->node_capacity) {
+            uint8_t *levels = realloc(search->levels, work->node_capacity);
+            if (!levels) { fprintf(stderr, "WC3 adaptive search: cannot retain %u levels\n", work->node_capacity); abort(); }
+            search->levels = levels; search->level_capacity = work->node_capacity;
+        }
         uint32_t at = work->count++;
-        map->indices[cell] = (int)at;
+        map->indices[cell] = (uint16_t)at;
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
     }
     return map->indices[cell];
@@ -199,6 +209,7 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
 /* Shared ordinary setup/search; -2 is the original direct setup result, -1 is a partial search. */
 static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
+    work->heap_growth = BZ_WC3_ACC_HEAP_GROW;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;
     for (unsigned level = 0; level < 4; level++) {
         wc3AccMap_t *map = search->maps + level;
