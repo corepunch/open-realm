@@ -1914,6 +1914,22 @@ TEST(wc3_game, selected_unit_portrait_invalidation_marks_selecting_client_dirty)
     T_ASSERT(!other_client->presentation_dirty);
 }
 
+TEST(wc3_game, hud_empty_text_frame_serializes_empty_text) {
+    FRAMEDEF frame;
+    uiFrame_t wire = {0};
+    uint8_t typedata[128] = {0};
+    char textbuf[128] = {0};
+
+    UI_InitFrame(&frame, FT_STRING);
+    snprintf(frame.Name, sizeof(frame.Name), "SimpleClassValue");
+    UI_SetText(&frame, "%s", "");
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_NOT_NULL(wire.text);
+    T_STREQ(wire.text, "");
+}
+
 TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
     FRAMEDEF frame = { .Type = FT_STRING };
     uiFrame_t wire = {0};
