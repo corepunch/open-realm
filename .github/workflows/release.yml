@@ -55,10 +55,16 @@ jobs:
             build-essential \
             ca-certificates \
             git \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
             libgl-dev \
             libgles2-mesa-dev \
             libjpeg-dev \
             libsdl2-dev \
+            libswresample-dev \
+            libswscale-dev \
+            patchelf \
             pkg-config \
             python3 \
             zlib1g-dev
@@ -99,7 +105,8 @@ jobs:
 
       - name: Build (Linux)
         if: runner.os == 'Linux'
-        run: make BUILD=release EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
+        # FFmpeg also decodes background music; omitting it made releases silent.
+        run: make BUILD=release FFMPEG=1 EOS=1 EOS_CONFIG_FILE=data/eos/eos.cfg build
 
       - name: Build (macOS)
         if: runner.os == 'macOS'
@@ -134,6 +141,9 @@ jobs:
           cp -r build/lib/. release/lib/
           cp -r build/share release/
           cp data/eos/ThirdPartyNotices/ThirdPartySoftwareNotice.txt release/licenses/EOS/
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            python3 dist-scripts/linux/bundle_media.py build/bin/openwarcraft3 release/lib
+          fi
           tar -czf ${{ matrix.archive }} -C release .
 
       - name: Create release archive (Windows)

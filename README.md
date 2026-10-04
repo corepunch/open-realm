@@ -56,6 +56,20 @@ cd open-realm
 make build
 ```
 
+To include Warcraft III video playback and background music, install the FFmpeg development libraries and `pkg-config`, then build with:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install pkg-config libavformat-dev libavcodec-dev libavutil-dev libswscale-dev libswresample-dev
+# Manjaro/Arch
+sudo pacman -S --needed pkgconf ffmpeg
+
+make clean
+make build -j4 FFMPEG=1
+```
+
+On macOS, install these dependencies with `brew install pkg-config ffmpeg`. Ordinary sound effects and unit voices work without `FFMPEG=1`. See [Pre-Rendered Movies](docs/games/warcraft-3/pre-rendered-movies.md).
+
 Useful targets:
 
 ```bash

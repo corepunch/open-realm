@@ -199,6 +199,10 @@ test-eos-release:
 	python3 tests/test_eos_acceptance_runner.py
 	python3 tests/test_eos_release.py
 
+.PHONY: test-linux-media-release
+test-linux-media-release:
+	python3 tests/test_linux_media_release.py
+
 # Golden-image render regression test (deterministic MDX renders vs committed
 # references). Requires a display/GL, so it is opt-in and NOT part of `make test`
 # (CI is headless). Run locally after renderer changes.
@@ -294,7 +298,7 @@ TEST_UI_SRCS := \
 
 TEST_JOBS ?= 16
 
- test: test-eos-release test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
+ test: test-eos-release test-linux-media-release test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
 	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c \
