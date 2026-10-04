@@ -201,11 +201,11 @@ static void graveyard_spawn_corpse(edict_t *graveyard, uint32_t unit_id, float r
 }
 
 void graveyard_think(edict_t *thinker) {
-    edict_t *graveyard = thinker ? thinker->owner : NULL;
+    edict_t *graveyard = S_SpellChannelOwner(thinker);
     uint32_t level, unit_id, cap, count;
     float interval, spawn_radius, corpse_radius;
 
-    if (!thinker || !graveyard || !graveyard->inuse || M_IsDead(graveyard) ||
+    if (!thinker || !graveyard || M_IsDead(graveyard) ||
         graveyard_is_under_construction(graveyard) ||
         !(level = G_UnitAbilityLevel(graveyard, ID_GRAVEYARD_CORPSE))) {
         if (thinker) G_FreeEdict(thinker);
@@ -235,10 +235,8 @@ static void graveyard_ensure(edict_t *graveyard) {
     if (graveyard_find_thinker(graveyard)) return;
     interval = S_SpellNumber(ID_GRAVEYARD_CORPSE, ABILITY_NUMBER_COOLDOWN, level);
     if (interval <= 0.0f) return;
-    thinker = G_Spawn();
+    thinker = S_SpellIdentityThinker(graveyard, ID_GRAVEYARD_CORPSE, NULL);
     if (!thinker) return;
-    thinker->owner = graveyard;
-    thinker->class_id = ID_GRAVEYARD_CORPSE;
     thinker->think = graveyard_think;
     thinker->freetime = G_Time() + (uint32_t)(interval * 1000.0f);
 }

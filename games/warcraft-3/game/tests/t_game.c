@@ -4964,6 +4964,30 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     remove(filename);
 }
 
+TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-identity-thinker.bin";
+    edict_t *owner, *target, *thinker;
+
+    reset_entities(); setup_test_world();
+    owner = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    thinker = S_SpellIdentityThinker(owner, MAKEFOURCC('A','l','s','h'), target);
+    T_NOT_NULL(thinker);
+    if (!thinker) return;
+    thinker->think = lsh_think;
+    T_ASSERT(WriteGame(filename));
+    thinker->owner = thinker->goalentity = NULL;
+    thinker->channel->owner_spawn_time = thinker->channel->target_spawn_time = 0;
+    thinker->think = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(thinker->think == lsh_think);
+    T_ASSERT(S_SpellChannelOwner(thinker) == owner);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    T_EQ(thinker->channel->owner_spawn_time, owner->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
+    remove(filename);
+}
+
 TEST(wc3_save, rejects_unknown_c_callback) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-unknown-cfunction.bin";
     reset_entities();

@@ -124,6 +124,21 @@ TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
     pf_done(fix);
 }
 
+/* Reusing the factory edict generation must not let an older producer thinker attach to it. */
+TEST(wc3_spell, pocket_factory_recycled_factory_slot_cancels_production) {
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vec2_t point = { 128, 128 };
+    edict_t *factory, *thinker;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
+    factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
+    T_NOT_NULL(factory); T_NOT_NULL(thinker);
+    factory->spawn_time++;
+    pocket_factory_think(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_EQ(pf_count(BZ_OGRU), 0);
+    pf_done(fix);
+}
+
 /* ANs1 shares CAbilityPocketFactory but reads its own DataA through abilityitem_t.code. */
 TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
     pfFix_t fix = pf_setup(BZ_ANS1);

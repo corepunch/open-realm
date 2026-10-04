@@ -564,15 +564,27 @@ void S_SpellCancelChannel(edict_t *caster) {
     }
 }
 
-/* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
-edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
+/* Delayed ability helpers that retain edict pointers use channel_t as a save-safe
+ * identity carrier even when they are not gameplay channels.  Capture both
+ * pointer generations in one place so slot reuse cannot retarget a live thinker. */
+edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) {
     edict_t *ent = G_Spawn();
-    ent->owner = caster; ent->class_id = code;
-    assert(caster->channel);
+    if (!ent) return NULL;
+    ent->owner = owner; ent->class_id = code; ent->goalentity = target;
     ent->channel = G_AllocChannel();
     assert(ent->channel);
+    ent->channel->owner_spawn_time = owner ? owner->spawn_time : 0;
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
+    return ent;
+}
+
+/* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
+edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
+    edict_t *ent;
+    assert(caster && caster->channel);
+    ent = S_SpellIdentityThinker(caster, code, NULL);
+    if (!ent) return NULL;
     ent->channel->serial = caster->channel->serial;
-    ent->channel->owner_spawn_time = caster->spawn_time;
     return ent;
 }
 

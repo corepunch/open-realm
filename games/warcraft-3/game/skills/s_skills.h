@@ -571,6 +571,7 @@ void S_SpellCursorSplat(edict_t *clent, float radius);
 void S_SpellCodeString(uint32_t code, string_t out);
 bool S_SpellIsChanneling(edict_t *caster);
 void S_SpellCancelChannel(edict_t *caster);
+edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target);
 edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code);
 edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target);
 edict_t *S_SpellChannelOwner(edict_t const *thinker);

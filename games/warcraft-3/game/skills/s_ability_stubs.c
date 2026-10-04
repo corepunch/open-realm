@@ -103,9 +103,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
 }
 
 void divine_shield_think(edict_t *ent) {
-    edict_t *caster = ent->owner;
+    edict_t *caster = S_SpellChannelOwner(ent);
 
-    if (!caster || !caster->inuse) {
+    if (!caster) {
         G_FreeEdict(ent);
         return;
     }
@@ -121,10 +121,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
     cstring_t buff = S_SpellBuffId(spell->code, level);
-    edict_t *thinker = G_Spawn();
+    edict_t *thinker = S_SpellIdentityThinker(caster, 0, NULL);
 
     if (!thinker) return;
-    thinker->owner = caster;
     thinker->resources = caster->invulnerable;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     caster->invulnerable = true;

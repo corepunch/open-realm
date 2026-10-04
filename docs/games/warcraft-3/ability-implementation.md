@@ -198,7 +198,11 @@ Mass Teleport cancellation, delayed Incinerate/death-AOE helpers, Land Mine, Rei
 Metamorphosis reversion use that contract. Once the token is stored, route subsequent owner-incarnation reads through
 the resolver rather than open-coding the pointer/inuse/generation test. Their timing/effect semantics remain ability-owned.
 Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
-an incarnation token use the same resolver; this is identity plumbing only and
+an incarnation token use the same resolver. Non-channel delayed helpers create
+that pointer+generation contract through `S_SpellIdentityThinker()`; current
+users include Pocket Factory, Graveyard/Exhume production, Stasis Trap arming,
+Divine Shield expiry, and Lightning Shield carrier/source tracking. This is
+identity plumbing only and
 does not make spell approaches, Chain Lightning markers, delayed explosions, or
 ward arming thinkers into channel abilities. Reveal lifecycles are intentionally not unified beyond the shared FOW writer. Far Sight owns a player-scoped, caster-independent timed reveal thinker; Flare owns a caster-bound reveal thinker and resolves its captured caster incarnation through `S_SpellChannelOwner()`. Do not replace those with one generic reveal thinker unless retail-equivalent ownership and cancellation semantics are demonstrated.
 For unit-target channel thinkers,

@@ -35,14 +35,14 @@ static void stasis_kill_ward(edict_t *ward) {
 
 /* After DataA arm delay, DataB trigger, DataC stun + peer-ward destroy; DataD/HeroDur stun. */
 void stasis_trap_think(edict_t *thinker) {
-	edict_t *ward = thinker->owner, *peers[16];
+	edict_t *ward = S_SpellChannelOwner(thinker), *peers[16];
 	uint32_t code = thinker->class_id, level = (uint32_t)thinker->wait, pn = 0;
 	float detect, area, stun;
 	cstring_t buff;
 	bool trigger = false;
 
 	/* Match Pocket Factory: only require the ward slot; fixture UnitBalance may leave HP at 0. */
-	if (!ward || !ward->inuse) { G_FreeEdict(thinker); return; }
+	if (!ward) { G_FreeEdict(thinker); return; }
 	if (G_Time() < thinker->freetime) return;
 	detect = S_SpellData(code, level, 2);
 	FILTER_EDICTS(t, stasis_land_enemy(ward, t, detect)) { trigger = true; break; }
@@ -77,10 +77,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
 	ward->s.renderfx |= RF_HIDDEN;
-	thinker = G_Spawn();
+	thinker = S_SpellIdentityThinker(ward, spell->code, NULL);
 	if (!thinker) { G_FreeEdict(ward); return; }
-	thinker->owner = ward;
-	thinker->class_id = spell->code;
 	thinker->wait = (float)level;
 	thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, arm) * 1000.0f);
 	thinker->think = stasis_trap_think;

@@ -352,6 +352,19 @@ TEST(wc3_spell, exhume_wagon_removal_cancels_production) {
 	exh_done(&fix);
 }
 
+/* A recycled wagon generation must retire the old producer rather than fill the replacement slot. */
+TEST(wc3_spell, exhume_recycled_wagon_slot_cancels_production) {
+	exhFix_t fix; edict_t *thinker;
+	exh_setup(&fix);
+	S_RunAbilityUpdates(fix.wagon);
+	thinker = exh_thinker(fix.wagon); T_NOT_NULL(thinker);
+	fix.wagon->spawn_time++;
+	exhume_think(thinker);
+	T_ASSERT(!thinker->inuse);
+	T_EQ(exh_corpse_count(fix.wagon), 0);
+	exh_done(&fix);
+}
+
 #define BZ_AGYD MAKEFOURCC('A', 'g', 'y', 'd') // rawcode; Graveyard Create Corpse
 
 static char const graveyard_slk[] =
@@ -409,6 +422,25 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
     graveyard_think(thinker);
     T_ASSERT(!thinker->inuse);
 
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, graveyard_recycled_building_slot_cancels_producer) {
+    slkTestData_t *rows, *old;
+    edict_t *graveyard, *thinker;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
+    graveyard = alloc_test_unit(MAKEFOURCC('u','g','r','v'), 100, 100);
+    graveyard->s.player = 0; graveyard->svflags |= SVF_MONSTER;
+    graveyard->health.value = graveyard->health.max_value = 900;
+    graveyard->heroabilities[0] = MAKE(heroability_t, .code = BZ_AGYD, .level = 1);
+    S_RunAbilityUpdates(graveyard);
+    thinker = graveyard_test_thinker(graveyard); T_NOT_NULL(thinker);
+    graveyard->spawn_time++;
+    graveyard_think(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_EQ(graveyard_test_corpse_count(graveyard), 0);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

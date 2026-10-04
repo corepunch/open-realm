@@ -151,6 +151,21 @@ TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
 	ward_done(&fix);
 }
 
+TEST(wc3_spell, stasis_trap_recycled_ward_slot_cancels_arming_thinker) {
+	wardFix_t fix; vec2_t point = { 64, 0 }; edict_t *ward, *thinker = NULL;
+	ward_setup(&fix);
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
+	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
+	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
+	FILTER_EDICTS(ent, ent->inuse && ent->owner == ward && ent->think == stasis_trap_think) { thinker = ent; break; }
+	T_NOT_NULL(thinker);
+	ward->spawn_time++;
+	stasis_trap_think(thinker);
+	T_ASSERT(!thinker->inuse);
+	T_ASSERT(ward->inuse);
+	ward_done(&fix);
+}
+
 /* Arm delay is DataA; stun uses DataD for units and HeroDur for heroes. */
 TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 	wardFix_t fix; vec2_t point = { 64, 0 }; edict_t *ward;

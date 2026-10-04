@@ -14,9 +14,9 @@ static void pocket_factory_leash(edict_t *factory, uint32_t clockwerk, float lea
 
 /* Pocket Factory's classless thinker follows the factory slot, so removing or reusing the factory cannot keep production alive. */
 void pocket_factory_think(edict_t *thinker) {
-    edict_t *factory = thinker->owner;
+    edict_t *factory = S_SpellChannelOwner(thinker);
     vec2_t loc;
-    if (!factory || !factory->inuse || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
+    if (!factory || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
     pocket_factory_leash(factory, thinker->damage, thinker->velocity);
     if (G_Time() < thinker->freetime) return;
     loc = factory->s.origin2;
@@ -43,9 +43,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityPocketFactory) {
     if (!interval || !clockwerk || duration <= 0.0f) return;
     factory = S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point, duration);
     if (!factory) return;
-    thinker = G_Spawn();
+    thinker = S_SpellIdentityThinker(factory, 0, NULL);
     if (!thinker) { G_FreeEdict(factory); return; }
-    thinker->owner = factory; thinker->damage = clockwerk; thinker->resources = interval;
+    thinker->damage = clockwerk; thinker->resources = interval;
     thinker->wait = S_SpellData(spell->code, level, 3);
     thinker->collision = S_SpellData(spell->code, level, 4);
     thinker->velocity = S_SpellData(spell->code, level, 5); /* DataE leash range */

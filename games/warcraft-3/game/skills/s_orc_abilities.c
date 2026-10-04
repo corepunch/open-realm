@@ -132,17 +132,19 @@ float S_PurgeMoveReduction(edict_t const *unit) {
  * Attribution uses the original caster for damage and resistance calculations.
  */
 void lsh_think(edict_t *thinker) {
+    edict_t *carrier = S_SpellChannelOwner(thinker);
+    edict_t *caster = S_SpellChannelTarget(thinker);
     uint32_t level;
     float area, damage;
-    if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
-    level = G_UnitStatusLevel(thinker->owner, MAKEFOURCC('B', 'l', 's', 'h'));
+    if (!carrier || !caster) { G_FreeEdict(thinker); return; }
+    level = G_UnitStatusLevel(carrier, MAKEFOURCC('B', 'l', 's', 'h'));
     if (!level || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
     if (thinker->freetime && G_Time() < thinker->freetime) return;
     area = S_SpellNumber(MAKEFOURCC('A', 'l', 's', 'h'), ABILITY_NUMBER_AREA, level);
     damage = S_SpellData(MAKEFOURCC('A', 'l', 's', 'h'), level, 1);
-    FILTER_EDICTS(target, target != thinker->owner && S_SpellIsAliveTarget(target) &&
-                  Vector2_distance(&target->s.origin2, &thinker->owner->s.origin2) <= area)
-        S_SpellDamage(target, thinker->goalentity, (int)MAX(1.0f, damage));
+    FILTER_EDICTS(target, target != carrier && S_SpellIsAliveTarget(target) &&
+                  Vector2_distance(&target->s.origin2, &carrier->s.origin2) <= area)
+        S_SpellDamage(target, caster, (int)MAX(1.0f, damage));
     thinker->freetime = G_Time() + 1000;
 }
 
@@ -153,8 +155,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
     S_SpellApplyTimedStatus(st.entity, buff, level, dur);
-    thinker = G_Spawn();
-    thinker->owner = st.entity; thinker->goalentity = caster;
+    thinker = S_SpellIdentityThinker(st.entity, spell->code, caster);
+    if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
     thinker->think = lsh_think; lsh_think(thinker);
 }

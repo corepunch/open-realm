@@ -1661,6 +1661,24 @@ TEST(wc3_spell, spell_is_channeling_detects_active) {
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 
+TEST(wc3_spell, identity_thinker_captures_owner_and_target_incarnations) {
+    edict_t *owner = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    edict_t *thinker = S_SpellIdentityThinker(owner, MAKEFOURCC('A','l','s','h'), target);
+    uint32_t owner_spawn = owner->spawn_time, target_spawn = target->spawn_time;
+
+    T_NOT_NULL(thinker);
+    T_ASSERT(S_SpellChannelOwner(thinker) == owner);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    owner->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    owner->spawn_time = owner_spawn;
+    target->spawn_time++;
+    T_NULL(S_SpellChannelTarget(thinker));
+    target->spawn_time = target_spawn;
+    G_FreeEdict(thinker);
+}
+
 TEST(wc3_spell, channel_owner_resolves_only_captured_incarnation) {
     edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
     edict_t *thinker;
@@ -3096,6 +3114,31 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     unit_updatestatuses(caster);
     T_ASSERT(!caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 0);
     remove("/tmp/openwarcraft3-divine-shield-save.bin");
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, divine_shield_expiry_rejects_recycled_caster_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AHds\"\nC;Y2;X2;K\"AHds\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"2\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"BHds\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHds" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *thinker = NULL;
+
+    old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHds")));
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    T_NOT_NULL(thinker ? thinker->channel : NULL);
+    caster->spawn_time++;
+    caster->invulnerable = true;
+    if (thinker) { level.time = thinker->spawn_time; divine_shield_think(thinker); }
+    T_ASSERT(caster->invulnerable);
+    T_ASSERT(!thinker || !thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
