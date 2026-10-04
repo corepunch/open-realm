@@ -177,12 +177,172 @@ Frame "MENU" "StandardPopupMenuMenuTemplate" {
     }
 }
 
-// Campaign selector row buttons; retail StandardTemplates.fdf adds backdrop/highlight children.
+// Retail ROC/TFT campaign button art, including authored tile spans and insets.
+Frame "BACKDROP" "StandardCampaignArrowButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Down.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Down.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Disabled.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignArrowButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundArrow-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-DisabledDown.blp",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "StandardCampaignArrowButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-CampaignButton-KeyboardHighlight.blp",
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardCampaignArrowButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",
+    HighlightAlphaMode "ADD",
+}
+
 Frame "TEXTBUTTON" "CampaignArrowButtonTemplate" {
     Height 0.032,
     Width 0.032,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONFOCUS|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.0015f -0.0015f,
+
+    ControlBackdrop "CampaignArrowButtonBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonBackdropTemplate" INHERITS "StandardCampaignArrowButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "CampaignArrowButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonPushedBackdropTemplate" INHERITS "StandardCampaignArrowButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignArrowButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignArrowButtonDisabledBackdropTemplate" INHERITS "StandardCampaignArrowButtonDisabledBackdropTemplate" {
+    }
+
+    ControlFocusHighlight "CampaignArrowButtonFocusHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignArrowButtonFocusHighlightTemplate" INHERITS "StandardCampaignArrowButtonFocusHighlightTemplate" {
+    }
+
+    ControlMouseOverHighlight "CampaignArrowButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignArrowButtonMouseOverHighlightTemplate" INHERITS "StandardCampaignArrowButtonMouseOverHighlightTemplate" {
+    }
 }
+
+
+// --- CAMPAIGN CAMERA BUTTON ----------------------------------------------------------------------
+
+Frame "BACKDROP" "StandardCampaignCameraButtonBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Down.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.007 0.007 0.007 0.007,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Down.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonDisabledBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-Disabled.blp",
+    BackdropBlendAll,
+}
+
+Frame "BACKDROP" "StandardCampaignCameraButtonDisabledPushedBackdropTemplate" {
+    BackdropTileBackground,
+    BackdropBackground  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBackgroundCamera-Disabled.blp",
+    BackdropCornerFlags "UL|UR|BL|BR",
+    BackdropCornerSize  0.016,
+    BackdropBackgroundSize  0.032,
+    BackdropBackgroundInsets 0.004 0.004 0.004 0.004,
+    BackdropEdgeFile  "UI\Widgets\Glues\GlueScreen-CampaignButton-BackdropBorder-DisabledDown.blp",
+    BackdropBlendAll,
+}
+
+Frame "HIGHLIGHT" "StandardCampaignCameraButtonFocusHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\Glues\GlueScreen-CampaignButton-KeyboardHighlight.blp",
+    HighlightAlphaMode "ADD",
+}
+
+Frame "HIGHLIGHT" "StandardCampaignCameraButtonMouseOverHighlightTemplate" {
+    HighlightType "FILETEXTURE",
+    HighlightAlphaFile "UI\Widgets\BattleNet\bnet-button01-highlight-mouse.blp",
+    HighlightAlphaMode "ADD",
+}
+
 Frame "TEXTBUTTON" "CampaignCameraButtonTemplate" {
     Height 0.032,
     Width 0.032,
+    ControlStyle "AUTOTRACK|HIGHLIGHTONFOCUS|HIGHLIGHTONMOUSEOVER",
+    ButtonPushedTextOffset -0.0015f -0.0015f,
+
+    ControlBackdrop "CampaignCameraButtonBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonBackdropTemplate" INHERITS "StandardCampaignCameraButtonBackdropTemplate" {
+    }
+
+    ControlPushedBackdrop "CampaignCameraButtonPushedBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonPushedBackdropTemplate" INHERITS "StandardCampaignCameraButtonPushedBackdropTemplate" {
+    }
+
+    ControlDisabledBackdrop "CampaignCameraButtonDisabledBackdropTemplate",
+    Frame "BACKDROP" "CampaignCameraButtonDisabledBackdropTemplate" INHERITS "StandardCampaignCameraButtonDisabledBackdropTemplate" {
+    }
+
+    ControlFocusHighlight "CampaignCameraButtonFocusHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignCameraButtonFocusHighlightTemplate" INHERITS "StandardCampaignCameraButtonFocusHighlightTemplate" {
+    }
+
+    ControlMouseOverHighlight "CampaignCameraButtonMouseOverHighlightTemplate",
+    Frame "HIGHLIGHT" "CampaignCameraButtonMouseOverHighlightTemplate" INHERITS "StandardCampaignCameraButtonMouseOverHighlightTemplate" {
+    }
 }

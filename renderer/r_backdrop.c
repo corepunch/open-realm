@@ -94,7 +94,16 @@ void R_DrawBackdrop(drawBackdrop_t const *db) {
         background.h -= db->insets.top + db->insets.bottom;
 
         rect_t bg_uv = { 0, 0, 1, 1 };
-        if ((db->flags & DRAW_TILE) && backSize.width > 0 && backSize.height > 0) {
+        if ((db->flags & DRAW_TILE) && db->backgroundSize > 0) {
+            /* FDF tile spans include the insets; using raw texture pixels cropped inset button icons off-center. */
+            float size = db->backgroundSize - (db->insets.left + db->insets.right + db->insets.top + db->insets.bottom) * 0.5f;
+            if (size <= 0) {
+                fprintf(stderr, "R_DrawBackdrop: background size %g is consumed by insets\n", db->backgroundSize);
+                return;
+            }
+            bg_uv.w = background.w / size;
+            bg_uv.h = background.h / size;
+        } else if ((db->flags & DRAW_TILE) && backSize.width > 0 && backSize.height > 0) {
             bg_uv.w = background.w / (backSize.width / 1000.f);
             bg_uv.h = background.h / (backSize.height / 1000.f);
         }

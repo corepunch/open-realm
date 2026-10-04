@@ -1669,15 +1669,16 @@ static uint32_t G_BotConversionAbility(edict_t *unit, uint32_t *target_type) {
     if (target_type) *target_type = 0;
     if (!unit) return 0;
 
+/* Keep the macro temporary distinct from caller aliases; alias = alias self-initialized it. */
 #define TRY_CONVERSION_ABILITY(alias_) do { \
-        uint32_t const alias = (alias_); \
-        abilityitem_t const item = S_AbilityItem(alias); \
-        uint32_t const level = G_UnitAbilityLevel(unit, alias); \
-        uint32_t const target = level ? S_SpellUnitId(alias, level) : 0; \
+        uint32_t const code = (alias_); \
+        abilityitem_t const item = S_AbilityItem(code); \
+        uint32_t const level = G_UnitAbilityLevel(unit, code); \
+        uint32_t const target = level ? S_SpellUnitId(code, level) : 0; \
         if (level && item.ability && item.ability->proc == CAbilityMetamorphosis && \
             item.ability->target_type == SPELL_TARGET_NONE && target && target != unit->class_id) { \
             if (target_type) *target_type = target; \
-            return alias; \
+            return code; \
         } \
     } while (0)
 

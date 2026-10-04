@@ -26,6 +26,7 @@ static void UI_DrawBackdropWithColor(frameDef_t const *frame, rect_t const *rect
                                  .screen = *rect,
                                  .bg.texture = UI_GetTexture(frame->Backdrop.Background),
                                  .bg.color = color,
+                                 .backgroundSize = frame->Backdrop.BackgroundSize,
                                  .edge.texture = UI_GetTexture(frame->Backdrop.EdgeFile),
                                  .edge.color = color,
                                  .corner.flags = frame->Backdrop.CornerFlags,
