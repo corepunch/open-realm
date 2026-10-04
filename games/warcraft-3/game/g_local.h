@@ -3831,8 +3831,13 @@ extern struct level_locals level;
 /* Sparse lifecycles live in pools (Quake's gclient_t pattern). The edict holds
  * a null pointer until the behavior starts. Movement, attacks, and health stay
  * inline because almost every unit touches them. */
+/* Most pools peak in the hundreds across the retail campaigns (measured with
+ * G_PoolsReportPeaks). Map-placed destructables each own a persistent record
+ * and peak near 5,000 (NightElf04, UndeadX01), so that pool is sized separately. */
+#define DESTRUCTABLE_POOL_CAP 8192
 #define LIFECYCLE_POOL_CAP 2048
 void G_PoolsReset(void);
+void G_PoolsReportPeaks(void);
 void G_PoolsReleaseEdict(edict_t *ent);
 void G_FreeConstruction(edict_t *ent);
 construction_t *G_AllocConstruction(void);

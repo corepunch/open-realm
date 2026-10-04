@@ -20,6 +20,8 @@ typedef struct uiScreen_s {
     void (*refresh)(int msec);
     void (*draw)(void);
     void (*key_event)(int key, bool down);
+    /* Mouse wheel over screen-owned content; return true when consumed so it does not reach the hit frame. */
+    bool (*scroll)(float fdf_x, float fdf_y, int delta);
 } uiScreen_t;
 
 /* Screen implementations */

@@ -186,6 +186,7 @@ static void reset_test_state(void) {
         game.clients[i].ps.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
         game.clients[i].ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
         game.clients[i].ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+        game.clients[i].jass.handicap_xp = 1.0f;
         g_edicts[i].client = &game.clients[i];
     }
     G_ClearJassGroupRegistry();

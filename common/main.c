@@ -429,6 +429,8 @@ int main(int argc, string_t argv[]) {
         return 1;
     }
 
+    Game_StartupDiagnostics();
+
     PATHSTR resolved_map;
     PATHSTR load_map;
     cstring_t map = Cvar_String("map", "");
@@ -471,15 +473,19 @@ int main(int argc, string_t argv[]) {
      * without a map.  The game module is a link dependency, so its TEST()
      * constructors have already registered by the time we get here. */
     bool run_tests = false;
+    bool run_online_check = false;
     bool has_load = false;
     for (int i = 1; i < COM_Argc(); i++) {
+#if defined(BZ_EOS) && defined(BZ_TESTS)
+        if (!strcmp(COM_Argv(i), "+online_acceptance")) run_online_check = true;
+#endif
         if (!strcmp(COM_Argv(i), "+test")) { run_tests = true; break; }
         if (!strcmp(COM_Argv(i), "+load")) has_load = true;
     }
 
     if (dedicated) {
         // Dedicated server mode: no client stack, no SDL window.
-        if (!has_map && !run_tests && !has_load) {
+        if (!has_map && !run_tests && !run_online_check && !has_load) {
             fprintf(stderr, "Dedicated server requires +map <map>\n");
             return 1;
         }

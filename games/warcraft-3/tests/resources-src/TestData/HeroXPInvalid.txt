@@ -1,0 +1,7 @@
+[Misc]
+GlobalExperience=1
+HeroExpRange=1200
+GrantNormalXP=25,invalid
+GrantNormalXPFormulaA=nan
+GrantNormalXPFormulaB=5
+GrantNormalXPFormulaC=5

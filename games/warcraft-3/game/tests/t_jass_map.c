@@ -895,7 +895,7 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
         "  call SetPlayerController(Player(0), MAP_CONTROL_COMPUTER)\n"
         "  call SetPlayerTaxRate(Player(0), Player(1), PLAYER_STATE_RESOURCE_GOLD, 35)\n"
         "  call SetPlayerHandicap(Player(0), 80.0)\n"
-        "  call SetPlayerHandicapXP(Player(0), 125.0)\n"
+        "  call SetPlayerHandicapXPBJ(Player(0), 300.0)\n"
         "  call SetPlayerOnScoreScreen(Player(0), true)\n"
         "  call BJassAssert(GetPlayerName(Player(0)) == \"Jaina\", \"player name\")\n"
         "  call BJassAssert(IsPlayerRacePrefSet(Player(0), RACE_PREF_HUMAN), \"human pref\")\n"
@@ -905,7 +905,8 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
         "  call BJassAssert(GetPlayerController(Player(0)) == MAP_CONTROL_COMPUTER, \"controller\")\n"
         "  call BJassAssert(GetPlayerTaxRate(Player(0), Player(1), PLAYER_STATE_RESOURCE_GOLD) == 35, \"tax\")\n"
         "  call BJassAssert(GetPlayerHandicap(Player(0)) == 80.0, \"handicap\")\n"
-        "  call BJassAssert(GetPlayerHandicapXP(Player(0)) == 125.0, \"xp handicap\")\n"
+        "  call BJassAssert(GetPlayerHandicapXP(Player(0)) == 3.0, \"xp handicap native multiplier\")\n"
+        "  call BJassAssert(GetPlayerHandicapXPBJ(Player(0)) == 300.0, \"xp handicap percentage wrapper\")\n"
         "endfunction\n"
     ));
     T_ASSERT(game.clients[0].jass.on_score_screen);

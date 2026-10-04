@@ -49,7 +49,11 @@ Hero XP is one progression state regardless of source. `AddHeroXP`, `SetHeroXP`,
 
 `G_HeroXPForLevel()` reads the active `Misc/NeedHeroXP` per-level requirement table and extends it with `NeedHeroXPFormulaA/B/C` when the authored list is exhausted. The values are accumulated to produce the XP required to *reach* a Hero level. With stock data this gives 0, 200, 500, 900, ... cumulative XP for levels 1, 2, 3, 4, .... If Misc data is unavailable entirely, OpenRealm falls back directly to the stock per-level requirements `200,300,400,...`; it does not extrapolate from a synthetic one-entry table. `war3mapMisc.txt` participates in the same loaded Misc cache, so map gameplay-constant overrides affect JASS, items, HUD progress, and level calculation through the same lookup.
 
-Kill XP first searches `HeroExpRange` for alive, non-illusion, XP-enabled Heroes owned by the killer or covered by the killer player's directional `ALLIANCE_SHARED_XP`. If no local receiver exists and `Misc/GlobalExperience` is enabled, the same eligibility check is repeated without the distance limit. This is a fallback, not an additional second award.
+Kill XP first searches `HeroExpRange` for alive, non-illusion, XP-enabled Heroes owned by the killer or covered by the killer player's directional `ALLIANCE_SHARED_XP`. If no local receiver exists and `Misc/GlobalExperience` is enabled, the same eligibility check is repeated without the distance limit. This is a fallback, not an additional second award. `MaxLevelHeroesDrainExp=0` removes max-level Heroes from that recipient/divisor set; the stock value keeps them draining a share.
+
+Victim XP is data-driven from `GrantNormalXP` / `GrantHeroXP` and their A/B/C recurrence constants. Neutral-aggressive victims additionally use `HeroFactorXP[receivingHeroLevel-1]`; enemy player-controlled units and Heroes do not use the creep reduction, so level-5+ Heroes continue progressing from player units. Summoned victims apply `SummonedKillFactor`. `BuildingKillsGiveExp` checks the killing source, while passive enemy structures do not grant victim XP unless the structure has an authored attack. The final per-Hero award also applies that receiving player's XP handicap. The native `Get/SetPlayerHandicapXP` value is a multiplier (`1.0` means 100%); Blizzard's `Get/SetPlayerHandicapXPBJ` wrappers convert between that multiplier and percentage values.
+
+For a focused kill-XP runtime trace, start the game with `+set wc3_kill_xp_debug 1`. Each enemy death logs victim/killer identities and levels, the selected XP table result and range, rejected Hero candidates and reasons, the eligible receiver count/policy, and each recipient's modifiers and before/after XP. This is off by default; disable it with `wc3_kill_xp_debug 0` after capturing the relevant kills.
 
 There is no separate “starting XP” subsystem. Preplaced units exist before the map's `war3map.j` `main()` runs, so an initialization action may call `AddHeroXP`, `SetHeroXP`, or `SetHeroLevel` on an existing Hero and use the ordinary progression path before normal interaction begins. Trigger registration order still matters: a Hero-level handler only observes transitions published after that handler is registered. Campaign `StoreUnit`/`RestoreUnit` is a separate persistence path and preserves the resulting Hero progression across maps.
 
@@ -89,7 +93,7 @@ Map/campaign object modifications are only partially merged into typed runtime r
 
 Hero-level events are queued with the unit pointer rather than an immutable level payload. A multi-level XP gain publishes both player-unit and unit-specific events per crossed level, but handlers that run later observe the unit's then-current level; preserving an intermediate-level snapshot would require an event-context change.
 
-The JASS `showEyeCandy` arguments on `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` are still ignored. Level-up sound/light/portrait presentation needs a separate renderer/client presentation contract. `MaxLevelHeroesDrainExp` and `SummonedKillFactor` are present in Warcraft gameplay data but are not yet consumed by OpenRealm's kill-XP path; do not infer their edge-case semantics from the key names alone.
+The JASS `showEyeCandy` arguments on `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` are still ignored. Level-up sound/light/portrait presentation needs a separate renderer/client presentation contract. Single-Hero tier XP bonus factors remain unimplemented; they need a reliable town-hall-tier and owned-Hero-count path rather than a kill-XP-only special case.
 
 The Select Skill command button displays the Hero's non-zero unspent skill-point count, and learn buttons display the next rank. Multi-selection suppression remains UI work.
 
@@ -105,6 +109,10 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_combat.c` and `ga
 - player-unit and unit-specific Hero-level events for every crossed level;
 - raise-only XP semantics;
 - `GlobalExperience` fallback when no eligible Hero is inside `HeroExpRange`;
+- creep reduction indexed by receiving Hero level and restricted to Neutral Aggressive victims;
+- summoned-victim XP factor, max-level drain toggle, building killer/victim rules, and receiving-player XP handicap;
+- lethal damage through the ordinary unit-death path with Prologue01's 300% XP handicap;
+- `GrantNormalXP` and `GrantHeroXP` formula extension beyond their authored tables;
 - JASS `main()` granting startup XP through the ordinary Hero progression path;
 - JASS `GetHeroSkillPoints` and signed `UnitModifySkillPoints` changes, including zero clamping and non-Hero rejection;
 - map-start direct skill-point awards that leave XP and level unchanged;

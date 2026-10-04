@@ -186,6 +186,30 @@ TEST(commands, save_path_adds_one_sav_extension) {
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
 }
 
+/* Linux filenames preserve UTF-8 bytes; a quoted data directory may also contain spaces. */
+TEST(commands, media_paths_preserve_utf8_and_spaces) {
+    PATHSTR old_home, path, resolved;
+    cstring_t root = "build/tests/Téléchargements/Games WIP/ROC";
+    uint32_t size = 0;
+    setup_command_tests();
+    snprintf(old_home, sizeof(old_home), "%s", FS_HomePath());
+    FS_SetHomeDirectory(root);
+    FS_UserPath("audio-path-test.wav", path, sizeof(path));
+    FILE *file = fopen(path, "wb");
+    T_NOT_NULL(file);
+    if (file) { T_EQ(fwrite("test", 1, 4, file), 4); fclose(file); }
+    T_ASSERT(FS_AddDataDirectory(root));
+    T_ASSERT(FS_ResolveLoosePath("audio-path-test.wav", resolved, sizeof(resolved)));
+    T_STREQ(resolved, path);
+    char *data = FS_ReadFile("audio-path-test.wav", &size);
+    T_NOT_NULL(data);
+    T_EQ(size, 4);
+    if (data) T_ASSERT(!memcmp(data, "test", 4));
+    FS_FreeFile(data);
+    remove(path);
+    FS_SetHomeDirectory(old_home);
+}
+
 TEST(commands, save_list_returns_newest_sav_basenames_first) {
     PATHSTR older, newer, ignored;
     char list[256] = { 0 };
@@ -503,6 +527,7 @@ typedef struct {
     bool twin_w3m;
     bool twin_w3x;
     bool overlay;
+    bool transport;
 } mapListState_t;
 
 static void count_fixture_map(cstring_t path, void *userData) {
@@ -519,22 +544,25 @@ static void count_fixture_map(cstring_t path, void *userData) {
         state->twin_w3x = true;
     } else if (!strcmp(path, "Maps\\MapOverlay.w3x")) {
         state->overlay = true;
+    } else if (!strcmp(path, "Maps\\Transport.w3m")) {
+        state->transport = true;
     }
 }
 
-/* tests.mpq packs MapOverlay.w3x under Maps/ as a nested sheet/w3a archive, so FS_ListMaps reports five maps. */
+/* Nested overlay and loadable transport archives are included in the fixture map list. */
 TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
 
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 5);
-    T_EQ(state.count, 5);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 6);
+    T_EQ(state.count, 6);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
     T_ASSERT(state.twin_w3x);
     T_ASSERT(state.overlay);
+    T_ASSERT(state.transport);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {

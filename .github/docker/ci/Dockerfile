@@ -9,9 +9,16 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         git \
+        libavcodec-dev \
+        libavformat-dev \
+        libavutil-dev \
         libgles2-mesa-dev \
+        libgl1-mesa-dri \
         libjpeg-dev \
         libsdl2-dev \
+        libswresample-dev \
+        libswscale-dev \
+        patchelf \
         pkg-config \
         python3 \
         zlib1g-dev \

@@ -243,6 +243,8 @@ void G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size)
 }
 
 int G_RegisterModel(cstring_t filename) {
+    /* Units with a missile weapon but no authored Missileart have no model. */
+    if (!filename || !filename[0]) return 0;
     int index = gi.ModelIndex(filename);
     if (index > 0 && index < G_MAX_MODELS && !g_models[index].filename[0])
         strncpy(g_models[index].filename, filename, MAX_PATHLEN - 1);

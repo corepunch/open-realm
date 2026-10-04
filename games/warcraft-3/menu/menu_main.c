@@ -502,6 +502,11 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     frameDef_t const *hit = UI_HitTest(fdf.x, fdf.y);
     UI_UpdateMouseFrameFlags(hit, up && left);
 
+    if (wheel_y && UI_GetCurrentScreen() && UI_GetCurrentScreen()->scroll &&
+        UI_GetCurrentScreen()->scroll(fdf.x, fdf.y, wheel_y)) {
+        return true;
+    }
+
     /* Dispatch to per-type event handler */
     if (hit && hit->event_handler) {
         hit->event_handler((frameDef_t *)hit, event, fdf.x, fdf.y, param);

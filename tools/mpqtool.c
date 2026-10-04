@@ -1179,9 +1179,15 @@ int main(int argc, char **argv) {
             fprintf(stderr, "pack requires <src> <archive-file> pairs\n");
             return 1;
         }
-        /* The first source immediately precedes extra in argv. Consume all
-         * pairs: a fixed array silently dropped later fixture archive files. */
-        return cmd_pack(mpq, extra_count + 1, extra - 1);
+        {
+            char **pairs = malloc((extra_count + 1) * sizeof(*pairs));
+            if (!pairs) { fprintf(stderr, "pack: cannot allocate argument list\n"); return 1; }
+            pairs[0] = (char *)arg;
+            for (int i = 0; i < extra_count; i++) pairs[i + 1] = extra[i];
+            int result = cmd_pack(mpq, extra_count + 1, pairs);
+            free(pairs);
+            return result;
+        }
     }
 
     if (!SFileOpenArchive(mpq, 0, 0, &archive)) {

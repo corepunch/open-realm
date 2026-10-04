@@ -2523,7 +2523,7 @@ static bool WritePool(FILE *f, savePool_t const *pool) {
 
 static bool ReadPool(FILE *f, savePool_t const *pool) {
     uint32_t count;
-    if (!LoadBytes(f, &count, sizeof(count)) || count >= LIFECYCLE_POOL_CAP || count > globals.num_edicts) return false;
+    if (!LoadBytes(f, &count, sizeof(count)) || count >= DESTRUCTABLE_POOL_CAP || count > globals.num_edicts) return false;
     FOR_LOOP(n, count) {
         uint32_t index;
         if (!LoadBytes(f, &index, sizeof(index)) || index >= globals.num_edicts ||

@@ -349,8 +349,7 @@ void CL_MovieShutdown(void) {
 
 bool CL_PlayMovie(cstring_t path) {
 #ifndef BZ_FFMPEG
-    (void)path;
-    CON_printf("Movie playback is disabled in this build (rebuild with FFMPEG=1).");
+    CON_printf("Skipping movie %s: playback is disabled in this build (rebuild with FFMPEG=1).", path ? path : "");
     return false;
 #else
     AVCodec const *video_decoder;

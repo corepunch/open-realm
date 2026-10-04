@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <math.h>
 
+void Game_StartupDiagnostics(void) {}
+
 bool CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
     vec3_t angles = Wow_EulerFromCamera(18.0f, 0.0f);

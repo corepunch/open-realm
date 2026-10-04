@@ -716,6 +716,18 @@ static uint32_t hover_frame_count, hover_unicast_count, hover_image_count, hover
 static edict_t *hover_unicast_target;
 static pfWriteType_t window_frame_type;
 static uint32_t window_text_offset;
+static char hero_xp_bar_tooltip[64];
+static float hero_xp_bar_value;
+
+static void hero_xp_bar_test_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type != FT_SIMPLESTATUSBAR) return;
+    snprintf(hero_xp_bar_tooltip, sizeof(hero_xp_bar_tooltip), "%s",
+             frame->tooltip ? frame->tooltip : "");
+    hero_xp_bar_value = frame->value;
+}
 
 static int hover_test_image(cstring_t name) { T_ASSERT(name && *name); return (int)++hover_image_count; }
 static int hover_test_font(cstring_t name, uint32_t size) {
@@ -2784,6 +2796,26 @@ TEST(wc3_game, single_info_panel_serializes_tooltip_presenter) {
 
     T_ASSERT(hover_infopanel_layer_seen);
     T_ASSERT(hover_infopanel_tooltip_seen);
+}
+
+TEST(wc3_game, hero_xp_bar_serializes_current_level_progress_tooltip) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    edict_t *hero;
+    frameDef_t bar = { .Type = FT_SIMPLESTATUSBAR, .Width = 0.180f, .Height = 0.008f };
+
+    setup_test_world();
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0.0f, 0.0f);
+    hero->hero.level = 1;
+    hero->hero.xp = 75;
+    hero_xp_bar_tooltip[0] = '\0';
+    hero_xp_bar_value = 0.0f;
+    gi.Write = hero_xp_bar_test_write;
+    UI_ResetFrameWriteList();
+    UI_TestWriteHeroLevelBar(&bar, hero);
+    gi.Write = old_write;
+
+    T_STREQ(hero_xp_bar_tooltip, "XP: 75 / 200");
+    T_FEQ(hero_xp_bar_value, 0.375f, 0.001f);
 }
 
 /* =========================================================================

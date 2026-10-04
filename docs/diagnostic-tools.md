@@ -1,5 +1,14 @@
 # Diagnostic Tools
 
+## EOS Internet acceptance
+
+`make EOS=1 test-eos-service` runs offline SDK session regressions. The
+EOS-enabled test executable also provides the explicit `+online_acceptance`
+command for bounded live publication, paired packet transport, forced-relay
+and host-crash cleanup checks. It is never invoked by ordinary test runs.
+See [EOS acceptance and gameplay release gate](architecture/epic-online-services.md#bounded-live-adapter-checks)
+for commands, required separate guest identities and remaining gameplay checks.
+
 ## Warcraft III Campaign Map Audit
 
 Use `make audit-wc3-maps` to run every shipped RoC/TFT campaign map for a
@@ -280,3 +289,5 @@ This differs from `ability_map.c`, whose rawcode relationships are manually tran
 ## Galaxy Native Coverage Audit
 
 `python3 tools/galaxy_audit.py <MapScript.galaxy> <NativeLib.galaxy> <LibertyLib.galaxy> <CampaignLib.galaxy>` inventories reachable missing bindings and obvious placeholder candidates without executing scripts. See [Galaxy native coverage](games/starcraft-2/galaxy-native-coverage.md) for exact MPQ extraction commands, audit limits, and the complete Markdown snapshot. Use [bounded runtime traces](games/starcraft-2/galaxy-scripting.md#reproducing-detailed-traces) to distinguish static coverage from executed callbacks.
+
+EOS paired gameplay diagnostics (`game-relay`, `game-crash`, `game-guest-crash`) and the no-login loopback check use the generated Transport map; see [paired gameplay acceptance](architecture/epic-online-services.md#paired-gameplay-acceptance).

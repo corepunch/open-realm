@@ -1297,6 +1297,19 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
         MSG_ReadString(&msg, text);
         T_STREQ(text, "Host: hello team");
     }
+    /* The real client command must use the same name as its lobby slot. */
+    uint8_t command_buf[128];
+    sizeBuf_t command = { .data = command_buf, .maxsize = sizeof(command_buf) };
+    strlcpy(svs.clients[1].name, "Guest Player", sizeof(svs.clients[1].name));
+    MSG_WriteString(&command, "lobby_say guest ready");
+    SV_ExecuteUserCommand(&command, &svs.clients[1]);
+    FOR_LOOP(i, svs.num_clients) {
+        T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+        T_EQ(MSG_ReadByte(&msg), svc_lobby_chat);
+        T_EQ(MSG_ReadByte(&msg), i == 1 ? 1 : 0);
+        MSG_ReadString(&msg, text);
+        T_STREQ(text, "Guest Player: guest ready");
+    }
 }
 
 /* Early and late clients receive the same loading resources, before any world-only configstrings. */

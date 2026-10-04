@@ -98,6 +98,10 @@ static void SV_TrimClientSlots(void) {
 void SV_ReapZombieClients(void) {
     FOR_LOOP(i, svs.num_clients) {
         client_t *cl = &svs.clients[i];
+        if (cl->state >= cs_connected && Online_ConnectionLost(NS_SERVER, &cl->netchan.remote_address)) {
+            fprintf(stderr, "SV_ReapZombieClients: Internet peer %u departed\n", i);
+            SV_DropClient(cl);
+        }
         if (cl->state != cs_zombie || svs.realtime - cl->drop_time < BZ_CLIENT_ZOMBIE_MSEC)
             continue;
         memset(cl, 0, sizeof(*cl));

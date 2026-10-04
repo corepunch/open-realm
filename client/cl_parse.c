@@ -867,6 +867,9 @@ static void CL_ParseConsolePrint(sizeBuf_t *msg) {
     if (text[0]) CON_printf("%s", text);
 }
 
+#ifdef BZ_TESTS
+void (*cl_test_lobby_chat)(cstring_t text, bool own);
+#endif
 static void CL_ParseLobbyChat(sizeBuf_t *msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
@@ -880,6 +883,9 @@ static void CL_ParseLobbyChat(sizeBuf_t *msg) {
     snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
     Cbuf_AddText(command);
     Cbuf_AddText("\n");
+#ifdef BZ_TESTS
+    if (cl_test_lobby_chat) cl_test_lobby_chat(text, own);
+#endif
 }
 
 /* Apply an authoritative server selection to the client cache and refresh the active unit UI.

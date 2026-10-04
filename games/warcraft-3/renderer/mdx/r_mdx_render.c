@@ -308,10 +308,11 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
     entity.tint = tint.a ? tint : COLOR32_WHITE;
     entity.frame = R_UISequenceFrame(seq, anim, tr.viewDef.time - sprite->start_time);
     entity.oldframe = entity.frame;
+    entity.instance_id = (uintptr_t)(sprite->id ? sprite->id : model);
     viewdef.scissor = (rect_t) { 0, 0, 1, 1 };
     viewdef.num_entities = 1;
     viewdef.entities = &entity;
-    viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
+    viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_UI_SPRITE;
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;

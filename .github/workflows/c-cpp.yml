@@ -8,6 +8,97 @@ on:
     branches: ["main"]
 
 jobs:
+  media:
+    name: Linux release music and runtime packaging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Linux dependency environment
+        run: docker build --tag openrealm-media-ci .github/docker/ci
+      - name: Build and verify the release media package
+        run: |
+          docker run --rm --mount "type=bind,source=$PWD,target=/workspace" \
+            --workdir /workspace openrealm-media-ci bash -ec '
+              make BUILD=release FFMPEG=1 BIN_DIR=build/media/bin LIB_DIR=build/media/lib SHARE_INSTALL=build/media/share openwarcraft3
+              make BUILD=release BIN_DIR=build/media/bin LIB_DIR=build/media/lib test-sound
+              mkdir -p build/media/package/bin build/media/package/lib
+              cp build/media/bin/openwarcraft3 build/media/package/bin/
+              cp build/media/lib/*.so build/media/package/lib/
+              python3 dist-scripts/linux/bundle_media.py build/media/bin/openwarcraft3 build/media/package/lib
+              ldd build/media/package/bin/openwarcraft3 > build/media/package/dependencies.txt
+              cat build/media/package/dependencies.txt
+              ! grep -q "not found" build/media/package/dependencies.txt
+            '
+
+  eos:
+    name: EOS regressions and live multiplayer checks
+    # Fork PRs cannot read the licensed SDK/player credentials. Run their normal
+    # SDK-free checks; never execute fork code through pull_request_target.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Fetch the pinned private EOS SDK archive
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.EOS_SDK_REPOSITORY }}
+          ref: ${{ vars.EOS_SDK_REF }}
+          ssh-key: ${{ secrets.EOS_SDK_DEPLOY_KEY }}
+          persist-credentials: false
+          path: data/eos-archive
+
+      - name: Verify SDK and prepare restricted player config
+        env:
+          OPENREALM_EOS_PRODUCT_ID: ${{ secrets.OPENREALM_EOS_PRODUCT_ID }}
+          OPENREALM_EOS_SANDBOX_ID: ${{ secrets.OPENREALM_EOS_SANDBOX_ID }}
+          OPENREALM_EOS_DEPLOYMENT_ID: ${{ secrets.OPENREALM_EOS_DEPLOYMENT_ID }}
+          OPENREALM_EOS_CLIENT_ID: ${{ secrets.OPENREALM_EOS_CLIENT_ID }}
+          OPENREALM_EOS_CLIENT_SECRET: ${{ secrets.OPENREALM_EOS_CLIENT_SECRET }}
+        run: python3 dist-scripts/eos/prepare_release.py --platform Linux --archive data/eos-archive/EOS-SDK-1.19.2.1-CL58105819-runtime.zip
+
+      - name: Pull Linux test environment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GH_ACTOR" --password-stdin
+          docker pull ghcr.io/corepunch/open-realm-ci:ubuntu-24.04
+          docker logout ghcr.io
+          # Include PR dependency changes and software GL for the actual client.
+          # Dependency installation stays in the shared image Dockerfile.
+          docker build --tag openrealm-eos-ci .github/docker/ci
+
+      - name: Run full EOS-enabled suite
+        run: >-
+          docker run --rm --mount "type=bind,source=$PWD,target=/workspace"
+          --workdir /workspace openrealm-eos-ci
+          make EOS=1 TEST_JOBS=4 test
+
+      - name: Check live login, gameplay, relay, graceful leave and host crash
+        env:
+          EOS_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: python3 dist-scripts/eos/run_acceptance.py --image openrealm-eos-ci --run-id "$EOS_RUN_ID"
+
+  notifications:
+    name: Discord notification fixtures
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 tests/test_discord_notifications.py
+
   test:
     runs-on: ubuntu-latest
     container:

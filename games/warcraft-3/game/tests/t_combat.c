@@ -1431,7 +1431,7 @@ TEST(wc3_combat, grant_kill_xp_awards_base) {
 
     G_GrantKillXP(victim, killer);
 
-    T_ASSERT(killer->hero.xp == 25 || killer->hero.xp == 30); /* ROC / TFT MiscData formulas */
+    T_ASSERT(killer->hero.xp == 25 || killer->hero.xp == 40); /* ROC / TFT MiscData formulas */
 }
 
 TEST(wc3_combat, grant_kill_xp_global_fallback_reaches_out_of_range_hero) {
@@ -1507,6 +1507,215 @@ TEST(wc3_combat, grant_kill_xp_honors_directional_shared_xp) {
     level.alliances[0][1] |= 1 << ALLIANCE_SHARED_XP;
     G_GrantKillXP(victim, killer);
     T_ASSERT(alliedHero->hero.xp > 0);
+}
+
+TEST(wc3_combat, grant_kill_xp_creep_factor_uses_receiver_level_only_for_creeps) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 4; hero->hero.xp = 0;
+    victim->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 50); /* HeroFactorXP for receiving level 4 = 50%, independent of victim level. */
+
+    hero->hero.xp = 0;
+    victim->s.player = 1;
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 100); /* player-controlled victims do not use creep reduction */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_applies_summoned_unit_factor) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim->summon_ability = MAKEFOURCC('A','H','w','e');
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 50);
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_respects_max_level_drain_toggle) {
+    edict_t *low = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *max = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    low->s.player = max->s.player = 0;
+    low->hero.level = 1; low->hero.xp = 0;
+    max->hero.level = G_MaxHeroLevel(); max->hero.xp = G_HeroXPForLevel(max->hero.level);
+    victim->s.player = 1;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
+    game.config.misc.source = custom.source; /* MaxLevelHeroesDrainExp=0 */
+
+    G_GrantKillXP(victim, low);
+    T_EQ((int)low->hero.xp, 100); /* max-level Hero is excluded from the divisor */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_building_killer_and_victim_rules) {
+    static UnitWeapons_t const no_attacks = { .attacksEnabled = 0 };
+    static UnitWeapons_t const attacks = { .attacksEnabled = 1 };
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1200.0f, 50.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = building->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, building);
+    T_EQ((int)hero->hero.xp, 0); /* BuildingKillsGiveExp=0 checks the killer. */
+
+    building->s.player = 1;
+    building->data.UnitWeapons = &no_attacks;
+    G_GrantKillXP(building, hero);
+    T_EQ((int)hero->hero.xp, 0); /* passive buildings do not grant XP */
+
+    building->data.UnitWeapons = &attacks;
+    G_GrantKillXP(building, hero);
+    T_EQ((int)hero->hero.xp, 100); /* attacking buildings do */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    game.clients[0].jass.handicap_xp = 0.5f; /* native multiplier: 50% */
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPModifiers.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 50);
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, unit_death_awards_prologue_300_percent_xp) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1.0f, 50.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim->die = unit_die;
+    game.clients[0].jass.handicap_xp = 3.0f; /* SetPlayerHandicapXPBJ(..., 300.00). */
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPPrologue.txt"));
+    game.config.misc.source = custom.source;
+
+    T_Damage(victim, hero, 1);
+
+    T_FEQ(victim->health.value, 0.0f, 0.001f);
+    T_EQ((int)hero->hero.xp, 75); /* level-1 25 XP victim x Prologue01's 300% XP handicap */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_extends_normal_table_with_formula) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    UnitBalance_t victim_balance = *victim->data.UnitBalance;
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim_balance.level = 2;
+    victim->data.UnitBalance = &victim_balance;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPFormula.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 40); /* 25 + 5*level(2) + 5 */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_extends_hero_table_with_formula) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1; victim->hero.level = 3;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPFormula.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 220); /* 120 + GrantHeroXPFormulaC(100) */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
+}
+
+TEST(wc3_combat, grant_kill_xp_uses_stock_hero_table_without_misc_data) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1; victim->hero.level = 2;
+    game.config.misc.source = NULL;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 120);
+
+    game.config.misc.source = old_misc;
+}
+
+TEST(wc3_combat, grant_kill_xp_reports_malformed_data_and_uses_safe_fallback) {
+    edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    UnitBalance_t victim_balance = *victim->data.UnitBalance;
+    stbIniCache_t custom = { 0 };
+    void *old_misc = game.config.misc.source;
+
+    hero->s.player = 0; hero->hero.level = 1; hero->hero.xp = 0;
+    victim->s.player = 1;
+    victim_balance.level = 2;
+    victim->data.UnitBalance = &victim_balance;
+    T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXPInvalid.txt"));
+    game.config.misc.source = custom.source;
+
+    G_GrantKillXP(victim, hero);
+    T_EQ((int)hero->hero.xp, 40); /* malformed entries use safe stock recurrence defaults */
+
+    game.config.misc.source = old_misc;
+    Stb_IniCacheFree(&custom);
 }
 
 TEST(wc3_combat, grant_kill_xp_does_not_reward_passive_ally_kill) {

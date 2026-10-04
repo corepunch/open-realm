@@ -911,9 +911,9 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
 #endif
 
 
+/* A NULL origin is a screen-space (UI) presentation sound and plays without distance attenuation. */
 static void CL_RendererPlaySoundAt(cstring_t path, vec3_t const *origin, float volume) {
-    if (!origin) return;
-    S_PlaySoundPacket(path, origin, true, CHAN_AUTO, volume, 1.0f, 0.0f);
+    S_PlaySoundPacket(path, origin, origin != NULL, CHAN_AUTO, volume, 1.0f, 0.0f);
 }
 
 void CL_Init(void) {

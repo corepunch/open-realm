@@ -281,15 +281,18 @@ Stats are precomputed at base attributes; deltas are applied live on attribute c
 - Unspent Hero skill points are independent mutable runtime state. Level-up adds one point per crossed level; `UnitModifySkillPoints` can add/remove points directly without changing XP/level, while `GetHeroSkillPoints` reports the current pool.
 
 ### XP on Kill (from MiscGame.txt)
-Key constants (WC3 1.29 defaults):
-- `HeroExpRange` = 1200 (XP-share radius)
-- `GrantNormalXP` = 25; `GrantNormalXPFormulaB` is 0 in ROC and 5/level in TFT.
-- `GrantHeroXP` list = 100,120,160,220,300 (for hero kills)
-- `HeroFactorXP` list = 80,70,60,50,0 (% when hero outlevels victim by N levels)
-- `BuildingKillsGiveExp` = 0
-- `GlobalExperience` = 1; used only as a fallback when no eligible Hero is inside `HeroExpRange`
+Key constants (stock TFT-style defaults):
+- `HeroExpRange` = 1200 (XP-share radius).
+- `GrantNormalXP` plus `GrantNormalXPFormulaA/B/C` define ordinary-victim XP by victim level. The recurrence is `f(level) = A*f(level-1) + B*level + C`; stock TFT begins 25,40,60,85,115,150,... .
+- `GrantHeroXP` plus `GrantHeroXPFormulaA/B/C` define enemy-Hero XP by victim Hero level. Stock values begin 100,120,160,220,300 and continue 400,500,... .
+- `HeroFactorXP` is the neutral-creep reduction table indexed by the **receiving Hero's level**. It is not indexed by Hero-victim level difference and is not applied to enemy player-controlled units.
+- `BuildingKillsGiveExp` = 0 controls whether a **building making the killing blow** generates Hero XP. Separately, enemy structures only grant victim XP when they have an authored attack.
+- `SummonedKillFactor` = 0.50 scales XP from summoned victims.
+- `MaxLevelHeroesDrainExp` = 1 keeps max-level Heroes in the sharing divisor; setting it to 0 excludes them.
+- `GlobalExperience` = 1; used only as a fallback when no eligible Hero is inside `HeroExpRange`.
+- the receiving player's `SetPlayerHandicapXP` value scales that Hero's final kill-XP award.
 
-Read live from `game.config.misc` so map overrides stay 1:1. `MaxLevelHeroesDrainExp` and `SummonedKillFactor` remain unconsumed by the current kill-XP implementation.
+These values are read live from `game.config.misc` so `war3mapMisc.txt` overrides remain authoritative. Single-Hero tier bonus factors are still separate follow-up work.
 
 ### Hero Revival
 Dead heroes do **not** decay — they persist as revivable bodies (altar mechanic). `unit_decay_think` is a no-op for heroes. Revive restores HP/mana by configurable life/mana factors.
@@ -338,7 +341,11 @@ Read via `FS_FindSheetCell(game.config.misc, "Misc", key)`. Never hardcode defau
 | `NeedHeroXP` | 200 | per-level XP requirement table; extended by `NeedHeroXPFormulaA/B/C` |
 | `GlobalExperience` | 1 | globally distribute kill XP only when no eligible Hero is in range |
 | `HeroExpRange` | 1200 | XP-share radius |
-| `GrantNormalXP` | 25 | base XP for killing a creep |
-| `GrantNormalXPFormulaB` | ROC 0 / TFT 5 | XP per victim level |
-| `HeroExpRange` | 1200 | |
-| `BuildingKillsGiveExp` | 0 | |
+| `GrantNormalXP` | 25 | first ordinary-victim XP table value |
+| `GrantNormalXPFormulaA/B/C` | 1 / 5 / 5 (TFT) | extend ordinary-victim XP beyond the authored table |
+| `GrantHeroXP` | 100,120,160,220,300 | enemy-Hero victim XP table |
+| `GrantHeroXPFormulaA/B/C` | 1 / 0 / 100 | extend enemy-Hero XP beyond the authored table |
+| `HeroFactorXP` | data-driven | neutral-creep percentage by receiving Hero level |
+| `SummonedKillFactor` | 0.50 | multiplier for summoned victims |
+| `MaxLevelHeroesDrainExp` | 1 | max-level Heroes remain in the XP-sharing divisor |
+| `BuildingKillsGiveExp` | 0 | whether building killing blows generate Hero XP |

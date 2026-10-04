@@ -549,6 +549,7 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    G_PoolsReportPeaks();
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     UI_ResetHud();

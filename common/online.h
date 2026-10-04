@@ -8,6 +8,9 @@ typedef struct {
 } onlineGame_t;
 
 #ifdef BZ_EOS
+#ifdef BZ_TESTS
+void Online_Acceptance_f(void);
+#endif
 bool Online_Begin(void);
 void Online_Frame(uint32_t msec);
 void Online_Shutdown(void);
@@ -16,6 +19,7 @@ bool Online_Ready(void);
 bool Online_IsHost(void);
 bool Online_HostReady(void);
 bool Online_InLobby(void);
+bool Online_ConnectionLost(NETSOURCE source, netadr_t const *address);
 void Online_Refresh(void);
 uint32_t Online_NumGames(void);
 bool Online_Game(uint32_t index, onlineGame_t *out);
@@ -35,6 +39,7 @@ static inline bool Online_Ready(void) { return false; }
 static inline bool Online_IsHost(void) { return false; }
 static inline bool Online_HostReady(void) { return false; }
 static inline bool Online_InLobby(void) { return false; }
+static inline bool Online_ConnectionLost(NETSOURCE source, netadr_t const *address) { (void)source; (void)address; return false; }
 static inline void Online_Refresh(void) {}
 static inline uint32_t Online_NumGames(void) { return 0; }
 static inline bool Online_Game(uint32_t index, onlineGame_t *out) { (void)index; (void)out; return false; }

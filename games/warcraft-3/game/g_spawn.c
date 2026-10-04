@@ -769,7 +769,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     clent->client->jass.controller = G_MapControl(player);
     clent->client->jass.race_pref = G_RacePreference(player);
     clent->client->jass.race_selectable = true;
-    clent->client->jass.handicap = clent->client->jass.handicap_xp = 100.0f;
+    clent->client->jass.handicap = 100.0f;
+    clent->client->jass.handicap_xp = 1.0f;
     strlcpy(clent->client->jass.name, name ? name : "", sizeof(clent->client->jass.name));
     ps->name = clent->client->jass.name;
 }

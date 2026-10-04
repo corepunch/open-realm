@@ -52,20 +52,17 @@ typedef struct {
     bool         load_attempted;
 } sfx_t;
 
-/* DBC kit entry — cache pointer added so the decoded PCM lives on the handle. */
+/* Named kit entry. Each play picks one file variant; decoded PCM lives on that variant's path-keyed sfx_t. */
 typedef struct {
     uint32_t        id;
     uint32_t        type;
     cstring_t       name;
     cstring_t       files[SENTRY_MAX_FILES];
-    uint32_t        freq[SENTRY_MAX_FILES];
+    uint32_t        freq[SENTRY_MAX_FILES]; /* relative variant weights; all zero means uniform */
     cstring_t       directoryBase;
     float        volume;
     uint32_t        flags;
-    sfxcache_t  *cache;
     int          registration_sequence;
-    int          load_attempt_sequence;
-    bool         load_attempted;
 } sSoundKit_t;
 
 typedef struct sHashNode_s {
@@ -128,6 +125,8 @@ typedef struct {
     float             user_volume;
     bool              initialized;
     uint8_t             *dbc_data;
+    void         *slk_rows;       /* UISounds.slk rows backing named kits when no SoundEntries.dbc exists */
+    uint32_t      slk_row_count;
 } sState_t;
 
 extern sState_t s;
