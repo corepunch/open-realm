@@ -429,6 +429,8 @@ int main(int argc, string_t argv[]) {
         return 1;
     }
 
+    Game_StartupDiagnostics();
+
     PATHSTR resolved_map;
     PATHSTR load_map;
     cstring_t map = Cvar_String("map", "");

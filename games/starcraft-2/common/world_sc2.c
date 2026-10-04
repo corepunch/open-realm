@@ -3,6 +3,8 @@
 
 uint32_t SC2_MapObjectClassId(sc2MapObject_t const *object);
 
+void Game_StartupDiagnostics(void) {}
+
 bool CL_GameDefaultCamera(gameCamera_t *camera) {
     sc2MapCamera_t source;
     if (!camera || !SC2_MapDefaultCamera(&source)) return false;
