@@ -26,10 +26,25 @@ Do not route background music through `svc_sound`, `S_PlaySoundFile`, unit chann
 
 The default build keeps FFmpeg optional. Music commands and state still exist without FFmpeg, but no compressed music decoder is available and playback remains silent.
 
+The Linux GitHub release must explicitly build with `FFMPEG=1`. The v0.0.10-alpha release workflow invoked
+`make BUILD=release EOS=1 ... build` without that flag, so its `CL_MusicOpenTrack` was the stub that always returns false.
+This disables menu and map music independently of SDL audio initialization. A local `FFMPEG=1` build therefore has music
+where that release is silent; it does not demonstrate an SDL or ordinary WAV/MP3 effect decoder failure.
+
+`dist-scripts/linux/bundle_media.py` verifies that all five media libraries are linked and copies their complete runtime
+dependency closure into `release/lib`, setting each copy's RUNPATH to `$ORIGIN`. The executable's RUNPATH alone does not
+resolve transitive dependencies. Keep glibc, C++/GCC runtimes and graphics driver interfaces on the host so Ubuntu copies
+cannot replace the libraries required by Manjaro's newer Mesa/SDL drivers. Retain Debian package copyright notices under
+`release/licenses/ffmpeg`, and fail packaging on unresolved dependencies or missing decoder libraries. This avoids requiring
+Manjaro's current FFmpeg to provide Ubuntu's older library SONAMEs. The `Linux release music and runtime packaging` CI job
+builds the optimized Linux decoder and verifies the packaged dependency closure; `make test-linux-media-release` covers
+missing decoders, missing dependencies, RUNPATHs, notices, and paths containing spaces and UTF-8 characters.
+
 Enable the decoder with:
 
 ```bash
-make FFMPEG=1
+make clean
+make build -j4 FFMPEG=1
 ```
 
 The Warcraft III build already uses these pkg-config libraries for pre-rendered movies and now reuses them for music:

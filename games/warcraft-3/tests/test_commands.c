@@ -186,6 +186,30 @@ TEST(commands, save_path_adds_one_sav_extension) {
     T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
 }
 
+/* Linux filenames preserve UTF-8 bytes; a quoted data directory may also contain spaces. */
+TEST(commands, media_paths_preserve_utf8_and_spaces) {
+    PATHSTR old_home, path, resolved;
+    cstring_t root = "build/tests/Téléchargements/Games WIP/ROC";
+    uint32_t size = 0;
+    setup_command_tests();
+    snprintf(old_home, sizeof(old_home), "%s", FS_HomePath());
+    FS_SetHomeDirectory(root);
+    FS_UserPath("audio-path-test.wav", path, sizeof(path));
+    FILE *file = fopen(path, "wb");
+    T_NOT_NULL(file);
+    if (file) { T_EQ(fwrite("test", 1, 4, file), 4); fclose(file); }
+    T_ASSERT(FS_AddDataDirectory(root));
+    T_ASSERT(FS_ResolveLoosePath("audio-path-test.wav", resolved, sizeof(resolved)));
+    T_STREQ(resolved, path);
+    char *data = FS_ReadFile("audio-path-test.wav", &size);
+    T_NOT_NULL(data);
+    T_EQ(size, 4);
+    if (data) T_ASSERT(!memcmp(data, "test", 4));
+    FS_FreeFile(data);
+    remove(path);
+    FS_SetHomeDirectory(old_home);
+}
+
 TEST(commands, save_list_returns_newest_sav_basenames_first) {
     PATHSTR older, newer, ignored;
     char list[256] = { 0 };

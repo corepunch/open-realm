@@ -8,6 +8,30 @@ on:
     branches: ["main"]
 
 jobs:
+  media:
+    name: Linux release music and runtime packaging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Linux dependency environment
+        run: docker build --tag openrealm-media-ci .github/docker/ci
+      - name: Build and verify the release media package
+        run: |
+          docker run --rm --mount "type=bind,source=$PWD,target=/workspace" \
+            --workdir /workspace openrealm-media-ci bash -ec '
+              make BUILD=release FFMPEG=1 BIN_DIR=build/media/bin LIB_DIR=build/media/lib SHARE_INSTALL=build/media/share openwarcraft3
+              make BUILD=release BIN_DIR=build/media/bin LIB_DIR=build/media/lib test-sound
+              mkdir -p build/media/package/bin build/media/package/lib
+              cp build/media/bin/openwarcraft3 build/media/package/bin/
+              cp build/media/lib/*.so build/media/package/lib/
+              python3 dist-scripts/linux/bundle_media.py build/media/bin/openwarcraft3 build/media/package/lib
+              ldd build/media/package/bin/openwarcraft3 > build/media/package/dependencies.txt
+              cat build/media/package/dependencies.txt
+              ! grep -q "not found" build/media/package/dependencies.txt
+            '
+
   eos:
     name: EOS regressions and live multiplayer checks
     # Fork PRs cannot read the licensed SDK/player credentials. Run their normal
