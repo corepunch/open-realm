@@ -70,8 +70,10 @@ Windows regression builds keep their DLLs under `build/eos-tests/lib`, outside
 the executable directory. The regression step must put that directory on `PATH`:
 Windows does not honor the Unix rpath layout. Otherwise `mpqtool.exe` exits with
 127 while packing fixtures, before the EOS tests run. MSYS2 also needs `diffutils`
-for the generated-header `cmp` checks. Both gaps were exposed by v0.0.11-alpha's
-initial Windows release job; retain all fixture and EOS checks during recovery.
+for generated-header `cmp` checks and `mingw-w64-x86_64-python` for fixture
+generation's `python3` command. Windows `actions/setup-python` supplies `python`
+but does not supply that command to MSYS2. These gaps were exposed by
+v0.0.11-alpha's Windows release jobs; retain all fixture and EOS checks during recovery.
 
 Published releases also trigger the existing
 [Discord notification workflow](discord-notifications.md). Notes edits do not
