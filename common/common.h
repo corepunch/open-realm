@@ -327,6 +327,9 @@ static inline void player_set_lens(player_t *ps, gameCamera_t const *cam) {
     ps->zfar = cam->zfar;
 }
 
+/* Per-game startup diagnostics run after the configured data directory is mounted. */
+void Game_StartupDiagnostics(void);
+
 bool CL_GameDefaultCamera(gameCamera_t *camera);
 typedef struct {
     float minimum, default_distance, maximum;

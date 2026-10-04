@@ -4,6 +4,153 @@
 #include <float.h>
 #include <math.h>
 
+#ifdef BZ_CLIENT_WORLD
+#define WC3_VS_FIXEDFILEINFO_SIGNATURE 0xFEEF04BDu
+#define WC3_VS_FIXEDFILEINFO_VERSION   0x00010000u
+#define WC3_VS_FIXEDFILEINFO_SIZE      52u
+
+typedef struct {
+    uint16_t file[4];
+    uint16_t product[4];
+} wc3ExecutableVersion_t;
+
+static uint16_t W3_ReadLE16(uint8_t const *p) {
+    return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+static uint32_t W3_ReadLE32(uint8_t const *p) {
+    return (uint32_t)p[0] |
+           ((uint32_t)p[1] << 8) |
+           ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
+}
+
+/* The executable version resource begins with a VS_VERSION_INFO block whose
+ * key is UTF-16LE and whose binary value is VS_FIXEDFILEINFO.  We deliberately
+ * avoid parsing the PE resource tree: the UTF-16 key plus the fixed-info magic,
+ * structure version and block bounds are a sufficiently strong opt-in diagnostic
+ * fingerprint while keeping this code dependency-free and small. */
+static bool W3_ParseExecutableVersion(uint8_t const *data,
+                                      size_t size,
+                                      wc3ExecutableVersion_t *version) {
+    static char const key[] = "VS_VERSION_INFO";
+    size_t const key_chars = sizeof(key) - 1;
+    size_t const key_bytes = key_chars * 2;
+
+    if (!data || !version || size < 6 + key_bytes + 2 + WC3_VS_FIXEDFILEINFO_SIZE)
+        return false;
+
+    for (size_t key_offset = 6; key_offset + key_bytes + 2 <= size; key_offset++) {
+        bool matches = true;
+        size_t block_offset, block_end, value_offset;
+        uint16_t block_length, value_length, type;
+        uint8_t const *fixed;
+
+        for (size_t i = 0; i < key_chars; i++) {
+            if (data[key_offset + i * 2] != (uint8_t)key[i] ||
+                data[key_offset + i * 2 + 1] != 0) {
+                matches = false;
+                break;
+            }
+        }
+        if (!matches || data[key_offset + key_bytes] != 0 ||
+            data[key_offset + key_bytes + 1] != 0)
+            continue;
+
+        block_offset = key_offset - 6;
+        if (block_offset & 3u)
+            continue;
+        block_length = W3_ReadLE16(data + block_offset);
+        value_length = W3_ReadLE16(data + block_offset + 2);
+        type = W3_ReadLE16(data + block_offset + 4);
+        if (type != 0 || value_length < WC3_VS_FIXEDFILEINFO_SIZE ||
+            block_length > size - block_offset)
+            continue;
+        block_end = block_offset + block_length;
+
+        value_offset = (key_offset + key_bytes + 2 + 3u) & ~(size_t)3u;
+        if (value_offset > block_end ||
+            WC3_VS_FIXEDFILEINFO_SIZE > block_end - value_offset)
+            continue;
+
+        fixed = data + value_offset;
+        if (W3_ReadLE32(fixed) != WC3_VS_FIXEDFILEINFO_SIGNATURE ||
+            W3_ReadLE32(fixed + 4) != WC3_VS_FIXEDFILEINFO_VERSION)
+            continue;
+
+        {
+            uint32_t const file_ms = W3_ReadLE32(fixed + 8);
+            uint32_t const file_ls = W3_ReadLE32(fixed + 12);
+            uint32_t const product_ms = W3_ReadLE32(fixed + 16);
+            uint32_t const product_ls = W3_ReadLE32(fixed + 20);
+            version->file[0] = (uint16_t)(file_ms >> 16);
+            version->file[1] = (uint16_t)file_ms;
+            version->file[2] = (uint16_t)(file_ls >> 16);
+            version->file[3] = (uint16_t)file_ls;
+            version->product[0] = (uint16_t)(product_ms >> 16);
+            version->product[1] = (uint16_t)product_ms;
+            version->product[2] = (uint16_t)(product_ls >> 16);
+            version->product[3] = (uint16_t)product_ls;
+        }
+        return true;
+    }
+    return false;
+}
+
+static bool W3_VersionEqual(uint16_t const a[4], uint16_t const b[4]) {
+    return !memcmp(a, b, sizeof(uint16_t) * 4);
+}
+
+static bool W3_ReportExecutableVersion(cstring_t filename, bool *found_file) {
+    uint32_t size = 0;
+    uint8_t *data = FS_ReadLooseFile(filename, &size, 0);
+    wc3ExecutableVersion_t version;
+
+    if (!data)
+        return false;
+    if (found_file)
+        *found_file = true;
+    if (!W3_ParseExecutableVersion(data, size, &version)) {
+        FS_FreeFile(data);
+        return false;
+    }
+    FS_FreeFile(data);
+
+    fprintf(stderr, "WC3 data executable: %s\n", filename);
+    fprintf(stderr, "WC3 executable version: %u.%u.%u.%u\n",
+            version.file[0], version.file[1], version.file[2], version.file[3]);
+    if (!W3_VersionEqual(version.file, version.product)) {
+        fprintf(stderr, "WC3 product version: %u.%u.%u.%u\n",
+                version.product[0], version.product[1], version.product[2], version.product[3]);
+    }
+    return true;
+}
+
+void Game_StartupDiagnostics(void) {
+    static cstring_t const executable_names[] = {
+        "Warcraft III.exe",
+        "war3.exe",
+    };
+    bool found_file = false;
+
+    Cvar_GetD("wc3_report_data_version", "0", 0,
+              "report the Warcraft III executable version resource at startup");
+    if (!Cvar_Integer("wc3_report_data_version", 0))
+        return;
+
+    FOR_LOOP(i, sizeof(executable_names) / sizeof(executable_names[0])) {
+        if (W3_ReportExecutableVersion(executable_names[i], &found_file))
+            return;
+    }
+
+    if (found_file)
+        fprintf(stderr, "WC3 executable version: unavailable (version resource not found)\n");
+    else
+        fprintf(stderr, "WC3 executable version: unavailable (Warcraft III.exe/war3.exe not found)\n");
+}
+
+#endif /* BZ_CLIENT_WORLD */
+
 typedef void (*cmW3Read_t)(handle_t archive);
 
 void CM_ReadPathMap(handle_t archive);
@@ -495,6 +642,68 @@ void CM_ReadPathMap(handle_t archive) {
 
 #if defined(BZ_CLIENT_WORLD) && defined(BZ_TESTS)
 #include "shared/test.h"
+
+static void W3_TestWriteLE16(uint8_t *p, uint16_t value) {
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+}
+
+static void W3_TestWriteLE32(uint8_t *p, uint32_t value) {
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+    p[2] = (uint8_t)(value >> 16);
+    p[3] = (uint8_t)(value >> 24);
+}
+
+static size_t W3_TestVersionBlob(uint8_t *blob, size_t size) {
+    static char const key[] = "VS_VERSION_INFO";
+    size_t const block_offset = 8;
+    size_t const key_offset = block_offset + 6;
+    size_t const key_bytes = (sizeof(key) - 1) * 2;
+    size_t const value_offset = (key_offset + key_bytes + 2 + 3u) & ~(size_t)3u;
+    size_t const block_end = value_offset + WC3_VS_FIXEDFILEINFO_SIZE;
+
+    if (size < block_end) return 0;
+    memset(blob, 0, size);
+    W3_TestWriteLE16(blob + block_offset, (uint16_t)(block_end - block_offset));
+    W3_TestWriteLE16(blob + block_offset + 2, WC3_VS_FIXEDFILEINFO_SIZE);
+    W3_TestWriteLE16(blob + block_offset + 4, 0);
+    for (size_t i = 0; i < sizeof(key) - 1; i++)
+        blob[key_offset + i * 2] = (uint8_t)key[i];
+
+    W3_TestWriteLE32(blob + value_offset, WC3_VS_FIXEDFILEINFO_SIGNATURE);
+    W3_TestWriteLE32(blob + value_offset + 4, WC3_VS_FIXEDFILEINFO_VERSION);
+    W3_TestWriteLE32(blob + value_offset + 8, (1u << 16) | 29u);
+    W3_TestWriteLE32(blob + value_offset + 12, (2u << 16) | 9231u);
+    W3_TestWriteLE32(blob + value_offset + 16, (1u << 16) | 29u);
+    W3_TestWriteLE32(blob + value_offset + 20, (2u << 16) | 9231u);
+    return value_offset;
+}
+
+TEST(wc3_data_version, parses_version_info_without_pe_headers) {
+    uint8_t blob[128];
+    wc3ExecutableVersion_t version = { 0 };
+    W3_TestVersionBlob(blob, sizeof(blob));
+
+    T_ASSERT(W3_ParseExecutableVersion(blob, sizeof(blob), &version));
+    T_EQ(version.file[0], 1); T_EQ(version.file[1], 29);
+    T_EQ(version.file[2], 2); T_EQ(version.file[3], 9231);
+    T_EQ(version.product[0], 1); T_EQ(version.product[1], 29);
+    T_EQ(version.product[2], 2); T_EQ(version.product[3], 9231);
+}
+
+TEST(wc3_data_version, rejects_false_or_truncated_version_resources) {
+    uint8_t blob[128];
+    wc3ExecutableVersion_t version = { 0 };
+    size_t value_offset = W3_TestVersionBlob(blob, sizeof(blob));
+
+    W3_TestWriteLE32(blob + value_offset, 0xFEEF04BCu);
+    T_ASSERT(!W3_ParseExecutableVersion(blob, sizeof(blob), &version));
+
+    value_offset = W3_TestVersionBlob(blob, sizeof(blob));
+    (void)value_offset;
+    T_ASSERT(!W3_ParseExecutableVersion(blob, 72, &version));
+}
 
 /* Client path queries must use their own cells and replace them cleanly between maps. */
 TEST(client_world, terrain_path_flags_survive_load_replace_and_clear) {
