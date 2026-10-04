@@ -271,7 +271,7 @@ static ability_t abilitylist[] = {
     { "AOsf", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit */
     { "AOeq", CAbilityEarthquake, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Earthquake */
     { "AOsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave */
-    { "AOae", CAbilityPassive, AB_PASSIVE },  /* Endurance Aura */
+    { "AOae", CAbilityEnduranceAura, AB_PASSIVE },  /* Endurance Aura */
     { "AOre", CAbilityReincarnation, AB_PASSIVE },  /* Reincarnation */
     { "AOws", CAbilityStomp, AB_SPELL },  /* War Stomp */
     { "Ablo", CAbilityBloodlust, AB_SPELL | AB_AUTOCAST | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Bloodlust */
@@ -1151,12 +1151,14 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
 }
 
 void S_EnableAbility(edict_t *ent, uint32_t code) {
+    S_InvalidateAuraSources();
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
 }
 
 void S_DisableAbility(edict_t *ent, uint32_t code) {
+    S_InvalidateAuraSources();
     if (ent && ent->autocast_code == code) G_SetUnitAutocast(ent, code, false);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);

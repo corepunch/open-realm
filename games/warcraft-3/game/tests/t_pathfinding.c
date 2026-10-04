@@ -44,6 +44,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 
 
 
@@ -1798,6 +1799,52 @@ TEST(wc3_perf, nearby_line_query_with_1900_idle_units) {
     T_BENCH("Move direct line (1900 idle units)", 100, G_UnitMovePathLineIsPathable(&query));
     reset_entities();
     setup_test_world();
+}
+
+/* These are the live-occupancy paths used by stopped repulsors and blocked
+ * movers. Keep the crowd off the queried cell to measure broadphase overhead. */
+TEST(wc3_perf, fine_occupancy_with_1900_idle_units) {
+    reset_entities(); setup_test_world();
+    for (int i=0;i<1900;i++) {
+        edict_t *idle=make_unit_at(-960.f+(i%60)*32.f,256.f+(i/60)*32.f);
+        idle->collision=16.f; gi.LinkEntity(idle);
+    }
+    edict_t *unit=make_unit_at(128.f,128.f);
+    unit->collision=16.f; gi.LinkEntity(unit);
+    vec2_t target={160.f,128.f};
+    float fine[2]={36.f,36.f}, next[2]={37.f,36.f};
+    edict_t *blockers[32];
+    movePathQuery_t query={{&unit->s.origin2,&target,16.f,CM_PATHING_UNWALKABLE},unit,NULL,true};
+    T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_EQ(G_CollectUnitMoveStepBlockers(&query,next,blockers),0u);
+    T_BENCH("Move fine endpoint (1900 idle units)",200,
+        G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_BENCH("Move step blockers (1900 idle units)",200,
+        G_CollectUnitMoveStepBlockers(&query,next,blockers));
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_perf, twelve_movers_with_4000_scenery) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,4000) {
+        edict_t *scenery=G_Spawn();
+        scenery->svflags=SVF_STATIC_SCENERY;
+        scenery->health.value=250;
+    }
+    vec2_t target={640.f,256.f};
+    groupPointOrder_t request={.count=12,.order_id=851986,.order="move",.point=&target,.issuer_player=0};
+    FOR_LOOP(i,12) {
+        edict_t *unit=make_unit_at(-320.f+(i%4)*64.f,-256.f+(i/4)*64.f);
+        gi.LinkEntity(unit);
+        request.units[i]=(typeof(request.units[0])){unit,unit->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    level.started=true;
+    T_BENCH("12 movers + 4000 scenery (100ms simulation frame)",40,
+        {level.time+=FRAMETIME;globals.RunFrame();});
+    FOR_LOOP(i,12)T_ASSERT(request.units[i].unit->s.origin2.x>-320.f+(i%4)*64.f);
+    level.started=false;reset_entities();setup_test_world();
 }
 
 /* The endpoint is beyond the synchronous fine-search envelope. A two-cell L

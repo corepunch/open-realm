@@ -76,6 +76,10 @@ static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static uint32_t regen_source_count;
 static uint32_t regen_cache_frame = UINT_MAX;
 static uint32_t regen_cache_generation = UINT_MAX;
+void S_InvalidateAuraSources(void) {
+    regen_cache_frame=regen_cache_generation=UINT_MAX;
+    S_InvalidateEnduranceSources();
+}
 static edict_t *regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
 static edict_t *devotion_overlays[MAX_ENTITIES];
 static edict_t *unholy_overlays[MAX_ENTITIES];
@@ -282,6 +286,7 @@ typedef struct {
 static regenerationAuraInfo_t regen_value_cache[MAX_ENTITIES][REGEN_FAMILY_COUNT][REGEN_VALUE_COUNT];
 
 void G_ResetHeroPassiveCaches(void) {
+    S_InvalidateAuraSources();
     memset(regen_sources, 0, sizeof(regen_sources));
     regen_source_count = 0;
     regen_cache_frame = UINT_MAX;
@@ -318,6 +323,9 @@ static void regen_aura_cache_update(void) {
         return;
     regen_source_count = 0;
     FOR_LOOP(i, globals.num_edicts) {
+        /* These can never pass S_AuraUnitActive. Do not parse fifteen
+         * ability families for each doodad, presentation effect or free slot. */
+        if (!g_edicts[i].inuse || (g_edicts[i].svflags & SVF_STATIC_SCENERY)) continue;
         regenAuraSource_t *entry = regen_sources + regen_source_count;
         bool has_combat_aura = false;
 

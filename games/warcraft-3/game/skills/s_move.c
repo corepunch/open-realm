@@ -49,6 +49,10 @@ typedef struct {
 /* Read-only observer of scheduled Move commits, before same-clock map timers. */
 static void (*move_test_motion_commit)(edict_t *unit);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
+typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, result; } moveRetryTrace_t;
+static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
+typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
+static void (*move_test_repulse)(edict_t *unit,moveRepulseTrace_t const *trace);
 #endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
@@ -1023,7 +1027,7 @@ static void move_repulse_unlink(edict_t *self) {
 static void move_repulse_init(edict_t *self) {
     if (self->movement.repulse.active) move_repulse_unlink(self);
     UnitBalance_t const *balance = self->data.UnitBalance;
-    if (!balance || !balance->repulse || M_UnitMoveDisabled(self)) return;
+    if (!balance || !balance->repulse || M_UnitMoveDisabled(self) || self->paused) return;
     uint32_t selector = wc3_int_bits(wc3_float_bits(balance->repulseParam)) & 255;
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);
     /* Match the selector/category/rank setters in order, including their clearing masks. */
@@ -1043,12 +1047,18 @@ static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
     }
 }
 
+/* Admitted Move publishes nonzero requested speed with its committed velocity;
+ * turn/retry stops clear both components. Native c0 excludes moving repulsors. */
+static bool move_repulse_moving(edict_t const *unit) {
+    return unit->movement.velocity.x!=0 || unit->movement.velocity.y!=0;
+}
+
 /* The callback only accumulates; endpoint application precedes this query on the next eligible visit. */
 static bool move_repulse_candidate(edict_t const *other) {
     moveRepulseQuery_t *query = repulse_query;
     uint32_t word = other->movement.repulse.state.packed;
     if (other == query->self || !other->movement.repulse.active || !G_UnitIsWorldActive(other) ||
-        IS_HOLLOW(other) || other->collision <= 0 || other->paused || other->stunned || other->no_pathing ||
+        IS_HOLLOW(other) || other->collision <= 0 || move_repulse_moving(other) || other->paused || other->stunned || other->no_pathing ||
         ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
     wc3GridPose_t pose; unit_predicted_pose(other,&pose);
     for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
@@ -1060,7 +1070,7 @@ static bool move_repulse_candidate(edict_t const *other) {
 static void move_repulse_update(edict_t *self) {
     wc3Repulse_t *state = &self->movement.repulse.state;
     if (wc3_repulse_cooldown(state)) return;
-    if (self->paused || self->stunned) {
+    if (move_repulse_moving(self) || self->paused || self->stunned) {
         state->vector[0] = state->vector[1] = 0; state->packed = (state->packed & 0xffff0000u) | 7; return;
     }
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
@@ -1100,7 +1110,13 @@ static void move_repulse_owner_update(void) {
         next = self->movement.repulse.next;
         if (!G_UnitIsWorldActive(self) || IS_HOLLOW(self)) { move_repulse_unlink(self); continue; }
         if (skip) { skip--; continue; }
+#ifdef BZ_TESTS
+        moveRepulseTrace_t before={.state=self->movement.repulse.state,.point=self->movement.fine_pose,.owner=level.pathing_random};
+#endif
         move_repulse_update(self); skip = 1;
+#ifdef BZ_TESTS
+        if(move_test_repulse)move_test_repulse(self,&before);
+#endif
     }
 }
 
@@ -1127,6 +1143,10 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
     }
     self->paused=paused;
+    /* Native66fc50 disables separation while suspension depth54 or scripted
+     * flag5c.200000 is set;693d50 retires/recreates the repulsor at transition. */
+    if(paused)move_repulse_unlink(self);
+    else move_repulse_init(self);
 }
 
 /* A different behavior must not inherit the previous Move's prediction velocity. */
@@ -1506,6 +1526,19 @@ static void move_hold_goal_heading(edict_t *self) {
     self->movement.turn_blocked=true;
 }
 
+/* Both real retry callers share the saved owner; observers never consume draws. */
+static uint32_t move_advance_retry(edict_t *unit,wc3RetryInput_t const *input) {
+#ifdef BZ_TESTS
+    moveRetryTrace_t before={.input=*input,.owner=level.pathing_random,.count=unit->movement.retry_count};
+#endif
+    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,input,&level.pathing_random);
+#ifdef BZ_TESTS
+    before.result=result;
+    if(move_test_retry)move_test_retry(unit,&before);
+#endif
+    return result;
+}
+
 /* Original167290 resets the fine leg only; retaining the coarse route lets
  * the following thinker refill around the peer that has now stopped. */
 static void move_retry_fine(edict_t *self) {
@@ -1520,7 +1553,7 @@ static void move_retry_fine(edict_t *self) {
         in.members=0;
         FILTER_EDICTS(peer,peer->inuse && peer->movement.group_id==self->movement.group_id) in.members++;
     }
-    uint32_t result=wc3_retry_advance(&self->movement.retry_count,&in,&level.pathing_random);
+    uint32_t result=move_advance_retry(self,&in);
     assert(result==1); /* admitted fine progress clears the budget before collection */
     route->count=0; route->index=UINT32_MAX;
     self->movement.path.valid=false;
@@ -1540,7 +1573,7 @@ static uint32_t move_retry_endpoint(edict_t *unit, wc3GridPose_t const *pose, ve
     if (route->adaptive_count && !route->adaptive_index)
         goal=(vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
     wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{goal.x,goal.y},members};
-    uint32_t result=wc3_retry_advance(&unit->movement.retry_count,&in,&level.pathing_random);
+    uint32_t result=move_advance_retry(unit,&in);
     if (result!=4) {route->count=0;route->index=UINT32_MAX;unit->movement.path.valid=false;}
     return result;
 }
@@ -2436,16 +2469,7 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     speed = unit_apply_earthquake_speed(ent, speed);
     speed *= 1.0f - S_PurgeMoveReduction(ent);
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
-    if (S_AuraUnitActive(ent)) {
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *aura = g_edicts + i;
-            uint32_t aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-            if (S_AuraUnitActive(aura) && aura_level && S_SpellIsFriend(aura, ent) &&
-                Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
-                G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->area)
-                speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), aura_level)->data[0].number * 0.01f;
-        }
-    }
+    speed=S_ApplyEnduranceMoveSpeed(ent,speed);
     bool building = G_UnitIsStructure(ent);
     wc3SpeedLimit_t limits = { .value = speed,
         .minimum = ent->data.UnitBalance->minSpeed, .maximum = ent->data.UnitBalance->maxSpeed,
@@ -3102,6 +3126,9 @@ void order_move(edict_t *self, edict_t *target) {
  * order_move without replacing that identity. Queue replay comes here only
  * when this command actually becomes active. */
 void S_IssueMoveOrder(edict_t *self, edict_t *goal, uint32_t order_id) {
+    /* Public admission69a881 stops through05ca50 before the new point task,
+     * even for an idle actor embedded in a peer. Recover before cohort seeding. */
+    move_leave(self); S_RecoverStoppedUnitPosition(self);
     order_move(self, goal);
     if (self->goalentity == goal && self->currentmove == &move_move_walk)
         self->current_order_id = order_id;
@@ -3314,14 +3341,6 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
     FOR_LOOP(i,request->count) {
         edict_t *unit=request->units[i].unit;
         if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
-        if (shared_id) {
-            /* Captain9d123f replaces the private approach through bridge05ca50:
-             * consume old velocity, detach, stop and admit bounded recovery
-             * before the new shared request binds. An embedded moving recruit
-             * otherwise retains an illegal source after this handoff. */
-            move_leave(unit);
-            S_RecoverStoppedUnitPosition(unit);
-        }
         if (!unit_issueorder(unit,request->order,request->point)) continue;
         any=true;
         if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;

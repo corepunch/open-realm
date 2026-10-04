@@ -2,6 +2,204 @@
 
 For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
 
+## October 4: movement and fine-grid scaling
+
+The Rise of the Naga regression was reproduced in the game module, rather than
+attributed to drawing moving models. A debug `NightElfX01.w3x` capture found
+4,034 effective-speed evaluations taking 3,993 ms during 200 simulation frames.
+Endurance Aura reparsed ability ownership across every edict on every query.
+`M_RunScheduledThinks` took 4,475 ms, of which `unit_current_speed` took 4,005 ms.
+These nested Frida measurements include instrumentation overhead and overlap;
+they identify a repeated scan, not exclusive CPU percentages.
+
+Three data structures replace repeated reconstruction while retaining the retail
+numerical and ordering contracts:
+
+- `g_world.c` maintains intrusive fine-cell occupant lists. A query visits the
+  occupants of its sampled cells; it no longer builds and sorts an entity snapshot
+  or scans the complete entity list per cell. Each object has at most sixteen links.
+  Saved `wc3SpatialActive_t` ranks still select encounter order, target dominance
+  and the first 32 blockers. Link insertion order cannot change those decisions.
+  Publication retains intersection ranks and relinks only changed rectangles.
+  Unchanged world/fine pose and radius bits skip coordinate conversion entirely.
+- `wc3AccSearch_t` remembers previously indexed nodes. Engine-owned scratch clears
+  only those cells between adaptive requests instead of clearing four complete
+  map planes. The first request initializes every plane. Node identities, ushort
+  wrap, heap ordering, budgets, partial routes and gate policy stay unchanged.
+  `reuse_indices` is enabled only while the engine owns the same planes; standalone
+  oracle callers may replace their planes and retain full initialization.
+- `s_endurance_aura.c` discovers providers after ability ownership/data changes,
+  in original edict order. Every query checks live spawn identity, rank, health,
+  visibility, alliance and range. Speed multiplications and attack-bonus additions
+  remain separate operations in the original order, rather than multiplying a
+  precombined aura factor. Bind/type change, add/remove, learn/set-rank, status
+  ownership and map/save-load lifecycle invalidate discovery. Regeneration-provider
+  discovery also excludes free slots and static scenery before parsing fifteen
+  ability families; those actors cannot pass `S_AuraUnitActive`.
+
+The spatial index is derived state. Map replacement/cache teardown releases the
+cell heads; save loading reconstructs links from the authoritative saved boxes and
+ranks. No new save fields or float approximation were introduced. Queries still
+perform one cheap publication synchronization pass to observe arbitrary geometry
+writes by non-Move owners. This remaining O(N) pass is explicit: removing it
+requires complete publication coverage of position, size and eligibility writers,
+including changes within one script callback. Cell queries themselves scale with
+local occupancy.
+
+Local measurements in matching debug builds:
+
+| Work | Before | Indexed implementation |
+|---|---:|---:|
+| Fine endpoint with 1,900 idle units | 0.45 ms | 0.05 ms |
+| Step blockers with 1,900 idle units | 0.37 ms | 0.04 ms |
+| Scheduled movement, same 200-frame instrumented capture | 4,475 ms | 888 ms |
+| Effective-speed queries, same capture | 3,993 ms | 782 ms |
+| Rise of the Naga simulation-thread CPU, simulation 1–6 s | 167.34 ms/frame | 30.41 ms/frame |
+| Same map, simulation 6–15 s | 18.59 ms/frame | 11.81 ms/frame |
+| Same map, simulation 15–25 s | 15.35 ms/frame | 10.42 ms/frame |
+
+The last three rows use `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` with only the
+production frame hook. They exclude competing-process CPU time, but are still
+instrumented measurements. Both runs end with random-owner words
+2392768281/2753341456. The indexed CPU capture precedes the additional scenery
+filter; it must not be described as a final release frame-rate measurement.
+The final debug synthetic `wc3_perf.twelve_movers_with_4000_scenery` benchmark
+uses public group Move and production `RunFrame`, averages 9.70 ms per 100-ms
+simulation tick, and asserts all twelve movers advance.
+
+Reports and bounded Frida scripts are retained externally under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/perf102-*`.
+`perf102-frame-cpu.py` records simulation-thread CPU;
+`perf102-render.py` records main-loop intervals, accepted public group orders,
+unit identities and executable/library SHA-256 values. The native-memory script
+keeps strong references to allocated order names through each call. Exploratory
+captures with temporary name allocations reported rejected orders; they are
+excluded from the workload claim. The exact reason for those rejections was not
+isolated, so they are not evidence of an engine order failure.
+
+The first accelerated Intel/Mesa release render capture uses the seven controllable
+starting units and repeated group moves every four simulation seconds. From 6–55 s,
+one-second windows measure 56.65–60.66 FPS at a 60 FPS cap. Opening cinematic windows
+fall below 55 and the capture overlaps a test-module build, so this is preliminary
+and does not close the user's twelve-unit/55-FPS acceptance target.
+A subsequent twelve-mover capture creates five stock Archers through `unit_create`,
+then repeats accepted twelve-member public group moves. Its 57 one-second windows
+after simulation 6 s range from 50.93 to 59.05 FPS (median 55.95); seventeen fall
+below 55. Simulation-thread CPU averages 14.39 ms/tick during 6–25 s and
+13.72 ms/tick during 25–55 s. This run overlaps the TFT validation process.
+It demonstrates that the target remains unmet, and neither capture establishes
+scaling to hundreds or thousands of movers.
+
+Build modes must be explicit: default `BUILD=debug` uses `-O0`; `BUILD=release`
+uses `-O2`. `DEBUG=0` does not select release, and changing `BUILD` alone does not
+invalidate existing make targets. Use a fresh output tree for a reproducible A/B
+build, then measure with the same camera, resolution, build mode and workload.
+A headless simulation timing alone does not prove rendered FPS.
+
+Relevant regression entry points are `wc3_pathfinding.*`, `wc3_movement.*`,
+`wc3_collision.*`, `wc3_combat.endurance_provider_changes_are_immediate_and_saved`,
+and `wc3_spell.combat_aura_alias_resolution_scales_with_edicts`. The aura test
+covers changes within one frame, visibility/range changes, provider removal,
+first learned rank, save/load and edict reuse. The scenery test reproduces the
+old resolver work bound with 1,900 authored scenery rows. Retail admission
+recovery is separately covered by the native retry/random movement fixtures;
+worker and Wind Walk traversal fixtures now begin with their intended legal
+footprints instead of allowing that recovery to alter the setup.
+See [retail movement integration](retail-pathfinding-engine.md) and
+[retail pathfinding corpus](retail-pathfinding-corpus.md) for the exactness limits.
+
+## October 4 literature shortlist: exact retail simulation at scale
+
+The target workload is hundreds to low thousands of **moving** units. Small
+campaign improvements and benchmarks populated with idle units do not establish
+that target. The following is an engineering recommendation informed by primary
+sources, not a claim that any cited paper proves Warcraft III equivalence.
+
+Retail equivalence includes complete waypoint/velocity words, tie behavior,
+work-budget exhaustion, partial-route selection, temporary object exclusion,
+encounter ranks, logical scheduling, random draw order and saved continuation.
+Equal shortest-path length is insufficient. The existing fine heap promotes new
+entries above equal-key parents, chooses the right child on ties and retains
+stale records. Replacing it with an ordinary stable heap can change results.
+
+Recommended replacements, in implementation order:
+
+| Candidate | Replace | Scaling objective | Fidelity condition |
+|---|---|---|---|
+| Event-maintained fine-cell grid, with separate static ownership and mobile occupancy | Full-edict synchronization in `move_query_objects` and step-blocker collection | Update changed footprints; query only sampled cells and occupants, eliminating the query-count × edict-count term | Every position/radius/eligibility/lifetime writer publishes at the correct observation point; preserve per-cell encounter ranks, exclusions and token caps |
+| Compact active-mover records, sparse membership and contiguous hot fields (SoA or AoSoA where measured useful) | Repeated traversal of 4,048-byte edicts and discovery of nonparticipants | Work follows active movers/providers rather than all scenery and effects; reduce cache traffic | Preserve stable identity, owner scheduling and arithmetic order; keep gameplay state owned by Move and avoid unsynchronized duplicate truth |
+| Generation-stamped flat node lookup, reusable arenas and sparse scratch reset | Fine search's unconditional 65,536-slot/256-KiB hash clear, repeated allocations and remaining map-sized resets | Initialization follows visited states rather than map area or maximum node capacity | Preserve node creation/identity/wrap and exact heap operations; reset epochs safely on wrap, map replacement and restoration |
+| Exact class-specific static footprint bitplanes and locally updated hierarchy | Repeated identical static cell/footprint classification | Precompute static Boolean queries and rebuild only affected rectangles/parents | Same cell-boundary, class, terrain-level, gate-marker and temporary-exclusion rules; no new pruning, heuristic or route simplification |
+| Compact binary heap and hot search-node storage retaining retail operations | Allocation/copy/cache cost inside the existing search | Lower constant cost per identical expansion | Replay push/pop identities and stale generations exactly; a different heap arity is conditional on equivalence proof |
+| Deterministic jobs for independent preprocessing, with validated speculative searches only later | Serial execution of proven-independent expensive work | Use available cores without changing logical tick budgets | Later movers must observe earlier committed poses; no stale snapshot, reordered random consumption or wall-time-dependent admission |
+
+The first row has the highest priority. The current intrusive cell index already
+reduces occupant lookup, but every query still runs a full publication scan.
+If Q queries scale with M movers and N world edicts, that synchronization remains
+O(Q*N), often effectively O(M*N). Moving the same scan into a cache-refresh helper
+is insufficient. Ownership must cover all geometry and eligibility writers;
+static objects must update from their own lifecycle events rather than being
+reclassified for each mobile step. Local-density costs and actual search expansion
+remain after removing this term; dense crowds do not have a universal linear bound.
+
+Uniform grids are a good first candidate because retail already uses bounded
+fine-cell footprints. [NVIDIA's broadphase chapter](https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-32-broad-phase-collision-detection-cuda)
+describes conservative spatial subdivision followed by exact narrow-phase tests.
+Its GPU implementation is not proposed as our simulation implementation.
+A [dynamic AABB tree](https://box2d.org/documentation/group__tree.html) is the
+alternative to benchmark for unusually large objects or sparse variable-size
+queries. Candidate enumeration must be restored to the retail order regardless
+of the tree traversal order; this does not adopt Box2D's motion solver.
+[Intel's memory-layout guidance](https://www.intel.com/content/www/us/en/developer/articles/technical/memory-layout-transformations.html)
+supports compact SoA storage for avoiding expensive gathers, but layout selection
+must follow the measured access pattern rather than convert every structure.
+[Chen et al.'s priority-queue study](https://www3.cs.stonybrook.edu/~rezaul/papers/TR-07-54.html)
+shows why cache behavior and the actual operation mix matter. Its Dijkstra results
+do not prove that a 4-ary heap is faster or equivalent for our bounded retail heap.
+
+Recent and established planner candidates considered:
+
+- [JPS/JPS+ and block scanning](https://ojs.aaai.org/index.php/ICAPS/article/view/13633),
+  plus [JPS4 (2025)](https://arxiv.org/abs/2501.14816), reduce expansions using
+  symmetry pruning. The useful transferable idea is compact block processing.
+  Direct replacement changes expansion identities and work-budget exhaustion;
+  JPS4 additionally assumes four-connected movement.
+- [Key-Interval A* (July 2026 preprint)](https://arxiv.org/abs/2607.23393)
+  searches a lightweight interval abstraction and proves optimality for
+  four-connected grids. It is a research candidate for an independent planner,
+  not an established equivalence-preserving replacement for retail's eight-edge
+  graph, partial routes or gate/footprint policy.
+- [Goal bounding and compressed path databases](https://pathfinding.ai/pdf/hhqy-jair21-rgbajps.pdf)
+  offer substantial static-grid acceleration, including Warcraft-map benchmarks.
+  Those are map-family benchmarks, not native Warcraft simulation comparisons.
+  Shortest-path preprocessing cannot substitute for retail's bounded search
+  without proof covering partial outcomes and mutable obstacles.
+- [LPA*](https://www.sciencedirect.com/science/article/pii/S000437020300225X) and
+  [D* Lite](https://www.cs.cmu.edu/afs/cs/Web/People/motionplanning/papers/sbp_papers/integrated3/koenig_dstarlite_aaai02b.pdf)
+  reuse search work as graph costs change. Repairing a prior search does not
+  automatically reproduce a fresh budgeted retail search. Adopt ownership-driven
+  incremental **data updates** first; adopting these planners is a separate
+  equivalence problem.
+- [Real-Time LaCAM (SoCS 2025)](https://arxiv.org/abs/2504.06091) addresses
+  coordinated multi-agent planning with bounded planning time and completeness.
+  [ORCA](https://gamma.cs.unc.edu/ORCA/publications/ORCA.pdf) chooses velocities
+  through reciprocal collision constraints. Both solve useful crowd problems,
+  but their movement decisions differ from retail's yielding, overlap, turning
+  and retry behavior. Generic shared flow-field steering has the same fidelity
+  issue. Share routes only where the native cohort already owns shared results.
+
+Acceptance for the rewrite: fixed hardware/resolution and matched release builds;
+64, 256, 512, 1,024 and 2,048 movers; shared-goal and distinct-goal traffic;
+open terrain, chokepoints, opposing streams, blocked goals, mutable obstacles and
+mixed footprints. Report simulation CPU, rendered one-second FPS minima, frame
+p50/p95/p99/max, expansions, broadphase visits and publication count. Increase
+unrelated scenery separately to detect remaining world-size dependence. The
+Rise of the Naga floor remains 55 FPS; measurements above leave it open.
+Compare old/new complete motion, scheduler, route, random and save traces, and
+retain native differential fixtures. Any mismatching optimization fails the
+fidelity gate even if it is faster. No universal speedup factor or claim of full
+retail equivalence follows from the literature shortlist.
+
 ## September 21 CPU profile: Graveyard update scan
 
 Inspection of `build/perf-full.txt` found about 7K `cpu/cycles/P` samples, no lost samples,

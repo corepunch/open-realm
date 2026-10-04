@@ -2809,6 +2809,52 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
     free_slk_rows(rows);
 }
 
+/* Provider discovery may be cached, but script-visible changes must affect
+ * the very next query, even within one simulation frame. */
+TEST(wc3_combat, endurance_provider_changes_are_immediate_and_saved) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
+        "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"23\"\nC;Y2;X6;K\"1\"\nE\n";
+    uint32_t id=MAKEFOURCC('A','O','a','e');
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    reset_entities();setup_test_world();
+    edict_t *target=make_combat_unit(MAKEFOURCC('o','g','r','u'),700.f,100.f,0.f);
+    edict_t *source=make_combat_unit(MAKEFOURCC('O','b','l','m'),725.f,0.f,0.f);
+    source->s.player=target->s.player=0;
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),100.f,0);
+    T_ASSERT(G_ActorAddSkill(source,id));
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
+    T_FEQ(S_ApplyEnduranceAttackBonus(target,0.f),.23f,0.0001f);
+    source->s.origin2.x=1700.f;
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),100.f,0);
+    source->s.origin2.x=725.f;source->s.renderfx|=RF_HIDDEN;
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),100.f,0);
+    source->s.renderfx&=~RF_HIDDEN;
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
+    T_ASSERT(G_ActorRemoveSkill(source,id));
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),100.f,0);
+    /* First learned rank must discover an existing non-provider immediately. */
+    unit_learnability(source,id);
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
+    uint32_t target_number=target->s.number,source_number=source->s.number;
+    cstring_t file="/tmp/wc3-endurance-provider-index.bin";
+    target->die=source->die=unit_die; /* Save production callbacks, not the combat fixture's stub. */
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    target=g_edicts+target_number;source=g_edicts+source_number;
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
+    G_FreeEdict(source);
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),100.f,0);
+    edict_t *replacement=make_combat_unit(MAKEFOURCC('O','b','l','m'),725.f,0.f,0.f);
+    replacement->s.player=0;
+    T_ASSERT(G_ActorAddSkill(replacement,id));
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target,100.f),117.f,0.0001f);
+    remove(file);reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi = 1000;

@@ -8426,3 +8426,73 @@ Debug/release WC3, SC2 and WoW production builds finish without warnings. Source
 fingerprints remain unchanged through the full run; final evidence is recorded
 in runtime/gate100-final-validation.json. GATE-01.1 closes, completing all eleven
 gate leaves without claiming whole-pathfinding fidelity.
+
+
+## Shared retry and overlap draws preserve complete movement
+
+Payoff101 follows two authored ground movers with repulse enabled through exact
+initial overlap, public grouped Move, active gate crossing, Stop/reset, disabled
+sole-edge wall routing and scripted pause. The locked map initializes the normal
+owner producer with four fixed/eight random race preferences. Its observed
+4273436052/209508436 state is asserted after that producer; production never
+installs the captured state or burns a fixed number of random words.
+
+The thirteen exact-overlap direction calls and thirty-five retry initializations
+consume48 consecutive owner draws. Both members share this stream. The91 retry
+transactions retain source/adjusted-goal words, member count, owner visit counter,
+retry count/result and both owner words before/after. Nonzero-count decrements
+and terminal4 consume no draw. The final owner is3870341697/146278604. Each direction
+consumes low23 draw bits and the retail trigonometric table; retries select bit22
+for7/8 before decrement. The frozen original1,408-query oracle covers eleven seed
+prefixes, including signed-boundary/full-word seeds; unsigned accumulation wraps
+modulo2^32 and the four byte-offset cycles wrap independently at188/212/236/244.
+Separate693710 per-unit/TLS streams and unlocked/lobby/default-lock producers
+remain NUM-04.5/06, not part of this shared path-owner contract.
+
+The integrated regression exposed three production errors:
+
+- Public grouped admission stopped an embedded idle unit through69a840/05ca50
+  before binding its cohort. Native first member8.5/9.5 recovers to8.5/8.5, while
+  the next member retains8.5/9.5. Engine recovery was restricted to captain
+  handoffs. S_IssueMoveOrder now owns the shared public admission recovery;
+  internal order_move remains a separate behavior path.
+- Separate_Update1702f0 checks requested speedc0 after consuming cooldown. Positive
+  speed clears retained displacement and installs cooldown7;16e830 excludes
+  candidates with nonzero c0. Counter1041 therefore damps the stopped member's
+  retained vector without adding its moving peer. Engine Move previously treated
+  every unpaused repulsor as idle. Its admitted velocity publication and turn/retry
+  stops now provide this movement gate. The claim is the admitted finite Move
+  domain, not unverified nonfinite inputs or unrelated behavior families.
+- Unit_CanUseSeparation66fc50 rejects counted suppression198, suspension54 and
+  scripted pause5c.200000, among other flags. Scripted pause retires the repulsor;
+  resume recreates its zero state at the list head. Engine pause previously left
+  an inactive source on the alternating list. The inverse and saved paused
+  membership now execute through public JASS and RunFrame.
+
+Production matches all1361 complete motion commits,830 scheduled separation
+visits and91 retries. Eleven checkpoints reproduce12667 motion continuation
+commits, retaining random state, repulsion vectors/cooldown/list parity, physical
+cohort state and admitted fine/coarse routes. The earliest save115ms precedes
+first overlap draw120ms, after the public group handle exists. An exploratory
+95ms save crosses a changed JASS group-registry shape and is rejected by the
+existing envelope contract; it is not counted as a passing continuation.
+
+Two fresh final captures use the reusable read-only
+wc3_pathfinding_random_movement.js extension through --random-movement-events.
+The original core observer stays byte-identical to prior gate captures. The
+strict fixture preserves254 full candidate-query observations, thirteen direction
+outputs, all retry-init/result rows and all owner/motion/gate streams. Only wall
+time and declared heap addresses are normalized; creation-ordered member mapping
+is mandatory. Earlier exploratory forks and unbounded post-completion routes
+are external diagnostics, not replacements for this stopped/paused producer.
+Full multi-neighbor spatial traversal remains SEP-02/03.
+
+Saved Ghidra readback verifies694 roles,73 layouts/506 fields,364 explicit ABIs
+and61 globals. It retains the unit separation predicate, counted suppression
+inverse, public stopped-recovery wrapper and movement-speed filter evidence.
+Final `make test` passes Classic and TFT, each with2544 tests/6,386,799 assertions,
+plus598 pathfinding-tool Python checks. Eighteen fresh strict contracts pass against
+the final adaptive-header implementation. This closes NUM-04.1/02 for the shared
+overlap/retry owner; NUM-04.5/06 retain the separate startup/TLS-stream scope.
+The movement performance work and remaining scaling target are documented in
+[WC3 performance](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).

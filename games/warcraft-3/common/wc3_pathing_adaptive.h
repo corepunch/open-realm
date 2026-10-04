@@ -13,6 +13,8 @@ typedef struct {
     bool warp;
     uint32_t warps;
     uint32_t level_capacity;
+    uint32_t indexed_nodes;
+    bool reuse_indices, indices_initialized;
     uint32_t size;
     wc3FinePoint_t goal;
 } wc3AccSearch_t;
@@ -24,6 +26,7 @@ static inline void wc3_acc_free(wc3AccSearch_t *search) {
     free(search->source_ids);free(search->gate_ids);
     search->source_ids=search->gate_ids=NULL;
     free(search->levels); search->levels = NULL; search->level_capacity = 0;
+    search->indexed_nodes=0;search->reuse_indices=search->indices_initialized=false;
 }
 
 /* Original1d58e0 uses integer Newton iteration and signed division towards zero. */
@@ -74,6 +77,7 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
         map->indices[cell] = (uint16_t)at;
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
         search->source_ids[at]=search->warp && !level && search->markers ? search->markers[cell]:0;search->gate_ids[at]=0;
+        search->indexed_nodes=work->count;
     }
     return map->indices[cell];
 }
@@ -230,13 +234,24 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
 /* Shared ordinary/special setup and search; -2 is the original direct setup result, -1 is a partial search. */
 static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
+    /* Reset only cells touched by the preceding request. Retain the exact
+     * ushort publication and node/heap order, including identity wrap. */
+    if(!search->reuse_indices || !search->indices_initialized) {
+        for(unsigned level=0;level<4;level++) {
+            wc3AccMap_t *map=search->maps+level;
+            memset(map->indices,255,sizeof(int)*map->width*map->height);
+        }
+        search->indices_initialized=true;
+    } else for(uint32_t i=0;i<search->indexed_nodes;i++) {
+        unsigned level=search->levels[i];
+        wc3AccMap_t *map=search->maps+level;
+        wc3FinePoint_t p=work->nodes[i].pos;
+        map->indices[(uint32_t)(p.y>>level)*map->width+(uint32_t)(p.x>>level)]=-1;
+    }
+    search->indexed_nodes=0;
     work->heap_growth = BZ_WC3_ACC_HEAP_GROW;
     search->warps=0;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;
-    for (unsigned level = 0; level < 4; level++) {
-        wc3AccMap_t *map = search->maps + level;
-        memset(map->indices,255,sizeof(int) * map->width * map->height);
-    }
     search->size = req->size;
     wc3FinePoint_t start = {(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->start.x))),
         (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->start.y)))};

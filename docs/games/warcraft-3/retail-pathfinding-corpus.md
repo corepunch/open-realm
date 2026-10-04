@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **337 entries**: **53** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **99**
+The inventory now has **338 entries**: **53** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **100**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1787,3 +1787,16 @@ See [adaptive policy](retail-pathfinding-engine.md#adaptive-eligibility-survives
 Fourteen fresh strict contracts pass against the frozen final sources; both full
 editions and595 Python checks pass. Final log fingerprints and source verification
 are recorded in runtime/gate100-final-validation.json.
+
+
+## Shared-owner overlap and retry composition
+
+Payoff101 adds live-random-movement-captures-261004. The complete two-member
+producer repeats1361 motion commits,830 separation visits,254 ordered candidate
+queries,13 overlap directions,35 retry initializations and91 retry transactions.
+It pins the optional shared-owner observer extension separately from the unchanged
+core observer. Full native words, owner states/counters, member identities and
+all gate/search/route events remain exact; altered/missing/unknown evidence is
+rejected. Production matches the whole movement and12667 saved suffix commits.
+Inventory is338 entries,117 oracle contracts,121 archives,100 strict live contracts
+and192 repository pins. See [owner draw order and engine fixes](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement).

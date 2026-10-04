@@ -7,7 +7,7 @@ motion words, requests, route points and consumer results remain exact.
 import argparse,hashlib,json
 from pathlib import Path
 EVENTS={'motion-decision','velocity-commit','route','search','gate-destination','gate-traversal','gate-consumer','marker'}
-ADDRESSES={'motion-decision':{'mover'},'velocity-commit':{'mover','fineObject'},'route':{'path'},'search':{'path','system'},'gate-consumer':{'path'}}
+ADDRESSES={'motion-decision':{'mover'},'velocity-commit':{'mover','fineObject'},'route':{'path'},'search':{'path','system'},'gate-consumer':{'path'},'retry-init':{'path','group','mover'},'retry-result':{'path','group','mover'},'separation-owner':{'mover'},'separation-query':{'source'}}
 
 
 def semantic(rows,events=EVENTS,movers=None):
@@ -17,11 +17,16 @@ def semantic(rows,events=EVENTS,movers=None):
     for row in rows:
         if row.get('event') not in events:continue
         normalized={k:v for k,v in row.items()if k!='ms'and k not in ADDRESSES.get(row['event'],set())}
-        if movers is not None and row['event'] in ('motion-decision','velocity-commit'):
+        if movers is not None and row['event'] in ('motion-decision','velocity-commit','retry-init','retry-result','separation-owner'):
             if row.get('mover') not in movers:raise ValueError('unknown gate motion member')
             member=movers.index(row['mover'])
             if 'member' in row and row['member']!=member:raise ValueError('gate motion member differs')
             normalized['member']=member
+        if movers is not None and row['event']=='separation-query':
+            if row.get('source') not in movers or any(member not in movers for member in row['members']):
+                raise ValueError('unknown separation query member')
+            normalized['source_member']=movers.index(row['source'])
+            normalized['members']=[movers.index(member) for member in row['members']]
         result.append(normalized)
     return result
 

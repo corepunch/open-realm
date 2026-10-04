@@ -1386,6 +1386,7 @@ void unit_refreshstatusflags(edict_t *ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
+        if(status->code==MAKEFOURCC('A','O','a','e'))S_InvalidateAuraSources();
         if (unit_status_stuns(status->code)) stunned = true;
         UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH);
     }
@@ -1671,6 +1672,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
     existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level = (uint32_t)level;
+        S_InvalidateAuraSources();
         return existing->level;
     }
     /* Unit owns the skill via abilList/added but has no heroabilities slot yet. */
@@ -1681,6 +1683,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
         if (ha->level == 0) {
             ha->code = abilcode;
             ha->level = (uint32_t)level;
+            S_InvalidateAuraSources();
             return ha->level;
         }
     }
@@ -1691,6 +1694,7 @@ void unit_learnability(edict_t *ent, uint32_t abilcode) {
     heroability_t *existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level++;
+        S_InvalidateAuraSources();
         return;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
@@ -1698,6 +1702,7 @@ void unit_learnability(edict_t *ent, uint32_t abilcode) {
         if (ha->level == 0) {
             ha->level = 1;
             ha->code = abilcode;
+            S_InvalidateAuraSources();
             return;
         }
     }

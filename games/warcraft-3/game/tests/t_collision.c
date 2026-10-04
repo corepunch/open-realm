@@ -180,9 +180,11 @@ TEST(wc3_collision, mover_slides_around_idle_unit) {
 
 TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
     reset_collision_world();
-    edict_t *blocker = make_collision_unit(50.0f, 0.0f, 16.0f);
+    /* Start in a legal fine footprint. Public Move now performs retail Stop
+     * recovery before the walk; this test isolates collision during traversal. */
+    edict_t *blocker = make_collision_unit(96.0f, 0.0f, 16.0f);
     edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
-    vec2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {160.0f, 0.0f};
 
     unit_addtimedstatus(mover, "BOwk", 1, 10.0f);
     unit_findstatus(mover, MAKEFOURCC('B','O','w','k'))->data = MAKEFOURCC('A','O','w','k');
@@ -192,7 +194,7 @@ TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
 
     T_ASSERT(mover->s.origin2.x > blocker->s.origin2.x);
     T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
-    T_FEQ(blocker->s.origin2.x, 50.0f, 0.001f);
+    T_FEQ(blocker->s.origin2.x, 96.0f, 0.001f);
     T_FEQ(blocker->s.origin2.y, 0.0f, 0.001f);
 }
 
@@ -298,13 +300,16 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
  * tolerated; a pinned queue may then take the deterministic right-hand escape. */
 TEST(wc3_collision, resource_worker_queues_then_passes_right) {
     reset_collision_world();
-    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
     vec2_t const dest = { 300.0f, 0.0f };
+    /* Issue before installing the queue: the public Stop recovery must not
+     * displace the synthetic blocker out of the worker's intended lane. */
+    blocker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(unit_issueorder(blocker, "move", &dest));
+    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     vec2_t const origin = mover->s.origin2;
 
-    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
-    unit_issueorder(blocker, "move", &dest);
+    mover->unitinfo.MoveSpeed = 190.0f;
 
     FOR_LOOP(i, 4) {
         unit_changeangle_towards_point_worker(mover, &dest);
@@ -326,13 +331,14 @@ TEST(wc3_collision, resource_worker_queues_then_passes_right) {
  * deadlock in a narrow corridor. */
 TEST(wc3_collision, resource_worker_passes_opposing_traffic_immediately) {
     reset_collision_world();
-    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
     vec2_t const east = { 300.0f, 0.0f };
     vec2_t const west = { -300.0f, 0.0f };
 
-    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
-    unit_issueorder(blocker, "move", &west);
+    blocker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(unit_issueorder(blocker, "move", &west));
+    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
+    mover->unitinfo.MoveSpeed = 190.0f;
 
     unit_changeangle_towards_point_worker(mover, &east);
     unit_moveindirection(mover);

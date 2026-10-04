@@ -574,6 +574,7 @@ static bool G_ClassIdIsPrintable(uint32_t class_id) {
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(edict_t *edict) {
+    S_InvalidateAuraSources();
     edict->data.UnitProfile = G_UnitProfile(edict->class_id);
     edict->data.UnitBalance = G_UnitBalance(edict->class_id);
     edict->data.UnitData = G_UnitData(edict->class_id);

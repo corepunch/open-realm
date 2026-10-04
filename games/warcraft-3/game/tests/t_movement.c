@@ -209,7 +209,9 @@ TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
         "call SetRandomSeed(12345)\nendfunction\n"
         "function transfer takes nothing returns nothing\ncall SetUnitOwner(b,Player(0),false)\nendfunction\n"
         "function freeze takes nothing returns nothing\ncall PauseUnit(a,true)\nendfunction\n"
-        "function retire takes nothing returns nothing\ncall RemoveUnit(b)\nendfunction\n"));
+        "function transfer_source takes nothing returns nothing\ncall SetUnitOwner(a,Player(2),false)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(a,false)\nendfunction\n"
+        "function retire takes nothing returns nothing\ncall RemoveUnit(b)\nset b=null\nendfunction\n"));
     edict_t *fly[2]={0}; unsigned count=0;
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y'))
         if (count<2) fly[count++]=ent;
@@ -228,12 +230,21 @@ TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
     level.time=125; globals.RunFrame();
     T_ASSERT(fly[1]->movement.repulse.state.vector[0]!=0 || fly[1]->movement.repulse.state.vector[1]!=0);
     jass_callbyname(level.vm,"freeze",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!fly[0]->movement.repulse.active); T_ASSERT(level.repulse_head==fly[1]);
+    jass_callbyname(level.vm,"transfer_source",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(fly[0]->s.player,2);T_ASSERT(!fly[0]->movement.repulse.active);T_ASSERT(level.repulse_head==fly[1]);
     vec2_t frozen=fly[0]->s.origin2;
     level.time=335; globals.RunFrame();
     T_EQ(fly[0]->s.origin2.x,frozen.x); T_EQ(fly[0]->s.origin2.y,frozen.y);
     jass_callbyname(level.vm,"retire",false); T_ASSERT(!jass_rterror_pending(level.vm));
     level.time+=100; globals.RunFrame();
-    T_ASSERT(level.repulse_head==fly[0]); T_ASSERT(!fly[0]->movement.repulse.next);
+    T_NULL(level.repulse_head); T_ASSERT(!fly[0]->movement.repulse.active);
+    cstring_t file="/tmp/wc3-repulse-paused-membership.bin";T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    T_NULL(level.repulse_head);T_ASSERT(fly[0]->paused);T_ASSERT(!fly[0]->movement.repulse.active);
+    jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(level.repulse_head==fly[0]);T_ASSERT(fly[0]->movement.repulse.active);
+    T_EQ(fly[0]->movement.repulse.state.packed,0x02000000u);T_EQ(fly[0]->movement.repulse.state.vector[0],0);
+    T_EQ(fly[0]->movement.repulse.state.vector[1],0);remove(file);
     T_ASSERT(!fly[1]->movement.repulse.active);
     reset_entities(); setup_test_world();
 }
@@ -11185,20 +11196,70 @@ static void record_follow_commit(edict_t *unit) {
     memcpy(trace->rows[trace->count++],words,sizeof(words));
 }
 
+#include "retail_gate_retry.h"
+static struct { uint32_t const (*rows)[14]; unsigned count,index; bool mismatch; } gate_retry;
+
+/* Observe the production retry transaction, including both words before/after. */
+static void record_gate_retry(edict_t *unit,moveRetryTrace_t const *before) {
+    unsigned member=0;
+    while(member<2 && follow_commit_trace->units[member]!=unit)member++;
+    uint32_t actual[]={member,level.pathing_counter,
+        wc3_float_bits(before->input.source[0]),wc3_float_bits(before->input.source[1]),
+        wc3_float_bits(before->input.goal[0]),wc3_float_bits(before->input.goal[1]),before->input.members,
+        before->count,unit->movement.retry_count,before->result,before->owner.sum,before->owner.index,
+        level.pathing_random.sum,level.pathing_random.index};
+    T_ASSERT(gate_retry.index<gate_retry.count);
+    if(gate_retry.index>=gate_retry.count){gate_retry.mismatch=true;return;}
+    uint32_t const *expected=gate_retry.rows[gate_retry.index++];
+    FOR_LOOP(k,14) {
+        T_EQ(actual[k],expected[k]);
+        if(actual[k]!=expected[k]) {
+            fprintf(stderr,"Gate retry%u field%u actual=%08x expected=%08x time%u\n",gate_retry.index-1,k,actual[k],expected[k],level.time);
+            gate_retry.mismatch=true;
+        }
+    }
+}
+
 #include "retail_gate_traversal.h"
+static struct { uint32_t const (*rows)[16]; unsigned count,index; bool mismatch; } gate_repulse;
+
+/* Retain every scheduled separation visit, including cooldown and rejected endpoints. */
+static void record_gate_repulse(edict_t *unit,moveRepulseTrace_t const *before) {
+    unsigned member=0;
+    while(member<2 && follow_commit_trace->units[member]!=unit)member++;
+    wc3Repulse_t const *state=&unit->movement.repulse.state;
+    uint32_t actual[]={member,level.pathing_counter,wc3_float_bits(before->state.vector[0]),
+        wc3_float_bits(before->state.vector[1]),before->state.packed,
+        wc3_float_bits(before->point.x),wc3_float_bits(before->point.y),before->owner.sum,before->owner.index,
+        wc3_float_bits(state->vector[0]),wc3_float_bits(state->vector[1]),state->packed,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        level.pathing_random.sum,level.pathing_random.index};
+    T_ASSERT(gate_repulse.index<gate_repulse.count);
+    if(gate_repulse.index>=gate_repulse.count){gate_repulse.mismatch=true;return;}
+    uint32_t const *expected=gate_repulse.rows[gate_repulse.index++];
+    FOR_LOOP(k,16) {
+        T_EQ(actual[k],expected[k]);
+        if(actual[k]!=expected[k]) {
+            fprintf(stderr,"Gate repulse%u field%u actual=%08x expected=%08x time%u\n",gate_repulse.index-1,k,actual[k],expected[k],level.time);
+            gate_repulse.mismatch=true;
+        }
+    }
+}
+
 static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_count,char const *script,
         unsigned const *times,unsigned checkpoint_count,char const *name,unsigned end_msec,unsigned unit_count,uint8_t const *supplied_cells) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();G_FreeMovePathCache();
     float radius=8,speed=270,gate_radius=50,height=60,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
-    int building=1;
+    int building=1,repulse=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
     unitModification_t air_mods[]={mods[0],mods[1],
         {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"},
         {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height}};
+    unitModification_t rnd_mods[]={mods[0],mods[1],{.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&repulse}};
     /* Retail Way Gate is immobile and owns an ordinary source rectangle;
      * the supplied flat WPM has no blocked walking cells at its footprint. */
     unitModification_t gate_mods[]={
@@ -11209,14 +11270,15 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     unitData_t custom[]={
         {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','9','1'),.numbeOfModifications=2,.modifications=mods},
         {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('n','w','g','t'),.numbeOfModifications=4,.modifications=gate_mods},
-        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','I','R'),.numbeOfModifications=4,.modifications=air_mods}};
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','I','R'),.numbeOfModifications=4,.modifications=air_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','R','N','D'),.numbeOfModifications=3,.modifications=rnd_mods}};
     unitModification_t ability_mods[2][2];unitData_t abilities[2];
     FOR_LOOP(i,2) {
         ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hF91" : "hAIR"};
         ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
         abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','G','r') : MAKEFOURCC('A','C','F','l'),.numbeOfModifications=2,.modifications=ability_mods[i]};
     }
-    mapInfo_t info={.num_userCreatedUnits=3,.userCreatedUnits=custom,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=custom,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
     mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X6;Y3\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X5;K\"levels\"\nC;X6;K\"UnitID1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nC;X1;Y3;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X5;K1\nC;X6;K\"hRTE\"\nE\n");
     slkTestData_t *old=G_SetSLKRows("AbilityData",rows);G_SetMapAbilityOverrides(&info);
@@ -11242,24 +11304,27 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=false;
-    unsigned saved[16]={0},suffix=0;char files[16][64];T_ASSERT(checkpoint_count<=16);
+    unsigned saved[16]={0},retry_saved[16]={0},repulse_saved[16]={0},suffix=0;char files[16][64];T_ASSERT(checkpoint_count<=16);
+    if(gate_retry.rows){gate_retry.index=0;gate_retry.mismatch=false;move_test_retry=record_gate_retry;}
+    if(gate_repulse.rows){gate_repulse.index=0;gate_repulse.mismatch=false;move_test_repulse=record_gate_repulse;}
     FOR_LOOP(i,checkpoint_count)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-%s-%u.bin",name,times[i]);
     FOR_LOOP(pass,checkpoint_count+1) {
         if(mismatch)break;
-        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];gate_retry.index=retry_saved[pass-1];gate_repulse.index=repulse_saved[pass-1];}
         while(level.time<end_msec && !mismatch) {
         bool rebuild=false;
         FOR_LOOP(i,unit_count)if(!trace.units[i] || !trace.units[i]->inuse || G_IsDeferredFree(trace.units[i]))rebuild=true;
         if(rebuild) {
             unsigned count=0;memset(trace.units,0,sizeof(trace.units));
             FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) &&
-                (ent->class_id==custom[0].newUnitID || ent->class_id==custom[2].newUnitID)) {
+                (ent->class_id==custom[0].newUnitID || ent->class_id==custom[2].newUnitID || ent->class_id==custom[3].newUnitID)) {
                 T_ASSERT(count<unit_count);
                 if(count<unit_count)trace.units[count++]=ent;
             }
             if(count)T_EQ(count,unit_count);
         }
         trace.count=0;level.time+=5;globals.RunFrame();
+        if(gate_retry.mismatch || gate_repulse.mismatch)mismatch=true;
         if(jass_rterror_pending(level.vm)){fprintf(stderr,"%s JASS at%u: %s\n",name,level.time,jass_rterror_message(level.vm));mismatch=true;}
         FOR_LOOP(i,trace.count) {
             T_ASSERT(steps<motion_count);
@@ -11272,9 +11337,11 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
                 fprintf(stderr,"%s route fine=%u/%u partial=%u adaptive=%u/%u group=%u/%u heading=%.9g wait=%u goal=%.9g/%.9g endpoint=%.9g/%.9g\n",name,r->index,r->count,r->partial,r->adaptive_index,r->adaptive_count,r->group_index,r->group_count,trace.units[0]->movement.heading,trace.units[0]->movement.wait_delay,r->adaptive_goal.x,r->adaptive_goal.y,r->count?r->points[0].x:0,r->count?r->points[0].y:0);
             }
         }
-        if(!pass && !mismatch)FOR_LOOP(i,checkpoint_count)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        if(!pass && !mismatch)FOR_LOOP(i,checkpoint_count)if(level.time==times[i]){saved[i]=steps;retry_saved[i]=gate_retry.index;repulse_saved[i]=gate_repulse.index;T_ASSERT(WriteGame(files[i]));}
         }
         T_EQ(steps,motion_count);
+        if(gate_retry.rows)T_EQ(gate_retry.index,gate_retry.count);
+        if(gate_repulse.rows)T_EQ(gate_repulse.index,gate_repulse.count);
         if(pass)suffix+=steps-saved[pass-1];
     }
     fprintf(stderr,"%s native motion=%u saved continuation commits=%u\n",name,steps,suffix);
@@ -11284,7 +11351,7 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
         T_NOT_NULL(trace.units[i]);
         if(trace.units[i])T_EQ(trace.units[i]->current_order_id,0);
     }
-    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;move_test_retry=NULL;move_test_repulse=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
@@ -11318,11 +11385,14 @@ TEST(wc3_movement, retail_gate_blocked_and_outside_exits_match_all_motion) {
 #include "retail_gate_group.h"
 TEST(wc3_movement, retail_group_gate_traversal_skip_and_only_edge_failure_match_all_motion) {
     unsigned const times[]={145,175,1295,1320,1395,1420,5995,6010,6495,6510,8000,20000};
+    gate_retry=(typeof(gate_retry)){.rows=gate_retry_open,.count=sizeof(gate_retry_open)/sizeof(*gate_retry_open)};
     public_gate_journey(retail_gate98_open_motion,sizeof(retail_gate98_open_motion)/sizeof(*retail_gate98_open_motion),
         retail_gate98_open_script,times,sizeof(times)/sizeof(*times),"gate98-open",26000,2,NULL);
     uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+    gate_retry=(typeof(gate_retry)){.rows=gate_retry_wall,.count=sizeof(gate_retry_wall)/sizeof(*gate_retry_wall)};
     public_gate_journey(retail_gate98_wall_motion,sizeof(retail_gate98_wall_motion)/sizeof(*retail_gate98_wall_motion),
         retail_gate98_wall_script,times,sizeof(times)/sizeof(*times),"gate98-wall",26000,2,cells);
+    memset(&gate_retry,0,sizeof(gate_retry));
 }
 
 #include "retail_gate_chain.h"
@@ -13748,6 +13818,17 @@ TEST(wc3_movement, retail_gate_type_rebind_changes_adaptive_policy_and_restores_
     unsigned const times[]={145,175,4995,5010,9995,10010,10095,10120,19995,20010,20095,20120};
     public_gate_journey(retail_gate100_motion,sizeof(retail_gate100_motion)/sizeof(*retail_gate100_motion),
         retail_gate100_script,times,sizeof(times)/sizeof(*times),"gate100-rebound-flight",31000,1,NULL);
+}
+
+#include "retail_random_interleave.h"
+TEST(wc3_movement, public_overlap_and_retry_share_exact_saved_random_owner) {
+    unsigned const times[]={115,145,175,495,525,5995,6010,6495,6510,12000,24995};
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+    gate_retry=(typeof(gate_retry)){.rows=random_interleave_retry,.count=sizeof(random_interleave_retry)/sizeof(*random_interleave_retry)};
+    gate_repulse=(typeof(gate_repulse)){.rows=random_interleave_repulse,.count=sizeof(random_interleave_repulse)/sizeof(*random_interleave_repulse)};
+    public_gate_journey(random_interleave_motion,sizeof(random_interleave_motion)/sizeof(*random_interleave_motion),
+        random_interleave_script,times,sizeof(times)/sizeof(*times),"random101-interleave",26000,2,cells);
+    memset(&gate_retry,0,sizeof(gate_retry));memset(&gate_repulse,0,sizeof(gate_repulse));
 }
 
 #endif

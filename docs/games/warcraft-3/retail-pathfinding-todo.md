@@ -8,20 +8,19 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**192 done / 336 tasks; 144 remaining.** Payoff100 closes GATE-01.1 without
-new IDs, completing the eleven gate leaves. Move now preserves the distinct
-adaptive policy of authored flight birth, flight type rebind and ground
-restoration. Repeated original public journeys and production RunFrame agree on
-all383 motion commits and2811 saved continuation commits. The unchanged original
-crossing oracle matches320 complete states at O0/O2, including threshold equality,
-adjacent scalar values, disabled edges and placement rejection. Classic and TFT
-each pass2540 tests/6,093,939 assertions;595 Python checks, debug/release production
-builds and fourteen fresh strict contracts pass. Saved Ghidra checkpoint100 retains
-690 roles,73 layouts/505 fields,359 ABIs and61 globals.
-See [adaptive eligibility and threshold](retail-pathfinding-engine.md#adaptive-eligibility-survives-flight-birth-and-changes-on-type-rebind).
+**194 done / 336 tasks; 142 remaining.** Payoff101 closes NUM-04.1/02: the
+shared overlap/retry draw order now reaches public movement, including paused
+membership and saved continuation. Native and engine agree on1361 motion commits,
+830 separation visits,91 retries and12667 saved continuation commits. Classic and
+TFT each pass2544 tests/6,386,799 assertions;598 pathfinding-tool Python checks and
+eighteen fresh strict contracts pass. Saved Ghidra retains694 roles,73 layouts/
+506 fields,364 ABIs and61 globals. The performance rewrite preserves these checks
+but has not met the55-FPS twelve-mover target or established mass-movement scaling.
+See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
+and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Next runnable task: NUM-04.2, comparing interleaved entity retry/overlap draws
-against the shared owner and production movement across repeat and save/load.
+Current priority: remove query-time whole-world synchronization and validate
+hundreds to low thousands of actual movers before further backlog expansion.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -483,8 +482,8 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 
 ### NUM-04 — Random state
 
-- [ ] **NUM-04.1** Trace seed ownership, initialization and draws for overlap and retry consumers; publish a draw-order contract with wrap behavior.
-- [ ] **NUM-04.2** Interleave two entities' overlap/retry events under a fixed seed; repeat and assert identical draws, state and resulting movement.
+- [x] **NUM-04.1** Shared-owner initialization, full-word wrap and overlap/retry draw order traced through public producers. Separate startup/TLS streams remain04.5/06; [payoff101](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement).
+- [x] **NUM-04.2** Repeat original interleaving retains48 ordered draws and the full state/motion stream; engine matches1361 commits,830 separation visits,91 retries and12667 saved suffix commits; [payoff101](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement).
 - [x] **NUM-04.3** Port the two-word owner generator and exact overlap-direction words.1,408 complete original/C calls and11 seed prefixes, saved Ghidra state/prototypes; [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
 - [x] **NUM-04.4** Port public seeded integer/real query consumers and save/load continuation. Actual compiled JASS550 original-word assertions plus saved next results; full-width crash and reversed/near-equal bounds covered; Save65.
 - [ ] **NUM-04.5** Recover map/default seed production and initialization order before the first pathfinding consumer; compare actual actor-startup state.

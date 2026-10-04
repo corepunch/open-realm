@@ -1254,12 +1254,20 @@ TEST(wc3_spell, combat_aura_alias_resolution_scales_with_edicts) {
         targets[i]->health.max_value = 1000.0f;
         targets[i]->health.value = 500.0f;
     }
+    /* Pathfinding maps have thousands of doodads. Their authored ability
+     * strings cannot contribute an aura because scenery is never active. */
+    FOR_LOOP(i, 1900) {
+        edict_t *scenery = G_Spawn();
+        scenery->svflags |= SVF_STATIC_SCENERY;
+        scenery->data.UnitAbilities = &abilities;
+        scenery->health.value = 100.f;
+    }
 
     S_TestResetHeroAuraAliasResolves();
     FOR_LOOP(i, AURA_TARGETS)
         T_FEQ(S_UnholyHealthRegen(targets[i]), 10.0f, 0.001f);
     /* One shared provider pass should replace per-recipient scans and alias parsing. */
-    T_ASSERT(S_TestHeroAuraAliasResolves() <= globals.num_edicts * 16);
+    T_ASSERT(S_TestHeroAuraAliasResolves() <= (AURA_SOURCES + AURA_TARGETS) * 16);
 
     FOR_LOOP(i, AURA_SOURCES) T_ASSERT(G_ActorRemoveSkill(sources[i], MAKEFOURCC('X','U','a','u')));
     level.time = AURA_UPDATE_MS; level.framenum++;

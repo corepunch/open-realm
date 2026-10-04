@@ -803,3 +803,6 @@ identity and owner-supplied policy. A complete retail travel/return witness matc
 590 main-mover commits and4356 saved suffix commits; captured spell application
 times are explicit inputs, while the separate cast scheduler remains open.
 See [temporary modifiers](retail-pathfinding-engine.md#temporary-speed-modifiers-publish-through-their-applying-owners).
+
+Movement performance data structures and the bounded Rise of the Naga measurements
+are documented in [WC3 performance](performance.md#october-4-movement-and-fine-grid-scaling).

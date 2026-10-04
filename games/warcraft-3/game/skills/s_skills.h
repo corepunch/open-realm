@@ -80,6 +80,7 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
 intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload);
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
+BZ_ABILITY_PROC(CAbilityEnduranceAura);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);
 BZ_ABILITY_PROC(CAbilityWindWalk);
 BZ_ABILITY_PROC(CAbilityShadowMeld);
@@ -373,6 +374,10 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status);
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except);
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
+void S_InvalidateAuraSources(void);
+void S_InvalidateEnduranceSources(void);
+float S_ApplyEnduranceMoveSpeed(edict_t *,float);
+float S_ApplyEnduranceAttackBonus(edict_t *,float);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);

@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--map', default=r'Maps\Campaign\Human02Interlude.w3m')
     parser.add_argument('--seconds', type=float, default=60)
     parser.add_argument('--samples', type=int, default=200)
+    parser.add_argument('--random-movement-events', action='store_true', help='observe shared retry/overlap owner transactions and separation candidates')
     parser.add_argument('--random-events', action='store_true', help='observe public seed and owner random state before/after native queries')
     parser.add_argument('--numeric-events', action='store_true', help='capture bracketed public scalar native outputs and decimal parser words')
     parser.add_argument('--literal-events', action='store_true', help='observe compiled long-decimal token words without invoking the compiler')
@@ -106,6 +107,8 @@ def main():
               'profileEvents': args.profile_events, 'gatePoolEvents':args.gate_pool_events,'gateMarkerEvents':args.gate_marker_events, 'adaptiveStorageEvents': args.adaptive_storage_events, 'fineStorageEvents': args.fine_storage_events, 'fineResultEvents': args.fine_result_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
               'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}
+    if args.random_movement_events:
+        config['randomMovementEvents']=True
     if args.byte_events:
         crt = (args.data / 'msvcr120.dll').read_bytes()
         crt_hash = hashlib.sha256(crt).hexdigest()
@@ -137,6 +140,9 @@ def main():
         if args.point_click_sample_ticks: config['pointInput']['sampleTicks'] = True
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
+    if args.random_movement_events:
+        extension=Path(__file__).with_name('wc3_pathfinding_random_movement.js')
+        provenance[extension.name]=hashlib.sha256(extension.read_bytes()).hexdigest()
     captain_ai = map_path.with_suffix('.ai')
     if captain_ai.is_file():
         provenance['captain_ai'] = hashlib.sha256(captain_ai.read_bytes()).hexdigest()
@@ -185,6 +191,11 @@ def main():
             session = device.attach(pid)
             source = 'const config = ' + json.dumps(config) + ';\n'
             source += Path(__file__).with_name('wc3_pathfinding.js').read_text()
+            if args.random_movement_events:
+                source += '\n'+extension.read_text()
+                anchor='    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);'
+                if source.count(anchor)!=1:raise RuntimeError('shared-owner observer installation point differs')
+                source=source.replace(anchor,anchor+'\n    installPathRandomMovement(base,hook);',1)
             script = session.create_script(source)
             script.on('message', message)
             script.load()

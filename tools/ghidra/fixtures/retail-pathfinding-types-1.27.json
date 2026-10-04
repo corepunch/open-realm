@@ -206,7 +206,7 @@
           "offset": 192,
           "name": "request_speed",
           "type": "WC3PathScalar",
-          "evidence": "16fe20 exact commit oracle"
+          "evidence": "16fe20 exact commit oracle\n1702f0 positive clears source repulsion after cooldown,16e830 nonzero rejects candidate. Public101 admitted movement publishes nonzero speed with velocity; turn/retry stops publish zero."
         },
         {
           "offset": 196,
@@ -765,6 +765,12 @@
           "name": "internal_head",
           "type": "WC3PathIdentity",
           "evidence": "complete original task-chain dispatch"
+        },
+        {
+          "offset": 408,
+          "name": "separation_disable_depth",
+          "type": "u32",
+          "evidence": "688d90 increments;6785c0 decrements; both refresh693d50.66fc50 rejects signed value>=1.69c490/69c580 suspension-state transitions are actual direct callers."
         },
         {
           "offset": 412,
@@ -10424,6 +10430,71 @@
           "name": "force",
           "type": "u32",
           "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f66fc50",
+      "name": "Unit_CanUseSeparation",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f69a840",
+      "name": "Unit_StopWithRecoveryAndSupport",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f688d90",
+      "name": "Unit_AcquireSeparationSuppression",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f6785c0",
+      "name": "Unit_ReleaseSeparationSuppression",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f693d50",
+      "name": "Unit_RefreshSeparationConfiguration",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
         }
       ]
     }
