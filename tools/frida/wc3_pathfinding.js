@@ -52,6 +52,13 @@ function install(module) {
             }
         });
     }
+    if(config.gatePoolEvents) {
+        const pool=()=>{const owner=base.add(0xd3c82c).readPointer();if(owner.isNull())return null;const n=owner.add(0x4c).readU32(),p=owner.add(0x50).readPointer();if(n!==256)throw new Error('Unexpected warp pool '+n);const used=[];for(let i=0;i<n;i++)used.push(p.add(i).readU8());return {used,active:owner.add(0x54).readU32()};};
+        hook(0x04e510,{onEnter(){this.before=pool();},onLeave(ret){emit('gate-pool-allocate',{id:ret.toUInt32(),before:this.before,after:pool()});}});
+        hook(0x04e4c0,{onEnter(){this.id=this.context.ecx.toUInt32();this.before=pool();},onLeave(){emit('gate-pool-release',{id:this.id,before:this.before,after:pool()});}});
+        hook(0x04e210,{onEnter(){this.id=this.context.ecx.toUInt32();this.enabled=this.context.edx.toUInt32();},onLeave(){emit('gate-pool-activate',{id:this.id,enabled:this.enabled,after:pool()});}});
+        hook(0x2194c0,{onEnter(args){this.unit=args[0].toUInt32();},onLeave(ret){emit('gate-pool-active-query',{unit:this.unit,result:ret.toUInt32()});}});
+    }
     if (config.adaptiveStorageEvents) {
         const tables = new Map();
         const table = p => ({bytes:p.add(0x10).readU32(),grow:p.add(0x14).readU32(),capacity:p.add(0x18).readU32(),count:p.add(0x1c).readU32()});

@@ -865,6 +865,7 @@ typedef enum {
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
+    A_UNIT_REMOVING,    /* Semantic removal before deferred memory reclamation; owners release identities. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
     A_NO_RETALIATE,     /* Damage query: return true to suppress automatic counter-attacks. */
@@ -1688,6 +1689,8 @@ typedef struct {
     vec2_t destination;
     bool destination_set;
     bool active;
+    uint8_t edge_id; /* Native1..255, zero after the original allocation attempt exhausts. */
+    bool initialized; /* Exhaustion is retained until the ability is recreated. */
 } waygate_t;
 
 typedef struct {
@@ -3645,6 +3648,7 @@ edict_t *S_CargoUnitAt(edict_t const *, uint32_t);
 bool S_CargoUnloadAt(edict_t *, uint32_t);
 bool S_CargoBeginUnloadAll(edict_t *);
 void S_CargoStandDown(edict_t *);
+bool S_ValidateWaygateIds(void);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
 bool S_WaygateGetDestination(edict_t const *, vec2_t *);

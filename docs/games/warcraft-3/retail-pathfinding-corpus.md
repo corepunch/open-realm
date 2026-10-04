@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **317 entries**: **47** distinct original-code oracle
-scripts plus **61** declared variants, **121** archived JSONL audits and **88**
+The inventory now has **320 entries**: **48** distinct original-code oracle
+scripts plus **62** declared variants, **121** archived JSONL audits and **89**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 101 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 103 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1668,3 +1668,22 @@ read-only captures. These are storage witnesses, not full movement matches.
 ports dynamic level/node backing, adaptive open growth, ushort metadata and
 route/save extent discipline. Inventory is317 entries,108 oracle contracts
 from47 scripts/61 variants,121 archives,88 live contracts and157 fixtures.
+
+## Native Way Gate pool and public exhaustion
+
+`oracle-waygate-pool` executes the unchanged CPaWarp constructor and the
+allocation/activation/getter/release bridges. `oracle-waygate-pool-engine`
+compares the shared production allocator for259 allocations and every
+availability byte. Native and engine O0/O2 contracts preserve IDs1..255, zero
+exhaustion, invalid/duplicate releases and first-free refills17/255/0.
+
+`live-waygate-pool-captures-261004` pins two complete public producer tails
+with776 repeated semantic events. Hash/length/metadata, all availability/count
+words,256 active queries and the final three allocations are checked. The
+producer JASS was archived under wc3_movement_bypasses_probe.j and is identical
+to the committed capacity probe. There is no hooked explicit completion marker;
+completeness is the expected full event tail and installed footer. These are
+pool/public-state witnesses, not portal trajectories or overlap evidence.
+Inventory is320 entries,110 oracle contracts (48 scripts/62 variants),121
+archives,89 strict live contracts and159 pinned fixtures. See the
+[engine allocation lifetime](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation).

@@ -37,6 +37,7 @@ def main():
     parser.add_argument('--captain-membership-events', action='store_true', help='observe Captain range departures, membership counters and private reissues without changing game state')
     parser.add_argument('--profile-events', action='store_true', help='capture original unit movement categories, masks and bridge publication')
     parser.add_argument('--fine-result-events', action='store_true', help='observe complete fine setup and caller results without invoking searches')
+    parser.add_argument('--gate-pool-events', action='store_true', help='observe original Way Gate availability, activation and public getters without mutating state')
     parser.add_argument('--adaptive-storage-events', action='store_true', help='observe original adaptive node/open/index storage without invoking searches')
     parser.add_argument('--fine-storage-events', action='store_true', help='observe original fine node/open storage growth without invoking searches')
     parser.add_argument('--blocker-patch-size', type=int, choices=(16,32), default=16, help='32 observes all static movement masks on a parent-aligned patch')
@@ -101,7 +102,7 @@ def main():
               'mapLoadEvents': args.map_load_events, 'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
               'captainApproachEvents': args.captain_approach_events, 'captainMembershipEvents': args.captain_membership_events,
-              'profileEvents': args.profile_events, 'adaptiveStorageEvents': args.adaptive_storage_events, 'fineStorageEvents': args.fine_storage_events, 'fineResultEvents': args.fine_result_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
+              'profileEvents': args.profile_events, 'gatePoolEvents':args.gate_pool_events, 'adaptiveStorageEvents': args.adaptive_storage_events, 'fineStorageEvents': args.fine_storage_events, 'fineResultEvents': args.fine_result_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
               'integerTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_integer_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.integer_events else [], 'byteEvents': args.byte_events}
     if args.byte_events:
@@ -114,7 +115,7 @@ def main():
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
     source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
-                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
+                    Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_waygate_capacity_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
                     Path(__file__).with_name('wc3_angle_inputs.json'),

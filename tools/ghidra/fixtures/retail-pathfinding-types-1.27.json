@@ -2861,6 +2861,12 @@
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
         },
         {
+          "offset": 60,
+          "name": "special_records",
+          "type": "ptr:WC3WarpEdgeRecord",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
           "offset": 64,
           "name": "index_storage_bytes",
           "type": "u32",
@@ -3285,6 +3291,84 @@
           "name": "count",
           "type": "u32",
           "evidence": "Original147600/148670/1486f0/1c5130, complete growth/capacity/recovery requests and read-only Frida constructor/growth observation. Node growth2048, fine heap growth1024 including sentinel; node identities capped32768 independently of work and metadata-link storage."
+        }
+      ]
+    },
+    {
+      "name": "WC3WarpEdgeRecord",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 4,
+          "name": "x",
+          "type": "i32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 8,
+          "name": "y",
+          "type": "i32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        }
+      ]
+    },
+    {
+      "name": "WC3WaygatePoolOwnerPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 76,
+          "name": "edge_bound",
+          "type": "u32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 80,
+          "name": "availability",
+          "type": "ptr:u8",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 84,
+          "name": "active_count",
+          "type": "u32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        }
+      ]
+    },
+    {
+      "name": "WC3AbilityWarpPrefix",
+      "length": 128,
+      "fields": [
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 108,
+          "name": "edge_id",
+          "type": "u32",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 116,
+          "name": "half_width",
+          "type": "WC3PathScalar",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+        },
+        {
+          "offset": 124,
+          "name": "half_height",
+          "type": "WC3PathScalar",
+          "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
         }
       ]
     }
@@ -9742,6 +9826,93 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f04e510",
+      "name": "Waygate_AllocateEdgeId",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": []
+    },
+    {
+      "address": "6f04e4c0",
+      "name": "Waygate_ReleaseEdgeId",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f04e210",
+      "name": "Waygate_SetEdgeActive",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f04e290",
+      "name": "Waygate_IsEdgeActive",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f43b840",
+      "name": "AbilityWarp_SetActive",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AbilityWarpPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f04e2b0",
+      "name": "Waygate_QueryEdgeDestination",
+      "returns": "ptr:WC3PathVector2",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "output",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
     }
   ],
   "globals": [
@@ -10104,6 +10275,12 @@
       "name": "WidgetHierarchyRefreshEnabled",
       "type": "u32",
       "evidence": "651160 direct ECX store;650c00/6501a0/6514d0/6544f0 regional publication gates"
+    },
+    {
+      "address": "6fd3c82c",
+      "name": "WaygateMapPoolOwner",
+      "type": "ptr:WC3WaygatePoolOwnerPrefix",
+      "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
     }
   ]
 }

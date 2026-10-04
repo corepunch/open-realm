@@ -796,3 +796,6 @@ void pathing_fine_queue_trace(uint32_t const *input,fineObjectInput_t const *dat
 
 /* The same active fine-chain producer used by the game map owner. */
 #include "wc3_spatial_engine_probe.c"
+
+#include "games/warcraft-3/common/wc3_pathing_gate.h"
+uint32_t pathing_waygate_id_allocate(uint8_t used[BZ_WC3_GATE_RECORDS]) { return wc3_gate_allocate(used); }

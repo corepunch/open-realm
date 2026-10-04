@@ -67,6 +67,63 @@ static void assert_no_waygate_order(edict_t const *unit) {
     T_EQ(unit->movement.waygate_target_spawn_time, 0);
 }
 
+TEST(wc3_waygate, exhausted_gate_stays_unallocated_until_ability_recreation) {
+    wayFix_t fix=waygate_setup(96,0);
+    edict_t *gates[256]={fix.gate};
+    FOR_LOOP(i,255) {
+        gates[i+1]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),32*(i%16),32*(i/16));
+        T_ASSERT(G_ActorAddSkill(gates[i+1],BZ_TEST_WARP));
+        S_WaygateSetDestination(gates[i+1],&(vec2_t){768,768});
+        S_WaygateSetActive(gates[i+1],true);
+        T_EQ(S_WaygateIsActive(gates[i+1]),i<254);
+        T_NOT_NULL(gates[i+1]->waygate);
+        T_EQ(gates[i+1]->waygate->edge_id,i<254?i+2:0);
+    }
+    vec2_t destination={-1,-1};
+    T_ASSERT(!S_WaygateGetDestination(gates[255],&destination));T_FEQ(destination.x,0,0);T_FEQ(destination.y,0,0);
+    /* Activation still authors alternate animation even though the original
+     * bridge ignores exhausted edge0 and IsActive remains false. */
+    T_NOT_NULL(strstr(gates[255]->animation_props,"alternate"));
+    G_DeferFreeEdict(gates[16]);
+    T_NULL(gates[16]->waygate);
+    T_ASSERT(!S_WaygateIsActive(gates[16]));
+    S_WaygateSetActive(gates[255],true);T_ASSERT(!S_WaygateIsActive(gates[255]));
+    T_ASSERT(G_ActorRemoveSkill(gates[255],BZ_TEST_WARP));
+    T_ASSERT(G_ActorAddSkill(gates[255],BZ_TEST_WARP));
+    S_WaygateSetActive(gates[255],true);T_ASSERT(S_WaygateIsActive(gates[255]));
+    T_EQ(gates[255]->waygate->edge_id,17);
+    G_RunDeferredFrees();
+    waygate_done(fix);reset_entities();setup_test_world();
+}
+
+TEST(wc3_waygate, allocation_and_exhaustion_survive_save_and_reject_duplicate_ownership) {
+    wayFix_t fix=waygate_setup(96,0);
+    edict_t *gates[256]={fix.gate};
+    FOR_LOOP(i,255){
+        gates[i+1]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),32*(i%16),32*(i/16));
+        T_ASSERT(G_ActorAddSkill(gates[i+1],BZ_TEST_WARP));
+        S_WaygateSetActive(gates[i+1],true);
+    }
+    cstring_t file="/tmp/wc3-waygate-edge-pool.bin";
+    T_ASSERT(S_ValidateWaygateIds());T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    FOR_LOOP(i,256){
+        T_NOT_NULL(gates[i]->waygate);T_EQ(gates[i]->waygate->edge_id,i<255?i+1:0);
+        T_EQ(S_WaygateIsActive(gates[i]),i<255);
+    }
+    G_FreeEdict(gates[16]);G_FreeEdict(gates[254]);
+    S_WaygateSetActive(gates[255],true);T_ASSERT(!S_WaygateIsActive(gates[255]));
+    FOR_LOOP(i,3){
+        edict_t *gate=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+        T_ASSERT(G_ActorAddSkill(gate,BZ_TEST_WARP));T_EQ(gate->waygate->edge_id,i==0?17:i==1?255:0);
+        S_WaygateSetActive(gate,true);T_EQ(S_WaygateIsActive(gate),i<2);
+    }
+    T_ASSERT(S_ValidateWaygateIds());T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    uint8_t old=gates[1]->waygate->edge_id;gates[1]->waygate->edge_id=gates[0]->waygate->edge_id;
+    T_ASSERT(!S_ValidateWaygateIds());T_ASSERT(!WriteGame(file));gates[1]->waygate->edge_id=old;
+    gates[255]->waygate->active=true;T_ASSERT(!S_ValidateWaygateIds());T_ASSERT(!WriteGame(file));gates[255]->waygate->active=false;
+    T_ASSERT(WriteGame(file));remove(file);waygate_done(fix);reset_entities();setup_test_world();
+}
+
 TEST(wc3_waygate, runtime_state_and_activation_animation) {
     wayFix_t fix = waygate_setup(96.0f, 0.0f);
     vec2_t destination = {0};

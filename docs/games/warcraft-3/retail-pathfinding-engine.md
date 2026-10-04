@@ -7990,3 +7990,50 @@ plus571 Python tests; production builds pass. Saved Ghidra retains660 roles,
 69 layouts/478 fields,335 explicit ABIs and60 globals. Evidence and limitations
 are frozen in `retail-adaptive-storage-1.27.json` and
 `retail-adaptive-storage-live-1.27.json`; raw captures/reports stay external.
+
+## Way Gate exhaustion retains ability-owned allocation
+
+Payoff93 implements the bounded native Way Gate identity pool in CAbilityWarp.
+The original04e510 allocator scans map-owner availability bytes1..255, marks
+the first free byte and returns zero on exhaustion. Original04e210 increments
+active count only on a transition; duplicate enables do not change it. The
+04e4c0 release clears availability, decrements count only if active and disables
+the record. IDs zero and greater than255 are rejected by active/getter bridges.
+
+The complete original CPaWarp constructor and bridges execute unchanged, with
+supplied map/path owners and Storm backing. All256 initial allocations,
+duplicate activations, public active bridge reads, invalid/duplicate releases
+and refills17/255/0 are frozen. The shared production allocator matches all259
+allocations and complete availability bytes at O0/O2.
+
+Ability41c270 stores the allocation result at6c even when zero. Setters/getters
+do not silently retry. The43b840 ability still updates alternate presentation
+when04e210 rejects ID zero. Engine initialization retains this attempt, exposes
+zero/false getters for an exhausted gate and separates animation from actual
+activation. Removing and readding Awrp permits a new attempt. Generic semantic
+removal notification releases ownership before deferred memory reclamation;
+ordinary later cleanup remains idempotent. Availability derives from ability
+ownership instead of introducing a second independently serialized registry.
+Save98 retains this state and rejects duplicate identities or active/configured
+zero IDs. The public engine tests cover all256 gates, immediate removal/reuse,
+no implicit retry, ability recreation, duplicate ownership and two save/load
+round trips.
+
+Two read-only65-second public witnesses create256 gates, set destinations,
+activate/query each, remove IDs17/255 and create three more. All776 semantic
+events repeat exactly:259 allocations,259 activations,256 queries and two
+releases. The accepted v3 producer was archived under the movement-bypasses
+filename; the committed capacity JASS is byte-identical and pinned. The strict
+checker requires the complete producer tail, PE/map/source provenance and an
+installed footer. No explicit completion marker was hooked. Source overlap,
+existing route revalidation after ID reuse and automatic portal movement remain
+open; these captures do not certify those behaviors.
+
+Ghidra has673 saved roles,72 partial layouts/489 fields,341 explicit ABIs and61
+globals. Native/live fixtures are `retail-waygate-pool-1.27.json` and
+`retail-waygate-pool-live-1.27.json`; raw captures, producer/member proof, native
+reports, Ghidra readback and validation logs remain under external runtime/gate93.
+
+Both required edition suites pass2,516 tests/5,676,211 assertions each, plus
+575 Python tests. Production builds and six fresh strict contracts pass.
+`runtime/gate93-validation.json` pins the final logs and committed artifact.

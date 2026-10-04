@@ -8,24 +8,23 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**181 done / 336 tasks; 155 remaining.** Payoff92 closes existing ACC-05.1
-without adding IDs. Complete unchanged original searches cross2,048-node
-allocation, the inherited fine32,768 limit and ushort65,535/65,536/65,537
-metadata boundaries. All six complete searches and five path-owned wrappers
-match C routes and final semantic nodes atO0/O2. An explicit original4,096-entry
-queue prefix crosses adaptive2,048/4,096 open growth, drains exactly and clears
-on the next public request. Production Move uses growable level/node backing,
-separate adaptive heap growth and native ushort lookup; real group/owned routes
-repeat over retained storage with636 exact assertions. Save buffers cover the
-65,536-parent extent. Both edition suites pass2514 tests/5,674,131 assertions
-each plus571 Python checks; production and six fresh strict contracts pass.
-Two read-only live constructor/initial-growth witnesses repeat. Saved Ghidra
-retains660 roles,69 layouts/478 fields,335 ABIs and60 globals. See
-[adaptive storage payoff](retail-pathfinding-engine.md#adaptive-storage-grows-beyond-the-fine-identity-limit).
+**182 done / 336 tasks; 154 remaining.** Payoff93 closes existing GATE-04.1
+without adding IDs. The complete original allocator/active/getter/release
+bridges and two public259-birth tails retain1..255 IDs, zero exhaustion and
+first-free reuse17/255/0. All776 semantic live events repeat. CAbilityWarp now
+owns the allocation attempt, never silently retries exhaustion, releases IDs
+at semantic removal before deferred reclamation, and preserves requested
+alternate presentation separately from active state. Save98 retains allocation
+and exhaustion and rejects duplicate ownership. Both editions pass2516 tests/
+5,676,211 assertions each plus575 Python checks; production and six fresh
+strict contracts pass. Ghidra retains673 saved roles,72 layouts/489 fields,
+341 ABIs and61 globals. See [Way Gate allocation payoff](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation).
 
-Next runnable chunk closes GATE-04.1: integrate the bounded1..255 Way Gate
-index pool and its native exhaustion result, with public allocation/getter
-witnesses and saved lifetime validation. No new TODO IDs.
+Next runnable chunk closes GATE-03.1: port source markers, overlap overwrite,
+unconditional rectangle cleanup and parent publication into the engine's
+adaptive hierarchy, retaining exact ordinary routes and saved marker history.
+Two public overlap captures and64 complete original searches are already
+available for this port. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -50,7 +49,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
-| GATE — Way Gates | 1 | 10 |
+| GATE — Way Gates | 2 | 9 |
 | E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
@@ -889,7 +888,7 @@ Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adapt
 
 ### GATE-04 — Gate ID lifetime
 
-- [ ] **GATE-04.1** Allocate through IDs1..255 and one further request; assert zero/exhaustion behavior and pool state.
+- [x] **GATE-04.1** Allocate through IDs1..255 and one further request; assert zero/exhaustion behavior and pool state. Evidence: [payoff93](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation), unchanged original256 initial calls/duplicate activation/invalid and duplicate releases/refills17/255/0,259 exact C allocations and full availability bytes atO0/O2, two complete public259-birth witnesses with776 repeated semantic events. Engine CAbilityWarp retains failed allocation, zero/false getters, independent alternate presentation, semantic removal/reuse and ability recreation; Save98 round trips256 gates and rejects duplicate/invalid ownership. Both editions, production,575 Python checks and six fresh strict contracts pass; Ghidra roles/types/ABIs are saved. Existing-route reuse remains04.2, source overlap03.1, portal search/physical traversal01/03/04.3.
 - [ ] **GATE-04.2** Free/reuse an ID referenced by an existing route; assert revalidation and destination selection.
 - [ ] **GATE-04.3** Traverse a gate with a group, then fail/skip it; assert regrouping and ordinary fine-route continuation.
 

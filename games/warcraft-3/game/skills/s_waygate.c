@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "../../common/wc3_pathing_gate.h"
 
 #define BZ_AWRP MAKEFOURCC('A','w','r','p')
 #define BZ_AMOV MAKEFOURCC('A','m','o','v')
@@ -40,35 +41,67 @@ static bool waygate_dimensions(edict_t const *gate, float *width, float *height)
     return *width > 0.0f && *height > 0.0f;
 }
 
+/* The saved ability state owns allocation; reconstructing availability avoids
+ * a second pool whose restore/free lifetime could disagree with the edicts. */
+static void waygate_initialize(edict_t *gate) {
+    uint8_t used[BZ_WC3_GATE_RECORDS]={0};
+    if (!gate->waygate) gate->waygate=G_AllocWaygate();
+    if (gate->waygate->initialized) return;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *ent=g_edicts+i;
+        if(ent->inuse && ent->waygate && ent->waygate->initialized)
+            used[ent->waygate->edge_id]=1;
+    }
+    gate->waygate->edge_id=(uint8_t)wc3_gate_allocate(used);
+    gate->waygate->initialized=true;
+    if(!gate->waygate->edge_id)
+        fprintf(stderr,"WC3 Waygate: native1..255 edge pool exhausted for unit %u\n",gate->s.number);
+}
+
+bool S_ValidateWaygateIds(void) {
+    uint8_t used[BZ_WC3_GATE_RECORDS]={0};
+    FOR_LOOP(i,globals.num_edicts) {
+        waygate_t const *gate=g_edicts[i].waygate;
+        if(!g_edicts[i].inuse || !gate)continue;
+        if(!gate->initialized || (!gate->edge_id && (gate->active || gate->destination_set)) ||
+            (gate->edge_id && used[gate->edge_id])) {
+            fprintf(stderr,"WC3 Waygate: invalid saved edge ownership unit=%u id=%u\n",i,gate->edge_id);
+            return false;
+        }
+        if(gate->edge_id)used[gate->edge_id]=1;
+    }
+    return true;
+}
+
 bool S_WaygateIsGate(edict_t const *gate) {
-    return gate && gate->inuse && waygate_actor_ability_alias(gate) != 0;
+    return gate && gate->inuse && !G_IsDeferredFree(gate) && waygate_actor_ability_alias(gate) != 0;
 }
 
 bool S_WaygateIsActive(edict_t const *gate) {
-    return S_WaygateIsGate(gate) && gate->waygate && gate->waygate->active;
+    return S_WaygateIsGate(gate) && gate->waygate && gate->waygate->edge_id && gate->waygate->active;
 }
 
 bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return false;
-    if (!gate->waygate) { *destination = (vec2_t){0}; return false; }
+    if (!gate->waygate || !gate->waygate->edge_id) { *destination = (vec2_t){0}; return false; }
     *destination = gate->waygate->destination;
     return gate->waygate->destination_set;
 }
 
 void S_WaygateSetDestination(edict_t *gate, vec2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
-    if (!gate->waygate) gate->waygate = G_AllocWaygate();
-    assert(gate->waygate);
+    waygate_initialize(gate);
+    if(!gate->waygate->edge_id)return;
     gate->waygate->destination = *destination;
     gate->waygate->destination_set = true;
 }
 
 void S_WaygateSetActive(edict_t *gate, bool active) {
     if (!S_WaygateIsGate(gate)) return;
-    if (!gate->waygate) gate->waygate = G_AllocWaygate();
-    assert(gate->waygate);
-    gate->waygate->active = active != false;
-    G_AddUnitAnimationProperties(gate, "alternate", gate->waygate->active);
+    waygate_initialize(gate);
+    gate->waygate->active = active && gate->waygate->edge_id;
+    /* Original43b840 updates alternate even when map bridge rejects edge0. */
+    G_AddUnitAnimationProperties(gate, "alternate", active);
 }
 
 static bool waygate_point_inside(edict_t const *gate, vec2_t const *point) {
@@ -234,6 +267,17 @@ static bool waygate_order_use(edict_t *unit, edict_t *gate) {
 
 BZ_ABILITY_PROC(CAbilityWarp) {
     switch (msg) {
+        case A_ENABLE:
+        case A_UNIT_INIT:
+            if(!S_WaygateIsGate(ent))return false;
+            waygate_initialize(ent);
+            return true;
+        case A_DISABLE:
+        case A_UNIT_REMOVING:
+            if(!ent)return false;
+            if(waygate_behavior_active(ent))waygate_clear_order(ent);
+            if(ent->waygate)G_FreeWaygate(ent);
+            return true;
         case A_TARGET_ORDER:
             return call && call->target_order.issuer && call->target_order.order &&
                    !strcmp(call->target_order.order, "smart") &&
@@ -256,8 +300,9 @@ BZ_ABILITY_PROC(CAbilityWarp) {
             return true;
         }
         case A_UNIT_REMOVE:
-            if (!waygate_behavior_active(ent)) return false;
-            waygate_clear_order(ent);
+            if(!ent)return false;
+            if(waygate_behavior_active(ent))waygate_clear_order(ent);
+            if(ent->waygate)G_FreeWaygate(ent);
             return true;
         default:
             return false;

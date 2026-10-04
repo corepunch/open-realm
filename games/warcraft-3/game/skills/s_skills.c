@@ -922,7 +922,7 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, false, false) != 0;
     if (msg == A_UNIT_INIT)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
-    if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
+    if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE || msg == A_UNIT_REMOVING)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false,
                                                  msg != A_DEATH, msg == A_MOVE_LEAVE) != 0 || handled;
     if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
