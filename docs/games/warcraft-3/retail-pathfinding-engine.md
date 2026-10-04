@@ -7876,3 +7876,57 @@ in11 tests. Saved Ghidra now retains660 roles,69 layouts/468 fields,331 ABIs and
 seven verified constructor/container/lookup prototypes. Full-suite and strict
 validation are recorded in external `runtime/fine90-validation.json` after the
 commit is validated.
+
+## Fine setup and caller outcomes preserve the published source
+
+Payoff91 completes FINE-04.1/04.2 together. `167ce0` admits a path-owned fine
+request and returns its selected point even when the underlying search fails.
+`165ae0` then consumes progress, target perimeter or retry. Failure is therefore
+a route result that Move must retain, rather than an instruction to discard the
+whole request. Original unchanged callers cover all four footprint classes:
+
+| Input | Original fine result and caller consumption |
+| --- | --- |
+| Same integer cell | Exact fractional goal; zero nodes and zero work; caller consumes its one-point buffer |
+| Blocked source cell | Fine setup accepts the source unchanged; perimeter edges determine whether it can escape |
+| Blocked goal |700-work cap charges701 attempts and retains the nearest partial route |
+| Disconnected goal | Queue exhaustion retains the nearest route, independently of the work cap |
+| Zero work budget | One charged attempt, two admitted identities, exact fractional source-only route; consumption clears fine and initializes retry |
+| Suppressed special target | Perimeter identity ends the search despite suppression; caller restores the target counter and retains the endpoint mismatch flag |
+
+`retail-fine-public-results-1.27.json` freezes24 full167ce0/165ae0 cases plus four
+retained-search controls. Same-cell setup returns before stamp, class and
+obstruction initialization. After a blocked-goal request it preserves all three
+while clearing node/open counts and charging zero work. It does not resample a
+footprint. These controls prevent an apparently helpful reset from changing the
+actual caller contract. Outside-source setup and full physical recovery remain
+separate scopes.
+
+Production `wc3_fine_build_route` now owns that full setup/reconstruction
+contract separately from A*. `G_BuildUnitMoveLocalRoute` and its adaptive entry
+preserve an already published native owner pose; generic geometry queries keep
+their existing source admission. The adapter emits the exact source when no
+nearer node exists, retains one-point admitted routes, charges actual work, and
+records endpoint mismatch independently of search success. The actual local
+adapter compares16 original cases with488 assertions; the full pathfinding
+category passes12 tests/1,909,821 assertions. C also compares all24 caller buffers,
+indices, work/node counts and mismatch flags at O0/O2, including the distinct
+zero-budget and target-object policies.
+
+Two complete read-only140-second Frida captures repeat12 actual Move orders.
+All292 complete fine requests match production C at both optimizations. Four
+same-cell requests allocate zero nodes and charge zero work. Replacement orders
+recover a blocked source before fine setup, while terrain edits under an
+already moving owner produce refills from its still-blocked fractional source.
+These are different producer paths; the fine adapter must preserve its input.
+The checker reconstructs every authored terrain transaction and compares every
+result, route word, work and node count. This is full-request parity, with no
+claim that the captured velocity/recovery trajectories are fully reimplemented.
+`wc3_fine_results_probe.j` and the `fine_results` map-generator scenario retain
+the authored producer; binaries/maps/raw captures remain external.
+
+Saved Ghidra retains660 roles,69 layouts/468 fields,335 explicit ABIs and60
+globals. Verified ECX and RET28/24/8/8 contracts type the full builder, setup,
+request wrapper and selected-point getter. Native reports, paired captures,
+map/member/source proofs and validation logs stay under external
+`runtime/fine91-*`; `fine91-validation.json` records final checks and commit.

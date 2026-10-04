@@ -8,21 +8,22 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**178 done / 336 tasks; 158 remaining.** Payoff90 closes existing FINE-03.1
-without adding IDs. The unchanged original constructor, containers and complete
-search cross2,048-node/1,024-open growth, naturally reach32,768 identities,
-retain a partial route, recover on subsequent requests and recycle32,769
-metadata links. O0/O2 C compares all semantic nodes and fractional route words.
-Production Move uses growable retained backing, the recovered identity cap and
-relocation-safe expansion; map shutdown releases scratch. Two read-only live
-captures repeat constructor/growth. Both edition suites pass2511 tests/5,673,001
-assertions each plus564 Python checks; production and fresh strict corpus pass.
-Saved Ghidra retains660 roles,69 layouts/468 fields,331 ABIs and60 globals. See
-[fine storage payoff](retail-pathfinding-engine.md#fine-storage-growth-and-capacity-preserve-search-results).
+**180 done / 336 tasks; 156 remaining.** Payoff91 closes existing FINE-04.1
+and FINE-04.2 without adding IDs. Complete original path-owned setup, build,
+selected-point and progress callers cover all four footprint classes and six
+result families, plus retained same-cell reuse. Production Move preserves the
+published fine source, takes the original zero-work same-cell path and records
+endpoint mismatch independently of search success. O0/O2 compares every route
+word in24 controls, four reuse controls and292 complete live requests. Two
+read-only140-second captures repeat all requests and terrain changes. Both
+edition suites pass2512 tests/5,673,489 assertions each plus567 Python checks;
+production and five fresh strict corpus contracts pass. Saved Ghidra retains
+660 roles,69 layouts/468 fields,335 ABIs and60 globals. See
+[fine public-results payoff](retail-pathfinding-engine.md#fine-setup-and-caller-outcomes-preserve-the-published-source).
 
-Next runnable chunk combines FINE-04.1/04.2: exercise original path-owned fine
-setup and result consumption across all classes, then port caller-visible
-same-cell, blocked and partial outcomes to Move. No new TODO IDs.
+Next runnable chunk covers ACC-05.1 and GATE-04.1: recover adaptive storage
+growth and ushort index behavior, then integrate the bounded1..255 Way Gate
+index pool with its exhaustion contract. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -36,7 +37,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | BASE — Baseline and reproducibility | 16 | 10 |
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
-| FINE — Fine search | 10 | 2 |
+| FINE — Fine search | 12 | 0 |
 | ACC — Adaptive search | 7 | 6 |
 | NUM — Numbers and random state | 25 | 18 |
 | ROUTE — Route progression and yielding | 7 | 9 |
@@ -379,8 +380,8 @@ Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
 
 ### FINE-04 — Public fine results
 
-- [ ] **FINE-04.1** For each footprint class, run same-cell, blocked-start and blocked-goal requests through public setup and result consumption; assert caller-visible outcomes.
-- [ ] **FINE-04.2** Run disconnected-goal, insufficient-budget and special-object completion through those same callers; assert partial/failure handling and cleanup.
+- [x] **FINE-04.1** All four footprint classes retain original same-cell, blocked-source and blocked-goal setup/build/selected-point/progress outcomes. Engine Move preserves the published fine source and exact fractional same-cell goal with zero nodes/work; retained setup preserves obstruction/class/stamp. Evidence: [payoff91](retail-pathfinding-engine.md#fine-setup-and-caller-outcomes-preserve-the-published-source),24 complete original controls plus four reuse controls, O0/O2 exact C buffers and two complete live292-request repeats; both edition suites, production, strict corpus and saved335-ABI Ghidra readback pass.
+- [x] **FINE-04.2** All four classes retain disconnected, zero-budget and suppressed-special-target outcomes through original setup/build/selected-point/progress callers, including source-only failure and target-counter restoration. Engine Move records endpoint mismatch independently of search success and retains original partial words. Evidence: [payoff91](retail-pathfinding-engine.md#fine-setup-and-caller-outcomes-preserve-the-published-source),24 complete original/C controls, four reuse controls and two whole292-request live repeats with584 C-exact replays; both edition suites and strict corpus pass. Full physical source-recovery/velocity composition remains FOOT/ROUTE/E2E.
 
 ## ACC — Adaptive search
 

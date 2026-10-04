@@ -1157,7 +1157,9 @@ TEST(wc3_movement, overlapping_target_reinsertion_changes_fine_termination) {
     S_SetUnitAxisPosition(target,0,1136); S_SetUnitAxisPosition(target,0,1008);
     S_ClearMoveFineRequests(); level.pathing_counter+=BZ_WC3_FINE_REQUEST_INTERVAL;
     T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&mover->movement.fine_route,&waypoint));
-    T_ASSERT(!mover->movement.fine_route.partial);
+    /* Target identity succeeds before the click: native10000000 still records
+     * endpoint mismatch, independently of the successful search result. */
+    T_ASSERT(mover->movement.fine_route.partial);
     T_EQ(mover->movement.fine_route.count,21);
     T_EQ(mover->movement.fine_route.points[0].x,28.5f);
     T_EQ(mover->movement.fine_route.points[0].y,29.5f);

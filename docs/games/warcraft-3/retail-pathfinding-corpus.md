@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **311 entries**: **46** distinct original-code oracle
-scripts plus **58** declared variants, **121** archived JSONL audits and **86**
+The inventory now has **314 entries**: **46** distinct original-code oracle
+scripts plus **60** declared variants, **121** archived JSONL audits and **87**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 97 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 99 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1629,3 +1629,23 @@ policy remain excluded. `live-fine-storage-captures-261004` independently pins
 and repeats the actual fine constructor and first node/open growth observations;
 its three observations do not certify the other captured movement events.
 The inventory has153 pinned numerical/type/scenario fixtures.
+
+
+## Complete public fine results
+
+Payoff91 closes FINE-04.1/04.2 together. `retail-fine-public-results-1.27.json`
+freezes24 path-owned167ce0 setup/165ae0 consumption cases and four reuse controls.
+All classes cover same-cell, blocked source/goal, disconnected, zero-budget and
+suppressed target identity. C compares every fractional route, work/node count,
+initial index and endpoint mismatch. Same-cell setup charges zero work and
+preserves previous obstruction/class/stamp; it does not test source occupancy.
+
+`retail-fine-public-results-live-1.27.json` pins two complete140-second read-only
+captures of12 authored orders. All292 full fine requests repeat and match C at
+O0/O2, including four same-cell shortcuts and terrain edits under active movers.
+The ordinary Move producer recovers a blocked source before a replacement
+order; an already moving owner can refill from the still-blocked fractional
+source. These producer paths remain distinct. The strict checker reconstructs
+all terrain transactions and compares every full request; it does not certify
+velocity or full physical recovery parity. Inventory is314 entries,106 oracle
+contracts/46 scripts/60 variants,121 archives,87 live contracts and155 fixtures.

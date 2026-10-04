@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "104 executable original oracle contracts,121 archive audits and86 strict live contracts;311 total entries.",
+  "scope": "106 executable original oracle contracts,121 archive audits and87 strict live contracts;314 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -28306,6 +28306,263 @@
         "full routing",
         "adaptive capacity"
       ]
+    },
+    {
+      "id": "oracle-fine-public-results",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--public-results-reference",
+        "tools/ghidra/fixtures/retail-fine-public-results-1.27.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "oracle-fine-public-results.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "public_fine_result_cases": {
+          "equal": 24
+        },
+        "same_cell_reuse_cases": {
+          "equal": 4
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Unchanged path-owned167ce0 setup and165ae0 consumption on supplied maps/owner; all four classes, same-cell, blocked source/goal, disconnected, zero-budget and suppressed special-target completion. Four same-cell reuse controls preserve prior class/stamp/obstruction. Production full fine builder compares all routes/work/nodes/index/endpoint flags.",
+      "exclusions": [
+        "outside-source setup",
+        "full gameplay trajectories",
+        "physical source recovery producer"
+      ]
+    },
+    {
+      "id": "oracle-fine-public-results-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_refill.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--public-results-reference",
+        "tools/ghidra/fixtures/retail-fine-public-results-1.27.json",
+        "--engine",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "oracle-fine-public-results-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "public_fine_result_cases": {
+          "equal": 24
+        },
+        "same_cell_reuse_cases": {
+          "equal": 4
+        },
+        "engine_exact_public_fine_results": {
+          "equal": 24
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Unchanged path-owned167ce0 setup and165ae0 consumption on supplied maps/owner; all four classes, same-cell, blocked source/goal, disconnected, zero-budget and suppressed special-target completion. Four same-cell reuse controls preserve prior class/stamp/obstruction. Production full fine builder compares all routes/work/nodes/index/endpoint flags.",
+      "exclusions": [
+        "outside-source setup",
+        "full gameplay trajectories",
+        "physical source recovery producer"
+      ]
+    },
+    {
+      "id": "live-fine-public-results-captures-261004",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_fine_result_trace.py",
+        "--capture",
+        "{archive}/runtime/fine91-live-v4-first.jsonl",
+        "{archive}/runtime/fine91-live-v4-repeat.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-fine-public-results-live-1.27.json",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/fine91-live-v4-first.jsonl",
+        "sha256": "40aa9425d6b21cdd0ef4455d2161b77746c14f5889b95d906927deebbe0e16de",
+        "bytes": 6831534,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "ca7d6035bd8662ee37a91edaab8b6305ca0c53c12db3d4112468f7a37b6597c9",
+            "wc3_pathfinding.js": "cd93aa9aaba462344eb0e023cb4ccca50d90ffa33f23ec313fcbec202f1d3283",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "1e3548f445f6d3c0cea8b2ac7a1f8671122e9077ff3fdf5f2e802a3e7c6ea651",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "36c01593382bd2a57b57f5fcb8e78f6aeb03b5b36c460348c5abb7bd4d12c9eb"
+          },
+          "map": "Maps\\PathingRE-FineResults91d-261004.w3m",
+          "seconds": 140.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 20000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": true,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "fineStorageEvents": false,
+          "fineResultEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/fine91-live-v4-repeat.jsonl",
+            "sha256": "225b0e0b7c99c34e123a530fd6bd2f3bed9549e29c32d013c42b0406e80926c1",
+            "bytes": 6831534,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "ca7d6035bd8662ee37a91edaab8b6305ca0c53c12db3d4112468f7a37b6597c9",
+                "wc3_pathfinding.js": "cd93aa9aaba462344eb0e023cb4ccca50d90ffa33f23ec313fcbec202f1d3283",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "1e3548f445f6d3c0cea8b2ac7a1f8671122e9077ff3fdf5f2e802a3e7c6ea651",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "36c01593382bd2a57b57f5fcb8e78f6aeb03b5b36c460348c5abb7bd4d12c9eb"
+              },
+              "map": "Maps\\PathingRE-FineResults91d-261004.w3m",
+              "seconds": 140.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 20000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": true,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "fineStorageEvents": false,
+              "fineResultEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "report": "fine-public-results-live.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "fine_requests_each": {
+          "equal": 292
+        },
+        "engine_exact_requests": {
+          "equal": 584
+        },
+        "whole_retail_pathfinder": {
+          "equal": false
+        }
+      },
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Twelve actual Move orders across four authored classes. All292 complete fine requests repeat, including four zero-work same-cell setups and terrain-edit refills. Physical source recovery/velocity/full trajectories excluded; host source, archive and map hashes pinned.",
+      "exclusions": [
+        "complete velocity/physical source recovery trajectories",
+        "outside-source setup"
+      ]
     }
   ],
   "fixtures": [
@@ -28371,7 +28628,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "4d77b9df295b85b54480c2c55a1497b46965b6286415bdf68d375c467d07de18"
+      "sha256": "308242f8304a562cc7790c0982f628cd8e51ce17fefadaa54c7fd67bf027b577"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -28921,6 +29178,14 @@
     {
       "path": "tools/ghidra/fixtures/retail-fine-storage-live-1.27.json",
       "sha256": "3345ffa0328be9b13422e61398c92792ba52a80eb95ee14a80af527d3a90a227"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-public-results-1.27.json",
+      "sha256": "c3cbde4ca881aeb519b6942dd7e6d1a35e2138b3a843d90bef92dac533b484e1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-public-results-live-1.27.json",
+      "sha256": "acb446e280cb162f146a847f8ba8fac99cf7210dfa8b616c5c82e296c7da3233"
     }
   ]
 }

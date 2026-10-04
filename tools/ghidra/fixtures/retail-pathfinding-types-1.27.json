@@ -9549,6 +9549,139 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f148100",
+      "name": "PathFine_BuildRoute",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "route",
+          "type": "ptr:WC3DynamicTablePrefix",
+          "storage": 4
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        },
+        {
+          "name": "goal",
+          "type": "ptr:WC3PathVector2",
+          "storage": 12
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "budget",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 24
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": 28
+        }
+      ]
+    },
+    {
+      "address": "6f14ad50",
+      "name": "PathFine_SetupSearch",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3FineSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "goal",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        },
+        {
+          "name": "budget",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "mask",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": 24
+        }
+      ]
+    },
+    {
+      "address": "6f166e90",
+      "name": "Path_RequestFineRoute",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "goal",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f167ce0",
+      "name": "Path_GetFineWaypoint",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [

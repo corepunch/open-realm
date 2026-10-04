@@ -1,0 +1,70 @@
+"""Original fine caller outcomes use the production route builder at O0/O2."""
+import copy
+import ctypes
+import json
+from pathlib import Path
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'tools/frida'))
+from verify_wc3_fine_result_trace import verify
+
+class Objects(ctypes.Structure):
+    _fields_=[('cells',ctypes.POINTER(ctypes.c_uint8)),('objects',ctypes.POINTER(ctypes.c_uint32))]
+
+class FineResultTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-public-results-1.27.json').read_text())
+        cls.live=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-public-results-live-1.27.json').read_text())
+
+    def test_full_caller_routes_and_retained_same_cell_latch_at_both_optimizations(self):
+        with tempfile.TemporaryDirectory(prefix='wc3-fine-results-')as tmp:
+            for opt in ('-O0','-O2'):
+                lib=Path(tmp)/(opt+'.so')
+                subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror',opt,'-shared','-fPIC','-I',str(ROOT),str(ROOT/'tools/ghidra/wc3_pathing_engine_probe.c'),'-o',str(lib)],check=True)
+                e=ctypes.CDLL(str(lib));e.pathing_fine_result_words.argtypes=[ctypes.POINTER(ctypes.c_uint32),ctypes.POINTER(Objects),ctypes.POINTER(ctypes.c_uint32)]
+                def request(name,cls,source,goal,budget):
+                    blocked={(4,4)}if name=='blocked_start'else {(19,19)}if name=='blocked_goal'else {(12,y)for y in range(24)}if name=='disconnected'else set()
+                    cells=(ctypes.c_uint8*576)(*(2 if (x,y)in blocked else 0 for y in range(24)for x in range(24)))
+                    objects=(ctypes.c_uint32*7)(12,0,13,24,0x01000001,1,1)if name=='special_target'else None
+                    words=[struct.unpack('<I',struct.pack('<f',v))[0]for v in (*source,*goal)]
+                    q=(ctypes.c_uint32*16)(24,24,*map(int,source),*map(int,goal),budget,cls,1 if objects else 0x02000000,0,bool(objects),0 if objects else 0xffffffff,*words)
+                    out=(ctypes.c_uint32*(7+2*32768))();e.pathing_fine_result_words(q,ctypes.byref(Objects(cells,objects)),out);return list(out[:7+2*out[3]])
+                for c in self.frozen['cases']:
+                    with self.subTest(opt=opt,name=c['name'],cls=c['cls']):
+                        e.pathing_fine_result_reset();out=request(c['name'],c['cls'],c['source'],c['target'],c['budget']);r=c['refill']
+                        self.assertEqual(out[1:7],[r['work'],r['nodes'],r['count'],r['index'],r['obstruction'],bool(r['flags']&0x10000000)])
+                        self.assertEqual(out[7:],r['words'])
+                        self.assertEqual(out[0],int(c['name']in ('same_cell','blocked_start','special_target')))
+                for c in self.frozen['same_cell_reuse']:
+                    e.pathing_fine_result_reset();request('blocked_goal',c['cls'],[4.25,4.75],[19.25,19.75],700)
+                    out=request('blocked_goal',(c['cls']+1)%4,[4.25,4.75],[4.625,4.875],0)
+                    self.assertEqual(out[:6],[1,0,0,1,0,1]);self.assertEqual(out[7:],c['words'])
+                rows=[dict(event='metadata',**self.live['captures'][0]['metadata']),{'event':'marker','value':'PATHTRACE tick=960 label=complete case=12 '}]+[self.live['catalog'][i]for i in self.live['sequence']]+[{'event':'trace-end','installed':True}]
+                self.assertEqual(verify(rows,self.live,self.live['captures'][0],e),292)
+
+    def test_engine_literals_preserve_original_caller_route_words(self):
+        source=(ROOT/'games/warcraft-3/game/tests/retail_fine_results.h').read_text()
+        lines=[line for line in source.splitlines()if line.startswith(' {')]
+        self.assertEqual(len(lines),24)
+        for line,c in zip(lines,self.frozen['cases']):
+            self.assertEqual([int(x,16)for x in re.findall(r'0x([0-9a-f]+)',line)][1:],c['refill']['words'])
+
+    def test_live_contract_rejects_changed_history_source_footer_and_provenance(self):
+        cap=self.live['captures'][0]
+        rows=[dict(event='metadata',**cap['metadata']),{'event':'marker','value':'PATHTRACE tick=960 label=complete case=12 '},*[self.live['catalog'][i]for i in self.live['sequence']],{'event':'trace-end','installed':True}]
+        self.assertEqual(verify(rows,self.live,cap),292)
+        bad=copy.deepcopy(rows);next(r for r in bad if r.get('event')=='fine-result')['source'][0]^=1
+        with self.assertRaisesRegex(ValueError,'words/history'):verify(bad,self.live,cap)
+        bad=copy.deepcopy(rows);bad[0]['source_sha256']['wc3_pathfinding.js']='0'*64
+        with self.assertRaisesRegex(ValueError,'provenance'):verify(bad,self.live,cap)
+        with self.assertRaisesRegex(ValueError,'incomplete'):verify(rows[:-1],self.live,cap)
+        with self.assertRaisesRegex(ValueError,'complete'):verify([r for r in rows if r.get('event')!='marker'],self.live,cap)
+
+if __name__=='__main__':unittest.main()

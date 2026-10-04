@@ -501,6 +501,27 @@ void pathing_fine_request_words(uint32_t const *input, fineObjectInput_t const *
     for(uint32_t i=0;i<count;i++) { out[6+2*i]=wc3_float_bits(points[i].x); out[7+2*i]=wc3_float_bits(points[i].y); }
 }
 
+/* A fresh original constructor/control has no preceding obstruction latch. */
+void pathing_fine_result_reset(void) {
+    wc3_fine_free(&fine_probe); memset(&fine_probe,0,sizeof(fine_probe));
+}
+
+/* Complete fine caller: width,height,startXY,goalXY,budget,class,mask,
+ * endpoint-mode,object-count,target-index,source words2,goal words2. */
+void pathing_fine_result_words(uint32_t const *input, fineObjectInput_t const *data, uint32_t *out) {
+    bool hit=false,complete;
+    fineObjectProbe_t graph={.query=input,.objects=data->objects,.cells=data->cells,.target_hit=&hit};
+    wc3FineRequest_t request={.start={(int)input[2],(int)input[3]},.goal={(int)input[4],(int)input[5]},
+        .width=input[0],.height=input[1],.budget=input[6],.edges=fine_object_edges,.data=&graph,.target_hit=&hit};
+    wc3FineVector_t points[BZ_WC3_FINE_NODES],source={wc3_float(input[12]),wc3_float(input[13])},
+        goal={wc3_float(input[14]),wc3_float(input[15])};
+    uint32_t count=wc3_fine_build_route(&fine_probe,&request,source,goal,points,BZ_WC3_FINE_NODES,&complete);
+    out[0]=complete;out[1]=fine_probe.pops;out[2]=fine_probe.count;out[3]=count;
+    out[4]=fine_probe.observed_obstruction && count>1 ? count-2 : 0;out[5]=fine_probe.observed_obstruction;
+    out[6]=count && (points[0].x!=goal.x || points[0].y!=goal.y);
+    for(uint32_t i=0;i<count;i++) {out[7+2*i]=wc3_float_bits(points[i].x);out[8+2*i]=wc3_float_bits(points[i].y);}
+}
+
 /* Full request failure retains the closest admitted node, even if its goal
  * entry has not yet been popped. Output: result,pops,nodes,count,nearXY,dist2,
  * then the nearest start-to-end parent chain. */

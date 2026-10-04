@@ -30,6 +30,8 @@ def main():
     parser.add_argument('--unit-budget-reference',type=Path,help='compare original winding partial-route budget outcomes')
     parser.add_argument('--unit-route-fixture',type=Path,help='export enabled default400/700 full route composition on winding64-cell maps')
     parser.add_argument('--unit-route-reference',type=Path,help='compare original default adaptive/fine maze handoffs')
+    parser.add_argument('--public-results-fixture',type=Path,help='export same-cell/blocked/partial/special-target full fine caller results')
+    parser.add_argument('--public-results-reference',type=Path,help='compare full fine caller results with frozen original words')
     args = parser.parse_args()
     engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
     class FineInput(ctypes.Structure):
@@ -593,6 +595,72 @@ def main():
     assert intermediate_cases==96
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,formation_destination_cases=len(formation),formation_destinations=formation,refill_cases=len(records),denied_refill_cases=denied_cases,cached_waypoint_cases=cached_cases,dynamic_refill_cases=len(dynamic),terrain_equivalence_cases=terrain_equivalence,hierarchy_exclusion_cases=len(exclusion),hierarchy_exclusion=exclusion,enabled_advance_cases=len(enabled),intermediate_waypoint_cases=intermediate_cases,enabled_advance=enabled,full_advance_cases=len(full_advance),full_advance=full_advance,dynamic_cases=dynamic,cases=records)
     if engine: report['engine_exact_formation_destination_cases']=engine_formation_cases
+    if args.public_results_fixture or args.public_results_reference:
+        results=[]; width=height=24
+        for name,cls in itertools.product(['same_cell','blocked_start','blocked_goal','disconnected','insufficient_budget','special_target'],range(4)):
+            source=(4.25,4.75); target=(19.25,19.75); budget=700
+            if name=='same_cell':target=(4.625,4.875)
+            blocked={(4,4)} if name=='blocked_start' else {(19,19)} if name=='blocked_goal' else {(12,y) for y in range(24)} if name=='disconnected' else set()
+            if name=='insufficient_budget':budget=0
+            setup()
+            if name=='special_target':
+                machine.mem_write(obj,bytes(0x80));write(obj+0x34,0x01000001,0);write(obj+0x40,0)
+                write(links,0x01ffffff,obj);write(tilemap+0x88,1)
+                for y in range(height):write(cells+(y*width+12)*4,0)
+            machine.mem_write(path,bytes(0x100));machine.mem_write(path+0x1c,struct.pack('<4f',*target,*target))
+            write(path+0x40,route_data);write(path+0x4c,1024,0);write(path+0x60,coarse);write(path+0x6c,1024,0,-1,-1)
+            write(path+0x84,budget | 400<<16);write(path+0x9c,1 if name=='special_target' else 0x02000000)
+            if name=='special_target':write(path+0xa4,obj)
+            write(path+0xa8,-1,-1);machine.mem_write(path+0xb4,struct.pack('<f',.25+.5*cls))
+            write(bucket,700 | 1<<16,1100,0,0,0,0,0);write(owner+0x538,100);write(owner,0,0)
+            write(system+0xac+0xc,candidates);write(system+0xac+0x18,64,0)
+            write(output,0xdeadbeef,0xdeadbeef)
+            admitted=run(0x6f167ce0,path,source_ptr,output)
+            n=read(path+0x50)[0];state=dict(count=n,index=read(path+0x74)[0],words=read(route_data,n*2),output=read(output,2),flags=read(path+0x88)[0],work=read(bucket+8)[0],timestamp=read(path+0x7c)[0],nodes=read(system+0x40)[0],obstruction=read(system+0xd0)[0])
+            if engine:
+                engine.pathing_fine_result_reset() # Matches setup's fresh native search object.
+                words=[struct.unpack('<I',struct.pack('<f',v))[0]for v in (*source,*target)]
+                objects=[12,0,13,24,0x01000001,1,1] if name=='special_target' else []
+                grid=(ctypes.c_uint8*576)(*(2 if (x,y) in blocked else 0 for y in range(24) for x in range(24)))
+                q=(ctypes.c_uint32*16)(24,24,4,4,int(target[0]),int(target[1]),budget,cls,1 if objects else 0x02000000,0,bool(objects),0 if objects else 0xffffffff,*words)
+                out=(ctypes.c_uint32*(7+2*32768))()
+                engine.pathing_fine_result_words(q,ctypes.byref(FineInput(grid,(ctypes.c_uint32*len(objects))(*objects) if objects else None)),out)
+                assert list(out[1:5])==[state['work'],state['nodes'],n,state['index']],(name,cls,list(out[:7]),state)
+                assert out[5]==state['obstruction'] and out[6]==bool(state['flags']&0x10000000),(name,cls,list(out[:7]),state)
+                assert list(out[7:7+2*n])==state['words'],(name,cls,'route words')
+            machine.mem_write(output,struct.pack('<2f',*target))
+            advance=run(0x6f165ae0,path,source_ptr,output,mover)
+            results.append(dict(name=name,cls=cls,source=list(source),target=list(target),budget=budget,admitted=admitted,refill=state,advance=advance,after=dict(count=read(path+0x50)[0],index=read(path+0x74)[0],words=read(route_data,read(path+0x50)[0]*2),output=read(output,2),retry=read(path+0x98)[0],flags=read(path+0x88)[0],work=read(bucket+8)[0]),target_suppression=read(obj+0x40)[0] if name=='special_target' else None))
+        reused=[]
+        for cls in range(4):
+            source=(4.25,4.75);target=(19.25,19.75);budget=700;blocked={(19,19)}
+            setup()
+            result=run(0x6f148100,system,route,source_ptr,target_ptr,mask_ptr,budget,radius_ptr,0)
+            assert result==0 and read(system+0xd0)[0]==1
+            before=dict(stamp=read(system+0x20)[0]&65535,cls=read(system+0xa0)[0]&65535)
+            target=(4.625,4.875);machine.mem_write(target_ptr,struct.pack('<2f',*target))
+            # Deliberately different radius; setup returns before class initialization.
+            machine.mem_write(radius_ptr,struct.pack('<f',.25+.5*((cls+1)%4)))
+            result=run(0x6f148100,system,route,source_ptr,target_ptr,mask_ptr,0,radius_ptr,0)
+            after=dict(stamp=read(system+0x20)[0]&65535,cls=read(system+0xa0)[0]&65535)
+            record=dict(cls=cls,before=before,after=after,result=result,work=read(system+0x6c)[0],nodes=read(system+0x40)[0],obstruction=read(system+0xd0)[0],words=read(route_data,2))
+            assert before==after and record['work']==record['nodes']==0 and record['obstruction']==1
+            if engine:
+                engine.pathing_fine_result_reset()
+                grid=(ctypes.c_uint8*576)(*(2 if (x,y) in blocked else 0 for y in range(24)for x in range(24)))
+                out=(ctypes.c_uint32*(7+2*32768))()
+                for goal in [(19.25,19.75),target]:
+                    words=[struct.unpack('<I',struct.pack('<f',v))[0]for v in (*source,*goal)]
+                    q=(ctypes.c_uint32*16)(24,24,4,4,int(goal[0]),int(goal[1]),700 if goal[0]>5 else 0,cls,0x02000000,0,0,0xffffffff,*words)
+                    engine.pathing_fine_result_words(q,ctypes.byref(FineInput(grid,None)),out)
+                assert list(out[:6])==[1,0,0,1,0,1] and list(out[7:9])==record['words'],record
+            reused.append(record)
+        payload=dict(version=1,binary_sha256=digest,cases=results,same_cell_reuse=reused,scope='Unchanged167ce0 setup and165ae0 result consumption. Supplied24-cell terrain/object map and admitted owner bucket; four classes across same-cell, blocked source/goal, disconnected, zero-budget and suppressed special-target identity. No full public movement trajectory or outside-source claim.')
+        if args.public_results_fixture:args.public_results_fixture.write_text(json.dumps(payload,indent=2)+'\n')
+        if args.public_results_reference:assert payload==json.loads(args.public_results_reference.read_text())
+        report['public_fine_result_cases']=len(results)
+        report['same_cell_reuse_cases']=len(reused)
+        if engine:report['engine_exact_public_fine_results']=len(results)
     if args.unit_budget_fixture or args.unit_budget_reference:
         unit_budget_cases=[]
         width=height=64; source=(4.25,4.75); target=(47.25,43.75)

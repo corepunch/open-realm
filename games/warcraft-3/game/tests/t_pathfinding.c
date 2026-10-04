@@ -34,6 +34,7 @@
 #include "retail_passages.h"
 #include "retail_fine_queue.h"
 #include "retail_fine_storage.h"
+#include "retail_fine_results.h"
 #include "../../common/wc3_pathing_adaptive.h"
 #include "retail_adaptive_wrap.h"
 #include "retail_adaptive_producer.h"
@@ -2642,6 +2643,37 @@ TEST(wc3_pathfinding, blight_world_state_uses_wpm_seed_and_survives_static_rebui
 
     G_BlightShutdown();
     setup_test_world();
+}
+
+TEST(pathfinding, admitted_fine_requests_preserve_raw_source_and_same_cell_zero_work) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[24*24];
+    FOR_LOOP(i,sizeof(retail_fine_results)/sizeof(*retail_fine_results)) {
+        retailFineResult_t const *r=retail_fine_results+i;
+        if(r->kind>3)continue; /* Zero-budget/target-object cases use the complete kernel corpus. */
+        memset(cells,0,sizeof(cells));
+        if(r->kind==1)cells[4+4*24]=2;
+        if(r->kind==2)cells[19+19*24]=2;
+        if(r->kind==3)FOR_LOOP(y,24)cells[12+y*24]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{768,768}}); CM_SetupTestPathmap(24,24,cells);
+        vec2_t source={r->source[0]*32,r->source[1]*32},goal={r->goal[0]*32,r->goal[1]*32},
+            native_source={r->source[0],r->source[1]},native_goal={r->goal[0],r->goal[1]},selected;
+        S_ClearMoveFineRequests();
+        edict_t *mover=G_Spawn(); mover->collision=(.25f+.5f*r->cls)*32;
+        movePathQuery_t query={.geometry={&source,&goal,mover->collision,2},.units=true,.mover=mover,
+            .fine=&native_source,.fine_target=&native_goal};
+        moveFineRoute_t route={0}; T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&selected));
+        wc3FineSearch_t const *search=G_TestMoveFineSearch();
+        T_EQ(search->pops,r->work); T_EQ(search->count,r->nodes);
+        T_EQ(route.count,r->count); T_EQ(route.index,r->index);
+        T_EQ(route.partial,!!(r->flags&0x10000000));
+        if(route.count==r->count)FOR_LOOP(j,route.count) {
+            T_EQ(wc3_float_bits(route.points[j].x),r->words[j][0]);
+            T_EQ(wc3_float_bits(route.points[j].y),r->words[j][1]);
+        }
+        free(route.points); G_FreeEdict(mover);
+    }
+    reset_entities(); setup_test_world();
 }
 
 #endif /* BZ_TESTS */

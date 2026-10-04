@@ -41,7 +41,7 @@ composition closes a gap.
 - Frida address: `module.base + (VA - 0x6f000000)`. Other builds need new offsets.
 - `tools/ghidra/MapPathfinding.java`: hash-guarded descriptive names/comments;
   `MapPathfindingTypes.java` also persists69 partial layouts,468 verified
-  fields and331 instruction-established prototypes with explicit register/stack
+  fields and335 instruction-established prototypes with explicit register/stack
   storage. Its schema is
   [`retail-pathfinding-types-1.27.json`](../../../tools/ghidra/fixtures/retail-pathfinding-types-1.27.json).
   Unassigned bytes remain undefined; `Prefix` lengths are verified extents,
@@ -52,7 +52,7 @@ composition closes a gap.
   layout/prototype readback `num-01.16-ghidra-types.json` under the report root.
   Pass the absolute schema path and optional metadata report path as script args.
   660 function names/comments applied and saved. Latest fine-storage readback:
-  `runtime/fine90-ghidra-types.json`:69 layouts/468 fields,331 ABIs and60 globals.
+  `runtime/fine91-ghidra-types.json`:69 layouts/468 fields,335 ABIs and60 globals.
   Prior mode readback:
   `runtime/mode87-ghidra-types.json`:67 layouts/441 fields,315 ABIs and60 globals.
   Latest pause readback:
@@ -141,7 +141,7 @@ Counts overlap; do not sum them into a coverage percentage.
 | ID / area | Verified coverage | Remaining acceptance work |
 | --- | --- | --- |
 | MAP — maps/invalidation | **S/O/L:** dimensions/scales, reducers (20,736 cases), temporary rectangle exclusion/restore; direct fine/coarse divergence; 11,664 edits +216 rebuild/reversal compositions, 30 clipped updates; terrain-origin producer and 25 complete no-file loads; maintenance/release prefixes; decoded masks, 144 overlapping widget sequences and96 paired full widget lifecycles | File-backed loader/deserialization, reload/destruction, allocation growth, non-dyadic bounds; all terrain/object lifecycle invalidation producers; mixed/overlapping exclusions and exceptional restoration |
-| FINE — fine search | **S/O/C:** costs/heuristic, heap ties/reopening/generations/budgets; 288 complete static searches + reuse;384 full mixed ground/flight/float/amph object chains, metadata repeats and C matches; wrapper partial/same-cell/zero-budget results;3,840 exact fine reconstruction words and engine fractional endpoints; engine idle-object/partial routing and seven stock profiles | Full authored profile parsing/support surfaces; initial endpoint/footprint policies; stamp wrap, node/free-list/capacity paths; invalid-coordinate preconditions |
+| FINE — fine search | **S/O/C:** costs/heuristic, heap ties/reopening/generations/budgets; 288 complete static searches + reuse;384 full mixed ground/flight/float/amph object chains, metadata repeats and C matches; all-class path-owned setup/build/selected-point/progress outcomes, same-cell reuse and292 complete live requests; retained storage growth/capacity/reset;3,840 exact fine reconstruction words and engine fractional endpoints; engine idle-object/partial routing and seven stock profiles | Full authored profile parsing/support surfaces; initial endpoint/footprint producers outside the verified ordinary callers; invalid-coordinate preconditions |
 | ACC — adaptive search | **S/O/C:** promotion/subdivision, lanes, size classes, full requests, reduced size-2 veto; enabled public-advance search corpus | Remaining side/corner branches; live size-2 consequence; invalid classifications, special-edge search combinations and heuristic effects |
 | FOOT — footprints | **S/O/C:** producer conversion, exhaustive masks, terrain/occupancy queries, target perimeter, self/target exclusion in refill | Full world-radius/geometric contract; size × corridor/alignment sweep; mixed category/lifetime interactions |
 | SCHED — admission/scheduling | **S/O/C/L:** bucket/FIFO/cadence, owner row and transitions, budgets/timestamps, live handoffs; full singleton owner tick and active singleton plus controlled repulsor | Populated shared-cap/multiple-group owner tick; mutation/reentrancy; fairness under crowd load; non-unit class-15 producers |

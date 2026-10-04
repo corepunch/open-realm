@@ -967,7 +967,8 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     vec2_t source, target;
     if (!params || !params->from || !params->target || !out || !pathmap.width || !pathmap.height) return false;
     pathAccelParams_t dest = *params; dest.from = params->target;
-    if (!G_ClosestMovePathPoint(params, &source)) return false;
+    if (input->fine) source=*params->from; /* Published owner pose reaches fine setup unchanged. */
+    else if (!G_ClosestMovePathPoint(params, &source)) return false;
     if (input->fine_target) target=*params->target;
     else if (!G_ClosestMovePathPoint(&dest,&target)) return false;
     vec2_t a = source.x==params->from->x && source.y==params->from->y ?
@@ -995,31 +996,18 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         .budget = input->mover ? BZ_WC3_UNIT_FINE_WORK : BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
     if (input->units && input->mover && !S_AdmitUnitMoveFineRequest((edict_t *)input->mover)) return false;
-    int at = wc3_fine_search(&move_fine, &req);
+    bool complete;
+    uint32_t count=wc3_fine_build_route(&move_fine,&req,(wc3FineVector_t){a.x,a.y},
+        (wc3FineVector_t){b.x,b.y},move_fine_points,BZ_WC3_FINE_NODES,&complete);
     if (input->units && input->mover) S_ChargeUnitMoveFineRequest((edict_t *)input->mover,move_fine.pops);
-    bool complete = at >= 0;
-    /* Original148100 retains the nearest admitted chain after exhaustion.
-     * Location Move can approach that endpoint without replacing its order. */
-    if (at < 0 && input->units) at = (int)move_fine.nearest;
-    if (at < 0) return false;
-    wc3FinePoint_t endpoint = move_fine.nodes[at].pos;
-
-    /* Original148100 adjusts a non-source nearest endpoint to its centre on
-     * failure, even if the goal was admitted before its denied final pop.
-     * Preserve the exact source for a one-node failure and retain the click. */
-    wc3FineVector_t end = {b.x,b.y};
-    if (!complete && (endpoint.x != start.x || endpoint.y != start.y))
-        end = wc3_route_center(endpoint);
-    wc3FineReconstruct_t route = {move_fine.nodes, move_fine.count, at,
-        {a.x, a.y}, end};
-    uint32_t count = wc3_fine_reconstruct(&route, move_fine_points, BZ_WC3_FINE_NODES);
+    if (!count || (!complete && !input->units)) return false;
     if (count < 2 && !input->fine_target) return false;
     if (curve) {
         vec2_t *points = realloc(curve->points,count*sizeof(*points));
         if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);
         /* Original166e90 starts at the destination if expansion observed no
          * obstruction; seeing a blocked cell selects the next parent point. */
-        curve->points = points; curve->count = count; curve->partial=!complete;
+        curve->points = points; curve->count = count; curve->partial=move_fine_points[0].x!=b.x || move_fine_points[0].y!=b.y;
         curve->index = move_fine.observed_obstruction && count>1 ? count-2 : 0;
         curve->mask = params->blocked_flags;
         FOR_LOOP(i,count) curve->points[i] = (vec2_t){move_fine_points[i].x,move_fine_points[i].y};
@@ -1031,7 +1019,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});
     wc3FineVector_t point = move_fine_points[chosen];
     /* Preserve admitted world words when the selected point is the exact goal. */
-    *out = complete && endpoint.x == goal.x && endpoint.y == goal.y && chosen == 0
+    *out = complete && point.x == b.x && point.y == b.y && chosen == 0
         ? target : move_world_from_grid(point.x, point.y);
     return true;
 }
@@ -1041,7 +1029,8 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
     if (!input || !input->geometry.from || !input->geometry.target || !out || !pathmap.width || !pathmap.height) return false;
     vec2_t source,target;
     pathAccelParams_t dest=input->geometry; dest.from=dest.target;
-    if (!G_ClosestMovePathPoint(&input->geometry,&source)) return false;
+    if (input->fine) source=*input->geometry.from;
+    else if (!G_ClosestMovePathPoint(&input->geometry,&source)) return false;
     if (input->fine_target) target=*input->geometry.target;
     else if (!G_ClosestMovePathPoint(&dest,&target)) return false;
     vec2_t a=source.x==input->geometry.from->x && source.y==input->geometry.from->y ?

@@ -35,6 +35,23 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.fineResultEvents) {
+        hook(0x148100, {
+            onEnter(args) {
+                this.fine=this.context.ecx; this.route=args[0];
+                this.source=ints(args[1],2); this.goal=ints(args[2],2);
+                this.limit=args[4].toUInt32(); this.radius=args[5].readFloat();
+            },
+            onLeave(result) {
+                const n=this.route.add(0x1c).readU32(), p=this.route.add(0xc).readPointer();
+                if(n>32768)throw new Error('Unexpected complete fine route '+n);
+                const words=[];for(let i=0;i<n;i++)words.push(ints(p.add(8*i),2));
+                emit('fine-result',{fine:this.fine.toString(),source:this.source,goal:this.goal,
+                    limit:this.limit,radius:this.radius,result:result.toInt32(),words,
+                    work:this.fine.add(0x6c).readU32(),nodes:this.fine.add(0x40).readU32()});
+            }
+        });
+    }
     if (config.fineStorageEvents) {
         const fineTables = new Map();
         const table = p => ({bytes:p.add(0x10).readU32(),grow:p.add(0x14).readU32(),capacity:p.add(0x18).readU32(),count:p.add(0x1c).readU32()});
