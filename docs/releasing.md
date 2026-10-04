@@ -91,4 +91,17 @@ relay, departure and process-crash checks. Contributor attribution is
 The opt-in executable-version diagnostic is `+set wc3_report_data_version 1`.
 
 [Release](https://github.com/corepunch/open-realm/releases/tag/v0.0.11-alpha)
-and [platform build run](https://github.com/corepunch/open-realm/actions/runs/37192189744).
+and [successful platform build run](https://github.com/corepunch/open-realm/actions/runs/37193237751).
+The recovery workflow at `2681af2bd` checked out the original tag; all five jobs
+passed. Windows completed 7 EOS service tests with 81 assertions and verified
+a 12-DLL runtime closure. All five uploaded assets were downloaded and matched
+GitHub's SHA-256 digests. Native executable headers confirmed x86_64; native
+archives, ZIP CRCs, required runtimes/notices, and identical standalone/embedded
+Flatpak bundles were verified. The workflow fix is tracked in
+[draft PR #577](https://github.com/corepunch/open-realm/pull/577).
+
+Native Linux still requires host SDL2 and graphics libraries. `otool -L` on the
+macOS Intel executable confirms a Homebrew dependency at
+`/usr/local/opt/sdl2-compat/lib/libSDL2-2.0.0.dylib`; the release setup instructions
+therefore include `brew install sdl2`. The EOS runtime and project modules are
+packaged beside the executable under their documented Unix layout.
