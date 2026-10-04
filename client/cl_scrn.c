@@ -492,6 +492,7 @@ void SCR_LayoutDrawBackdrop2(uiFrame_t const *frame, rect_t const *screen, uiBac
         .screen        = *screen,
         .bg.texture    = background,
         .bg.color      = frame->color,
+        .backgroundSize = bd->BackgroundSize,
         .edge.texture  = edge,
         .edge.color    = frame->color,
         .corner.flags  = bd->CornerFlags,

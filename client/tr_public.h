@@ -75,6 +75,7 @@ typedef struct drawImage_s {
 typedef struct drawBackdrop_s {
     rect_t screen;
     struct { texture_t const *texture; color32_t color; } bg, edge;
+    float backgroundSize; /* Nominal square tile span including insets; zero uses texture dimensions. */
     struct { int16_t flags; float size; } corner;
     struct { float right, top, bottom, left; } insets;
     uint8_t flags;

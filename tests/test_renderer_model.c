@@ -22,8 +22,9 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
 static char shader_src[16384];
-static rect_t backdrop_uv;
+static rect_t backdrop_uv, backdrop_rect;
 static bool backdrop_repeat;
+static uint32_t backdrop_calls;
 static size2_t backdrop_size = {256, 64};
 
 /* Capture the real shader source submission without requiring a window in the unit suite. */
@@ -2852,11 +2853,11 @@ TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
 /* Capture backdrop UV generation before GPU submission, including mirrored repeat. */
 static size2_t test_backdrop_size(texture_t const *tex) { (void)tex; return backdrop_size; }
 static vertex_t *test_backdrop_quad(vertex_t *buf, rect_t const *rect, rect_t const *uv, color32_t color, float z) {
-    (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
+    (void)color; (void)z; backdrop_uv = *uv; backdrop_rect = *rect; return buf + 6;
 }
 static void test_backdrop_batch(texture_t const *tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const *clip, vertex_t const *verts, uint32_t count, bool repeat) {
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
-    T_EQ(count, 6); backdrop_repeat = repeat;
+    T_EQ(count, 6); backdrop_repeat = repeat; backdrop_calls++;
 }
 #define R_GetTextureSize test_backdrop_size
 #define R_AddQuad test_backdrop_quad
@@ -2881,6 +2882,45 @@ TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
         T_FEQ(backdrop_uv.w, cases[i].w, 0.00001f);
         T_EQ(backdrop_repeat, cases[i].repeat);
     }
+}
+
+/* Authored tile spans include the insets: a button interior displays one complete icon, not a cropped corner. */
+TEST(renderer_backdrop, authored_tile_size_keeps_inset_icons_centered) {
+    size2_t saved = backdrop_size;
+    drawBackdrop_t draw = {
+        .screen = {.1f, .2f, .032f, .032f}, .bg.texture = (texture_t const *)1,
+        .backgroundSize = .032f, .insets = {.007f, .007f, .007f, .007f}, .flags = DRAW_TILE,
+    };
+    /* The stock 32px icon and a higher-resolution variant must produce identical UVs. */
+    FOR_LOOP(i, 2) {
+        backdrop_size = (size2_t){32 << i, 32 << i};
+        R_DrawBackdrop(&draw);
+        T_FEQ(backdrop_uv.w, 1, .00001f); T_FEQ(backdrop_uv.h, 1, .00001f);
+        T_FEQ(backdrop_rect.x + backdrop_rect.w / 2, .116f, .00001f);
+        T_FEQ(backdrop_rect.y + backdrop_rect.h / 2, .216f, .00001f);
+        T_ASSERT(!backdrop_repeat);
+    }
+    /* Non-stock dimensions and unequal insets exercise the authored span rather than pixel-size guesses. */
+    draw.backgroundSize = .05f;
+    draw.insets = (typeof(draw.insets)){.002f, .004f, .006f, .008f};
+    draw.screen.w = .09f; draw.screen.h = .03f;
+    R_DrawBackdrop(&draw);
+    T_FEQ(backdrop_uv.w, 2, .00001f); T_FEQ(backdrop_uv.h, .5f, .00001f);
+    T_ASSERT(backdrop_repeat);
+    draw.flags |= DRAW_MIRRORED;
+    R_DrawBackdrop(&draw);
+    T_FEQ(backdrop_uv.x, 2, .00001f); T_FEQ(backdrop_uv.w, -2, .00001f);
+    T_FEQ(backdrop_uv.h, .5f, .00001f); T_ASSERT(backdrop_repeat);
+    draw.flags = 0;
+    R_DrawBackdrop(&draw);
+    T_FEQ(backdrop_uv.w, 1, .00001f); T_FEQ(backdrop_uv.h, 1, .00001f);
+    T_ASSERT(!backdrop_repeat);
+    draw.flags = DRAW_TILE;
+    draw.backgroundSize = .001f;
+    backdrop_calls = 0;
+    R_DrawBackdrop(&draw);
+    T_EQ(backdrop_calls, 0);
+    backdrop_size = saved;
 }
 
 TEST(renderer_shader, commandbutton_supports_generic_radial_shade) {
