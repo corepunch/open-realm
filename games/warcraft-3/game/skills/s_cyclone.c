@@ -46,6 +46,6 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
         if (slot->level && slot->code == buff_code) { slot->data = call->item->code; break; }
     }
     target->entity->goalentity = NULL;
-    target->entity->currentmove = &holdpos_move_stand;
+    M_SetMove(target->entity,&holdpos_move_stand);
     return true;
 }

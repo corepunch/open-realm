@@ -463,7 +463,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->currentmove = &birth;
+    M_SetMove(building,&birth);
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
     gi.ImageIndex = building_test_image_index;
@@ -480,7 +480,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
+    M_SetMove(building,NULL);
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
     building->research->upgrade = building->class_id;
@@ -532,7 +532,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->currentmove = &birth;
+    M_SetMove(building,&birth);
     G_InvalidateUnitInfoPanel(building);
     T_ASSERT(G_GetMainSelectedUnit(client) == building);
     T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
@@ -546,7 +546,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
+    M_SetMove(building,NULL);
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
     building->research->upgrade = building->class_id;
@@ -1656,7 +1656,7 @@ TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
     tree->data.UnitAbilities = &tree_abilities;
     tree->s.flags |= EF_BUILDING;
     tree->aiflags |= AI_IMMOBILE;
-    town_hall->currentmove = tree->currentmove = &birth;
+    M_SetMove(town_hall,&birth); M_SetMove(tree,&birth);
 
     T_ASSERT(G_ProducerCanTrain(town_hall, peasant_id));
     T_ASSERT(G_ProducerCanUpgrade(town_hall, keep_id));

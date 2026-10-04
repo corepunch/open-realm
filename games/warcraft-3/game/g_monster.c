@@ -10,6 +10,35 @@
  */
 #include "g_local.h"
 
+static entitySet_t scheduled_moves, sampled_moves;
+#ifdef BZ_TESTS
+static uint32_t move_owner_visits;
+uint32_t M_TestMoveOwnerVisits(bool reset) {
+    uint32_t count=move_owner_visits;
+    if(reset)move_owner_visits=0;
+    return count;
+}
+#endif
+
+/* Membership belongs to the move transition, not periodic discovery. */
+void M_TrackMove(edict_t const *ent) {
+    uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
+    if(!g_edicts || index>=MAX_ENTITIES)return;
+    umove_t const *move=ent->currentmove;
+    entity_set_put(&scheduled_moves,index,ent->inuse && move && move->scheduled_think);
+    entity_set_put(&sampled_moves,index,ent->inuse && move && move->sample_pose);
+}
+
+/* Raw transitions keep their existing animation/leave policy, but must update
+ * derived owner membership just like ordinary unit_setmove transitions. */
+void M_SetMove(edict_t *ent, umove_t *move) {
+    ent->currentmove=move; M_TrackMove(ent);
+}
+
+void M_ResetMoveMembers(void) {
+    scheduled_moves=(entitySet_t){0}; sampled_moves=(entitySet_t){0};
+}
+
 cstring_t attack_type[] = {
     "none",
     "normal",
@@ -175,7 +204,10 @@ void monster_think(edict_t *self) {
 void M_RunScheduledThinks(void) {
     level.scheduled_think = true;
     S_BeginAbilityOwnerUpdates();
-    FOR_LOOP(i, globals.num_edicts) {
+    for(uint32_t i=entity_set_next(&scheduled_moves,0);i<globals.num_edicts;i=entity_set_next(&scheduled_moves,i+1)) {
+#ifdef BZ_TESTS
+        move_owner_visits++;
+#endif
         edict_t *self = g_edicts + i;
         if (!self->inuse || !G_UnitIsWorldActive(self) || self->paused || self->stunned ||
             !self->currentmove || !self->currentmove->scheduled_think) continue;
@@ -187,7 +219,10 @@ void M_RunScheduledThinks(void) {
 }
 
 void M_SamplePoses(void) {
-    FOR_LOOP(i, globals.num_edicts) {
+    for(uint32_t i=entity_set_next(&sampled_moves,0);i<globals.num_edicts;i=entity_set_next(&sampled_moves,i+1)) {
+#ifdef BZ_TESTS
+        move_owner_visits++;
+#endif
         edict_t *self = g_edicts + i;
         if (self->inuse && G_UnitIsWorldActive(self) && self->currentmove)
             SAFE_CALL(self->currentmove->sample_pose, self);
@@ -421,6 +456,7 @@ void G_ApplyUnitAbilityTraits(edict_t *ent) {
     ent->s.flags |= EF_NOT_SELECTABLE;
     ent->invulnerable = true;
     ent->collision = 0.0f;
+    G_MarkMoveSpatialObject(ent);
     ent->no_pathing = true;
 }
 

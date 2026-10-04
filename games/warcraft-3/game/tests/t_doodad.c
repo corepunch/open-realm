@@ -68,7 +68,7 @@ TEST(wc3_doodad, nonlooping_animation_holds_authored_final_frame) {
     umove_t move = { "death", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &death;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 
@@ -84,7 +84,7 @@ TEST(wc3_doodad, looping_animation_wraps_to_sequence_start) {
     umove_t move = { "stand", NULL, G_DoodadAnimationEnd };
 
     ent->animation = &stand;
-    ent->currentmove = &move;
+    M_SetMove(ent,&move);
     ent->s.frame = 1200;
     ent->aiflags &= ~AI_HOLD_FRAME;
 

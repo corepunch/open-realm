@@ -68,6 +68,33 @@ TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
     gi = old;
 }
 
+TEST(wc3_unit, scoped_status_queries_preserve_slots_deadlines_and_nested_owners) {
+    reset_entities();setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    uint32_t code=MAKEFOURCC('B','O','w','k');
+    first->abilstatus[0]=(heroabilitystatus_t){.code=code,.level=1,.timestamp=100};
+    first->abilstatus[MAX_UNIT_STATUSES-1]=(heroabilitystatus_t){.code=code,.level=3};
+    second->abilstatus[1]=(heroabilitystatus_t){.code=code,.level=2};
+    unitStatusQuery_t outer,inner;
+    level.time=0;G_BeginUnitStatusQuery(first,&outer);
+    T_EQ(G_UnitStatusLevel(first,code),1);
+    T_EQ(G_UnitStatusLevel(first,MAKEFOURCC('B','s','l','o')),0);
+    G_BeginUnitStatusQuery(second,&inner);
+    T_EQ(G_UnitStatusLevel(second,code),2);
+    T_EQ(G_UnitStatusLevel(first,code),1);
+    G_EndUnitStatusQuery(&inner);
+    level.time=100;
+    T_EQ(G_UnitStatusLevel(first,code),3);
+    T_EQ(G_UnitStatusLevel(second,code),2);
+    G_EndUnitStatusQuery(&outer);
+    first->abilstatus[2]=(heroabilitystatus_t){.code=MAKEFOURCC('B','s','l','o'),.level=4};
+    G_BeginUnitStatusQuery(first,&outer);
+    T_EQ(G_UnitStatusLevel(first,MAKEFOURCC('B','s','l','o')),4);
+    G_EndUnitStatusQuery(&outer);
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
     struct game_import old = gi;
     UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
@@ -1951,7 +1978,7 @@ TEST(wc3_unit, ability_updates_leave_ordinary_units_unchanged) {
     reset_test_entities(); setup_test_world();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     ent->unitinfo.FlyHeight = 37;
-    ent->currentmove = NULL;
+    M_SetMove(ent,NULL);
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 37, 0.001f);
     T_NULL(ent->raven);

@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "jass/jass.h"
+#include "g_entity_set.h"
 
 #define MAX_SPAWN_ITERATIONS 10
 #define MAX_REPOSITION_BLOCKERS 256 // entities; bounded broad-phase results, any hit rejects the point
@@ -375,18 +376,52 @@ TARGTYPE G_GetTargetType(cstring_t str) {
 void SP_monster_unit(edict_t *edict);
 void SP_monster_tree(edict_t *edict);
 
+static entitySet_t spawn_candidates;
+static uint32_t spawn_scan_count;
+
+void G_ResetSpawnCache(void) {
+    spawn_candidates=(entitySet_t){0};spawn_scan_count=0;
+}
+
+void G_MarkFreeEdict(edict_t *e) {
+    uintptr_t offset=(uintptr_t)e-(uintptr_t)g_edicts;
+    if(offset>=sizeof(*e)*MAX_ENTITIES || offset%sizeof(*e))return;
+    entity_set_put(&spawn_candidates,(uint32_t)(offset/sizeof(*e)),true);
+}
+
 static void G_InitEdict(edict_t *e) {
+    entity_set_put(&spawn_candidates,(uint32_t)(e-g_edicts),false);
     G_RemoveMoveSpatialObject(e);
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
     e->s.scale = 1;
     e->animation_speed = 1.0f;
     e->s.number = (int)(e - g_edicts);
+    M_TrackMove(e);
+    S_TrackMoveTimers(e);
+    G_MarkMoveSpatialObject(e);
 }
 
+#ifdef BZ_TESTS
+static uint32_t spawn_candidate_visits;
+#endif
 edict_t *G_Spawn(void) {
-    for (uint32_t i = game.max_clients; i < globals.num_edicts; i++) {
+    /* Preserve the lowest eligible edict and the original cooldown predicate.
+     * Only unoccupied candidates need inspection between lifecycle changes. */
+    if(spawn_scan_count>globals.num_edicts)G_ResetSpawnCache();
+    for(uint32_t i=MAX(game.max_clients,spawn_scan_count);i<globals.num_edicts;i++) {
+#ifdef BZ_TESTS
+        spawn_candidate_visits++;
+#endif
+        if(!g_edicts[i].inuse)entity_set_put(&spawn_candidates,i,true);
+    }
+    spawn_scan_count=globals.num_edicts;
+    for(uint32_t i=entity_set_next(&spawn_candidates,game.max_clients);i<globals.num_edicts;i=entity_set_next(&spawn_candidates,i+1)) {
+#ifdef BZ_TESTS
+        spawn_candidate_visits++;
+#endif
         edict_t *e = &g_edicts[i];
+        if(e->inuse) {entity_set_put(&spawn_candidates,i,false);continue;}
         if (!e->inuse && e->freetime + 1000 < level.time) {
             G_InitEdict(e);
             return e;
@@ -397,6 +432,7 @@ edict_t *G_Spawn(void) {
         return NULL;
     }
     edict_t *edict = &g_edicts[globals.num_edicts++];
+    spawn_scan_count=globals.num_edicts;
     G_InitEdict(edict);
     return edict;
 }
@@ -574,7 +610,8 @@ static bool G_ClassIdIsPrintable(uint32_t class_id) {
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(edict_t *edict) {
-    S_InvalidateAuraSources();
+    G_MarkMoveSpatialObject(edict);
+    bool had_aura=S_UnitHasAuraSource(edict);
     edict->data.UnitProfile = G_UnitProfile(edict->class_id);
     edict->data.UnitBalance = G_UnitBalance(edict->class_id);
     edict->data.UnitData = G_UnitData(edict->class_id);
@@ -584,6 +621,7 @@ void G_BindEntityData(edict_t *edict) {
     edict->data.Doodads = G_Doodad(edict->class_id);
     edict->data.ItemData = G_ItemData(edict->class_id);
     edict->data.DestructableData = G_DestructableData(edict->class_id);
+    if(had_aura || S_UnitHasAuraSource(edict))S_InvalidateAuraSources();
 }
 
 /* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks
@@ -795,7 +833,12 @@ void G_SpawnEntities(void) {
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     G_ClearMoveSpatial();
+    M_ResetMoveMembers();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     memset(&level, 0, sizeof(level));
+    G_ResetWaypointCache();
+    G_ResetMoveRegionEvents();
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     G_ResetHeroPassiveCaches();

@@ -1,4 +1,34 @@
 #include "g_local.h"
+#include "g_entity_set.h"
+
+static entitySet_t move_region_events;
+static bool move_region_events_valid;
+#ifdef BZ_TESTS
+static uint32_t move_region_event_visits;
+uint32_t G_TestMoveRegionEventVisits(bool reset) {
+    uint32_t count=move_region_event_visits;
+    if(reset)move_region_event_visits=0;
+    return count;
+}
+#endif
+
+void G_ResetMoveRegionEvents(void) { move_region_events_valid=false; }
+
+void G_TrackMoveRegionEvent(event_t const *event) {
+    uint32_t slot=event-level.events.handlers;
+    if(slot>=MAX_EVENTS)return;
+    entity_set_put(&move_region_events,slot,event->inuse &&
+        (event->type==EVENT_GAME_ENTER_REGION || event->type==EVENT_GAME_LEAVE_REGION));
+}
+
+static uint32_t move_next_region_event(uint32_t start) {
+    if(!move_region_events_valid) {
+        memset(&move_region_events,0,sizeof(move_region_events));
+        FOR_LOOP(i,MAX_EVENTS)G_TrackMoveRegionEvent(level.events.handlers+i);
+        move_region_events_valid=true;
+    }
+    return entity_set_next(&move_region_events,start);
+}
 
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
@@ -273,7 +303,19 @@ void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
     if(!ent || !ent->inuse || !(ent->svflags&SVF_MONSTER) || G_IsDeferredFree(ent))return;
     uint32_t const spawn=ent->spawn_time;
     vec2_t const old_position=ent->movement.region_valid ? ent->movement.region_position : ent->old_origin;
-    FOR_EACH_EVENT(evt) {
+    /* Equal endpoints cannot enter or leave any region. Keep the sample
+     * baseline, including signed zero, without visiting subscribers. */
+    if(old_position.x==point->x && old_position.y==point->y) {
+        ent->movement.region_position=*point;
+        ent->movement.region_valid=true;
+        return;
+    }
+    for(uint32_t i=move_next_region_event(0);i<MAX_EVENTS;i=move_next_region_event(i+1)) {
+        event_t *evt=level.events.handlers+i;
+        if(!evt->inuse)continue;
+#ifdef BZ_TESTS
+        move_region_event_visits++;
+#endif
         switch(evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle, region_handle;

@@ -8389,9 +8389,10 @@ nonstructures and does not claim a complete construction-class table.
 Move now stores adaptive_disabled independently of collision-layer flags,
 initializes it on unit birth and updates it after type rebind. Group planning
 and member refinement consult that state while retaining their authored lane
-and current fine-query mask. Save100 preserves the policy and rejects prior
-Save99 layout/version. No client state or scenario-specific production branch
-is added.
+and current fine-query mask. Save100 introduced that policy and rejected the prior
+Save99 layout/version; current Save101 retains it and rejects earlier formats
+after adding marked waypoint ownership and expanded order queues. No client
+state or scenario-specific production branch is added.
 
 A complete public script contrasts ground birth, authored flight birth, a ground
 unit transformed to flight and restoration to ground. Three crossings and the

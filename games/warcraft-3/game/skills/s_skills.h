@@ -375,6 +375,7 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
 void S_InvalidateAuraSources(void);
+bool S_UnitHasAuraSource(edict_t *);
 void S_InvalidateEnduranceSources(void);
 float S_ApplyEnduranceMoveSpeed(edict_t *,float);
 float S_ApplyEnduranceAttackBonus(edict_t *,float);

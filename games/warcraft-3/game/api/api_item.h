@@ -168,10 +168,10 @@ uint32_t SetItemVisible(jass_t *j) {
     bool show = jass_checkboolean(j, 2);
     if (!whichItem || !G_IsItem(whichItem)) return 0;
     if (show) {
-        whichItem->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(whichItem,false);
         whichItem->svflags &= ~SVF_NOCLIENT;
     } else {
-        whichItem->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(whichItem,true);
         whichItem->svflags |= SVF_NOCLIENT;
     }
     return 0;

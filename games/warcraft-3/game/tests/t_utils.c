@@ -65,9 +65,15 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
 }
 
 void reset_entities(void) {
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
+    G_ResetWaypointCache();
+    level.waypoints=(typeof(level.waypoints)){0};
+    G_ResetMoveRegionEvents();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     G_ClearMoveSpatial();
+    M_ResetMoveMembers();
     uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
@@ -146,6 +152,8 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     G_ResetDeferredFrees();
     UI_TestResetInfoPanelIconCache();
     G_ResetSelectionSoundState();

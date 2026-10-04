@@ -341,7 +341,7 @@ static void G_EffectLoopStand(edict_t *effect) {
         effect->s.frame = effect->animation->interval[1] > effect->animation->interval[0]
             ? effect->animation->interval[1] - 1 : effect->animation->interval[0];
         effect->aiflags |= AI_HOLD_FRAME;
-        effect->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(effect,true);
         effect->think = NULL;
         return;
     }
@@ -352,7 +352,7 @@ static void G_EffectEnterStand(edict_t *effect) {
     unit_setmove(effect, &wc3_effect_stand);
     if (!effect->animation) {
         effect->think = G_FreeEdict;
-        effect->currentmove = NULL;
+        M_SetMove(effect,NULL);
     }
 }
 
@@ -372,7 +372,7 @@ static void G_EffectStartAnimation(edict_t *effect, bool temporary) {
              * own lifetime.  Schedule an immediate free so the edict does not
              * leak when the JASS caller omits DestroyEffect. */
             effect->think = G_FreeEdict;
-            effect->currentmove = NULL;
+            M_SetMove(effect,NULL);
         }
     }
 }

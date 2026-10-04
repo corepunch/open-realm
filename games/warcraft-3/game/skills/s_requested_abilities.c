@@ -268,7 +268,7 @@ static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     missile->velocity = death_coil_missile_speed(spell->code) / 1000.0f;
     missile->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
     missile->movetype = MOVETYPE_FLYMISSILE;
-    missile->currentmove = &death_coil_projectile_move;
+    M_SetMove(missile,&death_coil_projectile_move);
 }
 
 /* Resolve chained damage jumps while keeping target selection separate from spell metadata. */
@@ -740,7 +740,7 @@ static void animate_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_
          * Its original corpse is consumed: when the temporary unit later dies or
          * times out it must not create another raisable corpse. */
         selected->svflags &= ~SVF_DEADMONSTER; selected->s.flags &= ~EF_NOT_SELECTABLE;
-        selected->aiflags &= ~AI_HOLD_FRAME; selected->s.renderfx &= ~RF_HIDDEN;
+        selected->aiflags &= ~AI_HOLD_FRAME; G_SetEntityHidden(selected,false);
         selected->combatentity = selected->goalentity = selected->secondarygoal = NULL;
         selected->wait = 0; G_ClearUnitOrderQueue(selected);
         selected->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;

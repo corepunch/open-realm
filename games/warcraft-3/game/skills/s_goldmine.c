@@ -254,7 +254,7 @@ static void goldmine_register_miner(edict_t *worker, edict_t *mine) {
     worker->goldmine->mine_spawn_time = mine->spawn_time;
     worker->goldmine->restore_invulnerable = worker->invulnerable;
     worker->invulnerable = true;
-    worker->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(worker,true);
     mine->peonsinside++;
     if (mine->peonsinside == 1) G_AddUnitAnimationProperties(mine, "work", true);
 }
@@ -272,7 +272,7 @@ static edict_t *goldmine_unregister_miner(edict_t *worker) {
     worker->goldmine->mine_spawn_time = 0;
     worker->invulnerable = worker->goldmine->restore_invulnerable;
     worker->goldmine->restore_invulnerable = false;
-    worker->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(worker,false);
     return mine;
 }
 
@@ -702,7 +702,7 @@ bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
     overlay->mineoverlay->parent_spawn_time = parent->spawn_time;
     overlay->mineoverlay->income_time = 0;
     overlay->mineoverlay->active_interval_index = 0;
-    parent->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(parent,true);
     parent->paused = true;
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
@@ -845,7 +845,7 @@ void S_MineOverlayRelease(edict_t *overlay) {
     overlay->mineoverlay->income_time = 0;
     overlay->mineoverlay->active_interval_index = 0;
     if (!parent) return;
-    parent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(parent,false);
     parent->paused = false;
     G_InvalidateUnitShortcutsForUnit(parent);
     if (parent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();

@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "../g_entity_set.h"
 #include "../../common/wc3_pathing_gate.h"
 #include "../../common/wc3_math.h"
 #include "../../common/wc3_pathing_adaptive.h"
@@ -6,6 +7,52 @@
 
 #define BZ_AWRP MAKEFOURCC('A','w','r','p')
 #define BZ_AMOV MAKEFOURCC('A','m','o','v')
+
+/* Derived ownership in edict order. Rebuild once after map/save replacement;
+ * queries still read live ability eligibility, activation and destinations. */
+static entitySet_t waygate_members;
+static bool waygate_members_valid;
+#ifdef BZ_TESTS
+static uint32_t waygate_edge_visits;
+#endif
+
+void S_ResetWaygateCache(void) {
+    waygate_members=(entitySet_t){0};
+    waygate_members_valid=false;
+}
+
+static void waygate_prepare_members(void) {
+    if(waygate_members_valid)return;
+    FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+        waygate_edge_visits++;
+#endif
+        edict_t const *ent=g_edicts+i;
+        if(ent->inuse && ent->waygate && ent->waygate->edge_id)
+            entity_set_put(&waygate_members,i,true);
+    }
+    waygate_members_valid=true;
+}
+
+static void waygate_track(edict_t const *gate,bool present) {
+    uintptr_t base=(uintptr_t)g_edicts, address=(uintptr_t)gate;
+    if(address<base || address-base>=sizeof(*gate)*globals.num_edicts ||
+        (address-base)%sizeof(*gate))return;
+    entity_set_put(&waygate_members,(address-base)/sizeof(*gate),present);
+}
+
+static uint32_t waygate_next_member(uint32_t from) {
+    for(uint32_t i=entity_set_next(&waygate_members,from);i<globals.num_edicts;
+        i=entity_set_next(&waygate_members,i+1)) {
+#ifdef BZ_TESTS
+        waygate_edge_visits++;
+#endif
+        edict_t const *ent=g_edicts+i;
+        if(ent->inuse && ent->waygate && ent->waygate->edge_id)return i;
+        entity_set_put(&waygate_members,i,false);
+    }
+    return globals.num_edicts;
+}
 
 /* Way Gate is authored as a passive ability. Resolve aliases rather than
  * hard-coding Awrp so map object-data copies retain their DataA/DataB entry
@@ -55,21 +102,27 @@ static void waygate_release(edict_t *gate) {
     if(!gate->waygate)return;
     if(gate->waygate->edge_id)waygate_publish_source(gate,0);
     G_FreeWaygate(gate);
+    waygate_track(gate,false);
 }
 
 /* The saved ability state owns allocation; reconstructing availability avoids
  * a second pool whose restore/free lifetime could disagree with the edicts. */
 static void waygate_initialize(edict_t *gate) {
     uint8_t used[BZ_WC3_GATE_RECORDS]={0};
+    waygate_prepare_members();
     if (!gate->waygate) gate->waygate=G_AllocWaygate();
-    if (gate->waygate->initialized) return;
-    FOR_LOOP(i,globals.num_edicts) {
+    if (gate->waygate->initialized) {
+        waygate_track(gate,gate->inuse && gate->waygate->edge_id);
+        return;
+    }
+    for(uint32_t i=waygate_next_member(0);i<globals.num_edicts;i=waygate_next_member(i+1)) {
         edict_t const *ent=g_edicts+i;
         if(ent->inuse && ent->waygate && ent->waygate->initialized && ent->waygate->edge_id)
             used[ent->waygate->edge_id]=1;
     }
     gate->waygate->edge_id=(uint8_t)wc3_gate_allocate(used);
     gate->waygate->initialized=true;
+    waygate_track(gate,gate->inuse && gate->waygate->edge_id);
     float width=0,height=0;
     if(!waygate_dimensions(gate,&width,&height))
         fprintf(stderr,"WC3 Waygate: nonpositive authored source dimensions unit=%u\n",gate->s.number);
@@ -106,9 +159,11 @@ bool S_WaygateIsActive(edict_t const *gate) {
 /* Ability-owned records are reconstructed for queries; retained routes keep
  * their own exit words through destination mutation and ID reuse. */
 void S_WaygateBuildEdges(wc3AccGate_t *edges) {
+    waygate_prepare_members();
     memset(edges,0,BZ_WC3_GATE_RECORDS*sizeof(*edges));
     box2_t bounds=CM_GetWorldBounds();
-    FILTER_EDICTS(ent,ent->inuse && ent->waygate && ent->waygate->edge_id) {
+    for(uint32_t i=waygate_next_member(0);i<globals.num_edicts;i=waygate_next_member(i+1)) {
+        edict_t const *ent=g_edicts+i;
         waygate_t const *gate=ent->waygate;
         wc3AccGate_t *record=edges+gate->edge_id;
         record->active=S_WaygateIsActive(ent);
@@ -121,8 +176,11 @@ void S_WaygateBuildEdges(wc3AccGate_t *edges) {
 
 bool S_WaygateEdgeIsActive(uint8_t id) {
     if(!id)return false;
-    FILTER_EDICTS(ent,ent->inuse && ent->waygate && ent->waygate->edge_id==id)
-        return S_WaygateIsActive(ent);
+    waygate_prepare_members();
+    for(uint32_t i=waygate_next_member(0);i<globals.num_edicts;i=waygate_next_member(i+1)) {
+        edict_t const *ent=g_edicts+i;
+        if(ent->waygate->edge_id==id)return S_WaygateIsActive(ent);
+    }
     return false;
 }
 

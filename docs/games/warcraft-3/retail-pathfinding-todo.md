@@ -12,15 +12,30 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 shared overlap/retry draw order now reaches public movement, including paused
 membership and saved continuation. Native and engine agree on1361 motion commits,
 830 separation visits,91 retries and12667 saved continuation commits. Classic and
-TFT each pass2544 tests/6,386,799 assertions;598 pathfinding-tool Python checks and
+TFT each passed2544 tests/6,386,799 assertions at that checkpoint;598 pathfinding-tool Python checks and
 eighteen fresh strict contracts pass. Saved Ghidra retains694 roles,73 layouts/
-506 fields,364 ABIs and61 globals. The performance rewrite preserves these checks
-but has not met the55-FPS twelve-mover target or established mass-movement scaling.
+506 fields,364 ABIs and61 globals. The performance rewrite preserves these checks. A visible twelve-member
+Rise of the Naga capture has measured one-second windows above55 FPS. Earlier
+CPU frame records omitted the first post-order simulation tick; steady movement
+is below the5% amortized budget. Current Classic/TFT each pass2559 tests and
+6,818,215 assertions; eighteen fresh strict contracts retain their two known
+adaptive differences. Corrected captures include that tick: twelve
+selected campaign units average0.409 ms of movement per100-ms tick, and all12
+acquire new Move requests on four commands. Mass-movement acceptance remains open.
+Individual spikes and mass-movement scaling remain unresolved; see the
+[production-map measurements](performance.md#october-4-production-map-follow-up).
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
 and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Current priority: remove query-time whole-world synchronization and validate
-hundreds to low thousands of actual movers before further backlog expansion.
+Current priority: finish mass-movement scaling and order-replacement spikes.
+Query-time whole-world synchronization has been removed. Dirty publication,
+sparse owner/provider membership, stamped search storage and bounded physical
+cohort lookup are integrated without closing unverified retail contracts.
+IceCrown retains5,957 static scenery entities; the1,024-unit corridor workload
+still exceeds the5% movement budget (8.72 ms/tick) and averages only144 advancing units.
+Validate hundreds to low thousands of actual movers before further backlog
+expansion. HPA* is a candidate for cached hierarchical data, but replacing the
+retail corridor/pruning policy requires exact route, budget and motion evidence.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable

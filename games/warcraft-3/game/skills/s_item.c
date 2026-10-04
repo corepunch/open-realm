@@ -97,7 +97,7 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
             target->s.origin.y = position->y;
             target->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
         }
-        target->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(target,false);
         target->svflags &= ~SVF_NOCLIENT;
         target->s.flags &= ~EF_NOT_SELECTABLE;
         if (target->stand) target->stand(target);
@@ -159,7 +159,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     G_ClearUnitOrderQueue(target);
     target->goalentity = target->combatentity = target->secondarygoal = NULL;
     if (target->stand) target->stand(target);
-    target->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(target,true);
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
     if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
@@ -338,7 +338,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     }
     if (!has_status_slot) return false;
 
-    target->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(target,true);
     unit_addtimedstatus(target, buff, 1, duration);
     {
         heroabilitystatus_t *status = unit_findstatus(target, *((uint32_t const *)buff));
@@ -349,7 +349,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
         fprintf(stderr, "WC3 invisibility item: authored status %.4s missing after use on unit %u\n",
                 buff,
                 target->s.number);
-        target->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(target,false);
     }
     return false;
 }
@@ -361,7 +361,7 @@ BZ_ABILITY_PROC(CAbilityItemInvis) {
     case A_STATUS_REMOVE:
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
-            ent->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(ent,false);
         return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);

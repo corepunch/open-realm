@@ -42,11 +42,11 @@ bool G_DoodadSetAnimation(edict_t *ent, cstring_t anim_name, bool random_animati
     /* Retail exposes these two special animation names for doodads.  They are
      * presentation-only and deliberately do not affect the doodad footprint. */
     if (!strcasecmp(anim_name, "hide")) {
-        ent->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(ent,true);
         return true;
     }
     if (!strcasecmp(anim_name, "show")) {
-        ent->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(ent,false);
         return true;
     }
 
@@ -56,7 +56,7 @@ bool G_DoodadSetAnimation(edict_t *ent, cstring_t anim_name, bool random_animati
     /* Persist the resolved sequence name so an animRandom choice survives save/load. */
     strlcpy(ent->animation_request, anim->name, sizeof(ent->animation_request));
     ent->animation = anim;
-    ent->currentmove = &doodad_scripted_move;
+    M_SetMove(ent,&doodad_scripted_move);
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->s.frame = anim->interval[0];
     ent->think = monster_think;

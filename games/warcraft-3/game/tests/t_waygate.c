@@ -67,6 +67,39 @@ static void assert_no_waygate_order(edict_t const *unit) {
     T_EQ(unit->movement.waygate_target_spawn_time, 0);
 }
 
+TEST(wc3_waygate, edge_queries_track_ownership_without_scanning_scenery) {
+    wayFix_t fix=waygate_setup(96,0);
+    FOR_LOOP(i,1900){edict_t *scenery=G_Spawn();scenery->svflags=SVF_STATIC_SCENERY;}
+    wc3AccGate_t edges[BZ_WC3_GATE_RECORDS];
+    S_WaygateBuildEdges(edges);uint8_t id=fix.gate->waygate->edge_id;
+    T_ASSERT(edges[id].active);waygate_edge_visits=0;
+    FOR_LOOP(i,16)S_WaygateBuildEdges(edges);
+    T_ASSERT(waygate_edge_visits<=16u);
+    S_WaygateSetActive(fix.gate,false);S_WaygateBuildEdges(edges);T_ASSERT(!edges[id].active);
+    S_WaygateSetDestination(fix.gate,&(vec2_t){768,512});
+    S_WaygateSetActive(fix.gate,true);S_WaygateBuildEdges(edges);T_ASSERT(edges[id].active);
+    box2_t bounds=CM_GetWorldBounds();
+    T_EQ(edges[id].destination.x,(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_mul(wc3_grid_coordinate(768,bounds.min.x,32),.5f)))));
+    T_EQ(edges[id].destination.y,(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_mul(wc3_grid_coordinate(512,bounds.min.y,32),.5f)))));
+    cstring_t file="/tmp/wc3-waygate-member-index.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));S_WaygateBuildEdges(edges);
+    waygate_edge_visits=0;FOR_LOOP(i,16)S_WaygateBuildEdges(edges);
+    T_ASSERT(waygate_edge_visits<=16u);T_ASSERT(S_WaygateEdgeIsActive(id));
+    G_DeferFreeEdict(fix.gate);S_WaygateBuildEdges(edges);
+    T_ASSERT(!edges[id].active);T_ASSERT(!S_WaygateEdgeIsActive(id));
+    /* Deferred cleanup retains the edge allocation for a callback replacement. */
+    edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    T_ASSERT(G_ActorAddSkill(replacement,BZ_TEST_WARP));
+    T_ASSERT(replacement->waygate->edge_id!=id);
+    S_WaygateSetActive(replacement,true);G_RunDeferredFrees();
+    T_ASSERT(G_ActorRemoveSkill(replacement,BZ_TEST_WARP));
+    waygate_edge_visits=0;S_WaygateBuildEdges(edges);
+    T_EQ(waygate_edge_visits,0u);
+    T_ASSERT(G_ActorAddSkill(replacement,BZ_TEST_WARP));
+    T_EQ(replacement->waygate->edge_id,id);
+    remove(file);waygate_done(fix);reset_entities();setup_test_world();
+}
+
 TEST(wc3_waygate, exhausted_gate_stays_unallocated_until_ability_recreation) {
     wayFix_t fix=waygate_setup(96,0);
     edict_t *gates[256]={fix.gate};

@@ -102,7 +102,7 @@ static inline uint32_t wc3_fine_build_route(wc3FineSearch_t *search, wc3FineRequ
     if ((uint32_t)request->start.x<request->width && (uint32_t)request->start.y<request->height &&
         request->start.x==request->goal.x && request->start.y==request->goal.y) {
         search->count=search->queued=search->pops=search->reopens=search->stale=0;
-        memset(search->hash,0,sizeof(search->hash)); wc3_fine_reserve(search,0,1);
+        wc3_fine_reset_lookup(search); wc3_fine_reserve(search,0,1);
         points[0]=goal; *complete=true; return 1;
     }
     int at=wc3_fine_search(search,request); *complete=at>=0;

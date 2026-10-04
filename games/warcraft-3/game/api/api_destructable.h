@@ -172,9 +172,9 @@ uint32_t ShowDestructable(jass_t *j) {
     if (d) {
         bool const was_hidden = !!(d->s.renderfx & RF_HIDDEN);
         if (show) {
-            d->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(d,false);
         } else {
-            d->s.renderfx |= RF_HIDDEN;
+            G_SetEntityHidden(d,true);
         }
         if ((d->s.flags & EF_FOW_BLOCKER) && was_hidden != !!(d->s.renderfx & RF_HIDDEN)) G_FowMarkBlockersDirty();
     }

@@ -2598,7 +2598,7 @@ TEST(wc3_movement, primary_clock_and_previous_velocity_match_fixed_oblique_frame
     CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(128, 128, cells);
     unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
     unit->think = monster_think;
-    unit->currentmove = &fixed_oblique_clock_walk;
+    M_SetMove(unit,&fixed_oblique_clock_walk);
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 300) {
@@ -7806,6 +7806,42 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, retry_members_follow_physical_ownership_without_scanning_scenery) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,1900) {edict_t *scenery=G_Spawn();scenery->svflags=SVF_STATIC_SCENERY;}
+    edict_t *units[3];vec2_t point={512,256};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    FOR_LOOP(i,3) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128.f+i*64.f,128.f);
+        units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;
+        units[i]->birth=unit_birth;units[i]->die=unit_die;units[i]->collision=0;
+        unit_stand(units[i]);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    units[1]->paused=true;
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),3u);
+    T_ASSERT(move_retry_member_visits<=BZ_WC3_GROUP_ORDER_UNITS);
+    G_FreeEdict(units[2]);
+    T_EQ(move_retry_members(units[0]),2u);
+    cstring_t file="/tmp/wc3-retry-member-index.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),2u);
+    T_ASSERT(move_retry_member_visits<=BZ_WC3_GROUP_ORDER_UNITS);
+    units[1]->paused=false;order_stop(units[1]);
+    T_EQ(move_retry_members(units[0]),1u);
+    /* Old larger/mixed selection cohorts retain their independent ID owner. */
+    units[0]->movement.group_id=UINT32_MAX;
+    units[1]->movement.group_id=UINT32_MAX;
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),2u);
+    T_EQ(move_retry_member_visits,globals.num_edicts);
+    remove(file);reset_entities();setup_test_world();
+}
+
 /* Return-to-building range must use the authored footprint, not only the
  * building's scalar collision circle.  At a Town Hall corner the Peasant can
  * be one legal step from the no-walk cells while centre distance is still well
@@ -7943,6 +7979,49 @@ TEST(wc3_movement, waypoint_add_sets_origin) {
     T_NOT_NULL(wp);
     T_FEQ(wp->s.origin.x, 128.0f, 0.01f);
     T_FEQ(wp->s.origin.y, 256.0f, 0.01f);
+}
+
+/* New requests must never retarget an earlier live point head when storage wraps. */
+TEST(wc3_movement, public_group_points_survive_waypoint_capacity_and_restore) {
+    enum { COUNT=MAX_WAYPOINTS+48 };
+    edict_t *units[COUNT]; vec2_t goals[COUNT];
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    FOR_LOOP(i,COUNT) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128+(i%8)*64,128+(i/8)*16);
+        units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;units[i]->collision=0;
+        unit_stand(units[i]);
+    }
+    for(unsigned first=0;first<COUNT;first+=12) {
+        vec2_t goal={384+(first%8)*16,512+(first/12)*8};
+        groupPointOrder_t request={.count=MIN(12,COUNT-first),.order_id=G_OrderId("move"),
+            .order="move",.point=&goal};
+        FOR_LOOP(i,request.count) {
+            request.units[i]=(typeof(request.units[0])){units[first+i],units[first+i]->spawn_time};
+            goals[first+i]=goal;
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        G_RunEvents();
+    }
+    FOR_LOOP(i,COUNT) {
+        T_EQ(units[i]->current_order_id,G_OrderId("move"));
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(units[i]->goalentity->s.origin2.x,goals[i].x);
+        T_EQ(units[i]->goalentity->s.origin2.y,goals[i].y);
+    }
+    cstring_t file="/tmp/wc3-waypoint-capacity.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    FOR_LOOP(i,MAX_WAYPOINTS*2)Waypoint_add(&(vec2_t){8,16});
+    FOR_LOOP(i,COUNT) {
+        T_EQ(units[i]->goalentity->s.origin2.x,goals[i].x);
+        T_EQ(units[i]->goalentity->s.origin2.y,goals[i].y);
+        unit_issueimmediateorder(units[i],"stop");
+        G_RunEvents();
+    }
+    FOR_LOOP(i,MAX_WAYPOINTS)Waypoint_add(&(vec2_t){16,8});
+    uint32_t count=globals.num_edicts;
+    FOR_LOOP(i,MAX_WAYPOINTS*4)Waypoint_add(&(vec2_t){16,8});
+    T_EQ(globals.num_edicts,count);
+    remove(file); reset_entities(); setup_test_world();
 }
 
 /* -----------------------------------------------------------------------
@@ -8624,6 +8703,120 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
         T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),change==5 ? 200 : 300,0.001f);
     }
+}
+
+TEST(wc3_movement, predicted_pose_cache_observes_all_inputs_and_clock_wrap) {
+    edict_t *unit=make_moving_unit(128,256);
+    unit->movement.fine_pose=(vec2_t){4,8};unit->movement.pose_world=unit->s.origin2;
+    unit->movement.pose_valid=unit->movement.clock_valid=true;
+    unit->movement.velocity=(vec2_t){270,180};
+    level.pathing_clock=(wc3Clock_t){.time=.03f,.span=300,.epoch=1};
+    unit->movement.pose_clock=(wc3Clock_t){.time=299.98f,.span=300,.epoch=0};
+    typeof(unit->movement) movement=unit->movement;
+    wc3Clock_t clock=level.pathing_clock;box2_t bounds=CM_GetWorldBounds();
+    vec2_t world=unit->s.origin2;
+    FOR_LOOP(change,20) {
+        unit->movement=movement;unit->s.origin2=world;level.pathing_clock=clock;
+        CM_SetupTestWorldBounds(&bounds);
+        if(change==19)unit->s.origin2.x=unit->movement.pose_world.x=unit->movement.fine_pose.x=0;
+        wc3GridPose_t first,again,raw;
+        unit_predicted_pose(unit,&first);
+        uint32_t hits=move_pose_cache_hits;
+        unit_predicted_pose(unit,&again);
+        T_EQ(memcmp(&first,&again,sizeof(first)),0);T_EQ(move_pose_cache_hits,hits+1);
+        switch(change) {
+        case 0: unit->s.origin2.x+=32;break;
+        case 1: unit->s.origin2.y+=32;break;
+        case 2: unit->movement.fine_pose.x+=.25f;break;
+        case 3: unit->movement.fine_pose.y+=.25f;break;
+        case 4: unit->movement.pose_world.x+=32;break;
+        case 5: unit->movement.pose_world.y+=32;break;
+        case 6: unit->movement.velocity.x+=10;break;
+        case 7: unit->movement.velocity.y+=10;break;
+        case 8: unit->movement.pose_valid=false;break;
+        case 9: unit->movement.clock_valid=false;break;
+        case 10: unit->movement.pose_clock.time-=.01f;break;
+        case 11: unit->movement.pose_clock.epoch--;break;
+        case 12: unit->movement.pose_clock.span+=1;break;
+        case 13: level.pathing_clock.time+=.01f;break;
+        case 14: level.pathing_clock.epoch++;break;
+        case 15: level.pathing_clock.span+=1;break;
+        case 16: {box2_t next=bounds;next.min.x-=128;CM_SetupTestWorldBounds(&next);break;}
+        case 17: {box2_t next=bounds;next.min.y-=128;CM_SetupTestWorldBounds(&next);break;}
+        case 18: unit->movement.velocity.x=wc3_float(0x80000000);break;
+        case 19: unit->s.origin2.x=wc3_float(0x80000000);break;
+        }
+        uint32_t misses=move_pose_cache_misses;
+        unit_predicted_pose(unit,&again);unit_predicted_pose_raw(unit,&raw);
+        T_EQ(memcmp(&again,&raw,sizeof(raw)),0);T_EQ(move_pose_cache_misses,misses+1);
+    }
+    CM_SetupTestWorldBounds(&bounds);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, physical_owner_order_retains_creation_sequence_after_slot_reuse) {
+    reset_entities();setup_test_world();
+    moveGroup_t *groups[128];
+    FOR_LOOP(i,128) {groups[i]=move_alloc_group();groups[i]->inuse=true;}
+    moveGroup_t *at=move_group_head;
+    for(uint32_t i=128;i>0;i--) {T_ASSERT(at==groups[i-1]);if(at)at=at->older;}
+    T_ASSERT(!at);
+    for(uint32_t i=0;i<128;i+=2)move_release_group(groups[i]);
+    FOR_LOOP(i,64) {
+        moveGroup_t *group=move_alloc_group();group->inuse=true;
+        T_ASSERT(group==groups[i*2]);T_ASSERT(move_group_head==group);
+    }
+    uint64_t previous=UINT64_MAX;uint32_t count=0;
+    for(at=move_group_head;at;at=at->older) {
+        T_ASSERT(at->sequence<previous);previous=at->sequence;count++;
+        T_ASSERT(!at->older || at->older->newer==at);
+    }
+    T_EQ(count,128u);
+    /* Reconstruct the same order from saved sequences, with no runtime links. */
+    move_group_order_valid=false;move_group_head=NULL;
+    FOR_LOOP(i,128)groups[i]->newer=groups[i]->older=NULL;
+    move_prepare_group_order();previous=UINT64_MAX;count=0;
+    for(at=move_group_head;at;at=at->older) {
+        T_ASSERT(at->sequence<previous);previous=at->sequence;count++;
+        T_ASSERT(at->slot<128 && level.move_groups[at->slot]==at);
+    }
+    T_EQ(count,128u);
+    move_run_group_updates();T_ASSERT(!move_group_head);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, group_id_allocation_scales_with_requests_and_restores_reserved_ids) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,1900) {edict_t *scenery=G_Spawn();scenery->svflags=SVF_STATIC_SCENERY;}
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    /* Restored/queued identities may lie ahead of the allocation counter. */
+    unit->movement.previous_request_id=17;
+    unit->order_queue.count=1;unit->order_queue.entries[0].owner_context=19;
+    strcpy(unit->order_queue.entries[0].order,"move");
+    unit->order_queue.entries[0].target_type=UNIT_ORDER_TARGET_POINT;
+    level.next_move_group_id=16;
+    T_EQ(move_allocate_group_id(),18u);
+    T_EQ(move_allocate_group_id(),20u);
+    uint32_t visits=move_group_id_visits;
+    FOR_LOOP(i,128) T_EQ(move_allocate_group_id(),21u+i);
+    T_ASSERT(move_group_id_visits-visits<=globals.num_edicts);
+    /* ReadGame reconstructs the bound from restored authoritative IDs. */
+    cstring_t file="/tmp/wc3-group-id-bound.bin";
+    level.next_move_group_id=16;
+    unit->movement.previous_request_id=21;
+    T_ASSERT(WriteGame(file));
+    unit->movement.previous_request_id=0;unit->order_queue.count=0;
+    T_ASSERT(ReadGame(file));
+    T_EQ(move_allocate_group_id(),17u);
+    level.next_move_group_id=20;
+    T_EQ(move_allocate_group_id(),22u);
+    /* A bound is conservative: removing a reference must permit its reuse. */
+    unit->movement.previous_request_id=0;level.next_move_group_id=20;
+    T_EQ(move_allocate_group_id(),21u);
+    unit->movement.previous_request_id=1;level.next_move_group_id=UINT32_MAX;
+    T_EQ(move_allocate_group_id(),2u);
+    remove(file);
+    reset_entities();setup_test_world();
 }
 
 TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
@@ -9705,13 +9898,13 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     movement_prepare_rooted_entangle_caster(caster, 0);
     parent->s.player = PLAYER_NEUTRAL_PASSIVE;
     setup_test_goldmine(parent, &test_goldmine_stock, 5000);
-    caster->currentmove = &active_order;
+    M_SetMove(caster,&active_order);
 
     T_ASSERT(G_IssueUnitTargetOrder(caster, "entangleinstant", parent, true, 0));
     T_EQ(G_UnitQueuedOrderCount(caster), 1);
     T_NULL(movement_find_entangle_overlay(caster, parent));
 
-    caster->currentmove = NULL;
+    M_SetMove(caster,NULL);
     T_ASSERT(G_UnitStartNextQueuedOrder(caster));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);

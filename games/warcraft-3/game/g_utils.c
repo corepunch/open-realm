@@ -14,6 +14,14 @@ bool G_UnitIsWorldActive(edict_t const *ent) {
     return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
 }
 
+/* Hidden actors leave fine occupancy; showing them is a new publication.
+ * Queue this at the owner so same-tick queries never need a world scan. */
+void G_SetEntityHidden(edict_t *ent, bool hidden) {
+    if(hidden)ent->s.renderfx|=RF_HIDDEN;
+    else ent->s.renderfx&=~RF_HIDDEN;
+    G_MarkMoveSpatialObject(ent);
+}
+
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
 static void G_CancelDeferredFree(edict_t *ent) {
     FOR_LOOP(i, deferred_free_count) {
@@ -61,6 +69,7 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
+    if(S_UnitHasAuraSource(ent))S_InvalidateAuraSources();
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
@@ -102,7 +111,10 @@ void G_FreeEdict(edict_t *ent) {
     G_RemoveMoveSpatialObject(ent);
     G_PoolsReleaseEdict(ent);
     memset(ent, 0, sizeof(*ent));
+    M_TrackMove(ent);
+    S_TrackMoveTimers(ent);
     ent->freetime = level.time;
+    G_MarkFreeEdict(ent);
     if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
@@ -116,7 +128,7 @@ void G_DeferFreeEdict(edict_t *ent) {
         return;
     }
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
-    ent->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(ent,true);
     G_RemoveMoveSpatialObject(ent);
     /* RemoveUnit becomes absent now; a route issued in the same JASS callback
      * must already see the remaining footprints and terrain baseline. */
@@ -153,7 +165,9 @@ event_t *G_MakeEvent(EVENTTYPE type) {
         event_t *evt = &level.events.handlers[i];
         uintptr_t generation = evt->handle_generation;
         memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
-        evt->inuse = true; evt->type = type; return evt;
+        evt->inuse = true; evt->type = type;
+        G_TrackMoveRegionEvent(evt);
+        return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
     return NULL;

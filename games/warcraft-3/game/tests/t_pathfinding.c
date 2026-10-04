@@ -1013,6 +1013,34 @@ static void fine_storage_terrain(uint8_t *cells) {
     FOR_LOOP(y,256) FOR_LOOP(x,256) cells[y*256+x]=x>=192 || (abs(x-128)<=8 && abs(y-128)<=8) ? 2 : 0;
 }
 
+/* Retained lookup must not admit stale identities after wrap, invalid requests,
+ * same-cell admission or freeing its node backing. All use the real kernel. */
+TEST(pathfinding, fine_lookup_epoch_wrap_and_reuse) {
+    wc3FineSearch_t *search=calloc(1,sizeof(*search));
+    uint8_t cells[256*256]={0}; fineStorageGraph_t graph={cells};
+    wc3FineRequest_t request={.start={2,2},.goal={8,8},.width=256,.height=256,
+        .budget=700,.edges=fine_storage_edges,.data=&graph};
+    T_NOT_NULL(search);
+    if(!search)return;
+    T_ASSERT(wc3_fine_search(search,&request)>=0);
+    uint32_t count=search->count,pops=search->pops;
+    uint64_t hash=fine_storage_node_hash(search);
+    search->hash_epoch=UINT32_MAX;
+    T_ASSERT(wc3_fine_search(search,&request)>=0);
+    T_EQ(search->hash_epoch,1u); T_EQ(search->count,count); T_EQ(search->pops,pops);
+    T_ASSERT(fine_storage_node_hash(search)==hash);
+    request.start.x=-1; T_EQ(wc3_fine_search(search,&request),-1);
+    request.start=request.goal;
+    wc3FineVector_t point; bool complete=false;
+    T_EQ(wc3_fine_build_route(search,&request,(wc3FineVector_t){8,8},(wc3FineVector_t){8,8},&point,1,&complete),1u);
+    T_ASSERT(complete); T_EQ(search->count,0u);
+    wc3_fine_free(search); request.start=(wc3FinePoint_t){2,2};
+    T_ASSERT(wc3_fine_search(search,&request)>=0);
+    T_EQ(search->count,count); T_EQ(search->pops,pops);
+    T_ASSERT(fine_storage_node_hash(search)==hash);
+    wc3_fine_free(search); free(search);
+}
+
 TEST(pathfinding, fine_capacity_failure_retains_partial_route_and_next_request_recovers) {
     wc3FineSearch_t *search=calloc(1,sizeof(*search));
     uint8_t *cells=malloc(256*256);
@@ -1824,7 +1852,86 @@ TEST(wc3_perf, fine_occupancy_with_1900_idle_units) {
     reset_entities(); setup_test_world();
 }
 
+/* An unchanged query must not synchronize unrelated world objects. Repeated
+ * local writes must still be observed in the same tick, including removal. */
+TEST(wc3_pathfinding, spatial_publication_follows_changed_objects) {
+    extern uint32_t G_TestMoveSpatialVisits(bool);
+    reset_entities(); setup_test_world();
+    FOR_LOOP(i,1900) {
+        edict_t *idle=make_unit_at(-960.f+(i%60)*32.f,256.f+(i/60)*32.f);
+        idle->collision=16.f; gi.LinkEntity(idle);
+    }
+    edict_t *unit=make_unit_at(128.f,128.f), *blocker=make_unit_at(160.f,128.f);
+    unit->collision=blocker->collision=16.f; gi.LinkEntity(unit); gi.LinkEntity(blocker);
+    vec2_t target={160.f,128.f}; float fine[2]={37.f,36.f};
+    movePathQuery_t query={{&unit->s.origin2,&target,16.f,CM_PATHING_UNWALKABLE},unit,NULL,true};
+    T_ASSERT(!G_UnitMovePathFinePointIsPathable(&query,fine));
+    G_TestMoveSpatialVisits(true);
+    FOR_LOOP(i,50) T_ASSERT(!G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_EQ(G_TestMoveSpatialVisits(true),0u);
+    blocker->s.origin2=(vec2_t){224.f,128.f}; gi.LinkEntity(blocker);
+    T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_EQ(G_TestMoveSpatialVisits(true),1u);
+    blocker->s.origin2=target; gi.LinkEntity(blocker);
+    T_ASSERT(!G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_EQ(G_TestMoveSpatialVisits(true),1u);
+    G_FreeEdict(blocker);
+    T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,fine));
+    T_EQ(G_TestMoveSpatialVisits(true),0u);
+    reset_entities(); setup_test_world();
+}
+
+/* Differential admission includes word boundaries, all footprint classes,
+ * terrain edits, overlapping objects, hidden/removal lifetimes and target-hit
+ * short circuits. It compares the actual optimized adapter to its ordered walk. */
+TEST(wc3_pathfinding, cached_edges_preserve_ordered_occupancy_and_terrain_edits) {
+    extern uint8_t G_TestMoveFineEdges(movePathQuery_t const *,point2_t,bool,bool *);
+    uint8_t cells[130*16]={0};
+    FOR_LOOP(y,16)FOR_LOOP(x,130)if((x*13+y*7)%19==0)cells[y*130+x]=(uint8_t)(2u<<(x%7));
+    reset_entities();setup_test_world();setup_test_pathmap(130,16,cells);
+    edict_t *unit=make_unit_at(4.25f,8.25f),*target=make_unit_at(64.25f,8.25f),*blocker=make_unit_at(64.25f,8.25f);
+    target->collision=blocker->collision=1.5f;gi.LinkEntity(unit);gi.LinkEntity(target);gi.LinkEntity(blocker);
+    vec2_t goal={127.25f,8.25f};
+    uint8_t masks[]={2,4,0x40,0x80};
+    FOR_LOOP(phase,5) {
+        if(phase==1)G_SetEntityHidden(blocker,true);
+        if(phase==2){G_FreeEdict(blocker);target->s.origin2=(vec2_t){96.25f,8.25f};gi.LinkEntity(target);}
+        if(phase==3){terrainPathingEdit_t edit={.point={34.25f,8.25f},.mask=2,.blocked=true};T_ASSERT(G_SetTerrainPathingFlags(&edit));}
+        if(phase==4){terrainPathingEdit_t edit={.point={34.25f,8.25f},.mask=2,.blocked=false};T_ASSERT(G_SetTerrainPathingFlags(&edit));}
+        FOR_LOOP(lane,4)FOR_LOOP(cls,4) {
+            movePathQuery_t query={{&unit->s.origin2,&goal,cls*.5f,masks[lane]},unit,target,true};
+            FOR_LOOP(y,16)FOR_LOOP(x,130) {
+                bool expected=false,actual=false;
+                uint8_t edges=G_TestMoveFineEdges(&query,(point2_t){x,y},false,&expected);
+                T_EQ(G_TestMoveFineEdges(&query,(point2_t){x,y},true,&actual),edges);
+                T_EQ(actual,expected);
+            }
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_pathfinding, entity_members_preserve_order_across_word_boundaries) {
+    entitySet_t members={0};
+    uint32_t ids[]={0,63,64,4095,4096,MAX_ENTITIES-1};
+    FOR_LOOP(i,6)entity_set_put(&members,ids[5-i],true);
+    uint32_t from=0;
+    FOR_LOOP(i,6) {T_EQ(entity_set_next(&members,from),ids[i]); from=ids[i]+1;}
+    T_EQ(entity_set_next(&members,from),MAX_ENTITIES);
+    entity_set_put(&members,63,false); entity_set_put(&members,4096,false);
+    T_EQ(entity_set_next(&members,1),64u);
+    T_EQ(entity_set_next(&members,4096),MAX_ENTITIES-1);
+    entity_set_put(&members,64,false); entity_set_put(&members,4095,false);
+    T_EQ(entity_set_next(&members,1),MAX_ENTITIES-1);
+    entity_set_put(&members,4096,true);
+    T_EQ(entity_set_next(&members,64),4096u);
+    entity_set_put(&members,4096,false); entity_set_put(&members,MAX_ENTITIES-1,false);
+    T_EQ(entity_set_next(&members,1),MAX_ENTITIES);
+    entity_set_put(&members,0,false); T_EQ(entity_set_next(&members,0),MAX_ENTITIES);
+}
+
 TEST(wc3_perf, twelve_movers_with_4000_scenery) {
+    extern uint32_t M_TestMoveOwnerVisits(bool);
     reset_entities();setup_test_world();
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     FOR_LOOP(i,4000) {
@@ -1841,8 +1948,10 @@ TEST(wc3_perf, twelve_movers_with_4000_scenery) {
     }
     T_ASSERT(G_IssueGroupPointOrder(&request));
     level.started=true;
+    M_TestMoveOwnerVisits(true);
     T_BENCH("12 movers + 4000 scenery (100ms simulation frame)",40,
         {level.time+=FRAMETIME;globals.RunFrame();});
+    T_ASSERT(M_TestMoveOwnerVisits(true)<40*1000);
     FOR_LOOP(i,12)T_ASSERT(request.units[i].unit->s.origin2.x>-320.f+(i%4)*64.f);
     level.started=false;reset_entities();setup_test_world();
 }

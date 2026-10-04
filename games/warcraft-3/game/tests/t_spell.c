@@ -889,14 +889,45 @@ TEST(wc3_spell, creep_slow_aura_reads_authored_move_and_attack_factors) {
     edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
     UnitAbilities_t abilities = { .abilList = "Aasl" };
 
+    FOR_LOOP(i,1900)alloc_test_unit(MAKEFOURCC('h','f','o','o'),1000+i*32,0);
     source->data.UnitAbilities = &abilities;
     source->s.player = 0; enemy->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     source->targtype = enemy->targtype = TARG_GROUND;
     T_FEQ(S_SlowAuraMoveReduction(enemy), 0.4f, 0.001f);
     T_FEQ(S_SlowAuraAttackReduction(enemy), 0.25f, 0.001f);
     T_FEQ(S_HumanMoveFactor(enemy), 0.6f, 0.001f);
+    extern uint32_t S_TestSlowAuraVisits(bool);
+    S_TestSlowAuraVisits(true);S_TestResetHeroAuraAliasResolves();
+    FOR_LOOP(i,50)T_FEQ(S_SlowAuraMoveReduction(enemy),0.4f,.001f);
+    T_EQ(S_TestSlowAuraVisits(true),50u);
+    T_EQ(S_TestHeroAuraAliasResolves(),0u);
+    FOR_LOOP(i,50) {
+        edict_t *scenery=G_Spawn();scenery->class_id=MAKEFOURCC('L','T','l','t');
+        scenery->svflags=SVF_STATIC_SCENERY;G_BindEntityData(scenery);
+        T_FEQ(S_SlowAuraMoveReduction(enemy),.4f,.001f);
+    }
+    T_EQ(S_TestHeroAuraAliasResolves(),0u);
+    G_SetEntityHidden(source,true);
+    T_FEQ(S_SlowAuraMoveReduction(enemy),0,.001f);
+    G_SetEntityHidden(source,false);
+    T_FEQ(S_SlowAuraMoveReduction(enemy),.4f,.001f);
+    source->s.player=enemy->s.player;
+    T_FEQ(S_SlowAuraMoveReduction(enemy),0,.001f);
+    source->s.player=0;
     enemy->s.origin2.x = 400;
     T_FEQ(S_SlowAuraMoveReduction(enemy), 0.0f, 0.001f);
+    enemy->s.origin2.x=100;
+    T_FEQ(S_SlowAuraMoveReduction(enemy),.4f,.001f);
+    T_ASSERT(G_ActorRemoveSkill(source,ID_SLOW_AURA));
+    T_FEQ(S_SlowAuraMoveReduction(enemy),0,.001f);
+    T_ASSERT(G_ActorAddSkill(source,ID_SLOW_AURA));
+    T_FEQ(S_SlowAuraMoveReduction(enemy),.4f,.001f);
+    G_FreeEdict(source);
+    T_FEQ(S_SlowAuraMoveReduction(enemy),0,.001f);
+    level.time+=2001;
+    edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','f','o','o'),100,0);
+    T_EQ(replacement,source);replacement->s.player=0;replacement->targtype=TARG_GROUND;
+    T_FEQ(S_SlowAuraMoveReduction(enemy),0,.001f);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
@@ -1269,8 +1300,22 @@ TEST(wc3_spell, combat_aura_alias_resolution_scales_with_edicts) {
     /* One shared provider pass should replace per-recipient scans and alias parsing. */
     T_ASSERT(S_TestHeroAuraAliasResolves() <= (AURA_SOURCES + AURA_TARGETS) * 16);
 
+    S_TestResetHeroAuraAliasResolves();
+    FOR_LOOP(frame,3) {
+        level.time+=AURA_UPDATE_MS;level.framenum++;
+        FOR_LOOP(i,AURA_TARGETS)T_FEQ(S_UnholyHealthRegen(targets[i]),10,.001f);
+    }
+    T_EQ(S_TestHeroAuraAliasResolves(),0u);
+    FOR_LOOP(i,AURA_SOURCES)G_SetEntityHidden(sources[i],true);
+    level.time+=AURA_UPDATE_MS;level.framenum++;
+    T_FEQ(S_UnholyHealthRegen(targets[0]),0,.001f);
+    FOR_LOOP(i,AURA_SOURCES)G_SetEntityHidden(sources[i],false);
+    level.time+=AURA_UPDATE_MS;level.framenum++;
+    T_FEQ(S_UnholyHealthRegen(targets[0]),10,.001f);
+    T_EQ(S_TestHeroAuraAliasResolves(),0u);
+
     FOR_LOOP(i, AURA_SOURCES) T_ASSERT(G_ActorRemoveSkill(sources[i], MAKEFOURCC('X','U','a','u')));
-    level.time = AURA_UPDATE_MS; level.framenum++;
+    level.time += AURA_UPDATE_MS; level.framenum++;
     T_FEQ(S_UnholyHealthRegen(targets[0]), 0.0f, 0.001f);
     T_ASSERT(G_ActorAddSkill(sources[0], MAKEFOURCC('X','U','a','u')));
     level.time += AURA_UPDATE_MS; level.framenum++;

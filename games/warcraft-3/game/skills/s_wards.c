@@ -77,7 +77,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	ward = S_SummonAt(caster, unit_id, &st.point, life);
 	if (!ward) return;
 	ward->summon_ability = spell->code;
-	ward->s.renderfx |= RF_HIDDEN;
+	G_SetEntityHidden(ward,true);
 	thinker = G_Spawn();
 	if (!thinker) { G_FreeEdict(ward); return; }
 	thinker->owner = ward;
@@ -166,7 +166,7 @@ void land_mine_think(edict_t *thinker) {
 	code = thinker->class_id;
 	level = MAX(1u, (uint32_t)thinker->wait);
 	if (thinker->damage && G_Time() >= thinker->resources) {
-		mine->s.renderfx |= RF_HIDDEN;
+		G_SetEntityHidden(mine,true);
 		thinker->damage = 0;
 	}
 	if (G_Time() < thinker->freetime) return;
@@ -209,8 +209,8 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	if (!thinker) { fprintf(stderr, "WC3 land mine: failed to allocate thinker for unit %u\n", mine->s.number); return false; }
 	/* Apply gameplay/presentation state only after the thinker owns the lifecycle. */
 	mine->collision = 0.0f;
-	mine->s.renderfx &= ~RF_HIDDEN;
-	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
+	G_SetEntityHidden(mine,false);
+	if (invis == 0.0f) G_SetEntityHidden(mine,true);
 	thinker->owner = mine;
 	if (!thinker->channel) thinker->channel = G_AllocChannel();
 	assert(thinker->channel);
@@ -243,7 +243,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 		land_mine_remove_thinker(ent);
 		/* Death/explosion presentation must no longer be hidden by the trap's
 		 * live-unit invisibility state. */
-		ent->s.renderfx &= ~RF_HIDDEN;
+		G_SetEntityHidden(ent,false);
 		return true;
 	case A_DISABLE:
 		/* G_ActorRemoveSkill removes the rawcode before dispatching A_DISABLE,
@@ -256,7 +256,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 				G_FreeEdict(thinker);
 			}
 		}
-		ent->s.renderfx &= ~RF_HIDDEN;
+		G_SetEntityHidden(ent,false);
 		return true;
 	case A_UNIT_REMOVE:
 		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
@@ -467,7 +467,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 	ward = S_SummonAt(caster, unit_id, &st.point, life);
 	if (!ward) return;
 	ward->summon_ability = spell->code;
-	ward->s.renderfx |= RF_HIDDEN;
+	G_SetEntityHidden(ward,true);
 	ward->wait = S_SpellRange(ID_ADT1, 1);
 	if (ward->wait <= 0.0f)
 		fprintf(stderr, "WC3 Sentry Ward: Adt1 Rng missing for detect on %.4s\n", (cstring_t)&spell->code);

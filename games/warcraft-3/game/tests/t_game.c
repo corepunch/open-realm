@@ -2873,6 +2873,34 @@ TEST(wc3_game, region_contains_entire_max_boundary_cell) {
  * G_FreeEdict
  * ========================================================================= */
 
+TEST(wc3_game, spawn_slot_index_preserves_order_cooldown_wrap_and_restore) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.time=10000;
+    edict_t *lower=NULL,*higher=NULL;
+    FOR_LOOP(i,1900) {
+        edict_t *ent=G_Spawn();
+        if(i==2)lower=ent;
+        if(i==256)higher=ent;
+    }
+    spawn_candidate_visits=0;
+    FOR_LOOP(i,128)T_NOT_NULL(G_Spawn());
+    T_ASSERT(spawn_candidate_visits<=128u);
+    G_FreeEdict(higher);level.time=10001;G_FreeEdict(lower);
+    uint32_t count=globals.num_edicts;
+    level.time=11000;T_ASSERT(G_Spawn()==g_edicts+count);
+    level.time=11001;T_ASSERT(G_Spawn()==higher);
+    level.time=11002;T_ASSERT(G_Spawn()==lower);
+    G_FreeEdict(higher);
+    cstring_t file="/tmp/wc3-spawn-slot-index.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    level.time=12003;T_ASSERT(G_Spawn()==higher);
+    /* Preserve the original unsigned cooldown predicate at time wrap. */
+    level.time=UINT32_MAX-500;G_FreeEdict(lower);
+    level.time=500;T_ASSERT(G_Spawn()==lower);
+    remove(file);reset_entities();setup_test_world();
+}
+
 TEST(wc3_game, free_edict_clears_inuse) {
     edict_t *ent = make_test_unit();
     T_ASSERT(ent->inuse);
@@ -3335,7 +3363,7 @@ TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
     enemy->targtype = TARG_GROUND;
     guard->attack1.cooldown = 1.0f; guard->attack1.damageBase = 1;
     guard->attack1.range = 64.0f; guard->runtime.acquisition_range = 300.0f;
-    guard->currentmove = &holdpos_move_stand;
+    M_SetMove(guard,&holdpos_move_stand);
     gi.LinkEntity(guard); gi.LinkEntity(enemy);
     level.time = 300;
 
@@ -4855,6 +4883,37 @@ TEST(wc3_save, round_trip_region_event_filter_function) {
     T_ASSERT(G_RegionFromHandle(restored_region) == restored_data);
     level.events = old_events;
     remove(filename);
+}
+
+/* Position samples visit only live region subscribers, including reused slots. */
+TEST(wc3_game, region_position_index_skips_unrelated_handlers_and_tracks_reuse) {
+    extern uint32_t G_TestMoveRegionEventVisits(bool);
+    reset_entities();setup_test_world();memset(&level.events,0,sizeof(level.events));
+    G_ResetMoveRegionEvents();
+    FOR_LOOP(i,MAX_EVENTS) {
+        bool region=i==0 || i==63 || i==64 || i==MAX_EVENTS-1;
+        event_t *event=G_MakeEvent(region ? EVENT_GAME_ENTER_REGION : EVENT_UNIT_DEATH);
+        T_EQ(event,level.events.handlers+i);
+    }
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    unit->svflags|=SVF_MONSTER;
+    G_TestMoveRegionEventVisits(true);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){256,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    level.events.handlers[63].inuse=false;
+    G_TrackMoveRegionEvent(level.events.handlers+63);
+    T_EQ(G_MakeEvent(EVENT_UNIT_DEATH),level.events.handlers+63);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){384,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),3);
+    level.events.handlers[63].inuse=false;
+    G_TrackMoveRegionEvent(level.events.handlers+63);
+    T_EQ(G_MakeEvent(EVENT_GAME_LEAVE_REGION),level.events.handlers+63);
+    G_UnitRegionPositionChanged(unit,&(vec2_t){512,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    G_ResetMoveRegionEvents();
+    G_UnitRegionPositionChanged(unit,&(vec2_t){128,128});
+    T_EQ(G_TestMoveRegionEventVisits(true),4);
+    memset(&level.events,0,sizeof(level.events));reset_entities();setup_test_world();
 }
 
 TEST(wc3_save, removed_region_event_survives_map_registry_recreation) {

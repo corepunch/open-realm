@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format100 retains movement-class-independent adaptive routing policy. */
-static uint32_t const save_version = 100;
+/* Format101 owns marked waypoint storage and world-sized pending order queues. */
+static uint32_t const save_version = 101;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -779,6 +779,9 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, inuse, F_INT),
     TF(moveGroup_t, initialized, F_INT),
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, newer, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, older, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveGroup_t, slot, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, goal, F_VECTOR),
     TF(moveGroup_t, point, F_VECTOR),
     TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
@@ -2169,6 +2172,7 @@ static bool ReadMoveShared(FILE *f) {
     return true;
 failed:
     S_ClearMoveGroups();
+    G_ResetWaypointCache();
     return false;
 }
 
@@ -2671,11 +2675,14 @@ bool ReadGame(cstring_t filename) {
     }
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ResetWaypointCache();
+    S_InvalidateAuraSources();
     G_ClearMoveSpatial();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
     ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
+    G_ResetMoveRegionEvents();
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 LoadGame: invalid AI initialization players\n"); fclose(f); return false; }
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
         fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
@@ -2712,9 +2719,12 @@ bool ReadGame(cstring_t filename) {
      * spatial tree before raw records overwrite their area links, then rebuild
      * one authoritative set below; retaining both creates cyclic area lists. */
     gi.ClearWorld();
+    M_ResetMoveMembers();
     /* Release process-owned curve allocations before raw edict records replace their addresses. */
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
         bool used;
@@ -2766,6 +2776,8 @@ bool ReadGame(cstring_t filename) {
         edict_t *ent = g_edicts + i;
         if (!ent->inuse) continue;
         if (ent->destructable) G_RestoreDestructableData(ent);
+        M_TrackMove(ent);
+        S_TrackMoveTimers(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
     G_RebuildSavedMovePathing();
@@ -2907,6 +2919,36 @@ TEST(wc3_save, rejects_invalid_captain_actor_reference) {
         memcpy((uint8_t *)&raw+field->ofs,&index,sizeof(index));
         T_ASSERT(!ReadField(field,(uint8_t *)&raw));
     }
+}
+
+/* Thousands of orders may precede the event pass. Preserve their unread
+ * point payloads and FIFO order through wrap and save relocation. */
+TEST(wc3_save, thousands_of_pending_point_orders_survive_save) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    level.events.read=level.events.write=MAX_EVENT_QUEUE-17;
+    uint32_t published=0;
+    FOR_LOOP(i,4096) {
+        vec2_t point={(float)i+.25f,-(float)i-.75f};
+        gameEvent_t *event=G_PublishEventWithPoint(&(gameEventPointParams_t){
+            .edict=unit,.type=EVENT_UNIT_ISSUED_POINT_ORDER,.value=(int32_t)i,.point=&point});
+        if(!event)break;
+        published++;
+    }
+    T_EQ(published,4096u);
+    if(published!=4096) {reset_entities();return;}
+    cstring_t file="/tmp/wc3-thousands-point-events.bin";
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    T_EQ(level.events.read,0u); T_EQ(level.events.write,published);
+    FOR_LOOP(i,published) {
+        gameEvent_t const *event=level.events.queue+i;
+        T_ASSERT(event->edict==unit);
+        T_EQ(event->type,EVENT_UNIT_ISSUED_POINT_ORDER);
+        T_EQ(event->value,(int32_t)i); T_ASSERT(event->has_point);
+        T_EQ(event->point.x,(float)i+.25f); T_EQ(event->point.y,-(float)i-.75f);
+    }
+    G_RunEvents(); T_EQ(level.events.read,level.events.write);
+    remove(file); reset_entities();
 }
 
 /* Save before recruitment, then insert a new unit after loading: both high
@@ -3302,8 +3344,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-97.bin",
         "/tmp/openwarcraft3-wc3-save-version-98.bin",
         "/tmp/openwarcraft3-wc3-save-version-99.bin",
+        "/tmp/openwarcraft3-wc3-save-version-100.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100 };
 
     reset_entities();
     setup_test_world();

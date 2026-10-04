@@ -518,6 +518,8 @@ static void G_InitGame(void) {
 
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
     memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     
     globals.edicts = g_edicts;
     globals.max_edicts = MAX_ENTITIES;
@@ -1715,6 +1717,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
  * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
+    G_InitMoveSpatialLink();
     FS_SetSheetHost(&MAKE(sheetHost_t,
         .ReadFile = G_ReadGameDataFile,
         .FreeFile = (void (*)(handle_t))gi.MemFree,

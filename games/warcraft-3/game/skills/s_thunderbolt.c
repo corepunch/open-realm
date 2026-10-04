@@ -54,7 +54,7 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     missile->wait = duration;
     missile->movetype = MOVETYPE_FLYMISSILE;
     G_StartProjectilePresentation(missile);
-    missile->currentmove = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
+    M_SetMove(missile,code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move);
 }
 
 #define BZ_BOLT_PROC(NAME, SPEED) \

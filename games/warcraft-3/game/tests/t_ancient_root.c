@@ -229,7 +229,7 @@ static void ancient_assert_morph_save_restore(bool rooted) {
     unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
     unit->ancient_root->approach_goal = NULL;
     unit->ancient_root->transition_end_time = 0;
-    unit->currentmove = NULL;
+    M_SetMove(unit,NULL);
     T_ASSERT(ReadGame(filename));
 
     T_EQ(unit->ancient_root->mode, rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);

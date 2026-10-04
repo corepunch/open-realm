@@ -6,6 +6,7 @@
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
 static void G_ApplyDestructableAlivePathing(edict_t *ent) {
+    G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->alive_pathtex
         : NULL;
@@ -22,6 +23,7 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
 }
 
 static void G_ApplyDestructableDeathPathing(edict_t *ent) {
+    G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->death_pathtex
         : NULL;
@@ -119,7 +121,7 @@ void G_ActivateScriptedDestructable(edict_t *ent,
 
     ent->svflags &= ~SVF_DEADMONSTER;
 
-    ent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(ent,false);
     ent->s.renderfx &= ~RF_NO_SHADOW;
     ent->s.flags &= ~EF_NOT_SELECTABLE;
 
@@ -389,10 +391,10 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
     ent->destructable->placement_solid = (placement->flags & 2) != 0;
     visible = placement->flags != 0;
     if (visible) {
-        ent->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(ent,false);
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     } else {
-        ent->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(ent,true);
         ent->s.flags |= EF_NOT_SELECTABLE;
     }
 

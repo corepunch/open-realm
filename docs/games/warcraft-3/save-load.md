@@ -6,13 +6,13 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 99, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 101, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
-- the fixed point-order waypoint edict ring and its circular allocation cursor;
+- the initial point-order waypoint reserve and its allocation cursor, plus additional managed destination edicts;
 - one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
 - sparse lifecycle records for all 27 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
 - ordinary fine-cell active insertion history after the pools: a64-bit publication counter, object count, owning-edict indexes and retained per-cell ranks;
@@ -217,7 +217,28 @@ Handle encoding dispatches value handles, VM-owned payloads, and function handle
 
 JASS sound handle payloads remain part of the VM snapshot, but one-shot presentation parameters currently maintained by the game host (`SetSoundVolume`, `SetSoundPosition`, and `AttachSoundToUnit`) are transient. `ReadGame()` clears that host-side table before reconstructed sound handles can reuse an old pointer value. Scripts that need those presentation parameters after restore must set them again before the next `StartSound`; continuous playback state is not yet serialized.
 
-Point-order waypoints follow Quake II's body-queue/TRAIL pattern: 256 classless, collisionless, `SVF_NOCLIENT` edicts are reserved before map entities and recycled as a ring. Its base, count, and cursor live in serialized level state. Consequently `goalentity` and other waypoint references use the ordinary `F_EDICT` index relocation path; there is only one entity pointer address domain.
+Point-order waypoints initially reserve 256 classless, collisionless,
+`SVF_NOCLIENT` edicts before map entities. Allocation leases unused destinations;
+when the available batch runs out, it traces live actors' destination references
+and transitive `secondarygoal` chains before reclaiming storage. If every managed
+destination is referenced, it allocates another 128 ordinary edicts. A live order
+must never lose its destination to circular reuse. `SVF_MOVE_WAYPOINT` records
+membership in the saved `svflags`. Format101 requires this ownership marker and
+rejects older versions instead of reconstructing legacy destination membership.
+The reserve's base, count and cursor remain serialized. Additional destinations and all `goalentity`/chain
+references use ordinary `F_EDICT` index relocation. Leases and tracing bitsets are
+derived state rebuilt after load. The 304-member public-order regression checks
+retained destinations, saved continuation and bounded reuse after Stop.
+
+The event ring now accommodates 32,768 pending records, enough for both issued-order
+notifications for every supported world entity before dispatch. `F_STRUCT_RING`
+writes only an unread count followed by its mapped records, so changing runtime
+capacity retains the mapped record layout. Format101 covers the expanded queue
+contract and marked destination ownership; older versions are rejected. A regression
+publishes 4,096 point events across the ring boundary and verifies payloads,
+entity relocation and FIFO order after load. Food and Shadow Meld component
+capacity likewise follows the world entity bound; their existing sparse pool
+serialization is unchanged.
 
 Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a request while a synchronous JASS call or coroutine is actively executing. Yielded `TriggerSleepAction` coroutines are safe and resume from their saved semantic PC after load.
 
@@ -816,6 +837,13 @@ pointers use `F_EDICT` indices and saved spawn generations. Pool pointers,
 capacity, ticking and bake revisions are process-owned; loading reconstructs
 owners after edicts, rejects invalid/duplicate owners and members, then rebinds
 route revisions after the world bake. Map replacement/shutdown releases owners.
+Creation-order links and allocation slots are derived runtime fields. Loading
+sorts by saved sequence once; ordinary allocation prepends new owners and
+retirement unlinks them. Each owner pass snapshots pointer/sequence pairs so
+callbacks cannot make a reused or newly created group run in the old visit.
+The request-ID upper bound is also reconstructed from active, previous and
+queued identities; counter wrap retains authoritative collision checks. These
+runtime indexes do not add serialized fields or change edict size.
 Partial records clear runtime addresses before error cleanup. The same bounded,
 finite three-buffer payload helpers serve edict and group routes.
 

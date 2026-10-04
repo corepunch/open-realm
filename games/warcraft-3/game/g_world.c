@@ -13,36 +13,92 @@ typedef struct {
     movePathQuery_t const *query;
     wc3SpatialActive_t const *target_links;
     bool has_target, endpoint;
-    uint32_t level;
+    uint32_t level, cell_epoch;
     bool *target_hit;
 } moveFineGraph_t;
 static wc3SpatialActive_t move_spatial[MAX_ENTITIES];
 static uint64_t move_spatial_serial;
+#ifdef BZ_TESTS
+static uint32_t move_spatial_visits;
+uint32_t G_TestMoveSpatialVisits(bool reset) {
+    uint32_t count=move_spatial_visits;
+    if(reset)move_spatial_visits=0;
+    return count;
+}
+#endif
 /* Derived broadphase. The saved ranks remain the authoritative cell order;
  * intrusive links only select occupants of a cell, never their priority. */
 typedef struct { uint32_t next, previous; } moveSpatialLink_t;
 static moveSpatialLink_t move_spatial_links[MAX_ENTITIES*16+1];
 static uint32_t *move_spatial_cells, move_spatial_width, move_spatial_height;
+/* One occupied bit per fine cell permits a conservative empty-neighborhood
+ * test without visiting any edict or changing the native cell observation order. */
+static uint64_t *move_occupied;
+static uint32_t move_occupied_stride;
+static uint64_t *move_static_edges[4];
+static uint32_t move_edge_epoch=1,move_cell_epoch;
+static uint64_t *move_cell_lookup;
+
+static void move_invalidate_edges(void);
 typedef struct {
     vec2_t world, fine, published;
     float collision;
     bool valid, pose_valid;
 } moveSpatialGeometry_t;
 static moveSpatialGeometry_t move_spatial_geometry[MAX_ENTITIES];
+/* Two-level dirty bits preserve the former ascending publication order while
+ * visiting only changed owners. No entity scan occurs on an unchanged query. */
+static entitySet_t move_dirty;
+static void (*move_link)(edict_t *);
 static void move_spatial_unlink(uint32_t index);
 static void move_spatial_insert(uint32_t index);
 static void move_spatial_prepare(void);
+
+void G_MarkMoveSpatialObject(edict_t const *ent) {
+    if(!ent)return;
+    uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
+    /* Metadata inspectors also bind non-world actor records. Only allocator
+     * edicts participate in the simulation spatial index. */
+    if(!g_edicts || index>=MAX_ENTITIES)return;
+    entity_set_put(&move_dirty,index,true);
+}
+
+static void move_spatial_clean(uint32_t index) {
+    entity_set_put(&move_dirty,index,false);
+}
+
+/* Link is the game-owned geometry observation point for non-Move writers.
+ * Do not publish here: presentation links must not advance the native pose. */
+static void move_link_entity(edict_t *ent) {
+    G_MarkMoveSpatialObject(ent);
+    move_link(ent);
+}
+
+void G_InitMoveSpatialLink(void) {
+    move_link=gi.LinkEntity;
+    gi.LinkEntity=move_link_entity;
+}
+
+static void move_spatial_sync(void) {
+    move_spatial_prepare();
+    for(uint32_t index=entity_set_next(&move_dirty,0);index<MAX_ENTITIES;index=entity_set_next(&move_dirty,index+1)) {
+        G_PublishMoveSpatialObject(g_edicts+index);
+    }
+}
 
 void G_ClearMoveSpatial(void) {
     memset(move_spatial,0,sizeof(move_spatial)); move_spatial_serial=0;
     memset(move_spatial_links,0,sizeof(move_spatial_links));
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
+    move_dirty=(entitySet_t){0};
+    if(move_occupied)memset(move_occupied,0,(size_t)move_occupied_stride*move_spatial_height*sizeof(*move_occupied));
     if(move_spatial_cells)memset(move_spatial_cells,0,(size_t)move_spatial_width*move_spatial_height*sizeof(*move_spatial_cells));
 }
 
 void G_RemoveMoveSpatialObject(edict_t const *ent) {
     if (ent) {
         uint32_t index=ent-g_edicts;
+        move_spatial_clean(index);
         move_spatial_unlink(index);
         memset(move_spatial+index,0,sizeof(*move_spatial));
         move_spatial_geometry[index].valid=false;
@@ -132,10 +188,24 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #include "common/world.c"
 #include "common/world_w3.c"
 #define PATHMAP_SETUP_COMPLETE move_acc_initialize
-#define CM_BakeStaticObstacles CM_BakeStaticMasks
+#define CM_BakeStaticObstacles move_bake_static_masks
 #include "server/sv_routing.c"
 #undef CM_BakeStaticObstacles
 #undef PATHMAP_SETUP_COMPLETE
+
+static void move_invalidate_edges(void) {
+    if(++move_edge_epoch==(1u<<28)) {
+        FOR_LOOP(lane,4)if(move_static_edges[lane])
+            memset(move_static_edges[lane],0,(size_t)pathmap.width*pathmap.height*sizeof(uint64_t));
+        move_edge_epoch=1;
+    }
+}
+/* Fine edge caching follows baked terrain, independently of the deliberately
+ * delayed adaptive hierarchy. A terrain edit must invalidate fine admission. */
+static void CM_BakeStaticMasks(void) {
+    move_bake_static_masks();
+    move_invalidate_edges();
+}
 
 /* Use the bake's predicate for lifecycle invalidation, including dead rubble
  * and live bridge decks that replace terrain rather than adding a blocker. */
@@ -175,6 +245,10 @@ void G_FreeMovePathCache(void) {
     wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
     move_acc_width = move_acc_height = 0;
     free(move_spatial_cells);move_spatial_cells=NULL;
+    free(move_occupied);move_occupied=NULL;move_occupied_stride=0;
+    FOR_LOOP(lane,4){free(move_static_edges[lane]);move_static_edges[lane]=NULL;}
+    move_edge_epoch=1;
+    free(move_cell_lookup);move_cell_lookup=NULL;move_cell_epoch=0;
     move_spatial_width=move_spatial_height=0;
     memset(move_spatial_links,0,sizeof(move_spatial_links));
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
@@ -431,6 +505,11 @@ static void move_spatial_unlink(uint32_t index) {
                 move_spatial_cells[(uint32_t)y*move_spatial_width+x]=link->next;
         }
         if(link->next)move_spatial_links[link->next].previous=link->previous;
+        wc3FineBox_t const *box=&move_spatial[index].box;
+        int x=box->min.x+(int)(slot%4),y=box->min.y+(int)(slot/4);
+        if((uint32_t)x<move_spatial_width && (uint32_t)y<move_spatial_height &&
+            !move_spatial_cells[(uint32_t)y*move_spatial_width+x])
+            move_occupied[(uint32_t)y*move_occupied_stride+((uint32_t)x>>6)]&=~(UINT64_C(1)<<(x&63));
         *link=(moveSpatialLink_t){0};
     }
 }
@@ -444,18 +523,25 @@ static void move_spatial_insert(uint32_t index) {
             move_spatial_links[id]=(moveSpatialLink_t){.next=*head};
             if(*head)move_spatial_links[*head].previous=id;
             *head=id;
+            move_occupied[(uint32_t)y*move_occupied_stride+((uint32_t)x>>6)]|=UINT64_C(1)<<(x&63);
         }
 }
 
 static void move_spatial_prepare(void) {
     if(move_spatial_cells && move_spatial_width==pathmap.width && move_spatial_height==pathmap.height)return;
-    free(move_spatial_cells);
+    free(move_spatial_cells);free(move_occupied);
     move_spatial_width=pathmap.width;move_spatial_height=pathmap.height;
     move_spatial_cells=calloc((size_t)pathmap.width*pathmap.height,sizeof(*move_spatial_cells));
     if(!move_spatial_cells)gi.error("WC3 fine spatial index: cannot allocate %ux%u cells",pathmap.width,pathmap.height);
+    move_occupied_stride=(pathmap.width+63)/64;
+    move_occupied=calloc((size_t)move_occupied_stride*pathmap.height,sizeof(*move_occupied));
+    if(!move_occupied)gi.error("WC3 fine occupancy: cannot allocate %ux%u cells",pathmap.width,pathmap.height);
     memset(move_spatial_links,0,sizeof(move_spatial_links));
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
-    FOR_LOOP(i,globals.num_edicts)move_spatial_insert(i);
+    FOR_LOOP(i,globals.num_edicts) {
+        move_spatial_insert(i);
+        if(g_edicts[i].inuse)G_MarkMoveSpatialObject(g_edicts+i);
+    }
 }
 
 /* Original1603d0/160590 publish occupancy only when the native pose commits.
@@ -487,11 +573,15 @@ static bool move_has_dynamic_occupancy(edict_t const *ent) {
         (ent->movement.captain_actor_type || !(ent->aiflags&AI_FLYING));
 }
 
-/* Pose commits own publication. A query also observes authored size/category
- * changes and explicit world writes by non-Move game owners. Intersection
+/* Pose commits own publication; dirty owners are synchronized before queries.
+ * Authored size/category and explicit world writes retain their order. Intersection
  * links survive; leaving/re-entering prepends even within one JASS callback. */
 void G_PublishMoveSpatialObject(edict_t const *ent) {
+#ifdef BZ_TESTS
+    move_spatial_visits++;
+#endif
     if (!ent || !pathmap.width || !pathmap.height) return;
+    move_spatial_clean(ent-g_edicts);
     if (!ent->inuse || !move_has_spatial_record(ent)) {
         if(move_spatial_geometry[ent-g_edicts].valid ||
             move_spatial[ent-g_edicts].box.max.x!=move_spatial[ent-g_edicts].box.min.x)
@@ -499,6 +589,7 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
         return;
     }
     move_spatial_prepare();
+    move_spatial_clean(ent-g_edicts);
     uint32_t index=ent-g_edicts;
     moveSpatialGeometry_t *geometry=move_spatial_geometry+index;
     if(geometry->valid && geometry->pose_valid==ent->movement.pose_valid &&
@@ -545,14 +636,13 @@ static void move_acc_object_rectangle(edict_t const *object, bool clear) {
     move_acc_rebuild_rectangle(box,clear);
 }
 
-/* Observe explicit writes by every game owner before querying. Unchanged
- * geometry avoids world/fine conversion; cells use the persistent index. */
+/* Observe changed game owners before querying; unrelated world objects never
+ * participate in publication or fine-cell lookup. */
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
     (void)bounds;
     graph->query=NULL;
     if (!query->units || !query->mover || (query->mover->aiflags & AI_FLYING)) return;
-    move_spatial_prepare();
-    FILTER_EDICTS(ent,ent->inuse)G_PublishMoveSpatialObject(ent);
+    move_spatial_sync();
     graph->query=query;
 }
 
@@ -580,13 +670,42 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
     return !blocked;
 }
 
-static bool move_cell_ok(void const *data, wc3FinePoint_t pos) {
+static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
     /* Public placement can carry a real zero query after SetUnitPathing(false).
      * Generic routing normalizes its legacy zero before constructing this graph. */
     if (!is_valid_point(pos.x,pos.y) ||
         (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) return false;
     return move_occupancy_cell(data,pos);
+}
+
+/* No game callback runs during the synchronous fine search. Its fixed query,
+ * object ranks and flags can therefore reuse each cell's admission result,
+ * replaying the target-observer bit at the same point in the ordered walk. */
+static void move_begin_cell_query(moveFineGraph_t *graph) {
+    if(!move_cell_lookup) {
+        move_cell_lookup=calloc((size_t)pathmap.width*pathmap.height,sizeof(*move_cell_lookup));
+        if(!move_cell_lookup)gi.error("WC3 fine cell query: cannot allocate lookup");
+    }
+    if(!++move_cell_epoch) {
+        memset(move_cell_lookup,0,(size_t)pathmap.width*pathmap.height*sizeof(*move_cell_lookup));
+        move_cell_epoch=1;
+    }
+    graph->cell_epoch=move_cell_epoch;
+}
+
+static bool move_cell_ok(void const *data,wc3FinePoint_t pos) {
+    moveFineGraph_t const *graph=data;
+    if(!graph->cell_epoch || !is_valid_point(pos.x,pos.y))return move_cell_uncached(data,pos);
+    uint64_t *entry=move_cell_lookup+(uint32_t)pos.y*pathmap.width+pos.x;
+    if((*entry>>32)!=graph->cell_epoch) {
+        bool hit=false;
+        moveFineGraph_t observed=*graph;observed.target_hit=&hit;
+        bool allowed=move_cell_uncached(&observed,pos);
+        *entry=((uint64_t)graph->cell_epoch<<32) | allowed | ((uint64_t)hit<<1);
+    }
+    if((*entry&2) && graph->target_hit)*graph->target_hit=true;
+    return (*entry&1)!=0;
 }
 
 /* Native terrain words use the original direct software world/fine transform.
@@ -840,12 +959,57 @@ bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query) {
     return query && move_query_line(query,NULL,false);
 }
 
-/* Original fine expansion tests entering strips, including both diagonal sides. */
-static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
-    moveFineGraph_t const *graph = data;
-    wc3FineSegment_t query = { .cls = (unsigned)graph->size - 1, .cell = move_cell_ok, .data = graph };
-    return wc3_fine_cell_edges(&query, pos);
+/* Includes every cell in the retail entering strips, including predecessor
+ * sides of diagonals. A false positive only selects the original ordered walk. */
+static bool move_empty_edge_neighborhood(moveFineGraph_t const *graph,wc3FinePoint_t pos) {
+    int minx=MAX(0,pos.x-graph->size/2-1),maxx=MIN((int)move_spatial_width,pos.x+graph->size-graph->size/2+1);
+    int miny=MAX(0,pos.y-graph->size/2-1),maxy=MIN((int)move_spatial_height,pos.y+graph->size-graph->size/2+1);
+    if(minx>=maxx || miny>=maxy)return true;
+    unsigned first=(unsigned)minx>>6,last=(unsigned)(maxx-1)>>6;
+    uint64_t low=UINT64_MAX<<(minx&63),high=UINT64_MAX>>(63-((maxx-1)&63));
+    for(int y=miny;y<maxy;y++) {
+        uint64_t const *row=move_occupied+(uint32_t)y*move_occupied_stride;
+        if(first==last ? (row[first]&low&high) : ((row[first]&low)||(row[last]&high)))return false;
+    }
+    return true;
 }
+
+/* Original fine expansion tests entering strips, including both diagonal sides.
+ * Cache only static admission in empty neighborhoods. Nearby objects retain
+ * every original callback, rank comparison, short circuit and target observer. */
+static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
+    moveFineGraph_t const *graph=data;
+    wc3FineSegment_t query={.cls=(unsigned)graph->size-1,.cell=move_cell_ok,.data=graph};
+    unsigned lane=0;while(lane<4 && move_acc_masks[lane]!=graph->flags)lane++;
+    if(lane==4 || !is_valid_point(pos.x,pos.y) ||
+        ((graph->query || graph->has_target) && !move_empty_edge_neighborhood(graph,pos)))
+        return wc3_fine_cell_edges(&query,pos);
+    if(!move_static_edges[lane]) {
+        move_static_edges[lane]=calloc((size_t)pathmap.width*pathmap.height,sizeof(uint64_t));
+        if(!move_static_edges[lane])gi.error("WC3 fine edges: cannot allocate lane %u",lane);
+    }
+    uint64_t *entry=move_static_edges[lane]+(uint32_t)pos.y*pathmap.width+pos.x;
+    if((*entry>>36)!=move_edge_epoch)*entry=(uint64_t)move_edge_epoch<<36;
+    uint64_t valid=UINT64_C(1)<<(32+query.cls);
+    if(!(*entry&valid)) {
+        moveFineGraph_t terrain={.size=graph->size,.flags=graph->flags};query.data=&terrain;
+        *entry|=valid | ((uint64_t)wc3_fine_cell_edges(&query,pos)<<(query.cls*8));
+    }
+    return (uint8_t)(*entry>>(query.cls*8));
+}
+
+#ifdef BZ_TESTS
+uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cached,bool *hit) {
+    moveFineGraph_t graph=move_foot_shape(&input->geometry);move_query_objects(&graph,input,NULL);
+    if(input->target) {
+        graph.target_links=move_spatial+(input->target-g_edicts);graph.has_target=true;graph.target_hit=hit;
+    }
+    if(cached)move_begin_cell_query(&graph);
+    wc3FinePoint_t point={pos.x,pos.y};
+    wc3FineSegment_t query={.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
+    return cached ? move_fine_edges(&graph,point) : wc3_fine_cell_edges(&query,point);
+}
+#endif
 
 typedef struct { movePathQuery_t const *query; edict_t **items; uint32_t count; } moveBlockerQuery_t;
 
@@ -884,8 +1048,7 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const fine_goal[2], edict_t **out) {
     if (!input || !input->units || !input->mover || !out || !input->geometry.target ||
         !pathmap.width || !pathmap.height || (input->mover->aiflags&AI_FLYING)) return 0;
-    move_spatial_prepare();
-    FILTER_EDICTS(ent,ent->inuse) G_PublishMoveSpatialObject(ent);
+    move_spatial_sync();
     vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
         move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
     moveBlockerQuery_t scan={input,out,0};
@@ -1130,6 +1293,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         .budget = input->mover ? BZ_WC3_UNIT_FINE_WORK : BZ_WC3_FINE_WORK,
         .edges = move_fine_edges, .data = &graph, .target_hit = &target_hit };
     if (input->units && input->mover && !S_AdmitUnitMoveFineRequest((edict_t *)input->mover)) return false;
+    move_begin_cell_query(&graph);
     bool complete;
     uint32_t count=wc3_fine_build_route(&move_fine,&req,(wc3FineVector_t){a.x,a.y},
         (wc3FineVector_t){b.x,b.y},move_fine_points,BZ_WC3_FINE_NODES,&complete);

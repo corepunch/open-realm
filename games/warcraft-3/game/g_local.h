@@ -64,7 +64,7 @@ typedef struct {
 } moveShared_t;
 
 /* Move owns retained physical groups independently of JASS collection handles. */
-typedef struct {
+typedef struct moveGroup_s {
     uint32_t id, count, flags, age, completion_counter, cooldown;
     uint32_t request_id; /* Latest submitted request history for cohort acquisition. */
     uint64_t sequence; /* Creation order survives slot reuse and save/load. */
@@ -77,6 +77,9 @@ typedef struct {
     float heading, radius;
     moveFineRoute_t route;
     moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
+    /* Derived creation-order links and allocation slot; rebuilt after load. */
+    struct moveGroup_s *newer, *older;
+    uint32_t slot;
 } moveGroup_t;
 
 /* Original player rows have independent ordinary fine work and intrusive queues. */
@@ -89,12 +92,15 @@ typedef struct {
 #define ABILITY(NAME) void M_##NAME(edict_t *ent, edict_t *target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
-#define MAX_EVENT_QUEUE 1024
+/* Two order notifications for every world entity can precede one event pass.
+ * A power-of-two bound also keeps ring indexing a mask in the hot dispatch. */
+#define MAX_EVENT_QUEUE 32768
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define BZ_STRINGIFY_INNER(value) #value
 #define BZ_STRINGIFY(value) BZ_STRINGIFY_INNER(value)
 #define MAX_ENTITIES MAX_GAME_ENTITIES
+#include "g_entity_set.h"
 #define MAX_REGION_SIZE 16
 #define MAX_REGIONS 2048 // fixed region data slots; generation tokens let retired slots be reused safely
 #define REGION_TOKEN_SLOT_BITS 13 // 2048 slots plus a two-bit tag; upper uintptr_t bits carry a generation
@@ -1111,7 +1117,8 @@ typedef struct {
 #define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
-#define MAX_WAYPOINTS 256 // entities; fixed g_edicts ring used by point-target movement
+#define MAX_WAYPOINTS 256 // entities; initial destination reserve, with leased growth
+#define SVF_MOVE_WAYPOINT 0x00000020 // game-owned destination storage; persisted in existing svflags
 #define WC3_PLAYERSTATE_NO_CREEP_SLEEP 25 // common.j playerstate; prevents Neutral Hostile from entering natural night sleep
 
 #ifdef WC3_DEBUG_TUTORIAL_FLOW
@@ -2787,7 +2794,10 @@ bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
 uint32_t G_TimerRemaining(gtimer_t const *timer);
 
 edict_t *Waypoint_add(vec2_t const *);
+void G_ResetWaypointCache(void);
 void G_InitWaypoints(void);
+void G_ResetSpawnCache(void);
+void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
 void G_RegisterGroundSurface(edict_t *);
 void G_UnregisterGroundSurface(edict_t *);
@@ -2795,6 +2805,10 @@ void G_ClearGroundSurfaces(void);
 void monster_start(edict_t *);
 void monster_think(edict_t *);
 void M_RunScheduledThinks(void);
+void M_TrackMove(edict_t const *);
+void M_SetMove(edict_t *, umove_t *);
+void M_ResetMoveMembers(void);
+void S_TrackMoveTimers(edict_t const *);
 void M_SamplePoses(void);
 
 // g_model.c
@@ -3000,6 +3014,9 @@ bool G_GetMoveAdaptiveState(uint8_t *, uint32_t);
 bool G_SetMoveAdaptiveState(uint8_t const *, uint32_t);
 void G_RebuildSavedMovePathing(void);
 void G_ClearMoveSpatial(void);
+void G_InitMoveSpatialLink(void);
+void G_MarkMoveSpatialObject(edict_t const *);
+void G_SetEntityHidden(edict_t *, bool);
 void G_PublishMoveSpatialObject(edict_t const *);
 void G_RemoveMoveSpatialObject(edict_t const *);
 uint64_t G_GetMoveSpatialSerial(void);
@@ -3452,6 +3469,8 @@ void G_DeferFreeEdict(edict_t *);
 bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
+void G_ResetMoveRegionEvents(void);
+void G_TrackMoveRegionEvent(event_t const *);
 event_t *G_MakeEvent(EVENTTYPE);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
@@ -3497,6 +3516,13 @@ bool unit_additem(edict_t *, edict_t *);
 void unit_addstatus(edict_t *, cstring_t, uint32_t);
 void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
+typedef struct unitStatusQuery_s {
+    edict_t const *unit;
+    uint32_t slots;
+    struct unitStatusQuery_s *previous;
+} unitStatusQuery_t;
+void G_BeginUnitStatusQuery(edict_t const *,unitStatusQuery_t *);
+void G_EndUnitStatusQuery(unitStatusQuery_t *);
 bool unit_statusshowstimedbar(uint32_t);
 float unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *);
@@ -3661,6 +3687,7 @@ bool S_WaygateEdgeIsActive(uint8_t);
 bool G_FindUnitMovePortalPosition(edict_t *, vec2_t const *, vec2_t *);
 bool S_MoveThroughPortal(edict_t *, vec2_t const *);
 bool S_ValidateWaygateIds(void);
+void S_ResetWaygateCache(void);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
 bool S_WaygateGetDestination(edict_t const *, vec2_t *);

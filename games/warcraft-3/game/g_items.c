@@ -367,7 +367,7 @@ static void G_RetainConsumedItemForUseEvent(edict_t *item) {
     item->item->inventory_slot = -1;
     item->item->in_world = false;
     item->item->pending_use_removal = true;
-    item->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(item,true);
     item->svflags |= SVF_NOCLIENT;
     level.pending_consumed_item_cleanup = true;
 }
@@ -442,7 +442,7 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
     }
 
     gi.UnlinkEntity(item);
-    item->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(item,true);
     item->svflags |= SVF_NOCLIENT;
     item->item->in_world = false;
     item->item->carrier = unit;
@@ -562,7 +562,7 @@ static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vec2_t const *pos
     item->s.origin.y = drop_position.y;
     item->s.origin.z = CM_GetHeightAtPoint(drop_position.x, drop_position.y);
     item->s.origin2 = drop_position;
-    item->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(item,false);
     item->svflags &= ~SVF_NOCLIENT;
     gi.LinkEntity(item);
     G_RefreshInventoryUI(unit);

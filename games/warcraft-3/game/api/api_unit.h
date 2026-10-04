@@ -173,11 +173,12 @@ uint32_t ShowUnit(jass_t *j) {
     if (show && !G_UnitIsWorldActive(whichUnit)) return 0;
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
-        whichUnit->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(whichUnit,false);
     } else {
-        whichUnit->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(whichUnit,true);
     }
     is_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
+    G_MarkMoveSpatialObject(whichUnit);
     if (was_hidden != is_hidden) {
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         /* Visibility is part of both Hero-shortcut and idle-worker eligibility.

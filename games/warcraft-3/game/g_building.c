@@ -1570,7 +1570,7 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
     worker->goalentity = building;
     if (!inside) return;
 
-    worker->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(worker,true);
     worker->paused = true;
     worker->invulnerable = true;
     G_InvalidateUnitShortcutsForUnit(worker);
@@ -1649,8 +1649,8 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
 
     worker->paused = building->construction->restore_paused;
     worker->invulnerable = building->construction->restore_invulnerable;
-    if (building->construction->restore_hidden) worker->s.renderfx |= RF_HIDDEN;
-    else worker->s.renderfx &= ~RF_HIDDEN;
+    if (building->construction->restore_hidden) G_SetEntityHidden(worker,true);
+    else G_SetEntityHidden(worker,false);
     G_InvalidateUnitShortcutsForUnit(worker);
     if (consumes && worker->data.UnitBalance)
         G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);

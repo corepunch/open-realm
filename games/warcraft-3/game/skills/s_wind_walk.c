@@ -24,10 +24,10 @@ static void wind_walk_cleanup(edict_t *unit, heroabilitystatus_t const *status) 
     if (!status->data) {
         fprintf(stderr, "WC3 Wind Walk: status on unit %u has no applying ability rawcode\n",
                 unit->s.number);
-        if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
+        if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
         return;
     }
-    if (!S_UnitHasTemporaryInvisibility(unit, status)) unit->s.renderfx &= ~RF_HIDDEN;
+    if (!S_UnitHasTemporaryInvisibility(unit, status)) G_SetEntityHidden(unit,false);
     S_SpellStartCooldown(unit, status->data, status->level);
     G_InvalidateUnitInfoPanel(unit);
 }
@@ -67,7 +67,7 @@ static void wind_walk_execute(edict_t *unit, abilityitem_t const *spell) {
         return;
     }
     status->data = spell->code;
-    unit->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(unit,true);
 }
 
 BZ_ABILITY_PROC(CAbilityWindWalk) {

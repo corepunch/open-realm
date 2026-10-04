@@ -72,7 +72,7 @@ void unit_setmove(edict_t *self, umove_t *move) {
         if (self->currentmove) SAFE_CALL(self->currentmove->leave, self);
         S_UnitAbilityMoveLeave(self, move->proc);
     }
-    self->currentmove = move;
+    M_SetMove(self,move);
     G_SetUnitAnimation(self, move->animation);
     if (self->animation) {
         // skip

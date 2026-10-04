@@ -970,14 +970,14 @@ static umove_t _stub_move = { "stand", NULL, stub_endfunc, NULL };
 
 static void stub_transition_endfunc(edict_t *ent) {
     _endfunc_called++;
-    ent->currentmove = &_replacement_move;
+    M_SetMove(ent,&_replacement_move);
     ent->animation = &_replacement_anim;
 }
 
 TEST(wc3_combat, mmoveframe_no_animation_is_noop) {
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->animation   = NULL;
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->s.frame     = 0;
 
     M_MoveFrame(ent);
@@ -988,7 +988,7 @@ TEST(wc3_combat, mmoveframe_no_animation_is_noop) {
 TEST(wc3_combat, mmoveframe_hold_frame_flag_inhibits) {
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->s.frame     = 100;
     ent->aiflags    |= AI_HOLD_FRAME;
 
@@ -1002,7 +1002,7 @@ TEST(wc3_combat, mmoveframe_normal_advance) {
      * Start at frame 50 → next frame = 150 (still inside interval). */
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->s.frame     = 50;
     _endfunc_called  = 0;
 
@@ -1015,7 +1015,7 @@ TEST(wc3_combat, mmoveframe_normal_advance) {
 TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->animation_speed = 0.5f;
     ent->s.frame = 50;
 
@@ -1027,7 +1027,7 @@ TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
 TEST(wc3_combat, paused_unit_advances_scripted_animation_only) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->paused = true;
     ent->s.frame = 50;
 
@@ -1043,7 +1043,7 @@ TEST(wc3_combat, mmoveframe_at_end_calls_endfunc_and_wraps) {
     /* Start at frame 250 → next = 350 >= 300 (end) → endfunc, wrap to 0. */
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->s.frame     = 250;
     _endfunc_called  = 0;
 
@@ -1063,7 +1063,7 @@ TEST(wc3_combat, mmoveframe_endfunc_transition_starts_replacement_animation) {
     edict_t *ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
 
     ent->animation = &old_anim;
-    ent->currentmove = &old_move;
+    M_SetMove(ent,&old_move);
     ent->s.frame = 250;
     _endfunc_called = 0;
 
@@ -1079,7 +1079,7 @@ TEST(wc3_combat, mmoveframe_out_of_range_frame_resets) {
     /* frame > interval[1] → clamped to interval[0]. */
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
-    ent->currentmove = &_stub_move;
+    M_SetMove(ent,&_stub_move);
     ent->s.frame     = 9999;
     _endfunc_called  = 0;
 

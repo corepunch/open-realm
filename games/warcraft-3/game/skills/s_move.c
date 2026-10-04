@@ -45,6 +45,17 @@ typedef struct {
     wc3GridPose_t pose;
 } moveStep_t;
 
+static entitySet_t move_timer_members;
+
+/* Timer ownership changes at admission/cancellation, never by scanning scenery
+ * every five milliseconds. Three passes below retain the original phase order. */
+void S_TrackMoveTimers(edict_t const *ent) {
+    uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
+    if(!g_edicts || index>=MAX_ENTITIES)return;
+    entity_set_put(&move_timer_members,index,ent->inuse && (ent->movement.captain_home.actor ||
+        ent->movement.captain_home.roster_actor || ent->movement.pause_resume_pending || ent->movement.type_rebind_pending));
+}
+
 #ifdef BZ_TESTS
 /* Read-only observer of scheduled Move commits, before same-clock map timers. */
 static void (*move_test_motion_commit)(edict_t *unit);
@@ -53,6 +64,7 @@ typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, resul
 static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
 typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
 static void (*move_test_repulse)(edict_t *unit,moveRepulseTrace_t const *trace);
+static uint32_t move_retry_member_visits;
 #endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
@@ -89,6 +101,61 @@ static edict_t *trymove_self = NULL;
 static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
 static moveGroup_t const *move_deciding_group;
 static uint32_t move_deciding_excluded;
+/* Physical group allocations are stable until map teardown; IDs remain truth. */
+static moveGroup_t *move_unit_groups[MAX_ENTITIES];
+/* All request identities are minted by move_allocate_group_id. Copies and
+ * retirement cannot introduce an ID above this conservative upper bound.
+ * Reconstruct once after map/save replacement; wrapped IDs still use the
+ * authoritative collision check below. No serialized state is duplicated. */
+static uint32_t move_group_id_bound;
+static bool move_group_id_bound_valid;
+typedef struct {
+    vec2_t world,fine,published,origin,velocity;
+    wc3Clock_t now,committed;
+    uint32_t flags;
+} movePoseKey_t;
+_Static_assert(sizeof(movePoseKey_t)==68,"Pose key must contain no padding");
+typedef struct {
+    edict_t const *unit;
+    movePoseKey_t key;
+    wc3GridPose_t pose;
+    bool valid;
+} movePoseCache_t;
+/* A small working set covers repeated pure predictions within group decisions.
+ * Complete input bits remain truth; callbacks and external writers need no
+ * invalidation protocol, and collisions simply recompute the original math. */
+static movePoseCache_t move_pose_cache[256];
+typedef struct { moveGroup_t *group; uint64_t sequence; } moveGroupVisit_t;
+static moveGroup_t *move_group_head;
+static uint32_t move_group_first_free;
+static bool move_group_order_valid;
+static int move_compare_group_visits(void const *,void const *);
+/* Saves record creation sequences, not process links. Sort once on restore;
+ * allocation prepends new owners and retirement unlinks them in constant time. */
+static void move_prepare_group_order(void) {
+    if(move_group_order_valid)return;
+    uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
+    moveGroupVisit_t *owners=count ? malloc(count*sizeof(*owners)) : NULL;
+    if(count && !owners)gi.error("Move: cannot reconstruct physical owner order");
+    move_group_first_free=count;
+    FOR_LOOP(i,count) {
+        moveGroup_t *group=level.move_groups[i];group->slot=i;
+        group->newer=group->older=NULL;
+        if(group->inuse)owners[visits++]=(moveGroupVisit_t){group,group->sequence};
+        else move_group_first_free=MIN(move_group_first_free,i);
+    }
+    if(visits)qsort(owners,visits,sizeof(*owners),move_compare_group_visits);
+    FOR_LOOP(i,visits) {
+        owners[i].group->newer=i ? owners[i-1].group : NULL;
+        owners[i].group->older=i+1<visits ? owners[i+1].group : NULL;
+    }
+    move_group_head=visits ? owners[0].group : NULL;
+    move_group_order_valid=true;free(owners);
+}
+#ifdef BZ_TESTS
+static uint32_t move_group_id_visits;
+static uint32_t move_pose_cache_hits,move_pose_cache_misses;
+#endif
 /* Registry identity survives callback-driven pool growth and save relocation. */
 static moveGroup_t *move_find_group(uint32_t id) {
     if (!id) return NULL;
@@ -99,9 +166,20 @@ static moveGroup_t *move_find_group(uint32_t id) {
     return NULL;
 }
 
+static moveGroup_t *move_unit_group(edict_t const *unit) {
+    uint32_t id=unit->movement.group_id;
+    if(!id)return NULL;
+    uintptr_t index=((uintptr_t)unit-(uintptr_t)g_edicts)/sizeof(*unit);
+    if(index>=MAX_ENTITIES)return move_find_group(id);
+    moveGroup_t *group=move_unit_groups[index];
+    if(group && group->inuse && group->id==id)return group;
+    /* First lookup after activation/restoration repairs the derived binding. */
+    return move_unit_groups[index]=move_find_group(id);
+}
+
 /* An edict address alone is insufficient after removal and slot reuse. */
 static moveGroupMember_t *move_find_member(edict_t const *unit) {
-    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    moveGroup_t *group=move_unit_group(unit);
     if (!group) return NULL;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time)
         return group->members+i;
@@ -170,6 +248,7 @@ void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work) {
 }
 
 void S_ClearMoveFineRequests(void) {
+    move_timer_members=(entitySet_t){0};
     FOR_LOOP(i,globals.num_edicts) {
         g_edicts[i].movement.fine_prev=g_edicts[i].movement.fine_next=NULL;
         g_edicts[i].movement.fine_queued=false;
@@ -281,10 +360,20 @@ static void move_release_group(moveGroup_t *group) {
         if (!shared->references) gi.error("Move: shared parameter reference underflow");
         shared->references--;
     }
+    if(move_group_order_valid) {
+        if(group->newer)group->newer->older=group->older;
+        else move_group_head=group->older;
+        if(group->older)group->older->newer=group->newer;
+        move_group_first_free=MIN(move_group_first_free,group->slot);
+    }
     move_free_group_routes(group); memset(group,0,sizeof(*group));
 }
 
 void S_ClearMoveGroups(void) {
+    memset(move_unit_groups,0,sizeof(move_unit_groups));
+    move_group_id_bound=0;move_group_id_bound_valid=false;
+    move_group_head=NULL;move_group_first_free=0;move_group_order_valid=false;
+    memset(move_pose_cache,0,sizeof(move_pose_cache));
     /* Atomic teardown also handles a partially rejected save. It must not
      * consume unchecked serialized bindings or reference counts. */
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {move_free_group_routes(level.move_groups[i]);free(level.move_groups[i]);}
@@ -296,7 +385,7 @@ void S_ClearMoveGroups(void) {
 
 /* Swap removal preserves the original surviving-row order contract. */
 static void move_detach_group(edict_t *unit) {
-    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    moveGroup_t *group=move_unit_group(unit);
     if (!group) return;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
         group->members[i]=group->members[--group->count];
@@ -733,6 +822,7 @@ static void move_free_unowned_captain_actor(edict_t *actor) {
 static void move_release_captain_reference(edict_t *self) {
     edict_t *actor=self->movement.captain_home.actor;
     self->movement.captain_home.actor=NULL;
+    S_TrackMoveTimers(self);
     self->movement.captain_home.active=false;
     if (!self->movement.captain_home.roster_actor) self->movement.captain_home.entered=false;
     move_free_unowned_captain_actor(actor);
@@ -743,6 +833,7 @@ void S_ReleaseCaptainHomeActor(edict_t *actor) {
     actor->movement.captain_actor_owned=false;
     FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
         ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
         ent->movement.captain_home.outer=false;
         if (!ent->movement.captain_home.active) ent->movement.captain_home.entered=false;
     }
@@ -840,7 +931,7 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
      * request. A completed physical task remains eligible for new admission. */
     bool unchanged=members>0;
     FOR_LOOP(i,members) {
-        edict_t *ent=roster[i]; moveGroup_t const *group=move_find_group(ent->movement.group_id);
+        edict_t *ent=roster[i]; moveGroup_t const *group=move_unit_group(ent);
         if (!group || !group->shared_id || group->goal.x!=home->x || group->goal.y!=home->y)
             unchanged=false;
     }
@@ -852,7 +943,9 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
         ent->movement.captain_home.active=false;
         /* Transfer physical references across order replacement. */
         ent->movement.captain_home.actor=NULL;
+        S_TrackMoveTimers(ent);
         ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
     }
     uint64_t shared_id=members>1 ? move_alloc_shared() : 0;
     if (members==1) S_IssueMoveOrder(roster[0],Waypoint_add(home),G_OrderId("move"));
@@ -869,7 +962,9 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
     }
     FOR_LOOP(i,members) {
         roster[i]->movement.captain_home=retained[i];
+        S_TrackMoveTimers(roster[i]);
         roster[i]->movement.captain_home.actor=actor;
+        S_TrackMoveTimers(roster[i]);
         roster[i]->movement.captain_home.active=false;
         if (!logical) roster[i]->movement.captain_home.entered=false;
     }
@@ -912,11 +1007,14 @@ static void move_captain_home_update(edict_t *self) {
             /* Transfer the physical reference without briefly releasing the
              * final follower of an actor whose logical captain was retired. */
             self->movement.captain_home.actor=NULL;
+            S_TrackMoveTimers(self);
             move_leave(self);
             S_RecoverStoppedUnitPosition(self);
             S_IssueMoveOrder(self,self->goalentity,G_OrderId("move"));
             self->movement.captain_home=retained;
+            S_TrackMoveTimers(self);
             self->movement.captain_home.actor=actor;
+            S_TrackMoveTimers(self);
             self->movement.captain_home.active=true;
             self->movement.captain_home.entered=false;
             move_start_follow_group(self,actor,true);
@@ -953,23 +1051,32 @@ static void move_captain_home_update(edict_t *self) {
 /* Dispatch after a due path owner, before ordinary timer/event actions. Pose
  * sampling is observational and must not replace tasks ahead of that owner. */
 void S_RunMoveTimers(void) {
-    FILTER_EDICTS(ent,ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor)) move_captain_home_update(ent);
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.pause_resume_pending && !ent->paused) {
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))move_captain_home_update(ent);
+    }
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(!ent->inuse || !ent->movement.pause_resume_pending || ent->paused)continue;
         wc3Clock_t const *due=&ent->movement.pause_deadline;
         bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
             (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
         if(!ready)continue;
         uint32_t order=ent->movement.pause_order_id;
         ent->movement.pause_resume_pending=false;ent->movement.pause_order_id=0;
+        S_TrackMoveTimers(ent);
         if(ent->goalentity && ent->currentmove==&move_move_walk)
             S_IssueMoveOrder(ent,ent->goalentity,order);
     }
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.type_rebind_pending) {
+    for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
+        edict_t *ent=g_edicts+i;
+        if(!ent->inuse || !ent->movement.type_rebind_pending)continue;
         wc3Clock_t const *due=&ent->movement.type_rebind_deadline;
         bool ready=level.pathing_clock.epoch==due->epoch ? level.pathing_clock.time>=due->time :
             (int32_t)(level.pathing_clock.epoch-due->epoch)>0;
         if (!ready)continue;
         ent->movement.type_rebind_pending=false;
+        S_TrackMoveTimers(ent);
         if (ent->currentmove==&move_move_walk && ent->goalentity)
             S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
     }
@@ -1039,12 +1146,33 @@ static void move_repulse_init(edict_t *self) {
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
-static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
+static void unit_predicted_pose_raw(edict_t const *self, wc3GridPose_t *pose) {
     unit_grid_pose(self,pose);
     if (self->movement.clock_valid) {
         float velocity[2] = {self->movement.velocity.x,self->movement.velocity.y};
         wc3_grid_step(pose,velocity,wc3_elapsed(&level.pathing_clock,&self->movement.pose_clock));
     }
+}
+
+static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
+    box2_t bounds=CM_GetWorldBounds();
+    movePoseKey_t key={.world=self->s.origin2,.fine=self->movement.fine_pose,
+        .published=self->movement.pose_world,.origin=bounds.min,.velocity=self->movement.velocity,
+        .now=level.pathing_clock,.committed=self->movement.pose_clock,
+        .flags=(self->movement.pose_valid ? 1u : 0) | (self->movement.clock_valid ? 2u : 0)};
+    uintptr_t address=(uintptr_t)self;
+    movePoseCache_t *entry=move_pose_cache+(((address>>4)^(address>>16))&255u);
+    if(entry->valid && entry->unit==self && !memcmp(&entry->key,&key,sizeof(key))) {
+#ifdef BZ_TESTS
+        move_pose_cache_hits++;
+#endif
+        *pose=entry->pose;return;
+    }
+#ifdef BZ_TESTS
+    move_pose_cache_misses++;
+#endif
+    unit_predicted_pose_raw(self,pose);
+    *entry=(movePoseCache_t){.unit=self,.key=key,.pose=*pose,.valid=true};
 }
 
 /* Admitted Move publishes nonzero requested speed with its committed velocity;
@@ -1139,6 +1267,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
         }
     } else if(self->movement.pause_order_id) {
         self->movement.pause_resume_pending=true;
+        S_TrackMoveTimers(self);
         self->movement.pause_deadline=level.pathing_clock;
         FOR_LOOP(i,2)wc3_clock_advance(&self->movement.pause_deadline,wc3_float(0x3ba3d70a),0);
     }
@@ -1152,6 +1281,7 @@ void S_SetUnitPaused(edict_t *self, bool paused) {
 /* A different behavior must not inherit the previous Move's prediction velocity. */
 static void move_leave(edict_t *self) {
     self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    S_TrackMoveTimers(self);
     move_detach_group(self);
     self->movement.group_id=0;
     move_release_captain_reference(self);
@@ -1539,6 +1669,32 @@ static uint32_t move_advance_retry(edict_t *unit,wc3RetryInput_t const *input) {
     return result;
 }
 
+static uint32_t move_retry_members(edict_t const *self) {
+    uint32_t count=0;
+    /* A physical owner contains every actor assigned its unique ID. Count
+     * live rows, including paused members, before the next pruning pass. */
+    moveGroup_t const *group=move_unit_group(self);
+    if(group) {
+        FOR_LOOP(i,group->count) {
+#ifdef BZ_TESTS
+            move_retry_member_visits++;
+#endif
+            edict_t const *peer=group->members[i].unit;
+            if(peer->inuse && peer->movement.group_id==group->id)count++;
+        }
+        return count;
+    }
+    /* Larger/mixed legacy selections have an ID without a physical owner. */
+    FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+        move_retry_member_visits++;
+#endif
+        edict_t const *peer=g_edicts+i;
+        if(peer->inuse && peer->movement.group_id==self->movement.group_id)count++;
+    }
+    return count;
+}
+
 /* Original167290 resets the fine leg only; retaining the coarse route lets
  * the following thinker refill around the peer that has now stopped. */
 static void move_retry_fine(edict_t *self) {
@@ -1550,8 +1706,7 @@ static void move_retry_fine(edict_t *self) {
     /* TODO GROUP: engine cohorts supply members until the original group
      * activation/membership producer replaces the current selection owner. */
     if (self->movement.group_id) {
-        in.members=0;
-        FILTER_EDICTS(peer,peer->inuse && peer->movement.group_id==self->movement.group_id) in.members++;
+        in.members=move_retry_members(self);
     }
     uint32_t result=move_advance_retry(self,&in);
     assert(result==1); /* admitted fine progress clears the budget before collection */
@@ -2081,7 +2236,52 @@ void unit_changeangle_interaction_ignore_units(edict_t *self) {
                                        MOVE_AVOID_STATIC_ONLY, true);
 }
 
-/* Reserve a body-queue-style ring in g_edicts so ordinary F_EDICT relocation owns every waypoint pointer. */
+static entitySet_t waypoint_available;
+static bool waypoint_cache_valid;
+
+void G_ResetWaypointCache(void) { waypoint_cache_valid=false; }
+
+static void waypoint_retain(entitySet_t *retained,edict_t *point) {
+    while(point) {
+        uintptr_t address=(uintptr_t)point,base=(uintptr_t)g_edicts;
+        if(address<base || address>=base+globals.num_edicts*sizeof(*point) ||
+            (address-base)%sizeof(*point))return;
+        uint32_t index=(address-base)/sizeof(*point);
+        if(!(point->svflags&SVF_MOVE_WAYPOINT) ||
+            (retained->bits[index/64]&(UINT64_C(1)<<(index%64))))return;
+        entity_set_put(retained,index,true);
+        point=point->secondarygoal;
+    }
+}
+
+/* Trace the retained heads once per allocation batch. Newly allocated slots
+ * remain leased until the next trace, so callers can install their pointers
+ * after Waypoint_add returns. The ordinary F_EDICT serializer owns all heads. */
+static void waypoint_collect_available(void) {
+    entitySet_t retained={0};
+    memset(&waypoint_available,0,sizeof(waypoint_available));
+    FILTER_EDICTS(unit,unit->inuse && !(unit->svflags&SVF_MOVE_WAYPOINT)) {
+        waypoint_retain(&retained,unit->goalentity);
+        waypoint_retain(&retained,unit->secondarygoal);
+        waypoint_retain(&retained,unit->movement.attackmove_waypoint);
+        waypoint_retain(&retained,unit->movement.patrol_a);
+        waypoint_retain(&retained,unit->movement.patrol_b);
+        waypoint_retain(&retained,unit->movement.patrol_target);
+        waypoint_retain(&retained,unit->movement.waygate_goal);
+        waypoint_retain(&retained,unit->movement.cargo_unload_goal);
+        waypoint_retain(&retained,unit->movement.flow_fallback_goal);
+        if(unit->movement.route_resume_valid)waypoint_retain(&retained,unit->movement.route_resume_goal);
+        if(unit->ancient_root)waypoint_retain(&retained,unit->ancient_root->approach_goal);
+    }
+    FILTER_EDICTS(point,point->inuse && (point->svflags&SVF_MOVE_WAYPOINT)) {
+        uint32_t index=point-g_edicts;
+        if(!(retained.bits[index/64]&(UINT64_C(1)<<(index%64))))
+            entity_set_put(&waypoint_available,index,true);
+    }
+    waypoint_cache_valid=true;
+}
+
+/* Reserve the initial contiguous destination batch before map actors spawn. */
 void G_InitWaypoints(void) {
     uint32_t base;
     if (level.waypoints.count) return;
@@ -2089,17 +2289,39 @@ void G_InitWaypoints(void) {
     FOR_LOOP(i, MAX_WAYPOINTS) {
         edict_t *waypoint = G_Spawn();
         if (waypoint != g_edicts + base + i) gi.error("G_InitWaypoints: waypoint ring is not contiguous\n");
-        waypoint->svflags |= SVF_NOCLIENT;
+        waypoint->svflags |= SVF_NOCLIENT|SVF_MOVE_WAYPOINT;
     }
     level.waypoints.count = MAX_WAYPOINTS;
+    G_ResetWaypointCache();
 }
 
-/* Recycle one real edict from the fixed ring, matching Quake II's TRAIL/body queue ownership model. */
+/* Reuse only unreferenced destinations; grow in batches when every head is
+ * still live. A body queue may replace visible corpses, but a Move target
+ * must retain its coordinates until its owner releases it. */
 edict_t *Waypoint_add(vec2_t const *spot) {
     edict_t *waypoint;
     G_InitWaypoints();
-    waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
-    level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
+    if(!waypoint_cache_valid)waypoint_collect_available();
+    uint32_t index=entity_set_next(&waypoint_available,level.waypoints.base+level.waypoints.cursor);
+    if(index==MAX_ENTITIES)index=entity_set_next(&waypoint_available,0);
+    if(index==MAX_ENTITIES) {
+        waypoint_collect_available();
+        index=entity_set_next(&waypoint_available,0);
+    }
+    if(index==MAX_ENTITIES) {
+        uint32_t reserve=MIN(128,globals.max_edicts-globals.num_edicts);
+        if(!reserve)gi.error("Move: no destination storage available (%u entities)\n",globals.max_edicts);
+        FOR_LOOP(i,reserve) {
+            edict_t *point=G_Spawn();
+            point->svflags|=SVF_NOCLIENT|SVF_MOVE_WAYPOINT;
+            entity_set_put(&waypoint_available,point-g_edicts,true);
+        }
+        index=entity_set_next(&waypoint_available,0);
+    }
+    waypoint=g_edicts+index;
+    entity_set_put(&waypoint_available,index,false);
+    level.waypoints.cursor=index>=level.waypoints.base && index<level.waypoints.base+MAX_WAYPOINTS ?
+        (index-level.waypoints.base+1)%MAX_WAYPOINTS : 0;
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
@@ -2372,8 +2594,10 @@ static uint32_t move_collect_selected(gameClient_t *client,
 
 void move_reset_progress(edict_t *self) {
     self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    S_TrackMoveTimers(self);
     move_release_captain_reference(self);
     self->movement.type_rebind_pending=false;
+    S_TrackMoveTimers(self);
     move_unlink_fine_request(self);
     /* Original166060 activates a replacement path with fresh7c/80 admission
      * timestamps. A previous follower's throttle must not delay its group leg. */
@@ -2457,6 +2681,8 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     if (M_UnitMoveDisabled(ent)) return 0;
     if (ent->movement.captain_actor_type) return ent->unitinfo.MoveSpeed;
+    unitStatusQuery_t statuses;
+    G_BeginUnitStatusQuery(ent,&statuses);
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     speed = wc3_add(speed, bonus);
@@ -2475,7 +2701,9 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
         .minimum = ent->data.UnitBalance->minSpeed, .maximum = ent->data.UnitBalance->maxSpeed,
         .default_minimum = building ? game.constants.minBldgSpeed : game.constants.minUnitSpeed,
         .default_maximum = building ? game.constants.maxBldgSpeed : game.constants.maxUnitSpeed };
-    return wc3_speed_limit_update(&limits);
+    float result=wc3_speed_limit_update(&limits);
+    G_EndUnitStatusQuery(&statuses);
+    return result;
 }
 
 /* Retail inventory changes update the queried maximum without publishing
@@ -2539,11 +2767,34 @@ static float move_active_group_speed(edict_t const *self) {
 }
 
 static uint32_t move_allocate_group_id(void) {
+    if (!move_group_id_bound_valid) {
+        FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+            move_group_id_visits++;
+#endif
+            edict_t const *unit=g_edicts+i;
+            if (!unit->inuse) continue;
+            move_group_id_bound=MAX(move_group_id_bound,unit->movement.group_id);
+            move_group_id_bound=MAX(move_group_id_bound,unit->movement.previous_request_id);
+            FOR_LOOP(q,unit->order_queue.count) {
+                unsigned slot=(unit->order_queue.head+q)%MAX_UNIT_ORDER_QUEUE;
+                move_group_id_bound=MAX(move_group_id_bound,unit->order_queue.entries[slot].owner_context);
+            }
+        }
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
+            if(level.move_groups[i]->inuse)
+                move_group_id_bound=MAX(move_group_id_bound,level.move_groups[i]->request_id);
+        move_group_id_bound_valid=true;
+    }
     bool used;
     do {
         if (++level.next_move_group_id == 0) ++level.next_move_group_id;
         used = false;
+        if (level.next_move_group_id>move_group_id_bound) break;
         FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+            move_group_id_visits++;
+#endif
             edict_t const *unit=g_edicts+i;
             if (!unit->inuse) continue;
             FOR_LOOP(q,unit->order_queue.count) {
@@ -2559,6 +2810,7 @@ static uint32_t move_allocate_group_id(void) {
         FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
             if (level.move_groups[i]->inuse && level.move_groups[i]->request_id==level.next_move_group_id) used=true;
     } while (used);
+    move_group_id_bound=MAX(move_group_id_bound,level.next_move_group_id);
     return level.next_move_group_id;
 }
 
@@ -2741,7 +2993,7 @@ static void ai_follow_walk(edict_t *ent) {
         }
     }
 
-    if (move_find_group(ent->movement.group_id)) return;
+    if (move_unit_group(ent)) return;
 
     distance = M_DistanceToGoal(ent);
     follow_range = G_FollowStopRange(ent, target);
@@ -2913,8 +3165,7 @@ static void ai_move_walk(edict_t *ent) {
     bool point_order = (ent->current_order_id == G_OrderId("move") ||
                         ent->current_order_id == G_OrderId("smart")) &&
         !move_displacement_active(ent) &&
-        ent->goalentity && level.waypoints.count && ent->goalentity >= g_edicts + level.waypoints.base &&
-        ent->goalentity < g_edicts + level.waypoints.base + level.waypoints.count;
+        ent->goalentity && (ent->goalentity->svflags&SVF_MOVE_WAYPOINT);
 
     if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
@@ -3152,15 +3403,19 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
             if (!ent->movement.captain_home.active) continue;
             edict_t *actor=ent->movement.captain_home.actor;
             ent->movement.captain_home.actor=NULL;
+            S_TrackMoveTimers(ent);
             ent->movement.captain_home.active=ent->movement.captain_home.entered=false;
             S_IssueMoveOrder(ent,ent->goalentity,ent->current_order_id);
             ent->movement.captain_home.actor=actor;
+            S_TrackMoveTimers(ent);
         }
         fprintf(stderr,"WC3 Move: captain shared home handoff unresolved for %u members\n",ARRAY_COUNT(captain->units));
         return true;
     }
     self->movement.captain_home.actor=captain->home_actor;
+    S_TrackMoveTimers(self);
     self->movement.captain_home.roster_actor=captain->home_actor;
+    S_TrackMoveTimers(self);
     FOR_LOOP(i,members) {
         edict_t *member=captain->units[i];
         if (member==self || member->movement.captain_home.roster_actor==captain->home_actor)
@@ -3184,21 +3439,31 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
 
 /* Individual owners keep stable addresses when callbacks grow the slot array. */
 static moveGroup_t *move_alloc_group(void) {
+    move_prepare_group_order();
     if (level.next_move_group_sequence==UINT64_MAX) gi.error("Move: physical owner sequence exhausted");
     uint64_t sequence=++level.next_move_group_sequence;
-    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if (!level.move_groups[i]->inuse) {
-        level.move_groups[i]->sequence=sequence; return level.move_groups[i];
+    moveGroup_t *group=NULL;
+    while(move_group_first_free<ARRAY_COUNT(level.move_groups)) {
+        uint32_t slot=move_group_first_free++;
+        if(level.move_groups[slot]->inuse)continue;
+        group=level.move_groups[slot];group->slot=slot;break;
     }
+    if(group)goto acquired;
     if (ARRAY_COUNT(level.move_groups)==level.move_group_capacity) {
         uint32_t capacity=level.move_group_capacity ? level.move_group_capacity*2 : 16;
         moveGroup_t **groups=realloc(level.move_groups,capacity*sizeof(*groups));
         if (!groups) gi.error("Move: cannot allocate %u group slots",capacity);
         level.move_groups=groups; level.move_group_capacity=capacity;
     }
-    moveGroup_t *group=calloc(1,sizeof(*group));
+    group=calloc(1,sizeof(*group));
     if (!group) gi.error("Move: cannot allocate a physical group");
-    group->sequence=sequence;
+    group->slot=ARRAY_COUNT(level.move_groups);
     level.move_groups[ARRAY_COUNT(level.move_groups)++]=group;
+    move_group_first_free=ARRAY_COUNT(level.move_groups);
+acquired:
+    group->sequence=sequence;group->older=move_group_head;group->newer=NULL;
+    if(move_group_head)move_group_head->newer=group;
+    move_group_head=group;
     return group;
 }
 
@@ -3429,10 +3694,13 @@ void S_CaptainGoHome(botCaptain_t *captain) {
     else FOR_LOOP(i,members) {
         edict_t *ent=roster[i]; typeof(ent->movement.captain_home) retained=ent->movement.captain_home;
         ent->movement.captain_home.actor=ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
         move_leave(ent); S_RecoverStoppedUnitPosition(ent);
         S_IssueMoveOrder(ent,Waypoint_add(&captain->home),G_OrderId("move"));
         ent->movement.captain_home=retained;
+        S_TrackMoveTimers(ent);
         ent->movement.captain_home.actor=actor; ent->movement.captain_home.active=true;
+        S_TrackMoveTimers(ent);
         move_start_follow_group(ent,actor,true);
     }
 }
@@ -3600,11 +3868,6 @@ static void move_group_regroup(moveGroup_t *group) {
      * not yet retained; public ordinary groups exercise the default branch. */
 }
 
-typedef struct {
-    moveGroup_t *group;
-    uint64_t sequence;
-} moveGroupVisit_t;
-
 static int move_compare_group_visits(void const *a, void const *b) {
     uint64_t x=((moveGroupVisit_t const *)a)->sequence,y=((moveGroupVisit_t const *)b)->sequence;
     return x<y ? 1 : x>y ? -1 : 0;
@@ -3612,17 +3875,16 @@ static int move_compare_group_visits(void const *a, void const *b) {
 
 static void move_run_group_updates(void) {
     move_update_shared();
+    move_prepare_group_order();
     /* Freeze physical generations before callbacks can allocate or reuse slots.
      * Native visits newest cohorts first; newly created owners wait one pass. */
     uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
     if (!count) return;
     moveGroupVisit_t *owners=malloc(count*sizeof(*owners));
     if (!owners) gi.error("Move: cannot allocate physical owner visits");
-    FOR_LOOP(g,count) if (level.move_groups[g]->inuse) {
-        moveGroup_t *group=level.move_groups[g];
+    for(moveGroup_t *group=move_group_head;group;group=group->older) if(group->inuse) {
         owners[visits++]=(moveGroupVisit_t){group,group->sequence};
     }
-    qsort(owners,visits,sizeof(*owners),move_compare_group_visits);
     FOR_LOOP(g,visits) {
         moveGroup_t *group=owners[g].group;
         if (!group->inuse || group->sequence!=owners[g].sequence) continue;
@@ -3757,10 +4019,13 @@ static void move_run_group_updates(void) {
                     if (follow) {
                         typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
                         unit->movement.captain_home.actor=NULL;
+                        S_TrackMoveTimers(unit);
                         move_leave(unit); S_RecoverStoppedUnitPosition(unit);
                         S_IssueMoveOrder(unit,unit->goalentity,G_OrderId("move"));
                         unit->movement.captain_home=retained;
+                        S_TrackMoveTimers(unit);
                         unit->movement.captain_home.actor=actor;
+                        S_TrackMoveTimers(unit);
                         unit->movement.captain_home.active=true;
                         move_start_follow_group(unit,actor,true);
                     } else unit->stand(unit);
@@ -3936,6 +4201,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             /* Scene64 original5fd270/5ffb60 run ten ms after670950, after
              * any due movement owner. Generic timer arithmetic remains NUM-02.9. */
             ent->movement.type_rebind_pending=true;
+            S_TrackMoveTimers(ent);
             ent->movement.type_rebind_deadline=level.pathing_clock;
             FOR_LOOP(i,2) wc3_clock_advance(&ent->movement.type_rebind_deadline,wc3_float(0x3ba3d70a),0);
         }
@@ -3956,6 +4222,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         move_repulse_init(ent); return true;
     case A_UNIT_REMOVE:
         ent->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(ent);
         ent->movement.captain_home.outer=false;
         move_release_captain_reference(ent);
         move_unlink_fine_request(ent);

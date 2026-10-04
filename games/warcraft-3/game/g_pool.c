@@ -40,12 +40,14 @@ void G_Free##Name(edict_t *ent) { \
 DEFINE_POOL(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(research, Research, research_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(rally, Rally, rally_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(food, Food, food_t, LIFECYCLE_POOL_CAP)
+/* Every mobile unit owns food state, even when training limits are disabled. */
+DEFINE_POOL(food, Food, food_t, MAX_ENTITIES)
 DEFINE_POOL(buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(revival, Revival, revival_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, LIFECYCLE_POOL_CAP)
+/* Hide-capable units retain this state even while walking in daylight. */
+DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
@@ -192,6 +194,17 @@ void G_PoolsReleaseEdict(edict_t *ent) {
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
+
+TEST(wc3_pools, common_mobile_state_scales_with_world_entity_capacity) {
+    reset_entities();
+    FOR_LOOP(i,3000) {
+        edict_t *unit=G_Spawn();unit->food=G_AllocFood();
+        T_ASSERT(unit->food!=NULL);
+        unit->shadowmeld=G_AllocShadowMeld();
+        T_ASSERT(unit->shadowmeld!=NULL);
+    }
+    reset_entities();
+}
 
 TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     edict_t *unit;

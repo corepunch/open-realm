@@ -49,7 +49,7 @@ static void hero_become_revivable(edict_t *self) {
     assert(self->revival);
     self->revival->awaiting = true;
     self->revival->reviving = false;
-    self->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(self,true);
     G_PublishEvent(self, EVENT_PLAYER_HERO_REVIVABLE);
     G_PublishEvent(self, EVENT_UNIT_HERO_REVIVABLE);
     owner = G_GetPlayerClientByNumber(self->s.player);
@@ -320,7 +320,7 @@ bool G_UnitIsRaisableStoredCorpse(edict_t const *ent) { return unit_is_raisable_
 /* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
 void G_ReviveCorpse(edict_t *ent, float life_fraction) {
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
-    ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
+    ent->aiflags &= ~AI_HOLD_FRAME; G_SetEntityHidden(ent,false);
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
     ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
@@ -403,6 +403,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    G_MarkMoveSpatialObject(self);
     S_UnitAbilityEvent(self, A_DEATH);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
@@ -1559,8 +1560,32 @@ void unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
     unit_addtimedstatus(ent, skill, level, 0);
 }
 
+static unitStatusQuery_t *unit_status_query;
+
+/* A pure mechanical calculation can resolve many status families from the
+ * same unit. Discover nonempty slots once for that call, retaining slot order
+ * and live expiration checks. The scope never crosses a gameplay callback. */
+void G_BeginUnitStatusQuery(edict_t const *unit,unitStatusQuery_t *query) {
+    query->unit=unit;query->slots=0;query->previous=unit_status_query;
+    FOR_LOOP(i,MAX_UNIT_STATUSES)if(unit->abilstatus[i].level)query->slots|=1u<<i;
+    unit_status_query=query;
+}
+
+void G_EndUnitStatusQuery(unitStatusQuery_t *query) {
+    assert(unit_status_query==query);
+    unit_status_query=query->previous;
+}
+
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
     if (!ent || !code) return 0;
+    if(unit_status_query && unit_status_query->unit==ent) {
+        for(uint32_t slots=unit_status_query->slots;slots;slots&=slots-1) {
+            heroabilitystatus_t const *status=ent->abilstatus+__builtin_ctz(slots);
+            if(status->level && status->code==code && (!status->timestamp || status->timestamp>G_Time()))
+                return status->level;
+        }
+        return 0;
+    }
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
             (!ent->abilstatus[i].timestamp || ent->abilstatus[i].timestamp > G_Time()))
@@ -2428,7 +2453,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->revival->player = 0;
     ent->revival->gold = ent->revival->lumber = 0;
     ent->revival->progress = 0.0f;
-    ent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(ent,false);
     G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;
     if (ent->data.UnitBalance) mana += ent->data.UnitBalance->initialMana * manaStart;

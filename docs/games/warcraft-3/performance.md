@@ -39,12 +39,15 @@ numerical and ordering contracts:
 
 The spatial index is derived state. Map replacement/cache teardown releases the
 cell heads; save loading reconstructs links from the authoritative saved boxes and
-ranks. No new save fields or float approximation were introduced. Queries still
-perform one cheap publication synchronization pass to observe arbitrary geometry
-writes by non-Move owners. This remaining O(N) pass is explicit: removing it
-requires complete publication coverage of position, size and eligibility writers,
-including changes within one script callback. Cell queries themselves scale with
-local occupancy.
+ranks. No new save fields or float approximation were introduced. Changed owners are now queued in a two-level dirty bitset and synchronized in
+ascending edict order. The game wraps its imported `LinkEntity` to observe
+non-Move geometry writers, and visibility/data/lifetime setters mark membership
+changes explicitly. A query with no changed owners performs no world scan.
+Scheduled thinks, presentation samples and Move timers use separate ordered
+membership bitsets. Their cost follows participating actors, including mutations
+during callbacks, rather than every tree or effect. Physical group lookup also
+retains a validated derived binding per unit; teardown clears bindings before
+freeing the stable group allocations.
 
 Local measurements in matching debug builds:
 
@@ -63,9 +66,11 @@ production frame hook. They exclude competing-process CPU time, but are still
 instrumented measurements. Both runs end with random-owner words
 2392768281/2753341456. The indexed CPU capture precedes the additional scenery
 filter; it must not be described as a final release frame-rate measurement.
-The final debug synthetic `wc3_perf.twelve_movers_with_4000_scenery` benchmark
-uses public group Move and production `RunFrame`, averages 9.70 ms per 100-ms
-simulation tick, and asserts all twelve movers advance.
+The initial debug synthetic `wc3_perf.twelve_movers_with_4000_scenery` benchmark
+used public group Move and production `RunFrame` and averaged 9.70 ms per 100-ms
+simulation tick. After dirty publication and sparse owner scheduling, the full
+classic/TFT validation run measured 1.76 ms/tick and still asserted that all
+twelve movers advance. These fixture timings do not prove rendered FPS.
 
 Reports and bounded Frida scripts are retained externally under
 `/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/perf102-*`.
@@ -87,7 +92,7 @@ then repeats accepted twelve-member public group moves. Its 57 one-second window
 after simulation 6 s range from 50.93 to 59.05 FPS (median 55.95); seventeen fall
 below 55. Simulation-thread CPU averages 14.39 ms/tick during 6–25 s and
 13.72 ms/tick during 25–55 s. This run overlaps the TFT validation process.
-It demonstrates that the target remains unmet, and neither capture establishes
+It demonstrated that the target remained unmet at that checkpoint; neither capture establishes
 scaling to hundreds or thousands of movers.
 
 Build modes must be explicit: default `BUILD=debug` uses `-O0`; `BUILD=release`
@@ -133,14 +138,11 @@ Recommended replacements, in implementation order:
 | Compact binary heap and hot search-node storage retaining retail operations | Allocation/copy/cache cost inside the existing search | Lower constant cost per identical expansion | Replay push/pop identities and stale generations exactly; a different heap arity is conditional on equivalence proof |
 | Deterministic jobs for independent preprocessing, with validated speculative searches only later | Serial execution of proven-independent expensive work | Use available cores without changing logical tick budgets | Later movers must observe earlier committed poses; no stale snapshot, reordered random consumption or wall-time-dependent admission |
 
-The first row has the highest priority. The current intrusive cell index already
-reduces occupant lookup, but every query still runs a full publication scan.
-If Q queries scale with M movers and N world edicts, that synchronization remains
-O(Q*N), often effectively O(M*N). Moving the same scan into a cache-refresh helper
-is insufficient. Ownership must cover all geometry and eligibility writers;
-static objects must update from their own lifecycle events rather than being
-reclassified for each mobile step. Local-density costs and actual search expansion
-remain after removing this term; dense crowds do not have a universal linear bound.
+The first three replacements are implemented in the engine. Static admission
+also uses cached class-specific edge bits and an occupied-cell bitmap; the
+follow-up measurements below describe their effect. Remaining search and local
+density costs still need measurement; dense crowds have no universal linear
+bound.
 
 Uniform grids are a good first candidate because retail already uses bounded
 fine-cell footprints. [NVIDIA's broadphase chapter](https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-32-broad-phase-collision-detection-cuda)
@@ -159,6 +161,19 @@ do not prove that a 4-ary heap is faster or equivalent for our bounded retail he
 
 Recent and established planner candidates considered:
 
+- [HPA*](https://webdocs.cs.ualberta.ca/~mmueller/ps/2004/hpastar.pdf)
+  partitions a map into clusters and caches crossing costs between entrances,
+  searching the abstract graph before refining local legs. The original paper
+  reports up to tenfold search speedups with paths within 1% of optimal after
+  smoothing. This is useful for long-distance static routing and repeated
+  requests, but does not establish Warcraft simulation equivalence. Retail
+  already promotes/subdivides aligned squares across its adaptive hierarchy;
+  that algorithm is integrated in `G_UnitMoveGroupDestination` and member
+  refinement. No cluster-portal graph has been recovered. Replacing its chosen
+  corridor or pruning its expansions changes budget exhaustion, partial paths,
+  encounter ties and subsequent movement. Reuse hierarchy classifications and
+  crossing/query data only under a proof preserving those decisions, including
+  temporary source/target exclusions, Way Gates and delayed coarse publication.
 - [JPS/JPS+ and block scanning](https://ojs.aaai.org/index.php/ICAPS/article/view/13633),
   plus [JPS4 (2025)](https://arxiv.org/abs/2501.14816), reduce expansions using
   symmetry pruning. The useful transferable idea is compact block processing.
@@ -194,11 +209,159 @@ open terrain, chokepoints, opposing streams, blocked goals, mutable obstacles an
 mixed footprints. Report simulation CPU, rendered one-second FPS minima, frame
 p50/p95/p99/max, expansions, broadphase visits and publication count. Increase
 unrelated scenery separately to detect remaining world-size dependence. The
-Rise of the Naga floor remains 55 FPS; measurements above leave it open.
+Rise of the Naga floor remains 55 FPS; the older measurements above leave it open.
 Compare old/new complete motion, scheduler, route, random and save traces, and
 retain native differential fixtures. Any mismatching optimization fails the
 fidelity gate even if it is faster. No universal speedup factor or claim of full
 retail equivalence follows from the literature shortlist.
+
+## October 4 production-map follow-up
+
+`tools/wc3_pathfinding_benchmark.py` runs bounded public orders on loaded maps,
+records executable/library hashes and compiled ABI offsets, and counts original
+scenery before spawning movers. `--existing --selected` exercises the actual
+selected-unit command owner. Each accepted member must acquire a new request
+identity or destination owner while retaining the Move task and order; retaining
+an old Move after a failed replacement is insufficient. Reports distinguish
+requested units, advancing units and nonzero velocities.
+
+Native frame callbacks use thread CPU and monotonic clocks. JavaScript record
+delivery occurs after measurement. `--profile --profile-detail owners` separately
+bounds scheduled thinks, Move timers, pose sampling, flow jobs and order work,
+counting nested owners once. Scheduled thinks include other ability owners, so
+this is a conservative bound for point-Move traffic. Native orders executed
+inside a Gum listener suppress nested interception; their CPU is charged
+explicitly. Older `perf127/128` owner totals omit that order contribution and
+must not be used for complete-frame budget acceptance. Diagnostic hooks add
+overhead; use separate unprofiled captures for rendered FPS and total CPU.
+
+The first-tick hook is now primed before the first post-order game body. Reports
+before `perf144` omitted the 6100-ms simulation tick from frame records, although
+function totals observed it. Their averages are partial/steady checkpoints, not
+complete command-to-motion budget acceptance. Initial setup and submission at
+6000 ms are separate records; subsequent submission is included in its frame.
+`perf144` exposed a 94.71-ms movement cost on that previously omitted first tick
+in the 1,024-unit workload; its concurrent build makes it diagnostic evidence,
+not a quiet timing comparison.
+
+The simulation tick is 100 ms. A 5% amortized movement allowance is 5 ms/tick,
+equivalent to 0.833 ms per 60-Hz display frame. That does not make a 100-ms-tick
+spike acceptable merely because later ticks are cheap.
+
+Historical partial-frame release checkpoints (`-O2`, native SDL2, Intel/Mesa;
+first simulation tick omitted as described above):
+
+| Workload and external report | Result | Limit |
+|---|---|---|
+| Rise of the Naga, seven starting units plus five Archers, actual selected commands; `perf133-selected-render-12.jsonl` | Four moves retain all 12 members; 159 simulation frames average 4.09 ms of whole game CPU; 16 measured one-second render windows span 56.23–60.00 FPS at 1920×1080 | Individual intervals reach 88.60 ms around instrumented setup; window FPS is not an every-frame guarantee |
+| Same selected workload, separate owner timers; `perf134-selected-owners-12.jsonl` | Movement average 0.437 ms/tick, p95 0.718, max 1.987; whole game average 3.59 ms/tick | Steady campaign work is below 5%; initial search work requires the corrected capture |
+| IceCrown, 1,024 independent public moves, 128 spacing and 512-unit legal corridors; `perf137-icecrown-owners-quiet.jsonl` | Original 5,957 static scenery entities and 4,471 trees remain; movement average 8.85 ms/tick, 7.59 excluding the replacement-order tick; replacement submission 54.86 ms | Still above the 5-ms target; only 145 units advance on an average tick, 387 at peak |
+| IceCrown, 2,048 units in 12-member cohorts; `perf121-icecrown-2048.jsonl` | Scenery retained; whole game average 27.06 ms/tick; all initial members acquire Move | Only 25 units advance on an average tick; this is a capacity/lifecycle check, not 2,048-moving-unit performance |
+
+Corrected complete-tick captures, with no competing build/test process:
+
+| Workload and external report | Result | Limit |
+|---|---|---|
+| Selected Rise of the Naga, rendered; `perf148-selected-full-render-12.jsonl` | All 12 acquire a new Move on four commands; 160 ticks average 4.04 ms whole game CPU; 16 one-second windows span 55.47–60.00 FPS | Individual render intervals reach 98.87 ms around instrumented setup; this is not an every-frame guarantee |
+| Same selected workload, owner timers; `perf147-selected-full-owners-12.jsonl` | Movement average 0.409 ms/tick, p95 1.033, max 1.556; first post-order tick 1.033 ms; initial submission separately 0.918 ms | Below the amortized movement target in this workload; other group policies remain unverified |
+| IceCrown, 1,024 independent moves after gate indexing; `perf146-icecrown-gate-index.jsonl` | Movement average 8.69 ms/tick, first tick 53.82, max 83.57; initial/replacement submission 108.93/49.56 ms; all members accept both commands | Above the 5-ms target; average 144 advancing units and 131 nonzero velocities, not 1,024 simultaneous movers |
+
+`S_WaygateBuildEdges` previously scanned every edict for every adaptive query,
+even on maps without gates. An ordered ownership bitset now limits repeated
+queries to gate owners; activation, deferred removal, ability aliases and
+destination words remain live. Allocation uses the same ordered owners and
+lowest available 1..255 ID. Initialization and save/map replacement reconstruct
+derived membership once. Exhausted ID0 gates retain their original allocation
+and publication policy. Eighteen Way Gate tests cover ownership, exhaustion,
+deferred replacement, mutation and restoration, including a work-bound regression
+with 1,900 scenery actors.
+
+The quiet pre-index capture `perf149-icecrown-before-gates-quiet.jsonl` averages
+9.09 ms of movement per tick, with 72.64 ms on the first tick and 97.29 ms maximum.
+The indexed capture retains identical final position words, member state and RNG.
+Steady ticks excluding the two command/search spikes are effectively unchanged
+(7.15 ms before and after); the observed gain is in route setup, not steady
+steering. These single paired captures do not establish a general speedup.
+
+The final format101 release (`perf151-icecrown-final-owners.jsonl`) reproduces the
+indexed capture's final positions, members and RNG exactly. Movement averages
+8.72 ms/tick (7.20 outside the two spikes), with 54.62 ms on the first tick and
+81.44 ms maximum; initial/replacement submissions take 111.67/47.80 ms. This
+confirms that mass movement still fails the target. Diagnostic `pipeline` and
+`calls` details omit some owner timers and must not establish budget acceptance;
+their function totals overlap.
+
+The diagnostic `perf152-icecrown-pipeline.jsonl` records 258,894 group-route visits,
+221,815 fine-route lookups, 255,882 adaptive-progress calls and 4,097 gate-edge
+builds. Group-route time is 195.20 ms over the run, including nested fine-route
+time of 174.57 ms; motion commit totals 121.14 ms. These hooks add per-call cost
+and do not isolate expansion time. Some exported helpers are inlined into their
+callers, so zero intercepted calls do not mean zero work. Repeated route servicing
+requires profiling alongside fresh search work; a new coarse graph alone cannot
+remove local movement/steering cost. Final position, member and RNG words match
+the owner capture exactly.
+
+The retry-member lookup now uses the physical group's bounded member rows.
+Against the previous implementation, the 1,024-unit run retains identical final
+position words, member state and RNG words while reducing the older diagnostic
+movement total from 15.88 to 8.95 ms/tick (`perf127/128`). These totals exclude the
+native order contribution as described above. A monotonic reserved-ID upper
+bound then removes whole-world collision checks from ordinary request allocation;
+wrap and IDs restored ahead of the counter retain authoritative checks. The
+matched replacement submission falls from 142.41 to 59.32 ms (`perf130/131`), again
+with identical positions, members and RNG. Physical owners maintain creation-order
+links and the lowest reusable slot; restoration sorts once and every owner pass
+freezes pointer/sequence pairs so callback-created groups wait until the next pass.
+
+Free-edict discovery similarly maintains an ordered candidate bitset. Spawn/free
+notifications update membership; restore reconstructs once. Allocation keeps the
+original lowest eligible slot and exact unsigned cooldown predicate, including
+time wrap, without walking thousands of occupied scenery slots for every request.
+
+Repeated pure pose prediction uses a 256-entry working-set cache keyed by actor
+address and all 68 bytes of its inputs: world/fine/published coordinates, map
+origin, velocity, current/committed clock and validity flags. Hits return the
+original software-arithmetic result; collisions recompute it. No movement state,
+clock or velocity is committed by the cache. Twenty mutation cases compare raw
+pose words and cache hits/misses, including signed zero and clock wrap. This
+avoids repeating coordinate conversion within one owner decision while keeping
+callback writes observable without a separate invalidation protocol.
+
+The former 256-waypoint ring could overwrite a destination still owned by a
+moving unit. Destination leasing now traces live roots and grows ordinary edict
+storage when all retained destinations are referenced. The event ring supports
+normal world-sized issued-order batches; Food and Shadow Meld state scale to the
+edict limit. These are correctness/capacity fixes, not evidence of equal retail
+trajectories at arbitrary population. Mixed/air selections and the remaining
+physical-group admission policies still require their native witnesses.
+
+Reports are under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/`. For example:
+
+```bash
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python \
+  tools/wc3_pathfinding_benchmark.py \
+  --binary /GitHub/wc3-analysis/perf150-release/bin/openwarcraft3 \
+  --library /GitHub/wc3-analysis/perf150-release/lib/libgame.so \
+  --data /run/media/lofcz/ssd_external/Games/w3 \
+  --map 'Maps/(12)IceCrown.w3m' --units 1024 --placement corridor \
+  --spacing 128 --distance 512 --cohort 1 --duration 8000 \
+  --profile --profile-detail owners --output /tmp/wc3-icecrown-owners.jsonl
+```
+
+Build the explicit `openwarcraft3` target in an isolated release output tree;
+plain `make BUILD=release` selects the default Lua target. Run timing captures
+without competing builds/tests and validate artifacts before attributing changes.
+Sampling experiments with insufficient PC samples are excluded from acceptance.
+
+Validation: explicit debug/release builds and `make test` pass; Classic and TFT
+each run 2,559 engine tests with 6,818,215 assertions. The benchmark's two Python
+contract tests and ability registration audit pass. Eighteen fresh strict corpus
+reports pass their declared expectations, including the two retained adaptive
+reference differences; those differences are not retail-parity closures. Save101
+rejects older formats and retains current waypoint/event continuation. Network
+transport and client behavior are unchanged.
 
 ## September 21 CPU profile: Graveyard update scan
 
@@ -270,11 +433,14 @@ See [corpse mechanics](corpse-mechanics.md) for the authored Graveyard contract.
 
 An earlier full profile assigned 41.62% of sampled CPU cycles to
 `S_UpdateHeroAuraEffects`, with `hero_aura_presentation` scanning the edict list
-and reparsing source ability lists for each recipient. The per-frame provider cache
-now resolves Devotion and Unholy providers alongside the regeneration families;
+and reparsing source ability lists for each recipient. Provider discovery now
+resolves Devotion and Unholy alongside the regeneration families after actual
+ownership/data changes, rather than every frame or ordinary nonsource spawn;
 presentation still checks live range, alliance, and target rules per recipient, but
-iterates cached providers. Cache validity uses the `UINT_MAX` reset sentinel, so
-frame zero does not rebuild the provider list for every entity.
+iterates cached providers. Provider spawn identity, activity and current authored
+rank remain live. Map replacement, restoration, source removal and ability-list
+changes invalidate discovery. Overlays still update every frame; recipient numeric
+bonuses retain the existing two-second refresh.
 
 The in-engine 1,900-unit benchmark measured `G_RunEntities` at 2,394.48 ms/call
 while frame-zero cache invalidation rebuilt the list per entity. After the generation

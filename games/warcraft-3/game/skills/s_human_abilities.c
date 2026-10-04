@@ -224,7 +224,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
         return;
     }
     status->data = spell->code;
-    st.entity->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(st.entity,true);
 }
 
 /* Record presence is the authoritative Polymorph state for orders and JASS. */
@@ -581,7 +581,7 @@ BZ_ABILITY_PROC(CAbilityInvisibility) {
     case A_STATUS_REMOVE:
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
-            ent->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(ent,false);
         return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);
@@ -754,7 +754,7 @@ void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
     if (code == MAKEFOURCC('B','i','n','v') &&
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
-        unit->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(unit,false);
     if (code == BZ_AVATAR_BUFF) S_AvatarExpire(unit);
     if (unit->polymorph && code == unit->polymorph->buff) S_PolymorphRemove(unit);
 }

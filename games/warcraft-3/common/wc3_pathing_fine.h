@@ -34,6 +34,7 @@ typedef struct {
     wc3FineEntry_t *heap;
     uint32_t node_capacity, heap_capacity, heap_growth;
     uint32_t hash[BZ_WC3_FINE_HASH];
+    uint32_t hash_stamps[BZ_WC3_FINE_HASH], hash_epoch;
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
 #if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
@@ -67,6 +68,15 @@ static inline void wc3_fine_free(wc3FineSearch_t *search) {
     search->nodes = NULL; search->heap = NULL;
     search->node_capacity = search->heap_capacity = 0;
     search->count = search->queued = 0;
+}
+
+/* Lookup is scratch, not a native generation. Advancing its epoch makes an
+ * empty request O(1); only uint32 wrap needs to clear the retained stamps. */
+static inline void wc3_fine_reset_lookup(wc3FineSearch_t *search) {
+    if(!++search->hash_epoch) {
+        memset(search->hash_stamps,0,sizeof(search->hash_stamps));
+        search->hash_epoch=1;
+    }
 }
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
@@ -112,7 +122,7 @@ static uint32_t wc3_fine_heuristic(wc3FinePoint_t pos, wc3FinePoint_t goal) {
 static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, wc3FinePoint_t pos) {
     if ((uint32_t)pos.x >= req->width || (uint32_t)pos.y >= req->height) return -1;
     uint32_t slot = ((uint32_t)pos.x * 0x9e3779b1u ^ (uint32_t)pos.y * 0x85ebca6bu) & (BZ_WC3_FINE_HASH - 1);
-    while (search->hash[slot]) {
+    while (search->hash_stamps[slot]==search->hash_epoch) {
         uint32_t at = search->hash[slot] - 1;
         if (search->nodes[at].pos.x == pos.x && search->nodes[at].pos.y == pos.y) return (int)at;
         slot = (slot + 1) & (BZ_WC3_FINE_HASH - 1);
@@ -121,6 +131,7 @@ static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, w
     wc3_fine_reserve(search, search->count + 1, 0);
     uint32_t at = search->count++;
     search->hash[slot] = at + 1;
+    search->hash_stamps[slot]=search->hash_epoch;
     search->nodes[at] = (wc3FineNode_t){ .pos = pos, .parent = -1 };
     return (int)at;
 }
@@ -173,7 +184,7 @@ static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3Fine
  * Target identity is observed during perimeter sampling, including suppressed
  * objects. Original14b760 creates neighbors, then skips relaxation on a hit. */
 static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req) {
-    memset(search->hash, 0, sizeof(search->hash));
+    wc3_fine_reset_lookup(search);
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
     search->observed_obstruction = false;
     search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);

@@ -165,7 +165,7 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
     unit->goalentity = NULL;
     unit->secondarygoal = NULL;
     unit_stand(unit);
-    unit->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(unit,true);
     unit->paused = true;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
@@ -206,7 +206,7 @@ static edict_t *cargo_drop_unit(edict_t *transport, uint32_t index) {
     {
         bool const was_corpse = S_CorpseCargoIsStored(unit);
         cargo_place_unloaded_unit(transport, unit);
-        unit->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(unit,false);
         unit->paused = false;
         unit->aiflags &= ~AI_CORPSE_IN_CARGO;
         if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
@@ -410,7 +410,7 @@ bool S_CorpseCargoTryLoad(edict_t *transport, edict_t *target) {
     move = target->currentmove;
     wait = target->wait;
     cargo_add_unit(transport, target);
-    target->currentmove = move;
+    M_SetMove(target,move);
     target->wait = wait;
     target->aiflags |= AI_CORPSE_IN_CARGO;
     return S_CargoTransportForUnit(target) == transport;

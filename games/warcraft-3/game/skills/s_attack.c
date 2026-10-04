@@ -217,7 +217,7 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
     attacker->attack_target_spawn_time = 0;
     attacker->movement.explicit_allied_attack = false;
     if (G_BuildingIsUnsummoning(attacker)) {
-        attacker->currentmove = NULL;
+        M_SetMove(attacker,NULL);
         attacker->animation = NULL;
         attacker->wait = 0;
         return;
@@ -927,7 +927,7 @@ static void attack_ground_stop(edict_t *ent) {
     if (!ent) return;
     ent->goalentity = NULL;
     if (ent->stand) ent->stand(ent);
-    else ent->currentmove = NULL;
+    else M_SetMove(ent,NULL);
 }
 
 static void throw_artillery_ground(edict_t *ent) {

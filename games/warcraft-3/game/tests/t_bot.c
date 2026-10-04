@@ -652,8 +652,8 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
 
     lumber->s.player = gold->s.player = fighter->s.player = 2; other->s.player = 1;
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
-    lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
-    other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
+    M_SetMove(lumber,&lumber_move); M_SetMove(gold,&gold_move);
+    M_SetMove(other,&lumber_move); M_SetMove(fighter,&attack_move);
     if (!gold->goldmine) gold->goldmine = G_AllocGoldMine();
     assert(gold->goldmine);
     gold->goldmine->mine = mine; gold->goldmine->mine_spawn_time = mine->spawn_time;
@@ -705,7 +705,7 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
     edict_t *mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     edict_t *tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
-    first->currentmove = &gold_move; first->goalentity = mine;
+    M_SetMove(first,&gold_move); first->goalentity = mine;
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
@@ -1920,7 +1920,7 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     G_BotSetCaptainHome(player, 2, 0, 0);
     level.bots[2].flags = BOT_DEFEND_PLAYER;
     attacker->goalentity = ally_unit;
-    attacker->currentmove = &attack_move;
+    M_SetMove(attacker,&attack_move);
     level.time = 1000;
 
     G_BotUpdateDefendPlayer(player);
@@ -1928,7 +1928,7 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_NOT_NULL(defender->currentmove);
     T_EQ(defender->currentmove->proc, CAbilityAttack);
 
-    attacker->currentmove = NULL;
+    M_SetMove(attacker,NULL);
     level.time += 600;
     G_BotUpdateDefendPlayer(player);
     T_EQ(level.bots[2].captains[BOT_CAPTAIN_DEFENSE].state, BOT_CAPTAIN_IDLE);
