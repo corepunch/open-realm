@@ -108,7 +108,7 @@ typedef struct {
     void (*MemFree)(handle_t);
     uint32_t (*LoadSlk)(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride);
     cstring_t (*CvarString)(cstring_t name, cstring_t fallback);
-    void (*PlaySoundAt)(cstring_t path, vec3_t const *origin, float volume);
+    void (*PlaySoundAt)(cstring_t path, vec3_t const *origin, float volume); /* NULL origin: non-positional UI sound */
     void (*error)(cstring_t fmt, ...);
 } refImport_t;
 

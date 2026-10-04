@@ -156,6 +156,16 @@ hard-coded by race. Campaign and mission rows are rebuilt/reloaded when entering
 the campaign selector, so progress written by the preceding map is visible after
 the session returns to the frontend.
 
+### Selector rows
+
+Patched clients build both selector columns at runtime from `CampaignStrings` (Warsmash's `CampaignMenuUI` does the same); the static `TutorialFrame` … `NightElfFrame` and `Mission0Frame` … `Mission13Frame` rows authored by the 1.00 `CampaignMenu.fdf` are always hidden. Each row clones `CampaignArrowButtonTemplate` (maps, campaigns) or `CampaignCameraButtonTemplate` (movies), `StandardSmallTextTemplate` for the gold header and `StandardTitleTextTemplate` (grey 0.764) for the name, laid out like the 1.00 rows.
+
+Rows occupy fixed 0.0315625 slots; ten slots (the height of TFT `CampaignListBox.fdf`'s scroll bar, 0.315625) make the box, whose top-left sits at `(-0.287, -0.1274)` from `CampaignMenu`'s top-right. Every campaign is followed by a blank slot, and an Introduction cinematic by one blank slot. A column that fits is centred in the box; a longer one starts at the top and scrolls with the mouse wheel (the screen's `scroll` hook). These constants were fitted to retail 1.2x captures: two campaigns centre at 0.236/0.301 below the top edge, and the Prologue mission column (Intro, blank, Opening, two chapters) centres at 0.285 with 0.032 spacing, both within about a pixel. The earlier static-row layout sat ~0.03 higher because the 1.00 FDF rows are not what patched clients draw. The `WarCraftIIILogo` sprite's FDF offset leaves it off-screen, so the menu loads `MainMenuLogo` and anchors it at `TOPRIGHT (-0.13, -0.08)`, mirroring the main menu (and Warsmash).
+
+Choosing a campaign swaps the backdrop to that campaign's scene and plays its `Birth` camera move; Back from the mission column restores the selector's default-campaign scene with the same move.
+
+The 1.00 `War3.mpq` `CampaignStrings.txt` also predates the later schema: it has no `[Index]`, `Background`, `Cursor`, or `DefaultOpen`, splits missions into `TitleN`/`MissionN`/`FileN`, and names cinematics only by title (`InCinematic`/`OpCinematic`/`EdCinematic`, headers in `[Label]`). The parser maps those to `<Key>In/Op/Ed` movies and the `<Key>Backdrop` skin, printing a console warning for each campaign that falls back. Without `DefaultOpen`, `unlocked` visibility shows nothing until progress exists; the default `all` shows every campaign.
+
 The older `wc3_campaign_mission_visibility=played` and
 `wc3_campaign_played_<campaign>_<mission>` frontend bridge is removed. Merely
 launching a map is not campaign progression; authored JASS availability natives

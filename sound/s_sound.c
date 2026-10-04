@@ -7,7 +7,9 @@
  * decodes MP3 dialogue into the same S16, 44100 Hz, mono cache format.
  */
 #include "s_local.h"
+#include <ctype.h>
 #include "common/stb_dbc.h"
+#include "common/stb_slk.h"
 
 sState_t s;
 
@@ -234,7 +236,8 @@ static sfxcache_t *S_ResampleLoad(char const *path) {
 
 static uint32_t S_HashString(cstring_t str) {
     uint32_t hash = 5381;
-    for (; *str; str++) hash = ((hash << 5) + hash) + (unsigned char)*str;
+    /* Fold case to match S_FindByName's strcasecmp; otherwise differently cased names miss their bucket. */
+    for (; *str; str++) hash = ((hash << 5) + hash) + (unsigned char)tolower((unsigned char)*str);
     return hash & (S_HASH_BUCKETS - 1);
 }
 
@@ -259,24 +262,6 @@ static void S_InsertHash(uint32_t kit_id, cstring_t name) {
  * Load cache — mirrors Q2's S_LoadSound
  * ========================================================================= */
 
-/* Load (or return cached) PCM for a kit entry. */
-static sfxcache_t *S_LoadKit(sSoundKit_t *k) {
-    if (!k || k->id == 0 || !k->files[0] || !*k->files[0]) return NULL;
-    if (k->cache) return k->cache;
-    if (k->load_attempted && k->load_attempt_sequence == s.registration_sequence) return NULL;
-    k->load_attempted = true;
-    k->load_attempt_sequence = s.registration_sequence;
-
-    char path[512];
-    if (k->directoryBase && *k->directoryBase && *k->directoryBase != '(')
-        snprintf(path, sizeof(path), "%s\\%s", k->directoryBase, k->files[0]);
-    else
-        snprintf(path, sizeof(path), "%s", k->files[0]);
-
-    k->cache = S_ResampleLoad(path);
-    return k->cache;
-}
-
 /* Load (or return cached) PCM for a path-keyed sfx handle. */
 static sfxcache_t *S_LoadSfx(sfx_t *sfx) {
     if (!sfx || !sfx->path[0]) return NULL;
@@ -286,6 +271,39 @@ static sfxcache_t *S_LoadSfx(sfx_t *sfx) {
     sfx->load_attempt_sequence = s.registration_sequence;
     sfx->cache = S_ResampleLoad(sfx->path);
     return sfx->cache;
+}
+
+static sfx_t *S_FindSfx(cstring_t path, bool create);
+
+/* Choose a kit variant: SoundEntries freq weights when authored, otherwise uniform (UISounds FileNames). */
+static cstring_t S_PickKitFile(sSoundKit_t const *k) {
+    uint32_t count = 0, total = 0, pick;
+
+    while (count < SENTRY_MAX_FILES && k->files[count] && *k->files[count]) total += k->freq[count++];
+    if (!count) return NULL;
+    if (!total) return k->files[(uint32_t)rand() % count];
+    pick = (uint32_t)rand() % total;
+    FOR_LOOP(i, count) {
+        if (pick < k->freq[i]) return k->files[i];
+        pick -= k->freq[i];
+    }
+    return k->files[count - 1];
+}
+
+/* Load (or return cached) PCM for one randomly chosen variant of a kit. */
+static sfxcache_t *S_LoadKit(sSoundKit_t *k) {
+    cstring_t file = k && k->id ? S_PickKitFile(k) : NULL;
+    char path[512];
+    sfx_t *sfx;
+
+    if (!file) return NULL;
+    if (k->directoryBase && *k->directoryBase && *k->directoryBase != '(')
+        snprintf(path, sizeof(path), "%s\\%s", k->directoryBase, file);
+    else
+        snprintf(path, sizeof(path), "%s", file);
+    if (!(sfx = S_FindSfx(path, true))) return NULL;
+    sfx->registration_sequence = s.registration_sequence;
+    return S_LoadSfx(sfx);
 }
 
 /* Find or create a path-keyed sfx handle (mirrors Q2 S_FindName). */
@@ -309,6 +327,58 @@ static sfx_t *S_FindSfx(cstring_t path, bool create) {
  * DBC SoundEntries loader
  * ========================================================================= */
 
+/* Warcraft III names its interface sounds in UI\SoundInfo\UISounds.slk rather than a DBC. Registering
+ * those rows as kits lets every menu use the same imported PlaySoundByName("GlueScreenClick") path. */
+typedef struct {
+    cstring_t name, FileNames, DirectoryBase;
+    float Volume;
+} sSlkSound_t;
+
+static slkField_t const s_slk_sound_schema[] = {
+    { "",              offsetof(sSlkSound_t, name),          STB_SLK_STR   },
+    { "FileNames",     offsetof(sSlkSound_t, FileNames),     STB_SLK_STR   },
+    { "DirectoryBase", offsetof(sSlkSound_t, DirectoryBase), STB_SLK_STR   },
+    { "Volume",        offsetof(sSlkSound_t, Volume),        STB_SLK_FLOAT },
+    { NULL },
+};
+
+static void S_LoadUISoundsSlk(void) {
+    sSlkSound_t *rows = NULL;
+    uint32_t count = Stb_SlkLoad("UI\\SoundInfo\\UISounds.slk", s_slk_sound_schema, (void **)&rows,
+                                 sizeof(*rows));
+
+    if (!count || !rows) return;
+    s.slk_rows = rows;
+    s.slk_row_count = count;
+    FOR_LOOP(i, count) {
+        sSlkSound_t *row = rows + i;
+        uint32_t id = s.kit_count ? s.kit_count : 1;
+        sSoundKit_t *k;
+        string_t files = (string_t)row->FileNames, dir = (string_t)row->DirectoryBase;
+        uint32_t nfiles = 0;
+
+        if (!row->name || !*row->name || !files || !*files || id >= S_MAX_KITS) continue;
+        /* S_LoadKit inserts its own separator between DirectoryBase and the file. */
+        for (size_t len = dir ? strlen(dir) : 0; len && (dir[len - 1] == '\\' || dir[len - 1] == '/'); )
+            dir[--len] = '\0';
+        k = &s.kits[id];
+        memset(k, 0, sizeof(*k));
+        k->id = id;
+        k->name = row->name;
+        for (string_t file = files; file && nfiles < SENTRY_MAX_FILES; ) {
+            string_t comma = strchr(file, ',');
+            if (comma) *comma = '\0';
+            if (*file) k->files[nfiles++] = file;
+            file = comma ? comma + 1 : NULL;
+        }
+        k->directoryBase = dir;
+        k->volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f)); /* SLK Volume is 0..127 */
+        k->registration_sequence = s.registration_sequence;
+        s.kit_count = id + 1;
+        S_InsertHash(id, k->name);
+    }
+}
+
 void S_LoadSoundEntries(void) {
     stbDbc_t h;
     uint32_t size = 0;
@@ -316,6 +386,7 @@ void S_LoadSoundEntries(void) {
     if (!Stb_DbcValid(data, (uint32_t)size, &h) ||
         h.fields != SENTRY_FIELDS || h.record_size != SENTRY_RECORD_SIZE) {
         FS_FreeFile(data);
+        S_LoadUISoundsSlk();
         return;
     }
     uint8_t *records = data + 20;
@@ -336,8 +407,6 @@ void S_LoadSoundEntries(void) {
         k->directoryBase = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 23));
         k->volume = Stb_DbcReadFloat(rec + 24 * sizeof(uint32_t));
         k->flags  = Stb_DbcField(&h, rec, 25);
-        k->cache  = NULL;
-        k->load_attempted = false;
         k->registration_sequence = s.registration_sequence;
         if (k->id >= s.kit_count) s.kit_count = k->id + 1;
         S_InsertHash(id, k->name);
@@ -371,15 +440,6 @@ void S_EndRegistration(void) {
     }
     s.num_sfx = dst;
 
-    /* Free kit caches not touched this sequence */
-    for (uint32_t i = 1; i < s.kit_count; i++) {
-        sSoundKit_t *k = &s.kits[i];
-        if (k->id != i) continue;
-        if (k->registration_sequence != s.registration_sequence && k->cache) {
-            free(k->cache);
-            k->cache = NULL;
-        }
-    }
 }
 
 /* =========================================================================
@@ -546,9 +606,8 @@ void S_Shutdown(void) {
     SDL_CloseAudioDevice(s.device);
     for (int i = 0; i < s.num_sfx; i++)
         free(s.known_sfx[i].cache);
-    for (uint32_t i = 1; i < s.kit_count; i++)
-        if (s.kits[i].id == i) free(s.kits[i].cache);
     FS_FreeFile(s.dbc_data);
+    FS_SLKFreeRows(s_slk_sound_schema, s.slk_rows, s.slk_row_count, sizeof(sSlkSound_t));
     FOR_LOOP(stream_id, S_STREAM_COUNT) free(s.streams[stream_id].data);
     memset(&s, 0, sizeof(s));
 }
@@ -676,9 +735,16 @@ void S_PlaySound(uint32_t kit_id) {
 }
 
 void S_PlaySoundByName(cstring_t name) {
+    static char last_missing[64];
     if (!s.initialized || !name || !*name) return;
     sHashNode_t *n = S_FindByName(name);
-    if (n) S_PlaySound(n->kit_id);
+    if (n) {
+        S_PlaySound(n->kit_id);
+    } else if (strcmp(last_missing, name)) {
+        /* Name each unresolved sound once so missing kit data is visible without flooding stderr. */
+        snprintf(last_missing, sizeof(last_missing), "%s", name);
+        fprintf(stderr, "[sound] warning: no sound kit named '%s'\n", name);
+    }
 }
 
 /* Preload a server-configstring sound so playback never blocks on archive I/O. */

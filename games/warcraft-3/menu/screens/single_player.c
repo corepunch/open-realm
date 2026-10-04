@@ -7,6 +7,7 @@
 #include "../generated/single_player_menu.h"
 #include "common/campaign_progress.h"
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #ifndef _WIN32
 #include <strings.h>
@@ -14,9 +15,12 @@
 
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16 // campaigns; UI parse/storage capacity; bounds authored campaign entries
 #define SINGLE_PLAYER_MAX_MISSIONS 128 // missions; UI parse/storage capacity; bounds authored mission entries
-#define SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS 5 // rows; keeps five campaign entries visible before scrolling
-#define SINGLE_PLAYER_CAMPAIGN_LIST_HEIGHT 0.13f // FDF units; five rows plus list insets
-#define SINGLE_PLAYER_MISSION_VISIBLE_ROWS 14 // rows; visible mission list capacity; controls listbox pagination
+#define SINGLE_PLAYER_LIST_ROWS 10 // rows; TFT CampaignListBox.fdf scroll bar (0.315625) holds ten list slots
+#define SINGLE_PLAYER_LIST_ROW_HEIGHT 0.0315625f // FDF units; one slot; retail rows measure 0.032 apart
+#define SINGLE_PLAYER_LIST_WIDTH 0.27f // FDF units; arrow, header and name column
+#define SINGLE_PLAYER_LIST_X -0.287f // FDF units from CampaignMenu TOPRIGHT; retail arrows start at x=0.513
+#define SINGLE_PLAYER_LIST_Y -0.1274f // FDF units from CampaignMenu TOPRIGHT; centres the box 0.285 below the top
+#define SINGLE_PLAYER_LIST_MAX_ENTRIES (UI_MAX_MAP_LIST_ITEMS * 2) // entries; every campaign row is followed by a blank
 #define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
 #define SINGLE_PLAYER_LIST_INDEX_MASK 0x7fffffffu // bitmask; retains the 31-bit item index; strips the cinematic marker
@@ -80,15 +84,51 @@ static cstring_t const solo_lft[] = {
     NULL,
 };
 
+/* Data fallbacks and failures that blank the campaign screen must be visible in the in-game console, not only stderr. */
+static void SinglePlayer_Warn(cstring_t fmt, ...) {
+    char message[512];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(message, sizeof(message), fmt, args);
+    va_end(args);
+    fprintf(stderr, "UI: warning: %s\n", message);
+    if (mi.Printf) mi.Printf("Warning: %s", message);
+}
+
 static SinglePlayerMenu_t single_player;
+
+/* Retail builds both selectors from CampaignStrings at runtime (Warsmash's CampaignMenuUI does the same): rows of
+ * an arrow (map/campaign) or camera (movie) button with a gold header and a grey name, laid out in fixed slots.
+ * Campaigns are separated by a blank slot and the Introduction cinematic is followed by one; a column that fits is
+ * centred in the ten-slot box, a longer one scrolls. The static TutorialFrame/Mission0Frame rows authored by the
+ * 1.00 CampaignMenu.fdf are never shown by patched clients, so they stay hidden. */
+typedef struct {
+    frameDef_t *slot, *arrow, *camera, *label, *desc;
+} singlePlayerListRow_t;
+
+typedef struct {
+    uint32_t item; // index into the list's uiMapListState_t; UINT32_MAX for a blank slot
+    bool camera;
+    cstring_t header, name;
+} singlePlayerListEntry_t;
+
+typedef struct {
+    frameDef_t *box;
+    singlePlayerListRow_t rows[SINGLE_PLAYER_LIST_ROWS];
+    singlePlayerListEntry_t entries[SINGLE_PLAYER_LIST_MAX_ENTRIES];
+    uint32_t count, scroll;
+    cstring_t command;
+} singlePlayerList_t;
+
+static singlePlayerList_t campaign_rows = { .command = "menu_single_player_campaign_select %u" };
+static singlePlayerList_t mission_rows = { .command = "menu_single_player_mission_select %u" };
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static uint32_t campaign_count;
 static uint32_t campaign_order[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static uint32_t campaign_order_count;
 static uiMapListState_t campaign_list;
-static frameDef_t *campaign_list_frame;
 static uiMapListState_t mission_list;
-static frameDef_t *mission_list_frame;
 static uint32_t campaign_background_model = 0;
 static uiBirthSequence_t campaign_background_birth;
 static bool campaign_background_has_render_time;
@@ -274,6 +314,17 @@ static void SinglePlayer_ParseFileValue(singlePlayerCampaign_t *campaign, uint32
     SinglePlayer_SetMissionCount(campaign, index);
 }
 
+static void SinglePlayer_ParseTitleValue(singlePlayerCampaign_t *campaign, uint32_t index, char *value) {
+    char *cursor = value;
+    UINAME header;
+
+    if (!campaign || index >= SINGLE_PLAYER_MAX_MISSIONS || !SinglePlayer_ReadQuoted(&cursor, header, sizeof(header))) {
+        return;
+    }
+    snprintf(campaign->missions[index].header, sizeof(campaign->missions[index].header), "%s", header);
+    SinglePlayer_SetMissionCount(campaign, index);
+}
+
 static void SinglePlayer_ParseCinematicValue(singlePlayerCinematic_t *cinematic, char *value) {
     char *cursor = value;
     UINAME header;
@@ -317,7 +368,53 @@ static bool SinglePlayer_ParseCampaignField(singlePlayerCampaign_t *campaign, cs
     return false;
 }
 
+/* Retail 1.00 War3.mpq predates the CampaignList schema: missions are split into TitleN/MissionN/FileN,
+ * cinematics carry only a display name, and their shared headers live in a [Label] section. */
+static cstring_t const legacy_cinematic_keys[SINGLE_PLAYER_CINEMATIC_COUNT] = { "InCinematic", "OpCinematic", "EdCinematic" };
+static cstring_t const legacy_cinematic_suffixes[SINGLE_PLAYER_CINEMATIC_COUNT] = { "In", "Op", "Ed" };
+static UINAME legacy_cinematic_labels[SINGLE_PLAYER_CINEMATIC_COUNT];
+
+static bool SinglePlayer_ParseLegacyCinematic(singlePlayerCampaign_t *campaign, cstring_t key, char *value) {
+    FOR_LOOP(i, SINGLE_PLAYER_CINEMATIC_COUNT) {
+        singlePlayerCinematic_t *cinematic;
+        char *cursor = value;
+        UINAME name;
+
+        if (strcasecmp(key, legacy_cinematic_keys[i])) continue;
+        if (!campaign) {
+            if (SinglePlayer_ReadQuoted(&cursor, name, sizeof(name)))
+                snprintf(legacy_cinematic_labels[i], sizeof(legacy_cinematic_labels[i]), "%s", name);
+            return true;
+        }
+        cinematic = &campaign->cinematics[i];
+        if (!SinglePlayer_ReadQuoted(&cursor, name, sizeof(name)) || !name[0]) return true;
+        snprintf(cinematic->name, sizeof(cinematic->name), "%s", name);
+        snprintf(cinematic->movie_path, sizeof(cinematic->movie_path), "%s%s", campaign->key, legacy_cinematic_suffixes[i]);
+        return true;
+    }
+    return false;
+}
+
+/* Later CampaignStrings name the war3skins backdrop explicitly; 1.00 relies on the <Key>Backdrop skin entry. */
+static void SinglePlayer_FinalizeLegacyCampaigns(void) {
+    FOR_LOOP(i, campaign_count) {
+        singlePlayerCampaign_t *campaign = &campaigns[i];
+        if (!campaign->background[0]) {
+            snprintf(campaign->background, sizeof(campaign->background), "%.*sBackdrop",
+                     (int)(sizeof(campaign->background) - 9), campaign->key);
+            SinglePlayer_Warn("CampaignStrings: campaign '%s' has no Background key (pre-1.01 data?); using skin '%s'",
+                              campaign->key, campaign->background);
+        }
+        FOR_LOOP(j, SINGLE_PLAYER_CINEMATIC_COUNT) {
+            singlePlayerCinematic_t *cinematic = &campaign->cinematics[j];
+            if (cinematic->movie_path[0] && !cinematic->header[0])
+                snprintf(cinematic->header, sizeof(cinematic->header), "%s", legacy_cinematic_labels[j]);
+        }
+    }
+}
+
 static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, char *key, char *value) {
+    if (SinglePlayer_ParseLegacyCinematic(campaign, key, value)) return;
     if (!campaign) return;
     if (SinglePlayer_ParseCampaignField(campaign, key, value)) return;
     if (!strcasecmp(key, "IntroCinematic")) {
@@ -330,6 +427,7 @@ static void SinglePlayer_ParseCampaignLine(singlePlayerCampaign_t *campaign, cha
         uint32_t index;
         if (SinglePlayer_ParseIndexedKey(key, "Mission", &index)) SinglePlayer_ParseMissionValue(campaign, index, value);
         else if (SinglePlayer_ParseIndexedKey(key, "File", &index)) SinglePlayer_ParseFileValue(campaign, index, value);
+        else if (SinglePlayer_ParseIndexedKey(key, "Title", &index)) SinglePlayer_ParseTitleValue(campaign, index, value);
     }
 }
 
@@ -381,7 +479,8 @@ static bool SinglePlayer_LoadCampaignFile(cstring_t file_name) {
             }
             *end = '\0';
             snprintf(section, sizeof(section), "%s", SinglePlayer_Trim(key + 1));
-            campaign = strcasecmp(section, "Index") ? SinglePlayer_EnsureCampaign(section) : NULL;
+            campaign = strcasecmp(section, "Index") && strcasecmp(section, "Label")
+                ? SinglePlayer_EnsureCampaign(section) : NULL;
             continue;
         }
         char *eq = strchr(key, '=');
@@ -400,6 +499,7 @@ static bool SinglePlayer_LoadCampaignFile(cstring_t file_name) {
     }
 
     mi.MemFree(text);
+    SinglePlayer_FinalizeLegacyCampaigns();
     return campaign_count > 0;
 }
 
@@ -425,6 +525,7 @@ static void SinglePlayer_LoadCampaignData(void) {
 
     memset(campaigns, 0, sizeof(campaigns));
     memset(campaign_order, 0, sizeof(campaign_order));
+    memset(legacy_cinematic_labels, 0, sizeof(legacy_cinematic_labels));
     campaign_count = 0;
     campaign_order_count = 0;
 
@@ -477,6 +578,22 @@ static void SinglePlayer_SetHidden(frameDef_t *frame, bool hidden) {
     }
 }
 
+static void SinglePlayer_HideAuthoredRows(void) {
+    frameDef_t *const frames[] = {
+        single_player.TutorialFrame, single_player.HumanFrame, single_player.UndeadFrame,
+        single_player.OrcFrame, single_player.NightElfFrame,
+    };
+    char name[32];
+
+    FOR_LOOP(i, sizeof(frames) / sizeof(frames[0])) SinglePlayer_SetHidden(frames[i], true);
+    for (uint32_t i = 0; single_player.MissionSelectFrame; i++) {
+        frameDef_t *row;
+        snprintf(name, sizeof(name), "Mission%uFrame", (unsigned)i);
+        if (!(row = UI_FindChildFrame(single_player.MissionSelectFrame, name))) break;
+        SinglePlayer_SetHidden(row, true);
+    }
+}
+
 static void SinglePlayer_SetView(singlePlayerView_t view) {
     bool const show_campaign = view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ||
                                view == SINGLE_PLAYER_VIEW_MISSION_SELECT;
@@ -491,18 +608,13 @@ static void SinglePlayer_SetView(singlePlayerView_t view) {
     SinglePlayer_SetHidden(single_player.CampaignBackdrop_2, true);
     SinglePlayer_SetHidden(single_player.CampaignSelectFrame, view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
     SinglePlayer_SetHidden(single_player.MissionSelectFrame, view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
-    SinglePlayer_SetHidden(single_player.TutorialFrame, true);
-    SinglePlayer_SetHidden(single_player.HumanFrame, true);
-    SinglePlayer_SetHidden(single_player.TutorialButton, true);
-    SinglePlayer_SetHidden(single_player.HumanButton, true);
+    SinglePlayer_HideAuthoredRows();
     SinglePlayer_SetHidden(single_player.SlidingDoors, true);
-    SinglePlayer_SetHidden(campaign_list_frame,
-                           view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
-    SinglePlayer_SetHidden(mission_list_frame,
-                           view != SINGLE_PLAYER_VIEW_MISSION_SELECT);
 }
 
 static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campaign) {
+    if (campaign && !campaign->background[0])
+        SinglePlayer_Warn("campaign '%s' has no backdrop model; the campaign screen will be black", campaign->key);
     if (single_player.CampaignBackdrop_2 && campaign && campaign->background[0]) {
         SinglePlayer_ReleaseCampaignBackdropState();
         campaign_background_model = UI_LoadModel(campaign->background, true);
@@ -510,8 +622,8 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
         fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
                 campaign->background, (unsigned)campaign_background_model);
         if (!campaign_background_model || !UI_GetModel(campaign_background_model)) {
-            fprintf(stderr, "UI: campaign backdrop '%s' did not resolve to a loaded model\n",
-                    campaign->background);
+            SinglePlayer_Warn("campaign backdrop '%s' did not resolve to a loaded model; the campaign screen will be black",
+                              campaign->background);
         }
     }
 }
@@ -735,6 +847,131 @@ static void SinglePlayer_PopulateMissionList(singlePlayerCampaign_t const *campa
 #endif
 }
 
+static frameDef_t *SinglePlayer_CloneTemplate(cstring_t template_name, frameDef_t *parent, cstring_t suffix) {
+    frameDef_t const *source = UI_FindFrame(template_name);
+    frameDef_t *frame = source ? UI_CloneFrameTree(source, parent) : NULL;
+
+    if (!frame) {
+        SinglePlayer_Warn("campaign list template '%s' is missing; selector rows cannot be built", template_name);
+        return NULL;
+    }
+    snprintf(frame->Name, sizeof(frame->Name), "%s%s", parent->Name, suffix);
+    return frame;
+}
+
+/* The FDF tree outlives screen re-inits, so a box built by an earlier init is re-bound by name, not respawned. */
+static bool SinglePlayer_BindList(singlePlayerList_t *list, frameDef_t *parent, cstring_t name) {
+    char row_name[sizeof(UINAME)];
+
+    if (!(list->box = UI_FindChildFrame(parent, name))) return false;
+    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+        singlePlayerListRow_t *row = &list->rows[i];
+        cstring_t const parts[] = { "Button", "CameraButton", "Label", "Desc" };
+        frameDef_t **frames[] = { &row->arrow, &row->camera, &row->label, &row->desc };
+
+        snprintf(row_name, sizeof(row_name), "%sRow%u", name, (unsigned)i);
+        row->slot = UI_FindChildFrame(list->box, row_name);
+        FOR_LOOP(j, sizeof(parts) / sizeof(parts[0])) {
+            char part_name[sizeof(UINAME) * 2];
+            snprintf(part_name, sizeof(part_name), "%s%s", row_name, parts[j]);
+            *frames[j] = row->slot ? UI_FindChildFrame(row->slot, part_name) : NULL;
+        }
+        if (!row->arrow || !row->camera || !row->label || !row->desc) memset(row, 0, sizeof(*row));
+    }
+    return true;
+}
+
+/* Build the fixed row widgets once; entries are mapped onto them on every fill or scroll. */
+static void SinglePlayer_CreateList(singlePlayerList_t *list, frameDef_t *parent, cstring_t name) {
+    color32_t const name_color = { .r = 195, .g = 195, .b = 195, .a = 255 }; // 0.764, as the 1.00 static rows
+
+    memset(list->rows, 0, sizeof(list->rows));
+    list->box = NULL;
+    if (!parent || !single_player.CampaignMenu || SinglePlayer_BindList(list, parent, name)) return;
+    list->box = UI_Spawn(FT_FRAME, parent);
+    if (!list->box) return;
+    snprintf(list->box->Name, sizeof(list->box->Name), "%s", name);
+    UI_SetSize(list->box, SINGLE_PLAYER_LIST_WIDTH, SINGLE_PLAYER_LIST_ROWS * SINGLE_PLAYER_LIST_ROW_HEIGHT);
+    UI_SetPoint(list->box, FRAMEPOINT_TOPLEFT, single_player.CampaignMenu, FRAMEPOINT_TOPRIGHT,
+                SINGLE_PLAYER_LIST_X, SINGLE_PLAYER_LIST_Y);
+    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+        singlePlayerListRow_t *row = &list->rows[i];
+
+        row->slot = UI_Spawn(FT_FRAME, list->box);
+        if (!row->slot) return;
+        snprintf(row->slot->Name, sizeof(row->slot->Name), "%sRow%u", name, (unsigned)i);
+        UI_SetSize(row->slot, SINGLE_PLAYER_LIST_WIDTH, SINGLE_PLAYER_LIST_ROW_HEIGHT);
+        row->arrow = SinglePlayer_CloneTemplate("CampaignArrowButtonTemplate", row->slot, "Button");
+        row->camera = SinglePlayer_CloneTemplate("CampaignCameraButtonTemplate", row->slot, "CameraButton");
+        row->label = SinglePlayer_CloneTemplate("StandardSmallTextTemplate", row->slot, "Label");
+        row->desc = SinglePlayer_CloneTemplate("StandardTitleTextTemplate", row->slot, "Desc");
+        if (!row->arrow || !row->camera || !row->label || !row->desc) {
+            memset(row, 0, sizeof(*row));
+            return;
+        }
+        /* Same geometry as the authored 1.00 rows: label beside the button, name under the label. */
+        UI_SetPoint(row->arrow, FRAMEPOINT_LEFT, row->slot, FRAMEPOINT_LEFT, 0, 0);
+        UI_SetPoint(row->camera, FRAMEPOINT_LEFT, row->slot, FRAMEPOINT_LEFT, 0, 0);
+        UI_SetPoint(row->label, FRAMEPOINT_TOPLEFT, row->arrow, FRAMEPOINT_TOPRIGHT, 0.004f, -0.005f);
+        UI_SetPoint(row->desc, FRAMEPOINT_TOPLEFT, row->label, FRAMEPOINT_BOTTOMLEFT, 0, 0);
+        row->desc->Font.Color = name_color;
+    }
+}
+
+static void SinglePlayer_LayoutList(singlePlayerList_t *list) {
+    uint32_t const max_scroll = list->count > SINGLE_PLAYER_LIST_ROWS ? list->count - SINGLE_PLAYER_LIST_ROWS : 0;
+    float const top = list->count < SINGLE_PLAYER_LIST_ROWS
+        ? (float)(SINGLE_PLAYER_LIST_ROWS - list->count) * SINGLE_PLAYER_LIST_ROW_HEIGHT * 0.5f : 0.0f;
+
+    list->scroll = MIN(list->scroll, max_scroll);
+    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+        singlePlayerListRow_t const *row = &list->rows[i];
+        uint32_t const index = list->scroll + i;
+        singlePlayerListEntry_t const *entry = index < list->count ? &list->entries[index] : NULL;
+        bool const blank = !entry || entry->item == UINT32_MAX;
+
+        if (!row->slot) continue;
+        UI_SetPoint(row->slot, FRAMEPOINT_TOPLEFT, list->box, FRAMEPOINT_TOPLEFT,
+                    0, -(top + (float)i * SINGLE_PLAYER_LIST_ROW_HEIGHT));
+        SinglePlayer_SetHidden(row->slot, blank);
+        if (blank) continue;
+        UI_SetText(row->label, "%s", entry->header ? entry->header : "");
+        UI_SetText(row->desc, "%s", entry->name ? entry->name : "");
+        UI_SetOnClick(row->arrow, list->command, (unsigned)entry->item);
+        UI_SetOnClick(row->camera, list->command, (unsigned)entry->item);
+        SinglePlayer_SetHidden(row->arrow, entry->camera);
+        SinglePlayer_SetHidden(row->camera, !entry->camera);
+    }
+}
+
+static void SinglePlayer_AddListEntry(singlePlayerList_t *list, uint32_t item, bool camera,
+                                      cstring_t header, cstring_t name) {
+    if (list->count >= SINGLE_PLAYER_LIST_MAX_ENTRIES) return;
+    list->entries[list->count++] = (singlePlayerListEntry_t){ item, camera, header, name };
+}
+
+static void SinglePlayer_FillMissionRows(singlePlayerCampaign_t const *campaign) {
+    mission_rows.count = mission_rows.scroll = 0;
+    FOR_LOOP(i, mission_list.count) {
+        uint32_t const flags = mission_list.items[i].flags;
+        uint32_t const index = flags & SINGLE_PLAYER_LIST_INDEX_MASK;
+        bool const cinematic = (flags & SINGLE_PLAYER_LIST_FLAG_CINEMATIC) != 0;
+        cstring_t header = "", name = mission_list.items[i].name;
+
+        if (cinematic && index < SINGLE_PLAYER_CINEMATIC_COUNT) {
+            header = campaign->cinematics[index].header;
+            name = campaign->cinematics[index].name;
+        } else if (!cinematic && index < campaign->num_missions) {
+            header = campaign->missions[index].header;
+            name = campaign->missions[index].name[0] ? campaign->missions[index].name : name;
+        }
+        SinglePlayer_AddListEntry(&mission_rows, i, cinematic, header, name);
+        if (cinematic && index == SINGLE_PLAYER_CINEMATIC_INTRO && i + 1 < mission_list.count)
+            SinglePlayer_AddListEntry(&mission_rows, UINT32_MAX, false, NULL, NULL);
+    }
+    SinglePlayer_LayoutList(&mission_rows);
+}
+
 static void SinglePlayer_PopulateMissionSelect(singlePlayerCampaign_t const *campaign) {
     if (!campaign) {
         return;
@@ -746,6 +983,7 @@ static void SinglePlayer_PopulateMissionSelect(singlePlayerCampaign_t const *cam
         UI_SetText(single_player.MissionNameHeader, "%s", campaign->header);
     }
     SinglePlayer_PopulateMissionList(campaign);
+    SinglePlayer_FillMissionRows(campaign);
 }
 
 static void SinglePlayer_SelectCampaign(singlePlayerCampaign_t const *campaign) {
@@ -785,75 +1023,19 @@ static void SinglePlayer_PopulateCampaignList(void) {
         item->flags = campaign_index;
     }
 
+    campaign_rows.count = campaign_rows.scroll = 0;
+    FOR_LOOP(i, campaign_list.count) {
+        singlePlayerCampaign_t const *campaign = &campaigns[campaign_list.items[i].flags];
+        SinglePlayer_AddListEntry(&campaign_rows, i, false, campaign->header, campaign->name);
+        SinglePlayer_AddListEntry(&campaign_rows, UINT32_MAX, false, NULL, NULL);
+    }
+    SinglePlayer_LayoutList(&campaign_rows);
     fprintf(stderr, "Campaign screen: %u campaign(s) listed\n", (unsigned)campaign_list.count);
     FOR_LOOP(i, campaign_list.count) {
         uiMapListItem_t const *item = &campaign_list.items[i];
         fprintf(stderr, "Campaign screen: [%u] %s (key=%s)\n",
                 (unsigned)i, item->name, item->path);
     }
-}
-
-static void SinglePlayer_CreateCampaignList(void) {
-    frameDef_t *template_frame;
-
-    if (campaign_list_frame || !single_player.CampaignSelectFrame) {
-        return;
-    }
-
-    template_frame = UI_FindFrame("MapListBox");
-    if (!template_frame) {
-        return;
-    }
-
-    campaign_list_frame = UI_CloneFrameTree(template_frame, single_player.CampaignSelectFrame);
-    if (!campaign_list_frame) {
-        return;
-    }
-
-    SinglePlayer_PopulateCampaignList();
-    UI_SetSize(campaign_list_frame, 0.34f, SINGLE_PLAYER_CAMPAIGN_LIST_HEIGHT);
-    UI_SetPoint(campaign_list_frame,
-                FRAMEPOINT_BOTTOMLEFT,
-                single_player.BackButton,
-                FRAMEPOINT_TOPLEFT,
-                -0.14f,
-                0.04f);
-    UI_BindMapList(campaign_list_frame,
-                   &campaign_list,
-                   single_player.DifficultySelectLabel,
-                   SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS,
-                   "menu_single_player_campaign_select %u");
-}
-
-static void SinglePlayer_CreateMissionList(void) {
-    frameDef_t *template_frame;
-
-    if (mission_list_frame || !single_player.MissionSelectFrame) {
-        return;
-    }
-
-    template_frame = UI_FindFrame("MapListBox");
-    if (!template_frame) {
-        return;
-    }
-
-    mission_list_frame = UI_CloneFrameTree(template_frame, single_player.MissionSelectFrame);
-    if (!mission_list_frame) {
-        return;
-    }
-
-    UI_SetSize(mission_list_frame, 0.34f, 0.28f);
-    UI_SetPoint(mission_list_frame,
-                FRAMEPOINT_BOTTOMLEFT,
-                single_player.BackButton,
-                FRAMEPOINT_TOPLEFT,
-                -0.14f,
-                0.04f);
-    UI_BindMapList(mission_list_frame,
-                   &mission_list,
-                   single_player.DifficultySelectLabel,
-                   SINGLE_PLAYER_MISSION_VISIBLE_ROWS,
-                   "menu_single_player_mission_select %u");
 }
 
 static void SinglePlayer_BindMainMenu(void) {
@@ -933,18 +1115,22 @@ static void SinglePlayerMenu_Init(void) {
     mi.Printf("SinglePlayerMenu_Init\n");
     SinglePlayer_LoadCampaignData();
     SinglePlayer_LoadCampaignProgress();
-    campaign_list_frame = NULL;
-    mission_list_frame = NULL;
     memset(&campaign_list, 0, sizeof(campaign_list));
     memset(&mission_list, 0, sizeof(mission_list));
+    /* The FDF offset leaves the sprite origin off-screen; like the main menu (and Warsmash), retail places the
+     * MainMenuLogo model explicitly, mirrored to the right edge. */
     if (single_player.WarCraftIIILogo) {
-        single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
+        uint32_t logo_model = UI_LoadModel("MainMenuLogo", true);
+        if (logo_model) single_player.WarCraftIIILogo->Portrait.model = logo_model;
+        else SinglePlayer_Warn("campaign screen logo 'MainMenuLogo' did not load");
+        UI_SetPoint(single_player.WarCraftIIILogo, FRAMEPOINT_TOPRIGHT, single_player.CampaignMenu,
+                    FRAMEPOINT_TOPRIGHT, -0.13f, -0.08f);
     }
 
     SinglePlayer_BindMainMenu();
     SinglePlayer_BindCampaignMenu();
-    SinglePlayer_CreateCampaignList();
-    SinglePlayer_CreateMissionList();
+    SinglePlayer_CreateList(&campaign_rows, single_player.CampaignSelectFrame, "CampaignListBox");
+    SinglePlayer_CreateList(&mission_rows, single_player.MissionSelectFrame, "MissionListBox");
     SinglePlayer_SetCampaignBackdrop(SinglePlayer_DefaultCampaign());
     selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
@@ -954,38 +1140,16 @@ static void SinglePlayerMenu_Shutdown(void) {
     SinglePlayer_ReleaseCampaignBackdropState();
 }
 
-static void SinglePlayerMenu_Refresh(int msec) {
-    static uint32_t logged_scroll = UINT32_MAX;
-    float target;
-    float diff;
-    float alpha;
+/* The wheel scrolls whichever selector column is under the pointer, including over its buttons. */
+static bool SinglePlayerMenu_Scroll(float fdf_x, float fdf_y, int delta) {
+    singlePlayerList_t *list = current_view == SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT ? &campaign_rows
+        : current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT ? &mission_rows : NULL;
 
-    if (current_view != SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT || campaign_list.count == 0) {
-        return;
-    }
-
-    target = (float)campaign_list.scroll;
-    if (logged_scroll != campaign_list.scroll) {
-        uint32_t const first_row = (uint32_t)campaign_list.visualScroll;
-        fprintf(stderr, "Campaign screen: scroll=%u visualScroll=%.2f; visible rows [%u,%u) of %u (%u-row viewport)\n",
-                (unsigned)campaign_list.scroll,
-                campaign_list.visualScroll,
-                (unsigned)first_row,
-                (unsigned)MIN(first_row + SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS, campaign_list.count),
-                (unsigned)campaign_list.count,
-                (unsigned)SINGLE_PLAYER_CAMPAIGN_VISIBLE_ROWS);
-        logged_scroll = campaign_list.scroll;
-    }
-    diff = target - campaign_list.visualScroll;
-    alpha = (float)msec / 90.0f;
-    if (alpha > 1.0f) {
-        alpha = 1.0f;
-    }
-    if (diff > -0.001f && diff < 0.001f) {
-        campaign_list.visualScroll = target;
-    } else {
-        campaign_list.visualScroll += diff * alpha;
-    }
+    if (!list || !list->box || !delta || !UI_FrameContainsPoint(list->box, fdf_x, fdf_y)) return false;
+    if (delta > 0 && list->scroll > 0) list->scroll--;
+    else if (delta < 0) list->scroll++;
+    SinglePlayer_LayoutList(list);
+    return true;
 }
 
 static void SinglePlayerMenu_Draw(void) {
@@ -1028,6 +1192,12 @@ void SinglePlayerMenu_ShowCampaign(void) {
 
 void SinglePlayerMenu_BackCampaign(void) {
     if (current_view == SINGLE_PLAYER_VIEW_MISSION_SELECT) {
+        /* Picking a campaign moved the camera into that campaign's scene; returning restores the selector's
+         * scene through the same Birth camera move that first entering the campaign screen plays. */
+        singlePlayerCampaign_t const *campaign = SinglePlayer_DefaultCampaign();
+        SinglePlayer_SetCampaignBackdrop(campaign);
+        SinglePlayer_BeginCampaignBackdropBirth(campaign);
+        selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
         SinglePlayer_SetView(SINGLE_PLAYER_VIEW_CAMPAIGN_SELECT);
         return;
     }
@@ -1093,7 +1263,7 @@ uiScreen_t singlePlayerMenuScreen = {
     .load = SinglePlayerMenu_LoadScreen,
     .init = SinglePlayerMenu_Init,
     .shutdown = SinglePlayerMenu_Shutdown,
-    .refresh = SinglePlayerMenu_Refresh,
+    .scroll = SinglePlayerMenu_Scroll,
     .draw = SinglePlayerMenu_Draw,
     .key_event = SinglePlayerMenu_KeyEvent,
 };

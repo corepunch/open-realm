@@ -179,6 +179,7 @@ void UI_DrawFrame(frameDef_t const *frame);
 void UI_DrawFrames(frameDef_t const *const *roots, uint32_t num_roots);
 bool M_EditKey(int key);
 bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
+bool UI_FrameContainsPoint(frameDef_t const *frame, float fdf_x, float fdf_y);
 void M_TextInput(cstring_t text);
 void UI_EditTextInput(cstring_t text);
 bool UI_EditHasFocus(frameDef_t const *frame);

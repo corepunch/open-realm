@@ -278,6 +278,7 @@ typedef struct {
     wc3EventFamily_t const *family;
     uint32_t depth;
     bool entity_camera;
+    bool ui_sprite;
     model_t const *source_model;
     uintptr_t source_instance_id;
 } wc3EventParams_t;
@@ -288,6 +289,7 @@ typedef struct {
     mat4_t const *transform;
     uint32_t depth;
     bool entity_camera;
+    bool ui_sprite;
     model_t const *source_model;
     uintptr_t source_instance_id;
 } wc3EventDispatchParams_t;
@@ -1426,6 +1428,11 @@ static void R_W3EmitSoundEvent(wc3EventParams_t const *params, uint32_t key) {
             fprintf(stderr, "WC3 renderer: MDX SND event '%s' has an invalid AnimSounds path\n", id);
         return;
     }
+    /* Glue panels and other UI sprites live in screen space, so their SND keys are interface sounds. */
+    if (params->ui_sprite) {
+        ri.PlaySoundAt(path, NULL, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
+        return;
+    }
     {
         mat4_t event_transform;
         if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
@@ -1811,7 +1818,10 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
         params->state->generation != params->entity->generation) {
         *params->state = (wc3EventState_t){ .model = params->entity->model, .frame = params->entity->frame,
             .render_time = tr.viewDef.time, .generation = params->entity->generation, .valid = true };
-        return;
+        /* A glue panel appears on the first frame of its Birth/Morph sequence, where its slide sound is keyed.
+         * Treat the first sighting as entering the sequence (no previous sequence) instead of skipping it. */
+        if (!params->ui_sprite) return;
+        params->state->frame = UINT32_MAX;
     }
     if (params->state->frame == params->entity->frame &&
         params->state->render_time == tr.viewDef.time) return;
@@ -1828,10 +1838,12 @@ static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
                         prefix, event->node.name);
             continue;
         }
+        /* UI sprites have no world to spawn into or splat onto; only their sounds are presentation. */
+        if (params->ui_sprite && family->kind != WC3_EVENT_SOUND) continue;
         event_params = MAKE(wc3EventParams_t, .entity = params->entity, .model = params->model,
             .event = event, .transform = params->transform, .family = family, .depth = params->depth,
-            .entity_camera = params->entity_camera, .source_model = params->source_model,
-            .source_instance_id = params->source_instance_id);
+            .entity_camera = params->entity_camera, .ui_sprite = params->ui_sprite,
+            .source_model = params->source_model, .source_instance_id = params->source_instance_id);
         FOR_LOOP(i, event->num_keys) {
             uint32_t key = event->keys[i];
             if (!MDLX_EventKeyCrossed(params->model, event, key, params->state->frame,
@@ -1880,18 +1892,23 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
     /* Presentation events belong to the color pass, not the shadow-map pass. */
     if (tr.render_phase == RENDER_PHASE_LIGHTS) return;
     bool entity_camera = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) != 0;
+    bool ui_sprite = (tr.viewDef.rdflags & RDF_UI_SPRITE) != 0;
+    /* Sprites share entity number 0, so like entity-camera views they need per-instance event state. */
+    bool instanced = entity_camera || ui_sprite;
 
     if (!entity) return;
-    wc3EventState_t *state = entity_camera ? R_W3CameraEventState(entity) : NULL;
-    if (entity_camera && !state) return;
+    /* Look the instance state up first: that lookup is what invalidates it when the model changes. */
+    wc3EventState_t *state = instanced ? R_W3CameraEventState(entity) : NULL;
+    if (instanced && !state) return;
     if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
-        !entity->model->mdx || (!entity_camera && entity->number >= MAX_GAME_ENTITIES)) return;
+        !entity->model->mdx || (!instanced && entity->number >= MAX_GAME_ENTITIES)) return;
     model = entity->model->mdx;
     if (!model->events) return;
     R_GetEntityMatrix(entity, &transform);
-    if (!entity_camera) state = event_state + entity->number;
+    if (!instanced) state = event_state + entity->number;
     R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
         .state = state, .transform = &transform, .depth = 0, .entity_camera = entity_camera,
+        .ui_sprite = ui_sprite,
         .source_model = entity_camera ? entity->model : NULL,
         .source_instance_id = entity_camera ? entity->instance_id : 0));
 }

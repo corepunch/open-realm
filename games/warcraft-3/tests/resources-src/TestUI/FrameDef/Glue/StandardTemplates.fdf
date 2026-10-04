@@ -176,3 +176,13 @@ Frame "MENU" "StandardPopupMenuMenuTemplate" {
     Frame "BACKDROP" "StandardPopupMenuMenuBackdropTemplate" INHERITS "StandardBorderedButtonBackdropTemplate" {
     }
 }
+
+// Campaign selector row buttons; retail StandardTemplates.fdf adds backdrop/highlight children.
+Frame "TEXTBUTTON" "CampaignArrowButtonTemplate" {
+    Height 0.032,
+    Width 0.032,
+}
+Frame "TEXTBUTTON" "CampaignCameraButtonTemplate" {
+    Height 0.032,
+    Width 0.032,
+}

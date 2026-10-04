@@ -100,6 +100,13 @@ static bool UI_PointInRect(float x, float y, rect_t const *rect) {
            y >= rect->y && y < rect->y + rect->h;
 }
 
+/* Uses the rectangle from the last laid-out frame, the same space UI_HitTest reads. */
+bool UI_FrameContainsPoint(frameDef_t const *frame, float fdf_x, float fdf_y) {
+    uint32_t index;
+    return frame && !frame->hidden && UI_FrameIndex(frame, &index) && runtimes[index].calculated &&
+        UI_PointInRect(fdf_x, fdf_y, &runtimes[index].rect);
+}
+
 static bool UI_FrameIsInteractive(frameDef_t const *frame) {
     if (!frame || frame->hidden || frame->disabled || (frame->ui_flags & UIFLAG_PASSTHROUGH)) {
         return false;
@@ -476,6 +483,11 @@ static void UI_DrawHighlightFrame(frameDef_t const *frame, rect_t const *rect);
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
  * ======================================================================== */
 
+/* Glue controls share UISounds.slk's GlueScreenClick on a completed click, as retail/Warsmash do. */
+static void UI_PlayGlueClick(void) {
+    if (mi.PlaySoundByName) mi.PlaySoundByName("GlueScreenClick");
+}
+
 static void UI_ButtonEventHandler(frameDef_t *frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
     if (param != 1) {
@@ -486,6 +498,7 @@ static void UI_ButtonEventHandler(frameDef_t *frame, menuMouseEvent_t event, flo
     } else if (event == MENU_MOUSE_UP) {
         frame->ui_flags &= ~UIFLAG_PRESSED;
         if (frame->OnClick[0]) {
+            UI_PlayGlueClick();
             UI_QueueCommand(frame->OnClick);
         }
     }
@@ -502,6 +515,7 @@ static void UI_CheckBoxEventHandler(frameDef_t *frame, menuMouseEvent_t event, f
         frame->ui_flags &= ~UIFLAG_PRESSED;
         frame->ui_flags ^= UIFLAG_CHECKED;
         ((frameDef_t *)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
+        UI_PlayGlueClick();
         if (frame->OnClick[0]) {
             UI_QueueCommand(frame->OnClick);
         }
