@@ -832,3 +832,57 @@ void pathing_waygate_publish(uint32_t const q[8],uint32_t id,uint8_t *state) {
 uint32_t pathing_gate_parent(uint32_t width,uint32_t height,uint8_t const *classes,uint8_t const *markers) {
     return wc3_gate_parent(classes,markers,width,height,0,0);
 }
+
+/* Original special-edge requests use the production adaptive kernel and its
+ * separate source/incoming bytes. Standalone ordinary callers stay disabled. */
+void pathing_adaptive_special_route(uint32_t const *q,uint8_t const *classes,
+        uint8_t const *markers,wc3AccGate_t const *gates,uint32_t *out) {
+    adaptive_probe.markers=markers;adaptive_probe.gates=gates;adaptive_probe.warp=q[8];
+    pathing_adaptive_route(q,classes,out);
+    memmove(out+5,out+4,(size_t)out[3]*8);out[4]=adaptive_probe.warps;
+    adaptive_probe.warp=false;adaptive_probe.markers=NULL;adaptive_probe.gates=NULL;
+}
+void pathing_adaptive_special_node_state(uint32_t *out) {
+    out[0]=adaptive_probe.work.count;
+    for(uint32_t i=0;i<adaptive_probe.work.count;i++) {
+        wc3FineNode_t const *n=adaptive_probe.work.nodes+i;
+        uint32_t words[]={n->pos.x,n->pos.y,n->g,n->h,n->gen,(uint32_t)n->parent,n->state,
+            adaptive_probe.levels[i],adaptive_probe.source_ids[i],adaptive_probe.gate_ids[i]};
+        memcpy(out+1+10*i,words,sizeof(words));
+    }
+}
+void pathing_adaptive_special_distance(uint32_t const *q,uint8_t const *classes,
+        uint8_t const *markers,wc3AccGate_t const *gates,uint32_t *out) {
+    static wc3AccSearch_t search;
+    search.markers=markers;search.gates=gates;search.warp=q[8];
+    uint32_t offset=0;
+    for(unsigned level=0;level<4;level++) {
+        uint32_t width=q[0]>>level,height=q[1]>>level;
+        search.maps[level]=(wc3AccMap_t){width,height,classes+offset,malloc((size_t)width*height*sizeof(int))};
+        assert(search.maps[level].indices);offset+=width*height;
+    }
+    wc3AccRequest_t req={{wc3_float(q[4]),wc3_float(q[5])},{wc3_float(q[6]),wc3_float(q[7])},1u<<q[2],q[3]};
+    wc3FineVector_t endpoint;out[0]=wc3_acc_query_distance(&search,&req,&endpoint);
+    out[1]=wc3_float_bits(endpoint.x);out[2]=wc3_float_bits(endpoint.y);out[3]=search.warps;
+    out[4]=search.work.pops;out[5]=search.work.count;
+    for(unsigned level=0;level<4;level++)free(search.maps[level].indices);
+}
+
+/* 165d10 controlled consumer scope: the owner-active lookup and physical
+ * placement outcome are supplied; public engine trajectories prove placement. */
+typedef struct {uint32_t active,placement,calls,point[2];} gateConsumerProbe_t;
+static bool gate_probe_active(void const *data,uint8_t id) {
+    (void)id;return ((gateConsumerProbe_t const *)data)->active&1;
+}
+static bool gate_probe_place(void *data,wc3FineVector_t point) {
+    gateConsumerProbe_t *probe=data;probe->calls++;
+    probe->point[0]=wc3_float_bits(point.x);probe->point[1]=wc3_float_bits(point.y);
+    return probe->placement;
+}
+void pathing_adaptive_gate_consumer(uint32_t const *q,uint32_t const *words,uint32_t *out) {
+    wc3FineVector_t points[8];assert(q[0]<=8);
+    for(uint32_t i=0;i<q[0];i++)points[i]=(wc3FineVector_t){wc3_float(words[2*i]),wc3_float(words[2*i+1])};
+    gateConsumerProbe_t probe={q[3],q[4],0,{0,0}};wc3FineRoute_t route={points,q[1]};bool warped;
+    out[0]=wc3_acc_advance(&route,q[2],gate_probe_active,gate_probe_place,&probe,&warped);
+    out[1]=route.index;out[2]=warped;out[3]=probe.calls;out[4]=probe.point[0];out[5]=probe.point[1];
+}

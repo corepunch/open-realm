@@ -1176,6 +1176,33 @@ TEST(pathfinding, waygate_source_overlap_preserves_publication_routes_and_saved_
     reset_entities();setup_test_world();G_FreeMovePathCache();
 }
 
+/* Complete public95 routes: retarget affects a fresh request, not a retained plan. */
+TEST(pathfinding, waygate_special_edges_reach_group_and_retained_routes) {
+    reset_entities();setup_test_world();G_FreeMovePathCache();S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *gate=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512,768);
+    T_ASSERT(G_ActorAddSkill(gate,MAKEFOURCC('Z','w','r','p')));
+    S_WaygateSetDestination(gate,&(vec2_t){1728,1760});S_WaygateSetActive(gate,true);
+    vec2_t source={272,304},target={1744,1776},selected;
+    movePathQuery_t query={.geometry={&source,&target,8,2}};
+    moveFineRoute_t route={0};
+    T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+    T_EQ(route.group_count,4);T_EQ(route.group_index,0);
+    vec2_t expected[]={{27.25f,27.75f},{wc3_float(0xc7fa0001),1},{7.75f,8.75f},{4.25f,4.75f}};
+    if(route.group_count==4)FOR_LOOP(i,4){T_EQ(wc3_float_bits(route.group_points[i].x),wc3_float_bits(expected[i].x));T_EQ(wc3_float_bits(route.group_points[i].y),wc3_float_bits(expected[i].y));}
+    S_WaygateSetDestination(gate,&(vec2_t){1216,1408});
+    T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));T_EQ(route.group_count,4);
+    free(route.group_points);route=(moveFineRoute_t){0};
+    T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));T_EQ(route.group_count,5);T_EQ(route.group_index,0);
+    vec2_t fresh[]={{27.25f,27.75f},{19.75f,22.75f},{wc3_float(0xc7fa0001),1},{7.75f,8.75f},{4.25f,4.75f}};
+    if(route.group_count==5)FOR_LOOP(i,5){T_EQ(wc3_float_bits(route.group_points[i].x),wc3_float_bits(fresh[i].x));T_EQ(wc3_float_bits(route.group_points[i].y),wc3_float_bits(fresh[i].y));}
+    free(route.group_points);G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+}
+
 TEST(pathfinding, group_adaptive_storage_grows_and_reuses_backing_for_owned_partial_routes) {
     reset_entities(); setup_test_world(); G_FreeMovePathCache(); S_ClearMoveFineRequests();
     uint8_t *cells=malloc(1024*1024); T_NOT_NULL(cells); if(!cells)return;

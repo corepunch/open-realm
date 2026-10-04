@@ -52,6 +52,10 @@ function install(module) {
             }
         });
     }
+    if(config.gatePoolEvents) {
+        hook(0x04e550,{onEnter(){this.id=this.context.ecx.toUInt32();this.world=ints(this.context.edx,2);},onLeave(){const owner=base.add(0xd53a48).readPointer(),acc=owner.add(0x250).readPointer(),records=acc.add(0x3c).readPointer();emit('gate-destination',{id:this.id,world:this.world,record:ints(records.add(12*this.id),3)});}});
+        hook(0x165d10,{onEnter(args){this.path=this.context.ecx;this.execute=args[0].toUInt32();this.io=args[1];const index=this.path.add(0x78).readU32(),points=this.path.add(0x60).readPointer();this.before={execute:this.execute,index,count:this.path.add(0x70).readU32()};if(index>1){this.before.predecessor=ints(points.add(8*(index-1)),2);this.before.cached=ints(points.add(8*(index-2)),2);} },onLeave(ret){emit('gate-consumer',{path:this.path.toString(),before:this.before,index:this.path.add(0x78).readU32(),result:ret.toUInt32(),warped:this.io.readU32()});}});
+    }
     if(config.gateMarkerEvents) {
         hook(0x04e360,{onEnter(){this.id=this.context.ecx.toUInt32();this.rectangle=ints(this.context.edx,4);},onLeave(){
             const owner=base.add(0xd53a48).readPointer(),maps=[];

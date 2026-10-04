@@ -194,10 +194,16 @@ void G_UpdateTimerDialogs(void) {
 }
 
 /* Timer callbacks enter the same coroutine/event path as authored map triggers. */
-void G_RunTimers(void) {
+static void run_timers(wc3Clock_t const *before) {
     FOR_LOOP(i, level.num_timers) {
         gtimer_t *timer = &level.timers[i];
         if (!timer->running || timer->paused) continue;
+        if(before) {
+            if(!timer->scalar_timing || !level.scheduled_frame)continue;
+            wc3Clock_t const *due=&timer->scalar_deadline;
+            if(due->epoch==before->epoch ? due->time>=before->time :
+                (int32_t)(due->epoch-before->epoch)>=0)continue;
+        }
         /* RunFrame drains before every primary quantum and again at publication.
          * Consume elapsed simulation time once; repeated drains cannot age a timer.
          * Save restores both the countdown cursor and the owning server clock. */
@@ -226,3 +232,9 @@ void G_RunTimers(void) {
         jass_settimercontext(NULL);
     }
 }
+
+/* Original timer heap orders a script deadline before a later owner deadline
+ * even when both mature in the same primary quantum. Equal-deadline heap
+ * mutation/tie policy remains NUM-02.10; retain existing owner admission there. */
+void G_RunTimersBeforePathOwner(wc3Clock_t const *deadline) {run_timers(deadline);}
+void G_RunTimers(void) {run_timers(NULL);}

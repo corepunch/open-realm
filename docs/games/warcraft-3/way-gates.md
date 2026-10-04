@@ -156,7 +156,7 @@ so a creation in the same script callback can reuse it. Later removal cleanup
 is idempotent. Save98 retains allocation attempts, allocated IDs and exhaustion,
 rejects duplicate ownership and invalid active/configured zero IDs, and rejects
 older save versions. Two full 256-gate save/load cycles and immediate ID reuse
-are covered by the normal game tests. Automatic portal routing remains open.
+are covered by the normal game tests. Automatic portal routing is now integrated as described below.
 
 ## Source overlap publication
 
@@ -165,3 +165,20 @@ IDs. Removal clears its full source rectangle without restoring another live
 gate's overwritten bytes. The adaptive parents subdivide clear marked cells,
 so this affects ordinary routes even with traversal disabled. Save99 retains
 marker and class history directly. See [the verified engine port](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
+
+## Automatic Move traversal
+
+[Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes)
+connects ability-owned gate IDs,source markers and quantized exit records to
+member/group adaptive searches. Move consumes portal sentinels using the cached
+route exit and the current active bit. Retarget affects fresh searches; disable
+skips a retained crossing and permits ordinary walking where terrain allows it.
+Traversal retains the Move order,integrates existing velocity and preserves
+region notifications. This is separate from explicit Smart's approach behavior.
+
+Two retail repeats and all410 production motion commits match cached retarget,
+fresh retarget and disabled walking through final arrival. Ten save checkpoints
+also match3094 continuation commits. The JASS destination getters still expose
+stored script coordinates; native coarse-record getter quantization remains
+unverified in the engine. Blocked exits,ID reuse,chained gates and paired group
+regrouping retain their existing backlog requirements.

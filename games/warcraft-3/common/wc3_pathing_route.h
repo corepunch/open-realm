@@ -28,6 +28,40 @@ static inline wc3AccSelection_t wc3_acc_select(wc3FineRoute_t route, bool revers
     return (wc3AccSelection_t){0,false};
 }
 
+/* Original165e30: group plans skip a crossing before selecting the next leg. */
+static inline uint32_t wc3_acc_group_advance(wc3FineRoute_t route) {
+    wc3AccSelection_t next=wc3_acc_select(route,true);
+    if(next.gate)next=wc3_acc_select((wc3FineRoute_t){route.points,next.index},false);
+    return next.index;
+}
+
+/* Original166030 only recognizes the immediate predecessor and publishes AL. */
+static inline uint8_t wc3_acc_pending_gate(wc3FineRoute_t route) {
+    if(route.index<=1 || route.points[route.index-1].x!=wc3_float(0xc7fa0001))return 0;
+    return (uint8_t)wc3_int_bits(wc3_float_bits(route.points[route.index-1].y));
+}
+
+/* Original165d10 validates the ID but places at the cached route exit. Failure
+ * retains the index. Inactive/reused IDs do not substitute a new destination. */
+static inline bool wc3_acc_advance(wc3FineRoute_t *route,bool execute,
+        bool (*active)(void const *,uint8_t),bool (*place)(void *,wc3FineVector_t),
+        void *context,bool *warped) {
+    *warped=false;
+    if(!route->index)return true;
+    uint8_t id=execute?wc3_acc_pending_gate(*route):0;
+    if(id) {
+        if(active(context,id)) {
+            wc3FineVector_t exit=route->points[route->index-2];
+            exit.x=wc3_mul(exit.x,2);exit.y=wc3_mul(exit.y,2);
+            if(!place(context,exit))return false;
+            *warped=true;
+        }
+        route->index-=2;
+    }
+    route->index=wc3_acc_select(*route,false).index;
+    return true;
+}
+
 static inline bool wc3_route_same_cell(wc3FineVector_t a, wc3FineVector_t b) {
     return wc3_int_bits(wc3_floor_bits(wc3_float_bits(a.x))) == wc3_int_bits(wc3_floor_bits(wc3_float_bits(b.x))) &&
            wc3_int_bits(wc3_floor_bits(wc3_float_bits(a.y))) == wc3_int_bits(wc3_floor_bits(wc3_float_bits(b.y)));

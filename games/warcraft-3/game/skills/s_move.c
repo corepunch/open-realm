@@ -1167,6 +1167,18 @@ void S_RecoverStoppedUnitPosition(edict_t *self) {
     wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
 }
 
+/* Portal movement keeps the order, route buffers and current velocity. */
+bool S_MoveThroughPortal(edict_t *self,vec2_t const *fine) {
+    vec2_t admitted;
+    if(!G_FindUnitMovePortalPosition(self,fine,&admitted))return false;
+    wc3GridPose_t pose;unit_predicted_pose(self,&pose);
+    vec2_t old=self->s.origin2;
+    float point[2]={admitted.x,admitted.y};
+    wc3_grid_place_fine(&pose,point);unit_commit_pose(self,&pose);
+    G_UnitPositionChanged(self,&old);
+    return true;
+}
+
 /* Public ground spawn admits first, then commits from the fresh mover sentinel.
  * Applying the normal setter to an already inverted requested pose loses the
  * original initialization cancellation and publishes different fractional XY. */
@@ -1673,9 +1685,11 @@ wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
-static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
-    if (!self || !point.point || !dir) return false;
+typedef enum { MOVE_ROUTE_FAILED, MOVE_ROUTE_READY, MOVE_ROUTE_STOP } moveRouteResult_t;
+static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
+    if (!self || !point.point || !dir) return MOVE_ROUTE_FAILED;
     movePathQuery_t query = move_route_query(self, point);
+    wc3GridPose_t before;unit_predicted_pose(self,&before);
     routePath_t *path = &self->movement.path;
     moveFineRoute_t *curve = &self->movement.fine_route;
     vec2_t local,fine_destination;
@@ -1689,21 +1703,27 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
          * rather than becoming a successful nearest-point Move. */
         fine_destination=fine;query.fine_target=&fine_destination;
     }
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t final=query.fine_target ? *query.fine_target :
+        (vec2_t){wc3_grid_coordinate(query.geometry.target->x,bounds.min.x,32),wc3_grid_coordinate(query.geometry.target->y,bounds.min.y,32)};
+    vec2_t held={wc3_sub(final.x,before.grid[0]),wc3_sub(final.y,before.grid[1])};
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
     if (query.units) {
+        uint32_t advance=0;
         /* Original165ae0 retains the admitted leg until progress/refill. A
          * fresh full-length interior sample every tick can reject a valid
          * cached turn as its fractional source crosses sample-cell boundaries.
          * Advance checks terrain epoch/mask; the step collector handles peers. */
         if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
             fabsf(path->radius-point.radius) >= .01f ||
-            !G_AdvanceUnitMoveFineRoute(&query,curve,&path->waypoint))) path->valid = false;
+            !G_AdvanceUnitMoveFineRouteStatus(&query,curve,&path->waypoint,&advance))) path->valid = false;
+        if(advance){*dir=held;return MOVE_ROUTE_STOP;}
         if (!path->valid) {
-            if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return false;
+            if (!G_BuildUnitMoveFineRoute(&query,curve,&path->waypoint)) return MOVE_ROUTE_FAILED;
             path->target = *point.point; path->radius = point.radius; path->valid = true;
         }
         *dir = G_MoveFineRouteDirection(&query,curve);
-        return true;
+        return MOVE_ROUTE_READY;
     }
     curve->count = curve->index = 0;
     if (path->valid && (Vector2_distance(&path->target, point.point) >= 1.0f ||
@@ -1711,11 +1731,20 @@ static bool unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *
         Vector2_distance(query.geometry.from, &path->waypoint) <= CM_PathCellWorldSize() ||
         !move_route_line(self, turn))) path->valid = false;
     if (!path->valid) {
-        if (!G_FindUnitMovePathWaypoint(&query, &path->waypoint)) return false;
+        if (!G_FindUnitMovePathWaypoint(&query, &path->waypoint)) return MOVE_ROUTE_FAILED;
         path->target = *point.point; path->radius = point.radius; path->valid = true;
     }
     *dir = Vector2_sub(&path->waypoint, query.geometry.from);
-    return true;
+    return MOVE_ROUTE_READY;
+}
+
+/* A nonzero Path_Advance status turns toward the pre-crossing goal and
+ * suppresses translation for this visit. Keep it distinct from route failure. */
+static void unit_apply_route_heading(edict_t *self,vec2_t const *dir,moveAvoidPolicy_t policy,moveRouteResult_t result) {
+    if(result==MOVE_ROUTE_STOP) {
+        self->movement.heading=wc3_vector_heading(dir->x,dir->y);
+        unit_turn_toward(self,self->movement.heading);self->movement.turn_blocked=true;
+    } else unit_apply_heading(self,dir,policy);
 }
 
 void unit_changeangle_towards_point(edict_t *self, vec2_t const *point) {
@@ -1727,6 +1756,7 @@ void unit_changeangle_towards_point_worker(edict_t *self, vec2_t const *point) {
 }
 
 bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *point) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     vec2_t dir;
 
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
@@ -1747,15 +1777,16 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
         self->movement.path.valid = false;
         self->movement.flow_direct = true;
         dir = Vector2_sub(point, &self->s.origin2);
-    } else if (!unit_accel_direction(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY}, &dir)) {
+    } else if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){point, self->collision, MOVE_AVOID_STATIC_ONLY}, &dir))) {
         return false;
     }
 
-    unit_apply_heading(self, &dir, MOVE_AVOID_STATIC_ONLY);
+    unit_apply_route_heading(self, &dir, MOVE_AVOID_STATIC_ONLY, route_result);
     return true;
 }
 
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
@@ -1794,8 +1825,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
      * or skip the current fine leg when that click lies outside the world. */
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
         self->movement.fine_route.group_count &&
-        unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
-        unit_apply_heading(self,&dir,policy);
+        (route_result=unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir))) {
+        unit_apply_route_heading(self, &dir, policy, route_result);
         return;
     }
 
@@ -1812,8 +1843,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
          * turn and predicted native source determine the heading; subtracting
          * published world positions changes velocity/facing before a blocker. */
         if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self) &&
-            unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir)) {
-            unit_apply_heading(self,&dir,policy);
+            (route_result=unit_accel_direction(self,(moveRoutePoint_t){&self->goalentity->s.origin2,radius,policy},&dir))) {
+            unit_apply_route_heading(self, &dir, policy, route_result);
             return;
         }
         self->movement.path.valid = false;
@@ -1832,8 +1863,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         /* A completed static field already proves disconnection. Preserve its
          * component fallback; a partial fine turn must not postpone it. */
         if (heatmap && !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y)) fine = false;
-        if (fine && unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
-            unit_apply_heading(self, &dir, policy);
+        if (fine && (route_result=unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))) {
+            unit_apply_route_heading(self, &dir, policy, route_result);
             if (!self->movement.route_resume_active)
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
@@ -1841,7 +1872,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
         if (!heatmap && !unit_routes_to_location(self) &&
             move_route_resume(self, self->goalentity, radius, blocked_flags, &dir)) {
             self->movement.route_resume_active = true;
-            unit_apply_heading(self, &dir, policy);
+            unit_apply_route_heading(self, &dir, policy, route_result);
             return;
         }
         if (!heatmap) {
@@ -1896,7 +1927,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
-                            unit_apply_heading(self, &dir, policy);
+                            unit_apply_route_heading(self, &dir, policy, route_result);
                         } else {
                             self->goalentity->s.origin2 = closest;
                             self->goalentity->secondarygoal = NULL;
@@ -1911,7 +1942,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     }
 
     self->movement.route_resume_active = false;
-    unit_apply_heading(self, &dir, policy);
+    unit_apply_route_heading(self, &dir, policy, route_result);
     move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
@@ -1931,6 +1962,7 @@ void unit_changeangle_worker(edict_t *self) {
 static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root->rooted_turning))
         return;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
@@ -1951,12 +1983,12 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
         uint32_t heatmap = M_RefreshHeatmapForMover(self, self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap) {
-            if (!unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir)) {
+            if (!(route_result=unit_accel_direction(self, (moveRoutePoint_t){&self->goalentity->s.origin2, radius, policy}, &dir))) {
                 if (!move_route_resume(self, self->goalentity, radius, blocked_flags, &dir))
                     return; /* long incremental route is still building */
                 self->movement.route_resume_active = true;
             }
-            unit_apply_heading(self, &dir, policy);
+            unit_apply_route_heading(self, &dir, policy, route_result);
             if (!self->movement.route_resume_active)
                 move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
             return;
@@ -1984,7 +2016,7 @@ static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
     }
 
     self->movement.route_resume_active = false;
-    unit_apply_heading(self, &dir, policy);
+    unit_apply_route_heading(self, &dir, policy, route_result);
     move_route_resume_save(self, self->goalentity, radius, blocked_flags, &dir);
 }
 
@@ -2834,6 +2866,7 @@ static bool move_point_arrival(edict_t *ent) {
 }
 
 static void ai_move_walk(edict_t *ent) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     if(ent->movement.pause_order_id)return;
     if (ent->movement.type_rebind_pending) return;
     if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
@@ -2955,10 +2988,10 @@ static void ai_move_walk(edict_t *ent) {
              * the flow interpolation has no descending neighbour. Use the
              * persistent A* accelerator for the actual detour before falling
              * back to local steering; a cinematic move must not be cancelled. */
-            if (unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, ent->collision, MOVE_AVOID_GENERIC}, &direction)) {
+            if ((route_result=unit_accel_direction(ent, (moveRoutePoint_t){&ent->goalentity->s.origin2, ent->collision, MOVE_AVOID_GENERIC}, &direction))) {
                 ent->movement.flow_unreachable = false;
                 ent->movement.flow_direct = false;
-                unit_apply_heading(ent, &direction, MOVE_AVOID_GENERIC);
+                unit_apply_route_heading(ent, &direction, MOVE_AVOID_GENERIC, route_result);
                 unit_moveindirection(ent);
                 return;
             }
@@ -3439,7 +3472,9 @@ static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_
         float range=wc3_float(0x3efae148);
         if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=wc3_mul(range,range)) {
             *direction=(vec2_t){x,y};
-            if (!G_AdvanceUnitMoveAdaptiveDestination(route)) gi.error("Move: invalid intermediate coarse endpoint");
+            bool warped=false;
+            if (!G_AdvanceUnitMoveAdaptiveDestination(unit,route,&warped))
+                unit->movement.wait_delay=MAX(unit->movement.wait_delay,20u);
             unit->movement.path.valid=false;
             return 2;
         }
@@ -3450,6 +3485,7 @@ static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_
 }
 
 static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+    moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     edict_t *unit=member->unit;
     wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
@@ -3484,14 +3520,14 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     } else if (arrival.in_range || progress) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
     } else {
-        if (unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction)) {
+        if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
             progress=move_group_advance_endpoint(group,member,&pose,&direction);
             if (progress==2) {
                 unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
                 unit_turn_toward(unit,unit->movement.heading);
                 unit->movement.turn_blocked=true;
             } else if (progress) move_hold_goal_heading(unit);
-            else unit_apply_heading(unit,&direction,MOVE_AVOID_GENERIC);
+            else unit_apply_route_heading(unit, &direction, MOVE_AVOID_GENERIC, route_result);
         }
         else { unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true; }
     }

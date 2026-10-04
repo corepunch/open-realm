@@ -33,6 +33,7 @@ static moveObjectScan_t *move_scan;
 static wc3FineSearch_t move_fine;
 static wc3FineVector_t move_fine_points[BZ_WC3_FINE_NODES];
 static wc3AccSearch_t move_acc;
+static wc3AccGate_t move_acc_gates[BZ_WC3_GATE_RECORDS];
 static wc3FineVector_t move_acc_points[BZ_WC3_ACC_ROUTE_NODES];
 static void *move_acc_storage;
 static uint32_t move_map_revision, move_acc_width, move_acc_height;
@@ -48,6 +49,7 @@ typedef struct {
 } moveStaticPathing_t;
 static moveStaticPathing_t move_static[MAX_ENTITIES];
 static void move_acc_prepare(void);
+static void move_acc_enable_gates(void);
 static void move_acc_initialize(void);
 static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear);
 typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; moveFineRoute_t *route; } moveAdaptiveQuery_t;
@@ -655,6 +657,38 @@ bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t 
     return true;
 }
 
+typedef struct {
+    moveFineGraph_t graph;
+    wc3FineVector_t source;
+    uint32_t size;
+} movePortalPlacement_t;
+
+/* Original16ee00 requires distance <=24 with six attempts and special edges.
+ * This is independent of the public placement terrain-level callback. */
+static bool move_portal_admit(void const *data,float const *point) {
+    movePortalPlacement_t const *query=data;
+    wc3AccRequest_t req={query->source,{wc3_mul(point[0],.5f),wc3_mul(point[1],.5f)},query->size,6};
+    wc3FineVector_t endpoint;
+    return wc3_acc_query_distance(&move_acc,&req,&endpoint)<=24;
+}
+
+bool G_FindUnitMovePortalPosition(edict_t *unit,vec2_t const *fine,vec2_t *out) {
+    if(!unit || !world.map || !world.map->vertices || !pathmap.width || !pathmap.height)return false;
+    uint8_t mask=M_UnitStaticPathingFlags(unit);unsigned lane=0;
+    while(lane<4 && move_acc_masks[lane]!=mask)lane++;
+    if(lane==4)gi.error("Move portal placement: unsupported movement mask %02x",mask);
+    move_acc_prepare();move_acc_enable_gates();
+    FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[lane][i];
+    uint32_t cls=wc3_fine_class(unit->collision/pathmap_cell_world_size());
+    movePortalPlacement_t data={.graph={.flags=unit->no_pathing?0:mask,.endpoint=true},
+        .source={wc3_mul(fine->x,.5f),wc3_mul(fine->y,.5f)},.size=1u<<(cls>>1)};
+    movePathQuery_t objects={.mover=unit,.units=true};move_query_objects(&data.graph,&objects,NULL);
+    wc3FinePlacement_t query={.point={fine->x,fine->y},.limit=32,
+        .footprint={.cls=cls,.cell=move_cell_ok,.data=&data},.admit=move_portal_admit};
+    float admitted[2];if(!wc3_fine_place(&query,admitted))return false;
+    *out=(vec2_t){admitted[0],admitted[1]};return true;
+}
+
 /* Original170080 recovers the predicted fine point with five attempts. No
  * admitted point means the stopped unit remains embedded; queryzero stays put. */
 bool G_FindUnitMoveRecoveryPosition(edict_t *unit, vec2_t const *fine, vec2_t *out) {
@@ -829,6 +863,11 @@ static uint8_t move_adaptive_mask(movePathQuery_t const *input) {
 }
 
 /* Ordinary owned paths enable adaptive search at activation, including nearby orders. */
+static void move_acc_enable_gates(void) {
+    S_WaygateBuildEdges(move_acc_gates);
+    move_acc.markers=move_acc_markers;move_acc.gates=move_acc_gates;move_acc.warp=true;
+}
+
 static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
     movePathQuery_t const *input = query->input;
     wc3FineVector_t source = query->source, target = query->target;
@@ -852,6 +891,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     } else {
         move_acc_prepare();
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
+            move_acc_enable_gates();
         wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
             input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_UNIT_ACC_WORK};
@@ -862,7 +902,6 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         move_acc_object_rectangle(input->target,false);
         if (!count) return false;
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
-        assert(!selected.gate); /* Ordinary hierarchy search has no portal producer. */
         point=selected.index ? (wc3FineVector_t){wc3_mul(move_acc_points[selected.index].x,2),wc3_mul(move_acc_points[selected.index].y,2)} : target;
         if (route) {
             vec2_t *points=realloc(route->adaptive_points,count*sizeof(*points));
@@ -891,6 +930,7 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
     if (lane==4) gi.error("Move formation: unsupported movement mask %02x",mask);
     move_acc_prepare();
     FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
+    move_acc_enable_gates();
     wc3AccRequest_t req={{wc3_mul(point.x,.5f),wc3_mul(point.y,.5f)},
         {wc3_mul(dest->x,.5f),wc3_mul(dest->y,.5f)},1u<<(wc3_fine_class(unit->collision/pathmap_cell_world_size())>>1),30};
     wc3FineVector_t endpoint;
@@ -932,6 +972,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         vec2_t source=move_query_source(input);
         move_acc_prepare();
         FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
+        move_acc_enable_gates();
         wc3AccRequest_t req={{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)},input->geometry.radius>=pathmap_cell_world_size()?2:1,BZ_WC3_GROUP_ACC_WORK};
         move_acc_object_rectangle(input->mover,true);
@@ -940,8 +981,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         move_acc_object_rectangle(input->mover,false);
         move_acc_object_rectangle(input->target,false);
         if (!count) return false;
-        wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
-        assert(!selected.gate); /* This engine hierarchy has no portal producer. */
+        wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){move_acc_points,count-1}),false};
         vec2_t *points=realloc(route->group_points,count*sizeof(*points));
         if (!points) gi.error("WC3 group routing: cannot retain %u points",count);
         route->group_points=points; route->group_count=count; route->group_index=selected.index;
@@ -960,8 +1000,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route) {
     if (!route || !route->group_count || !route->group_index || route->group_index>=route->group_count) return false;
     FOR_LOOP(i,route->group_count) move_acc_points[i]=(wc3FineVector_t){route->group_points[i].x,route->group_points[i].y};
-    wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,route->group_index},false);
-    assert(!selected.gate);
+    wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){move_acc_points,route->group_index}),false};
     route->group_index=selected.index;
     route->count=route->adaptive_count=0;
     route->index=route->adaptive_index=UINT32_MAX;
@@ -970,14 +1009,22 @@ bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route) {
 
 /* Native167070 consumes an intermediate coarse leg even when a partial
  * fine search returns only the source. Retry belongs to adaptive index0. */
-bool G_AdvanceUnitMoveAdaptiveDestination(moveFineRoute_t *route) {
+static bool move_gate_active(void const *context,uint8_t id) {
+    (void)context;return S_WaygateEdgeIsActive(id);
+}
+static bool move_gate_place(void *context,wc3FineVector_t point) {
+    if(!context){fprintf(stderr,"Move portal consumer: missing mover for cached exit\n");return false;}
+    vec2_t fine={point.x,point.y};return S_MoveThroughPortal(context,&fine);
+}
+
+bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *unit,moveFineRoute_t *route,bool *warped) {
     if (!route || !route->adaptive_points || !route->adaptive_count ||
         !route->adaptive_index || route->adaptive_index>=route->adaptive_count) return false;
     FOR_LOOP(i,route->adaptive_count)
         move_acc_points[i]=(wc3FineVector_t){route->adaptive_points[i].x,route->adaptive_points[i].y};
-    wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,route->adaptive_index},false);
-    assert(!selected.gate);
-    route->adaptive_index=selected.index;
+    wc3FineRoute_t path={move_acc_points,route->adaptive_index};
+    if(!wc3_acc_advance(&path,true,move_gate_active,move_gate_place,unit,warped))return false;
+    route->adaptive_index=path.index;
     route->count=0; route->index=UINT32_MAX;
     return true;
 }
@@ -1110,7 +1157,12 @@ vec2_t G_MoveFineRouteDirection(movePathQuery_t const *input, moveFineRoute_t co
 }
 
 /* Original167070 retains the current point until .49 cells, then165e60 skips visible successors. */
-bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out) {
+bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input,moveFineRoute_t *route,vec2_t *out) {
+    uint32_t status;return G_AdvanceUnitMoveFineRouteStatus(input,route,out,&status);
+}
+
+bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute_t *route,vec2_t *out,uint32_t *status) {
+    *status=0;
     if (!input || !input->geometry.from || !out || !route || !route->points || route->count < 2 ||
         route->count > BZ_WC3_FINE_NODES || route->index >= route->count)
         return false;
@@ -1126,10 +1178,12 @@ bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *input, moveFineRoute_t *r
             float dx=wc3_sub(wc3_mul(source.x,.5f),point.x),dy=wc3_sub(wc3_mul(source.y,.5f),point.y);
             float range=wc3_float(0x3efae148);
             if (wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))<=wc3_mul(range,range)) {
-                FOR_LOOP(i,route->adaptive_count) move_acc_points[i]=(wc3FineVector_t){route->adaptive_points[i].x,route->adaptive_points[i].y};
-                wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,route->adaptive_index},false);
-                assert(!selected.gate);
-                route->adaptive_index=selected.index;
+                bool warped=false;
+                if(!G_AdvanceUnitMoveAdaptiveDestination(input->mover,route,&warped)) {
+                    if(input->mover)input->mover->movement.wait_delay=MAX(input->mover->movement.wait_delay,20u);
+                    *status=1;return false;
+                }
+                if(warped){*status=1;return false;}
                 return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{source.x,source.y},{goal.x,goal.y},route},out);
             }
         }

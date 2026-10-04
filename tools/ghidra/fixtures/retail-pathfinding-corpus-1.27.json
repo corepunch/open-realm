@@ -29542,6 +29542,278 @@
       "exclusions": [
         "physical portal trajectories"
       ]
+    },
+    {
+      "id": "oracle-gate-edges-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_gate_edges.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-gate-edges-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "gate-edges-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "engine_exact_requests": {
+          "equal": 4608
+        },
+        "engine_exact_publications": {
+          "equal": 8
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Unchanged original routes,distances,ten-word nodes and publication over supplied empty fine storage; four lanes,two sizes,six budgets,three exits,active/off and warp/off. No physical placement stand-ins.",
+      "exclusions": [
+        "whole retail pathfinder",
+        "paired public units",
+        "blocked public exit"
+      ]
+    },
+    {
+      "id": "oracle-gate-consumer-engine",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_gate_consumer.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-gate-consumer-1.27.json",
+        "--engine-library",
+        "{engine}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "gate-consumer-engine.json",
+      "expected_exit": 0,
+      "expected_status": "original-engine-exact",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "engine_exact_requests": {
+          "equal": 2016
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original cached-exit consumer with explicit owner-lookup and physical-placement stand-ins; output,index,warp and cached scaled exit match production kernel.",
+      "exclusions": [
+        "whole retail pathfinder",
+        "paired public units",
+        "blocked public exit"
+      ]
+    },
+    {
+      "id": "live-gate-traversal-captures-261004",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_gate_traversal_trace.py",
+        "--capture",
+        "{archive}/runtime/gate95b-live-first.jsonl",
+        "{archive}/runtime/gate95b-live-repeat.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-gate-traversal-live-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/gate95b-live-first.jsonl",
+        "sha256": "75f2d601f749a2cce9386b0add9e4f4ee7e513ac0b1c23f8dfb2d673a32cc297",
+        "bytes": 10163648,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "027791dee5800c56e83e1ef476b98912e1c906219ab3648475cc6144e808006e",
+            "wc3_pathfinding.js": "642e2512c556c633b334be712d87066e191284deae5c774c71c82785108bbfa1",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "34bd78b4cb8e7bbd4caf80f520980c89093eedb079d75ed08313cbfbb3bbd135",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "420c38415c97d6c70c9cce96a386e347d027d0ade237b08ffd831173d3532c8a",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6cfa5647ccd3155cbc764ccdb9c8b23dd2b1de8a921b4a12592e4751c60ea82b"
+          },
+          "map": "Maps\\PathingRE-GateTraversal95b-261004.w3m",
+          "seconds": 65.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 5000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": true,
+          "headingEvents": true,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "gatePoolEvents": true,
+          "gateMarkerEvents": true,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": true,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false
+        }
+      },
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/gate95b-live-repeat.jsonl",
+            "sha256": "2cb8953fe82748b43d8a5536a5236fa7033d3f7c28b462fab3329ff8a038ac8e",
+            "bytes": 11278144,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "027791dee5800c56e83e1ef476b98912e1c906219ab3648475cc6144e808006e",
+                "wc3_pathfinding.js": "642e2512c556c633b334be712d87066e191284deae5c774c71c82785108bbfa1",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "34bd78b4cb8e7bbd4caf80f520980c89093eedb079d75ed08313cbfbb3bbd135",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "420c38415c97d6c70c9cce96a386e347d027d0ade237b08ffd831173d3532c8a",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "6cfa5647ccd3155cbc764ccdb9c8b23dd2b1de8a921b4a12592e4751c60ea82b"
+              },
+              "map": "Maps\\PathingRE-GateTraversal95b-261004.w3m",
+              "seconds": 65.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 5000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": true,
+              "headingEvents": true,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "gatePoolEvents": true,
+              "gateMarkerEvents": true,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": true,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "report": "gate-traversal-live.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 2
+        },
+        "counts": {
+          "equal": {
+            "marker": 4,
+            "gate-destination": 2,
+            "search": 11,
+            "route": 11,
+            "gate-consumer": 6,
+            "motion-decision": 407,
+            "velocity-commit": 410,
+            "gate-traversal": 2
+          }
+        }
+      },
+      "evidence": [
+        "L"
+      ],
+      "scope": "One stock nwgt,one collision8/speed270 Footman,empty64x64 WPM,flat2048-world map. Full public JASS lifecycle and all410 motion commits; cached retarget,fresh order and disabled cached crossing through final arrival. Two exact owned-game repeats. No paired group,blocked exit or ID reuse claim.",
+      "exclusions": [
+        "paired group",
+        "ID reuse",
+        "blocked exit"
+      ]
     }
   ],
   "fixtures": [
@@ -29607,7 +29879,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "ed6018d6d56c64cd93fb17f80cac265856932cd37c942810ee9c08b3d2b18cd7"
+      "sha256": "b2242f8d899887ee3b391eea9e50cadb0094cfc307a4d8045eb167290fc60cdf"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -30193,6 +30465,22 @@
     {
       "path": "games/warcraft-3/game/tests/retail_gate_overlap.h",
       "sha256": "a1e2a31ccfb91d4e35b680145328c4365288660fe1d5d0b8cfd3188f97ffee62"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-gate-edges-1.27.json",
+      "sha256": "65038fcd964e9bad578298a2ee420d054303336ebaf0b0f77a6d37af79b1c545"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-gate-consumer-1.27.json",
+      "sha256": "04abf246003d771f42de1b46e532aa6c5316fbf5c672d6a7ed16cc298c7f6ab1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-gate-traversal-live-1.27.json",
+      "sha256": "e96b5fea302a24ea5fc437be3ef3e8ee030711eb8879ec9e140323b66b753375"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_gate_traversal.h",
+      "sha256": "1c64dadad9c143a12d148bfecc831f9bc7c8b5851cd92ae0b2ac66b812fdad70"
     }
   ]
 }

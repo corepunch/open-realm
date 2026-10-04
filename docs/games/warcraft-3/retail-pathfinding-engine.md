@@ -8093,3 +8093,92 @@ Both required edition suites pass2,517 tests/5,677,836 assertions each, plus
 readback confirms all677 roles,72 layouts/491 fields,345 ABIs and61 globals
 with no unsaved changes. `runtime/gate94-validation.json` pins final validation
 and the committed artifact. Existing GATE-03.1 closes;153 tasks remain.
+
+## Way Gate special edges reach retained Move routes
+
+Payoff95 enables portal edges in production member, group and formation-distance
+adaptive requests. The source marker and incoming edge ID are distinct bytes:
+native node20 copies the base source marker when warp is enabled, while accepted
+165220 writes the parent's source ID to child23. Ordinary accepted relaxation
+clears23. Base expansion visits ordinary cardinals/corners first, then the active
+special record. Its cost is exactly1; heuristic, nearest-node and heap tie policy
+remain ordinary. This does not imply an admissible heuristic or optimal routing.
+
+Reconstruction emits the reached point, then `c7fa0001`/software-float-ID sentinel,
+then its parent. Exact source/goal endpoints retain their original positions.
+Distance163440 deliberately checks the **parent's** incoming23: that contributes2
+and incrementsA0; other edges round their geometric fine distance individually.
+The jump itself can therefore contribute geometric distance. Replacing this with
+a conventional portal-cost sum would diverge. All4608 unchanged original route
+and distance requests match every route word,ten-word semantic node,work count,
+partial endpoint and warp count. Controls cover four lanes,two sizes,six budgets,
+three exits,warp off/on,active off/on and eight overlap publications. Supplied
+empty64x64 fine storage and padded41/20/10/5 headers are explicit preconditions;
+these search controls contain no emulator hooks.
+
+Consumer165d10 checks only the immediate predecessor sentinel and truncates its
+software integer ID toAL. Current activebit0 decides whether to warp, but the
+exit comes from retained `points[index-2]` multiplied by base scale2. Retargeting
+a record does not mutate an existing route. Placement failure retains the index;
+inactive or successfully consumed crossings subtract2, then run ordinary mode0
+selection. All2016 native/C consumer controls cover byte wrap,execute0/1,record
+flags0..3,two route shapes,changed record destination and placement success/failure.
+Owner lookup168d10 and physical placement168f00 are explicit stand-ins in those
+controls; the full public engine test validates placement separately.
+
+Group165e30 selects reverse1, then reverse0 when it encounters a sentinel. The
+group can therefore publish the destination beyond a portal while each member
+retains its own entry/exit path. The production group regression reproduces
+native four-point cached and five-point fresh plans through real ability creation,
+retarget and group planning. Portal exit admission uses32 fine placement attempts,
+bounded adaptive distance<=24 with budget6 and warp enabled. Its callback runs
+before ring-centre conversion and does not use public SetUnitPosition's terrain
+level callback. Successful placement integrates the old velocity at current time,
+commits the software position delta and notifies regions without replacing the
+Move order. The crossing owner visit holds the pre-crossing goal vector, turns
+using that vector and publishes stopped movement before the next fine refill.
+
+The public producer creates one stock `nwgt` and a collision8/speed270 Footman,
+issues Move,retargets during approach,issues a fresh order and then disables a
+cached crossing during a third order. Two completed owned-game captures repeat
+407 decisions,410 complete commits,11 searches/11 routes,six consumers,two
+record writes and two successful warps. Cached exit is fine54.5/55.5; fresh exit
+is39.5/45.5; disabling skips the pair and walks to the goal. All410 production
+clock/position/velocity/facing commits match exactly. Ten Save99 checkpoints
+before/after crossings,retargets and disable reproduce3094 continuation commits;
+the full regression passes35076 assertions.
+
+The first engine replay exposed another general scheduling error: third JASS
+`.05` deadline is `3e199999`, before owner deadline `3e19999a`, although both
+mature within the same primary quantum. Blanket owner-before-all-timers delayed
+Move one visit. RunFrame now drains strictly earlier scalar script timers and
+their events before the owner. Equal-deadline registration/mutation,catch-up and
+zero-period policies remain existing NUM-02.10. Two extra read-only timer captures
+repeat1065 rearm observations through explicit tick400 completion; host-duration
+idle tails differ and are excluded from that timing comparison. These timing
+captures support the scheduling fix but are not accepted full-heap contracts.
+
+Frozen native/live fixtures are `retail-gate-edges-1.27.json`,
+`retail-gate-consumer-1.27.json` and `retail-gate-traversal-live-1.27.json`.
+The search fixture deduplicates complete outputs without dropping semantic words.
+Python checks replay all controls atO0/O2 and reject altered/incomplete public
+witnesses. Committed traversal JASS is byte-identical to the archived producer;
+the engine test supplies common.j's missing `PLAYER_NEUTRAL_PASSIVE` constant and
+its main entry. Synthetic gate art omits its build-only texture,which does not
+block walking in the native class plane. Raw PE/data,captures,member proofs and
+validation reports remain external under runtime/gate95.
+
+Saved Ghidra readback confirms685 roles,72 layouts/493 fields,352 explicit ABIs
+and61 globals with no unsaved changes. EntryECX is not a receiver for168f00;
+its verified ABI is stack4 fineXY/RET4. An older04e360 role comment had map-origin
+axes reversed; it now agrees with the correct X6c/Y70 structure and engine.
+Paired group warps,blocked/outside exits,gate destruction,ID reuse,chained routes
+and public destination getter quantization remain separate requirements.
+
+Both required editions pass2519 tests/5,712,939 assertions each,plus582 Python
+tests. Production and five fresh strict contracts pass. The first full run
+crashed in the system SDL2 compatibility layer's standalone input test; the
+isolated28-assertion control and full suites pass with native SDL2,the same
+validation library used previously. `runtime/gate95-validation.json` pins final
+logs,environment and the committed artifact. Existing ACC-04.2/GATE-02.3 close;
+151 tasks remain. The subsequent lifetime witnesses are not part of this closure.

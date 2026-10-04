@@ -2768,13 +2768,19 @@
           "offset": 32,
           "name": "warp_tag",
           "type": "u8",
-          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+          "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C.\nSource cell ID copied only for warp-enabled base nodes; incoming edge ID is separately byte23. Payoff95:4608 unchanged native special routes/distances and complete ten-word nodes agree with production C atO0/O2; two public cached/fresh/disabled captures repeat410 motion commits,engine also matches3094 saved continuation commits."
         },
         {
           "offset": 34,
           "name": "level",
           "type": "u8",
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 35,
+          "name": "incoming_warp_id",
+          "type": "u8",
+          "evidence": "Payoff95:4608 unchanged native special routes/distances and complete ten-word nodes agree with production C atO0/O2; two public cached/fresh/disabled captures repeat410 motion commits,engine also matches3094 saved continuation commits."
         }
       ]
     },
@@ -3027,6 +3033,12 @@
           "name": "warp_mode",
           "type": "u32",
           "evidence": "Original164c30 DWORD stamp increment,163ef0 cell stamping/node generation and164230 retained-storage reset; eight full162cb0 requests across FFFFFFFE/FFFFFFFF/0..5, four lanes and both stored sizes equal clean final nodes/work/routes and engine C."
+        },
+        {
+          "offset": 160,
+          "name": "distance_warp_count",
+          "type": "u32",
+          "evidence": "Payoff95:4608 unchanged native special routes/distances and complete ten-word nodes agree with production C atO0/O2; two public cached/fresh/disabled captures repeat410 motion commits,engine also matches3094 saved continuation commits."
         }
       ]
     },
@@ -10010,6 +10022,152 @@
           "name": "map",
           "type": "ptr:WC3AdaptiveMapPrefix",
           "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f04e550",
+      "name": "Waygate_SetWorldDestination",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "world",
+          "type": "ptr:WC3PathVector2",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f15cd50",
+      "name": "PathOwner_SetGateFineDestination",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "fine",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f164ba0",
+      "name": "PathAcc_SetGateScalarDestination",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "accelerator",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "id",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "coarse",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f166030",
+      "name": "Path_GetPendingGateByte",
+      "returns": "u8",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f165d10",
+      "name": "Path_ConsumeAcceleratedWaypoint",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "execute",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "warped",
+          "type": "ptr:u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f168f00",
+      "name": "Path_AdmitAndCommitPortalExit",
+      "returns": "u32",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f16ec00",
+      "name": "PathContext_AdmitPortalFinePoint",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "context",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "fine",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "attempts",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "distance_filter",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "query_budget",
+          "type": "u32",
+          "storage": 16
         }
       ]
     }

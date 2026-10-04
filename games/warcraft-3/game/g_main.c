@@ -1133,9 +1133,11 @@ static void G_RunFrame(void) {
     /* Timer actions and the owner update precede the next primary advance.
      * The game clock is private; the engine still sends its ordinary snapshots. */
     while (end_time - level.pathing_msec >= 5) {
-        /* Observed public spawns at phases0/2/4 see the due owner before
-         * authored map-timer callbacks in the same primary quantum. */
+        /* Dispatch earlier scalar script deadlines before the owner; preserve
+         * the existing owner-first policy for equal deadlines. */
         if (level.pathing_due) {
+            G_RunTimersBeforePathOwner(&level.pathing_owner_deadline);
+            G_RunEvents();jass_runevents(level.vm);G_DrainRegionEvents();
             G_RunPathOwner();
         }
         S_RunAbilityTimers();
@@ -1149,6 +1151,8 @@ static void G_RunFrame(void) {
     level.time = end_time;
     G_UpdateTimeOfDay();
     if (level.pathing_due) {
+        G_RunTimersBeforePathOwner(&level.pathing_owner_deadline);
+        G_RunEvents();jass_runevents(level.vm);G_DrainRegionEvents();
         G_RunPathOwner();
         M_SamplePoses();
     }

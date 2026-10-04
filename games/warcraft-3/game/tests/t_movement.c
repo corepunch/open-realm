@@ -11167,6 +11167,74 @@ static void record_follow_commit(edict_t *unit) {
     memcpy(trace->rows[trace->count++],words,sizeof(words));
 }
 
+#include "retail_gate_traversal.h"
+TEST(wc3_movement, retail_gate_cached_fresh_and_disabled_routes_match_all_motion) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=8,speed=270,gate_radius=50,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int building=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    /* Retail Way Gate is immobile and owns an ordinary source rectangle;
+     * the supplied flat WPM has no blocked walking cells at its footprint. */
+    unitModification_t gate_mods[]={
+        {.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Zwrp"},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="_"},
+        {.modID=MAKEFOURCC('u','b','d','g'),.type=mod_int,.data=&building},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&gate_radius}};
+    unitData_t custom[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','9','1'),.numbeOfModifications=2,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('n','w','g','t'),.numbeOfModifications=4,.modifications=gate_mods}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    uint8_t cells[64*64]={0};CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass(retail_gate95_script));G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=false;
+    unsigned const times[]={1295,1320,2995,3010,4315,4340,8995,9010,9510,10200};
+    unsigned saved[10]={0},suffix=0;char files[10][64];
+    FOR_LOOP(i,10)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-gate95-%u.bin",times[i]);
+    FOR_LOOP(pass,11) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<20500 && !mismatch) {
+        trace.count=0;level.time+=5;globals.RunFrame();
+        if(jass_rterror_pending(level.vm)){fprintf(stderr,"Gate95 JASS at%u: %s\n",level.time,jass_rterror_message(level.vm));mismatch=true;}
+        if(!trace.units[0])FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom[0].newUnitID)trace.units[0]=ent;
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion));
+            if(steps>=sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion)){mismatch=true;break;}
+            uint32_t const *actual=trace.rows[i],*expected=retail_gate95_motion[steps++];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Gate95 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,10)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion));
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Gate95 native motion=%u saved continuation commits=%u\n",steps,suffix);
+    FOR_LOOP(i,10)remove(files[i]);
+    T_EQ(steps,sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion));T_ASSERT(!jass_rterror_pending(level.vm));
+    if(trace.units[0]&&!mismatch)T_EQ(trace.units[0]->current_order_id,0);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
 typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION, FOLLOW_GROW, FOLLOW_SHRINK, FOLLOW_RESEARCH, FOLLOW_GROW_CONTROL, FOLLOW_SHRINK_CONTROL } followScenario_t;
 
 static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_count, followScenario_t scenario) {

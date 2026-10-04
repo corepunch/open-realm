@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **324 entries**: **49** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **90**
+The inventory now has **327 entries**: **51** distinct original-code oracle
+scripts plus **64** declared variants, **121** archived JSONL audits and **91**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 106 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 108 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1707,3 +1707,13 @@ is byte-identical. No portal search or physical traversal claim is made.
 retains these publications and erased overlap history through Save99. Inventory
 is324 entries,113 original oracle contracts from49 scripts/64 variants,121
 archives,90 strict live contracts and162 pinned fixtures.
+
+Payoff95 adds two original/engine portal contracts and one completed live contract.
+The4608 special searches retain all route,node,distance and work words; the2016
+consumer controls explicitly supply owner lookup and placement outcomes. Public
+placement is independently exercised by two completed cached/fresh/disable
+journeys with410 exact production motion commits and3094 saved continuation
+commits. The strict checker pins source/map/PE and capture bytes and compares all
+407 decisions,410 commits,11 requests/routes,six consumers and two warps. It
+normalizes only wall timestamps and declared heap addresses. Failed/unfinished
+captures and the host-duration timer tail remain outside this accepted contract.

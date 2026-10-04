@@ -8,21 +8,21 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
-**183 done / 336 tasks; 153 remaining.** Payoff94 closes existing GATE-03.1
-without adding IDs. Source publication, overwrite and unconditional cleanup now
-update the engine's marker plane and adaptive parents. Eight native publication
-states,64 ordinary searches and24 asymmetric boundary controls match exact
-route/work/node and full hierarchy state. Two complete public witnesses repeat
-all source/parent bytes. Save99 retains erased overlaps rather than reconstructing
-them from surviving gates. Both editions pass2517 tests/5,677,836 assertions
-each plus579 Python checks; production and six fresh strict contracts pass.
-Ghidra retains677 saved roles,72 layouts/491 fields,345 ABIs and61 globals.
-See [source overlap payoff](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
+**185 done / 336 tasks; 151 remaining.** Payoff95 closes existing ACC-04.2
+and GATE-02.3 without new IDs. Portal edges now reach member/group adaptive
+searches and formation distances; retained Move consumes cached exits and current
+activation. All4608 original route/distance controls and2016 controlled consumers
+match C atO0/O2. Two complete public cached/fresh/disable journeys repeat410
+production motion commits; ten Save99 checkpoints reproduce3094 continuation
+commits. Both editions pass2519 tests/5,712,939 assertions each,plus582 Python
+checks; production and five fresh strict contracts pass. Saved Ghidra retains685
+roles,72 layouts/493 fields,352 ABIs and61 globals.
+See [retained portal Move](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes).
 
-Next runnable chunk integrates special edges, portal distance accounting and the
-cached-exit consumer into Move. Complete original requests and repeated public
-traversal witnesses already support the port; retarget/disable controls will
-exercise fresh versus retained routes. No new TODO IDs.
+Next chunk covers destruction and existing-route ID reuse. Both immediate and
+next-callback replacement producers already repeat exactly; immediate allocation
+exposed an engine release boundary that needs correction before closure. Blocked
+and outside-exit witnesses are also underway. No new TODO IDs.
 Counts describe this backlog, not a percentage of retail fidelity or an
 estimate of remaining effort.
 The rewrite splits the old 81 acceptance items into independently closable
@@ -37,7 +37,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | MAP — Map construction and lifetime | 15 | 7 |
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 12 | 0 |
-| ACC — Adaptive search | 8 | 5 |
+| ACC — Adaptive search | 9 | 4 |
 | NUM — Numbers and random state | 25 | 18 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
@@ -47,7 +47,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
-| GATE — Way Gates | 3 | 8 |
+| GATE — Way Gates | 4 | 7 |
 | E2E — Combined scenarios and handoff | 4 | 15 |
 | READY — Start the faithful replacement | 0 | 4 |
 
@@ -407,7 +407,7 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 ### ACC-04 — Adaptive costs
 
 - [ ] **ACC-04.1** Compare heuristic, total cost and nearest-node selection with ordinary edges under ties and budget exhaustion; explain each shortest-path difference.
-- [ ] **ACC-04.2** Repeat with an active special edge; assert edge cost, parent chain, tie ordering and partial result without assuming optimality.
+- [x] **ACC-04.2** Repeat with an active special edge; assert edge cost,parent chain,tie ordering and partial result without assuming optimality. [Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes) ports4608 complete unchanged native routes/distances across four lanes,two sizes,six budgets,three exits,activation/warp toggles and eight overlap states. Every route,ten-word node,charged work,partial endpoint and warp count matches production C atO0/O2. Accepted special g+1 and ordinary incoming-tag clearing retain native heap policy; distance intentionally checks the parent incoming tag. Actual group/member Move and ten Save99 continuations reproduce410 full commits and3094 saved commits. Wider branch inventory/reachability remain01/02.
 
 ### ACC-05 — Adaptive storage lifetime
 
@@ -876,7 +876,7 @@ Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adapt
 
 - [x] **GATE-02.1** Live outside approach, cached retarget and disable-to-walking witnesses are recorded. Evidence: [gate mutation][gate-mutation]; fresh retarget/destroy/impassable cases remain open.
 - [ ] **GATE-02.2** Destroy a gate during approach; assert stale-record handling and subsequent walking/failure.
-- [ ] **GATE-02.3** Retarget then issue a fresh order; compare cached versus fresh destination use through final arrival.
+- [x] **GATE-02.3** Retarget then issue a fresh order; compare cached versus fresh destination use through final arrival. [Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes) integrates current ability-owned active records and retained-route cached exits into Move. Two completed public journeys repeat cached54.5/55.5 versus fresh39.5/45.5 fine exits and disabled walking through final arrival:407 decisions,410 commits,11 requests/routes,six consumers,two warps. The production game matches every clock/position/velocity/facing word; ten save checkpoints reproduce3094 continuation commits. Both editions,582 Python checks,production,five fresh strict contracts and saved Ghidra pass. Destroy/reuse,blocked exit,impassable disable and paired groups retain their existing leaves.
 - [ ] **GATE-02.4** Disable the only edge across impassable terrain; assert retries/failure rather than assuming walking succeeds.
 
 ### GATE-03 — Multiple gates

@@ -1,6 +1,8 @@
 #include "s_skills.h"
 #include "../../common/wc3_pathing_gate.h"
 #include "../../common/wc3_math.h"
+#include "../../common/wc3_pathing_adaptive.h"
+#include "../../common/wc3_pathing_coordinates.h"
 
 #define BZ_AWRP MAKEFOURCC('A','w','r','p')
 #define BZ_AMOV MAKEFOURCC('A','m','o','v')
@@ -99,6 +101,29 @@ bool S_WaygateIsGate(edict_t const *gate) {
 
 bool S_WaygateIsActive(edict_t const *gate) {
     return S_WaygateIsGate(gate) && gate->waygate && gate->waygate->edge_id && gate->waygate->active;
+}
+
+/* Ability-owned records are reconstructed for queries; retained routes keep
+ * their own exit words through destination mutation and ID reuse. */
+void S_WaygateBuildEdges(wc3AccGate_t *edges) {
+    memset(edges,0,BZ_WC3_GATE_RECORDS*sizeof(*edges));
+    box2_t bounds=CM_GetWorldBounds();
+    FILTER_EDICTS(ent,ent->inuse && ent->waygate && ent->waygate->edge_id) {
+        waygate_t const *gate=ent->waygate;
+        wc3AccGate_t *record=edges+gate->edge_id;
+        record->active=S_WaygateIsActive(ent);
+        float x=wc3_mul(wc3_grid_coordinate(gate->destination.x,bounds.min.x,32),.5f);
+        float y=wc3_mul(wc3_grid_coordinate(gate->destination.y,bounds.min.y,32),.5f);
+        record->destination=(wc3FinePoint_t){(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(x))),
+            (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(y)))};
+    }
+}
+
+bool S_WaygateEdgeIsActive(uint8_t id) {
+    if(!id)return false;
+    FILTER_EDICTS(ent,ent->inuse && ent->waygate && ent->waygate->edge_id==id)
+        return S_WaygateIsActive(ent);
+    return false;
 }
 
 bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {

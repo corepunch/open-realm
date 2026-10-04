@@ -3,8 +3,11 @@
 Ordinary long-distance Move now uses [retail adaptive search](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move)
 to supply local fine-search turns. The engine traverses long obstructed maps,
 rebuilds static lane classifications after terrain edits, and resumes saved
-travel with exact position/heading/velocity words. Special edges, original route
-handoff timing and complete retail trajectories remain work in progress.
+travel with exact position/heading/velocity words. [Way Gate special edges](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes)
+now reach member/group plans and retained Move consumers. Cached retarget,fresh
+retarget and disabled walking match410 retail commits plus3094 saved continuation
+commits. Broader gate placement,group regrouping and complete retail trajectories
+remain work in progress.
 
 Static blocker removal now publishes its footprint change before subsequent
 requests. Direct free clears live/dead-rubble footprints; public `RemoveUnit`

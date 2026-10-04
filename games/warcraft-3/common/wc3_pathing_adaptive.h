@@ -2,11 +2,16 @@
 #define BZ_WC3_PATHING_ADAPTIVE_H
 #include "wc3_pathing_route.h"
 
+typedef struct wc3AccGate_s { uint32_t active; wc3FinePoint_t destination; } wc3AccGate_t;
 typedef struct { uint32_t width, height; uint8_t const *classes; int *indices; } wc3AccMap_t;
 typedef struct {
     wc3FineSearch_t work;
     wc3AccMap_t maps[4];
-    uint8_t *levels;
+    uint8_t *levels,*source_ids,*gate_ids;
+    uint8_t const *markers;
+    wc3AccGate_t const *gates;
+    bool warp;
+    uint32_t warps;
     uint32_t level_capacity;
     uint32_t size;
     wc3FinePoint_t goal;
@@ -16,6 +21,8 @@ typedef struct { wc3FineVector_t start, goal; uint32_t size, budget; } wc3AccReq
 
 static inline void wc3_acc_free(wc3AccSearch_t *search) {
     wc3_fine_free(&search->work);
+    free(search->source_ids);free(search->gate_ids);
+    search->source_ids=search->gate_ids=NULL;
     free(search->levels); search->levels = NULL; search->level_capacity = 0;
 }
 
@@ -58,11 +65,15 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
         if (search->level_capacity < work->node_capacity) {
             uint8_t *levels = realloc(search->levels, work->node_capacity);
             if (!levels) { fprintf(stderr, "WC3 adaptive search: cannot retain %u levels\n", work->node_capacity); abort(); }
-            search->levels = levels; search->level_capacity = work->node_capacity;
+            search->levels = levels;
+            uint8_t *sources=realloc(search->source_ids,work->node_capacity),*gates=realloc(search->gate_ids,work->node_capacity);
+            if(!sources || !gates){fprintf(stderr,"WC3 adaptive gate allocation failed\n");abort();}
+            search->source_ids=sources;search->gate_ids=gates;search->level_capacity = work->node_capacity;
         }
         uint32_t at = work->count++;
         map->indices[cell] = (uint16_t)at;
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
+        search->source_ids[at]=search->warp && !level && search->markers ? search->markers[cell]:0;search->gate_ids[at]=0;
     }
     return map->indices[cell];
 }
@@ -96,10 +107,10 @@ static bool wc3_acc_side_ok(wc3AccSearch_t const *search, wc3AccEdge_t edge, boo
 }
 
 /* The adaptive queue uses the fine heap's exact tie policy, with a distinct integer-distance cost. */
-static void wc3_acc_relax(wc3AccSearch_t *search, int at, int parent) {
+static void wc3_acc_relax_edge(wc3AccSearch_t *search, int at, int parent,bool warp) {
     wc3FineSearch_t *work = &search->work;
     wc3FineNode_t *next = work->nodes + at;
-    uint32_t cost = work->nodes[parent].g + wc3_acc_cost(next->pos,work->nodes[parent].pos);
+    uint32_t cost = work->nodes[parent].g + (warp?1:wc3_acc_cost(next->pos,work->nodes[parent].pos));
     if (next->state == WC3_FINE_NEW) {
         uint32_t distance = wc3_fine_dist2(next->pos,search->goal);
         if (distance < work->dist2) { work->dist2 = distance; work->nearest = (uint32_t)at; }
@@ -107,9 +118,12 @@ static void wc3_acc_relax(wc3AccSearch_t *search, int at, int parent) {
         if (next->g <= cost) return;
         next->gen++;
     }
+    search->gate_ids[at]=warp?search->source_ids[parent]:0;
     next->parent = parent; next->g = cost; next->h = wc3_acc_cost(next->pos,search->goal);
     wc3_fine_enqueue(work,(uint32_t)at);
 }
+
+static void wc3_acc_relax(wc3AccSearch_t *search,int at,int parent) {wc3_acc_relax_edge(search,at,parent,false);}
 
 /* Mixed side squares split in original traversal order; flags describe accepted coarse edge ends. */
 static void wc3_acc_side(wc3AccSearch_t *search, wc3AccEdge_t edge, bool ends[2]) {
@@ -183,7 +197,14 @@ static void wc3_acc_base(wc3AccSearch_t *search, int parent) {
             (wc3FinePoint_t){p.x+(side<2),p.y+(side>0)})) continue;
         wc3_acc_relax(search,at,parent);
     }
-    /* TODO: special-edge producer/warp records remain separate from ordinary static routing. */
+    uint8_t id=search->source_ids[parent];
+    if(id && search->gates && (search->gates[id].active&1)) {
+        wc3FinePoint_t dest=search->gates[id].destination;
+        if(dest.x!=pos.x || dest.y!=pos.y) {
+            int at=wc3_acc_find(search,0,dest);
+            if(at>=0)wc3_acc_relax_edge(search,at,parent,true);
+        }
+    }
 }
 
 /* Coarse expansion retains square alignment, source representative and original size2 edge adjustment. */
@@ -206,10 +227,11 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
         wc3_acc_corner(search,(wc3AccEdge_t){parent,level,side,corners[side]});
 }
 
-/* Shared ordinary setup/search; -2 is the original direct setup result, -1 is a partial search. */
+/* Shared ordinary/special setup and search; -2 is the original direct setup result, -1 is a partial search. */
 static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
     work->heap_growth = BZ_WC3_ACC_HEAP_GROW;
+    search->warps=0;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;
     for (unsigned level = 0; level < 4; level++) {
         wc3AccMap_t *map = search->maps + level;
@@ -243,7 +265,7 @@ static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     return at;
 }
 
-/* Full ordinary reconstruction over supplied four-level classifications; no warp producer. */
+/* Original162a30 emits incoming-edge sentinels before walking each parent. */
 static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req, wc3FineVector_t *points) {
     int at = wc3_acc_search(search,req);
     wc3FineSearch_t *work = &search->work;
@@ -261,6 +283,7 @@ static uint32_t wc3_acc_route(wc3AccSearch_t *search, wc3AccRequest_t const *req
         float offset = req->size == 2 ? 1.25f : .75f;
         points[count++] = (wc3FineVector_t){wc3_add(wc3_float(wc3_from_int((uint32_t)p.x)),offset),
             wc3_add(wc3_float(wc3_from_int((uint32_t)p.y)),offset)};
+        if(search->gate_ids[cur]) {points[count++]=(wc3FineVector_t){wc3_float(0xc7fa0001),wc3_float(wc3_from_int(search->gate_ids[cur]))};search->warps++;}
     }
     points[count-1] = req->start;
     points[0] = complete ? req->goal : wc3_route_center(work->nodes[at].pos);
@@ -284,10 +307,11 @@ static uint32_t wc3_acc_query_distance(wc3AccSearch_t *search, wc3AccRequest_t c
     uint32_t length = 0;
     while (work->nodes[at].parent >= 0) {
         int parent = work->nodes[at].parent;
-        length += wc3_acc_sqrt(4u * wc3_fine_dist2(work->nodes[at].pos,work->nodes[parent].pos));
+        /* Original163440 tests the parent tag, including the geometric jump quirk. */
+        if(search->gate_ids[parent]){length+=2;search->warps++;}
+        else length += wc3_acc_sqrt(4u * wc3_fine_dist2(work->nodes[at].pos,work->nodes[parent].pos));
         at = parent;
     }
-    /* TODO: warp-tagged edges contribute2 and update the owner's warp count; no engine portal producer yet. */
     return length;
 }
 

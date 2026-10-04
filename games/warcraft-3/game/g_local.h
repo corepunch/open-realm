@@ -2775,6 +2775,7 @@ bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
 void G_RunTimers(void);
+void G_RunTimersBeforePathOwner(wc3Clock_t const *);
 void G_StartProjectilePresentation(edict_t *ent);
 void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
 void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, struct jass_function const *handler);
@@ -2961,7 +2962,8 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
 bool G_FindMovePathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 typedef struct {
     pathAccelParams_t geometry;
-    edict_t const *mover, *target;
+    edict_t *mover; /* Route advancement can commit a portal crossing. */
+    edict_t const *target;
     bool units;
     vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
     vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
@@ -2985,8 +2987,9 @@ bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *rou
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
-bool G_AdvanceUnitMoveAdaptiveDestination(moveFineRoute_t *route);
+bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *, moveFineRoute_t *, bool *);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *,moveFineRoute_t *,vec2_t *,uint32_t *);
 void G_FreeMovePathCache(void);
 void G_FinishMovePathingInitialization(void);
 uint32_t G_GetMoveAdaptiveStateSize(void);
@@ -3650,6 +3653,11 @@ bool S_CargoUnloadAt(edict_t *, uint32_t);
 bool S_CargoBeginUnloadAll(edict_t *);
 void S_CargoStandDown(edict_t *);
 void G_PublishWaygateSource(box2_t const *, uint8_t);
+typedef struct wc3AccGate_s wc3AccGate_t;
+void S_WaygateBuildEdges(wc3AccGate_t *);
+bool S_WaygateEdgeIsActive(uint8_t);
+bool G_FindUnitMovePortalPosition(edict_t *, vec2_t const *, vec2_t *);
+bool S_MoveThroughPortal(edict_t *, vec2_t const *);
 bool S_ValidateWaygateIds(void);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
