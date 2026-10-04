@@ -256,6 +256,7 @@ enum {
     FLAG(RDF_NOPARTICLES, 4),
     FLAG(RDF_USE_ENTITY_CAMERA, 5),
     FLAG(RDF_ISOLATED_PARTICLES, 6),
+    FLAG(RDF_UI_SPRITE, 7), /* screen-space UI model: events keyed by instance_id, sounds non-positional */
 };
 
 #define MAX_COMMANDS 12

@@ -1,10 +1,12 @@
 #include "sound/s_local.h"
 #include "shared/test.h"
+#include "common/stb_slk.h"
 
 #include <stdio.h>
 
 /* Generated 0.5-s stereo sine fixture; no retail audio is used. */
 static uint32_t sound_test_reads, sound_test_ticks;
+static char sound_test_last_read[256];
 Uint32 SDL_GetTicks(void) { return sound_test_ticks; }
 
 handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
@@ -13,7 +15,8 @@ handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
     uint8_t *data;
 
     sound_test_reads++;
-    if (!strcmp(filename, "stereo.wav")) {
+    snprintf(sound_test_last_read, sizeof(sound_test_last_read), "%s", filename);
+    if (!strcmp(filename, "stereo.wav") || !strncmp(filename, "Sound\\Interface\\", 16)) {
         static uint8_t const wav[] = {
             'R','I','F','F',40,0,0,0,'W','A','V','E',
             'f','m','t',' ',16,0,0,0,1,0,2,0,0x44,0xac,0,0,0x10,0xb1,2,0,2,0,8,0,
@@ -51,6 +54,29 @@ handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
 }
 
 void FS_FreeFile(void *data) { free(data); }
+
+/* Warcraft III data has no SoundEntries.dbc; S_LoadSoundEntries falls back to these UISounds.slk rows. */
+typedef struct { cstring_t name, FileNames, DirectoryBase; float Volume; } soundTestSlkRow_t;
+static slkField_t const sound_test_slk_schema[] = {
+    { "",              offsetof(soundTestSlkRow_t, name),          STB_SLK_STR   },
+    { "FileNames",     offsetof(soundTestSlkRow_t, FileNames),     STB_SLK_STR   },
+    { "DirectoryBase", offsetof(soundTestSlkRow_t, DirectoryBase), STB_SLK_STR   },
+    { "Volume",        offsetof(soundTestSlkRow_t, Volume),        STB_SLK_FLOAT },
+    { NULL },
+};
+
+uint32_t Stb_SlkLoad(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride) {
+    soundTestSlkRow_t *rows;
+    (void)schema;
+    if (strcmp(filename, "UI\\SoundInfo\\UISounds.slk") || row_stride != sizeof(*rows)) return 0;
+    rows = calloc(2, sizeof(*rows));
+    if (!rows) return 0;
+    rows[0] = (soundTestSlkRow_t){ strdup("GlueScreenClick"), strdup("BigButtonClick.wav,Alt.wav"),
+                                   strdup("Sound\\Interface\\"), 100 };
+    rows[1] = (soundTestSlkRow_t){ strdup("NoFiles"), strdup(""), strdup(""), 127 };
+    *dest = rows;
+    return 2;
+}
 
 static void sound_test_reset(void) {
     S_ClearSoundEvents();
@@ -365,5 +391,45 @@ TEST(sound, feedback_rejects_missing_audio_and_survives_backpressure_and_stop) {
     for (int i = 4; i < 304; i++) sound_expect_event(i, SOUND_REJECTED);
     sound_expect_event(3, SOUND_ENDED); /* stopped before its first sample */
     T_ASSERT(!S_PollSoundEvent(&event));
+    sound_test_reset();
+}
+
+static bool sound_test_has_sfx(cstring_t path) {
+    for (int i = 0; i < s.num_sfx; i++)
+        if (!strcmp(s.known_sfx[i].path, path) && s.known_sfx[i].cache) return true;
+    return false;
+}
+
+TEST(sound, uisounds_slk_rows_become_named_kits_without_soundentries_dbc) {
+    sSoundKit_t const *kit;
+
+    sound_test_reset();
+    S_LoadSoundEntries();
+    T_EQ(s.slk_row_count, 2);
+    T_EQ(s.kit_count, 2); /* NoFiles has nothing to play and is not registered */
+    kit = &s.kits[1];
+    T_STREQ(kit->name, "GlueScreenClick");
+    T_STREQ(kit->directoryBase, "Sound\\Interface");
+    T_STREQ(kit->files[0], "BigButtonClick.wav");
+    T_STREQ(kit->files[1], "Alt.wav");
+    T_FEQ(kit->volume, 100.0f / 127.0f, 0.0001f);
+
+    /* FileNames variants are picked per play; each variant loads once through its own path-keyed sfx. */
+    srand(1);
+    sound_test_reads = 0;
+    bool saw_first = false, saw_second = false;
+    FOR_LOOP(i, 32) {
+        S_PlaySoundByName(i ? "GlueScreenClick" : "glueScreenClick");
+        saw_first |= sound_test_has_sfx("Sound\\Interface\\BigButtonClick.wav");
+        saw_second |= sound_test_has_sfx("Sound\\Interface\\Alt.wav");
+    }
+    T_ASSERT(saw_first);
+    T_ASSERT(saw_second);
+    T_EQ(sound_test_reads, 2);
+    S_PlaySoundByName("NoFiles");
+    T_EQ(sound_test_reads, 2);
+
+    S_StopAllSounds();
+    FS_SLKFreeRows(sound_test_slk_schema, s.slk_rows, s.slk_row_count, sizeof(soundTestSlkRow_t));
     sound_test_reset();
 }

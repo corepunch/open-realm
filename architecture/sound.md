@@ -110,6 +110,12 @@ Model animation sounds are client presentation, not server simulation state. The
 
 WC3 evaluates these event tracks before frustum culling so a client-visible model may still be audible while off-screen. The renderer owns event-key de-duplication per entity/model and resolves the animated event node to world space through the existing MDX node matrices. This local path currently passes authored volume; pitch variance and authored panner distances require a future generic mixer/API extension rather than WC3-specific client branches.
 
+UI sprites (`DrawSprite`: glue panels, button particles) render with `RDF_UI_SPRITE`. They all carry entity number 0, so their event state is keyed by `renderEntity_t.instance_id` (the sprite's owner id), exactly like entity-camera views; only `SND` events are dispatched, and they are passed to `PlaySoundAt` with a NULL origin, which the client plays non-positionally. A sprite's first sighting counts as entering its sequence, so keys on the first frame of a glue `Birth`/`Morph` (e.g. `SNDXALPD`, `LeftGlueScreenPopDown`) still play.
+
+## Named interface sounds
+
+Menus play named kits through the imported `PlaySoundByName`. World of Warcraft fills the kit table from `DBFilesClient\SoundEntries.dbc`; when that DBC is absent (Warcraft III), `S_LoadSoundEntries` registers `UI\SoundInfo\UISounds.slk` rows as kits through a `slkField_t` schema (label, `FileNames` variants, `DirectoryBase`, `Volume` on the SLK's 0..127 scale). The WC3 glue menu plays `GlueScreenClick` on every completed button/checkbox click. Kit lookup is case-insensitive, and an unknown name is reported once on stderr. Each play picks one file variant (DBC `freq` weights when authored, otherwise uniform over the SLK's comma-separated `FileNames`) and loads it through the path-keyed `sfx_t` table, so kit variants share the normal registration/eviction lifetime.
+
 
 ## Assets
 

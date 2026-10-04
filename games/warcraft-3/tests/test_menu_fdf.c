@@ -2639,6 +2639,34 @@ TEST(menu_fdf, console_commands_reject_malformed_numeric_arguments) {
     mi = saved;
 }
 
+/* Selector rows are named <ListBox>Row<slot><Part>; a blank or unused slot hides the whole row. */
+static frameDef_t *sp_row(cstring_t box, uint32_t row, cstring_t part) {
+    char name[64];
+    snprintf(name, sizeof(name), "%sRow%u%s", box, (unsigned)row, part);
+    return UI_FindFrame(name);
+}
+
+static bool sp_row_shows(cstring_t box, uint32_t row, cstring_t header, cstring_t name, bool camera,
+                         uint32_t item) {
+    frameDef_t *slot = sp_row(box, row, "");
+    frameDef_t *label = sp_row(box, row, "Label"), *desc = sp_row(box, row, "Desc");
+    frameDef_t *arrow = sp_row(box, row, "Button"), *cam = sp_row(box, row, "CameraButton");
+    frameDef_t *button = camera ? cam : arrow;
+    char command[64];
+
+    snprintf(command, sizeof(command), "%s %u",
+             strcmp(box, "CampaignListBox") ? "menu_single_player_mission_select" : "menu_single_player_campaign_select",
+             (unsigned)item);
+    return slot && label && desc && arrow && cam && !slot->hidden && !strcmp(label->Text, header) &&
+        !strcmp(desc->Text, name) && !button->hidden && (camera ? arrow : cam)->hidden &&
+        !strcmp(button->OnClick, command);
+}
+
+static bool sp_row_blank(cstring_t box, uint32_t row) {
+    frameDef_t *slot = sp_row(box, row, "");
+    return slot && slot->hidden;
+}
+
 TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     menuImport_t saved = mi;
     test_glue_setup();
@@ -2687,11 +2715,30 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
         { "menu_single_player_campaign_tutorial", "Exodus of the Horde" },
     };
     FOR_LOOP(i, sizeof(races) / sizeof(races[0])) {
+        captured_model_path = NULL;
         Cmd_ExecuteString(races[i].cmd);
         T_STREQ(UI_FindFrame("MissionName")->Text, races[i].title);
+        /* The 1.00 War3.mpq Tutorial layout has no Background key; its skin-name fallback must still load. */
+        if (strstr(races[i].cmd, "tutorial")) T_STREQ(captured_model_path, "TutorialBackdrop");
         T_ASSERT(!UI_FindFrame("MissionSelectFrame")->hidden);
         Cmd_ExecuteString("menu_single_player_campaign_back");
         T_ASSERT(!UI_FindFrame("CampaignSelectFrame")->hidden);
+    }
+    /* The 1.00 Tutorial layout splits mission headers into TitleN and names cinematics without files. */
+    {
+        Cmd_ExecuteString("menu_single_player_campaign_tutorial");
+#ifdef BZ_FFMPEG
+        /* Intro, blank, Opening, two chapters: five slots centred 2.5 down; the Intro header comes from [Label]. */
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "", "The Prophecy", true, 0));
+        T_ASSERT(sp_row_blank("MissionListBox", 1));
+        T_ASSERT(sp_row_shows("MissionListBox", 2, "", "Thrall's Vision", true, 1));
+        T_ASSERT(sp_row_shows("MissionListBox", 3, "Chapter One", "Chasing Visions", false, 2));
+        T_STREQ(sp_row("MissionListBox", 2, "CameraButton")->OnClick, "menu_single_player_mission_select 1");
+#else
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "Chapter One", "Chasing Visions", false, 0));
+        T_ASSERT(sp_row_shows("MissionListBox", 1, "Chapter Two", "Departures", false, 1));
+#endif
+        Cmd_ExecuteString("menu_single_player_campaign_back");
     }
     Cmd_ExecuteString("menu_ingame");
     UI_ResetGlueSceneModels();
@@ -3179,7 +3226,9 @@ static void test_single_player_campaign_profile(bool tft) {
         mi = saved;
         return;
     }
+    captured_printf[0] = '\0';
     singlePlayerMenuScreen.init();
+    if (!tft) T_ASSERT(strstr(captured_printf, "campaign 'Tutorial' has no Background key") != NULL);
 
     root = UI_FindFrame("SinglePlayerMenu");
     campaign_button = UI_FindFrame("CampaignButton");
@@ -3213,34 +3262,30 @@ static void test_single_player_campaign_profile(bool tft) {
     SinglePlayerMenu_ShowCampaign();
     campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
     human_button = UI_FindFrame("HumanButton");
-    campaign_list_box = campaign_select_frame
-        ? UI_FindChildFrame(campaign_select_frame, "MapListBox")
-        : NULL;
+    campaign_list_box = UI_FindFrame("CampaignListBox");
 
     if (!require_not_null(human_button) || !require_not_null(campaign_list_box)) {
         mi = saved;
         return;
     }
-    T_ASSERT(human_button->hidden);
+    /* Retail-patched clients build the selector at runtime; the static 1.00 rows stay hidden. */
+    T_ASSERT(human_button->Parent && human_button->Parent->hidden);
+    T_ASSERT(UI_FindFrame("TutorialFrame") && UI_FindFrame("TutorialFrame")->hidden);
     T_ASSERT(!campaign_list_box->hidden);
-    T_FEQ(campaign_list_box->Width, 0.34f, 0.001f);
-    T_FEQ(campaign_list_box->Height, 0.13f, 0.001f);
-    T_FEQ(campaign_list_box->Points.x[FPP_MIN].offset, -0.14f, 0.001f);
-    T_FEQ(campaign_list_box->Points.y[FPP_MAX].offset, 0.04f, 0.001f);
-    T_ASSERT(campaign_list_box->Points.x[FPP_MIN].relativeTo == back_button);
-    T_ASSERT(campaign_list_box->Points.y[FPP_MAX].relativeTo == back_button);
-    T_ASSERT(campaign_list_box->MapListControl.State != NULL);
-    T_EQ((int)campaign_list_box->MapListControl.VisibleRows, 5);
-    T_NOT_NULL(campaign_list_box->event_handler);
-    T_EQ((int)campaign_list_box->MapListControl.State->count, 4);
-    T_STREQ(campaign_list_box->MapListControl.State->items[0].name,
-                  tft
-                      ? "Sentinels Campaign: Terror of the Tides"
-                      : "Human Campaign: The Scourge of Lordaeron");
-    T_STREQ(campaign_list_box->MapListControl.State->items[1].path,
-                  tft ? "Human" : "Undead");
-    T_STREQ(campaign_list_box->MapListControl.SelectCommand,
-                  "menu_single_player_campaign_select %u");
+    T_ASSERT(campaign_list_box->Parent == campaign_select_frame);
+    T_FEQ(campaign_list_box->Width, 0.27f, 0.001f);
+    T_FEQ(campaign_list_box->Height, 0.315625f, 0.0001f);
+    T_FEQ(campaign_list_box->Points.x[FPP_MIN].offset, -0.287f, 0.001f);
+    T_FEQ(campaign_list_box->Points.y[FPP_MIN].offset, -0.1274f, 0.0001f);
+    /* Four campaigns, each followed by a blank slot: eight of ten slots, centred one slot down. */
+    T_FEQ(sp_row("CampaignListBox", 0, "")->Points.y[FPP_MIN].offset, -0.0315625f, 0.0001f);
+    T_ASSERT(tft ? sp_row_shows("CampaignListBox", 0, "Sentinels Campaign", "Terror of the Tides", false, 0)
+                 : sp_row_shows("CampaignListBox", 0, "Human Campaign", "The Scourge of Lordaeron", false, 0));
+    T_ASSERT(sp_row_blank("CampaignListBox", 1));
+    T_ASSERT(tft ? sp_row_shows("CampaignListBox", 2, "Alliance Campaign", "Curse of the Blood Elves", false, 1)
+                 : sp_row_shows("CampaignListBox", 2, "Undead Campaign", "Path of the Damned", false, 1));
+    T_ASSERT(sp_row_blank("CampaignListBox", 7));
+    T_ASSERT(sp_row_blank("CampaignListBox", 8));
 
     captured_command[0] = '\0';
     Cmd_ExecuteString(tft ? "menu_single_player_campaign_select 1" : "menu_single_player_campaign_select 0");
@@ -3249,9 +3294,7 @@ static void test_single_player_campaign_profile(bool tft) {
     mission_select_frame = UI_FindFrame("MissionSelectFrame");
     mission_name = UI_FindFrame("MissionName");
     mission_name_header = UI_FindFrame("MissionNameHeader");
-    mission_list_box = mission_select_frame
-        ? UI_FindChildFrame(mission_select_frame, "MapListBox")
-        : NULL;
+    mission_list_box = UI_FindFrame("MissionListBox");
     if (!require_not_null(mission_select_frame) ||
         !require_not_null(mission_name) ||
         !require_not_null(mission_name_header) ||
@@ -3267,45 +3310,61 @@ static void test_single_player_campaign_profile(bool tft) {
     T_STREQ(mission_name_header->Text,
             tft ? "Alliance Campaign" : "Human Campaign");
 #ifdef BZ_FFMPEG
-    T_EQ((int)mission_list_box->MapListControl.State->count, 6);
-    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
-            tft
-                ? "Cinematic: Introduction: Alliance Introduction"
-                : "Cinematic: Introduction: Human Introduction");
-    T_STREQ(mission_list_box->MapListControl.State->items[0].path,
-            tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
-    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
-            tft
-                ? "Cinematic: Cinematic: Alliance Opening"
-                : "Cinematic: Cinematic: Human Opening");
-    T_STREQ(mission_list_box->MapListControl.State->items[2].name,
-            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
-    T_STREQ(mission_list_box->MapListControl.State->items[3].name,
-            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
-    T_STREQ(mission_list_box->MapListControl.State->items[5].name,
-            tft
-                ? "Cinematic: Cinematic: Alliance Ending"
-                : "Cinematic: Cinematic: Human Ending");
+    /* Intro, blank, Opening, three missions, Ending: seven slots centred 1.5 down. */
+    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -1.5f * 0.0315625f, 0.0001f);
+    T_ASSERT(sp_row_shows("MissionListBox", 0, "Introduction",
+                          tft ? "Alliance Introduction" : "Human Introduction", true, 0));
+    T_ASSERT(sp_row_blank("MissionListBox", 1));
+    T_ASSERT(sp_row_shows("MissionListBox", 2, "Cinematic", tft ? "Alliance Opening" : "Human Opening", true, 1));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 3, "Chapter One", "Misconceptions", false, 2)
+                 : sp_row_shows("MissionListBox", 3, "", "The Defense of Strahnbrad", false, 2));
+    T_ASSERT(sp_row_shows("MissionListBox", 6, "Cinematic", tft ? "Alliance Ending" : "Human Ending", true, 5));
     captured_movie_path[0] = '\0';
     captured_command[0] = '\0';
-    Cmd_ExecuteString("menu_single_player_mission_select 0");
+    Cmd_ExecuteString(sp_row("MissionListBox", 0, "CameraButton")->OnClick);
     T_STREQ(captured_movie_path,
             tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
     T_STREQ(captured_command, "");
 #else
-    T_EQ((int)mission_list_box->MapListControl.State->count, 3);
-    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
-            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
-    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
-            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    /* Three missions centred in ten slots: the column starts 3.5 slots down. */
+    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -3.5f * 0.0315625f, 0.0001f);
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 0, "Chapter One", "Misconceptions", false, 0)
+                 : sp_row_shows("MissionListBox", 0, "", "The Defense of Strahnbrad", false, 0));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", "A Dark Covenant", false, 1)
+                 : sp_row_shows("MissionListBox", 1, "", "Blackrock & Roll", false, 1));
+    T_ASSERT(sp_row_blank("MissionListBox", 3));
 #endif
-    T_STREQ(mission_list_box->MapListControl.SelectCommand,
-            "menu_single_player_mission_select %u");
-    T_NOT_NULL(mission_list_box->event_handler);
 
     Cmd_ExecuteString(back_button->OnClick);
     T_ASSERT(!campaign_select_frame->hidden);
     T_ASSERT(mission_select_frame->hidden);
+
+    if (!tft) {
+        /* Twelve missions overflow the ten slots: the column starts at the top and the wheel scrolls it. */
+        float x = 0, y = 0;
+        bool found = false;
+
+        SinglePlayerMenu_LaunchCampaign("Scroll");
+        singlePlayerMenuScreen.draw();
+        T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, 0.0f, 0.0001f);
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 0", false, 0));
+        T_ASSERT(sp_row_shows("MissionListBox", 9, "", "Scroll 9", false, 9));
+        /* The fixture CampaignMenu has no size, so the box may hang off its corner at negative coordinates. */
+        for (float fy = -1.0f; fy < 1.0f && !found; fy += 0.005f)
+            for (float fx = -1.0f; fx < 1.0f && !found; fx += 0.005f)
+                if (UI_FrameContainsPoint(mission_list_box, fx, fy)) { x = fx; y = fy; found = true; }
+        T_ASSERT(found);
+        T_ASSERT(!singlePlayerMenuScreen.scroll(x, y, 0));
+        T_ASSERT(singlePlayerMenuScreen.scroll(x, y, -1));
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 1", false, 1));
+        FOR_LOOP(i, 5) singlePlayerMenuScreen.scroll(x, y, -1);
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 2", false, 2));
+        T_ASSERT(sp_row_shows("MissionListBox", 9, "", "Scroll 11", false, 11));
+        FOR_LOOP(i, 5) singlePlayerMenuScreen.scroll(x, y, 1);
+        T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 0", false, 0));
+        Cmd_ExecuteString(back_button->OnClick);
+        T_ASSERT(!campaign_select_frame->hidden);
+    }
 
     captured_cvar_name[0] = '\0';
     captured_cvar_value[0] = '\0';
@@ -3335,39 +3394,25 @@ static void test_single_player_campaign_profile(bool tft) {
     }
     test_campaign_visibility = "unlocked";
     SinglePlayerMenu_ShowCampaign();
-    T_EQ((int)campaign_list_box->MapListControl.State->count, 2);
-    T_STREQ(campaign_list_box->MapListControl.State->items[0].path, "Human");
-    T_STREQ(campaign_list_box->MapListControl.State->items[1].path, "Undead");
+    /* Two campaigns plus their blanks: four slots centred three down, as in the retail fresh-profile capture. */
+    T_FEQ(sp_row("CampaignListBox", 0, "")->Points.y[FPP_MIN].offset, -3.0f * 0.0315625f, 0.0001f);
+    T_ASSERT(tft ? sp_row_shows("CampaignListBox", 0, "Alliance Campaign", "Curse of the Blood Elves", false, 0)
+                 : sp_row_shows("CampaignListBox", 0, "Human Campaign", "The Scourge of Lordaeron", false, 0));
+    T_ASSERT(sp_row_blank("CampaignListBox", 1));
+    T_ASSERT(tft ? sp_row_shows("CampaignListBox", 2, "Scourge Campaign", "Legacy of the Damned", false, 1)
+                 : sp_row_shows("CampaignListBox", 2, "Undead Campaign", "Path of the Damned", false, 1));
+    T_ASSERT(sp_row_blank("CampaignListBox", 4));
 
     Cmd_ExecuteString("menu_single_player_campaign_select 0");
 #ifdef BZ_FFMPEG
-    T_EQ((int)mission_list_box->MapListControl.State->count, 5);
-    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
-            tft
-                ? "Cinematic: Introduction: Alliance Introduction"
-                : "Cinematic: Introduction: Human Introduction");
-    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
-            tft
-                ? "Cinematic: Cinematic: Alliance Opening"
-                : "Cinematic: Cinematic: Human Opening");
-    T_EQ((int)mission_list_box->MapListControl.State->items[2].flags, 0);
-    T_STREQ(mission_list_box->MapListControl.State->items[2].name,
-            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
-    T_EQ((int)mission_list_box->MapListControl.State->items[3].flags, 1);
-    T_STREQ(mission_list_box->MapListControl.State->items[3].name,
-            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
-    T_STREQ(mission_list_box->MapListControl.State->items[4].name,
-            tft
-                ? "Cinematic: Cinematic: Alliance Ending"
-                : "Cinematic: Cinematic: Human Ending");
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 4, "Chapter Two", "A Dark Covenant", false, 3)
+                 : sp_row_shows("MissionListBox", 4, "", "Blackrock & Roll", false, 3));
 #else
-    T_EQ((int)mission_list_box->MapListControl.State->count, 2);
-    T_EQ((int)mission_list_box->MapListControl.State->items[0].flags, 0);
-    T_STREQ(mission_list_box->MapListControl.State->items[0].name,
-            tft ? "Chapter One: Misconceptions" : "The Defense of Strahnbrad");
-    T_EQ((int)mission_list_box->MapListControl.State->items[1].flags, 1);
-    T_STREQ(mission_list_box->MapListControl.State->items[1].name,
-            tft ? "Chapter Two: A Dark Covenant" : "Blackrock & Roll");
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 0, "Chapter One", "Misconceptions", false, 0)
+                 : sp_row_shows("MissionListBox", 0, "", "The Defense of Strahnbrad", false, 0));
+    T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", "A Dark Covenant", false, 1)
+                 : sp_row_shows("MissionListBox", 1, "", "Blackrock & Roll", false, 1));
+    T_ASSERT(sp_row_blank("MissionListBox", 2));
 #endif
 
     captured_command[0] = '\0';
