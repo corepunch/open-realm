@@ -122,7 +122,7 @@ exercise caller/event order, authored aliases and inverse behavior rather
 than only testing procedure lookup.
 
 See [ability coverage](architecture/ability-coverage.md),
-[ability implementation](ability-implementation-plan.md),
+[ability implementation](ability-implementation.md),
 [save/load](save-load.md), and [autocast](autocast.md).
 
 ## Jaina / Archmage follow-up (September 19, 2026)

@@ -273,7 +273,7 @@ For in-depth details on specific engine subsystems, consult the following dedica
   other behaviors reuse its locomotion operations while retaining their own goals and arrival conditions. General-purpose
   machinery such as `g_monster.c`, `m_unit.c`, and `g_ai.c` provides lifecycle, dispatch, and shared mechanisms; it must not
   accumulate individual spell rules or direct spell update calls. Use flat callback/function-table contracts, not a new
-  class hierarchy. See [WC3 ability ownership](docs/games/warcraft-3/ability-implementation-plan.md#ability-owned-orders-and-persistent-behavior).
+  class hierarchy. See [WC3 ability ownership](docs/games/warcraft-3/ability-implementation.md#ability-owned-orders-and-persistent-behavior).
 - **Test-First Verification**: Recreate gameplay situations through production entry points in automated tests, including
   timing and callback order. Extend fixtures and harnesses before resorting to a game launch. See
   [verification workflow](CONTRIBUTING.md#test-first-behavior-verification) for the limited visual/platform exceptions.

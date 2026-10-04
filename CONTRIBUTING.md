@@ -35,7 +35,7 @@ The Raven Form refactor provides concrete examples in `games/warcraft-3/game/tes
 by Move before animation completion and checks that ascent continues without replacing Move; it also covers pause and
 reversal. `t_combat.c` tests an animation end callback installing another sequence, `t_slk.c` covers ROC rawcode columns,
 and `t_game.c` checks persistence. The generated `mdxgen morph` model supplies the required sequences without retail assets.
-See [ability implementation](docs/games/warcraft-3/ability-implementation-plan.md) for ownership and test design.
+See [ability implementation](docs/games/warcraft-3/ability-implementation.md) for ownership and test design.
 
 Launch the game only for a specific property that remains untestable after considering these options, such as framebuffer
 output or OS input integration. State that coverage gap before launching, keep the run bounded with `+com_frame_limit N`,

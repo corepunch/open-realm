@@ -10,7 +10,7 @@ Cooldown control now registers `UnitResetCooldown`, `BlzStartUnitAbilityCooldown
 same normalized per-unit cooldown records as normal casts. `BlzGetAbilityCooldown`,
 `BlzSetUnitAbilityCooldown`, and `BlzGetUnitAbilityCooldown` remain unimplemented
 because OpenRealm does not yet have per-unit mutable ability-field overrides. See
-[Ability Cooldowns](ability-cooldowns.md).
+[ability identity and cooldown ownership](../../docs/games/warcraft-3/ability-system.md#rawcode-and-procedure-identity).
 
 `TimerStart(timer, timeout, periodic, null)` is legal and starts or resets the
 timer without an expiration callback. `TimerStart` must detect that null before
@@ -78,20 +78,20 @@ The game sends the widget entity number plus clamped RGBA to each applicable cli
 terrain-conforming selection circle for two flashes without changing authoritative selection membership. This also
 covers Blizzard.j's `UnitAddIndicatorBJ`, whose wrapper calls the generic `AddIndicator` native with a unit widget.
 
-`SetUnitColor` publishes a per-unit replaceable team-color override without changing unit ownership. The presentation payload is packed into `effect_flags` as `playercolor + 1`, while persistent explicit-unit state carries a separate override flag so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state across game-cache restore. `SetPlayerColor` also updates existing units still displaying the player's previous color, and `SetUnitOwner` honors its `changeColor` argument. Initial unit presentation resolves Warcraft's `utco`/`utcc` and `war3mapUnits.doo` custom-color precedence before falling back to the owner's configured player color. Ranged missiles, unit-attached model effects, selected portraits, placement previews, and rally indicators now consume the same resolved/configured color paths rather than falling back to the owner slot number; see [Team Colors](team-colors.md).
+`SetUnitColor` publishes a per-unit replaceable team-color override without changing unit ownership. The presentation payload is packed into `effect_flags` as `playercolor + 1`, while persistent explicit-unit state carries a separate override flag so `PLAYER_COLOR_RED` remains distinct from the zero/default owner-color state across game-cache restore. `SetPlayerColor` also updates existing units still displaying the player's previous color, and `SetUnitOwner` honors its `changeColor` argument. Initial unit presentation resolves Warcraft's `utco`/`utcc` and `war3mapUnits.doo` custom-color precedence before falling back to the owner's configured player color. Ranged missiles, unit-attached model effects, selected portraits, placement previews, and rally indicators now consume the same resolved/configured color paths rather than falling back to the owner slot number; see [Team Colors](../../docs/games/warcraft-3/team-colors.md).
 
-`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. `SetWaterBaseColor`, general JASS text tags, authored `UnitUI.slk` RGB defaults, and invisibility-alpha parity remain separate gaps. See [Unit Vertex Color](unit-vertex-color.md).
+`SetUnitVertexColor` now retains a persistent clamped RGBA override in WC3 game state and publishes visible overrides through the existing per-frame game datagram rather than widening `entityState_t`. The client keeps an explicit-validity tint cache so alpha `0` is distinct from the renderer's historical "unset tint" sentinel, then the MDX renderer reuses its existing per-instance geoset-colour multiply and translucent-layer path. `SetWaterBaseColor`, general JASS text tags, authored `UnitUI.slk` RGB defaults, and invisibility-alpha parity remain separate gaps. See [Unit Vertex Color](../../docs/games/warcraft-3/unit-vertex-color.md).
 
-`SetTerrainFogEx` and `ResetTerrainFog` now own persistent WC3 environmental distance-fog state and publish it through the generic `CS_SCENE_FOG` presentation contract. `SetTerrainFogEx` retains style/start/end/density/RGB, while `ResetTerrainFog` restores the merged `[DefaultZFog]` RoC/TFT row. The renderer currently uses Warsmash-compatible linear start/end blending for every enabled style; legacy `SetTerrainFog`, true exponential equations, and particle fog remain separate gaps. See [Environmental Terrain Fog](environmental-fog.md).
+`SetTerrainFogEx` and `ResetTerrainFog` now own persistent WC3 environmental distance-fog state and publish it through the generic `CS_SCENE_FOG` presentation contract. `SetTerrainFogEx` retains style/start/end/density/RGB, while `ResetTerrainFog` restores the merged `[DefaultZFog]` RoC/TFT row. The renderer currently uses Warsmash-compatible linear start/end blending for every enabled style; legacy `SetTerrainFog`, true exponential equations, and particle fog remain separate gaps. See [Environmental Terrain Fog](../../docs/games/warcraft-3/environmental-fog.md).
 
 Coverage is not conformance. `SetUnitAnimation` now resolves the unit type's Required Animation Names and
 `AddUnitAnimationProperties` mutates the same per-unit tag set before reselecting the logical animation; see
-[Required Animation Names](unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued
+[Required Animation Names](../../docs/games/warcraft-3/unit-animation-properties.md). `SetUnitAnimationByIndex`, rarity selection, and queued
 animation semantics remain separate gaps. `SetDoodadAnimation` and `SetDoodadAnimationRect` now select matching
 map-scenery edicts by rawcode and area, play authored MDX sequences, honor `nearestOnly`, support numbered random
 variants, and implement the retail `show`/`hide` special names. Doodad `soundon`/`soundoff` remains a separate audio
 presentation gap, so those natives are still partial rather than full conformance; see
-[Scripted Doodad Animation](doodad-animation.md). Several callbacks consume state but still violate
+[Scripted Doodad Animation](../../docs/games/warcraft-3/doodad-animation.md). Several callbacks consume state but still violate
 their JASS contract and therefore need a `partial` status in any future generated
 ledger. The effect module now has functional independent handles for
 `AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`. The three weather
@@ -101,16 +101,16 @@ so they are no longer placeholders; weather presentation remains partial where
 head/tail composition, and authored head/tail UV curves are handled by the renderer. Target effects
 currently implement only the `overhead` attachment specially, and `LIGHTNING` spell effects remain
 unsupported, so those paths are partial rather than proof of full retail
-conformance. See [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md) and [Weather](weather.md).
+conformance. See [Ability, Buff, And Item Presentation Effects](../../docs/games/warcraft-3/ability-and-item-effects.md) and [Weather](../../docs/games/warcraft-3/weather.md).
 
 Natural creep sleep now consumes the authored `UnitData.canSleep` flag and implements `UnitAddSleep`, `UnitCanSleep`,
 `UnitIsSleeping`, and `UnitWakeUp` against a natural-sleep state distinct from the Dreadlord `AUsl`/`BUsL` status.
 `UnitCanSleepPerm` recognizes `Sleep Always` (`Asla`), while `UnitAddSleepPerm` remains a placeholder until Asla's
-ability-owned `Sleep Once` / player-slot semantics are modeled. See [Neutral Creep Sleep](creep-sleep.md).
+ability-owned `Sleep Once` / player-slot semantics are modeled. See [Neutral Creep Sleep](../../docs/games/warcraft-3/creep-sleep.md).
 
-The five classic Way Gate natives are implemented in `api_unit.h`: `WaygateGetDestinationX`, `WaygateGetDestinationY`, `WaygateSetDestination`, `WaygateActivate`, and `WaygateIsActive`. They operate on the same `Awrp`-owned runtime state used by explicit Smart traversal; activation honors both `true` and `false`, and destination coordinates are arbitrary points rather than paired-gate handles. The synthetic JASS regression installs an `Awrp` AbilityData row before `UnitAddAbility`, so the native contract is exercised through a valid runtime gate. See [Way Gates](way-gates.md).
+The five classic Way Gate natives are implemented in `api_unit.h`: `WaygateGetDestinationX`, `WaygateGetDestinationY`, `WaygateSetDestination`, `WaygateActivate`, and `WaygateIsActive`. They operate on the same `Awrp`-owned runtime state used by explicit Smart traversal; activation honors both `true` and `false`, and destination coordinates are arbitrary points rather than paired-gate handles. The synthetic JASS regression installs an `Awrp` AbilityData row before `UnitAddAbility`, so the native contract is exercised through a valid runtime gate. See [Way Gates](../../docs/games/warcraft-3/way-gates.md).
 
-The Warcraft Blight native family is no longer a placeholder. `SetBlight`, `SetBlightRect`, `SetBlightPoint`, and `SetBlightLoc` mutate the same game-owned `level.blight` state used by building placement and Blight-only regeneration; `IsPointBlighted` queries that state directly. The setter `player` argument is validated but Blight remains global terrain state, matching the player-less query contract. See [Blight](blight.md). Client terrain presentation and preview synchronization are implemented separately from this native simulation coverage and are not validated by these native tests.
+The Warcraft Blight native family is no longer a placeholder. `SetBlight`, `SetBlightRect`, `SetBlightPoint`, and `SetBlightLoc` mutate the same game-owned `level.blight` state used by building placement and Blight-only regeneration; `IsPointBlighted` queries that state directly. The setter `player` argument is validated but Blight remains global terrain state, matching the player-less query contract. See [Blight](../../docs/games/warcraft-3/blight.md). Client terrain presentation and preview synchronization are implemented separately from this native simulation coverage and are not validated by these native tests.
 
 `KillUnit` must use the normal unit-death transition rather than only writing life to zero. The transition selects the
 model's `Death` sequence, publishes unit/player death events, clears orders and selection, updates pathing/FOW state,
@@ -177,9 +177,9 @@ The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, t
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
 `api_hashtable.h` with a host-owned `level.hashtables[]` registry and typed nested-handle
 save/load (current format version 49; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
-server-owned state ([multiboard-and-texttag.md](multiboard-and-texttag.md)); HUD/client
+server-owned state ([multiboard-and-texttag.md](../../docs/games/warcraft-3/multiboard-and-texttag.md)); HUD/client
 draw remains deferred. Remaining DotA holes are shop events and hero attributes. See
-[DotA Custom-Map Playability](dota-map-playability.md) and [Save/Load](save-load.md).
+[DotA Custom-Map Playability](../../docs/games/warcraft-3/dota-map-playability.md) and [Save/Load](../../docs/games/warcraft-3/save-load.md).
 
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.
 `EndGame` returns the local client to the frontend, `ChangeLevel` loads the requested map, `RestartGame` reloads the
@@ -189,14 +189,14 @@ selection as the destination for the eventual `EndGame`. This is required by `Pr
 the Human campaign before a long final cinematic and calls `CustomVictoryBJ` only after that cinematic finishes.
 `SetTutorialCleared`, `SetCampaignAvailable`, and `SetMissionAvailable` now persist their profile availability state to
 `campaign-progress.orcp`, so those Prologue02 unlocks are durable before the eventual frontend transition. See
-[campaign-progress.md](campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
+[campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
 is not implemented yet.
 
 `PlayCinematic` now queues `Movies\<name>.mpq` through `gi.QueueMovie`. When the script subsequently requests a map/menu
 session action, the client pauses the outgoing simulation, plays the pre-rendered movie through the optional FFmpeg
 backend, then resumes that deferred action after EOF or Escape. Builds without `FFMPEG=1` leave the native harmless and
 continue the session transition. `SetOpCinematicAvailable` and `SetEdCinematicAvailable` are still incomplete; campaign
-movie unlock persistence and camera-button rows remain follow-up work. See [pre-rendered-movies.md](pre-rendered-movies.md).
+movie unlock persistence and camera-button rows remain follow-up work. See [pre-rendered-movies.md](../../docs/games/warcraft-3/pre-rendered-movies.md).
 
 `GetDefaultDifficulty` / `SetDefaultDifficulty` now own a per-level default distinct from mutable
 `GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
@@ -219,7 +219,7 @@ store/get/have/flush, while `StoreUnit` snapshots the unit rawcode, Hero
 progression (including unspent skill points and learned ranks), health/mana,
 unit colour, and inventory IDs/charges. `RestoreUnit` creates a fresh unit for
 the requested player and reapplies that snapshot. See
-[campaign-game-cache.md](campaign-game-cache.md) for the lifecycle and private
+[campaign-game-cache.md](../../docs/games/warcraft-3/campaign-game-cache.md) for the lifecycle and private
 on-disk format.
 
 The `SyncStored*` callbacks remain **partial**: they validate/consume their
@@ -228,7 +228,7 @@ arguments but do not implement multiplayer synchronization.
 
 ## Rally getters
 
-`GetUnitRallyPoint`, `GetUnitRallyUnit`, and `GetUnitRallyDestructable` are registered against the producer-owned rally state documented in [rally-points.md](rally-points.md). The point getter resolves current widget coordinates; the typed widget getters return only matching unit/destructable targets. String-based `setrally` orders are implemented. Numeric order-ID parity remains partial because the engine still lacks the general Warcraft order-ID table.
+`GetUnitRallyPoint`, `GetUnitRallyUnit`, and `GetUnitRallyDestructable` are registered against the producer-owned rally state documented in [rally-points.md](../../docs/games/warcraft-3/rally-points.md). The point getter resolves current widget coordinates; the typed widget getters return only matching unit/destructable targets. String-based `setrally` orders are implemented. Numeric order-ID parity remains partial because the engine still lacks the general Warcraft order-ID table.
 
 ## Runtime Error Reporting
 
@@ -303,17 +303,17 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
   fractions unless runtime evidence demonstrates that contract.
 - Tech maximums and researched levels use the keyed `game.clients[].tech` table rather than `ps.stats[]`. `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` round-trip through that state. `-1` is preserved as the unlimited maximum sentinel; non-negative values are exact maxima. W3I technology-unavailability entries seed a maximum of zero before map scripts may override it. Build and train command availability consume the same state, and mutations invalidate the owning player's command card for deferred refresh after simulation. The table is bounded by `MAX_PLAYER_TECH_STATE` and reports exhaustion rather than silently overwriting state. The bundled `game/common.txt` declares `GetPlayerTechResearched` as `boolean`, so it reports whether the exact rawcode has a researched level above zero; `GetPlayerTechCount` returns the exact-rawcode count/level. Both currently ignore technology-equivalence expansion when `specificonly` is false because equivalence groups are not represented yet. Ability availability remains separate work.
 - Research queue lifecycle now publishes `EVENT_PLAYER_UNIT_RESEARCH_START/CANCEL/FINISH` and the corresponding unit-scoped events. `GetResearchingUnit()` resolves to the producer building and `GetResearched()` resolves to the exact upgrade rawcode. The rawcode is carried as scalar event context rather than inferred from the producer's mutable queue, because cancel/finish may free the queue item before deferred JASS callbacks execute. Prologue02's War Mill upgrade tutorial (`Trig_U2_ClickUpgrade_Done`) relies on the player-unit research-start event.
-- Unit-type structure upgrading (`UnitProfile.Upgrade` / `uupt`, for example Town Hall -> Keep) now publishes `EVENT_PLAYER_UNIT_UPGRADE_START/CANCEL/FINISH` and the corresponding unit-scoped events on the same building edict. Completion performs the in-place type rebind before the finish event is queued, so the lifecycle preserves the original unit handle/edict identity instead of substituting a newly spawned structure. This lifecycle is separate from `UpgradeData.slk` research events. See [building-construction.md](building-construction.md#in-place-structure-upgrades-uupt).
+- Unit-type structure upgrading (`UnitProfile.Upgrade` / `uupt`, for example Town Hall -> Keep) now publishes `EVENT_PLAYER_UNIT_UPGRADE_START/CANCEL/FINISH` and the corresponding unit-scoped events on the same building edict. Completion performs the in-place type rebind before the finish event is queued, so the lifecycle preserves the original unit handle/edict identity instead of substituting a newly spawned structure. This lifecycle is separate from `UpgradeData.slk` research events. See [building-construction.md](../../docs/games/warcraft-3/building-construction.md#in-place-structure-upgrades-uupt).
 - `GetPlayerStructureCount` scans live owned unit edicts classified by `G_UnitIsBuilding`. `includeIncomplete=false` excludes `construction.active` structures; dead/zero-life structures never count. Campaign defeat conditions may query this native from an ordinary unit-death trigger, so the result is derived from all surviving structures rather than from the triggering unit.
 - `GetPlayerUnitCount` scans live owned non-structure units. Dead/zero-life entities never count, and `includeIncomplete=false` excludes entities still carrying the shared construction-active state.
 - `GetPlayerTypedUnitCount` scans live owned units and structures by Warcraft's legacy string identity. It accepts both the four-character value returned by `UnitId2String` and the authored unit profile name (for example `Peon`), and honors `includeIncomplete` through the same construction-active state. `includeUpgrades` is accepted but upgrade-equivalence expansion remains unimplemented because equivalence groups are not represented yet. This native is used by campaign/tutorial goals that re-count an owned unit type after training finishes.
 - `EVENT_PLAYER_UNIT_TRAIN_START` and `EVENT_UNIT_TRAIN_START` are published when an accepted trainee enters a producer queue. The producer remains `GetTriggerUnit()`, while the hidden queued trainee is carried as callback source so `GetTrainedUnitType` and `GetTrainedUnit` expose the trainee for both train-start and train-finish callbacks.
 - `GetTrainedUnitType` returns the class/rawcode of the current trained unit, using the event source for train-start callbacks and the event subject for train-finish callbacks rather than returning the previous zero stub.
-- Accepted point orders publish `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. `GetOrderedUnit()` identifies the ordered unit, `GetIssuedOrderId()` exposes the accepted order ID, and `GetOrderPointX/Y/Loc()` expose the event point. Construction placement uses the building rawcode as its issued order ID and publishes at placement acceptance, which is required by Prologue02's Burrow-to-lumber tutorial handoff. See [issued-target-order-events.md](issued-target-order-events.md).
+- Accepted point orders publish `EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER` and `EVENT_UNIT_ISSUED_POINT_ORDER`. `GetOrderedUnit()` identifies the ordered unit, `GetIssuedOrderId()` exposes the accepted order ID, and `GetOrderPointX/Y/Loc()` expose the event point. Construction placement uses the building rawcode as its issued order ID and publishes at placement acceptance, which is required by Prologue02's Burrow-to-lumber tutorial handoff. See [issued-target-order-events.md](../../docs/games/warcraft-3/issued-target-order-events.md).
 - `OrderId` / `OrderId2String` now use canonical Warcraft numeric IDs for the covered movement and implemented stock spell orders, with the previous FourCC conversion retained only as an unknown/custom fallback. `IssueImmediateOrderById`, `IssuePointOrderById`, `IssuePointOrderByIdLoc`, and `IssueTargetOrderById` route through the same string-order paths.
-- Polymorph participates in that table as `polymorph = 852074`; owned `Aply` casts use the shared unit-target spell path. `IsUnitType(whichUnit, UNIT_TYPE_POLYMORPHED)` reflects the live reversible Polymorph state rather than a sheep rawcode. See [polymorph.md](polymorph.md).
+- Polymorph participates in that table as `polymorph = 852074`; owned `Aply` casts use the shared unit-target spell path. `IsUnitType(whichUnit, UNIT_TYPE_POLYMORPHED)` reflects the live reversible Polymorph state rather than a sheep rawcode. See [polymorph.md](../../docs/games/warcraft-3/polymorph.md).
 - `IssueBuildOrderById` routes directly through `G_IssueBuildOrder()`, so JASS construction uses the same worker `Builds`, technology/resource, placement/pathing, waypoint, and issued-point-order validation as player/AI construction. Building rawcodes passed to `IssuePointOrderById` or `IssuePointOrderByIdLoc` are special-cased into that same build path before generic order-id translation; canonical movement/spell ids continue through the order table. `CreateUnit` remains an immediate spawn rather than construction, and string-form `IssueBuildOrder` remains incomplete.
-- Construction completion publishes both `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH` and `EVENT_UNIT_CONSTRUCT_FINISH`; `GetConstructedStructure()` resolves the completed structure in either callback family. `GetConstructingStructure()` and `GetCancelledStructure()` continue to expose the corresponding implemented start/cancel event structure. See [building-construction.md](building-construction.md).
+- Construction completion publishes both `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH` and `EVENT_UNIT_CONSTRUCT_FINISH`; `GetConstructedStructure()` resolves the completed structure in either callback family. `GetConstructingStructure()` and `GetCancelledStructure()` continue to expose the corresponding implemented start/cancel event structure. See [building-construction.md](../../docs/games/warcraft-3/building-construction.md).
 - Stock spell orders owned by the caster route through the unified spell pipeline. Successful casts publish `EVENT_PLAYER_UNIT_SPELL_EFFECT` and `EVENT_UNIT_SPELL_EFFECT` after mana/cooldown commit and before the gameplay callback. `GetSpellAbilityUnit`, `GetSpellAbilityId`, `GetSpellTargetUnit`, `GetSpellTargetX/Y/Loc`, `GetSpellTargetItem`, and `GetSpellTargetDestructable` expose that response context. `GetSpellAbility` and the CHANNEL/CAST/FINISH/ENDCAST lifecycle remain unsupported rather than being synthesized.
 
 ## Time Of Day Game State
@@ -331,7 +331,7 @@ base world light. `AIct` (`itemchangetimeofday`) now follows Warsmash's false-ti
 temporary effective clock, the canonical cycle freezes underneath it, and the HUD selects the clock model's alternate sequence while
 the override is initialized. The Warsmash-extension host native `SetFalseTimeOfDay` is also registered, but is intentionally absent
 from the bundled retail `common.j`; extension scripts must declare it themselves. `SetTimeOfDayScale` and `GetTimeOfDayScale` remain
-placeholders because the inspected Warsmash source does not provide a behavior to mirror. See [time-of-day.md](time-of-day.md) for
+placeholders because the inspected Warsmash source does not provide a behavior to mirror. See [time-of-day.md](../../docs/games/warcraft-3/time-of-day.md) for
 ownership, false-time lifecycle, `Misc` fields, gameplay consumers, HUD synchronization, DNC rendering, and the remaining
 visual-lighting gaps.
 
@@ -389,7 +389,7 @@ remaining inside.
 
 ## Global Pause
 
-`PauseGame(flag)` is wired through the WC3 game module to the generic server scheduler pause. The server freezes `sv.time` / simulation frames while continuing network reads and client traffic. Pause sources are combined in game code so closing a Quest modal cannot accidentally clear a script-owned `PauseGame(true)`. Quest-driven pausing is restricted to single-client sessions. See [Pause And Modal UI](pause-and-modal-ui.md).
+`PauseGame(flag)` is wired through the WC3 game module to the generic server scheduler pause. The server freezes `sv.time` / simulation frames while continuing network reads and client traffic. Pause sources are combined in game code so closing a Quest modal cannot accidentally clear a script-owned `PauseGame(true)`. Quest-driven pausing is restricted to single-client sessions. See [Pause And Modal UI](../../docs/games/warcraft-3/pause-and-modal-ui.md).
 
 This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseTimer` / `ResumeTimer` operate on the existing deterministic countdown timer and do not alter the global scheduler pause source.
 
@@ -406,7 +406,7 @@ Periodic timers reschedule from their intended expiry to avoid frame-time drift.
 Destroying a timer cancels pending work and invalidates event references without
 leaving a scheduler pointer to freed JASS handle storage.
 
-Timer dialogs are now implemented for the ordinary campaign-countdown path. `CreateTimerDialog` allocates a stable fixed-slot handle associated with an existing timer; `DestroyTimerDialog` removes only presentation state and leaves that timer running. `TimerDialogSetTitle`, title/time RGBA setters, `TimerDialogDisplay`, and `IsTimerDialogDisplayed` drive the stock `TimerDialog.fdf` HUD through a dedicated layout layer. Values render as zero-padded `MM:SS` and refresh only when the visible whole second or dialog presentation state changes. Local visibility follows the existing `currentplayer` convention. Timer-dialog handles and presentation state survive save/load through stable slot IDs. See [Timer Dialogs And Mission Countdowns](timer-dialogs.md).
+Timer dialogs are now implemented for the ordinary campaign-countdown path. `CreateTimerDialog` allocates a stable fixed-slot handle associated with an existing timer; `DestroyTimerDialog` removes only presentation state and leaves that timer running. `TimerDialogSetTitle`, title/time RGBA setters, `TimerDialogDisplay`, and `IsTimerDialogDisplayed` drive the stock `TimerDialog.fdf` HUD through a dedicated layout layer. Values render as zero-padded `MM:SS` and refresh only when the visible whole second or dialog presentation state changes. Local visibility follows the existing `currentplayer` convention. Timer-dialog handles and presentation state survive save/load through stable slot IDs. See [Timer Dialogs And Mission Countdowns](../../docs/games/warcraft-3/timer-dialogs.md).
 
 `TimerDialogSetSpeed` is still intentionally a no-op pending verified retail display-rate semantics, and `TimerDialogSetRealTimeRemaining` is not registered yet. The renderer currently displays the lowest-slot visible dialog rather than guessing at retail multi-dialog stacking.
 
@@ -435,7 +435,7 @@ so trigger publication and snapshots remain consistent.
   items, and destructables and clamp against the runtime maximum.
 
 Hero skill progression is documented separately in
-[Hero Ability Progression](hero-abilities.md). `SelectHeroSkill` routes through
+[Hero Ability Progression](../../docs/games/warcraft-3/hero-abilities.md). `SelectHeroSkill` routes through
 the same candidate/point/level/max-rank validation as the in-game skill menu.
 `GetHeroSkillPoints` reads the unspent Hero point pool and
 `UnitModifySkillPoints` applies a signed delta without changing XP/level; the
@@ -459,12 +459,12 @@ Triggered transmissions reuse this sound path but remain presentation state,
 not cinematic-mode policy. `StartSound` preserves `GetLocalPlayer()` context so
 force-gated Blizzard.j transmissions send speech only to the represented local
 player; global calls still broadcast. See
-[triggered-dialogue.md](triggered-dialogue.md) for the gameplay portrait/message
+[triggered-dialogue.md](../../docs/games/warcraft-3/triggered-dialogue.md) for the gameplay portrait/message
 layer split, independent voice/scene lifetimes, and remaining ping/indicator gaps.
 
 `CreateSound`, `CreateSoundFromLabel`, `CreateSoundFilenameWithLabel`, `SetSoundParamsFromLabel`, `SetSoundVolume`, `SetSoundPosition`, `AttachSoundToUnit`, and `StartSound` currently cover the one-shot subset used by campaign cinematics. Label-backed constructors search Ability/Ambience/UI first and then Anim/Dialog/UnitAck/UnitCombat sound catalogs. `CreateSoundFromLabel` obtains its asset from the label, while `CreateSoundFilenameWithLabel` and `SetSoundParamsFromLabel` preserve the explicit/current filename and apply the parameters OpenRealm can currently represent; authored volume is implemented, while authored pitch/channel/distance/cone/fade settings remain gaps. Position/attachment is sampled when playback begins and transported through generic `svc_sound`; moving attached emitters, `StopSound`/fade lifecycle, playing/loading queries, pitch/cone/distance controls, and volume groups remain incomplete. `killWhenDone` eventually needs to release only after playback completion, while an immediate destroyed/stopped handle cannot remain queryable as playing.
 
-Background music now uses a separate long-form path: `SetMapMusic`, `ClearMapMusic`, `PlayMusic`, `PlayMusicEx`, `StopMusic`, `ResumeMusic`, `PlayThematicMusic`, `PlayThematicMusicEx`, `EndThematicMusic`, the music/thematic volume setters, and both position setters serialize through `svc_music`; `client/cl_music.c` optionally decodes with `FFMPEG=1` into an independent music PCM stream. Stock `war3skins.txt`, map `war3mapSkin.txt` `[CustomSkin]` overrides, and optional `Music.slk` aliases are resolved in the Warcraft game module, including per-race and RoC/TFT version fallback. Startup map music is retained before `ClientBegin`; mid-track `SetMapMusic`/`ClearMapMusic` changes wait for the current map track to finish. Stable per-client session IDs make EOF acknowledgements independent of playlist delimiter normalization or client-selected random/fallback indexes. OpenRealm's current best-evidence compatibility policy randomizes only the initial map/explicit song, advances sequentially afterward, treats explicit `PlayMusic` as a one-pass override that returns to map music, and restores one-shot thematic music to the interrupted track at the client-observed audible position. Those ordering/restoration rules remain hypotheses pending direct retail instrumentation. `GetSoundFileDuration` now synchronously reads mounted WAV/MP3/Ogg/FLAC metadata in the game module, so it does not depend on client FFmpeg. The glue UI routes `GlueMusic`/`ChatMusic` through the same client music stream, and its Music checkbox/slider persist `s_music`/`s_musicvolume` as a user multiplier over JASS volume. Exact retail `StopMusic(true)` fade duration (OpenRealm currently uses a 2000 ms compatibility estimate), exact ordinary save-time playback position, the still-incomplete in-game F10 Options pages beyond the wired Sound master/music controls, and a non-FFmpeg compressed playback decoder remain gaps. See [music.md](music.md). The ordinary one-shot mixer remains WAV-only, so compressed campaign dialogue is still a separate decoder/transport gap.
+Background music now uses a separate long-form path: `SetMapMusic`, `ClearMapMusic`, `PlayMusic`, `PlayMusicEx`, `StopMusic`, `ResumeMusic`, `PlayThematicMusic`, `PlayThematicMusicEx`, `EndThematicMusic`, the music/thematic volume setters, and both position setters serialize through `svc_music`; `client/cl_music.c` optionally decodes with `FFMPEG=1` into an independent music PCM stream. Stock `war3skins.txt`, map `war3mapSkin.txt` `[CustomSkin]` overrides, and optional `Music.slk` aliases are resolved in the Warcraft game module, including per-race and RoC/TFT version fallback. Startup map music is retained before `ClientBegin`; mid-track `SetMapMusic`/`ClearMapMusic` changes wait for the current map track to finish. Stable per-client session IDs make EOF acknowledgements independent of playlist delimiter normalization or client-selected random/fallback indexes. OpenRealm's current best-evidence compatibility policy randomizes only the initial map/explicit song, advances sequentially afterward, treats explicit `PlayMusic` as a one-pass override that returns to map music, and restores one-shot thematic music to the interrupted track at the client-observed audible position. Those ordering/restoration rules remain hypotheses pending direct retail instrumentation. `GetSoundFileDuration` now synchronously reads mounted WAV/MP3/Ogg/FLAC metadata in the game module, so it does not depend on client FFmpeg. The glue UI routes `GlueMusic`/`ChatMusic` through the same client music stream, and its Music checkbox/slider persist `s_music`/`s_musicvolume` as a user multiplier over JASS volume. Exact retail `StopMusic(true)` fade duration (OpenRealm currently uses a 2000 ms compatibility estimate), exact ordinary save-time playback position, the still-incomplete in-game F10 Options pages beyond the wired Sound master/music controls, and a non-FFmpeg compressed playback decoder remain gaps. See [music.md](../../docs/games/warcraft-3/music.md). The ordinary one-shot mixer remains WAV-only, so compressed campaign dialogue is still a separate decoder/transport gap.
 
 Summon event context uses the summoner as the trigger unit and the created unit as the event source: `GetSummoningUnit()` reads the former and `GetSummonedUnit()` the latter. Mirror Image (`AOmi`) uses the common no-target spell path, creates the data-defined number of timed copies, marks them as illusions for `IsUnitIllusion`, and publishes both player-unit and unit summon events. Damage multipliers, dispel interaction, image shuffle, and full illusion visual semantics remain separate parity work.
 
@@ -472,7 +472,7 @@ Summon event context uses the summoner as the trigger unit and the created unit 
 
 Leaderboards are now fixed-slot, save-stable server-authored UI models with copied labels, integer values, optional player ownership, styles, colors, stable sorting, and per-player assignment. All 27 registered leaderboard natives mutate/query this state. `PlayerSetLeaderboard` selects one board for a player; `LeaderboardDisplay` controls that board's per-client presentation mask.
 
-The HUD loads stock `LeaderBoard.fdf` chrome and emits runtime text rows through dedicated `LAYER_LEADERBOARD`. A value update therefore refreshes only the assigned clients' leaderboard layer. Labels resolve through the existing map-string path. Save format 24 persists board/item state, assignment indexes, and JASS handle identity. See [Leaderboards And Counted Objective HUDs](leaderboards.md).
+The HUD loads stock `LeaderBoard.fdf` chrome and emits runtime text rows through dedicated `LAYER_LEADERBOARD`. A value update therefore refreshes only the assigned clients' leaderboard layer. Labels resolve through the existing map-string path. Save format 24 persists board/item state, assignment indexes, and JASS handle identity. See [Leaderboards And Counted Objective HUDs](../../docs/games/warcraft-3/leaderboards.md).
 
 Current presentation intentionally defers icon rendering and exact retail row/player-color packing; those flags are retained in model state rather than guessed visually.
 
@@ -523,5 +523,5 @@ returns `AI_DIFFICULTY_NORMAL` for valid players rather than deriving AI difficu
 
 The shared VM now also unwinds unknown (undeclared) calls through its protected boundary, validates native scalar/string arguments
 with runtime errors instead of process assertions, and protects global-initializer evaluation. Unique missing function names remain
-queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
+queryable until VM close via `jass_missingcount`/`jass_missingname`. See [Galaxy protected calls and coverage](../../docs/games/starcraft-2/galaxy-scripting.md#protected-calls-and-missing-native-inventory)
 for the SC2 reproduction, inventory workflow, and shared VM regressions. This does not change WC3 quest state ownership or native IDs.

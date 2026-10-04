@@ -62,7 +62,7 @@ described in [Hero Ability Progression](../hero-abilities.md).
 
 Registry entries must not be counted as implemented until their gameplay
 consumer, authored data, and inverse behavior are covered. Use the
-[Ability Implementation Plan](../ability-implementation-plan.md) to start from
+[Ability Implementation Plan](../ability-implementation.md) to start from
 the archive data and observable behavior, then add focused evidence for any
 remaining uncertainty before adding coverage.
 

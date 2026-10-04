@@ -2,7 +2,7 @@
 
 This project implements Warcraft III abilities from the authoritative game data and
 observable gameplay contract. The goal is useful, testable compatibility. TFT's extracted
-class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-inheritance-plan.md)
+class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-system.md)
 uses Quake 2-style flags, enums, shared processors and message procedures without runtime object inheritance.
 
 `AbilityStrings.txt` is the starting point because it states what the player is
@@ -245,7 +245,7 @@ which records the concrete ability alias on every point/ring result; specialized
 point summons use `S_SummonAbilityAt()` instead of open-coding
 `summon_ability`. The owning ability still controls effects, buffs, facing,
 corpse handling, replacement and other summon policy. See
-[Ability Message Procedures](ability-procedure-plan.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so FOW dirtiness, relinking and position-change events stay consistent even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
+[Ability Message Procedures](ability-procedures.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so FOW dirtiness, relinking and position-change events stay consistent even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
 
 ### 6. Verify the focused pattern, then the family
 
@@ -473,8 +473,8 @@ Display text is fetched through authored ability profiles/strings and map overri
 `G_AbilityData` / `G_AbilityLevel` by the actual rawcode.
 
 Register concrete `AbilityData.alias` row IDs and `AbilityData.code` implementation IDs, plus necessary internal
-commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-inheritance-plan.md#rawcode-and-procedure-identity)
-and [data-backed registry](ability-inheritance-plan.md#data-backed-registry) for lookup and verification details.
+commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-system.md#rawcode-and-procedure-identity)
+and [data-backed registry](ability-system.md#data-backed-registry) for lookup and verification details.
 
 
 The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated

@@ -97,7 +97,7 @@ default: return CAbilitySimpleSpell(ent, msg, call);
 ```
 
 For simple execution, command, or item-use bodies, use the one-argument macros documented in
-[Adding a New Ability](ability-implementation-plan.md#adding-a-new-ability). They generate file-local helpers
+[Adding a New Ability](ability-implementation.md#adding-a-new-ability). They generate file-local helpers
 and the public message procedure; no separate callback argument or manual function header is needed.
 
 Delegation is based on the TFT inheritance reference. For example, `AHhb` maps to `CAbilityHolyBolt`, whose
@@ -182,7 +182,7 @@ Holy Bolt validation/execution, command dispatch, item charge consumption, autoc
 and levels, persistent updates, animation ownership and save-safe rawcode identity. Run:
 
 ```sh
-make build/lib/libgame-wc3-test.dylib
+make openwarcraft3-tests
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_spell.*'
 python3 tools/wc3_ability_class_audit.py --format=coverage
 python3 -m unittest tests/test_check_wc3_ability_registry.py
