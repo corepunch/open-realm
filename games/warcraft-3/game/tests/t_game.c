@@ -391,6 +391,71 @@ TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, unit_health_and_mana_cheats_apply_to_selected_controllable_group) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    edict_t *first, *no_mana, *third;
+    cstring_t fill_health[] = { "unit", "health" };
+    cstring_t set_health[] = { "unit", "health", "275" };
+    cstring_t clamp_health[] = { "unit", "health", "9999" };
+    cstring_t fill_mana[] = { "unit", "mana" };
+    cstring_t set_mana[] = { "unit", "mana", "125" };
+    cstring_t clamp_mana[] = { "unit", "mana", "9999" };
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    first = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    no_mana = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    third = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
+    first->svflags |= SVF_MONSTER;
+    no_mana->svflags |= SVF_MONSTER;
+    third->svflags |= SVF_MONSTER;
+    first->s.player = no_mana->s.player = third->s.player = 0;
+    first->health.max_value = 600.0f;
+    no_mana->health.max_value = 200.0f;
+    third->health.max_value = 900.0f;
+    first->health.value = no_mana->health.value = third->health.value = 50.0f;
+    first->mana.max_value = 250.0f;
+    no_mana->mana.max_value = 0.0f;
+    third->mana.max_value = 100.0f;
+    first->mana.value = 50.0f;
+    no_mana->mana.value = 7.0f; /* Detect accidental writes to a unit with no mana pool. */
+    third->mana.value = 25.0f;
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, no_mana);
+    G_SelectEntity(client, third);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_health);
+    T_EQ((int)first->health.value, 600);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 900);
+    G_ClientCommand(&g_edicts[0], 3, set_health);
+    T_EQ((int)first->health.value, 275);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 275);
+    G_ClientCommand(&g_edicts[0], 3, clamp_health);
+    T_EQ((int)first->health.value, 600);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 900);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_mana);
+    T_EQ((int)first->mana.value, 250);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+    G_ClientCommand(&g_edicts[0], 3, set_mana);
+    T_EQ((int)first->mana.value, 125);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+    G_ClientCommand(&g_edicts[0], 3, clamp_mana);
+    T_EQ((int)first->mana.value, 250);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t toggle[] = { "instant", "build" };
@@ -608,28 +673,41 @@ TEST(wc3_game, starting_resource_cheat_requires_permission_at_arm_and_apply) {
 TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t god[] = { "god" }, kill[] = { "kill" };
+    cstring_t health[] = { "unit", "health" }, mana[] = { "unit", "mana" };
     edict_t *unit, *clent;
     setup_test_world();
     clent = &g_edicts[0];
     gi.CvarString = give_resources_cheat_cvar;
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!clent->invulnerable);
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
     unit->s.player = 1;
     unit->svflags |= SVF_MONSTER;
     unit->die = unit_die;
+    unit->health.value = 75.0f;
+    unit->health.max_value = 100.0f;
+    unit->mana.value = 20.0f;
+    unit->mana.max_value = 50.0f;
     G_SelectEntity(clent->client, unit);
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!unit->invulnerable);
-    T_EQ(unit->health.value, unit->health.max_value);
+    T_EQ((int)unit->health.value, 75);
+    T_EQ((int)unit->mana.value, 20);
     unit->s.player = 0;
     gi.CvarString = starting_resources_cheat_cvar;
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!unit->invulnerable);
-    T_EQ(unit->health.value, unit->health.max_value);
+    T_EQ((int)unit->health.value, 75);
+    T_EQ((int)unit->mana.value, 20);
     gi.CvarString = old_cvar;
 }
 

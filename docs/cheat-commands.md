@@ -98,6 +98,17 @@ hero mana <amount>
 
 Without an amount, `hero health` fills current health to the Hero's current maximum and `hero mana` fills current mana to its current maximum. With an amount, the command sets the current value to that non-negative integer, clamped to the current maximum; it never changes maximum health or maximum mana. Health uses the ordinary runtime health setter, while mana updates the current mana pool directly. These commands require `sv_cheats 1` and a selected controllable Hero.
 
+The equivalent selected-unit family applies the same current-stat behavior across the full selected controllable group, including ordinary units, structures, Heroes, and shared-control units:
+
+```
+unit health
+unit health <amount>
+unit mana
+unit mana <amount>
+```
+
+With no amount, the requested current pool is filled independently to each selected unit's current maximum. With an amount, each selected unit is set to that non-negative integer clamped independently to its own current maximum. The commands do not change maximum health/mana. `unit health` affects every selected controllable unit. `unit mana` affects only selected controllable units whose maximum mana is greater than zero; units with no mana pool are skipped without changing their current mana value. Missing or enemy-only selections are rejected.
+
 For map-start resource testing, `wc3_cheat_starting_resources` is a session-only CVar. Set it before loading the map:
 
 ```
@@ -223,20 +234,25 @@ The commands use the active map's authored `Dawn`, `Dusk`, and `DayHours` values
 The obsolete `wc3_cheat_timeofday_scale` registration was removed: current `G_UpdateTimeOfDay` never read it.
 Use `day`/`night` for phase testing; there is no independent clock-speed cheat.
 
-Unit-oriented commands target the first selected unit:
+Most unit-oriented commands target the first selected unit; the health/mana cheats below apply to the full selected controllable group:
 
 ```
 give item <rawcode>
 give ability <rawcode>
 give xp <amount>       # hero only
+unit health [amount]
+unit mana [amount]
 god                    # toggle selected player unit invulnerability
 kill                   # kill the selected controllable unit
 ```
 
-`god` and `kill` resolve the primary controllable selection (including shared-control units). Missing/enemy-only
-selections are rejected. `god` changes that actor's invulnerability; `kill` clears it and invokes the actor's normal
-`die` callback, preserving death events, food cleanup, corpse/revival state, and deselection. The invisible controller
-is never the target. Previously both commands mutated the controller, and `kill` only changed its health.
+`unit health` and `unit mana` operate on the full selected controllable group (including shared-control units), while
+`god` and `kill` continue to resolve the primary controllable selection. Missing/enemy-only selections are rejected.
+The stat commands fill or set only the current pool, clamped independently to each unit's current maximum; `unit mana`
+skips units whose maximum mana is zero. `god` changes that actor's invulnerability; `kill` clears it and invokes the
+actor's normal `die` callback, preserving death events, food cleanup, corpse/revival state, and deselection. The
+invisible controller is never the target. Previously both commands mutated the controller, and `kill` only changed its
+health.
 
 `give item` uses the normal item spawn and pickup path, so inventory capacity and passive item effects remain authoritative. `research <rawcode>` remains available for the existing non-cheat research/debug path.
 
