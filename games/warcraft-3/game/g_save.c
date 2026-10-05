@@ -2089,7 +2089,7 @@ static bool ValidMoveFineRequests(void) {
             if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts)) return false;
             if (++count>budget->count || !unit->inuse || G_IsDeferredFree(unit) ||
                 *(uint8_t const *)&unit->movement.fine_queued!=1 || unit->movement.fine_prev!=prev ||
-                unit->movement.fine_class!=i || unit->s.player!=i) return false;
+                unit->movement.fine_class!=i || S_MoveSchedulingClass(unit)!=i) return false;
             prev=unit; unit=unit->movement.fine_next;
         }
         if (count!=budget->count || prev!=budget->tail) return false;

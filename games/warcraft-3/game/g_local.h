@@ -3134,6 +3134,8 @@ bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy)
 void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
 void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);
 void S_SetMoveCoarseTarget(moveCoarseRequest_t *, bool target);
+unsigned S_MoveSchedulingClass(edict_t const *);
+void S_InitMoveProjectile(edict_t *);
 void S_ClearMoveCoarseRequests(void);
 bool S_RestoreMoveCoarseRequests(void);
 bool S_ValidateMoveCoarseRequests(void);

@@ -267,7 +267,7 @@ static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     missile->owner = caster;
     missile->velocity = death_coil_missile_speed(spell->code) / 1000.0f;
     missile->damage = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
-    missile->movetype = MOVETYPE_FLYMISSILE;
+    S_InitMoveProjectile(missile);
     M_SetMove(missile,&death_coil_projectile_move);
 }
 

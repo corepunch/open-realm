@@ -224,14 +224,29 @@ void S_InitMoveFineScheduler(void) {
     level.move_fine_responsive=!strcmp(policy,"responsive");
 }
 
+unsigned S_MoveSchedulingClass(edict_t const *mover) {
+    /* Native missile path/line producers publish class15 independently of
+     * the launching player. Rendering and damage still retain that owner. */
+    return mover->movetype==MOVETYPE_FLYMISSILE ? 15u : mover->s.player;
+}
+
+void S_InitMoveProjectile(edict_t *mover) {
+    mover->movetype=MOVETYPE_FLYMISSILE;
+    mover->movement.adaptive_disabled=true;
+    mover->movement.fine_class=15;
+    mover->collision=0;
+    mover->no_pathing=true;
+}
+
 bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
-    if (unit->s.player>=MAX_PLAYERS) {
-        fprintf(stderr,"Move: invalid fine-search player %u for unit %u\n",unit->s.player,unit->s.number);
+    unsigned player=S_MoveSchedulingClass(unit);
+    if (player>=MAX_PLAYERS) {
+        fprintf(stderr,"Move: invalid fine-search class %u for unit %u\n",player,unit->s.number);
         return false;
     }
-    if (unit->movement.fine_class!=unit->s.player) {
+    if (unit->movement.fine_class!=player) {
         move_unlink_fine_request(unit);
-        unit->movement.fine_class=unit->s.player;
+        unit->movement.fine_class=player;
     }
     moveFineBudget_t *budget=level.move_fine_budgets+unit->movement.fine_class;
     uint32_t now=level.pathing_counter;
@@ -290,11 +305,12 @@ void S_SetMoveCoarseTarget(moveCoarseRequest_t *request,bool target) {
 }
 
 bool S_AdmitMoveCoarseRequest(edict_t *unit,moveCoarseRequest_t *request,unsigned policy) {
-    if(!unit || !unit->inuse || unit->s.player>=MAX_PLAYERS || policy>=3)
+    if(!unit || !unit->inuse || S_MoveSchedulingClass(unit)>=MAX_PLAYERS || policy>=3)
         gi.error("Move: invalid coarse admission owner/policy");
-    if(request->queued && (request->player!=unit->s.player || request->policy!=policy))
+    unsigned player=S_MoveSchedulingClass(unit);
+    if(request->queued && (request->player!=player || request->policy!=policy))
         S_CancelMoveCoarseRequest(request);
-    request->player=unit->s.player;request->policy=policy;
+    request->player=player;request->policy=policy;
     uint32_t now=level.pathing_counter;
     if(!now)now=level.pathing_counter=BZ_WC3_PATH_OWNER_START;
     if(now<request->time)request->time=now-BZ_WC3_FINE_REQUEST_INTERVAL;

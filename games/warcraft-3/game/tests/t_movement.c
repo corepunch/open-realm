@@ -10957,6 +10957,64 @@ TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaini
  * Suite runner
  * --------------------------------------------------------------------- */
 
+TEST(wc3_movement, projectile_fine_search_uses_shared_class15_and_preserves_owner) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,896);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,896);
+    caster->s.player=3;target->s.player=1;target->collision=31;
+    target->s.model=1;
+    G_PublishMoveSpatialObject(target);
+    fire_rocket(caster,&(rocketDesc_t){.start={228,896,0},.target=target,.speed=1000,.damage=1});
+    edict_t *missile=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->owner==caster && ent->movetype==MOVETYPE_FLYMISSILE)missile=ent;
+    T_NOT_NULL(missile);
+    if(missile) {
+        T_EQ(missile->s.player,3);T_ASSERT(missile->movement.adaptive_disabled);
+        level.move_fine_budgets[3].work=1101;
+        vec2_t source={7.1171875f,28},goal={12,28},point;
+        movePathQuery_t query={.geometry={&missile->s.origin2,&target->s.origin2,0,0},
+            .mover=missile,.target=target,.units=true,.fine=&source,.fine_target=&goal};
+        moveFineRoute_t *route=&missile->movement.fine_route;
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&point));
+        T_EQ(level.move_fine_budgets[3].work,1101);T_EQ(level.move_fine_budgets[3].count,0);
+        T_EQ(missile->movement.fine_class,15);T_EQ(level.move_fine_budgets[15].work,4);
+        T_EQ(route->count,4);T_EQ(missile->s.player,3);
+        if(route->count!=4) {
+            fprintf(stderr,"Class15 fine route work=%u count=%u target data=%p disabled=%u structure=%u\n",
+                level.move_fine_budgets[15].work,route->count,(void *)target->data.UnitData,M_UnitMoveDisabled(target),G_UnitIsStructure(target));
+            FOR_LOOP(i,route->count)fprintf(stderr,"  point%u=%08x/%08x\n",i,wc3_float_bits(route->points[i].x),wc3_float_bits(route->points[i].y));
+        }
+        /* Original CMissileSpiderAttack repeats this same zero-radius route. */
+        uint32_t const expected[][2]={{0x41280000u,0x41e40000u},{0x41180000u,0x41e40000u},
+            {0x41080000u,0x41e40000u},{0x40e3c000u,0x41e00000u}};
+        if(route->count==4)FOR_LOOP(i,4){T_EQ(wc3_float_bits(route->points[i].x),expected[i][0]);T_EQ(wc3_float_bits(route->points[i].y),expected[i][1]);}
+        /* The non-unit class shares the native player15 row, including saves. */
+        level.move_fine_budgets[15].work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(missile));
+        edict_t *unit15=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+        unit15->s.player=15;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(unit15));
+        T_EQ(level.move_fine_budgets[15].count,2);
+        unsigned number=missile->s.number;
+        cstring_t save="/tmp/wc3-missile-class15-queue.bin";
+        T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        missile=g_edicts+number;
+        T_EQ(missile->s.player,3);T_EQ(missile->movement.fine_class,15);
+        T_ASSERT(missile->movement.adaptive_disabled);
+        T_EQ(level.move_fine_budgets[15].head,missile);
+        T_EQ(level.move_fine_budgets[15].tail,unit15);
+        G_FreeEdict(missile);
+        T_EQ(level.move_fine_budgets[15].count,1);T_EQ(level.move_fine_budgets[15].head,unit15);
+        level.move_fine_budgets[15].work=0;
+        T_ASSERT(S_AdmitUnitMoveFineRequest(unit15));
+        T_EQ(level.move_fine_budgets[15].count,0);
+        remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif /* BZ_TESTS */
 
 #ifdef BZ_TESTS

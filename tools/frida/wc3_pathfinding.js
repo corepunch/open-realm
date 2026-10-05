@@ -1790,6 +1790,22 @@ function install(module) {
                     ...(config.schedulerEvents ? {stateBefore:this.schedulerBefore,stateAfter:schedulerSnapshot(this.bucket,this.path)} : {})});
         }
     });
+    if (config.schedulerEvents) {
+        for (const [entry, offset] of [[0x6cf5e0,0xf0],[0x6cfe00,0xd8],[0x6d30c0,0x78],[0x6d3190,0x78]]) {
+            hook(entry, {onEnter() {
+                bump('scheduler-nonunit-producer');
+                emit('scheduler-nonunit-producer', {entry, object:this.context.ecx.toString(),
+                    vtable:this.context.ecx.readPointer().sub(base).toUInt32(),
+                    bridge:this.context.ecx.add(offset).toString(),caller:this.returnAddress.sub(base).toUInt32()});
+            }});
+        }
+        hook(0x05c800, {onEnter(args) {
+            if (args[0].toUInt32()!==15)return;
+            bump('scheduler-class15-producer');
+            emit('scheduler-class15-producer', {bridge:this.context.ecx.toString(),
+                caller:this.returnAddress.sub(base).toUInt32(),value:15});
+        }});
+    }
     hook(0x168a80, {
         onEnter(args) {
             bump('scheduler-class');

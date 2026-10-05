@@ -52,7 +52,7 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     missile->velocity = speed / 1000.0f;
     missile->damage = (uint32_t)S_SpellData(code, level, 1);
     missile->wait = duration;
-    missile->movetype = MOVETYPE_FLYMISSILE;
+    S_InitMoveProjectile(missile);
     G_StartProjectilePresentation(missile);
     M_SetMove(missile,code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move);
 }

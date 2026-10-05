@@ -8681,3 +8681,74 @@ does not claim another full validation or the unfinished performance target.
 
 Final `make test` passes Classic and TFT, each with2664 tests/7,227,304
 assertions, and612 pathfinding-tool checks. Production and test builds pass.
+
+## Non-unit path producers share scheduler class15
+
+Payoff104 closes the producer inventory in SCHED-03.1. Ordinary units publish
+player ownership at activation and owner transfer; captain virtual actors publish
+the captain's player. Group paths copy the class of their first individual
+member, even when another member supplies the representative pose. Resolved
+unit targets select priority coarse policy; point-order waypoints do not.
+Individual/member adaptive requests and fine requests retain their separate
+policy buckets. The four explicit non-unit producer sites are now identified
+from original MSVC RTTI, constructors and complete function bodies:
+
+| Producer | Owning runtime classes | Mover bridge |
+|---|---|---:|
+| `6f6cf5e0` | `CArtilleryLine` | `+f0` |
+| `6f6cfe00` | `CMissileLine` | `+d8` |
+| `6f6d30c0` | Shared `CBulletPath`, `CMissilePath`, `CMissileSpiderAttack` point initialization | `+78` |
+| `6f6d3190` | Shared target initialization of those classes | `+78` |
+
+These initializers disable adaptive routing and publish class15 before starting
+their request. The line producers explicitly publish profile0/0. The shared
+initializers take profile parameters from their caller; those values must not
+be assumed zero for every caller. A failed artillery target/speed guard returns
+before class publication. The resulting path uses the same scheduler row as
+player15, independently of its launching player's presentation/damage ownership.
+
+Two complete, read-only `scheduler-nonunit-104-b/c.jsonl` captures use actual
+public attacks and agree on550 ordered scheduler/search/marker observations.
+Five Crypt Fiend `Aspa` attacks create `CMissileSpiderAttack`, identified at runtime
+by vtableRVA `b0fc4c`. Each calls the shared target initializer through `6d3b77`,
+then publishes class15 through `6d3224`. Each physical group copies class15 from
+its individual member. All five fine requests use row15/policy3, quota700,
+radius0, four popped nodes and19 constructed nodes; there are no coarse searches.
+The exact query starts at raw `40e3c000/41e00000` (7.1171875,28), targets (12,28),
+and terminates at the target's occupied region with destination-first points
+(10.5,28.5), (9.5,28.5), (8.5,28.5), then the unchanged source. Three artillery
+entries fail their pre-publication guard; they are not counted as class15 paths.
+
+The [frozen stream](../../../tools/ghidra/fixtures/retail-scheduler-nonunit-1.27.jsonl.gz)
+and [certificate](../../../tools/ghidra/fixtures/retail-scheduler-nonunit-1.27.json)
+pin both completed capture hashes, map, generated JASS and observer sources.
+`verify_wc3_scheduler_nonunit_trace.py` rejects incomplete timelines, altered
+producer identities, classes, quotas, radius, routes, work, timestamps, FIFO
+state and reset cadence before comparing the complete ordered repeats.
+
+Move now owns projectile initialization and resolves the fine scheduler class
+independently of the network player. Attack, Death Coil and bolt producers use
+that initialization. Fine admission, coarse admission and saved fine queue
+validation use the same class resolver. Adaptive-disabled, zero-radius projectile
+queries reach the existing fine algorithm without unsupported adaptive-lane
+conversion. No extra pool or rawcode exception is introduced; save109's layout
+is unchanged. This establishes scheduling ownership and route construction;
+it does not claim a complete reimplementation of Aspa's secondary projectile
+motion, timers, attack effects or every missile subclass's public trajectory.
+
+The regression originally failed owner-budget admission and adaptive setup.
+It now drives a real `fire_rocket` projectile through the production fine route,
+compares every captured route word/work charge, exhausts the shared class15 row,
+saves/restores its FIFO alongside a real player15 unit, removes the projectile,
+and admits the surviving request. It passes32 assertions in both Classic and
+TFT. Each schema also passes the ownership/fine queue checks,188 combat tests,
+Death Coil, Defend and in-flight artillery save coverage. Ten focused scheduler
+Python tests pass. Production/test binaries build; this is the second implementation
+commit after the last full checkpoint, under the authorized twelve-chunk cadence.
+
+`MapPathfinding.java` replays698 mappings, including the four new producer names
+and class-copy evidence. `VerifyPathfindingMissileClasses.java` follows all five
+vtable locator/type-descriptor chains and checks the persisted producer mappings
+without mutation. Both scripts run successfully against the pinned Ghidra
+program, which is saved. Static producer mappings and observed runtime searches
+are labeled separately so these facts remain reusable without overstating parity.

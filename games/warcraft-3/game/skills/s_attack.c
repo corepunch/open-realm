@@ -117,7 +117,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
     }
     rocket->owner = ent;
-    rocket->movetype = MOVETYPE_FLYMISSILE;
+    S_InitMoveProjectile(rocket);
     G_StartProjectilePresentation(rocket);
 //    rocket->clipmask = MASK_SHOT;
 //    rocket->solid = SOLID_BBOX;
