@@ -8,6 +8,13 @@ Hotkey=U
 [phea]
 Art=TestUI\Textures\solid_white.blp
 Hotkey=H
+Requires=TWN2
+[moon]
+Art=TestUI\Textures\solid_white.blp
+[plcl]
+Art=TestUI\Textures\solid_white.blp
 [oven]
 Art=TestUI\Textures\solid_white.blp
 Hotkey=V
+[TWN2]
+DependencyOr=etoa

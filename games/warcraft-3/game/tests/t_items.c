@@ -922,31 +922,35 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
 }
 
 TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_purchase) {
-    static UnitProfile_t shop_profile = { .sellItems = "phea,oven" };
-    static UnitProfile_t custom_profile = { .sellItems = "phea" };
+    static UnitProfile_t custom_profile = { .sellItems = "spro" };
     static UnitAbilities_t shop_abilities = { .abilList = "Apit", .heroAbilList = "" };
     edict_t *player;
     gameClient_t *client;
     edict_t *hero;
     edict_t *shop;
+    edict_t *gate_shop;
     edict_t *custom_shop;
     edict_t *ages;
-    edict_t *eternity;
     gameCommandButton_t buttons[4];
+    gameCommandButton_t gate_buttons[4];
     gameCommandButton_t custom_buttons[2];
     shopItemButtonsParams_t params;
+    shopItemButtonsParams_t gate_params;
     shopItemButtonsParams_t custom_params;
 
     setup_test_world();
     player = &g_edicts[0];
     client = player->client;
     client->ps.number = 0;
+    client->ps.race = kPlayerRaceNightElf;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
     hero = make_item_test_inventory_unit(100, 0);
     hero->s.player = 0;
     shop = alloc_test_unit(MAKEFOURCC('e','d','e','n'), 0, 0);
-    shop->data.UnitProfile = &shop_profile;
+    T_NOT_NULL(shop->data.UnitProfile);
+    T_NULL(shop->data.UnitProfile->sellItems);
+    T_STREQ(shop->data.UnitProfile->makeItems, "moon,plcl,phea");
     shop->data.UnitAbilities = &shop_abilities;
     shop->s.player = 0;
     shop->collision = 32.0f;
@@ -957,17 +961,36 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     gi.LinkEntity(shop);
     params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 4 };
 
-    T_EQ(G_GetShopItemButtons(&params), 2);
-    T_STREQ(buttons[0].command, "phea");
-    T_STREQ(buttons[1].command, "oven");
-    T_ASSERT(buttons[0].disabled);
-    T_ASSERT(buttons[1].disabled);
-    T_EQ(shop->stock->items[0].current, 1);
+    T_EQ(G_GetShopItemButtons(&params), 3);
+    T_STREQ(buttons[0].command, "moon");
+    T_STREQ(buttons[1].command, "plcl");
+    T_STREQ(buttons[2].command, "phea");
+    T_ASSERT(!buttons[0].disabled);
+    T_ASSERT(!buttons[1].disabled);
+    T_ASSERT(buttons[2].disabled);
+    T_ASSERT(strstr(buttons[2].ubertip, "Requires Tree of Ages") != NULL);
     T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('p','h','e','a')));
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1000);
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1000);
-    T_EQ(shop->stock->items[0].current, 1);
-    T_NULL(hero->inventory[0]);
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('m','o','o','n')));
+    T_ASSERT(G_ShopPurchaseItem(player, shop, MAKEFOURCC('p','l','c','l')));
+    T_EQ(hero->inventory[0]->class_id, MAKEFOURCC('m','o','o','n'));
+    T_EQ(hero->inventory[1]->class_id, MAKEFOURCC('p','l','c','l'));
+
+    gate_shop = alloc_test_unit(MAKEFOURCC('e','d','e','n'), 250, 0);
+    gate_shop->data.UnitAbilities = &shop_abilities;
+    gate_shop->s.player = 0;
+    gate_shop->collision = 32.0f;
+    gate_shop->spawn_time = G_Time();
+    if (!gate_shop->stock) gate_shop->stock = G_AllocStock();
+    T_NOT_NULL(gate_shop->stock);
+    gate_shop->stock->item_slots = 11;
+    gi.LinkEntity(gate_shop);
+    gate_params = (shopItemButtonsParams_t){
+        .client = client, .shop = gate_shop, .buttons = gate_buttons, .max_buttons = 4
+    };
+    T_EQ(G_GetShopItemButtons(&gate_params), 3);
+    T_ASSERT(!gate_buttons[0].disabled);
+    T_ASSERT(!gate_buttons[1].disabled);
+    T_ASSERT(gate_buttons[2].disabled);
 
     custom_shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
     custom_shop->data.UnitProfile = &custom_profile;
@@ -983,20 +1006,17 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
         .client = client, .shop = custom_shop, .buttons = custom_buttons, .max_buttons = 2
     };
     T_EQ(G_GetShopItemButtons(&custom_params), 1);
+    T_STREQ(custom_buttons[0].command, "spro");
     T_ASSERT(!custom_buttons[0].disabled);
 
     ages = alloc_test_unit(MAKEFOURCC('e','t','o','a'), 64, 0);
     ages->s.player = 0;
-    T_EQ(G_GetShopItemButtons(&params), 2);
-    T_ASSERT(!buttons[0].disabled);
-    T_ASSERT(buttons[1].disabled);
-
-    G_FreeEdict(ages);
-    eternity = alloc_test_unit(MAKEFOURCC('e','t','o','e'), 96, 0);
-    eternity->s.player = 0;
-    T_EQ(G_GetShopItemButtons(&params), 2);
-    T_ASSERT(!buttons[0].disabled);
-    T_ASSERT(!buttons[1].disabled);
+    T_EQ(G_GetShopItemButtons(&gate_params), 3);
+    T_ASSERT(!gate_buttons[0].disabled);
+    T_ASSERT(!gate_buttons[1].disabled);
+    T_ASSERT(!gate_buttons[2].disabled);
+    T_ASSERT(G_ShopPurchaseItem(player, gate_shop, MAKEFOURCC('p','h','e','a')));
+    T_EQ(hero->inventory[2]->class_id, MAKEFOURCC('p','h','e','a'));
 }
 
 TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
