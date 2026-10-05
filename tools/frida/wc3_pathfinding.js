@@ -9,7 +9,8 @@ let pairScenario = false;
 let resizeScenario = false;
 const resizeTargets = new Map();
 let clockScenario = false, clockSerial = 0;
-let schedulerMutationScenario = false;
+let schedulerMutationScenario = false, moverRetirementScenario = false;
+const retirementActors = [], retirementUnits = new Set();
 const counts = {}, active = new Map();
 const headingActive = new Map();
 const emit = (event, data = {}) => {if (recording) send({event, ms: Date.now(), ...data});};
@@ -1728,7 +1729,7 @@ function install(module) {
     };
     if(config.schedulerEvents) {
         hook(0x680320,{onEnter(args){
-            if(!schedulerMutationScenario)return;
+            if(!schedulerMutationScenario && !moverRetirementScenario)return;
             const unit=this.context.ecx,bridge=unit.add(0x164);
             const id=bridge.add(8).readU32(),epoch=bridge.add(12).readU32();
             const registry=base.add(0xd68610).readPointer(),alternate=(id&0x80000000)!==0;
@@ -1737,6 +1738,12 @@ function install(module) {
             const mover=registry.add(alternate?0x2c:0xc).readPointer().add(index*8+4).readPointer();
             if(mover.isNull() || mover.add(0x14).readU32()!==id || mover.add(0x18).readU32()!==epoch)
                 throw new Error('Mutation unit mover identity stale');
+            if(moverRetirementScenario && retirementActors.length<96 && !retirementUnits.has(unit.toString())) {
+                const path=mover.add(0xa8).readPointer();
+                retirementActors.push({unit:unit.toString(),unitIdentity:ints(unit.add(0xc),2),
+                    moverIdentity:[id,epoch],path:path.toString(),pathIdentity:ints(path.add(0x14),2)});
+                retirementUnits.add(unit.toString());
+            }
             bump('scheduler-mutation-actor');emit('scheduler-mutation-actor',{
                 unit:unit.toString(),mover:mover.toString(),path:mover.add(0xa8).readPointer().toString(),
                 position:ints(mover.add(0x78),2),mode:args[1].toUInt32()});
@@ -1984,6 +1991,49 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if(config.schedulerEvents && value.startsWith('PATHRETIRE ')) {
+            const match=/^PATHRETIRE label=([a-z_]+) actor=([0-9]+)$/.exec(value);
+            if(!match)throw new Error('Malformed retirement marker');
+            const actor=Number(match[2]),saved=retirementActors[actor];
+            if(!saved)throw new Error('Retirement actor was not bound by public admission');
+            const registry=base.add(0xd68610).readPointer();
+            const resolve=(identity,offset)=>{
+                const id=identity[0]>>>0,epoch=identity[1]>>>0,alternate=(id&0x80000000)!==0,index=id&0x7fffffff;
+                if(index>=registry.add(alternate?0x3c:0x1c).readU32())return ptr(0);
+                const slot=registry.add(alternate?0x2c:0xc).readPointer().add(index*8);
+                if(slot.readS32()!==-2)return ptr(0);
+                const object=slot.add(4).readPointer();
+                if(object.isNull() || object.add(offset).readU32()!==id || object.add(offset+4).readU32()!==epoch)return ptr(0);
+                return object;
+            };
+            const wrapper=resolve(saved.unitIdentity,0x14);
+            const unit=wrapper.isNull() || wrapper.add(0xc).readU32()!==0x2b61676c || wrapper.add(0x20).readU32()!==0 ? ptr(0) : wrapper.add(0x54).readPointer();
+            if(!unit.isNull() && unit.toString()!==saved.unit)throw new Error('Retirement agent wrapper resolved another payload');
+            const mover=resolve(saved.moverIdentity,0x14),path=resolve(saved.pathIdentity,0x14);
+            const row={value,actor,unitLive:!unit.isNull(),moverLive:!mover.isNull(),pathLive:!path.isNull()};
+            if(!unit.isNull())Object.assign(row,{unitFlags:unit.add(0x5c).readU32(),
+                orderHead:ints(unit.add(0x19c),2),orderCount:unit.add(0x1b4).readU32(),taskHead:ints(unit.add(0x174),2)});
+            if(!mover.isNull()) {
+                const identity=ints(mover.add(0x9c),2),group=resolve(identity,0x14);
+                if(!group.isNull() && !saved.groupIdentity) {
+                    saved.groupIdentity=identity;
+                    const groupPath=group.add(0x3c).readPointer();
+                    saved.groupPathIdentity=groupPath.isNull()?null:ints(groupPath.add(0x14),2);
+                }
+                Object.assign(row,{groupIdentity:identity,pose:ints(mover.add(0x78),2),velocity:ints(mover.add(0x80),2),
+                    group:group.toString(),groupMembers:group.isNull()?0:group.add(0x38).readU32()});
+            }
+            if(saved.groupIdentity) {
+                const retained=resolve(saved.groupIdentity,0x14);
+                row.originalGroupLive=!retained.isNull();
+                row.originalGroupMembers=retained.isNull()?0:retained.add(0x38).readU32();
+                row.originalGroupPathLive=saved.groupPathIdentity!==null && !resolve(saved.groupPathIdentity,0x14).isNull();
+            }
+            if(!path.isNull())Object.assign(row,{pathFlags:path.add(0x88).readU32(),links:ints(path.add(0x8c),2),
+                routeCounts:[path.add(0x50).readU32(),path.add(0x70).readU32()],
+                routeIndices:ints(path.add(0x74),2),destination:ints(path.add(0x1c),2)});
+            bump('mover-retirement-marker');emit('mover-retirement-marker',row);
+        }
         if (config.schedulerEvents && value.startsWith('PATHQUEUE ')) {
             const buckets=[];
             for(let player=0;player<2;player++)for(let kind=0;kind<4;kind++) {
@@ -2029,6 +2079,7 @@ function install(module) {
         if (/^PATH(BUFF|CAST) /.test(value)) emit('modifier-marker',{value});
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
+            if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

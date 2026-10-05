@@ -2109,11 +2109,12 @@ static bool ValidMoveFineRequests(void) {
     return queued==total;
 }
 
-/* A saved group must own live, generation-matched members exactly once. The
- * JASS collection is independent: destroying it does not cancel this Move. */
+/* Members must be live and generation-matched exactly once. An empty ordinary
+ * owner remains valid until its next Move visit, including across save/load.
+ * The JASS collection is independent: destroying it does not cancel this Move. */
 static bool ValidMoveGroup(moveGroup_t const *group) {
     if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
-        (!group->count && !group->shared_id) || group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
+        group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
         *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)

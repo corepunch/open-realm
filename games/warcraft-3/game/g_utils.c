@@ -123,7 +123,7 @@ void G_FreeEdict(edict_t *ent) {
     if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
-/* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
+/* Retail RemoveUnit retires commands now, then releases storage after this tick. */
 void G_DeferFreeEdict(edict_t *ent) {
     if (!ent || !ent->inuse) return;
     FOR_LOOP(i, deferred_free_count)
@@ -142,8 +142,15 @@ void G_DeferFreeEdict(edict_t *ent) {
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
     deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
+    /* Native694690 retires the order chain before returning from RemoveUnit;
+     * deferred storage release must not keep its commands or physical task. */
+    G_ClearUnitOrderQueue(ent);
+    ent->current_order_id = 0;
     S_UnitAbilityEvent(ent, A_UNIT_REMOVING);
     S_UnitTargetRemoved(ent);
+    /* Removal replaces the old task. Keeping its callback in the scheduled
+     * owner set would execute canceled movement before deferred storage free. */
+    M_SetMove(ent, NULL);
 }
 
 /* Complete queued JASS removals after entity iteration and before the next snapshot. */

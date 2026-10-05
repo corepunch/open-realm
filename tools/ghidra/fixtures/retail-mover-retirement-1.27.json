@@ -1,0 +1,39 @@
+{
+  "events": 22137,
+  "digest": "9d1568afd2b3917f8c165f0e4e44d627b77de4fcf35c7708af3b82e4f307ad0e",
+  "boundaries": 14,
+  "counts": {
+    "scheduler-class": 192,
+    "scheduler-target": 10804,
+    "scheduler-admission": 1006,
+    "scheduler-unlink": 1668,
+    "scheduler-update": 240,
+    "scheduler-acc-request": 228,
+    "scheduler-fine-request": 2174,
+    "search": 786,
+    "fine-result": 594,
+    "marker": 49,
+    "scheduler-mutation-actor": 280,
+    "scheduler-mutation-marker": 4,
+    "mover-retirement-marker": 14,
+    "point-task": 96,
+    "task-prepend": 2674,
+    "task-cleanup": 568,
+    "task-recovery": 0,
+    "task-arrival": 0,
+    "task-cant-path": 0,
+    "mover-stop": 760
+  },
+  "repeat_verified": true,
+  "capture_sha256": "81e33e73356fb7ab279f116d97b6b9f6af2fe28d788cd95120ce157c024d7e8e",
+  "repeat_sha256": "fa210036323126b13da7c5710d03fcdc2c57ecd6553283b47b580bf1532137f8",
+  "source_sha256": {
+    "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+    "trace_wc3_pathfinding.py": "400e5189980c6a5d5589797f112eb9441bb149219ba478a78a2c4014252a84b9",
+    "wc3_pathfinding.js": "1e0fed527c071a0ba28d749986ca96f1947294bbfbdb6a5d4ea793601872decd",
+    "make_wc3_pathfinding_map.py": "6c5e5999f043cc843603fa090163ab4f49903c6a774293285a895eca71534fda",
+    "map": "efdc5c1cecd09ee22c982ae21928e17ad033e894c4570e37f40c42c619a4443d"
+  },
+  "filtered_sha256": "ffa50d045683b299c4b1d66e3ee996d0430c5c92a704c497b00f3aefc3c3d83a",
+  "repeat_filtered_sha256": "1426aaf5f962eba7b8c55534eb56c73ce7588728de189d20689b19b7f4bceff9"
+}

@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**199 done / 336 tasks; 137 remaining.**
+**200 done / 336 tasks; 136 remaining.**
+
+Payoff107 closes ORDER-06.5: complete repeated public death/removal evidence
+fixes synchronous movement retirement, stale routes and ordinary empty-group
+lifetime/save handling. Ghidra and its replayable mappings are saved. See
+[mover retirement](retail-pathfinding-engine.md#mover-retirement-cancels-tasks-before-releasing-storage).
 
 Payoff106 closes SCHED-03.2: queued public Stop/owner/removal repeats expose and
 fix missing coarse-request cancellation at engine task transitions. Saved FIFO
@@ -790,7 +795,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-06.2** Three mode-0 interrupts reach the temporary destination, resume the original and run its successor. Evidence: [interrupt/resume][interrupt], O `prepend_complete_cases=3`; explicit group scheduling.
 - [ ] **ORDER-06.3** Run Stop/replacement while waiting, searching and turning; assert surviving queue, active flags and reclaimed allocations at each phase.
 - [ ] **ORDER-06.4** Run interruption during group completion and deferred release; assert no duplicate arrival/release and correct resumed order.
-- [ ] **ORDER-06.5** Kill/remove the mover during travel and one pending phase; assert scheduler unlink and all order/group/path lifetimes.
+- [x] **ORDER-06.5** [Payoff107](retail-pathfinding-engine.md#mover-retirement-cancels-tasks-before-releasing-storage): two complete45-sample public pending/traveling KillUnit/RemoveUnit producers repeat22,137 ordered scheduler/search/task/lifetime observations. Orders, velocity, group identity, route state and local FIFO retire at public return; canonical corpse path storage survives until removal, while detached ordinary group/path storage retires at the next owner visit. Engine removal now cancels commands, physical movement and the old scheduled callback synchronously; routes invalidate without freeing local storage, empty ordinary groups retain the owner boundary and save/load. Public independent/cohort orders cover fine/member-coarse pending and active movement, queued successors, survivor queues, deferred/corpse storage and saved retirement (530 assertions per schema). Frozen repeat/source and negative evidence checks, regression-first failures, updated mapping/readback and saved Ghidra accompany the change. Full private member-layout replacement and callback traversal remain GROUP-04.6/SCHED-02.4.
 - [x] **ORDER-06.6** Exercise one relevant ability transition during movement; assert command preservation/cancellation and routing inverse. Payoff87: actual Chaos retains public Move through deferred type commit and ten-ms physical-task reissue, switches ground/flight routing and returns through the inverse; separate teleports cancel the head before placement. Saved pending transitions reproduce every subsequent native commit. Additional engine producer inventory is documented beside the witness; broader morph/cast lifetimes remain existing ORDER-01.13/E2E tasks without new IDs. [Evidence](retail-pathfinding-engine.md#movement-modes-select-routing-policy-independently-of-spatial-membership).
 
 ## GROUP — Shared movement groups

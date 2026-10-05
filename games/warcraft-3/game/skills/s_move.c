@@ -599,9 +599,9 @@ static void move_detach_group(edict_t *unit) {
     if (!group) return;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
         group->members[i]=group->members[--group->count];
-        /* Public Stop clears physical members now, but native16c150 retires
-         * the empty shared group after the next16c220 shared prepass. */
-        if (!group->count && !group->ticking && !group->shared_id) move_release_group(group);
+        /* Native171340 detaches now, but16c150 retires the empty owner at its
+         * next visit. Its coarse FIFO entry and allocations remain until then,
+         * for ordinary groups as well as groups with shared parameters. */
         return;
     }
 }
@@ -1516,6 +1516,13 @@ static void move_leave(edict_t *self) {
     self->movement.group_id=0;
     move_release_captain_reference(self);
     self->movement.point_forced_arrival=false;
+    /* Native171340 sets the sentinel destination through168b80: counts and
+     * indices are invalidated without releasing the path's owned storage. */
+    moveFineRoute_t *route=&self->movement.fine_route;
+    route->count=route->adaptive_count=route->group_count=0;
+    route->index=route->adaptive_index=route->group_index=UINT32_MAX;
+    route->partial=false;
+    self->movement.path.valid=false;
     if (!self->movement.clock_valid) return;
     unit_commit_current_pose(self);
     self->movement.velocity = (vec2_t){0};
@@ -4473,7 +4480,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
             A_PRIMARY_TIMER, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
-            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_COMMAND, A_TARGET_REMOVED);
+            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };
@@ -4538,6 +4545,14 @@ BZ_ABILITY_PROC(CAbilityMove) {
         /* Original05c800/168a80 publishes the new player class after cancellation. */
         ent->movement.fine_class=ent->s.player;
         move_repulse_init(ent); return true;
+    case A_UNIT_REMOVING:
+        /* RemoveUnit cancels its task now; the mover and its route storage
+         * remain owned until deferred removal, as in native694690/171340. */
+        move_leave(ent);
+        move_cancel_displacement(ent);
+        S_SetMoveGoal(ent, &ent->goalentity, NULL);
+        ent->movement.follow_target=NULL;
+        return true;
     case A_UNIT_REMOVE:
         ent->movement.captain_home.roster_actor=NULL;
         S_TrackMoveTimers(ent);

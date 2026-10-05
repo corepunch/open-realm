@@ -9331,6 +9331,7 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
      * partial endpoint own the stopping distance; a circle-only step budget
      * is not an upper bound on the retail grid's failure endpoint. */
     float min_goal_dist = M_DistanceToGoal(unit);
+    bool saw_partial=false;
     for (int i = 0; i < 120; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
@@ -9339,18 +9340,26 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
         globals.RunFrame();
         float d = M_DistanceToGoal(unit);
         if (d < min_goal_dist) min_goal_dist = d;
+        if (unit->movement.fine_route.partial && unit->movement.fine_route.count) {
+            saw_partial=true;
+        }
     }
 
     float combined = unit->collision + blocker->collision;
     T_STREQ(unit->currentmove->animation, "stand");/* settled, didn't walk forever */
     T_ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
     T_ASSERT(min_goal_dist < Vector2_distance(&(vec2_t){0,0}, &dest));
-    T_ASSERT(unit->movement.fine_route.partial);
-    T_EQ(unit->movement.fine_route.count, 1);
-    if (unit->movement.fine_route.count) {
+    T_ASSERT(saw_partial);
+    /* Reset retires the logical route while retaining its endpoint allocation. */
+    T_NOT_NULL(unit->movement.fine_route.points);
+    if (unit->movement.fine_route.points) {
         T_FEQ(unit->movement.fine_pose.x, unit->movement.fine_route.points[0].x, 0.00001f);
         T_FEQ(unit->movement.fine_pose.y, unit->movement.fine_route.points[0].y, 0.00001f);
     }
+    /* The partial endpoint survives as the final pose, not an active route. */
+    T_EQ(unit->movement.fine_route.count,0);
+    T_EQ(unit->movement.fine_route.index,UINT32_MAX);
+    T_ASSERT(!unit->movement.path.valid);
     T_EQ(unit->current_order_id, 0);
 }
 
@@ -11159,6 +11168,110 @@ TEST(wc3_movement, public_stop_retires_pending_member_coarse_head_before_next_ad
     }
     remove("/tmp/wc3-stop-coarse-queue.bin");
     level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+/* Removal retires the physical task synchronously; its storage dies later. */
+TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
+    bool saved_policy=level.move_fine_responsive;
+    FOR_LOOP(cohort,2) FOR_LOOP(phase,3) FOR_LOOP(remove_unit,2) {
+        reset_entities();setup_test_world();level.move_fine_responsive=false;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        level.pathing_clock=(wc3Clock_t){.span=300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+        char script[1600];
+        snprintf(script,sizeof(script),"globals\nunit array army\ngroup squad=CreateGroup()\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\n"
+            "loop\nexitwhen i==3\n"
+            "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+            "call SetUnitAcquireRange(army[i],0)\ncall GroupAddUnit(squad,army[i])\n"
+            "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+            "set i=i+1\nendloop\nendfunction\n"
+            "function groupmove takes nothing returns nothing\ncall GroupPointOrder(squad,\"move\",1024,128)\nendfunction\n"
+            "function retire takes nothing returns nothing\ncall %s(army[0])\nendfunction\n",
+            remove_unit ? "RemoveUnit" : "KillUnit");
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[3]={0};unsigned count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(count<3)units[count]=unit;
+            count++;
+        }
+        T_EQ(count,3);if(count!=3)continue;
+        edict_t *victim=units[0];
+        if(cohort){jass_callbyname(level.vm,"groupmove",false);T_ASSERT(!jass_rterror_pending(level.vm));}
+        if(phase==0){level.move_fine_budgets[0].work=1101;level.move_fine_budgets[0].countdown=1;}
+        if(phase==1){level.move_coarse_budgets[0][2].work=901;level.move_coarse_budgets[0][2].countdown=2;}
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        while(level.time<(phase==2 ? 350 : 35)){level.time+=5;globals.RunFrame();}
+        uint32_t group=victim->movement.group_id;moveGroup_t *owner=NULL;
+        if(cohort) {
+            T_ASSERT(group!=0);
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)owner=level.move_groups[i];
+            T_NOT_NULL(owner);if(owner)T_EQ(owner->count,3);
+        }
+        edict_t *fine_head=level.move_fine_budgets[0].head;
+        edict_t *fine_next=fine_head ? fine_head->movement.fine_next : NULL;
+        moveCoarseRequest_t *coarse_head=level.move_coarse_budgets[0][2].head;
+        moveCoarseRequest_t *coarse_next=coarse_head ? coarse_head->next : NULL;
+        if(phase==0){T_EQ(level.move_fine_budgets[0].count,3);T_ASSERT(victim->movement.fine_queued);}
+        if(phase==1){T_EQ(level.move_coarse_budgets[0][2].count,3);T_ASSERT(victim->movement.fine_route.adaptive_admission.queued);}
+        if(phase==2){T_ASSERT(victim->s.origin2.x>128);T_ASSERT(victim->movement.velocity.x!=0);T_ASSERT(victim->movement.fine_route.points);}
+        T_ASSERT(G_IssueUnitPointOrder(victim,"move",&(vec2_t){1024,1024},true,0,0));
+        T_EQ(victim->order_queue.count,1);
+        vec2_t *storage=victim->movement.fine_route.points;
+        jass_callbyname(level.vm,"retire",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(victim->current_order_id,0);T_EQ(victim->order_queue.count,0);
+        T_EQ(victim->movement.group_id,0);T_ASSERT(!victim->movement.clock_valid);
+        T_FEQ(victim->movement.velocity.x,0,0);T_FEQ(victim->movement.velocity.y,0,0);
+        T_ASSERT(!victim->movement.fine_queued);T_ASSERT(!victim->movement.fine_route.adaptive_admission.queued);
+        T_ASSERT(!victim->movement.fine_route.group_admission.queued);
+        T_EQ(victim->movement.fine_route.points,storage);
+        T_EQ(victim->movement.fine_route.count,0);T_EQ(victim->movement.fine_route.index,UINT32_MAX);
+        T_EQ(victim->movement.fine_route.adaptive_count,0);T_EQ(victim->movement.fine_route.adaptive_index,UINT32_MAX);
+        T_EQ(victim->movement.fine_route.group_count,0);T_EQ(victim->movement.fine_route.group_index,UINT32_MAX);
+        T_ASSERT(!victim->movement.path.valid);
+
+        if(phase==0){T_EQ(level.move_fine_budgets[0].count,2);T_EQ(level.move_fine_budgets[0].head,fine_head==victim ? fine_next : fine_head);}
+        if(phase==1){T_EQ(level.move_coarse_budgets[0][2].count,2);T_EQ(level.move_coarse_budgets[0][2].head,coarse_head==&victim->movement.fine_route.adaptive_admission ? coarse_next : coarse_head);}
+        if(owner) {
+            T_ASSERT(owner->inuse);T_EQ(owner->count,2);
+            FOR_LOOP(i,owner->count)T_ASSERT(owner->members[i].unit!=victim);
+        }
+        T_ASSERT(S_ValidateMoveCoarseRequests());
+        if(remove_unit) {
+            T_ASSERT(victim->inuse);T_ASSERT(victim->s.renderfx&RF_HIDDEN);
+            T_NULL(victim->currentmove);
+            G_RunDeferredFrees();T_ASSERT(!victim->inuse);T_NULL(victim->movement.fine_route.points);
+        } else {
+            T_ASSERT(victim->inuse);T_ASSERT(victim->svflags&SVF_DEADMONSTER);
+            T_ASSERT(WriteGame("/tmp/wc3-retired-mover.bin"));T_ASSERT(ReadGame("/tmp/wc3-retired-mover.bin"));
+            T_EQ(victim->movement.group_id,0);T_ASSERT(!victim->movement.fine_queued);
+            G_FreeEdict(victim);T_NULL(victim->movement.fine_route.points);
+        }
+        if(cohort) {
+            T_ASSERT(unit_issueimmediateorder(units[1],"stop"));
+            T_ASSERT(unit_issueimmediateorder(units[2],"stop"));
+            moveGroup_t *empty=NULL;
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
+            T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
+            T_ASSERT(WriteGame("/tmp/wc3-retired-mover.bin"));
+            T_ASSERT(ReadGame("/tmp/wc3-retired-mover.bin"));
+            empty=NULL;
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
+            T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
+            T_ASSERT(S_ValidateMoveCoarseRequests());
+            while(level.time<(phase==2 ? 385 : 70)){level.time+=5;globals.RunFrame();}
+            if(empty) {
+                T_ASSERT(!empty->inuse);
+                T_NULL(empty->route.points);T_NULL(empty->route.adaptive_points);T_NULL(empty->route.group_points);
+                T_ASSERT(!empty->route.adaptive_admission.queued);
+                T_ASSERT(!empty->route.group_admission.queued);
+            }
+        }
+        remove("/tmp/wc3-retired-mover.bin");
+        level.started=false;
+    }
+    reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
 }
 
 TEST(wc3_movement, fine_search_budget_isolated_by_player) {

@@ -8901,3 +8901,103 @@ Stop cancellation. The script is replayed, all six comments are read back and
 the pinned Ghidra program is saved. This is the fourth implementation chunk
 after the last full validation checkpoint; full validation remains on the
 owner-authorized twelve-chunk cadence.
+
+## Mover retirement cancels tasks before releasing storage
+
+Payoff107 closes ORDER-06.5. Two complete public JASS producers create96 allied
+Footmen, submit independent point Moves, then kill and remove actual queued
+heads and traveling movers. The read-only observer binds public order indexes
+to canonical mover/path identities before selecting pending actors52/50 and
+moving actors94/95. Both45-sample captures agree on22,137 ordered scheduler,
+search, task, Stop and lifecycle records, including14 retirement boundaries.
+The [frozen certificate](../../../tools/ghidra/fixtures/retail-mover-retirement-1.27.json)
+pins the binary, both complete streams and archived producer/observer sources.
+
+`Unit_BeginDeathTasks` (`679bb0`) and `Unit_QueueRemovalTasks` (`694690`)
+call `Unit_CancelAllOrders` (`673610`) before constructing the death/removal
+tasks. The cancellation walks the user chain with balanced releases, clears
+head/tail and zeroes its count; internal replacement tasks remain live. Native
+`Mover_StopAndInvalidatePath` (`171340`) clears displacement, detaches the group,
+sets destination `c7fa0040,c7fa0040` (-128000.5 fine), clears both route counts,
+invalidates both indices and unlinks the local scheduler request. The sampled
+pose remains unchanged at these public boundaries. Pending head retirement
+preserves every survivor, work total, countdown and owner clock.
+
+These are separate lifetimes:
+
+| Boundary | Orders / displacement / member binding | Unit / mover / local path storage | Detached group / group path |
+|---|---|---|---|
+| KillUnit return | Retired | Live | Live until next owner visit |
+| RemoveUnit return | Retired | Live until deferred removal | Live until next owner visit |
+| Next removal sample | Retired | Released | Released |
+| Corpse retained at tick40 | Retired | Live | Released |
+| Corpse removed, sampled at tick41 | Retired | Released | Released |
+
+Canonical lifetime queries must use the right identity. `Unit+c/10` identifies
+an agent wrapper: `061320` resolves it, rejects a retired wrapper at `+20`, then
+reads its payload at `+54`. Treating the wrapper as a Unit falsely reported
+immediate unit destruction in an exploratory observer. Mover group `+9c/a0`
+is also a slot/generation pair, not a raw pointer. Accepted captures resolve
+these through `054530` with domain bounds, active slot marker and generation
+checks. Failed exploratory generations are not frozen evidence.
+
+The engine regression exposed immediate-removal omissions: deferred hiding
+left commands, member bindings, velocity and pending work alive. General
+removal now clears the order queue/head and retires the old behavior callback;
+Move handles `A_UNIT_REMOVING` and
+retires its physical task synchronously. Leaving Move invalidates route counts,
+indices and cached validity while retaining allocated route storage. Death
+already uses the same lifecycle transition; the new checks catch its stale
+route state. Deferred free still owns actual storage release.
+
+The existing retained-route lifecycle regression caught a scheduled walking
+callback executing between semantic removal and deferred free with its cleared
+goal. Removal now unregisters that callback through the ordinary behavior
+membership writer. Existing occupied-goal and group-ownership tests also now
+assert the corrected boundaries: final pose retains the partial endpoint while
+active routes are invalid, and replacement leaves an empty group until its
+owner visit rather than freeing it immediately.
+
+Ordinary empty physical groups previously freed immediately, whereas native
+`16c150` prunes and releases them at the next owner visit. They now retain
+their allocation and any group-owned coarse request until that boundary, just
+as shared groups already did. Save validation accepts this valid empty owner;
+no representation or save-version change is needed. The added round trip
+reproduced12 validator failures before the fix. The earlier immediate-removal
+and route-state regressions also failed before their owning corrections.
+
+Native group storage still contains its one stale member row at public return,
+even though the mover's group identity is invalid. The engine's live-binding
+array compacts immediately, but must retain the physical owner's lifetime.
+This leaf verifies that lifetime, not an identical private array layout; the
+broader member-storage replacement remains GROUP-04.6.
+
+The production-path matrix covers KillUnit/RemoveUnit, independent/group orders,
+fine-pending/member-coarse-pending/traveling states, queued successor cleanup,
+FIFO survivors, corpse storage, deferred release and saves before empty-owner
+retirement. It runs in Classic and TFT. Replay evidence checks with:
+
+```sh
+python3 tools/frida/verify_wc3_mover_retirement_trace.py \
+  /tmp/mover-retirement-c.jsonl --repeat /tmp/mover-retirement-d.jsonl \
+  --output /tmp/mover-retirement.json
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_mover_retirement.py'
+```
+
+The shared scheduler-operation verifier retains the earlier mutation oracle's
+exact digest and independently checks searches, charging, raw queue counts,
+timestamps and reset cadence in both scenes. Negative retirement tests reject
+missing completion, source mismatch, changed orders/velocity/routes/pose,
+premature storage release, leaked owners, corpse/group conflation and changed
+survivor lists. `MapPathfinding.java` adds673610 and updates eight existing
+mappings; all nine comments are replayed, read back and saved in Ghidra.
+Callback-driven traversal mutation, interruption during completion and the
+broader persistent retail group replacement remain their existing open leaves.
+Final focused validation passes89535 assertions in25 tests per Classic/TFT
+schema, including the530-assertion retirement matrix. Broader Classic movement
+and API runs cover325 and348 cases respectively; their only failures were the
+three former cleanup-state assertions corrected and rechecked above. The four
+retirement and16 scheduler Python checks pass. Production/test targets build
+and `git diff --check` passes. This is the fifth implementation chunk since
+full checkpoint102; full validation remains on the authorized twelve-chunk
+cadence.
