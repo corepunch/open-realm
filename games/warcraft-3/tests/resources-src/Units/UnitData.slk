@@ -1,10 +1,11 @@
 ID;PWXL;N;E
-B;X30;Y8;D0
+B;X31;Y8;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
 C;X29;K"canBuildOn"
 C;X30;K"propWin"
+C;X31;K"race"
 C;X1;Y2;K"ugol"
 C;X28;KTRUE
 C;X1;Y3;K"ngol"
@@ -19,4 +20,6 @@ C;X21;Y6;K"fly"
 C;X30;K"60"
 C;X1;Y7;K"Hpal"
 C;X30;K"60"
+C;X1;Y8;K"etoa"
+C;X31;K"nightelf"
 E
