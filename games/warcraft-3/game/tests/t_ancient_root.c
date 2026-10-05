@@ -14,6 +14,19 @@ void free_slk_rows(slkTestData_t *rows);
 #define TEST_HBAR MAKEFOURCC('h', 'b', 'a', 'r')
 
 static UnitAbilities_t ancient_abilities = { .abilList = "Aroo" };
+static bool ancient_root_button_seen;
+static int16_t ancient_root_button_x, ancient_root_button_y;
+
+static void ancient_capture_command_button(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type != FT_COMMANDBUTTON || !frame->onclick ||
+        strcmp(frame->onclick, "button Aroo")) return;
+    ancient_root_button_seen = true;
+    ancient_root_button_x = frame->points.x[FPP_MIN].offset;
+    ancient_root_button_y = frame->points.y[FPP_MIN].offset;
+}
 
 /* Distinct authored values prove the morph directions do not share a timer. */
 static char const ancient_root_tft[] =
@@ -145,6 +158,75 @@ TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
     T_STREQ(button.tooltip, "Uproot");
     T_EQ(button.alternate_active, 0);
     T_EQ(button.engaged, 1);
+}
+
+TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatches) {
+    static UnitProfile_t shop_profile = { .makeItems = "spro" };
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 } };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *clent, *unit, *target;
+    gameCommandButton_t expected, buttons[12];
+    uint8_t count;
+    bool attack_button;
+    cstring_t click[] = { "button", "Aroo" };
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client = game.clients;
+    clent->client->connected = true;
+    clent->client->ps.number = 0;
+    unit = ancient_test_unit(true);
+    unit->s.player = 0;
+    unit->data.UnitProfile = &shop_profile;
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    T_ASSERT(G_CanUseItemShop(clent->client, unit));
+    G_SetStockSlots(unit, true, 1);
+    G_SelectEntity(clent->client, unit);
+
+    T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &expected));
+    T_EQ(expected.x, 1);
+    T_EQ(expected.y, 1);
+    count = G_GetCommandButtons(unit, buttons, 12);
+    FOR_LOOP(i, count) T_ASSERT(strcmp(buttons[i].command, STR_CmdAttack));
+    T_ASSERT(!S_AttackCanTarget(unit, target));
+    T_ASSERT(!S_OrderAttack(unit, target));
+
+    ancient_root_button_seen = false;
+    gi.Write = ancient_capture_command_button;
+    Get_Commands_f(clent);
+    gi.Write = old_write;
+    T_ASSERT(ancient_root_button_seen);
+    T_EQ(ancient_root_button_x, (int16_t)((0.6175f + expected.x * 0.0434f) * UI_FRAMEPOINT_SCALE));
+    T_EQ(ancient_root_button_y, (int16_t)(-(0.4660f + expected.y * 0.0440f) * UI_FRAMEPOINT_SCALE));
+
+    G_ClientCommand(clent, 2, click);
+    T_EQ(unit->ancient_root->mode, ANCIENT_UPROOTING);
+
+    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    unit->s.flags &= ~EF_BUILDING;
+    unit->aiflags &= ~AI_IMMOBILE;
+    unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    unit->movetype = MOVETYPE_STEP;
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration) {
