@@ -9,6 +9,7 @@ let pairScenario = false;
 let resizeScenario = false;
 const resizeTargets = new Map();
 let clockScenario = false, clockSerial = 0;
+let schedulerMutationScenario = false;
 const counts = {}, active = new Map();
 const headingActive = new Map();
 const emit = (event, data = {}) => {if (recording) send({event, ms: Date.now(), ...data});};
@@ -1726,6 +1727,20 @@ function install(module) {
             flags:path ? path.add(0x88).readU32() : null};
     };
     if(config.schedulerEvents) {
+        hook(0x680320,{onEnter(args){
+            if(!schedulerMutationScenario)return;
+            const unit=this.context.ecx,bridge=unit.add(0x164);
+            const id=bridge.add(8).readU32(),epoch=bridge.add(12).readU32();
+            const registry=base.add(0xd68610).readPointer(),alternate=(id&0x80000000)!==0;
+            const index=id&0x7fffffff,limit=registry.add(alternate?0x3c:0x1c).readU32();
+            if(index>=limit)throw new Error('Mutation unit mover outside registry');
+            const mover=registry.add(alternate?0x2c:0xc).readPointer().add(index*8+4).readPointer();
+            if(mover.isNull() || mover.add(0x14).readU32()!==id || mover.add(0x18).readU32()!==epoch)
+                throw new Error('Mutation unit mover identity stale');
+            bump('scheduler-mutation-actor');emit('scheduler-mutation-actor',{
+                unit:unit.toString(),mover:mover.toString(),path:mover.add(0xa8).readPointer().toString(),
+                position:ints(mover.add(0x78),2),mode:args[1].toUInt32()});
+        }});
         hook(0x167fa0,{onEnter(){
             this.bucket=this.context.ecx;
             this.offset=this.bucket.sub(base.add(0xd53a90)).toUInt32();
@@ -1969,6 +1984,14 @@ function install(module) {
             else throw new Error('Malformed numeric marker: ' + value);
             emit('numeric-marker', {value});
         }
+        if (config.schedulerEvents && value.startsWith('PATHQUEUE ')) {
+            const buckets=[];
+            for(let player=0;player<2;player++)for(let kind=0;kind<4;kind++) {
+                const offset=player*0x70+kind*0x1c;
+                buckets.push({offset,...schedulerSnapshot(base.add(0xd53a90+offset),null)});
+            }
+            bump('scheduler-mutation-marker');emit('scheduler-mutation-marker',{value,buckets});
+        }
         if (value.startsWith('PATHLIFE ')) {
             emit('blocker-lifecycle-marker',{value});
             if (config.watchCell) snapshotBlockerGeometry(value);
@@ -2005,6 +2028,7 @@ function install(module) {
         if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
         if (/^PATH(BUFF|CAST) /.test(value)) emit('modifier-marker',{value});
         if (value.startsWith('PATHTRACE ')) {
+            if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

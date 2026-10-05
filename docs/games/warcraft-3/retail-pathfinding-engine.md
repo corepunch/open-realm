@@ -8812,3 +8812,83 @@ Production/test binaries build. `MapPathfinding.java` includes the exact
 instruction boundaries, cumulative versus local threshold and synthetic scope;
 the replayed Ghidra program is saved. Full validation remains on the authorized
 batch cadence; no performance-target completion is claimed.
+
+## Task transitions retire every local scheduler request
+
+Payoff106 closes SCHED-03.2 with public queued-head mutations, original scheduler
+operations and production Move/save regressions. Admission `168310` does not
+traverse a queue or invoke gameplay callbacks: it checks unsigned work and the
+current FIFO head. Queue mutations occur between admissions/owner passes.
+Mutation from a callback during the separate group/member iteration remains
+SCHED-02.4; this leaf does not certify that different operation.
+
+The read-only observer now resolves `Unit_AdmitOrder`'s `+164` bridge identity
+through registry `d68610`, checks the resolved mover's `+14/+18` identity and
+records its `+a8` path. Initial public order submissions bind all96 actors to
+actual requests. This matters: stopping an arbitrary unit can leave every queue
+unchanged because that unit was never waiting. The first exploratory producer
+selected such units and was not accepted as evidence; the completed producer
+mutates the actual first three queued fine paths.
+
+Two complete40-sample public producers start96 allied Footmen behind the same
+reduced-map wall and submit independent point Moves. At tick11 player0's fine
+FIFO begins with actors52,50,48,46 and has21 entries. Public Stop of52 removes
+only52; reissuing its Move leaves existing survivors unchanged. `SetUnitOwner`
+of50 removes the next old-row head before publishing class1; its replacement
+admissions use player1. `RemoveUnit` of48 removes the next head, which is never
+admitted again. The remaining18 requests retain their order; actor46 receives
+the next player0 fine admission. Snapshots cover both players and all four
+policies. The next tick's snapshot has no pending requests, and the final
+producer synchronously stops/pauses every survivor before marking completion.
+
+The [frozen certificate](../../../tools/ghidra/fixtures/retail-scheduler-mutation-1.27.json)
+and both compressed streams retain16,748 exactly repeated ordered actor,
+mutation-boundary, class, target, admission, unlink, reset, request, search and
+full fine-result observations. The verifier checks every raw admission count,
+head/tail/survivor list, cleared unlink links, actual popped-node charge,
+request timestamp, search quota and fine result association. Source hashes pin
+the public JASS producer, controller, map maker and read-only observer; their
+original bytes are archived. Repeat comparison normalizes process addresses
+and wall-clock timestamps while retaining simulation clocks and route words.
+Replay fresh captures with:
+
+```sh
+python3 tools/frida/verify_wc3_scheduler_mutation_trace.py \
+  /tmp/scheduler-mutation-c.jsonl --repeat /tmp/scheduler-mutation-d.jsonl \
+  --output /tmp/scheduler-mutation.json
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_scheduler*.py'
+```
+
+The engine regression exposed a real lifecycle gap. Generic behavior
+transitions call `move_cancel_displacement`, which previously unlinked only a
+fine request. A mover waiting on a member coarse search could stop while its
+request remained the queue head, denying subsequent movers. Changing reset
+alone did not fix Stop because the Stop transition does not require a new
+route activation. Retail `PathGroup_StopMembers` (`16c5d0`) commits zero member
+velocity/current facing and calls policy-independent `168800`; the existing
+original-code480-case oracle already covers this cancellation in all four
+policies. The new public capture supplies the actual queued lifecycle witness.
+
+Move now owns one O(1) local cancellation operation for fine and both coarse
+request records, used at behavior transitions, progress reset and old-owner
+cancellation. It retains independent budget work and survivor order. Removal
+continues through the existing route-owned coarse cleanup. No queue scan,
+additional saved state or save-layout change is introduced.
+
+The public member-coarse regression failed11 assertions before the correction;
+its fine counterpart already passed and was retained as coverage. Both now
+create actual units and point orders, stop a pending head, save/load its two
+survivors, deny out-of-order admission, admit the next head, reissue/requeue,
+change owner and remove the request. They pass66 assertions per Classic/TFT
+schema. Focused validation also covers real96-unit contention/save continuation,
+responsive queues, ownership/removal, corrupted coarse saves, non-unit class15,
+the captured owner window and public Stop/restart numerical continuation.
+The scheduler Python checks pass16 tests, including complete frozen repeats and
+rejection of missing or altered evidence.
+
+`MapPathfinding.java` updates six existing function mappings, including the
+actual public actor binding, callback-free head admission and policy-independent
+Stop cancellation. The script is replayed, all six comments are read back and
+the pinned Ghidra program is saved. This is the fourth implementation chunk
+after the last full validation checkpoint; full validation remains on the
+owner-authorized twelve-chunk cadence.

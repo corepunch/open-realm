@@ -296,6 +296,14 @@ void S_CancelMoveCoarseRequest(moveCoarseRequest_t *request) {
     request->queued=request->waiting=false;
 }
 
+/* Native168800 selects the individual's current pool; all engine-side local
+ * request records must be retired before changing that individual's task. */
+static void move_unlink_requests(edict_t *self) {
+    move_unlink_fine_request(self);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.adaptive_admission);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.group_admission);
+}
+
 void S_SetMoveCoarseTarget(moveCoarseRequest_t *request,bool target) {
     unsigned policy=target ? 1 : 0;
     if(request->policy==policy)return;
@@ -2888,7 +2896,7 @@ void move_reset_progress(edict_t *self) {
     move_release_captain_reference(self);
     self->movement.type_rebind_pending=false;
     S_TrackMoveTimers(self);
-    move_unlink_fine_request(self);
+    move_unlink_requests(self);
     /* Original166060 activates a replacement path with fresh7c/80 admission
      * timestamps. A previous follower's throttle must not delay its group leg. */
     self->movement.fine_request_time=0;
@@ -2928,7 +2936,7 @@ void move_reset_progress(edict_t *self) {
 void move_cancel_displacement(edict_t *self) {
     if (!self) return;
     /* A behavior transition cancels its pending local-route request as well as displacement. */
-    move_unlink_fine_request(self);
+    move_unlink_requests(self);
     self->movement.displacement_active = false;
 }
 
@@ -4525,7 +4533,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_UNIT_OWNER_CHANGING:
         /* Original698d92 cancels ordinary Move while callbacks still see the old player. */
         if (unit_is_walking(ent)) order_stop(ent);
-        move_unlink_fine_request(ent); return true;
+        move_unlink_requests(ent); return true;
     case A_UNIT_OWNER_CHANGED:
         /* Original05c800/168a80 publishes the new player class after cancellation. */
         ent->movement.fine_class=ent->s.player;

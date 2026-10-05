@@ -11061,6 +11061,106 @@ TEST(wc3_movement, projectile_fine_search_uses_shared_class15_and_preserves_owne
 
 #ifdef BZ_TESTS
 /* Exhausting player0 must not block an ordinary fine request owned by player1. */
+/* Native16c5d0 stops members and unlinks their pending individual path. */
+TEST(wc3_movement, public_stop_retires_pending_fine_head_before_next_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==3\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+        "call SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.move_fine_budgets[0].work=1101;level.move_fine_budgets[0].countdown=1;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35){level.time+=5;globals.RunFrame();}
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    T_EQ(budget->count,3);
+    edict_t *head=budget->head,*next=head?head->movement.fine_next:NULL,*tail=budget->tail;
+    T_NOT_NULL(head);T_NOT_NULL(next);T_NOT_NULL(tail);
+    if(head && next && tail) {
+        T_ASSERT(unit_issueimmediateorder(head,"stop"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!head->movement.fine_queued);T_NULL(head->movement.fine_prev);T_NULL(head->movement.fine_next);
+        T_ASSERT(WriteGame("/tmp/wc3-stop-fine-queue.bin"));
+        T_ASSERT(ReadGame("/tmp/wc3-stop-fine-queue.bin"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!head->movement.fine_queued);
+        budget->work=0;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(tail));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(next));T_EQ(budget->head,tail);
+        T_ASSERT(S_AdmitUnitMoveFineRequest(tail));T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        budget->work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(head));T_EQ(budget->head,head);T_EQ(budget->count,1);
+        G_SetUnitPlayer(head,1);
+        T_EQ(head->movement.fine_class,1);T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        level.move_fine_budgets[1].work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(head));
+        G_FreeEdict(head);T_EQ(level.move_fine_budgets[1].count,0);
+    }
+    remove("/tmp/wc3-stop-fine-queue.bin");
+    level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+/* Native16c5d0 stops members and unlinks their pending individual path. */
+TEST(wc3_movement, public_stop_retires_pending_member_coarse_head_before_next_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==3\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+        "call SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.move_coarse_budgets[0][2].work=901;level.move_coarse_budgets[0][2].countdown=2;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35){level.time+=5;globals.RunFrame();}
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[0][2];
+    T_EQ(budget->count,3);
+    moveCoarseRequest_t *request=budget->head,*next=request?request->next:NULL,*tail=budget->tail;
+    T_NOT_NULL(request);T_NOT_NULL(next);T_NOT_NULL(tail);
+    if(request && next && tail) {
+        edict_t *head=(edict_t *)((char *)request-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        edict_t *next_unit=(edict_t *)((char *)next-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        edict_t *tail_unit=(edict_t *)((char *)tail-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        T_ASSERT(unit_issueimmediateorder(head,"stop"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!request->queued);T_NULL(request->prev);T_NULL(request->next);
+        T_ASSERT(S_ValidateMoveCoarseRequests());
+        T_ASSERT(WriteGame("/tmp/wc3-stop-coarse-queue.bin"));
+        T_ASSERT(ReadGame("/tmp/wc3-stop-coarse-queue.bin"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!request->queued);T_ASSERT(S_ValidateMoveCoarseRequests());
+        budget->work=0;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(tail_unit,tail,2));
+        T_ASSERT(S_AdmitMoveCoarseRequest(next_unit,next,2));T_EQ(budget->head,tail);
+        T_ASSERT(S_AdmitMoveCoarseRequest(tail_unit,tail,2));T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        budget->work=901;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(head,request,2));T_EQ(budget->head,request);T_EQ(budget->count,1);
+        G_SetUnitPlayer(head,1);
+        T_EQ(budget->count,0);T_ASSERT(!request->queued);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        level.move_coarse_budgets[1][2].work=901;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(head,request,2));
+        G_FreeEdict(head);T_EQ(level.move_coarse_budgets[1][2].count,0);
+    }
+    remove("/tmp/wc3-stop-coarse-queue.bin");
+    level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
 TEST(wc3_movement, fine_search_budget_isolated_by_player) {
     reset_entities(); setup_test_world();
     edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
