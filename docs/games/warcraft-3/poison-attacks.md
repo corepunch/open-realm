@@ -23,12 +23,27 @@ with authored durations from `S_ResolveAttackHit`, checking native
 ownership and held poison-orb items (the same poison from both applies
 once).
 
-`TODO(1:1)`: `DataA` poison DPS needs the status-system
-periodic-damage tick first — the same gap Shadow Strike documents for
-`BEsh` and Slow Poison notes for its `DataA`. Buffs are state-only: no
-consumer reads `Bpoi`/`Bpsd`/`BIpb`/`BIpd` yet.
+The first authored poison buff token owns a deterministic one-second status
+pulse. The pulse reads `DataA` from the applying `Aven`/`Apoi`/`Apo2` row and
+retains the applying source for damage attribution. Reapplication by that same
+source preserves the existing pulse deadline while refreshing the authored
+status lifetime; replacement by another source starts a fresh pulse phase. The
+second token remains presentation/status state so a `Bpoi,Bpsd` or
+`BIpb,BIpd` pair does not double the authored DPS. If the stored source entity
+is no longer valid, the status keeps its authored lifetime but deals no further
+damage rather than guessing a different damage owner.
+
+Current status storage still has one slot per buff rawcode, so exact retail
+stacking between different attackers that apply the same poison buff remains a
+follow-up rather than being guessed here.
 
 ## Verification
+
+`wc3_spell.poison_dataa_ticks_through_entity_scheduler_and_preserves_same_source_phase`
+uses a deliberately non-stock `DataA=7`, applies poison through
+`S_ResolveAttackHit()`, drives `G_RunEntity()` rather than the status drain
+directly, proves no early pulse, proves the one-second pulse, refreshes from the
+same source between pulses, and verifies expiry stops later damage.
 
 ```sh
 build/bin/ability_audit -data 'data/Warcraft III' -raw Aven

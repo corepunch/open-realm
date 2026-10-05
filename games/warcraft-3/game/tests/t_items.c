@@ -921,6 +921,84 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     T_EQ(items[0].charges, 0);
 }
 
+TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_purchase) {
+    static UnitProfile_t shop_profile = { .sellItems = "phea,oven" };
+    static UnitProfile_t custom_profile = { .sellItems = "phea" };
+    static UnitAbilities_t shop_abilities = { .abilList = "Apit", .heroAbilList = "" };
+    edict_t *player;
+    gameClient_t *client;
+    edict_t *hero;
+    edict_t *shop;
+    edict_t *custom_shop;
+    edict_t *ages;
+    edict_t *eternity;
+    gameCommandButton_t buttons[4];
+    gameCommandButton_t custom_buttons[2];
+    shopItemButtonsParams_t params;
+    shopItemButtonsParams_t custom_params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    hero = make_item_test_inventory_unit(100, 0);
+    hero->s.player = 0;
+    shop = alloc_test_unit(MAKEFOURCC('e','d','e','n'), 0, 0);
+    shop->data.UnitProfile = &shop_profile;
+    shop->data.UnitAbilities = &shop_abilities;
+    shop->s.player = 0;
+    shop->collision = 32.0f;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    params = (shopItemButtonsParams_t){ .client = client, .shop = shop, .buttons = buttons, .max_buttons = 4 };
+
+    T_EQ(G_GetShopItemButtons(&params), 2);
+    T_STREQ(buttons[0].command, "phea");
+    T_STREQ(buttons[1].command, "oven");
+    T_ASSERT(buttons[0].disabled);
+    T_ASSERT(buttons[1].disabled);
+    T_EQ(shop->stock->items[0].current, 1);
+    T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('p','h','e','a')));
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 1000);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 1000);
+    T_EQ(shop->stock->items[0].current, 1);
+    T_NULL(hero->inventory[0]);
+
+    custom_shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
+    custom_shop->data.UnitProfile = &custom_profile;
+    custom_shop->data.UnitAbilities = &shop_abilities;
+    custom_shop->s.player = 0;
+    custom_shop->collision = 32.0f;
+    custom_shop->spawn_time = G_Time();
+    if (!custom_shop->stock) custom_shop->stock = G_AllocStock();
+    T_NOT_NULL(custom_shop->stock);
+    custom_shop->stock->item_slots = 11;
+    gi.LinkEntity(custom_shop);
+    custom_params = (shopItemButtonsParams_t){
+        .client = client, .shop = custom_shop, .buttons = custom_buttons, .max_buttons = 2
+    };
+    T_EQ(G_GetShopItemButtons(&custom_params), 1);
+    T_ASSERT(!custom_buttons[0].disabled);
+
+    ages = alloc_test_unit(MAKEFOURCC('e','t','o','a'), 64, 0);
+    ages->s.player = 0;
+    T_EQ(G_GetShopItemButtons(&params), 2);
+    T_ASSERT(!buttons[0].disabled);
+    T_ASSERT(buttons[1].disabled);
+
+    G_FreeEdict(ages);
+    eternity = alloc_test_unit(MAKEFOURCC('e','t','o','e'), 96, 0);
+    eternity->s.player = 0;
+    T_EQ(G_GetShopItemButtons(&params), 2);
+    T_ASSERT(!buttons[0].disabled);
+    T_ASSERT(!buttons[1].disabled);
+}
+
 TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
     edict_t *player;
     gameClient_t *client;

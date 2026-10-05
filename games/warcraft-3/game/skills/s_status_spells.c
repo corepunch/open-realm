@@ -95,15 +95,37 @@ BZ_SIMPLE_SPELL_PROC(AbilityTaunt) {
  * Ubertip="Deals <Aven,DataA1> poison damage per second. |nLasts <Aven,Dur1> seconds."
  * Passive on-hit poison like Slow Poison. ROC omits BuffID; TFT authors the
  * "Bpoi,Bpsd" pair (Aven/Apoi) or "BIpb,BIpd" (Apo2 item orb).
- * TODO(1:1): DataA poison DPS needs the status-system periodic-damage tick
- * first, the same gap Shadow Strike documents for BEsh. This slice applies
- * the buff state with authored durations; no consumer reads Bpoi/Bpsd/BIpb/BIpd yet.
+ * DataA is authored poison DPS. The first buff token owns a deterministic
+ * one-second status pulse; the second token remains presentation/state only.
  */
 #define ID_VENOM_SPEARS MAKEFOURCC('A', 'v', 'e', 'n')
 #define ID_POISON_ATTACK MAKEFOURCC('A', 'p', 'o', 'i')
 #define ID_POISON_ORB MAKEFOURCC('A', 'p', 'o', '2')
 
-BZ_ABILITY_PROC(CAbilityPoisonAttack) { return CAbilityPassive(ent, msg, call); }
+#define POISON_TICK_MS 1000 // milliseconds; DataA is poison damage per second
+
+static void poison_tick(edict_t *target, heroabilitystatus_t *slot) {
+    edict_t *source;
+    float damage;
+
+    if (!target || !slot || !slot->level || !slot->data || !slot->rank) return;
+    source = slot->source;
+    if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) return;
+    damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
+    while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
+        /* Damage updates victim statuses too; advance before applying it so the
+         * recursive update cannot repeat this pulse. */
+        slot->next_tick += POISON_TICK_MS;
+        if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
+        if (M_IsDead(target)) break;
+    }
+}
+
+BZ_ABILITY_PROC(CAbilityPoisonAttack) {
+    if (msg == A_STATUS_TICK && call && call->status.slot) { poison_tick(ent, call->status.slot); return true; }
+    if (msg == A_STATUS_DEATH && call && call->status.slot) { unit_expirestatus(ent, call->status.slot); return true; }
+    return CAbilityPassive(ent, msg, call);
+}
 
 static uint32_t const poison_codes[] = { ID_VENOM_SPEARS, ID_POISON_ATTACK, ID_POISON_ORB };
 
@@ -129,8 +151,28 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
     if (!buffs) return;
     level = MAX(1, G_UnitAbilityLevel(attacker, code));
     seen[(*count)++] = code;
-    while (strlen(buffs) >= 4) {
+    for (uint32_t buff_index = 0; strlen(buffs) >= 4; buff_index++) {
+        heroabilitystatus_t *slot;
+        uint32_t next_tick = 0;
+
+        if (buff_index == 0) {
+            slot = unit_findstatus(target, FS_SLKKey(buffs));
+            if (slot && slot->data == code && slot->source == attacker &&
+                slot->source_spawn_time == attacker->spawn_time) next_tick = slot->next_tick;
+        }
         unit_addtimedstatus(target, buffs, level, S_SpellDuration(code, level, S_UnitIsResistant(target)));
+        slot = unit_findstatus(target, FS_SLKKey(buffs));
+        /* Both authored buff tokens remain visible state, but only the first
+         * owns the poison pulse so a Bpoi/Bpsd pair does not double DataA DPS.
+         * Same-source refresh keeps its existing pulse deadline; a new source
+         * starts a fresh one-second phase. */
+        if (slot && buff_index == 0) {
+            slot->data = code;
+            slot->rank = level;
+            slot->source = attacker;
+            slot->source_spawn_time = attacker->spawn_time;
+            slot->next_tick = next_tick ? next_tick : G_Time() + POISON_TICK_MS;
+        }
         buffs = strchr(buffs, ',');
         if (!buffs) break;
         buffs++;

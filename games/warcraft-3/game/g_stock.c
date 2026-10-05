@@ -6,6 +6,60 @@
 #include "skills/s_skills.h"
 
 #define SHOP_DEFAULT_ACTIVATION_RADIUS 450.0f // world units; retail custom-data interaction fallback; used when Aneu/Aall DataA is absent
+#define ID_ANCIENT_OF_WONDERS MAKEFOURCC('e','d','e','n')
+#define ID_TREE_OF_AGES MAKEFOURCC('e','t','o','a')
+#define ID_TREE_OF_ETERNITY MAKEFOURCC('e','t','o','e')
+#define ID_POTION_HEALING MAKEFOURCC('p','h','e','a')
+#define ID_POTION_MANA MAKEFOURCC('p','m','a','n')
+#define ID_SCROLL_TOWN_PORTAL MAKEFOURCC('s','t','w','p')
+#define ID_STAFF_PRESERVATION MAKEFOURCC('s','p','r','e')
+#define ID_ORB_VENOM MAKEFOURCC('o','v','e','n')
+#define ID_POTION_ANTIMAGIC MAKEFOURCC('p','a','m','s')
+
+/* HACK: retail item rows expose stock timing but not the racial-shop tier
+ * dependency consumed by the stock UI. Keep these confirmed Ancient of
+ * Wonders compatibility facts isolated until that source is normalized,
+ * matching the existing explicit stock-ability dependency precedent. */
+typedef struct {
+    uint32_t shop_id;
+    uint32_t item_id;
+    uint32_t requirement_id;
+} shopItemRequirement_t;
+
+static shopItemRequirement_t const shop_item_requirements[] = {
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_POTION_HEALING, .requirement_id = ID_TREE_OF_AGES },
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_POTION_MANA, .requirement_id = ID_TREE_OF_AGES },
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_SCROLL_TOWN_PORTAL, .requirement_id = ID_TREE_OF_AGES },
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_STAFF_PRESERVATION, .requirement_id = ID_TREE_OF_AGES },
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_ORB_VENOM, .requirement_id = ID_TREE_OF_ETERNITY },
+    { .shop_id = ID_ANCIENT_OF_WONDERS, .item_id = ID_POTION_ANTIMAGIC, .requirement_id = ID_TREE_OF_ETERNITY },
+};
+
+static uint32_t G_ShopItemRequirement(edict_t const *shop, uint32_t item_id) {
+    if (!shop) return 0;
+    FOR_LOOP(i, sizeof(shop_item_requirements) / sizeof(shop_item_requirements[0])) {
+        shopItemRequirement_t const *entry = shop_item_requirements + i;
+        if (entry->shop_id == shop->class_id && entry->item_id == item_id) return entry->requirement_id;
+    }
+    return 0;
+}
+
+static bool G_ShopItemRequirementSatisfied(gameClient_t *client, edict_t const *shop, uint32_t item_id,
+                                            string_t reason, uint32_t reason_size) {
+    uint32_t requirement = G_ShopItemRequirement(shop, item_id);
+    UnitProfile_t const *profile;
+    cstring_t name;
+
+    if (!requirement) return true;
+    if (G_PlayerRequirementCount(client, requirement) > 0) return true;
+    if (!reason || !reason_size) return false;
+
+    profile = G_UnitProfile(requirement);
+    name = profile ? G_LevelString(profile->name) : NULL;
+    if (!name || !*name) name = FindConfigValue(GetClassName(requirement), "Name");
+    snprintf(reason, reason_size, "Requires %s", name && *name ? name : "required tech");
+    return false;
+}
 
 static bool shop_warned_activation_fallback, shop_warned_interaction_missing;
 static bool shop_warned_pawn_rate, shop_warned_give_range;
@@ -614,6 +668,7 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
     FOR_LOOP(i, shop->stock->item_count) {
         char code[5] = {0};
+        char requirement_reason[128] = {0};
         gameCommandButton_t *button;
         ItemData_t const *item;
         uint32_t now;
@@ -628,7 +683,10 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         item = G_ItemData(shop->stock->items[i].id);
         if (shop->stock->items[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock->items[i].current);
 
-        if (!patron) {
+        if (!G_ShopItemRequirementSatisfied(client, shop, shop->stock->items[i].id,
+                                             requirement_reason, sizeof(requirement_reason))) {
+            G_DisableShopButton(button, requirement_reason);
+        } else if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
         } else if (shop->stock->items[i].current <= 0) {
             G_DisableShopButton(button, "Out of stock.");
@@ -760,6 +818,13 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     }
     item = G_ItemData(item_id);
     if (!item || !item->file) return false;
+    {
+        char reason[128] = {0};
+        if (!G_ShopItemRequirementSatisfied(client, shop, item_id, reason, sizeof(reason))) {
+            G_ShowCommandErrorText(clent, reason);
+            return false;
+        }
+    }
     if (shop->stock->items[stock_index].current <= 0) {
         G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;

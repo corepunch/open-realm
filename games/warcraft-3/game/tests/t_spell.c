@@ -4279,6 +4279,54 @@ TEST(wc3_spell, poison_on_hit_applies_buff_pair_with_authored_duration) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, poison_dataa_ticks_through_entity_scheduler_and_preserves_same_source_phase) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Dur1\"\n"
+        "C;Y1;X4;K\"HeroDur1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"Aven\"\nC;Y2;X2;K\"Aven\"\nC;Y2;X3;K\"4\"\n"
+        "C;Y2;X4;K\"4\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"Bpoi,Bpsd\"\nE\n";
+    static UnitBalance_t target_balance;
+    static UnitWeapons_t no_weapons;
+    UnitAbilities_t abilities = { .abilList = "Aven" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('e','a','r','c'), 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    float before;
+
+    memset(&target_balance, 0, sizeof(target_balance));
+    level.time = 0;
+    attacker->data.UnitAbilities = &abilities;
+    attacker->s.player = 0; attacker->spawn_time = 1;
+    target->data.UnitBalance = &target_balance;
+    target->data.UnitWeapons = &no_weapons;
+    target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+    target->health.value = target->health.max_value = 100.0f;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+
+    S_ResolveAttackHit(attacker, target, 1);
+    before = target->health.value;
+    level.time = 999; G_RunEntity(target);
+    T_FEQ(target->health.value, before, 0.001f);
+    level.time = 1000; G_RunEntity(target);
+    T_FEQ(target->health.value, before - 7.0f, 0.001f);
+
+    level.time = 1500; S_ResolveAttackHit(attacker, target, 1);
+    level.time = 1999; G_RunEntity(target);
+    T_FEQ(target->health.value, before - 8.0f, 0.001f);
+    level.time = 2000; G_RunEntity(target);
+    T_FEQ(target->health.value, before - 15.0f, 0.001f);
+
+    level.time = 5499; G_RunEntity(target);
+    T_FEQ(target->health.value, before - 36.0f, 0.001f);
+    level.time = 5500; G_RunEntity(target);
+    T_FEQ(target->health.value, before - 36.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, moon_glaive_bounces_attack_to_nearby_enemy) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X4\n"
