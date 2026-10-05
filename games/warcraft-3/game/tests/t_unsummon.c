@@ -378,7 +378,7 @@ TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     thinker = uns_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_ASSERT(WriteGame(filename));
-    thinker->think = NULL; thinker->goalentity = NULL;
+    thinker->think = NULL; S_SetMoveGoal(thinker, &thinker->goalentity, NULL);
     T_ASSERT(ReadGame(filename));
     thinker = uns_thinker(fix.caster);
     T_NOT_NULL(thinker);

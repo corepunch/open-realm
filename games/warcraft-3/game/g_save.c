@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format101 owns marked waypoint storage and world-sized pending order queues. */
-static uint32_t const save_version = 101;
+/* Format108 retains the fine scheduler policy and frozen service grants. */
+static uint32_t const save_version = 108;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -453,6 +453,7 @@ static field_t const move_fine_budget_fields[] = {
     TF(moveFineBudget_t, work, F_INT),
     TF(moveFineBudget_t, countdown, F_INT),
     TF(moveFineBudget_t, count, F_INT),
+    TF(moveFineBudget_t, limit, F_INT),
     TF(moveFineBudget_t, head, F_EDICT, 0, FIELD_NONE),
     TF(moveFineBudget_t, tail, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
@@ -466,6 +467,7 @@ static field_t const level_fields[] = {
     F(level_locals, pathing_random.sum, F_INT),
     F(level_locals, pathing_random.index, F_INT),
     F(level_locals, pathing_counter, F_INT),
+    F(level_locals, move_fine_responsive, F_INT),
     F(level_locals, move_fine_budgets, F_STRUCT, MAX_PLAYERS, move_fine_budget_fields),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
@@ -542,12 +544,6 @@ static field_t const level_fields[] = {
 
 static field_t const entity_state_fields[] = {
     TF(entityState_t, origin, F_VECTOR),
-    { NULL, 0, 0, 0, 0, 0 }
-};
-
-static field_t const unit_attack_fields[] = {
-    TF(unitAttack_t, backswingPoint, F_FLOAT),
-    TF(unitAttack_t, rangeBuffer, F_FLOAT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -718,6 +714,11 @@ static field_t const queued_order_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const unit_order_storage_fields[] = {
+    TF(unitOrderStorage_t, entries, F_STRUCT, MAX_UNIT_ORDER_QUEUE, queued_order_fields),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, count, F_INT),
@@ -735,6 +736,8 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, group_count, F_INT),
     TF(moveFineRoute_t, group_index, F_INT),
     TF(moveFineRoute_t, group_goal, F_VECTOR),
+    TF(moveFineRoute_t, group_request, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_geometry, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, group_radius, F_FLOAT),
     TF(moveFineRoute_t, group_mask, F_INT),
     TF(moveFineRoute_t, group_revision, F_IGNORE, 0, FIELD_RUNTIME),
@@ -817,6 +820,8 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.group_count, F_INT),
     TF(struct edictMovement_s, fine_route.group_index, F_INT),
     TF(struct edictMovement_s, fine_route.group_goal, F_VECTOR),
+    TF(struct edictMovement_s, fine_route.group_request, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_geometry, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.group_radius, F_FLOAT),
     TF(struct edictMovement_s, fine_route.group_mask, F_INT),
     TF(struct edictMovement_s, fine_route.group_revision, F_IGNORE, 0, FIELD_RUNTIME),
@@ -926,6 +931,11 @@ static field_t const status_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const unit_status_fields[] = {
+    TF(unitStatusStorage_t, slots, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const shop_stock_item_fields[] = {
     F(shopStockItem_s, id, F_INT),
     F(shopStockItem_s, current, F_INT),
@@ -947,7 +957,7 @@ static field_t const stock_fields[] = {
 
 /* Every persistent and process-owned edict field crossing the save boundary is represented here. */
 field_t edict_fields[] = {
-    F(edict_s, order_queue.entries, F_STRUCT, MAX_UNIT_ORDER_QUEUE, queued_order_fields),
+    F(edict_s, order_queue.entries, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, scheduled_think_frame, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, construction, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, research, F_IGNORE, 0, FIELD_RUNTIME),
@@ -993,7 +1003,7 @@ field_t edict_fields[] = {
     F(edict_s, peonsinside, F_INT),
     F(edict_s, aiflags, F_INT),
     F(edict_s, autocast_code, F_INT),
-    F(edict_s, abilstatus, F_STRUCT, MAX_UNIT_STATUSES, status_fields),
+    F(edict_s, abilstatus, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, damage, F_INT),
     F(edict_s, projectile_attack_type, F_INT),
     F(edict_s, projectile_reflected, F_INT),
@@ -1031,8 +1041,9 @@ field_t edict_fields[] = {
     F(edict_s, chaos.deadline.time, F_FLOAT),
     F(edict_s, chaos.deadline.epoch, F_INT),
     F(edict_s, chaos.deadline.span, F_FLOAT),
-    F(edict_s, attack1, F_STRUCT, 1, unit_attack_fields),
-    F(edict_s, attack2, F_STRUCT, 1, unit_attack_fields),
+    F(edict_s, sound_profile, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, attack_profiles, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, attack_overrides, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, s, F_STRUCT, 1, entity_state_fields),
     F(edict_s, hero_shortcut_alert_until, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, inventory, F_EDICT, MAX_INVENTORY, FIELD_NONE),
@@ -1069,6 +1080,8 @@ field_t edict_fields[] = {
     F(edict_s, animation_speed, F_FLOAT),
     F(edict_s, animation_override, F_INT),
     F(edict_s, animation, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, animation_request, F_IGNORE, 0, FIELD_RUNTIME),
+    F(edict_s, animation_props, F_IGNORE, 0, FIELD_RUNTIME),
     F(edict_s, currentmove, F_MMOVE),
     F(edict_s, stand, F_CFUNCTION),
     F(edict_s, birth, F_CFUNCTION),
@@ -2034,9 +2047,13 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
  * Counts bound traversal, including cycles and disconnected queued edicts. */
 static bool ValidMoveFineRequests(void) {
     uint32_t total=0,queued=0;
+    if (*(uint8_t const *)&level.move_fine_responsive>1) return false;
     FOR_LOOP(i,MAX_PLAYERS) {
         moveFineBudget_t const *budget=level.move_fine_budgets+i;
         if (budget->count>globals.num_edicts || budget->countdown>1) return false;
+        if (budget->limit && (budget->limit<BZ_WC3_FINE_OWNER_WORK ||
+            budget->limit>MAX_ENTITIES*(BZ_WC3_UNIT_FINE_WORK+1u) ||
+            (!level.move_fine_responsive && budget->limit!=BZ_WC3_FINE_OWNER_WORK))) return false;
         edict_t const *prev=NULL,*unit=budget->head;
         uint32_t count=0;
         while (unit) {
@@ -2222,14 +2239,90 @@ failed:
     return false;
 }
 
+/* Configuration values are saved, never intern addresses. The ownership mask
+ * preserves mutable overrides; shared defaults are re-interned on restore. */
+static bool WriteAttackProfiles(FILE *f, edict_t const *ent) {
+    uint32_t owned = (ent->attack_overrides[0] ? 1u : 0u) | (ent->attack_overrides[1] ? 2u : 0u);
+    if (!SaveBytes(f, &owned, sizeof(owned))) return false;
+    FOR_LOOP(i, 2) {
+        unitAttack_t const *defaults = ent->attack_profiles[i] ? ent->attack_profiles[i] : unit_attack_empty + i;
+        if (!SaveBytes(f, defaults, sizeof(*defaults))) return false;
+        if ((owned & (1u << i)) && !SaveBytes(f, ent->attack_overrides[i], sizeof(*defaults))) return false;
+    }
+    return true;
+}
+
+static bool ReadAttackProfiles(FILE *f, edict_t *ent) {
+    uint32_t owned;
+    if (!LoadBytes(f, &owned, sizeof(owned)) || (owned & ~3u)) return false;
+    FOR_LOOP(i, 2) {
+        unitAttack_t defaults;
+        if (!LoadBytes(f, &defaults, sizeof(defaults))) return false;
+        ent->attack_profiles[i] = S_InternAttackProfile(&defaults, i);
+        if ((owned & (1u << i)) && !LoadBytes(f, S_AttackProfileWrite(ent, i), sizeof(defaults))) return false;
+    }
+    return true;
+}
+
+static bool WriteUnitSoundProfile(FILE *f, edict_t const *ent) {
+    unitSoundProfile_t const *value = G_UnitSoundProfile(ent);
+    if (value->num_select > MAX_UNIT_SELECT_SOUNDS || value->num_yes > MAX_UNIT_SELECT_SOUNDS ||
+        value->num_ready > MAX_UNIT_SELECT_SOUNDS || value->num_chop > 3) {
+        fprintf(stderr, "WC3 SaveGame: invalid unit sound variant count\n");
+        return false;
+    }
+    return SaveBytes(f, value, sizeof(*value));
+}
+
+/* Numeric media identities are restored by the saved configstring registry,
+ * as for attack profiles. Profile addresses never enter the saved stream. */
+static bool ReadUnitSoundProfile(FILE *f, edict_t *ent) {
+    unitSoundProfile_t value;
+    if (!LoadBytes(f, &value, sizeof(value))) return false;
+    if (value.num_select > MAX_UNIT_SELECT_SOUNDS || value.num_yes > MAX_UNIT_SELECT_SOUNDS ||
+        value.num_ready > MAX_UNIT_SELECT_SOUNDS || value.num_chop > 3) {
+        fprintf(stderr, "WC3 LoadGame: invalid unit sound variant count\n");
+        return false;
+    }
+    G_SetUnitSoundProfile(ent, &value);
+    return true;
+}
+
+static bool WriteUnitAnimationText(FILE *f, edict_t const *ent) {
+    char request[WC3_ANIMATION_REQUEST_SIZE] = {0}, properties[WC3_ANIMATION_PROPERTIES_SIZE] = {0};
+    strlcpy(request, G_UnitAnimationRequest(ent), sizeof(request));
+    strlcpy(properties, G_UnitAnimationProperties(ent), sizeof(properties));
+    return SaveBytes(f, request, sizeof(request)) && SaveBytes(f, properties, sizeof(properties));
+}
+
+static bool ReadUnitAnimationText(FILE *f, edict_t *ent) {
+    char request[WC3_ANIMATION_REQUEST_SIZE], properties[WC3_ANIMATION_PROPERTIES_SIZE];
+    if (!LoadBytes(f, request, sizeof(request)) || !LoadBytes(f, properties, sizeof(properties))) return false;
+    if (!memchr(request, 0, sizeof(request)) || !memchr(properties, 0, sizeof(properties))) {
+        fprintf(stderr, "WC3 LoadGame: unterminated unit animation text\n");
+        return false;
+    }
+    G_StoreUnitAnimationRequest(ent, request);
+    G_StoreUnitAnimationProperties(ent, properties);
+    return true;
+}
+
 static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
 
+    if (ent->order_queue.head >= MAX_UNIT_ORDER_QUEUE ||
+        ent->order_queue.count > MAX_UNIT_ORDER_QUEUE ||
+        (ent->order_queue.count && !ent->order_queue.entries)) {
+        fprintf(stderr, "WC3 SaveGame: invalid order queue on edict %u\n", ent->s.number);
+        return false;
+    }
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
         if (!WriteField1(field, (uint8_t *)&temp)) return false;
-    return SaveBytes(f, &temp, sizeof(temp)) && WriteMoveRouteBuffers(f,&ent->movement.fine_route);
+    return SaveBytes(f, &temp, sizeof(temp)) && WriteAttackProfiles(f, ent) &&
+           WriteUnitSoundProfile(f, ent) && WriteUnitAnimationText(f, ent) &&
+           WriteMoveRouteBuffers(f,&ent->movement.fine_route);
 }
 
 static bool WriteClient(FILE *f, gameClient_t const *client) {
@@ -2275,6 +2368,7 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
 
     G_ClearPlayerAbilityAvailability(client);
     *client = temp;
+    G_ResetPlayerTechIndexes();
     client->jass.disabled_abilities = disabled_abilities;
     client->jass.disabled_ability_count = disabled_count;
     client->jass.disabled_ability_capacity = disabled_count;
@@ -2391,8 +2485,13 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     ClearRuntimeFields(ent, edict_fields, FIELD_RUNTIME);
+    if (ent->order_queue.head >= MAX_UNIT_ORDER_QUEUE ||
+        ent->order_queue.count > MAX_UNIT_ORDER_QUEUE) {
+        fprintf(stderr, "WC3 LoadGame: invalid order queue bounds on edict %u\n", ent->s.number);
+        return false;
+    }
     moveFineRoute_t *route = &ent->movement.fine_route;
-    if (!ReadMoveRouteBuffers(f,route)) return false;
+    if (!ReadAttackProfiles(f, ent) || !ReadUnitSoundProfile(f, ent) || !ReadUnitAnimationText(f, ent) || !ReadMoveRouteBuffers(f,route)) return false;
     for (field = edict_fields; field->name; field++)
         if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
@@ -2400,8 +2499,8 @@ static bool ReadEdict(FILE *f, edict_t *ent) {
         G_BindEntityData(ent);
         /* animation is a process-owned model pointer and is deliberately not serialized.
          * Re-resolve it from the persisted logical request plus per-unit animation tags. */
-        if (ent->animation_request[0])
-            ent->animation = G_GetUnitAnimation(ent, ent->animation_request);
+        if (G_UnitAnimationRequest(ent)[0])
+            ent->animation = G_GetUnitAnimation(ent, G_UnitAnimationRequest(ent));
     }
     return true;
 }
@@ -2445,6 +2544,8 @@ POOL_ALLOC(Construction)
 POOL_ALLOC(Research)
 POOL_ALLOC(Rally)
 POOL_ALLOC(Food)
+POOL_ALLOC(UnitStatus)
+POOL_ALLOC(UnitOrders)
 POOL_ALLOC(Buildwork)
 POOL_ALLOC(Revival)
 POOL_ALLOC(Sacrifice)
@@ -2474,6 +2575,8 @@ static savePool_t const save_pools[] = {
     { "research", offsetof(edict_t, research), sizeof(research_t), scalar_pool_fields, SaveAllocResearch },
     { "rally", offsetof(edict_t, rally), sizeof(rally_t), rally_fields, SaveAllocRally },
     { "food", offsetof(edict_t, food), sizeof(food_t), scalar_pool_fields, SaveAllocFood },
+    { "abilstatus", offsetof(edict_t, abilstatus), sizeof(unitStatusStorage_t), unit_status_fields, SaveAllocUnitStatus },
+    { "order_queue", offsetof(edict_t, order_queue.entries), sizeof(unitOrderStorage_t), unit_order_storage_fields, SaveAllocUnitOrders },
     { "buildwork", offsetof(edict_t, buildwork), sizeof(buildwork_t), scalar_pool_fields, SaveAllocBuildwork },
     { "revival", offsetof(edict_t, revival), sizeof(revival_t), revival_fields, SaveAllocRevival },
     { "sacrifice", offsetof(edict_t, sacrifice), sizeof(sacrifice_t), sacrifice_fields, SaveAllocSacrifice },
@@ -2554,7 +2657,6 @@ static bool WritePools(FILE *f) {
 }
 
 static bool ReadPools(FILE *f) {
-    G_PoolsReset();
     FOR_LOOP(i, sizeof(save_pools) / sizeof(save_pools[0])) {
         if (!ReadPool(f, save_pools + i)) {
             fprintf(stderr, "WC3 LoadGame: failed at %s pool\n", save_pools[i].name);
@@ -2582,6 +2684,12 @@ bool WriteGame(cstring_t filename) {
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 SaveGame: invalid AI initialization players\n"); goto done; }
+    FILTER_EDICTS(unit,unit->inuse && unit->order_queue.count) {
+        if (!unit->order_queue.entries) {
+            fprintf(stderr, "WC3 LoadGame: missing order queue on edict %u\n", unit->s.number);
+            fclose(f); return false;
+        }
+    }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 SaveGame: invalid Way Gate identities\n"); goto done; }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
     if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
@@ -2675,6 +2783,7 @@ bool ReadGame(cstring_t filename) {
     }
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
     G_ResetWaypointCache();
     S_InvalidateAuraSources();
     G_ClearMoveSpatial();
@@ -2722,10 +2831,12 @@ bool ReadGame(cstring_t filename) {
     M_ResetMoveMembers();
     /* Release process-owned curve allocations before raw edict records replace their addresses. */
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    G_PoolsReset();
+    G_ClearEdictStorage(globals.max_edicts);
     G_ResetSpawnCache();
     S_ResetWaygateCache();
     globals.num_edicts = header.num_edicts;
+    G_MarkEdictStorageUsed(header.num_edicts);
     FOR_LOOP(i, header.num_edicts) {
         bool used;
         if (!LoadBytes(f, &used, sizeof(used))) {
@@ -2780,6 +2891,8 @@ bool ReadGame(cstring_t filename) {
         S_TrackMoveTimers(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
+    G_RebuildSelectionIndex();
+    S_RebuildAbilityTimers();
     G_RebuildSavedMovePathing();
     fclose(f);
     /* Cinefilters are transient client presentation, not part of the save
@@ -3054,6 +3167,42 @@ TEST(wc3_save, fine_spatial_history_rejects_invalid_records) {
     reset_entities();setup_test_world();
 }
 
+TEST(wc3_save, responsive_fine_grant_and_policy_continue_after_restore) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities(); setup_test_world();
+    level.move_fine_responsive=true;
+    edict_t *units[4];
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    budget->work=BZ_WC3_FINE_OWNER_WORK+1;
+    FOR_LOOP(i,4) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+64*i,128);
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i]));
+    }
+    S_BeginAbilityOwnerUpdates();
+    T_EQ(budget->limit,4*(BZ_WC3_UNIT_FINE_WORK+1));
+    T_ASSERT(S_AdmitUnitMoveFineRequest(units[0]));
+    S_ChargeUnitMoveFineRequest(units[0],BZ_WC3_UNIT_FINE_WORK+1);
+    cstring_t file="/tmp/openwarcraft3-responsive-fine.bin";
+    T_ASSERT(WriteGame(file));
+    S_ClearMoveFineRequests(); level.move_fine_responsive=false;
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(level.move_fine_responsive); T_ASSERT(ValidMoveFineRequests());
+    T_EQ(budget->limit,4*(BZ_WC3_UNIT_FINE_WORK+1));
+    T_EQ(budget->work,BZ_WC3_UNIT_FINE_WORK+1); T_EQ(budget->countdown,1);
+    T_EQ(budget->count,3);
+    FOR_LOOP(i,3) {
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[i+1]));
+        S_ChargeUnitMoveFineRequest(units[i+1],BZ_WC3_UNIT_FINE_WORK+1);
+    }
+    T_EQ(budget->count,0); T_ASSERT(ValidMoveFineRequests());
+    uint32_t grant=budget->limit;
+    budget->limit=1; T_ASSERT(!ValidMoveFineRequests());
+    budget->limit=UINT32_MAX; T_ASSERT(!ValidMoveFineRequests());
+    budget->limit=grant; level.move_fine_responsive=false; T_ASSERT(!ValidMoveFineRequests());
+    level.move_fine_responsive=true; T_ASSERT(ValidMoveFineRequests());
+    remove(file); reset_entities(); setup_test_world(); level.move_fine_responsive=saved_policy;
+}
+
 /* A pending fine FIFO and its independent interval clock must survive a real save. */
 TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
     reset_entities(); setup_test_world();
@@ -3070,6 +3219,7 @@ TEST(wc3_save, fine_request_fifo_and_interval_continue_after_restore) {
     T_EQ(first->movement.fine_request_time,0);
     T_ASSERT(WriteGame(file));
     S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
     T_ASSERT(ReadGame(file));
     T_ASSERT(ValidMoveFineRequests());
     T_EQ(level.pathing_counter,2000); T_EQ(level.move_fine_budgets[0].countdown,1);
@@ -3231,7 +3381,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     moveGroup_t follow=original;
     follow.count=1; follow.target=second; follow.target_spawn=second->spawn_time;
     follow.target_refresh=16; follow.flags|=0x1000;
-    first->movement.follow_target=first->goalentity=second;
+    first->movement.follow_target=S_SetMoveGoal(first, &first->goalentity, second);
     T_ASSERT(ValidMoveGroup(&follow));
     FOR_LOOP(i,5) {
         moveGroup_t invalid=follow;
@@ -3345,8 +3495,11 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-98.bin",
         "/tmp/openwarcraft3-wc3-save-version-99.bin",
         "/tmp/openwarcraft3-wc3-save-version-100.bin",
+        "/tmp/openwarcraft3-wc3-save-version-101.bin",
+        "/tmp/openwarcraft3-wc3-save-version-102.bin",
+        "/tmp/openwarcraft3-wc3-save-version-103.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103 };
 
     reset_entities();
     setup_test_world();
@@ -3382,9 +3535,9 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
     setup_test_world();
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    unit->movement.cargo_unload_goal = (edict_t *)(uintptr_t)1;
+    S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, (edict_t *)(uintptr_t)1);
     T_ASSERT(!WriteGame(filename));
-    unit->movement.cargo_unload_goal = NULL;
+    S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, NULL);
     remove(filename);
 }
 
@@ -3402,13 +3555,13 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
     unit->attack_target_spawn_time = goal->spawn_time;
     unit->movement.cargo_unload_pending = true;
     unit->movement.cargo_unload_ability = MAKEFOURCC('A','t','d','p');
-    unit->movement.cargo_unload_goal = goal;
+    S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, goal);
     unit->movement.cargo_unload_goal_spawn_time = goal->spawn_time;
     unit->unitinfo.PropWindow = 0.0f;
     T_ASSERT(WriteGame(filename));
     unit->attack_cooldown_active = false;
     unit->movement.cargo_unload_pending = false;
-    unit->movement.cargo_unload_goal = NULL;
+    S_SetMoveGoal(unit, &unit->movement.cargo_unload_goal, NULL);
     unit->unitinfo.PropWindow = 1.0f;
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + index;
@@ -3547,6 +3700,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->research->progress = 9.25f;
     unit->food->used = 3;
     unit->food->made = 10;
+    unit->abilstatus[MAX_UNIT_STATUSES - 1] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','c','r','i'), .level = 3,
+        .timestamp = 17000, .duration_ms = 19000,
+        .data = MAKEFOURCC('A','c','r','i'), .source = target,
+        .source_spawn_time = 123, .rank = 2, .next_tick = 11000
+    };
     unit->buildwork->ability = MAKEFOURCC('A','r','e','p');
     unit->buildwork->gold_accum = 2.5f;
     unit->shadowmeld->fade_start = 1750;
@@ -3559,7 +3718,7 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     unit->cargo->count = 1;
     unit->cargo->units[0] = target;
     unit->ancient_root->mode = ANCIENT_ROOTING;
-    unit->ancient_root->approach_goal = target;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, target);
     FILE *raw = tmpfile();
     T_NOT_NULL(raw);
     if (raw) {
@@ -3586,6 +3745,12 @@ TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
     T_EQ(unit->research->upgrade, MAKEFOURCC('R','h','m','e'));
     T_FEQ(unit->research->progress, 9.25f, 0.001f);
     T_EQ(unit->food->used, 3); T_EQ(unit->food->made, 10);
+    heroabilitystatus_t const *status = unit->abilstatus + MAX_UNIT_STATUSES - 1;
+    T_EQ(status->code, MAKEFOURCC('B','c','r','i')); T_EQ(status->level, 3);
+    T_EQ(status->timestamp, 17000); T_EQ(status->duration_ms, 19000);
+    T_EQ(status->data, MAKEFOURCC('A','c','r','i')); T_EQ(status->source, target);
+    T_EQ(status->source_spawn_time, 123); T_EQ(status->rank, 2); T_EQ(status->next_tick, 11000);
+    FOR_LOOP(i, MAX_UNIT_STATUSES - 1) T_EQ(unit->abilstatus[i].level, 0);
     T_EQ(unit->buildwork->ability, MAKEFOURCC('A','r','e','p'));
     T_FEQ(unit->buildwork->gold_accum, 2.5f, 0.001f);
     T_EQ(unit->shadowmeld->fade_start, 1750);

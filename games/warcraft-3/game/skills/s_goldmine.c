@@ -148,14 +148,11 @@ static uint32_t goldmine_actor_ability_alias(edict_t const *ent, uint32_t base_c
     char token_code[5] = {0};
 
     if (!ent) return 0;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&alias, token, 4);
-            if (G_AbilityCode(alias) == base_code || alias == base_code) return alias;
-        }
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens=G_UnitAbilityTokens(ent->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)
+        if(tokens[i].length==4 && (tokens[i].base==base_code || tokens[i].code==base_code) &&
+           G_ActorHasAbilityCode(ent,tokens[i].code))return tokens[i].code;
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const alias = ent->abilities.added[i];
         if (!alias) continue;
@@ -169,31 +166,24 @@ static uint32_t goldmine_actor_ability_alias(edict_t const *ent, uint32_t base_c
 
 /* Classify overlay mines separately so they cannot be harvested as neutral mines. */
 static bool goldmine_is_overlay_type(edict_t const *mine) {
-    return mine && ((mine->mineoverlay && mine->mineoverlay->parent) || G_ActorHasSkill(mine, "Agl2") ||
-                    G_ActorHasSkill(mine, "Abgm") || G_ActorHasSkill(mine, "Aegm"));
+    return mine && ((mine->mineoverlay && mine->mineoverlay->parent) || G_ActorHasAbilityCode(mine, MAKEFOURCC('A','g','l','2')) ||
+                    G_ActorHasAbilityCode(mine, MAKEFOURCC('A','b','g','m')) || G_ActorHasAbilityCode(mine, MAKEFOURCC('A','e','g','m')));
 }
 
 static AbilityData_t const *goldmine_ability_data(edict_t const *mine) {
-    cstring_t abilities;
-
-    if (!mine || !mine->data.UnitAbilities || !(abilities = mine->data.UnitAbilities->abilList))
-        return NULL;
-
-    PARSE_LIST(abilities, abil, parse_segment) {
-        if (G_AbilityCodeName(abil) == MAKEFOURCC('A', 'g', 'l', 'd'))
-            return G_AbilityDataName(abil);
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(mine ? mine->data.UnitAbilities : NULL, &count);
+    FOR_LOOP(i, count)
+        if (tokens[i].base == MAKEFOURCC('A','g','l','d'))
+            return G_AbilityData(tokens[i].code);
     return NULL;
 }
 
 bool S_UnitTypeIsGoldMine(uint32_t unit_id) {
-    UnitAbilities_t const *unit_abilities = G_UnitAbil(unit_id);
-
-    if (!unit_abilities || !unit_abilities->abilList) return false;
-    PARSE_LIST(unit_abilities->abilList, abil, parse_segment) {
-        if (G_AbilityCodeName(abil) == MAKEFOURCC('A', 'g', 'l', 'd'))
-            return true;
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(G_UnitAbil(unit_id), &count);
+    FOR_LOOP(i, count)
+        if (tokens[i].base == MAKEFOURCC('A','g','l','d')) return true;
     return false;
 }
 
@@ -366,7 +356,7 @@ static void goldmine_finish_deposit(edict_t *ent, edict_t *dropoff, int debug) {
     player_t *player;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
-    ent->goalentity = ent->secondarygoal;
+    S_SetMoveGoal(ent, &ent->goalentity, ent->secondarygoal);
     player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_GOLD,
@@ -404,7 +394,7 @@ static void ai_goldmine_walkback(edict_t *ent) {
             return;
         }
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
-        ent->goalentity = dropoff;
+        S_SetMoveGoal(ent, &ent->goalentity, dropoff);
         move_reset_progress(ent);
         if (debug >= 1)
             fprintf(stderr,
@@ -479,7 +469,7 @@ bool harvest_gold_return_to(edict_t *ent, edict_t *dropoff) {
     }
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
-    ent->goalentity = dropoff;
+    S_SetMoveGoal(ent, &ent->goalentity, dropoff);
     move_reset_progress(ent);
     unit_setmove(ent, &harvestgold_move_walkback);
     return true;
@@ -576,7 +566,7 @@ void harvestgold_walkback(edict_t *ent) {
                     ent->s.number, mine->s.number, dropoff->s.number,
                     ent->harvested_gold);
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
-        ent->goalentity = dropoff;
+        S_SetMoveGoal(ent, &ent->goalentity, dropoff);
         move_reset_progress(ent);
         unit_setmove(ent, &harvestgold_move_walkback);
     } else {
@@ -598,8 +588,8 @@ void harvest_gold_start(edict_t *self, edict_t *target) {
                 target ? target->s.origin.x : 0.0f, target ? target->s.origin.y : 0.0f,
                 target ? target->s.angle : 0.0f);
     }
-    self->goalentity = target;
-    self->secondarygoal = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
+    S_SetMoveGoal(self, &self->secondarygoal, target);
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
     harvestgold_walk(self);
 }
@@ -807,8 +797,8 @@ void S_AcolyteHarvestRelease(edict_t *worker) {
     worker->acolyte_mine->mine = NULL;
     worker->acolyte_mine->mine_spawn_time = 0;
     worker->acolyte_mine->slot = -1;
-    if (worker->goalentity == mine) worker->goalentity = NULL;
-    if (worker->secondarygoal == mine) worker->secondarygoal = NULL;
+    if (worker->goalentity == mine) S_SetMoveGoal(worker, &worker->goalentity, NULL);
+    if (worker->secondarygoal == mine) S_SetMoveGoal(worker, &worker->secondarygoal, NULL);
 }
 
 void S_MineOverlayRelease(edict_t *overlay) {
@@ -1103,13 +1093,13 @@ bool S_AcolyteHarvestOrder(edict_t *worker, edict_t *mine) {
     G_ClearUnitOrderQueue(worker);
     S_AcolyteHarvestRelease(worker);
     worker->movement.follow_target = NULL;
-    worker->movement.attackmove_waypoint = NULL;
-    worker->movement.patrol_a = NULL;
-    worker->movement.patrol_b = NULL;
-    worker->movement.patrol_target = NULL;
+    S_SetMoveGoal(worker, &worker->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(worker, &worker->movement.patrol_a, NULL);
+    S_SetMoveGoal(worker, &worker->movement.patrol_b, NULL);
+    S_SetMoveGoal(worker, &worker->movement.patrol_target, NULL);
     worker->movement.holding_position = false;
-    worker->goalentity = mine;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, mine);
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     move_reset_progress(worker);
     unit_setmove(worker, &acolyte_harvest_move_walk);
     return true;
@@ -1450,6 +1440,8 @@ static void entangled_mine_update(edict_t *mine) {
 
 /* The ordinary unit ability scheduler owns mining, independent of its current order. */
 BZ_ABILITY_PROC(CAbilityEntangledGoldMine) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, MAKEFOURCC('A','e','g','m')) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
     if (msg != A_UPDATE) return false;
     entangled_mine_update(ent);
     return true;

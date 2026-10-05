@@ -3,6 +3,46 @@
 #include <stdlib.h>
 
 #include "g_local.h"
+#include "g_entity_set.h"
+
+/* Derived ordered membership. Eligibility remains live in G_IsEntitySelected;
+ * the index only avoids visiting unrelated edicts for every HUD/order query. */
+static entitySet_t selection_members[MAX_PLAYERS];
+
+void G_ResetSelectionIndex(void) {
+    memset(selection_members, 0, sizeof(selection_members));
+}
+
+uint32_t G_SetEntitySelectionMask(edict_t *ent, uint32_t mask) {
+    uint32_t changed = ent->selected ^ mask;
+    uintptr_t offset = (uintptr_t)ent - (uintptr_t)g_edicts;
+    ent->selected = mask;
+    if (!g_edicts || offset >= sizeof(*ent) * MAX_ENTITIES || offset % sizeof(*ent)) return mask;
+    uint32_t index = (uint32_t)(offset / sizeof(*ent));
+    while (changed) {
+        uint32_t player = __builtin_ctz(changed);
+        changed &= changed - 1;
+        if (player < MAX_PLAYERS) entity_set_put(selection_members + player, index, (mask & (1u << player)) != 0);
+    }
+    return mask;
+}
+
+void G_RebuildSelectionIndex(void) {
+    G_ResetSelectionIndex();
+    FOR_LOOP(i, globals.num_edicts) {
+        uint32_t mask = g_edicts[i].selected;
+        for (uint32_t bits = mask; bits; bits &= bits - 1) {
+            uint32_t player = __builtin_ctz(bits);
+            if (player < MAX_PLAYERS) entity_set_put(selection_members + player, i, true);
+        }
+    }
+}
+
+edict_t *G_NextSelectedEntity(gameClient_t const *client, uint32_t from) {
+    if (!client || client->ps.number >= MAX_PLAYERS) return NULL;
+    uint32_t index = entity_set_next(selection_members + client->ps.number, from);
+    return index < globals.num_edicts ? g_edicts + index : NULL;
+}
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, uint32_t argc, cstring_t argv[])
 #define WC3_SELECTION_LIMIT 12
@@ -307,7 +347,7 @@ void G_SelectEntity(gameClient_t *client, edict_t *ent) {
         had_selection = true;
         break;
     }
-    ent->selected |= 1 << client->ps.number;
+    G_SetEntitySelectionMask(ent, ent->selected | (1 << client->ps.number));
     if (!had_selection) G_FocusSelectedUnit(client, ent);
 }
 
@@ -317,17 +357,16 @@ void G_DeselectEntity(gameClient_t *client, edict_t *ent) {
     if (!client || !ent) return;
     focus = G_SelectionFocusSlot(client);
     if (focus && *focus == ent->s.number) *focus = 0;
-    ent->selected &= ~(1 << client->ps.number);
+    G_SetEntitySelectionMask(ent, ent->selected & (~(1 << client->ps.number)));
 }
 
 bool G_IsEntitySelected(gameClient_t *client, edict_t *ent) {
     TEST_SELECTION_CHECK();
-    return client && ent && ent->inuse && !M_IsDead(ent) &&
+    return client && ent && (ent->selected & (1u << client->ps.number)) && ent->inuse && !M_IsDead(ent) &&
         !(ent->s.flags & EF_NOT_SELECTABLE) &&
         (!(ent->s.renderfx & RF_HIDDEN) ||
          (S_UnitUsesInvisibilityRenderFlag(ent) &&
-          !S_UnitIsInvisibleToPlayer(ent, client->ps.number))) &&
-        (ent->selected & (1 << client->ps.number));
+          !S_UnitIsInvisibleToPlayer(ent, client->ps.number)));
 }
 
 selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent) {
@@ -399,12 +438,10 @@ void G_UpdateClientSelections(void) {
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
         bool changed = false;
-        uint32_t bit = 1 << client->ps.number;
-
         /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
          * deliberately hides dead/unselectable entities, while this pass must
          * clear stale selection bits after visibility/selectability changes. */
-        FILTER_EDICTS(ent, ent->selected & bit) {
+        FOR_SELECTION_MEMBERS(client, ent) {
             if (!G_UnitCanBeSelected(client, ent)) {
                 G_DeselectEntity(client, ent);
                 changed = true;
@@ -594,8 +631,8 @@ void G_QueueSelectionSound(edict_t *ent, bool reset_sequence) {
             sound = G_UnitAckSoundVariantIndex(label, "Pissed", pissed_index);
         }
     }
-    if (!sound && ent->sound.num_select)
-        sound = G_RandomResponseSound(ent, ent->sound.select, ent->sound.num_select);
+    if (!sound && G_UnitSoundProfile(ent)->num_select)
+        sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->select, G_UnitSoundProfile(ent)->num_select);
     if (sound && G_QueueUnitResponseSound(ent, sound))
         unit_responses->generation = state->generation;
 }
@@ -614,7 +651,7 @@ void G_QueueAttackOrderSound(edict_t *ent) {
         sound = G_UnitAckSoundVariantIndex(label, "YesAttack", (uint32_t)(rand() % count));
         if (count == 1 || !G_SoundVariantIsLast(sound, ent->s.player)) break;
     }
-    if (!sound && ent->sound.num_yes) sound = G_RandomResponseSound(ent, ent->sound.yes, ent->sound.num_yes);
+    if (!sound && G_UnitSoundProfile(ent)->num_yes) sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->yes, G_UnitSoundProfile(ent)->num_yes);
     if (sound) G_QueueUnitResponseSound(ent, sound);
 }
 
@@ -626,8 +663,8 @@ static void G_QueueOrderSound(edict_t *ent) {
         return;
     }
     G_ResetSelectionResponseForUnit(ent);
-    if (!ent->sound.num_yes) return;
-    sound = G_RandomResponseSound(ent, ent->sound.yes, ent->sound.num_yes);
+    if (!G_UnitSoundProfile(ent)->num_yes) return;
+    sound = G_RandomResponseSound(ent, G_UnitSoundProfile(ent)->yes, G_UnitSoundProfile(ent)->num_yes);
     G_QueueUnitResponseSound(ent, sound);
 }
 

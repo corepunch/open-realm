@@ -20,6 +20,8 @@ umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand
 static void AbilityHoldPosition_Command(edict_t *clent);
 
 BZ_ABILITY_PROC(CAbilityHoldPosition) {
+    if (msg == A_UNIT_EVENT_MASK)
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_UNIT_STAND);
     if (msg == A_COMMAND) {
         AbilityHoldPosition_Command(call && call->client ? call->client : ent);
         return true;
@@ -37,10 +39,10 @@ static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     /* Hold is an authoritative replacement order just like Stop. Interrupt an
      * active channel before installing the persistent no-chase state. */
     S_SpellCancelChannel(unit);
-    unit->movement.attackmove_waypoint = NULL;
-    unit->movement.patrol_a = NULL;
-    unit->movement.patrol_b = NULL;
-    unit->movement.patrol_target = NULL;
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
     unit->movement.follow_target = NULL;
     G_ClearUnitGuardPosition(unit);
     unit->movement.holding_position = true;

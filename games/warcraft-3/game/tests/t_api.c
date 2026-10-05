@@ -5107,9 +5107,9 @@ TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {
     T_ASSERT(!jass_rterror_pending(level.vm)); T_ASSERT(unit->movement.holding_position);
     /* The minimal MPQ omits UnitWeapons; supply the authored attack contract. */
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = ATK_NORMAL; unit->attack1.range = 64; unit->attack1.cooldown = 0.5f;
-    unit->attack1.damagePoint = 0.2f;
-    unit->attack1.damageBase = 10; unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL; S_AttackProfileWrite(unit, 0)->range = 64; S_AttackProfileWrite(unit, 0)->cooldown = 0.5f;
+    S_AttackProfileWrite(unit, 0)->damagePoint = 0.2f;
+    S_AttackProfileWrite(unit, 0)->damageBase = 10; S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     unit->runtime.acquisition_range = 600;
     edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','g','r','u'), 88, 64);
     enemy->s.player = 1; enemy->targtype = TARG_GROUND; enemy->health.value = enemy->health.max_value = 1000;

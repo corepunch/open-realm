@@ -253,6 +253,39 @@ TEST(pathfinding, file_backed_wpm_matches_complete_retail_initial_hierarchy) {
 }
 
 vec2_t G_TestMoveWorldGrid(vec2_t point, bool inverse);
+uint32_t G_TestMoveGeometryBuilds(bool reset);
+
+TEST(pathfinding, geometry_transforms_share_scale_and_refresh_live_bounds) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[11 * 13] = {0};
+    CM_SetupTestPathmap(11, 13, cells);
+    FOR_LOOP(phase, 3) {
+        box2_t bounds = {{-1793.25f + phase * 127.125f, -773.375f},
+                        {2267.5f + phase * 61.25f, 977.125f}};
+        CM_SetupTestWorldBounds(&bounds);
+        float cx = (bounds.max.x - bounds.min.x) / 11;
+        float cy = (bounds.max.y - bounds.min.y) / 13;
+        vec2_t a = CM_GetDenormalizedMapPosition(0, 0);
+        vec2_t bx = CM_GetDenormalizedMapPosition(1.f / 11, 0);
+        vec2_t by = CM_GetDenormalizedMapPosition(0, 1.f / 13);
+        float cell = MAX(1.f, MIN(fabsf(bx.x - a.x), fabsf(by.y - a.y)));
+        G_TestMoveGeometryBuilds(true);
+        FOR_LOOP(i, 128) {
+            vec2_t point = {-1791.f + i * 31.125f, -768.f + i * 11.875f};
+            vec2_t expected = {wc3_grid_coordinate(point.x, bounds.min.x, cx),
+                              wc3_grid_coordinate(point.y, bounds.min.y, cy)};
+            vec2_t fine = G_TestMoveWorldGrid(point, false);
+            T_EQ(wc3_float_bits(fine.x), wc3_float_bits(expected.x));
+            T_EQ(wc3_float_bits(fine.y), wc3_float_bits(expected.y));
+            vec2_t result = G_TestMoveWorldGrid(fine, true);
+            T_EQ(wc3_float_bits(result.x), wc3_float_bits(wc3_world_coordinate(fine.x, bounds.min.x, cx)));
+            T_EQ(wc3_float_bits(result.y), wc3_float_bits(wc3_world_coordinate(fine.y, bounds.min.y, cy)));
+            T_EQ(wc3_float_bits(CM_PathCellWorldSize()), wc3_float_bits(cell));
+        }
+        T_EQ(G_TestMoveGeometryBuilds(true), 1);
+    }
+    reset_entities(); setup_test_world();
+}
 
 static void assert_constructed_classes(retailConstructedMap_t const *map, unsigned const range[2]) {
     unsigned total=0,at=0;
@@ -858,6 +891,87 @@ TEST(wc3_pathfinding, heatmap_reuses_neighbor_pathability_queries) {
     T_ASSERT(stats.pathability_checks <= stats.heatmap_iterations * 8 + 1);
 }
 
+TEST(wc3_pathfinding, multiple_destinations_share_static_connectivity) {
+    enum { WIDTH = 64, HEIGHT = 64 };
+    static uint8_t cells[WIDTH * HEIGHT];
+    edict_t *first, *second;
+    struct routePerfStats_s cold, warm;
+
+    memset(cells, 0, sizeof(cells));
+    setup_test_pathmap(WIDTH, HEIGHT, cells);
+    reset_entities();
+    first = make_waypoint(20.5f, 20.5f);
+    second = make_waypoint(40.5f, 40.5f);
+    CM_ResetTestPathPerfStats();
+    T_ASSERT(CM_BuildHeatmapForRadius(first, 1.0f));
+    cold = CM_GetTestPathPerfStats();
+    CM_ResetTestPathPerfStats();
+    uint32_t generation = CM_BuildHeatmapForRadius(second, 1.0f);
+    T_ASSERT(generation);
+    warm = CM_GetTestPathPerfStats();
+    T_EQ(warm.heatmap_iterations, cold.heatmap_iterations);
+    T_ASSERT(warm.heatmap_iterations > 3000);
+    /* A different goal traverses the same static edges without repeating
+     * footprint tests. Resolving its endpoint still performs one live query. */
+    T_ASSERT(warm.pathability_checks <= 1);
+    T_ASSERT(CM_FlowCanReach(generation, 10.5f, 10.5f));
+    T_ASSERT(!CM_FlowCanReach(generation, 0.5f, 0.5f));
+
+    CM_InvalidatePathCache();
+    CM_ResetTestPathPerfStats();
+    T_ASSERT(CM_BuildHeatmapForRadius(second, 1.0f));
+    T_ASSERT(CM_GetTestPathPerfStats().pathability_checks > 3000);
+}
+
+void CM_TestCopyFlowPrices(int *prices, uint32_t count);
+TEST(wc3_pathfinding, threaded_frontier_preserves_every_price_and_completion_tick) {
+    enum { WIDTH = 40, HEIGHT = 40, CELLS = WIDTH * HEIGHT, TICKS = 240 };
+    static uint8_t cells[CELLS];
+    static int prices[TICKS][CELLS];
+    static cmPathJobStatus_t statuses[TICKS];
+    int actual[CELLS];
+    memset(cells, 0, sizeof(cells));
+    FOR_LOOP(y, HEIGHT) if (y < 18 || y > 21) cells[y * WIDTH + 20] = CM_PATHING_UNWALKABLE;
+    for (int threaded = 0; threaded < 2; threaded++) {
+        G_SetPathWorkerEnabled(threaded != 0);
+        setup_test_pathmap(WIDTH, HEIGHT, cells);
+        reset_entities();
+        CM_ResetTestPathPerfStats();
+        edict_t *first = make_waypoint(30.5f, 30.5f), *second = make_waypoint(5.5f, 5.5f);
+        T_EQ(CM_RequestHeatmapForRadius(first, 0), 0);
+        T_EQ(CM_RequestHeatmapForRadius(second, 0), 0);
+        FOR_LOOP(tick, TICKS) {
+            cmPathJobStatus_t status;
+            CM_BeginPathJobs(13 + tick % 17);
+            /* Read-only geometry queries may overlap the numeric frontier. */
+            T_ASSERT(CM_PointIsPathableForRadius(&MAKE(vec2_t, 10.5f, 10.5f), 0));
+            CM_GetPathJobStatus(&status);
+            CM_TestCopyFlowPrices(actual, CELLS);
+            if (!threaded) {
+                statuses[tick] = status;
+                memcpy(prices[tick], actual, sizeof(actual));
+            } else {
+                T_ASSERT(!memcmp(&statuses[tick], &status, sizeof(status)));
+                T_ASSERT(!memcmp(prices[tick], actual, sizeof(actual)));
+            }
+        }
+        T_ASSERT(CM_RequestHeatmapForRadius(first, 0) != 0);
+        T_ASSERT(CM_RequestHeatmapForRadius(second, 0) != 0);
+        /* Replacing geometry and invalidating caches must join before freeing
+         * either the frontier or the static connectivity borrowed by it. */
+        edict_t *third = make_waypoint(12.5f, 32.5f);
+        T_EQ(CM_RequestHeatmapForRadius(third, 0), 0);
+        CM_BeginPathJobs(11);
+        CM_InvalidatePathCache();
+        T_EQ(CM_RequestHeatmapForRadius(third, 0), 0);
+        CM_BeginPathJobs(11);
+        setup_test_pathmap(WIDTH, HEIGHT, cells);
+        T_ASSERT(CM_BuildHeatmapForRadius(third, 0) != 0);
+    }
+    G_ShutdownPathWorker();
+    G_SetPathWorkerEnabled(false);
+}
+
 TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
     vec2_t from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
     pathAccelParams_t params = { &from, &target, 0.0f, CM_PATHING_UNWALKABLE };
@@ -1025,6 +1139,10 @@ TEST(pathfinding, fine_lookup_epoch_wrap_and_reuse) {
     T_ASSERT(wc3_fine_search(search,&request)>=0);
     uint32_t count=search->count,pops=search->pops;
     uint64_t hash=fine_storage_node_hash(search);
+    search->hash_epoch=WC3_FINE_LOOKUP_EPOCH_MASK;
+    T_ASSERT(wc3_fine_search(search,&request)>=0);
+    T_EQ(search->hash_epoch,1u); T_EQ(search->count,count); T_EQ(search->pops,pops);
+    T_ASSERT(fine_storage_node_hash(search)==hash);
     search->hash_epoch=UINT32_MAX;
     T_ASSERT(wc3_fine_search(search,&request)>=0);
     T_EQ(search->hash_epoch,1u); T_EQ(search->count,count); T_EQ(search->pops,pops);
@@ -1881,6 +1999,23 @@ TEST(wc3_pathfinding, spatial_publication_follows_changed_objects) {
     reset_entities(); setup_test_world();
 }
 
+TEST(wc3_pathfinding, spatial_unlink_visits_only_active_footprint_cells) {
+    extern uint32_t G_TestMoveSpatialLinkVisits(bool);
+    reset_entities(); setup_test_world();
+    edict_t *unit = make_unit_at(128,128);
+    unit->collision = 16;
+    G_PublishMoveSpatialObject(unit);
+    wc3SpatialActive_t const *object = G_GetMoveSpatialObject(unit->s.number);
+    uint32_t cells = (object->box.max.x-object->box.min.x)*(object->box.max.y-object->box.min.y);
+    T_ASSERT(cells > 0 && cells < 16);
+    G_TestMoveSpatialLinkVisits(true);
+    G_RemoveMoveSpatialObject(unit);
+    T_EQ(G_TestMoveSpatialLinkVisits(true), cells);
+    G_RemoveMoveSpatialObject(unit);
+    T_EQ(G_TestMoveSpatialLinkVisits(true), 0);
+    reset_entities(); setup_test_world();
+}
+
 /* Differential admission includes word boundaries, all footprint classes,
  * terrain edits, overlapping objects, hidden/removal lifetimes and target-hit
  * short circuits. It compares the actual optimized adapter to its ordered walk. */
@@ -1915,6 +2050,7 @@ TEST(wc3_pathfinding, entity_members_preserve_order_across_word_boundaries) {
     entitySet_t members={0};
     uint32_t ids[]={0,63,64,4095,4096,MAX_ENTITIES-1};
     FOR_LOOP(i,6)entity_set_put(&members,ids[5-i],true);
+    FOR_LOOP(i,6)entity_set_put(&members,ids[i],true);
     uint32_t from=0;
     FOR_LOOP(i,6) {T_EQ(entity_set_next(&members,from),ids[i]); from=ids[i]+1;}
     T_EQ(entity_set_next(&members,from),MAX_ENTITIES);
@@ -1928,6 +2064,8 @@ TEST(wc3_pathfinding, entity_members_preserve_order_across_word_boundaries) {
     entity_set_put(&members,4096,false); entity_set_put(&members,MAX_ENTITIES-1,false);
     T_EQ(entity_set_next(&members,1),MAX_ENTITIES);
     entity_set_put(&members,0,false); T_EQ(entity_set_next(&members,0),MAX_ENTITIES);
+    FOR_LOOP(i,6)entity_set_put(&members,ids[i],false);
+    T_EQ(entity_set_next(&members,0),MAX_ENTITIES);
 }
 
 TEST(wc3_perf, twelve_movers_with_4000_scenery) {
@@ -2288,7 +2426,7 @@ TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
 
     edict_t *unit = make_unit_at(goal_x, goal_y);
     unit->collision = 0.0f;
-    unit->goalentity = target;
+    S_SetMoveGoal(unit, &unit->goalentity, target);
     target->heatmap2 = gen;
     target->heatmap2_radius = 0.0f;
 
@@ -2832,7 +2970,7 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     edict_t *unit = make_unit_at(0.0f, 0.0f);
     edict_t *wp   = make_waypoint(5.0f, 5.0f);
     unit->collision = 0.0f;
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     unit->stand      = unit_stand;
     unit_stand(unit);
     order_move(unit, wp);
@@ -2961,6 +3099,128 @@ TEST(pathfinding, admitted_fine_requests_preserve_raw_source_and_same_cell_zero_
         free(route.points); G_FreeEdict(mover);
     }
     reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, packed_fine_lookup_retains_full_native_identity_range) {
+    wc3FineSearch_t *search = calloc(1, sizeof(*search));
+    wc3FineRequest_t request = {.width = 256, .height = 256};
+    T_NOT_NULL(search);
+    if (!search) return;
+    wc3_fine_reset_lookup(search);
+    FOR_LOOP(i, BZ_WC3_FINE_NODES)
+        T_EQ(wc3_fine_node(search, &request, (wc3FinePoint_t){i % 256, i / 256}), i);
+    T_EQ(wc3_fine_node(search, &request, (wc3FinePoint_t){0, 128}), -1);
+    FOR_LOOP(i, BZ_WC3_FINE_NODES)
+        T_EQ(wc3_fine_node(search, &request, (wc3FinePoint_t){i % 256, i / 256}), i);
+    search->hash_epoch = WC3_FINE_LOOKUP_EPOCH_MASK;
+    wc3_fine_reset_lookup(search);
+    search->count = 0;
+    T_EQ(wc3_fine_node(search, &request, (wc3FinePoint_t){255, 127}), 0);
+    T_EQ(wc3_fine_node(search, &request, (wc3FinePoint_t){0, 0}), 1);
+    wc3_fine_free(search);
+    free(search);
+}
+
+
+uint32_t G_TestMoveGroupGoalConversions(bool reset);
+TEST(pathfinding, retained_group_request_reuses_transform_and_invalidates_on_world_changes) {
+    reset_entities(); setup_test_world(); G_FreeMovePathCache();
+    uint8_t cells[64 * 64] = {0};
+    CM_SetupTestWorldBounds(&(box2_t){{-1024,-1024},{1024,1024}});
+    CM_SetupTestPathmap(64, 64, cells);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -800, -800);
+    uint32_t number = unit->s.number;
+    vec2_t source = {-800,-800}, target = {591.25f,719.125f}, expected, point;
+    movePathQuery_t query = {.geometry = {&source,&target,8,2}};
+    moveFineRoute_t *route = &unit->movement.fine_route;
+    G_TestMoveGroupGoalConversions(true);
+    T_ASSERT(G_UnitMoveGroupDestination(&query, route, &expected));
+    T_EQ(G_TestMoveGroupGoalConversions(true), 1);
+    FOR_LOOP(i, 4096) {
+        source.x += .015625f;
+        T_ASSERT(G_UnitMoveGroupDestination(&query, route, &point));
+        T_EQ(wc3_float_bits(point.x), wc3_float_bits(expected.x));
+        T_EQ(wc3_float_bits(point.y), wc3_float_bits(expected.y));
+    }
+    T_EQ(G_TestMoveGroupGoalConversions(true), 0);
+    /* Distinct public requests can clip to the same admitted goal. They must
+     * preserve the route's original sampled footprint and selected point. */
+    target = (vec2_t){5000,7000};
+    T_ASSERT(G_UnitMoveGroupDestination(&query, route, &expected));
+    float radius = route->group_radius;
+    vec2_t *points = route->group_points;
+    target = (vec2_t){6000,8000}; query.geometry.radius = 64;
+    T_ASSERT(G_UnitMoveGroupDestination(&query, route, &point));
+    T_ASSERT(route->group_points == points); T_FEQ(route->group_radius, radius, 0);
+    T_EQ(wc3_float_bits(point.x), wc3_float_bits(expected.x));
+    T_EQ(wc3_float_bits(point.y), wc3_float_bits(expected.y));
+    T_EQ(G_TestMoveGroupGoalConversions(true), 2);
+    CM_SetupTestWorldBounds(&(box2_t){{-512,-512},{1536,1536}});
+    T_ASSERT(G_UnitMoveGroupDestination(&query, route, &expected));
+    T_EQ(G_TestMoveGroupGoalConversions(true), 1);
+    route->group_geometry = 0;
+    T_ASSERT(G_UnitMoveGroupDestination(&query, route, &point));
+    T_EQ(wc3_float_bits(point.x), wc3_float_bits(expected.x));
+    T_EQ(wc3_float_bits(point.y), wc3_float_bits(expected.y));
+    /* Derived request keys are not saved. A restored plan retains its native
+     * goal/footprint but recompiles the world request before accepting a hit. */
+    cstring_t file = "/tmp/wc3-group-request-cache.bin";
+    vec2_t saved_goal = route->group_goal;
+    T_ASSERT(route->group_geometry != 0);
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    route = &g_edicts[number].movement.fine_route;
+    T_EQ(route->group_geometry, 0);
+    T_EQ(wc3_float_bits(route->group_goal.x), wc3_float_bits(saved_goal.x));
+    T_EQ(wc3_float_bits(route->group_goal.y), wc3_float_bits(saved_goal.y));
+    remove(file); reset_entities(); setup_test_world(); G_FreeMovePathCache();
+}
+TEST(pathfinding, indexed_placement_matches_live_scalar_occupancy_and_publication) {
+    reset_entities(); setup_test_world(); G_FreeMovePathCache();
+    uint8_t cells[64 * 64] = {0};
+    FOR_LOOP(y, 64) if (y != 17) cells[y * 64 + 32] = 2;
+    CM_SetupTestWorldBounds(&(box2_t){{-1024,-1024},{1024,1024}});
+    CM_SetupTestPathmap(64, 64, cells);
+    edict_t *actors[256];
+    FOR_LOOP(i, 256) {
+        actors[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (int)(i % 16) * 24 - 192, (int)(i / 16) * 24 - 192);
+        actors[i]->collision = 8 + (i % 4) * 16;
+        if (!(i % 5)) actors[i]->aiflags |= AI_FLYING;
+        if (!(i % 7)) actors[i]->s.renderfx |= RF_HIDDEN;
+        if (!(i % 11)) actors[i]->movement.captain_actor_type = 2;
+        actors[i]->movement.velocity.x = (i & 1) ? 75 : 0;
+        gi.LinkEntity(actors[i]);
+    }
+    edict_t *unit = actors[1];
+    uint32_t random = 713;
+    FOR_LOOP(pass, 4) {
+        unit->collision = 8 + pass * 16;
+        unit->no_pathing = pass == 2;
+        if (pass == 3) unit->aiflags |= AI_FLYING;
+        G_SetEntityHidden(actors[7], pass & 1);
+        actors[8]->s.origin2.x += 73.125f;
+        gi.LinkEntity(actors[8]); gi.LinkEntity(unit);
+        FOR_LOOP(i, 192) {
+            random = random * 1664525u + 1013904223u;
+            vec2_t point = {(int)(random % 70) - 3 + .125f, (int)((random >> 16) % 70) - 3 + .875f}, actual;
+            moveFineGraph_t graph = {.flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit), .endpoint = true};
+            float input[2] = {point.x, point.y}, expected[2];
+            graph.level = placement_terrain_level(input);
+            movePathQuery_t objects = {.mover = unit, .units = true};
+            move_query_objects(&graph, &objects, NULL);
+            wc3FinePlacement_t query = {.point = {point.x, point.y}, .limit = (i & 1) ? 5 : 32,
+                .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
+                    .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
+            bool scalar = wc3_fine_place(&query, expected);
+            uint64_t serial = G_GetMoveSpatialSerial();
+            T_EQ(move_place_unit(unit, point, query.limit, &actual), scalar);
+            T_EQ(G_GetMoveSpatialSerial(), serial);
+            if (scalar) {
+                T_EQ(wc3_float_bits(actual.x), wc3_float_bits(expected[0]));
+                T_EQ(wc3_float_bits(actual.y), wc3_float_bits(expected[1]));
+            }
+        }
+    }
+    reset_entities(); setup_test_world(); G_FreeMovePathCache();
 }
 
 #endif /* BZ_TESTS */

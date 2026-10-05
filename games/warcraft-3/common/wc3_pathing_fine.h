@@ -34,7 +34,7 @@ typedef struct {
     wc3FineEntry_t *heap;
     uint32_t node_capacity, heap_capacity, heap_growth;
     uint32_t hash[BZ_WC3_FINE_HASH];
-    uint32_t hash_stamps[BZ_WC3_FINE_HASH], hash_epoch;
+    uint32_t hash_epoch;
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
 #if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
@@ -70,11 +70,21 @@ static inline void wc3_fine_free(wc3FineSearch_t *search) {
     search->count = search->queued = 0;
 }
 
-/* Lookup is scratch, not a native generation. Advancing its epoch makes an
- * empty request O(1); only uint32 wrap needs to clear the retained stamps. */
+/* The native node limit uses 15 identity bits. Store the scratch generation
+ * in the other 17 bits of the same word: each probe fetches one cache line,
+ * not separate identity/stamp lines, and lookup backing is 256 KiB, not 512.
+ * This generation is unrelated to the native reopen/heap generations. */
+#define WC3_FINE_LOOKUP_NODE_BITS 15u
+#define WC3_FINE_LOOKUP_NODE_MASK ((1u << WC3_FINE_LOOKUP_NODE_BITS) - 1u)
+#define WC3_FINE_LOOKUP_EPOCH_MASK (UINT32_MAX >> WC3_FINE_LOOKUP_NODE_BITS)
+_Static_assert(BZ_WC3_FINE_NODES == (1u << WC3_FINE_LOOKUP_NODE_BITS), "fine lookup identity width");
+
+/* Advancing the epoch makes an empty request O(1). Wrapped scratch epochs
+ * clear the retained lookup; this cannot change request work or node order. */
 static inline void wc3_fine_reset_lookup(wc3FineSearch_t *search) {
-    if(!++search->hash_epoch) {
-        memset(search->hash_stamps,0,sizeof(search->hash_stamps));
+    search->hash_epoch = (search->hash_epoch + 1) & WC3_FINE_LOOKUP_EPOCH_MASK;
+    if (!search->hash_epoch) {
+        memset(search->hash, 0, sizeof(search->hash));
         search->hash_epoch=1;
     }
 }
@@ -122,16 +132,15 @@ static uint32_t wc3_fine_heuristic(wc3FinePoint_t pos, wc3FinePoint_t goal) {
 static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, wc3FinePoint_t pos) {
     if ((uint32_t)pos.x >= req->width || (uint32_t)pos.y >= req->height) return -1;
     uint32_t slot = ((uint32_t)pos.x * 0x9e3779b1u ^ (uint32_t)pos.y * 0x85ebca6bu) & (BZ_WC3_FINE_HASH - 1);
-    while (search->hash_stamps[slot]==search->hash_epoch) {
-        uint32_t at = search->hash[slot] - 1;
+    while ((search->hash[slot] >> WC3_FINE_LOOKUP_NODE_BITS) == search->hash_epoch) {
+        uint32_t at = search->hash[slot] & WC3_FINE_LOOKUP_NODE_MASK;
         if (search->nodes[at].pos.x == pos.x && search->nodes[at].pos.y == pos.y) return (int)at;
         slot = (slot + 1) & (BZ_WC3_FINE_HASH - 1);
     }
     if (search->count == BZ_WC3_FINE_NODES) return -1;
     wc3_fine_reserve(search, search->count + 1, 0);
     uint32_t at = search->count++;
-    search->hash[slot] = at + 1;
-    search->hash_stamps[slot]=search->hash_epoch;
+    search->hash[slot] = (search->hash_epoch << WC3_FINE_LOOKUP_NODE_BITS) | at;
     search->nodes[at] = (wc3FineNode_t){ .pos = pos, .parent = -1 };
     return (int)at;
 }

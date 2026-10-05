@@ -189,7 +189,7 @@ void S_CancelRepair(edict_t *ent) {
     }
 #endif
     repair_release(ent);
-    if (ent->goalentity == building) ent->goalentity = NULL;
+    if (ent->goalentity == building) S_SetMoveGoal(ent, &ent->goalentity, NULL);
 }
 
 /* Finish Repair consistently: completed Town Halls return their workers to gold mining. */
@@ -225,7 +225,7 @@ static void repair_stop_reason(edict_t *ent, cstring_t reason) {
             ent && ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
             ent && ent->goalentity && g_edicts ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
-    if (ent) ent->goalentity = NULL;
+    if (ent) S_SetMoveGoal(ent, &ent->goalentity, NULL);
     repair_release(ent);
     if (resume_harvest) {
         /* Retail returns Town Hall builders to work after the final Repair tick;
@@ -357,7 +357,7 @@ static void repair_set_work(edict_t *ent) {
     edict_t *building = ent ? ent->build : NULL;
 
     if (!ent || !building) return;
-    ent->goalentity = building;
+    S_SetMoveGoal(ent, &ent->goalentity, building);
     move_reset_progress(ent);
     if (repair_handler(ent->buildwork->ability) == CAbilityRepairGeneric)
         unit_setmove(ent, &repair_generic_move_work);
@@ -378,7 +378,7 @@ static bool repair_prepare_approach(edict_t *ent) {
      * footprints. Following the entity also lets Repair track a target that
      * moves while the worker is approaching it. */
     if (!G_UnitIsStructure(building)) {
-        ent->goalentity = building;
+        S_SetMoveGoal(ent, &ent->goalentity, building);
         move_reset_progress(ent);
         return true;
     }
@@ -386,7 +386,7 @@ static bool repair_prepare_approach(edict_t *ent) {
     found = CM_FindApproachPointToFootprintForRadius(
         building, &ent->s.origin2, interaction_range, ent->collision, &approach);
     if (found) {
-        ent->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(ent, &ent->goalentity, Waypoint_add(&approach));
         move_reset_progress(ent);
         return true;
     }
@@ -394,7 +394,7 @@ static bool repair_prepare_approach(edict_t *ent) {
     /* Models without an authored footprint retain the legacy centre/collision
      * fallback, but still use collision-sized routing. */
     if (!building->pathtex) {
-        ent->goalentity = building;
+        S_SetMoveGoal(ent, &ent->goalentity, building);
         move_reset_progress(ent);
         return true;
     }
@@ -598,7 +598,7 @@ static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool pr
 #endif
     S_CancelRepair(ent);
     ent->build = building;
-    ent->goalentity = building;
+    S_SetMoveGoal(ent, &ent->goalentity, building);
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD legacy-link worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f\n",
@@ -668,7 +668,7 @@ void repair_build_legacy(edict_t *ent, edict_t *building) {
     ent->s.angle = angle - M_PI;
     gi.LinkEntity(ent);
     ent->build = building;
-    ent->goalentity = building;
+    S_SetMoveGoal(ent, &ent->goalentity, building);
     if (!ent->buildwork) ent->buildwork = G_AllocBuildwork();
     assert(ent->buildwork);
     ent->buildwork->primary = false;

@@ -474,7 +474,7 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
 }
 
 static void G_StopPickupOrder(edict_t *unit) {
-    unit->goalentity = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
     if (unit->stand) {
         unit->stand(unit);
     } else {
@@ -527,7 +527,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         return false;
     }
 
-    unit->goalentity = item;
+    S_SetMoveGoal(unit, &unit->goalentity, item);
     move_reset_progress(unit);
     unit_setmove(unit, &item_move_pickup);
     return true;
@@ -632,7 +632,7 @@ bool G_ReattachItemAtScripted(edict_t *unit, edict_t *item, uint32_t slot) {
 
 static void G_StopDropItemOrder(edict_t *unit) {
     if (!unit) return;
-    unit->goalentity = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
     unit->item_drop = NULL;
     if (unit->stand) unit->stand(unit);
     else unit_stand(unit);
@@ -685,7 +685,7 @@ bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
         return false;
     }
 
-    unit->goalentity = Waypoint_add(position);
+    S_SetMoveGoal(unit, &unit->goalentity, Waypoint_add(position));
     if (!unit->goalentity) return false;
     move_reset_progress(unit);
     unit_setmove(unit, &item_move_drop);

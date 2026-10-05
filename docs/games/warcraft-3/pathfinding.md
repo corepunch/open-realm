@@ -384,6 +384,39 @@ make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 
 Radius-0 point fields remain available to callers whose interaction contract specifically needs point routing. Attack chases instead use the attacker's collision radius so their field cannot route through a gap the move-time validator rejects. Both forms strictly descend to their adjusted legal route endpoint. Once that endpoint is reached, `unit_changeangle()` exposes `flow_goal_reached` and steers toward the real entity target; the attack behavior continues to use its own range test. Gold Mine entry/return may hand off immediately at the route goal or after Move's bounded near-goal settle detector proves a crowded worker has stopped making progress at the interaction edge. This keeps routing monotonic without turning a distant blocked route into a successful interaction.
 
+An unreachable field can resolve an approach inside the mover's connected
+component even when the target center lies in another component. That approach
+belongs to `movement.flow_fallback_approach`. Only an entity marked
+`SVF_MOVE_WAYPOINT` may replace its coordinates with the recovered endpoint.
+Attack and Follow must retain the target's authoritative position, footprint,
+spatial publication and identity while using the mover-owned approach.
+
+The former recovery branch treated every positive-radius route as a location
+order. Once Attack started requesting collision-sized routes, it could write
+the closest reachable point directly into `goalentity->s.origin2`. In a local
+NightElfX01 capture, Maiev approaching the Elven Gate changed the gate from
+`(1984, -6592, 160)` to `(1968, -6704, 160)`. Its spatial bounds were not relinked,
+so presentation and collision geometry also disagreed. A direct `T_Damage` or
+`S_ResolveAttackHit` probe did not reproduce this: the corrupting call was
+`unit_changeangle()` during attack approach. This explains why hitting scenery
+appeared to move only some props; the failure depends on route connectivity,
+not the destructable's model or hit animation.
+
+`wc3_combat.unreachable_attack_keeps_target_geometry` drives issued Attack
+orders against destructable and unit targets across a separating wall. It
+checks unchanged XYZ, facing, bounds and target identity through recovery,
+both when weapon range cannot reach the target and when the approach allows
+hits across the wall. `wc3_movement.unreachable_move_settles_at_closest_boundary`
+preserves the private-waypoint recovery case. The corrected local campaign
+capture retains the gate at its original XYZ through approach and repeated
+hits (life 100 to 35); this verifies the engine regression, not additional
+retail fidelity.
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_combat.unreachable_attack_keeps_target_geometry'
+make test-wc3-engine WC3_PATTERN='wc3_movement.unreachable_move_settles_at_closest_boundary'
+```
+
 ## Authored movement profiles and public speed
 
 Original and custom map UnitData rows now retain movement type, turn rate and

@@ -8,6 +8,53 @@ has exact C/live evidence without closing the whole-replacement READY gates.
 
 ## Progress
 
+Architecture follow-up (runtime308–310): ordered constructor stages, stable
+versioned type definitions, shared immutable attack defaults with owned overrides,
+prepared initialization plans and bounded ordered fog checkpoints are implemented.
+The constructor trace and full Classic/TFT suites pass; final IceCrown
+position/member/RNG records still match source221. Raw creation remains
+8.48–8.98 ms and rendered deadlines still fail. The fog A/B does not establish a
+speedup. These changes close no retail fidelity TODOs; see
+[architecture and performance gate](performance.md#october-5-constructor-definitions-and-ordered-fog-checkpoints).
+
+Runtime318 follow-up replaces cached fog cell replay and cold rim rectangle
+scans with ordered word masks and a shared blocker index. Raw IceCrown creation
+is 8.098037 ms; final positions, member state and RNG still exactly match
+source221. A runtime316/317 pair reduces first fog update CPU from 99.38 to
+58.26 ms, but the subsequent runtime318 rendered capture regresses across the
+pipeline and still fails deadlines. The final same-window pair confirms a local
+fog reduction (81.90 → 68.35 ms first update) without a total-server win. The full
+repository suite passes, including 2,630 tests / 7,075,879 assertions per data mode.
+No frame-rate acceptance or retail TODO closure is claimed. See [direct geometry evidence](performance.md#october-5-direct-fog-geometry-and-ordered-words)
+and the detailed fog capture ledger.
+
+Runtime320–324 replaces repeated fog-ray arithmetic with shared immutable rows
+and transparent spans, and repeated server neighborhood scans with a hierarchical
+spatial hash that restores exact Quake encounter order. Connected-viewer fog
+median falls 14.91 → 4.14 ms; a same-game-library server pair reduces mean entity
+update CPU 36.30 → 26.04 ms. Runtime324 raw creation is 8.254482 ms with the full
+source221 final record unchanged. The rendered maximum is still 94.24 ms: the
+creation and presentation targets remain unmet. Full repository validation
+passes (2,633 tests / 7,093,714 assertions per Classic/TFT mode). These are engine improvements,
+not retail task closures. See [architecture and evidence](performance.md#october-5-shared-fog-rays-and-ordered-spatial-hashing).
+
+October 5 performance follow-up: source297 creates 4,096 units synchronously on
+IceCrown in 8.208 ms CPU, including first-unit resources. Full final positions,
+member state and RNG match source221. This remains above the 2 ms target.
+Enemy-presence rejection, mine owner lookup, sparse rally cleanup and dirty
+shared-controller command-card checks remove repeated unrelated entity scans.
+Source298 passes the full repository suite, including Classic/TFT engine tests
+(2,623 tests / 6,869,578 assertions each), index restoration and 604 pathfinding
+Python checks. Complete source297 actual-swap captures reduce median active
+server CPU from 58.689 ms to 46.021 ms, but still fail the frame budget: peak
+160.651 ms and 20 double-period gaps. Per-source sight reuse/local blocker
+invalidation, ordered lifecycle plans, resource caches, partial model reads,
+archive hash indexing and sparse status/order storage remain implemented.
+Metadata cache-miss splitting and a compact area-list experiment were reverted
+because they did not establish an overall performance win. This performance
+work closes no additional retail research tasks. See
+[performance evidence](performance.md#october-5-synchronous-creation-follow-up).
+
 **194 done / 336 tasks; 142 remaining.** Payoff101 closes NUM-04.1/02: the
 shared overlap/retry draw order now reaches public movement, including paused
 membership and saved continuation. Native and engine agree on1361 motion commits,
@@ -16,12 +63,16 @@ TFT each passed2544 tests/6,386,799 assertions at that checkpoint;598 pathfindin
 eighteen fresh strict contracts pass. Saved Ghidra retains694 roles,73 layouts/
 506 fields,364 ABIs and61 globals. The performance rewrite preserves these checks. A visible twelve-member
 Rise of the Naga capture has measured one-second windows above55 FPS. Earlier
-CPU frame records omitted the first post-order simulation tick; steady movement
-is below the5% amortized budget. Current Classic/TFT each pass2559 tests and
-6,818,215 assertions; eighteen fresh strict contracts retain their two known
+CPU records omitted the first post-order simulation tick. The allowance is
+**0.8 ms per display frame (5% of16 ms)**, including orders and search; simulation
+tick averages cannot establish acceptance. The previous amortized-budget claim
+is withdrawn. The source195 full Classic/TFT checkpoint passes2578 tests and
+6,841,695 assertions; eighteen fresh strict contracts retain their two known
 adaptive differences. Corrected captures include that tick: twelve
 selected campaign units average0.409 ms of movement per100-ms tick, and all12
-acquire new Move requests on four commands. Mass-movement acceptance remains open.
+acquire new Move requests on four commands. Campaign movement peaks at1.556 ms
+before initial command work is added, so campaign and mass-movement acceptance
+both remain open.
 Individual spikes and mass-movement scaling remain unresolved; see the
 [production-map measurements](performance.md#october-4-production-map-follow-up).
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)

@@ -33,7 +33,7 @@ static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
 static bool human_has_status(edict_t const *ent, uint32_t code) { return G_UnitStatusLevel(ent, code) != 0; }
 
 static void human_remove_status(edict_t *ent, uint32_t code) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent))
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
             memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
 }
@@ -108,7 +108,8 @@ static bool avatar_validate(edict_t *caster, spellTarget_t target, abilityitem_t
     uint32_t slots = 0;
     (void)target; unit_updatestatuses(caster);
     if (!S_SpellIsAliveTarget(caster) || (caster->avatar && caster->avatar->level)) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    if (!caster->abilstatus) return true;
+    FOR_LOOP(i, G_UnitStatusSlotCount(caster))
         if (!caster->abilstatus[i].level) slots++;
     if (slots >= 1) return true;
     fprintf(stderr, "WC3 Avatar: status capacity exhausted for unit %u\n", caster->s.number); return false;
@@ -164,7 +165,7 @@ static void control_magic_execute(edict_t *caster, spellTarget_t st, abilityitem
 
 static bool cloud_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
-    return st.entity && G_UnitIsStructure(st.entity) && st.entity->attack1.type != ATK_NONE &&
+    return st.entity && G_UnitIsStructure(st.entity) && S_AttackProfileRead(st.entity, 0)->type != ATK_NONE &&
            S_SpellIsEnemy(caster, st.entity);
 }
 
@@ -201,8 +202,8 @@ static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem
     if (!buff || strlen(buff) != 4 ||
         S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) <= 0.0f) return false;
     has_slot = unit_findstatus(st.entity, *((uint32_t const *)buff)) != NULL;
-    if (has_slot) return true;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    if (has_slot || !st.entity->abilstatus) return true;
+    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity))
         if (!st.entity->abilstatus[i].level) return true;
     return false;
 }
@@ -290,8 +291,8 @@ void S_PolymorphRemove(edict_t *unit) {
     if (!M_IsDead(unit)) {
         G_ClearUnitOrderQueue(unit);
         unit_leavecombat(unit);
-        unit->goalentity = NULL;
-        unit->secondarygoal = NULL;
+        S_SetMoveGoal(unit, &unit->goalentity, NULL);
+        S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
         unit_stand(unit);
     }
     client = G_GetPlayerClientByNumber(unit->s.player);
@@ -366,8 +367,8 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     G_ClearUnitOrderQueue(st.entity);
     S_SpellCancelChannel(st.entity);
     unit_leavecombat(st.entity);
-    st.entity->goalentity = NULL;
-    st.entity->secondarygoal = NULL;
+    S_SetMoveGoal(st.entity, &st.entity->goalentity, NULL);
+    S_SetMoveGoal(st.entity, &st.entity->secondarygoal, NULL);
     st.entity->animation = NULL;
     unit_stand(st.entity);
     {
@@ -384,7 +385,7 @@ static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityit
     edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
-    thinker->goalentity = st.entity; thinker->channel->target_spawn_time = st.entity->spawn_time;
+    S_SetMoveGoal(thinker, &thinker->goalentity, st.entity); thinker->channel->target_spawn_time = st.entity->spawn_time;
     thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
         (uint32_t)(S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) * 1000.0f);
@@ -430,7 +431,7 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     heroabilitystatus_t stolen = {0};
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity)) {
         if (st.entity->abilstatus[i].level && st.entity->abilstatus[i].timestamp) {
             stolen = st.entity->abilstatus[i];
             S_HumanStatusExpired(st.entity, stolen.code, stolen.level);
@@ -532,7 +533,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDispelMagic) {
     float summon_dmg = data_e > 0.0f ? data_e : data_b;
     float heal_hp = data_e > 0.0f ? data_a : 0.0f, heal_mana = data_e > 0.0f ? data_b : 0.0f;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        FOR_LOOP(i, G_UnitStatusSlotCount(target)) {
             if (target->abilstatus[i].level && target->abilstatus[i].timestamp) {
                 if (S_StatusIsUndispellable(&target->abilstatus[i])) continue;
                 unit_expirestatus(target, target->abilstatus + i);
@@ -609,15 +610,15 @@ bool S_HumanCanAttack(edict_t const *unit) {
 float S_HumanMoveFactor(edict_t const *unit) {
     uint32_t level;
     float factor = 1.0f;
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) {
+    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B','s','l','o')))) {
         heroabilitystatus_t const *status = unit_findstatus((edict_t *)unit, MAKEFOURCC('B','s','l','o'));
         uint32_t code = status->data ? status->data : MAKEFOURCC('A','s','l','o');
         factor = wc3_mul(factor, wc3_sub(1, S_SpellData(code, level, 1)));
     }
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
-    if ((level = G_UnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
+    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
+    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);
-    if (human_has_status(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
+    if (G_QueryUnitStatusLevel(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
     return factor;
 }
 
@@ -696,7 +697,7 @@ static bool defend_projectile_reaction(edict_t *projectile) {
         return true;
     }
 
-    projectile->goalentity = attacker;
+    S_SetMoveGoal(projectile, &projectile->goalentity, attacker);
     dir = Vector3_sub(&attacker->s.origin, &projectile->s.origin);
     if (Vector3_len(&dir) > 0.0f) projectile->s.angle = atan2f(dir.y, dir.x);
     return true;
@@ -715,14 +716,14 @@ int S_HumanAttackDamage(edict_t *attacker, edict_t *target, int damage) {
      * successful shot can keep travelling back to its source. */
     if ((level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','d','e','f'))))
         damage = (int)((float)damage * MAX(0.0f, S_SpellData(MAKEFOURCC('A','d','e','f'), level, 2)));
-    return defend_damage_taken(target, attacker->attack1.type, damage);
+    return defend_damage_taken(target, S_AttackProfileRead(attacker, 0)->type, damage);
 }
 
 void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
     uint32_t flak = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','f','l','k'));
     uint32_t barrage = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','r','o','c'));
     uint32_t storm = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','s','t','h'));
-    float radius = storm ? attacker->attack1.areaSmall : flak ? S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 2) :
+    float radius = storm ? S_AttackProfileRead(attacker, 0)->areaSmall : flak ? S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 2) :
                    barrage ? S_SpellNumber(MAKEFOURCC('A','r','o','c'), ABILITY_NUMBER_AREA, barrage) : 0.0f;
     uint32_t count = 0, limit = barrage ? (uint32_t)S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 3) : UINT_MAX;
     if (radius <= 0.0f) return;
@@ -732,15 +733,15 @@ void S_HumanAttackSplash(edict_t *attacker, edict_t *target, int damage) {
         if (flak) splash = distance <= S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 1) ?
             S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 3) : S_SpellData(MAKEFOURCC('A','f','l','k'), flak, 4);
         else if (barrage) splash = S_SpellData(MAKEFOURCC('A','r','o','c'), barrage, 1);
-        else if (distance > attacker->attack1.areaMedium) splash *= attacker->attack1.factorSmall;
-        else if (distance > attacker->attack1.areaFull) splash *= attacker->attack1.factorMedium;
+        else if (distance > S_AttackProfileRead(attacker, 0)->areaMedium) splash *= S_AttackProfileRead(attacker, 0)->factorSmall;
+        else if (distance > S_AttackProfileRead(attacker, 0)->areaFull) splash *= S_AttackProfileRead(attacker, 0)->factorMedium;
         T_Damage(other, attacker, (int)MAX(1.0f, splash)); count++;
     }
 }
 
 void S_HumanBreakInvisibility(edict_t *unit) {
     if (!unit) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
         if (status->level && status->code != MAKEFOURCC('B','O','w','k') &&
             S_UnitStatusIsTemporaryInvisibility(status))

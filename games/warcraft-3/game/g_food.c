@@ -178,6 +178,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
     unit->s.player = player;
+    G_AcquisitionEntityLinked(unit);
     S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGED);
     G_PublishChangeOwnerEvents(unit, old_player);
     /* Native698ce0 publishes the owner event before9b9230 ->9c3660 reinserts

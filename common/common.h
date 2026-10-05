@@ -229,6 +229,8 @@ void FS_SetSheetHost(sheetHost_t const *host);
 
 void CL_Init(void);
 void CL_Frame(uint32_t msec);
+void CL_PresentationFrame(uint32_t msec);
+void Com_FrameCheckpoint(void);
 void CL_Shutdown(void);
 
 /* Sound (sound/s_sound.c) */
@@ -273,6 +275,8 @@ uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radiu
 uint32_t CM_RequestHeatmapForMoverFlags(struct edict_s *requester, struct edict_s *goalentity,
                                         float radius, uint8_t blocked_flags);
 void  CM_ProcessPathJobs(uint32_t work_budget);
+void CM_BeginPathJobs(uint32_t work_budget);
+void CM_FinishPathJobs(void);
 typedef struct {
     bool active, started;
     int target_cell_x, target_cell_y, radius_cells;

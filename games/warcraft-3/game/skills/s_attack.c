@@ -56,19 +56,19 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     return (enabled & (1u << slot)) != 0;
 }
 
-/* Attack 1/2 remain the authored runtime copies. Select the compatible slot
+/* Attack slots expose immutable defaults or the unit's owned override. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
-        if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
-        if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
+        if (S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return S_AttackProfileRead(attacker, 0);
+        if (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return S_AttackProfileRead(attacker, 1);
     }
-    if (attacker && flag && attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
-        (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
-    if (attacker && flag && attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
-        (attacker->attack2.targetsAllowed & flag)) return &attacker->attack2;
-    return attacker ? &attacker->attack1 : NULL;
+    if (attacker && flag && S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
+        (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 0);
+    if (attacker && flag && S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
+        (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)) return S_AttackProfileRead(attacker, 1);
+    return attacker ? S_AttackProfileRead(attacker, 0) : NULL;
 }
 #define ACTIVE_ATTACK(ent) attack_profile((ent), (ent)->goalentity)
 
@@ -99,7 +99,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
         /* ARTILLERY flies to the snapshotted point, but retaining the original
          * unit identity lets impact apply the ordinary primary-hit listeners
          * only when that same unit is still inside the splash bands. */
-        rocket->goalentity = desc->target;
+        S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
         rocket->channel->target_spawn_time = desc->target ? desc->target->spawn_time : 0;
         if (desc->attack) {
             rocket->artillery = G_AllocArtillery();
@@ -114,7 +114,7 @@ void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
             rocket->artillery->factor_small = desc->attack->factorSmall;
         }
     } else {
-        rocket->goalentity = desc->target;
+        S_SetMoveGoal(rocket, &rocket->goalentity, desc->target);
     }
     rocket->owner = ent;
     rocket->movetype = MOVETYPE_FLYMISSILE;
@@ -166,8 +166,8 @@ static bool can_attack(edict_t const *ent) {
     if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
-    if ((!S_UnitAttackSlotEnabled(ent, 0) || ent->attack1.type == ATK_NONE) &&
-        (!S_UnitAttackSlotEnabled(ent, 1) || ent->attack2.type == ATK_NONE))
+    if ((!S_UnitAttackSlotEnabled(ent, 0) || S_AttackProfileRead(ent, 0)->type == ATK_NONE) &&
+        (!S_UnitAttackSlotEnabled(ent, 1) || S_AttackProfileRead(ent, 1)->type == ATK_NONE))
         return false;
     if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
         return true;
@@ -181,8 +181,8 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
     uint32_t flag;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        ((!S_UnitAttackSlotEnabled(attacker, 0) || attacker->attack1.type == ATK_NONE) &&
-         (!S_UnitAttackSlotEnabled(attacker, 1) || attacker->attack2.type == ATK_NONE)) || S_UnitIsCycloned(target)) {
+        ((!S_UnitAttackSlotEnabled(attacker, 0) || S_AttackProfileRead(attacker, 0)->type == ATK_NONE) &&
+         (!S_UnitAttackSlotEnabled(attacker, 1) || S_AttackProfileRead(attacker, 1)->type == ATK_NONE)) || S_UnitIsCycloned(target)) {
         return false;
     }
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
@@ -192,8 +192,8 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
     if (M_IsDead((edict_t *)target)) return false;
 
     flag = G_TargetFlagForType(G_UnitTargetType(target));
-    return flag && ((attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
+    return flag && ((S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) ||
+                    (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)));
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -213,7 +213,7 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
         attacker->movement.attackmove_waypoint != NULL,
         attacker->movement.patrol_a != NULL, attacker->movement.follow_target != NULL);
     unit_leavecombat(attacker);
-    attacker->goalentity = NULL;
+    S_SetMoveGoal(attacker, &attacker->goalentity, NULL);
     attacker->attack_target_spawn_time = 0;
     attacker->movement.explicit_allied_attack = false;
     if (G_BuildingIsUnsummoning(attacker)) {
@@ -337,7 +337,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
     /* Only real post-mitigation unit damage should refresh the owning Hero shortcut's transient attack warning. */
     G_AlertHeroShortcutDamage(target);
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(target))
         if (target->abilstatus[i].level && target->abilstatus[i].code == MAKEFOURCC('B','U','s','l'))
             memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
     unit_updatestatuses(target);
@@ -471,7 +471,7 @@ void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
     profile.area_full = atk->areaFull; profile.area_medium = atk->areaMedium; profile.area_small = atk->areaSmall;
     profile.factor_medium = atk->factorMedium; profile.factor_small = atk->factorSmall;
     if (attacker->data.UnitWeapons)
-        profile.area_targets = atk == &attacker->attack2 ? attacker->data.UnitWeapons->attack2.areaTargets
+        profile.area_targets = atk == S_AttackProfileRead(attacker, 1) ? attacker->data.UnitWeapons->attack2.areaTargets
                                                        : attacker->data.UnitWeapons->attack1.areaTargets;
     impact = target->s.origin2;
     S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);
@@ -536,7 +536,7 @@ static void throw_missile(edict_t *ent) {
         .damage = damage,
         .attack_type = atk->type,
         .attack = atk,
-        .area_targets = ent->data.UnitWeapons ? (atk == &ent->attack2 ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
+        .area_targets = ent->data.UnitWeapons ? (atk == S_AttackProfileRead(ent, 1) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
@@ -546,9 +546,9 @@ static void throw_missile(edict_t *ent) {
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
 //    gi.WritePosition(&origin);
-//    gi.WriteShort(ent->attack1.projectile.model);
-//    gi.WriteShort(ent->attack1.projectile.speed);
-//    gi.WriteShort(Vector2_len(&dir) * 1000 / ent->attack1.projectile.speed);
+//    gi.WriteShort(S_AttackProfileRead(ent, 0)->projectile.model);
+//    gi.WriteShort(S_AttackProfileRead(ent, 0)->projectile.speed);
+//    gi.WriteShort(Vector2_len(&dir) * 1000 / S_AttackProfileRead(ent, 0)->projectile.speed);
 //    gi.WriteAngle(atan2(dir.y, dir.x));
 //    gi.multicast(&ent->s.origin, MULTICAST_PHS);
 }
@@ -805,7 +805,7 @@ void order_attack(edict_t *self, edict_t *target) {
     S_ShadowMeldBreak(self);
     self->movement.explicit_allied_attack = false;
     unit_entercombat(self, target);
-    self->goalentity = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = target->spawn_time;
     attack_walk(self);
 }
@@ -815,8 +815,10 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
         !S_AttackCanTarget(self, target))
         return false;
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = self->movement.patrol_b = self->movement.patrol_target = NULL;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
     order_attack(self, target);
@@ -901,8 +903,8 @@ void attack_ranged(edict_t *self) {
  * the damage point. */
 static bool attack_ground_valid(edict_t const *ent) {
     return ent && ent->inuse && !M_IsDead((edict_t *)ent) &&
-           S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.type != ATK_NONE &&
-           ent->attack1.weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
+           S_UnitAttackSlotEnabled(ent, 0) && S_AttackProfileRead(ent, 0)->type != ATK_NONE &&
+           S_AttackProfileRead(ent, 0)->weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }
 
@@ -911,7 +913,7 @@ static float attack_ground_distance(edict_t const *ent) {
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
-    return !ent || attack_ground_distance(ent) > ent->attack1.range;
+    return !ent || attack_ground_distance(ent) > S_AttackProfileRead(ent, 0)->range;
 }
 
 static bool attack_ground_too_close(edict_t const *ent) {
@@ -925,7 +927,7 @@ static void attack_ground_cooldown(edict_t *ent);
 
 static void attack_ground_stop(edict_t *ent) {
     if (!ent) return;
-    ent->goalentity = NULL;
+    S_SetMoveGoal(ent, &ent->goalentity, NULL);
     if (ent->stand) ent->stand(ent);
     else M_SetMove(ent,NULL);
 }
@@ -941,14 +943,14 @@ static void throw_artillery_ground(edict_t *ent) {
     impact = ent->channel->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
-    origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
+    origin = Matrix4_multiply_vector3(&matrix, &S_AttackProfileRead(ent, 0)->origin);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .fixed_target = &impact,
-        .speed = ent->attack1.projectile.speed,
-        .model = ent->attack1.projectile.model,
+        .speed = S_AttackProfileRead(ent, 0)->projectile.speed,
+        .model = S_AttackProfileRead(ent, 0)->projectile.model,
         .damage = damage,
-        .attack = &ent->attack1,
+        .attack = S_AttackProfileRead(ent, 0),
         .area_targets = ent->data.UnitWeapons ? ent->data.UnitWeapons->attack1.areaTargets : 0,
     });
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttackGround &&
@@ -998,8 +1000,8 @@ static void attack_ground_walk(edict_t *ent) {
 static void attack_ground_cooldown(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     unit_setmove(ent, &attack_ground_move_cooldown);
-    ent->wait = MAX(0.0f, MAX(ent->attack1.cooldown - ent->attack1.damagePoint,
-                               ent->attack1.backswingPoint) / divisor);
+    ent->wait = MAX(0.0f, MAX(S_AttackProfileRead(ent, 0)->cooldown - S_AttackProfileRead(ent, 0)->damagePoint,
+                               S_AttackProfileRead(ent, 0)->backswingPoint) / divisor);
     if (ent->wait <= 0.0f) attack_ground_ranged(ent);
 }
 
@@ -1007,8 +1009,8 @@ static void attack_ground_ranged(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
-    ent->wait = ent->attack1.damagePoint / divisor;
-    if (ent->sound.attack) G_PlaySound(NULL, ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
+    ent->wait = S_AttackProfileRead(ent, 0)->damagePoint / divisor;
+    if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
 }
 
 bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
@@ -1018,13 +1020,15 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
         S_UnitPolymorphed(unit)) return false;
     waypoint = Waypoint_add(point);
     if (!waypoint) return false;
-    unit->movement.attackmove_waypoint = NULL;
-    unit->movement.patrol_a = unit->movement.patrol_b = unit->movement.patrol_target = NULL;
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
     unit->movement.follow_target = NULL;
     unit->movement.holding_position = false;
     unit->movement.group_speed = 0.0f;
     S_SpellCancelChannel(unit);
-    unit->goalentity = waypoint;
+    S_SetMoveGoal(unit, &unit->goalentity, waypoint);
     unit->attack_target_spawn_time = 0;
     attack_ground_walk(unit);
     if (!unit->channel) unit->channel = G_AllocChannel();
@@ -1075,10 +1079,10 @@ static void ai_attackmove_walk(edict_t *ent) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }
-        ent->movement.attackmove_waypoint = NULL;
+        S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
         ent->stand(ent);
     } else if (move_is_blocked(ent, distance, move_distance)) {
-        ent->movement.attackmove_waypoint = NULL;
+        S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
         ent->stand(ent);
     } else {
         unit_changeangle(ent);
@@ -1092,13 +1096,13 @@ static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, CAbili
 void order_attackmove(edict_t *self, edict_t *waypoint) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    self->movement.attackmove_waypoint = waypoint;
-    self->movement.patrol_a = NULL;
-    self->movement.patrol_b = NULL;
-    self->movement.patrol_target = NULL;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, waypoint);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
-    self->goalentity = waypoint;
+    S_SetMoveGoal(self, &self->goalentity, waypoint);
     self->attack_target_spawn_time = 0;
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
@@ -1138,7 +1142,7 @@ static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location)
 
     if (!clent || !clent->client || !location) return false;
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        if (ent->attack1.weapon != WPN_ARTILLERY) continue;
+        if (S_AttackProfileRead(ent, 0)->weapon != WPN_ARTILLERY) continue;
         if (G_IssueUnitPointOrder(ent, "attackground", location,
                                   clent->client->menu.order_queued,
                                   clent->client->ps.number, 0.0f)) any = true;

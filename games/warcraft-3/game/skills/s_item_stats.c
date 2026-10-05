@@ -83,6 +83,7 @@ float S_MoveSpeedBonus(edict_t *unit) {
         if (!abilities) continue;
         PARSE_LIST(abilities, name, parse_segment) {
             abilityitem_t entry = S_AbilityItem(FS_SLKKey(name));
+            if (!entry.ability || !(entry.ability->flags & AB_MOVE_SPEED_BONUS)) continue;
             abilityCall_t call = MAKE(abilityCall_t, .item = &entry, .source_item = item, .move_speed_bonus = &bonus);
             S_AbilityMessage(unit, A_MOVE_SPEED_BONUS, &call);
         }

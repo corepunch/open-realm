@@ -50,7 +50,8 @@ static intptr_t spell_message(edict_t *ent, abilityMsg_t msg, abilityitem_t cons
 }
 
 BZ_ABILITY_PROC(CAbilityNoop) {
-    (void)ent; (void)msg; (void)call;
+    (void)ent;
+    if (msg == A_UNIT_EVENT_MASK) return S_UnitMessageSubscriptions(call, NULL, 0);
     return false;
 }
 
@@ -64,6 +65,8 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     (void)ent;
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_VALIDATE, A_MOVE_LEAVE);
     case A_COMMAND:
         if (!call->client) return false;
         spell_cmd(call->client);
@@ -690,7 +693,7 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
         if (thinker->channel->owner_spawn_time == caster->spawn_time &&
             move_is_active_order_walk(caster) && caster->goalentity == spell_approach_move_goal(thinker)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             stop_move = true;
         }
         G_FreeEdict(thinker);
@@ -772,7 +775,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
         if (caster && caster->inuse && caster->spawn_time == thinker->channel->owner_spawn_time &&
             caster->goalentity == thinker) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -780,7 +783,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     if (!point_target && (!target->inuse || target->spawn_time != thinker->channel->target_spawn_time)) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -802,14 +805,14 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
                                               .range = 0.0f);
         st = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = thinker->s.origin2);
         if (!spell_validate_point(&val) || !spell_message(caster, A_VALIDATE, &item, &st)) {
-            if (caster->goalentity == thinker) caster->goalentity = NULL;
+            if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
             G_FreeEdict(thinker);
             return;
         }
         if (range > 0.0f && Vector2_distance(&caster->s.origin2, &thinker->s.origin2) > range)
             return;
-        if (caster->goalentity == thinker) caster->goalentity = NULL;
+        if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
         unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &thinker->s.origin2,
                                    source_item, thinker->spell_item_spawn_time, thinker);
@@ -858,7 +861,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     goal = point ? thinker : target;
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
-    thinker->goalentity = goal;
+    S_SetMoveGoal(thinker, &thinker->goalentity, goal);
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;

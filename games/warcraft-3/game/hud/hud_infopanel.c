@@ -36,7 +36,7 @@ static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_
             stage ? stage : "?", (unsigned)ent->s.number, unit_code,
             (unsigned)ent->s.player, viewer ? (int)viewer->ps.number : -1,
             (unsigned)now);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         char code[5] = { 0 };
         int32_t remaining;
@@ -228,11 +228,11 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
 
     UI_SetText(hud.unit.AttackLabel1, "Damage:");
     FormatAttackDamageValue(buffer, sizeof(buffer), min_damage, max_damage,
-                            ent->attack1.temporaryDamageBonus);
+                            S_AttackProfileRead(ent, 0)->temporaryDamageBonus);
     UI_SetText(hud.unit.AttackValue1, "%s", buffer);
     UI_SetText(hud.unit.AttackLabel2, "Damage:");
     FormatAttackDamageValue(buffer, sizeof(buffer), min_damage2, max_damage2,
-                            ent->attack2.temporaryDamageBonus);
+                            S_AttackProfileRead(ent, 1)->temporaryDamageBonus);
     UI_SetText(hud.unit.AttackValue2, "%s", buffer);
     UI_SetHidden(hud.unit.AttackLabel2, !has_attack2);
     UI_SetHidden(hud.unit.AttackValue2, !has_attack2);
@@ -245,9 +245,9 @@ static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
     UI_SetText(hud.unit.SpeedTitle, "Speed:");
     UI_SetText(hud.unit.SpeedValue, "%d", (int)(ent->unitinfo.MoveSpeed + 0.5f));
     UI_SetText(hud.unit.RangeTitle1, "Range:");
-    UI_SetText(hud.unit.RangeValue1, "%d", (int)(ent->attack1.range + 0.5f));
+    UI_SetText(hud.unit.RangeValue1, "%d", (int)(S_AttackProfileRead(ent, 0)->range + 0.5f));
     UI_SetText(hud.unit.RangeTitle2, "Range:");
-    UI_SetText(hud.unit.RangeValue2, "%d", (int)(ent->attack2.range + 0.5f));
+    UI_SetText(hud.unit.RangeValue2, "%d", (int)(S_AttackProfileRead(ent, 1)->range + 0.5f));
     UI_SetHidden(hud.unit.RangeTitle2, !has_attack2);
     UI_SetHidden(hud.unit.RangeValue2, !has_attack2);
 
@@ -561,7 +561,7 @@ static void WriteBuffStatusFrames(edict_t *ent) {
     UI_SetText(&hud.buff_label, "%s", UI_GetString("COLON_STATUS"));
     UI_WriteFrame(&hud.buff_label);
 
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         cstring_t art;
         cstring_t tip;
@@ -631,7 +631,7 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
         SetTypedInfoPanelIcon(hud.simple.InfoPanelIconBackdrop, "Damage", weapons->attack1.attackType,
                               weapon_upgrade != 0);
         FormatAttackDamageValue(value, sizeof(value), min_damage, max_damage,
-                                ent->attack1.temporaryDamageBonus);
+                                S_AttackProfileRead(ent, 0)->temporaryDamageBonus);
         UI_SetText(hud.simple.InfoPanelIconValue, "%s", value);
         SetUpgradeLevel(hud.simple.InfoPanelIconLevel, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack1);
@@ -641,7 +641,7 @@ static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *wea
         SetTypedInfoPanelIcon(hud.attack2_icon_backdrop, "Damage", weapons->attack2.attackType,
                               weapon_upgrade != 0);
         FormatAttackDamageValue(value, sizeof(value), min_damage2, max_damage2,
-                                ent->attack2.temporaryDamageBonus);
+                                S_AttackProfileRead(ent, 1)->temporaryDamageBonus);
         UI_SetText(hud.attack2_icon_value, "%s", value);
         SetUpgradeLevel(hud.attack2_icon_level, weapon_upgrade, ent);
         UI_WriteFrame(&hud.attack2);
@@ -856,14 +856,14 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
     bool const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     uint32_t level = is_hero && ent->hero.level > 0 ? ent->hero.level
                                                  : MAX(1, balance->level);
-    int32_t dice = ent->attack1.numberOfDice;
+    int32_t dice = S_AttackProfileRead(ent, 0)->numberOfDice;
     bool has_attack1 = dice > 0;
-    int32_t min_damage = has_attack1 ? MAX(0, (int32_t)(ent->attack1.damageBase + dice)) : 0;
-    int32_t max_damage = has_attack1 ? MAX(0, (int32_t)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie)) : 0;
-    int32_t dice2 = ent->attack2.numberOfDice;
+    int32_t min_damage = has_attack1 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 0)->damageBase + dice)) : 0;
+    int32_t max_damage = has_attack1 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 0)->damageBase + dice * S_AttackProfileRead(ent, 0)->sidesPerDie)) : 0;
+    int32_t dice2 = S_AttackProfileRead(ent, 1)->numberOfDice;
     bool has_attack2 = UI_HasSecondAttack(weapons) && dice2 > 0;
-    int32_t min_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->attack2.damageBase + dice2)) : 0;
-    int32_t max_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->attack2.damageBase + dice2 * ent->attack2.sidesPerDie)) : 0;
+    int32_t min_damage2 = has_attack2 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 1)->damageBase + dice2)) : 0;
+    int32_t max_damage2 = has_attack2 ? MAX(0, (int32_t)(S_AttackProfileRead(ent, 1)->damageBase + dice2 * S_AttackProfileRead(ent, 1)->sidesPerDie)) : 0;
 
     if (!name || !*name) name = unit_name;
 

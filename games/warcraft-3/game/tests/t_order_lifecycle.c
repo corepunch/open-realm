@@ -47,16 +47,56 @@ static edict_t *review_order_unit(float x, uint32_t owner) {
     ent->stand = unit_stand;
     ent->die = unit_die;
     ent->unitinfo.MoveSpeed = 300;
-    ent->attack1.type = ATK_NORMAL;
-    ent->attack1.range = 30;
-    ent->attack1.cooldown = 1;
-    ent->attack1.damageBase = 10;
-    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->range = 30;
+    S_AttackProfileWrite(ent, 0)->cooldown = 1;
+    S_AttackProfileWrite(ent, 0)->damageBase = 10;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
     ent->targtype = TARG_GROUND;
     ent->runtime.acquisition_range = 600;
     unit_stand(ent);
     gi.LinkEntity(ent);
     return ent;
+}
+
+TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_save) {
+    cstring_t file = "/tmp/wc3-sparse-order-ring.bin";
+    reset_entities(); setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    T_NULL(unit->order_queue.entries);
+    G_ClearUnitOrderQueue(unit);
+    T_NULL(unit->order_queue.entries);
+    FOR_LOOP(i, MAX_UNIT_ORDER_QUEUE) {
+        vec2_t point = { (float)i, -(float)i };
+        T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE,
+                                 &point, NULL, 0, 0, i));
+    }
+    unitOrder_t *storage = unit->order_queue.entries;
+    T_NOT_NULL(storage);
+    T_ASSERT(!G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 100));
+    T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, MAX_UNIT_ORDER_QUEUE - 1);
+    vec2_t last = { 900, 800 };
+    T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, &last, NULL, 3, 7, 999));
+    T_ASSERT(WriteGame(file));
+    G_ClearUnitOrderQueue(unit);
+    T_EQ(unit->order_queue.entries, storage);
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(ReadGame(file));
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, MAX_UNIT_ORDER_QUEUE);
+    FOR_LOOP(i, MAX_UNIT_ORDER_QUEUE) {
+        unitOrder_t const *entry = unit->order_queue.entries + unit->order_queue.head;
+        T_EQ(entry->order_id, i == MAX_UNIT_ORDER_QUEUE - 1 ? 999 : i + 1);
+        T_STREQ(entry->order, "holdposition");
+        T_FEQ(entry->point.x, i == MAX_UNIT_ORDER_QUEUE - 1 ? 900 : i + 1, 0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_EQ(unit->order_queue.head, 0); T_EQ(unit->order_queue.count, 0);
+    T_NOT_NULL(unit->order_queue.entries);
+    G_FreeEdict(unit);
+    T_NULL(unit->order_queue.entries);
+    remove(file);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_order_lifecycle, hold_position_does_not_chase_acquired_enemy) {
@@ -95,7 +135,7 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     edict_t *missile = G_Spawn();
     missile->owner = unit;
-    missile->goalentity = enemy;
+    S_SetMoveGoal(missile, &missile->goalentity, enemy);
     missile->velocity = 10000;
     missile->damage = 10000;
     T_ASSERT(unit_issueorder(unit, "move", &point));
@@ -167,7 +207,7 @@ TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(500, 0);
     edict_t *enemy = review_order_unit(20, 1);
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
-    unit->attack1.damagePoint = (float)FRAMETIME / 1000.0f;
+    S_AttackProfileWrite(unit, 0)->damagePoint = (float)FRAMETIME / 1000.0f;
     G_SetHealth(enemy, 1);
     order_attack(unit, enemy);
     unit->currentmove->think(unit);
@@ -311,7 +351,7 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
         T_ASSERT(unit->goalentity == enemy);
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
         T_EQ(hold.engaged, 1);
-        unit->goalentity = NULL;
+        S_SetMoveGoal(unit, &unit->goalentity, NULL);
         unit_stand(unit);
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));

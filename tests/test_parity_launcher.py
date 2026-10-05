@@ -75,6 +75,29 @@ class ParityLauncherTest(unittest.TestCase):
         self.assertEqual(cmd[cmd.index('fs_expansion') + 1], '0')
         self.assertEqual(cmd[cmd.index('+map') + 1], 'Maps/Campaign/NightElf01.w3m')
 
+    def test_default_build_failure_prevents_loading_stale_modules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bindir = Path(directory, 'bin')
+            bindir.mkdir()
+            make = bindir / 'make'
+            make.write_text('#!/bin/sh\necho refresh-default-build >&2\nexit 37\n')
+            make.chmod(0o755)
+            env = dict(os.environ, WC3DATA=directory, WC3_DRY_RUN='0',
+                       PATH=str(bindir) + os.pathsep + os.environ['PATH'])
+            env.pop('WC3_BINARY', None)
+            result = subprocess.run(['bash', str(ROOT / 'tools/parity/wc3.sh'),
+                                     'openrealm', '--map=menu'], env=env,
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, 37)
+            self.assertIn('refresh-default-build', result.stderr)
+            self.assertNotIn('Server initialization', result.stdout)
+            env['WC3_DRY_RUN'] = '1'
+            result = subprocess.run(['bash', str(ROOT / 'tools/parity/wc3.sh'),
+                                     'openrealm', '--map=menu'], env=env,
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn('refresh-default-build', result.stderr)
+
     def test_invalid_arguments(self):
         for args in [('openrealm', '--map=typo'), ('openrealm', '--map='),
                      ('openrealm', '--oops'), ('openrealm', 'tft', 'roc'),

@@ -137,6 +137,10 @@ typedef struct {
     /* movement --------------------------------------------------------------*/
     float   moveFloor, moveHeight;
     cstring_t  moveTypeName;            /* "foot"/"fly"/"hover"/"float"/"amph"/"horse" */
+    /* Derived once for owned metadata rows; borrowed/custom rows may remain
+     * unprepared. Move validates the source pointer before using this value. */
+    cstring_t compiledMoveTypeName;
+    uint8_t compiledMoveType;
     float   turnRate;
     /* misc ------------------------------------------------------------------*/
     int32_t    nameCount;
@@ -495,6 +499,22 @@ UnitAckSounds_t const *G_AmbienceSound(cstring_t name);
 UnitAckSounds_t const *G_AnimSound(cstring_t name);
 UnitAckSounds_t const *G_DialogSound(cstring_t name);
 UnitAckSounds_t const *G_KeyedSound(cstring_t name);
+uint32_t G_SoundCatalogGeneration(void);
+uint32_t G_UnitDataGeneration(void);
+void G_ResetUnitAbilityCodes(void);
+uint32_t const *G_UnitAbilityCodes(UnitAbilities_t const *row, uint32_t *count);
+uint32_t const *G_UnitAbilityCodeSet(UnitAbilities_t const *row, uint32_t *count, uint64_t *membership);
+static inline uint64_t G_AbilityMembershipBit(uint32_t code) {
+    return UINT64_C(1) << ((code * 0x9e3779b1u) >> 26);
+}
+bool G_UnitHasAuthoredAbility(UnitAbilities_t const *row, uint32_t code);
+#ifdef BZ_TESTS
+void G_TestRecordAuthoredMembershipVisit(void);
+#endif
+/* Name-based AbilityData lookups accept short IDs and the first four bytes of
+ * longer tokens; exact owned-ability membership still requires length four. */
+typedef struct { uint32_t code, length, base; } unitAbilityToken_t;
+unitAbilityToken_t const *G_UnitAbilityTokens(UnitAbilities_t const *row, uint32_t *count);
 MusicData_t const *G_MusicData(cstring_t name);
 ItemData_t    const *G_ItemData(uint32_t id);
 ItemData_t    const *G_ItemDataRows(uint32_t *count);

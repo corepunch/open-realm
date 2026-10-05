@@ -4,11 +4,18 @@
 #define FOW_PATHING_PIXEL_SIZE 32.0f
 #define FOW_TREE_DILATION_CELLS 1
 #define FOW_BLOCKER_LIGHT_MARGIN_CELLS 1
+/* Exact row-word coverage masks describe only the current ordered unit-sight
+ * prefix. They are not final visibility and never include future sources. */
+static uint64_t *fow_cover_planes[MAX_PLAYERS], *fow_cover_current;
+static fowPlayerGrid_t *fow_cover_grid;
+static uint32_t fow_cover_stride;
+static void G_FowCoverCells(fowPlayerGrid_t *, uint32_t, uint32_t, uint8_t);
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
     uint32_t fow_index_ = G_FOW_CELL_INDEX((uint32_t)(x), (uint32_t)(y)); \
     if (!(grid)->visible[fow_index_]) { \
         (grid)->visible[fow_index_] = 1; \
+        G_FowCoverCells((grid), (uint32_t)(x), (uint32_t)(y), 1); \
         (grid)->visible_rows[(uint32_t)(y)] = 1; \
         if ((grid)->dirty_visible_rows) { \
             (grid)->dirty_visible_rows[(uint32_t)(y)] = 1; \
@@ -26,12 +33,434 @@ static uint32_t g_fow_blocker_hash;
 static uint32_t g_fow_blocker_count;
 static bool g_fow_blockers_valid;
 static bool g_fow_blockers_dirty = true;
+typedef struct { uint32_t x, y, viewers; int radius; } fowSight_t;
+typedef struct { uint8_t *visible, *rows; } fowSightPlane_t;
+static fowSight_t fow_sight[MAX_ENTITIES];
+static fowSightPlane_t fow_sight_planes[MAX_PLAYERS];
+static uint32_t fow_sight_count, fow_sight_valid;
+/* Checkpoints include completed rim commits, never a union of independently
+ * evaluated rims. Bound storage across all possible viewers to 32 MiB; larger
+ * maps use wider source blocks, or the exact full replay if one plane exceeds
+ * the per-viewer budget. Slots follow edict order, including inactive slots. */
+#define FOW_PREFIX_MIN_BLOCK 256u
+#define FOW_PREFIX_SLOTS ((MAX_ENTITIES + FOW_PREFIX_MIN_BLOCK - 1) / FOW_PREFIX_MIN_BLOCK)
+#define FOW_PREFIX_PLAYER_BYTES (2u * 1024u * 1024u)
+typedef struct { uint8_t *data; uint32_t end; } fowPrefix_t;
+static fowPrefix_t fow_prefix[MAX_PLAYERS][FOW_PREFIX_SLOTS];
+static uint32_t fow_prefix_block;
+typedef struct {
+    uint32_t x, y, x0, y0, width, height;
+    int radius;
+    uint64_t *effect;
+    size_t effect_bytes;
+    uint32_t word_x, word_width;
+    bool valid;
+} fowCast_t;
+static fowCast_t fow_casts[MAX_ENTITIES];
+static uint32_t fow_cast_count;
+static uint8_t *fow_cast_blocked;
+static uint64_t *fow_blocked_words, *fow_blocked_columns;
+static uint32_t *fow_cast_changes;
+/* Record only the source's geometry writes. Rim writes depend on the live
+ * union and must never become part of a source's independent mask. */
+static void G_FowRecordCell(fowCast_t *cast, uint32_t x, uint32_t y) {
+    assert(x >= cast->x0 && x < cast->x0 + cast->width);
+    assert(y >= cast->y0 && y < cast->y0 + cast->height);
+    uint32_t index = (y - cast->y0) * cast->word_width + (x >> 6) - cast->word_x;
+    cast->effect[index] |= UINT64_C(1) << (x & 63);
+}
+
+/* Row slopes depend only on distance, not source, radius, octant or viewer.
+ * Prepare once on the game thread. Existing rows remain immutable until map
+ * shutdown; geometry evaluation reads them and owns only its output mask. */
+typedef struct { float left, right; int distance_sq; } fowRay_t;
+static fowRay_t **fow_ray_rows;
+static int fow_ray_distance;
+static void G_FowPrepareRays(int radius) {
+    if (radius <= fow_ray_distance) return;
+    fowRay_t **rows = realloc(fow_ray_rows, ((size_t)radius + 1) * sizeof(*rows));
+    if (!rows) { gi.error("FOW: cannot allocate ray row index"); abort(); }
+    fow_ray_rows = rows;
+    for (int distance = fow_ray_distance + 1; distance <= radius; distance++) {
+        fowRay_t *row = malloc(((size_t)distance + 1) * sizeof(*row));
+        if (!row) { gi.error("FOW: cannot allocate ray row"); abort(); }
+        for (int column = 0; column <= distance; column++) {
+            int dx = column - distance, dy = -distance;
+            row[column] = (fowRay_t){
+                ((float)dx - 0.5f) / ((float)dy + 0.5f),
+                ((float)dx + 0.5f) / ((float)dy - 0.5f), dx * dx + dy * dy
+            };
+        }
+        rows[distance] = row;
+    }
+    fow_ray_distance = radius;
+}
+
+/* Both slopes decrease across a row. Search with the original float
+ * inequalities, including equality; do not approximate the interval with a
+ * different division or round-to-cell conversion. */
+static int G_FowRayBegin(fowRay_t const *row, int count, float start) {
+    int lo = 0, hi = count;
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (start < row[mid].right) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+static int G_FowRayEnd(fowRay_t const *row, int count, float end) {
+    int lo = 0, hi = count;
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (end > row[mid].left) hi = mid;
+        else lo = mid + 1;
+    }
+    return lo;
+}
+
+typedef struct {
+    fowCast_t *cast;
+    uint8_t const *blocked;
+    uint32_t width, height;
+    fowRay_t *const *rows;
+    uint64_t const *blocked_rows, *blocked_columns;
+    uint32_t row_stride, column_stride;
+} fowGeometry_t;
+
+#ifdef BZ_TESTS
+static uint32_t fow_geometry_cells, fow_geometry_spans;
+#endif
+
+typedef struct { int first, end, fixed; bool horizontal; } fowRaySpan_t;
+static fowRaySpan_t G_FowRaySpan(fowGeometry_t const *geometry, int distance, int first, int limit,
+                                 int xx, int xy, int yx, int yy) {
+    int x = (int)geometry->cast->x - distance * xy;
+    int y = (int)geometry->cast->y - distance * yy;
+    int a = first - distance, b = limit - 1 - distance;
+    fowRaySpan_t span = {0};
+    span.horizontal = xx != 0;
+    if (xx) {
+        span.fixed = y;
+        if (y < 0 || y >= (int)geometry->height) return span;
+        span.first = MAX(0, MIN(x + a * xx, x + b * xx));
+        span.end = MIN((int)geometry->width, MAX(x + a * xx, x + b * xx) + 1);
+    } else {
+        span.fixed = x;
+        if (x < 0 || x >= (int)geometry->width) return span;
+        span.first = MAX(0, MIN(y + a * yx, y + b * yx));
+        span.end = MIN((int)geometry->height, MAX(y + a * yx, y + b * yx) + 1);
+    }
+    return span;
+}
+
+static bool G_FowRaySpanBlocked(fowGeometry_t const *geometry, fowRaySpan_t span) {
+    if (span.first >= span.end) return false;
+    uint64_t const *line = span.horizontal ? geometry->blocked_rows + span.fixed * geometry->row_stride :
+        geometry->blocked_columns + span.fixed * geometry->column_stride;
+    for (int word = span.first >> 6; word <= ((span.end - 1) >> 6); word++) {
+        int lo = MAX(span.first, word * 64) - word * 64;
+        int hi = MIN(span.end, word * 64 + 64) - word * 64;
+        uint64_t mask = (UINT64_MAX >> (64 - (hi - lo))) << lo;
+        if (line[word] & mask) return true;
+    }
+    return false;
+}
+
+static void G_FowRecordRaySpan(fowCast_t *cast, fowRaySpan_t span) {
+    if (span.first >= span.end) return;
+    if (span.horizontal) {
+        uint64_t *row = cast->effect + (span.fixed - cast->y0) * cast->word_width;
+        for (int word = span.first >> 6; word <= ((span.end - 1) >> 6); word++) {
+            int lo = MAX(span.first, word * 64) - word * 64;
+            int hi = MIN(span.end, word * 64 + 64) - word * 64;
+            row[word - cast->word_x] |= (UINT64_MAX >> (64 - (hi - lo))) << lo;
+        }
+    } else {
+        uint64_t bit = UINT64_C(1) << (span.fixed & 63);
+        uint64_t *out = cast->effect + (span.first - cast->y0) * cast->word_width + (span.fixed >> 6) - cast->word_x;
+        for (int y = span.first; y < span.end; y++, out += cast->word_width) *out |= bit;
+    }
+}
+
+static void G_FowCastGeometry(fowGeometry_t const *geometry, int first_row,
+                              float start, float end, int xx, int xy, int yx, int yy) {
+    fowCast_t *cast = geometry->cast;
+    int radius_sq = cast->radius * cast->radius;
+    if (start < end) return;
+    for (int distance = first_row; distance <= cast->radius; distance++) {
+        bool blocked = false;
+        float next_start = start;
+        fowRay_t const *row = geometry->rows[distance];
+        int first = G_FowRayBegin(row, distance + 1, start);
+        int limit = G_FowRayEnd(row, distance + 1, end);
+        if (first >= limit) continue;
+        if (!G_FowRaySpanBlocked(geometry, G_FowRaySpan(geometry, distance, first, limit, xx, xy, yx, yy))) {
+            /* No blocker can change this row's wedge or create recursion.
+             * Clip only the writes to the circle; blockers outside the circle
+             * were included in the query, as in the scalar algorithm. */
+            int lo = first, hi = limit;
+            while (lo < hi) {
+                int mid = lo + (hi - lo) / 2;
+                if (row[mid].distance_sq > radius_sq) lo = mid + 1;
+                else hi = mid;
+            }
+            if (lo < limit) G_FowRecordRaySpan(cast, G_FowRaySpan(geometry, distance, lo, limit, xx, xy, yx, yy));
+#ifdef BZ_TESTS
+            fow_geometry_spans++;
+#endif
+            continue;
+        }
+        for (int column = first; column < limit; column++) {
+            fowRay_t const *ray = row + column;
+#ifdef BZ_TESTS
+            fow_geometry_cells++;
+#endif
+            /* Unblocking earlier in this row can narrow start further. */
+            if (start < ray->right) continue;
+            int dx = column - distance, dy = -distance;
+            int x = (int)cast->x + dx * xx + dy * xy;
+            int y = (int)cast->y + dx * yx + dy * yy;
+            bool in_bounds = x >= 0 && y >= 0 && x < (int)geometry->width && y < (int)geometry->height;
+            bool cell_blocked = in_bounds && geometry->blocked[y * geometry->width + x] != 0;
+            if (in_bounds && ray->distance_sq <= radius_sq) G_FowRecordCell(cast, x, y);
+            if (blocked) {
+                if (cell_blocked) { next_start = ray->right; continue; }
+                blocked = false;
+                start = next_start;
+            } else if (cell_blocked && distance < cast->radius) {
+                blocked = true;
+                G_FowCastGeometry(geometry, distance + 1, start, ray->left, xx, xy, yx, yy);
+                next_start = ray->right;
+            }
+        }
+        if (blocked) break;
+    }
+}
+
+static void G_FowBuildShadowGeometry(fowCast_t *cast) {
+    static int const octants[8][4] = {
+        {1,0,0,1}, {0,1,1,0}, {0,-1,1,0}, {-1,0,0,1},
+        {-1,0,0,-1}, {0,-1,-1,0}, {0,1,-1,0}, {1,0,0,-1}
+    };
+    G_FowPrepareRays(cast->radius);
+    fowGeometry_t geometry = {
+        cast, level.fow.blocked, level.fow.width, level.fow.height, fow_ray_rows,
+        fow_blocked_words, fow_blocked_columns, fow_cover_stride, (level.fow.height + 63) >> 6
+    };
+    G_FowRecordCell(cast, cast->x, cast->y);
+    FOR_LOOP(i, 8)
+        G_FowCastGeometry(&geometry, 1, 1.0f, 0.0f, octants[i][0], octants[i][1], octants[i][2], octants[i][3]);
+}
+
+/* A blocker edit only affects sources whose read rectangles overlap changed
+ * cells. A summed-area table makes each invalidation query four integer reads,
+ * including removals and overlapping blockers whose union did not change. */
+static bool G_FowInvalidateCasts(void) {
+    uint32_t width = level.fow.width, height = level.fow.height, stride = width + 1;
+    size_t cells = (size_t)width * height;
+    if (!fow_cast_blocked) {
+        fow_cast_blocked = malloc(cells);
+        if (!fow_cast_blocked) { gi.error("FOW: cannot allocate blocker snapshot"); abort(); }
+        FOR_LOOP(i, fow_cast_count) fow_casts[i].valid = false;
+    } else {
+        if (!fow_cast_changes) {
+            fow_cast_changes = calloc((size_t)stride * (height + 1), sizeof(*fow_cast_changes));
+            if (!fow_cast_changes) { gi.error("FOW: cannot allocate blocker change index"); abort(); }
+        }
+        for (uint32_t y = 0; y < height; y++) {
+            uint32_t row = 0;
+            for (uint32_t x = 0; x < width; x++) {
+                uint32_t index = y * width + x;
+                row += fow_cast_blocked[index] != level.fow.blocked[index];
+                fow_cast_changes[(y + 1) * stride + x + 1] = row + fow_cast_changes[y * stride + x + 1];
+            }
+        }
+        /* Damage, overlapping blockers and authored changes can alter the
+         * blocker witness without changing a single occluded cell. Neither
+         * source geometry nor ordered visibility depends on that witness. */
+        if (!fow_cast_changes[height * stride + width]) return false;
+        FOR_LOOP(i, fow_cast_count) {
+            fowCast_t *cast = fow_casts + i;
+            if (!cast->valid) continue;
+            uint32_t x0 = cast->x0, x1 = x0 + cast->width, y0 = cast->y0, y1 = y0 + cast->height;
+            uint32_t count = fow_cast_changes[y1 * stride + x1] + fow_cast_changes[y0 * stride + x0] -
+                fow_cast_changes[y0 * stride + x1] - fow_cast_changes[y1 * stride + x0];
+            if (count) cast->valid = false;
+        }
+    }
+    memcpy(fow_cast_blocked, level.fow.blocked, cells);
+    size_t bytes = (size_t)fow_cover_stride * height * sizeof(uint64_t);
+    if (!fow_blocked_words) fow_blocked_words = malloc(bytes);
+    if (!fow_blocked_words) { gi.error("FOW: cannot allocate blocker words"); abort(); }
+    memset(fow_blocked_words, 0, bytes);
+    uint32_t column_stride = (height + 63) >> 6;
+    size_t column_bytes = (size_t)column_stride * width * sizeof(uint64_t);
+    if (!fow_blocked_columns) fow_blocked_columns = malloc(column_bytes);
+    if (!fow_blocked_columns) { gi.error("FOW: cannot allocate blocker columns"); abort(); }
+    memset(fow_blocked_columns, 0, column_bytes);
+    for (uint32_t y = 0; y < height; y++)
+        for (uint32_t x = 0; x < width; x++)
+            if (level.fow.blocked[y * width + x]) {
+                fow_blocked_words[y * fow_cover_stride + (x >> 6)] |= UINT64_C(1) << (x & 63);
+                fow_blocked_columns[x * column_stride + (y >> 6)] |= UINT64_C(1) << (y & 63);
+            }
+    return true;
+}
+#ifdef BZ_TESTS
+static uint32_t fow_sight_builds;
+static uint32_t fow_cast_builds;
+static bool fow_force_casts;
+static uint32_t fow_source_replays, fow_prefix_skips;
+static uint32_t fow_cover_skips;
+uint32_t G_TestFowCoverSkips(bool reset) {
+    uint32_t count = fow_cover_skips;
+    if (reset) fow_cover_skips = 0;
+    return count;
+}
+uint32_t G_TestFowSourceReplays(bool reset) {
+    uint32_t count = fow_source_replays;
+    if (reset) fow_source_replays = 0;
+    return count;
+}
+uint32_t G_TestFowPrefixSkips(bool reset) {
+    uint32_t count = fow_prefix_skips;
+    if (reset) fow_prefix_skips = 0;
+    return count;
+}
+void G_TestFowForceCasts(bool force) { fow_force_casts = force; fow_sight_valid = 0; }
+uint32_t G_TestFowCastBuilds(bool reset) {
+    uint32_t count = fow_cast_builds;
+    if (reset) fow_cast_builds = 0;
+    return count;
+}
+uint32_t G_TestFowSightBuilds(bool reset) {
+    uint32_t count=fow_sight_builds;if(reset)fow_sight_builds=0;return count;
+}
+void G_TestFowInvalidateSight(void) { fow_sight_valid=0; }
+#endif
 #ifdef WC3_FOW_PACKED_MASK
 static bool g_fow_fast;
 #endif
 
 static uint32_t G_FowCellCount(void) {
     return level.fow.width * level.fow.height;
+}
+
+static void G_FowCoverCells(fowPlayerGrid_t *grid, uint32_t x, uint32_t y, uint8_t bits) {
+    if (grid != fow_cover_grid) return;
+    uint32_t word = y * fow_cover_stride + (x >> 6), shift = x & 63;
+    fow_cover_current[word] |= (uint64_t)bits << shift;
+    if (shift && ((uint64_t)bits >> (64 - shift)))
+        fow_cover_current[word + 1] |= (uint64_t)bits >> (64 - shift);
+}
+
+static void G_FowSelectCover(uint32_t player) {
+    if (!fow_cover_planes[player]) {
+        size_t bytes = (size_t)fow_cover_stride * level.fow.height * sizeof(uint64_t);
+        fow_cover_planes[player] = gi.MemAlloc(bytes);
+        if (!fow_cover_planes[player]) { gi.error("FOW: cannot allocate ordered coverage words"); abort(); }
+        memset(fow_cover_planes[player], 0, bytes);
+    }
+    fow_cover_grid = &level.fow.players[player];
+    fow_cover_current = fow_cover_planes[player];
+}
+
+/* Cold sources can avoid geometry entirely when their conservative read/write
+ * rectangle is already visible. Prepared sources use their exact masks below. */
+static bool G_FowSourceCovered(fowSight_t const *sight) {
+    int margin = sight->radius + FOW_BLOCKER_LIGHT_MARGIN_CELLS;
+    uint32_t x0 = MAX(0, (int)sight->x - margin), y0 = MAX(0, (int)sight->y - margin);
+    uint32_t x1 = MIN((int)level.fow.width, (int)sight->x + margin + 1);
+    uint32_t y1 = MIN((int)level.fow.height, (int)sight->y + margin + 1);
+    for (uint32_t y = y0; y < y1; y++) {
+        for (uint32_t word = x0 >> 6; word <= ((x1 - 1) >> 6); word++) {
+            uint64_t have = fow_cover_current[y * fow_cover_stride + word];
+            if (have == UINT64_MAX) continue;
+            uint32_t first = MAX(x0, word * 64) - word * 64, end = MIN(x1, word * 64 + 64) - word * 64;
+            uint64_t mask = (UINT64_MAX >> (64 - (end - first))) << first;
+            if ((have & mask) != mask) return false;
+        }
+    }
+    return true;
+}
+
+static bool G_FowSourceIsRedundant(fowCast_t const *cast) {
+    _Static_assert(FOW_BLOCKER_LIGHT_MARGIN_CELLS == 1, "Packed rim adjacency must match the scalar neighborhood");
+    uint64_t const *rim = cast->effect + cast->word_width * cast->height;
+    FOR_LOOP(y, cast->height) {
+        uint32_t row = cast->y0 + y;
+        uint64_t const *have = fow_cover_current + row * fow_cover_stride + cast->word_x;
+        uint64_t const *need = cast->effect + y * cast->word_width;
+        FOR_LOOP(x, cast->word_width) {
+            if ((have[x] & need[x]) != need[x]) return false;
+            uint64_t pending = rim[y * cast->word_width + x] & ~have[x];
+            if (!pending) continue;
+            uint64_t const *word = have + x;
+            uint64_t adjacent = (*word << 1) | (*word >> 1);
+            if (cast->word_x + x) adjacent |= word[-1] >> 63;
+            if (cast->word_x + x + 1 < fow_cover_stride) adjacent |= word[1] << 63;
+            if (row) adjacent |= word[-(ptrdiff_t)fow_cover_stride];
+            if (row + 1 < level.fow.height) adjacent |= word[fow_cover_stride];
+            if (pending & adjacent) return false;
+        }
+    }
+    return true;
+}
+
+/* Ascending X visits may propagate to the right through candidates, but never
+ * revisit a missed candidate to the left. Doubling grows only uninterrupted
+ * candidate runs. Above is already processed; below and right are still the
+ * incoming row state. This is the scalar scan, not an undirected flood fill. */
+static uint64_t G_FowRimWord(uint64_t candidates, uint64_t visible, uint64_t above,
+                            uint64_t below, bool left, bool right) {
+    candidates &= ~visible;
+    uint64_t reached = candidates & (above | below | (visible << 1) | (visible >> 1) |
+        (uint64_t)left | ((uint64_t)right << 63));
+    uint64_t chain = candidates;
+    for (uint32_t shift = 1; shift < 64; shift <<= 1) {
+        reached |= chain & (reached << shift);
+        chain &= chain << shift;
+    }
+    return reached;
+}
+
+static void G_FowWriteNewCells(fowPlayerGrid_t *grid, uint32_t word, uint32_t y, uint64_t bits) {
+    while (bits) {
+        uint32_t x = word * 64 + (uint32_t)__builtin_ctzll(bits);
+        bits &= bits - 1;
+        G_FOW_SET_VISIBLE_CELL(grid, x, y);
+    }
+}
+
+static void G_FowApplyBaseWords(fowCast_t const *cast, fowPlayerGrid_t *grid) {
+    FOR_LOOP(y, cast->height) {
+        uint64_t const *base = cast->effect + y * cast->word_width;
+        uint64_t const *have = fow_cover_current + (cast->y0 + y) * fow_cover_stride + cast->word_x;
+        FOR_LOOP(x, cast->word_width)
+            G_FowWriteNewCells(grid, cast->word_x + x, cast->y0 + y, base[x] & ~have[x]);
+    }
+}
+
+static void G_FowApplyRimWords(fowCast_t const *cast, fowPlayerGrid_t *grid) {
+    uint64_t const *rim = cast->effect + cast->word_width * cast->height;
+    FOR_LOOP(y, cast->height) {
+        uint32_t row = cast->y0 + y;
+        uint64_t const *have = fow_cover_current + row * fow_cover_stride + cast->word_x;
+        FOR_LOOP(x, cast->word_width) {
+            uint64_t candidates = rim[y * cast->word_width + x] & ~have[x];
+            if (!candidates) continue;
+            uint64_t const *word = have + x;
+            uint64_t above = row ? word[-(ptrdiff_t)fow_cover_stride] : 0;
+            uint64_t below = row + 1 < level.fow.height ? word[fow_cover_stride] : 0;
+            bool left = cast->word_x + x && (word[-1] >> 63);
+            bool right = cast->word_x + x + 1 < fow_cover_stride && (word[1] & 1);
+            uint64_t reached = G_FowRimWord(candidates, *word, above, below, left, right);
+            /* The old temporary value 2 is observed only as nonzero within
+             * this source. Committing in ascending order yields identical
+             * visibility, exploration and dirty rows at the source boundary. */
+            G_FowWriteNewCells(grid, cast->word_x + x, row, reached);
+        }
+    }
 }
 
 static uint32_t G_FowCellIndex(uint32_t x, uint32_t y) {
@@ -499,23 +928,12 @@ static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t c
     G_FowCommitRimCells(grid, rim_count);
 }
 
-static void G_FowRevealCircle(uint32_t player, edict_t const *ent, float radius) {
+static void G_FowRevealCircle(uint32_t player, uint32_t cx, uint32_t cy, int radius_cells) {
+#ifdef BZ_TESTS
+    fow_sight_builds++;
+#endif
     fowPlayerGrid_t *grid;
-    uint32_t cx, cy;
-    int radius_cells;
-
-    if (player >= MAX_PLAYERS || !ent || radius <= 0.0f || !G_FowReady()) {
-        return;
-    }
-
     grid = &level.fow.players[player];
-    cx = G_FowWorldToCellX(ent->s.origin.x);
-    cy = G_FowWorldToCellY(ent->s.origin.y);
-    if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
-        return;
-    }
-
-    radius_cells = G_FowRadiusCells(radius);
 #ifdef WC3_FOW_PACKED_MASK
     /* This removable experiment mirrors retail's packed-word mask shape but
      * intentionally trades blocker precision for bounded reveal work. */
@@ -769,11 +1187,221 @@ static void G_FowRebuildBlockers(void) {
     }
 }
 
+/* Produce a clipped disk directly in world-aligned words. Integer correction
+ * preserves the old dx*dx + dy*dy predicate even if sqrtf rounds at a boundary.
+ * Rim construction intersects the shared blocker index, not individual cells. */
+static void G_FowBuildDiskWords(fowCast_t const *cast, int radius, uint64_t *out, bool blocked) {
+    FOR_LOOP(y, cast->height) {
+        uint32_t row = cast->y0 + y;
+        int dy = (int)row - (int)cast->y, remaining = radius * radius - dy * dy;
+        if (remaining < 0) continue;
+        int extent = (int)sqrtf((float)remaining);
+        /* Ordinary disks historically truncate sqrtf. Blocker rims used
+         * integer squared distances; retain each operation's own boundary. */
+        if (blocked) {
+            while (extent * extent > remaining) extent--;
+            while ((extent + 1) * (extent + 1) <= remaining) extent++;
+        }
+        uint32_t first = MAX(0, (int)cast->x - extent);
+        uint32_t end = MIN((int)level.fow.width, (int)cast->x + extent + 1);
+        for (uint32_t word = first >> 6; word <= ((end - 1) >> 6); word++) {
+            uint32_t lo = MAX(first, word * 64) - word * 64;
+            uint32_t hi = MIN(end, word * 64 + 64) - word * 64;
+            uint64_t bits = (UINT64_MAX >> (64 - (hi - lo))) << lo;
+            if (blocked) bits &= fow_blocked_words[row * fow_cover_stride + word];
+            out[y * cast->word_width + word - cast->word_x] = bits;
+        }
+    }
+}
+
+/* The unit-cast pass owns a current blocker-word index. Other scripted fog
+ * paths keep their byte-grid query because they may run before its rebuild. */
+static bool G_FowCastHasBlockers(fowCast_t const *cast) {
+    uint32_t x0 = MAX(0, (int)cast->x - cast->radius);
+    uint32_t end = MIN((int)level.fow.width, (int)cast->x + cast->radius + 1);
+    uint32_t y0 = MAX(0, (int)cast->y - cast->radius);
+    uint32_t y1 = MIN((int)level.fow.height, (int)cast->y + cast->radius + 1);
+    if (!level.fow.num_blocked) return false;
+    for (uint32_t y = y0; y < y1; y++)
+        for (uint32_t word = x0 >> 6; word <= ((end - 1) >> 6); word++) {
+            uint32_t lo = MAX(x0, word * 64) - word * 64;
+            uint32_t hi = MIN(end, word * 64 + 64) - word * 64;
+            uint64_t mask = (UINT64_MAX >> (64 - (hi - lo))) << lo;
+            if (fow_blocked_words[y * fow_cover_stride + word] & mask) return true;
+        }
+    return false;
+}
+
+/* Compile independent geometry without touching viewer state. Publish the
+ * completed base once, then evaluate the rim against the ordered live prefix. */
+static void G_FowBuildCast(fowCast_t *cast, fowSight_t const *sight, fowPlayerGrid_t *grid) {
+    int r = sight->radius, margin = r + FOW_BLOCKER_LIGHT_MARGIN_CELLS;
+    cast->x = sight->x; cast->y = sight->y; cast->radius = r;
+    cast->x0 = MAX(0, (int)sight->x - margin); cast->y0 = MAX(0, (int)sight->y - margin);
+    cast->width = MIN((int)level.fow.width - 1, (int)sight->x + margin) - cast->x0 + 1;
+    cast->height = MIN((int)level.fow.height - 1, (int)sight->y + margin) - cast->y0 + 1;
+    cast->word_x = cast->x0 >> 6;
+    cast->word_width = ((cast->x0 + cast->width + 63) >> 6) - cast->word_x;
+    size_t words = (size_t)cast->word_width * cast->height;
+    size_t bytes = words * 2 * sizeof(uint64_t);
+    if (bytes != cast->effect_bytes) {
+        uint64_t *effect = realloc(cast->effect, bytes);
+        if (!effect) { gi.error("FOW: cannot allocate source effect mask"); abort(); }
+        cast->effect = effect; cast->effect_bytes = bytes;
+    }
+    memset(cast->effect, 0, bytes);
+#ifdef BZ_TESTS
+    fow_cast_builds++; fow_sight_builds++;
+#endif
+    bool shadow = G_FowCastHasBlockers(cast);
+    if (shadow) {
+        G_FowBuildShadowGeometry(cast);
+        G_FowBuildDiskWords(cast, margin, cast->effect + words, true);
+    } else G_FowBuildDiskWords(cast, r, cast->effect, false);
+    cast->valid = true;
+    G_FowApplyBaseWords(cast, grid);
+}
+
+/* Expand eight packed cells into byte lanes. Set only zero lanes, retaining
+ * every existing nonzero value exactly as the scalar visibility writer does. */
+static void G_FowApplyByte(fowPlayerGrid_t *grid, point2_t cell, uint8_t bits) {
+    uint32_t index = G_FOW_CELL_INDEX(cell.x, cell.y), count = MIN(8, level.fow.width - cell.x);
+    if (count < 8) bits &= (1u << count) - 1;
+    uint64_t mask = bits, visible = 0, explored = 0;
+    mask = (mask | (mask << 28)) & UINT64_C(0x0000000f0000000f);
+    mask = (mask | (mask << 14)) & UINT64_C(0x0003000300030003);
+    mask = (mask | (mask << 7)) & UINT64_C(0x0101010101010101);
+    if (count == 8) {
+        memcpy(&visible, grid->visible + index, 8); memcpy(&explored, grid->explored + index, 8);
+    } else {
+        memcpy(&visible, grid->visible + index, count); memcpy(&explored, grid->explored + index, count);
+    }
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    visible = __builtin_bswap64(visible); explored = __builtin_bswap64(explored);
+#endif
+    uint64_t low = UINT64_C(0x7f7f7f7f7f7f7f7f);
+    uint64_t next_visible = visible | (mask & (~(((visible & low) + low) | visible | low) >> 7));
+    uint64_t next_explored = explored | (mask & (~(((explored & low) + low) | explored | low) >> 7));
+    if (visible != next_visible) {
+        G_FowCoverCells(grid, cell.x, cell.y, bits);
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        next_visible = __builtin_bswap64(next_visible);
+#endif
+        if (count == 8) memcpy(grid->visible + index, &next_visible, 8);
+        else memcpy(grid->visible + index, &next_visible, count);
+        grid->visible_rows[cell.y] = 1;
+        if (grid->dirty_visible_rows) grid->dirty_visible_rows[cell.y] = 1;
+    }
+    if (explored != next_explored) {
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        next_explored = __builtin_bswap64(next_explored);
+#endif
+        if (count == 8) memcpy(grid->explored + index, &next_explored, 8);
+        else memcpy(grid->explored + index, &next_explored, count);
+        if (grid->dirty_explored_rows) grid->dirty_explored_rows[cell.y] = 1;
+    }
+}
+
+/* Shadowcast writes are an independent union. Rim propagation is replayed
+ * against the current grid, preserving the scalar scan and source order. */
+static void G_FowRevealCached(uint32_t index, fowSight_t const *sight, fowPlayerGrid_t *grid) {
+    fowCast_t *cast = fow_casts + index;
+    fow_cast_count = MAX(fow_cast_count, index + 1);
+    if (!cast->valid || cast->x != sight->x || cast->y != sight->y || cast->radius != sight->radius)
+        G_FowBuildCast(cast, sight, grid);
+    else G_FowApplyBaseWords(cast, grid);
+    G_FowApplyRimWords(cast, grid);
+}
+
 /* Reveal directly into connected viewer grids; source-owner grids are irrelevant when nobody consumes them. */
-static void G_FowRevealForViewers(edict_t const *ent, float radius, uint32_t viewers) {
+static void G_FowRevealForViewers(uint32_t index, fowSight_t const *sight, uint32_t viewers) {
+    bool cached = true;
+#ifdef BZ_TESTS
+    cached = !fow_force_casts;
+#endif
+#ifdef WC3_FOW_PACKED_MASK
+    cached = cached && !g_fow_fast;
+#endif
     FOR_LOOP(viewer, MAX_PLAYERS)
-        if (viewers & (1u << viewer))
-            G_FowRevealCircle(viewer, ent, radius);
+        if (viewers & (1u << viewer)) {
+            G_FowSelectCover(viewer);
+            fowCast_t const *cast = fow_casts + index;
+            bool prepared = cast->valid && cast->x == sight->x && cast->y == sight->y && cast->radius == sight->radius;
+            if (cached && (prepared ? G_FowSourceIsRedundant(cast) : G_FowSourceCovered(sight))) {
+#ifdef BZ_TESTS
+                fow_cover_skips++;
+#endif
+                continue;
+            }
+#ifdef BZ_TESTS
+            fow_source_replays++;
+#endif
+            if (cached) G_FowRevealCached(index, sight, &level.fow.players[viewer]);
+            else G_FowRevealCircle(viewer, sight->x, sight->y, sight->radius);
+        }
+}
+
+/* Applying a prefix must also reproduce exploration and dirty-row writes.
+ * Scripts may have masked exploration since this checkpoint was recorded. */
+static void G_FowApplySightPlane(fowPlayerGrid_t *grid, uint8_t const *visible, uint8_t const *rows) {
+    FOR_LOOP(y, level.fow.height) if (rows[y]) {
+        uint32_t x = 0;
+        for (; x + 8 <= level.fow.width; x += 8) {
+            uint64_t lanes;
+            memcpy(&lanes, visible + y * level.fow.width + x, sizeof(lanes));
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+            lanes = __builtin_bswap64(lanes);
+#endif
+            /* Completed sight contains only 0/1 byte lanes. Gather their low
+             * bits into the existing eight-cell visibility/exploration writer. */
+            if (lanes) G_FowApplyByte(grid, (point2_t){x, y}, (uint8_t)((lanes * UINT64_C(0x0102040810204080)) >> 56));
+        }
+        for (; x < level.fow.width; x++)
+            if (visible[y * level.fow.width + x]) G_FOW_SET_VISIBLE_CELL(grid, x, y);
+    }
+}
+
+static void G_FowReplayPrefixes(uint32_t player, uint32_t const *dirty, bool valid) {
+    G_FowSelectCover(player);
+    fowPlayerGrid_t *grid = &level.fow.players[player];
+    uint32_t bit = 1u << player, cells = G_FowCellCount(), block = 0;
+    uint32_t blocks = (globals.num_edicts + fow_prefix_block - 1) / fow_prefix_block;
+    bool equal = valid;
+    while (block < blocks) {
+        fowPrefix_t *prefix = &fow_prefix[player][block];
+        uint32_t end = MIN((block + 1) * fow_prefix_block, globals.num_edicts);
+        if (equal && !(dirty[block] & bit) && prefix->end == end) {
+            /* Identical input and unchanged ordered sources imply identical
+             * output. Jump to the last clean checkpoint before the next dirty
+             * block, restoring only that prefix, never the final future union. */
+            do {
+#ifdef BZ_TESTS
+                fow_prefix_skips++;
+#endif
+                prefix = &fow_prefix[player][block++];
+                if (block == blocks || (dirty[block] & bit)) break;
+                end = MIN((block + 1) * fow_prefix_block, globals.num_edicts);
+            } while (fow_prefix[player][block].end == end);
+            G_FowApplySightPlane(grid, prefix->data, prefix->data + cells);
+            continue;
+        }
+        for (uint32_t i = block * fow_prefix_block; i < end; i++) {
+            if (!(i & 15u)) gi.FrameCheckpoint();
+            if (fow_sight[i].viewers & bit) G_FowRevealForViewers(i, fow_sight + i, bit);
+        }
+        /* Equality is useful only before a clean block. Fully dirty sequences
+         * update checkpoints without spending bandwidth comparing each one. */
+        equal = valid && block + 1 < blocks && !(dirty[block + 1] & bit) &&
+            prefix->end == end && !memcmp(prefix->data, grid->visible, cells);
+        if (!prefix->data) {
+            prefix->data = gi.MemAlloc((size_t)cells + level.fow.height);
+            if (!prefix->data) { gi.error("FOW: cannot allocate ordered sight checkpoint"); abort(); }
+        }
+        memcpy(prefix->data, grid->visible, cells);
+        memcpy(prefix->data + cells, grid->visible_rows, level.fow.height);
+        prefix->end = end;
+        block++;
+    }
 }
 
 /* --- Fog modifiers ------------------------------------------------------- *
@@ -921,7 +1549,24 @@ static void G_FowApplyModifiers(uint32_t viewers) {
 }
 
 void G_FowShutdown(void) {
+    FOR_LOOP(i, fow_cast_count) free(fow_casts[i].effect);
+    memset(fow_casts, 0, sizeof(fow_casts));
+    fow_cast_count = 0;
+    for (int distance = 1; distance <= fow_ray_distance; distance++) free(fow_ray_rows[distance]);
+    free(fow_ray_rows); fow_ray_rows = NULL; fow_ray_distance = 0;
+    free(fow_cast_blocked); free(fow_cast_changes); free(fow_blocked_words); free(fow_blocked_columns);
+    fow_cast_blocked = NULL; fow_cast_changes = NULL; fow_blocked_words = NULL; fow_blocked_columns = NULL;
+#ifdef BZ_TESTS
+    fow_force_casts = false;
+#endif
     FOR_LOOP(player, MAX_PLAYERS) {
+        SAFE_DELETE(fow_cover_planes[player], gi.MemFree);
+        FOR_LOOP(i, FOW_PREFIX_SLOTS) {
+            SAFE_DELETE(fow_prefix[player][i].data, gi.MemFree);
+            fow_prefix[player][i].end = 0;
+        }
+        SAFE_DELETE(fow_sight_planes[player].visible, gi.MemFree);
+        SAFE_DELETE(fow_sight_planes[player].rows, gi.MemFree);
         fowPlayerGrid_t *grid = &level.fow.players[player];
         SAFE_DELETE(grid->visible, gi.MemFree);
         SAFE_DELETE(grid->explored, gi.MemFree);
@@ -943,6 +1588,10 @@ void G_FowShutdown(void) {
     g_fow_blocker_count = 0;
     g_fow_blockers_valid = false;
     g_fow_blockers_dirty = true;
+    memset(fow_sight,0,sizeof(fow_sight));
+    fow_sight_count=fow_sight_valid=0;
+    fow_prefix_block = 0;
+    fow_cover_grid = NULL; fow_cover_current = NULL; fow_cover_stride = 0;
 }
 
 void G_FowInit(void) {
@@ -957,6 +1606,13 @@ void G_FowInit(void) {
     level.fow.width = MAX(level.fow.width, 1);
     level.fow.height = MAX(level.fow.height, 1);
     cells = G_FowCellCount();
+    fow_cover_stride = (level.fow.width + 63) >> 6;
+    size_t prefix_bytes = (size_t)cells + level.fow.height;
+    if (prefix_bytes <= FOW_PREFIX_PLAYER_BYTES) {
+        fow_prefix_block = FOW_PREFIX_MIN_BLOCK;
+        while (((MAX_ENTITIES + fow_prefix_block - 1) / fow_prefix_block) * prefix_bytes > FOW_PREFIX_PLAYER_BYTES)
+            fow_prefix_block *= 2;
+    }
     level.fow.blocked = gi.MemAlloc(cells);
     level.fow.rim_cells = gi.MemAlloc(cells * sizeof(*level.fow.rim_cells));
     ARRAY_COUNT(level.fow.rim_cells) = cells;
@@ -1008,7 +1664,9 @@ void G_FowConnectPlayer(uint32_t player) {
 
 void G_FowUpdate(void) {
     uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
+    uint32_t dirty[FOW_PREFIX_SLOTS] = { 0 };
     uint32_t viewers = 0;
+    bool reuse_sight=true;
 
     if (!G_FowReady()) {
         return;
@@ -1021,6 +1679,7 @@ void G_FowUpdate(void) {
         return;
 #ifdef WC3_FOW_PACKED_MASK
     g_fow_fast = atoi(gi.CvarString("wc3_fow_fast", "0"));
+    reuse_sight=!g_fow_fast;
 #endif
     FOR_LOOP(owner, MAX_PLAYERS)
         FOR_LOOP(viewer, MAX_PLAYERS)
@@ -1029,28 +1688,87 @@ void G_FowUpdate(void) {
 
     if (G_FowBlockersChanged()) {
         G_FowRebuildBlockers();
+        if (G_FowInvalidateCasts()) fow_sight_valid=0;
     }
+    if(!reuse_sight)fow_sight_valid=0;
+    uint32_t changed=viewers&~fow_sight_valid;
+    /* Exact ordered inputs avoid hash collisions and observe every mutation
+     * without adding invalidation calls to gameplay owners. */
+    uint32_t count=MAX(fow_sight_count,globals.num_edicts);
+    FOR_LOOP(i,count) {
+        fowSight_t next={0},old=fow_sight[i];
+        if(i<globals.num_edicts) {
+            edict_t const *ent=g_edicts+i;
+            if(ent->s.player<MAX_PLAYERS && G_FowEntityIsRevealer(ent)) {
+                next.viewers=owner_viewers[ent->s.player]|(ent->shared_vision&viewers);
+                if(next.viewers) {
+                    next.x=G_FowWorldToCellX(ent->s.origin.x);
+                    next.y=G_FowWorldToCellY(ent->s.origin.y);
+                    if(next.x==FOW_INVALID_CELL || next.y==FOW_INVALID_CELL)next=(fowSight_t){0};
+                    else next.radius=G_FowRadiusCells(G_FowEntitySightRadius(ent));
+                }
+            }
+        }
+        uint32_t affected = next.viewers ^ old.viewers;
+        if(next.x!=old.x || next.y!=old.y || next.radius!=old.radius)
+            affected |= next.viewers | old.viewers;
+        changed |= affected;
+        if (fow_prefix_block) dirty[i / fow_prefix_block] |= affected;
+        /* Source insertion/removal and viewer relationship changes currently
+         * invalidate whole affected sequences. Geometry-only edits retain the
+         * earlier checkpoints and independently dirty later blocks. */
+        if (next.viewers != old.viewers) fow_sight_valid &= ~(next.viewers | old.viewers);
+        fow_sight[i]=next;
+    }
+    changed |= viewers & ~fow_sight_valid;
+    changed &= viewers;
+    fow_sight_count=globals.num_edicts;
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         if (!(viewers & (1u << player))) {
             continue;
         }
         G_FowClearVisible(grid);
+        if (fow_cover_planes[player])
+            memset(fow_cover_planes[player], 0, (size_t)fow_cover_stride * level.fow.height * sizeof(uint64_t));
     }
 
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t const *ent = &g_edicts[i];
-        float radius;
-        uint32_t unit_viewers;
-
-        if (ent->s.player >= MAX_PLAYERS || !G_FowEntityIsRevealer(ent)) {
-            continue;
+    bool prefixes = reuse_sight && fow_prefix_block;
+#ifdef BZ_TESTS
+    prefixes = prefixes && !fow_force_casts;
+#endif
+    if (prefixes) {
+        FOR_LOOP(player, MAX_PLAYERS)
+            if (changed & (1u << player))
+                G_FowReplayPrefixes(player, dirty, (fow_sight_valid & (1u << player)) != 0);
+    } else FOR_LOOP(i,globals.num_edicts) {
+        if (!(i & 15u)) gi.FrameCheckpoint();
+        uint32_t unit_viewers=fow_sight[i].viewers&changed;
+        if(unit_viewers)G_FowRevealForViewers(i,fow_sight+i,unit_viewers);
+    }
+    if(reuse_sight)FOR_LOOP(player,MAX_PLAYERS) {
+        if(!(viewers&(1u<<player)))continue;
+        fowPlayerGrid_t *grid=&level.fow.players[player];
+        fowSightPlane_t *plane=fow_sight_planes+player;
+        if(changed&(1u<<player)) {
+            if(!plane->visible) {
+                plane->visible=gi.MemAlloc(G_FowCellCount());
+                plane->rows=gi.MemAlloc(level.fow.height);
+                if(!plane->visible || !plane->rows) {
+                    gi.error("G_FowUpdate: unit sight cache allocation failed");abort();
+                }
+            }
+            memcpy(plane->visible,grid->visible,G_FowCellCount());
+            memcpy(plane->rows,grid->visible_rows,level.fow.height);
+            fow_sight_valid|=1u<<player;
+        } else {
+            /* Exploration remains mutable script state. Reapply cached sight
+             * before timed reveals/modifiers just as a fresh geometry pass does. */
+            G_FowApplySightPlane(grid, plane->visible, plane->rows);
         }
-        unit_viewers = owner_viewers[ent->s.player] | (ent->shared_vision & viewers);
-        if (!unit_viewers) continue;
-        radius = G_FowEntitySightRadius(ent);
-        G_FowRevealForViewers(ent, radius, unit_viewers);
     }
+
+    fow_cover_grid = NULL; fow_cover_current = NULL;
 
     /* Timed spell reveals are not ordinary sight sources: Far Sight ignores
      * terrain line-of-sight blockers and must survive this frame's visible-grid
@@ -1336,3 +2054,167 @@ void G_FowSendDeltas(void) {
                             FOW_MSG_EXPLORED_PLANE);
     }
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(wc3_game, fow_byte_mask_matches_scalar_writes_and_preserves_row_tails) {
+    uint32_t width = level.fow.width;
+    level.fow.width = 8;
+    for (uint32_t n = 1; n <= 8; n++) FOR_LOOP(bits, 256) {
+        uint8_t visible[16], explored[16], expected_v[16], expected_e[16];
+        uint8_t row = 0, dirty_v = 0, dirty_e = 0, want_v = 0, want_e = 0;
+        uint8_t const values[] = {0,1,2,3,128,0,1,255};
+        FOR_LOOP(i, 16) { visible[i] = values[i % 8]; explored[i] = values[(i + 3) % 8]; }
+        memcpy(expected_v, visible, sizeof(visible)); memcpy(expected_e, explored, sizeof(explored));
+        FOR_LOOP(i, n) if (bits & (1u << i)) {
+            if (!expected_v[8 - n + i]) { expected_v[8 - n + i] = 1; want_v = 1; }
+            if (!expected_e[8 - n + i]) { expected_e[8 - n + i] = 1; want_e = 1; }
+        }
+        fowPlayerGrid_t grid = {.visible = visible, .explored = explored, .visible_rows = &row,
+            .dirty_visible_rows = &dirty_v, .dirty_explored_rows = &dirty_e};
+        G_FowApplyByte(&grid, (point2_t){8 - n,0}, bits);
+        T_EQ(memcmp(visible, expected_v, sizeof(visible)), 0);
+        T_EQ(memcmp(explored, expected_e, sizeof(explored)), 0);
+        T_EQ(row, want_v); T_EQ(dirty_v, want_v); T_EQ(dirty_e, want_e);
+    }
+    level.fow.width = width;
+}
+#endif
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+TEST(wc3_fow, packed_identity_predicate_matches_scalar_rim_neighbors_across_words) {
+    uint64_t *saved_cover = fow_cover_current;
+    uint32_t saved_stride = fow_cover_stride, saved_height = level.fow.height;
+    uint64_t cover[9] = {0}, effect[2] = {0};
+    fow_cover_current = cover; fow_cover_stride = 3; level.fow.height = 3;
+    for (uint32_t corner = 0; corner < 3; corner++) {
+        fowCast_t cast = {.effect = effect, .word_x = corner, .y0 = corner, .word_width = 1, .height = 1};
+        FOR_LOOP(cell, 64) {
+            int cx = corner * 64 + cell, cy = corner;
+            effect[0] = 0; effect[1] = UINT64_C(1) << cell;
+            FOR_LOOP(point, 192 * 3) {
+                uint32_t x = point % 192, y = point / 192, tile = y * 3 + (x >> 6);
+                cover[tile] = UINT64_C(1) << (x & 63);
+                int dx = (int)x - cx, dy = (int)y - cy;
+                /* Independent scalar condition: an unseen candidate writes
+                 * iff a cardinal neighbor is visible. A visible candidate is
+                 * already satisfied and does not propagate a new write. */
+                bool redundant = dx * dx + dy * dy != 1;
+                T_EQ(G_FowSourceIsRedundant(&cast), redundant);
+                cover[tile] = 0;
+            }
+            effect[0] = UINT64_C(1) << cell; effect[1] = 0;
+            T_ASSERT(!G_FowSourceIsRedundant(&cast));
+            cover[corner * 3 + corner] = effect[0];
+            T_ASSERT(G_FowSourceIsRedundant(&cast));
+            cover[corner * 3 + corner] = 0;
+        }
+    }
+    fow_cover_current = saved_cover; fow_cover_stride = saved_stride; level.fow.height = saved_height;
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_fow, ordered_rim_word_matches_exhaustive_and_full_width_scalar_scans) {
+    FOR_LOOP(candidates, 256) FOR_LOOP(seeds, 256) {
+        uint64_t expected = 0;
+        FOR_LOOP(bit, 8) {
+            uint64_t mask = UINT64_C(1) << bit;
+            if ((candidates & mask) && ((seeds & mask) || (bit && (expected & (mask >> 1))))) expected |= mask;
+        }
+        T_EQ(G_FowRimWord(candidates, 0, seeds, 0, false, false), expected);
+    }
+    uint64_t state = UINT64_C(0x1398af759327ce51);
+    FOR_LOOP(sample, 20000) {
+        uint64_t words[4];
+        FOR_LOOP(i, 4) { state = state * UINT64_C(6364136223846793005) + 1; words[i] = state; }
+        uint64_t candidates = words[0], visible = words[1], above = words[2], below = words[3];
+        bool left = sample & 1, right = sample & 2;
+        uint64_t running = visible, expected = 0;
+        FOR_LOOP(bit, 64) {
+            uint64_t mask = UINT64_C(1) << bit;
+            if (!(candidates & mask) || (running & mask)) continue;
+            bool neighbor = ((above | below) & mask) ||
+                (bit ? (running & (mask >> 1)) != 0 : left) ||
+                (bit < 63 ? (running & (mask << 1)) != 0 : right);
+            if (neighbor) { running |= mask; expected |= mask; }
+        }
+        T_EQ(G_FowRimWord(candidates, visible, above, below, left, right), expected);
+    }
+    T_EQ(G_FowRimWord(UINT64_MAX, 0, UINT64_C(1) << 63, 0, false, false), UINT64_C(1) << 63);
+    T_EQ(G_FowRimWord(UINT64_MAX, 0, 0, 0, true, false), UINT64_MAX);
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_fow, disk_words_preserve_distinct_float_disk_and_integer_rim_boundaries) {
+    uint32_t width = level.fow.width, height = level.fow.height, stride = fow_cover_stride;
+    uint64_t *blocked = fow_blocked_words;
+    fowCast_t cast = { .x = 4097, .y = 1, .width = 8195, .height = 3, .word_width = 129 };
+    uint64_t out[129 * 3] = {0}, blockers[129 * 3];
+    memset(blockers, 255, sizeof(blockers));
+    level.fow.width = 8195; level.fow.height = 3; fow_cover_stride = 129;
+    fow_blocked_words = blockers;
+    G_FowBuildDiskWords(&cast, 4097, out, false);
+    /* sqrtf rounds sqrt(4097^2 - 1) to 4097. The original disk includes
+     * these edge cells, while the integer-distance rim excludes them. */
+    T_ASSERT(out[0] & 1); T_ASSERT(out[128] & 4);
+    T_ASSERT(out[129] & 1); T_ASSERT(out[257] & 4);
+    memset(out, 0, sizeof(out));
+    G_FowBuildDiskWords(&cast, 4097, out, true);
+    T_ASSERT(!(out[0] & 1)); T_ASSERT(!(out[128] & 4));
+    T_ASSERT(out[129] & 1); T_ASSERT(out[257] & 4);
+    level.fow.width = width; level.fow.height = height; fow_cover_stride = stride;
+    fow_blocked_words = blocked;
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_fow, ray_interval_search_preserves_float_boundary_comparisons) {
+    G_FowPrepareRays(64);
+    for (int distance = 1; distance <= 64; distance++) {
+        fowRay_t const *row = fow_ray_rows[distance];
+        for (int column = 0; column <= distance; column++) {
+            for (int direction = -1; direction <= 1; direction++) {
+                float start = row[column].right, end = row[column].left;
+                if (direction) {
+                    start = nextafterf(start, direction < 0 ? -INFINITY : INFINITY);
+                    end = nextafterf(end, direction < 0 ? -INFINITY : INFINITY);
+                }
+                int first = 0, limit = 0;
+                while (first <= distance && start < row[first].right) first++;
+                while (limit <= distance && !(end > row[limit].left)) limit++;
+                T_EQ(G_FowRayBegin(row, distance + 1, start), first);
+                T_EQ(G_FowRayEnd(row, distance + 1, end), limit);
+            }
+        }
+    }
+}
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_fow, unobstructed_ray_rows_emit_spans_without_cell_visits) {
+    G_FowPrepareRays(24);
+    uint8_t blocked[65 * 65] = {0};
+    uint64_t rows[65 * 2] = {0}, columns[65 * 2] = {0}, output[65 * 2] = {0};
+    fowCast_t cast = { .x = 32, .y = 32, .width = 65, .height = 65, .radius = 24,
+        .effect = output, .word_width = 2 };
+    fowGeometry_t geometry = { &cast, blocked, 65, 65, fow_ray_rows, rows, columns, 2, 2 };
+    static int const octants[8][4] = {
+        {1,0,0,1}, {0,1,1,0}, {0,-1,1,0}, {-1,0,0,1},
+        {-1,0,0,-1}, {0,-1,-1,0}, {0,1,-1,0}, {1,0,0,-1}
+    };
+    uint32_t cells = fow_geometry_cells, spans = fow_geometry_spans;
+    G_FowRecordCell(&cast, 32, 32);
+    FOR_LOOP(i, 8) G_FowCastGeometry(&geometry, 1, 1.0f, 0.0f,
+        octants[i][0], octants[i][1], octants[i][2], octants[i][3]);
+    for (int y = 0; y < 65; y++) for (int x = 0; x < 65; x++) {
+        int dx = x - 32, dy = y - 32;
+        bool actual = (output[y * 2 + (x >> 6)] >> (x & 63)) & 1;
+        T_EQ(actual, dx * dx + dy * dy <= 24 * 24);
+    }
+    T_EQ(fow_geometry_cells, cells);
+    T_EQ(fow_geometry_spans - spans, 8 * 24);
+}
+#endif

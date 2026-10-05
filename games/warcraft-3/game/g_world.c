@@ -15,11 +15,18 @@ typedef struct {
     bool has_target, endpoint;
     uint32_t level, cell_epoch;
     bool *target_hit;
+    wc3FineBox_t *rejection; /* query-local placement witness, never retained */
 } moveFineGraph_t;
 static wc3SpatialActive_t move_spatial[MAX_ENTITIES];
 static uint64_t move_spatial_serial;
 #ifdef BZ_TESTS
 static uint32_t move_spatial_visits;
+static uint32_t move_spatial_link_visits;
+uint32_t G_TestMoveSpatialLinkVisits(bool reset) {
+    uint32_t count=move_spatial_link_visits;
+    if(reset)move_spatial_link_visits=0;
+    return count;
+}
 uint32_t G_TestMoveSpatialVisits(bool reset) {
     uint32_t count=move_spatial_visits;
     if(reset)move_spatial_visits=0;
@@ -72,6 +79,7 @@ static void move_spatial_clean(uint32_t index) {
 static void move_link_entity(edict_t *ent) {
     G_MarkMoveSpatialObject(ent);
     move_link(ent);
+    G_AcquisitionEntityLinked(ent);
 }
 
 void G_InitMoveSpatialLink(void) {
@@ -187,11 +195,18 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 #pragma GCC visibility push(hidden)
 #include "common/world.c"
 #include "common/world_w3.c"
+static void move_cell_world_dimensions(float *, float *);
+#define PATH_CELL_WORLD_DIMENSIONS move_cell_world_dimensions
 #define PATHMAP_SETUP_COMPLETE move_acc_initialize
+#define PATH_JOB_RUN G_RunPathJob
+#define PATH_JOB_WAIT G_WaitPathJob
 #define CM_BakeStaticObstacles move_bake_static_masks
 #include "server/sv_routing.c"
 #undef CM_BakeStaticObstacles
 #undef PATHMAP_SETUP_COMPLETE
+#undef PATH_JOB_RUN
+#undef PATH_JOB_WAIT
+#undef PATH_CELL_WORLD_DIMENSIONS
 
 static void move_invalidate_edges(void) {
     if(++move_edge_epoch==(1u<<28)) {
@@ -215,32 +230,98 @@ bool G_EntityHasStaticPathing(edict_t const *ent) {
 
 /* Map extents/dimensions describe cell sizes; simulation coordinates then use
  * the direct software transform. Stock WC3 WPM cells are32 world units. */
+#ifdef BZ_TESTS
+static uint32_t move_geometry_builds, move_group_goal_conversions;
+uint32_t G_TestMoveGroupGoalConversions(bool reset) {
+    uint32_t result = move_group_goal_conversions;
+    if (reset) move_group_goal_conversions = 0;
+    return result;
+}
+uint32_t G_TestMoveGeometryBuilds(bool reset) {
+    uint32_t result = move_geometry_builds;
+    if (reset) move_geometry_builds = 0;
+    return result;
+}
+#endif
+typedef struct {
+    box2_t bounds;
+    war3map_t const *map;
+    vec2_t center, cell, native_scale, extent_cell;
+    uint32_t width, height, terrain_width, terrain_height, revision;
+    bool valid;
+} moveGridGeometry_t;
+/* Workers share map inputs, but never write another thread's derived cache. */
+static _Thread_local moveGridGeometry_t move_grid_geometry;
+
+static moveGridGeometry_t const *move_geometry(void) {
+    bool have_world = world.map != NULL;
+#ifdef BZ_TESTS
+    have_world |= test_world_bounds_set;
+#endif
+    box2_t bounds = have_world ? CM_GetWorldBounds() : (box2_t){0};
+    moveGridGeometry_t *geometry = &move_grid_geometry;
+    vec2_t center = world.map ? world.map->center : (vec2_t){0};
+    uint32_t width = world.map ? world.map->width : 0, height = world.map ? world.map->height : 0;
+    if (geometry->valid && geometry->map == world.map && geometry->width == pathmap.width &&
+        geometry->height == pathmap.height && geometry->terrain_width == width &&
+        geometry->terrain_height == height && !memcmp(&geometry->center, &center, sizeof(center)) &&
+        !memcmp(&geometry->bounds, &bounds, sizeof(bounds))) return geometry;
+#ifdef BZ_TESTS
+    move_geometry_builds++;
+#endif
+    uint32_t revision = geometry->revision + 1;
+    if (!revision) { gi.error("Move geometry revision exhausted"); abort(); }
+    *geometry = (moveGridGeometry_t){.map = world.map, .center = center, .bounds = bounds, .revision = revision,
+        .width = pathmap.width, .height = pathmap.height, .terrain_width = width, .terrain_height = height,
+        .cell = {FLT_MAX, FLT_MAX}, .valid = true};
+    geometry->extent_cell = (vec2_t){(bounds.max.x - bounds.min.x) / pathmap.width,
+                                   (bounds.max.y - bounds.min.y) / pathmap.height};
+    geometry->native_scale = (vec2_t){wc3_div(32, geometry->extent_cell.x),
+                                    wc3_div(32, geometry->extent_cell.y)};
+    /* Retain the legacy rounding through the denormalized map transform.
+     * Its subtraction can differ from the extent division on uneven maps. */
+    if (pathmap.width) {
+        vec2_t a = CM_GetDenormalizedMapPosition(0, 0);
+        vec2_t b = CM_GetDenormalizedMapPosition(1.f / pathmap.width, 0);
+        geometry->cell.x = fabsf(b.x - a.x);
+    }
+    if (pathmap.height) {
+        vec2_t a = CM_GetDenormalizedMapPosition(0, 0);
+        vec2_t b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
+        geometry->cell.y = fabsf(b.y - a.y);
+    }
+    return geometry;
+}
+static void move_cell_world_dimensions(float *cell_x, float *cell_y) {
+    moveGridGeometry_t const *geometry = move_geometry();
+    *cell_x = geometry->cell.x; *cell_y = geometry->cell.y;
+}
 static vec2_t move_grid_from_world(float x, float y) {
-    box2_t const bounds = CM_GetWorldBounds();
-    float const cx = (bounds.max.x - bounds.min.x) / pathmap.width;
-    float const cy = (bounds.max.y - bounds.min.y) / pathmap.height;
-    return (vec2_t){wc3_grid_coordinate(x, bounds.min.x, cx), wc3_grid_coordinate(y, bounds.min.y, cy)};
+    moveGridGeometry_t const *geometry = move_geometry();
+    return (vec2_t){wc3_grid_coordinate(x, geometry->bounds.min.x, geometry->extent_cell.x),
+                   wc3_grid_coordinate(y, geometry->bounds.min.y, geometry->extent_cell.y)};
 }
 
 /* A published native pose is authoritative; world inversion can round into a
  * different heading or progress decision. Synthetic maps retain their scale. */
 static vec2_t move_query_source(movePathQuery_t const *input) {
     if (!input->fine) return move_grid_from_world(input->geometry.from->x,input->geometry.from->y);
-    box2_t const bounds=CM_GetWorldBounds();
-    float cx=(bounds.max.x-bounds.min.x)/pathmap.width, cy=(bounds.max.y-bounds.min.y)/pathmap.height;
-    return (vec2_t){wc3_mul(input->fine->x,wc3_div(32,cx)),wc3_mul(input->fine->y,wc3_div(32,cy))};
+    moveGridGeometry_t const *geometry = move_geometry();
+    return (vec2_t){wc3_mul(input->fine->x,geometry->native_scale.x),
+                   wc3_mul(input->fine->y,geometry->native_scale.y)};
 }
 
 /* Cell centres and retained route points must not round through map fractions. */
 static vec2_t move_world_from_grid(float x, float y) {
-    box2_t const bounds = CM_GetWorldBounds();
-    float const cx = (bounds.max.x - bounds.min.x) / pathmap.width;
-    float const cy = (bounds.max.y - bounds.min.y) / pathmap.height;
-    return (vec2_t){wc3_world_coordinate(x, bounds.min.x, cx), wc3_world_coordinate(y, bounds.min.y, cy)};
+    moveGridGeometry_t const *geometry = move_geometry();
+    return (vec2_t){wc3_world_coordinate(x, geometry->bounds.min.x, geometry->extent_cell.x),
+                   wc3_world_coordinate(y, geometry->bounds.min.y, geometry->extent_cell.y)};
 }
 
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
+    CM_FinishPathJobs();
+    move_grid_geometry.valid = false;
     free(move_acc_storage); move_acc_storage = NULL; move_acc_markers = NULL;
     wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
     move_acc_width = move_acc_height = 0;
@@ -493,22 +574,20 @@ static pathGridQuery_t move_field_shape(float radius, uint8_t flags) {
 /* Each footprint has at most sixteen links. Allocate only the map's cell
  * heads; updates and removals touch the object's own cells. */
 static void move_spatial_unlink(uint32_t index) {
-    for(unsigned slot=0;slot<16;slot++) {
+    wc3FineBox_t const *box=&move_spatial[index].box;
+    for(int y=MAX(0,box->min.y);y<MIN((int)move_spatial_height,box->max.y);y++)
+        for(int x=MAX(0,box->min.x);x<MIN((int)move_spatial_width,box->max.x);x++) {
+        unsigned slot=(y-box->min.y)*4+x-box->min.x;
+#ifdef BZ_TESTS
+        move_spatial_link_visits++;
+#endif
         uint32_t id=index*16+slot+1;
         moveSpatialLink_t *link=move_spatial_links+id;
         if(link->previous) move_spatial_links[link->previous].next=link->next;
-        else if(move_spatial_cells) {
-            wc3FineBox_t const *box=&move_spatial[index].box;
-            int x=box->min.x+(int)(slot%4),y=box->min.y+(int)(slot/4);
-            if((uint32_t)x<move_spatial_width && (uint32_t)y<move_spatial_height &&
-                move_spatial_cells[(uint32_t)y*move_spatial_width+x]==id)
-                move_spatial_cells[(uint32_t)y*move_spatial_width+x]=link->next;
-        }
+        else if(move_spatial_cells[(uint32_t)y*move_spatial_width+x]==id)
+            move_spatial_cells[(uint32_t)y*move_spatial_width+x]=link->next;
         if(link->next)move_spatial_links[link->next].previous=link->previous;
-        wc3FineBox_t const *box=&move_spatial[index].box;
-        int x=box->min.x+(int)(slot%4),y=box->min.y+(int)(slot/4);
-        if((uint32_t)x<move_spatial_width && (uint32_t)y<move_spatial_height &&
-            !move_spatial_cells[(uint32_t)y*move_spatial_width+x])
+        if(!move_spatial_cells[(uint32_t)y*move_spatial_width+x])
             move_occupied[(uint32_t)y*move_occupied_stride+((uint32_t)x>>6)]&=~(UINT64_C(1)<<(x&63));
         *link=(moveSpatialLink_t){0};
     }
@@ -551,10 +630,9 @@ static vec2_t move_object_point(edict_t const *ent) {
         wc3_float_bits(ent->movement.pose_world.x)!=wc3_float_bits(ent->s.origin2.x) ||
         wc3_float_bits(ent->movement.pose_world.y)!=wc3_float_bits(ent->s.origin2.y))
         return move_grid_from_world(ent->s.origin2.x,ent->s.origin2.y);
-    box2_t bounds=CM_GetWorldBounds();
-    float cx=(bounds.max.x-bounds.min.x)/pathmap.width,cy=(bounds.max.y-bounds.min.y)/pathmap.height;
-    return (vec2_t){wc3_mul(ent->movement.fine_pose.x,wc3_div(32,cx)),
-        wc3_mul(ent->movement.fine_pose.y,wc3_div(32,cy))};
+    moveGridGeometry_t const *geometry = move_geometry();
+    return (vec2_t){wc3_mul(ent->movement.fine_pose.x,geometry->native_scale.x),
+        wc3_mul(ent->movement.fine_pose.y,geometry->native_scale.y)};
 }
 
 /* TODO: the complete authored category table is BASE-02. This game adapter
@@ -660,6 +738,12 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
         uint32_t mask=graph->flags;mask|=mask<<24;
         if(!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type?0x01000002:0x010000ca,
             S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
+        /* Without a target observer only the boolean rejection is visible.
+         * Placement can additionally reuse this entire blocking rectangle. */
+        if (!graph->has_target) {
+            if (graph->rejection) *graph->rejection = move_spatial[index].box;
+            return false;
+        }
         uint64_t rank=move_spatial[index].ranks[slot];
         if(rank>blocked)blocked=rank;
     }
@@ -675,7 +759,10 @@ static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
     /* Public placement can carry a real zero query after SetUnitPathing(false).
      * Generic routing normalizes its legacy zero before constructing this graph. */
     if (!is_valid_point(pos.x,pos.y) ||
-        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) return false;
+        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) {
+        if (graph->rejection) *graph->rejection = (wc3FineBox_t){pos, {pos.x + 1, pos.y + 1}};
+        return false;
+    }
     return move_occupancy_cell(data,pos);
 }
 
@@ -730,6 +817,7 @@ bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags) {
 /* Blight owns its cell/dirty-row lifecycle; the pathing byte is its world
  * consumer. Updating this bit does not alter movement obstacle masks. */
 void G_SetTerrainBlightCell(uint32_t x, uint32_t y, bool add) {
+    CM_FinishPathJobs();
     if (x >= pathmap.width || y >= pathmap.height || !pathmap.terrain) return;
     uint32_t index = y * pathmap.width + x;
     pathMapCell_t *grids[] = {pathmap.terrain,pathmap.original,pathmap.data};
@@ -789,7 +877,8 @@ static bool placement_admit(void const *data, float const *point) {
 /* Public placement and Stop recovery share geometry, but retain distinct attempt limits. */
 static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t *out) {
     uint8_t flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
-    moveFineGraph_t graph = {.flags = flags, .endpoint = true};
+    wc3FineBox_t rejection = {0};
+    moveFineGraph_t graph = {.flags = flags, .endpoint = true, .rejection = &rejection};
     float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
     movePathQuery_t objects = {.mover = unit, .units = true};
     move_query_objects(&graph,&objects,NULL);
@@ -797,7 +886,7 @@ static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t 
         .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
                       .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
     float admitted[2];
-    if (!wc3_fine_place(&query,admitted)) return false;
+    if (!wc3_fine_place_indexed(&query, admitted, &rejection)) return false;
     *out = (vec2_t){admitted[0],admitted[1]};
     return true;
 }
@@ -1110,6 +1199,9 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         vec2_t selected=route->adaptive_points[route->adaptive_index];
         point=route->adaptive_index ? (wc3FineVector_t){wc3_mul(selected.x,2),wc3_mul(selected.y,2)} : target;
     } else {
+        /* Original166c30 leaves the fine FIFO before acquiring a replacement
+         * adaptive route. A later fine refill is a new tail request. */
+        S_CancelUnitMoveFineRequest(input->mover);
         move_acc_prepare();
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
             move_acc_enable_gates();
@@ -1173,10 +1265,26 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
 bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
     uint8_t mask=move_adaptive_mask(input);
-    box2_t bounds=CM_GetWorldBounds();float cell=pathmap_cell_world_size();
-    vec2_t clipped={wc3_point_order_coordinate(input->geometry.target->x,bounds.min.x,bounds.max.x,cell),
-        wc3_point_order_coordinate(input->geometry.target->y,bounds.min.y,bounds.max.y,cell)};
-    vec2_t goal=move_grid_from_world(clipped.x,clipped.y);
+    moveGridGeometry_t const *geometry = move_geometry();
+    bool retained = route->group_points && route->group_count && route->group_index < route->group_count &&
+        route->group_revision == move_map_revision && route->group_mask == mask;
+    vec2_t goal;
+    /* A route consumes a task destination, not a new public order every tick.
+     * Reuse only the exact request under the same world transform. Changed
+     * requests still clip before comparing, retaining equivalent destinations. */
+    if (retained && route->group_geometry == geometry->revision &&
+        !memcmp(&route->group_request, input->geometry.target, sizeof(vec2_t))) {
+        goal = route->group_goal;
+    } else {
+        box2_t bounds = geometry->bounds;
+        float cell = pathmap_cell_world_size();
+        vec2_t clipped = {wc3_point_order_coordinate(input->geometry.target->x, bounds.min.x, bounds.max.x, cell),
+            wc3_point_order_coordinate(input->geometry.target->y, bounds.min.y, bounds.max.y, cell)};
+        goal = move_grid_from_world(clipped.x, clipped.y);
+#ifdef BZ_TESTS
+        move_group_goal_conversions++;
+#endif
+    }
     /* Original16e430 tests path88.200000 independently of movement class.
      * Creation enables nonstructures; a later flight rebind disables it. */
     if (input->mover && input->mover->movement.adaptive_disabled) {
@@ -1186,9 +1294,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
     /* Original16ce10 resamples16c940 and writes path+b4 only when it admits a
      * route. A surviving cached route keeps its footprint after a peer leaves;
      * the current live maximum is used when the destination/map/mask changes. */
-    bool retained=route->group_points && route->group_count && route->group_index<route->group_count &&
-        route->group_revision==move_map_revision && route->group_mask==mask &&
-        route->group_goal.x==goal.x && route->group_goal.y==goal.y;
+    retained = retained && route->group_goal.x == goal.x && route->group_goal.y == goal.y;
     if (!retained) {
         unsigned lane=0;
         while (lane<4 && move_acc_masks[lane]!=mask) lane++;
@@ -1217,6 +1323,8 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         route->adaptive_count=route->count=0;
         FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
     }
+    route->group_request = *input->geometry.target;
+    route->group_geometry = geometry->revision;
     vec2_t point=route->group_points[route->group_index];
     *fine=route->group_index ? (vec2_t){wc3_mul(point.x,2),wc3_mul(point.y,2)} : route->group_goal;
     return true;

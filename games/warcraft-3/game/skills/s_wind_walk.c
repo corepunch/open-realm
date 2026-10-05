@@ -8,7 +8,7 @@
  */
 static heroabilitystatus_t *wind_walk_status(edict_t *unit) {
     if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == WW_ID_BOWK)
             return unit->abilstatus + i;
     return NULL;
@@ -46,8 +46,9 @@ static bool wind_walk_validate(edict_t *unit, abilityCall_t const *call) {
     uint32_t level;
 
     if (!unit || !call || !call->item) return false;
+    if (!unit->abilstatus) has_slot = true;
     if (!has_slot) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
+        FOR_LOOP(i, G_UnitStatusSlotCount(unit))
             if (!unit->abilstatus[i].level) { has_slot = true; break; }
     }
     level = S_SpellLevel(unit, call->item->code);

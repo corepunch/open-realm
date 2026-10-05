@@ -163,7 +163,8 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
 
     number = caster->s.number;
     T_ASSERT(WriteGame(save));
-    memset(caster->abilstatus, 0, sizeof(caster->abilstatus));
+    G_EnsureUnitStatusSlots(caster);
+    memset(caster->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*caster->abilstatus));
     T_ASSERT(ReadGame(save));
     caster = g_edicts + number;
     status = unit_findstatus(caster, MAKEFOURCC('B','O','w','k'));
@@ -1492,13 +1493,13 @@ TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
 	level.time = 0;
 	aura->s.player = target->s.player = attacker->s.player = 0;
 	aura->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A', 'E', 'a', 'h'), .level = 1);
-	target->attack1.weapon = WPN_NORMAL;
-	attacker->attack1.weapon = WPN_NORMAL;
+	S_AttackProfileWrite(target, 0)->weapon = WPN_NORMAL;
+	S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
 	T_FEQ(S_ThornsDamageReturn(target, target, 100.0f), 10.0f, 0.001f);
 	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 10.0f, 0.001f);
-	attacker->attack1.weapon = WPN_MISSILE;
+	S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
 	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
-	attacker->attack1.weapon = WPN_NORMAL;
+	S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
 	target->s.origin2.x = 901.0f;
 	level.time = AURA_UPDATE_MS;
 	T_FEQ(S_ThornsDamageReturn(target, attacker, 100.0f), 0.0f, 0.001f);
@@ -2307,9 +2308,9 @@ TEST(wc3_spell, human_attack_passives_and_defend_change_damage) {
 	edict_t *attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 100, 0, 0);
 	edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
 	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','f','b','k'), .level = 1);
-	target->mana.value = target->mana.max_value = 50; attacker->attack1.type = ATK_NORMAL;
+	target->mana.value = target->mana.max_value = 50; S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
 	T_EQ(S_HumanAttackDamage(attacker, target, 10), 30); T_FEQ(target->mana.value, 30.0f, 0.001f);
-	unit_addstatus(target, "Adef", 1); attacker->attack1.type = ATK_PIERCE;
+	unit_addstatus(target, "Adef", 1); S_AttackProfileWrite(attacker, 0)->type = ATK_PIERCE;
 	T_FEQ(S_HumanMoveFactor(target), 0.7f, 0.001f);
 	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
 
@@ -2393,10 +2394,11 @@ TEST(wc3_spell, defend_data_b_and_e_scale_outgoing_and_magic_attack_damage) {
 	edict_t *attacker = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
 	edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
 
-	attacker->attack1.type = ATK_NORMAL; unit_addstatus(attacker, "Adef", 1);
+	S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; unit_addstatus(attacker, "Adef", 1);
 	T_EQ(S_HumanAttackDamage(attacker, target, 100), 75);
-	memset(attacker->abilstatus, 0, sizeof(attacker->abilstatus));
-	attacker->attack1.type = ATK_MAGIC; unit_addstatus(target, "Adef", 1);
+	G_EnsureUnitStatusSlots(attacker);
+	memset(attacker->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*attacker->abilstatus));
+	S_AttackProfileWrite(attacker, 0)->type = ATK_MAGIC; unit_addstatus(target, "Adef", 1);
 	T_EQ(S_HumanAttackDamage(attacker, target, 100), 60);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -2416,13 +2418,13 @@ TEST(wc3_spell, defend_toggle_reports_state_and_updates_animation_properties) {
 	T_ASSERT(test_execute_code(footman, "Adef", target));
 	T_ASSERT(test_ability_message(footman, A_TOGGLE_ON, &item, &target));
 	T_ASSERT(S_UnitHasStatus(footman, MAKEFOURCC('A','d','e','f')));
-	T_STREQ(footman->animation_props, "defend");
+	T_STREQ(G_UnitAnimationProperties(footman), "defend");
 	T_FEQ(S_HumanMoveFactor(footman), 0.7f, 0.001f);
 
 	T_ASSERT(test_execute_code(footman, "Adef", target));
 	T_ASSERT(!test_ability_message(footman, A_TOGGLE_ON, &item, &target));
 	T_ASSERT(!S_UnitHasStatus(footman, MAKEFOURCC('A','d','e','f')));
-	T_STREQ(footman->animation_props, "");
+	T_STREQ(G_UnitAnimationProperties(footman), "");
 	T_FEQ(S_HumanMoveFactor(footman), 1.0f, 0.001f);
 
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -2444,8 +2446,8 @@ TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_tw
 	float const target_hp = target->health.value, attacker_hp = attacker->health.value;
 
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
-	attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
-	missile->owner = attacker; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	S_AttackProfileWrite(attacker, 0)->type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
+	missile->owner = attacker; S_SetMoveGoal(missile, &missile->goalentity, target); missile->movetype = MOVETYPE_FLYMISSILE;
 	missile->projectile_attack_type = ATK_PIERCE;
 	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
 	SV_Physics_Toss(missile);
@@ -2477,13 +2479,13 @@ TEST(wc3_spell, defend_attack2_projectile_uses_launch_type_after_target_morph) {
 
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
 	attacker->data.UnitWeapons = &weapons;
-	attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-	attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+	S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+	S_AttackProfileWrite(attacker, 1)->type = ATK_PIERCE; S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_AIR;
 	target->targtype = TARG_AIR;
-	missile->projectile_attack_type = attacker->attack2.type; /* Launch-time snapshot. */
+	missile->projectile_attack_type = S_AttackProfileRead(attacker, 1)->type; /* Launch-time snapshot. */
 	target->targtype = TARG_GROUND; target->defense_type = 0; /* Target morphed before impact. */
 	unit_addstatus(target, "Adef", 1);
-	missile->owner = attacker; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	missile->owner = attacker; S_SetMoveGoal(missile, &missile->goalentity, target); missile->movetype = MOVETYPE_FLYMISSILE;
 	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
 	SV_Physics_Toss(missile);
 
@@ -2509,8 +2511,8 @@ TEST(wc3_spell, defend_consumes_deflected_building_projectile_without_return_dam
 	float const tower_hp = tower->health.value, target_hp = target->health.value;
 
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
-	tower->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
-	missile->owner = tower; missile->goalentity = target; missile->movetype = MOVETYPE_FLYMISSILE;
+	S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
+	missile->owner = tower; S_SetMoveGoal(missile, &missile->goalentity, target); missile->movetype = MOVETYPE_FLYMISSILE;
 	missile->projectile_attack_type = ATK_PIERCE;
 	missile->velocity = 100000.0f; missile->damage = 100; missile->s.origin = target->s.origin;
 	SV_Physics_Toss(missile);
@@ -2587,10 +2589,10 @@ TEST(wc3_spell, poison_arrows_uses_its_own_authored_bonus_damage) {
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
 	edict_t *attacker = make_hero(MAKEFOURCC('N', 'n', 's', 'w'), 100, 100, 0, 0);
 
-	attacker->attack1.weapon = WPN_MISSILE;
+	S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
 	unit_addstatus(attacker, "AEpa", 1);
 	T_EQ(S_SearingArrowDamage(attacker, 20), 33);
-	attacker->attack1.weapon = WPN_NORMAL;
+	S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
 	T_EQ(S_SearingArrowDamage(attacker, 20), 20);
 
 	G_SetSLKRows("AbilityData", old);
@@ -2825,7 +2827,8 @@ TEST(wc3_spell, entangling_roots_death_cleanup_and_failed_status_do_not_interrup
     unit_statusdeath(target);
     T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
 
-    memset(target->abilstatus, 0, sizeof(target->abilstatus));
+    G_EnsureUnitStatusSlots(target);
+    memset(target->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*target->abilstatus));
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         target->abilstatus[i].code = MAKEFOURCC('X','0' + (i / 10), '0' + (i % 10), 'x');
         target->abilstatus[i].level = 1;
@@ -4047,7 +4050,7 @@ TEST(wc3_spell, movement_statuses_change_actual_steps_and_expire) {
             peer->data.UnitData=&profile;
             peer->stand = unit_stand;
             unit_stand(peer);
-            unit->selected = peer->selected = 1u << unit->s.player;
+            G_SetEntitySelectionMask(unit, G_SetEntitySelectionMask(peer, 1u << unit->s.player));
             T_ASSERT(move_selectlocation(clent, &(vec2_t){1536, 0}));
             float group_step = kind == 0 ? 12.6f : 22.0f;
             /* Decisions retain each maximum; all-member commits share the active status cap. */
@@ -4473,7 +4476,7 @@ TEST(wc3_spell, moon_glaive_stock_zeros_bounce_inside_attack_range) {
 	primary->s.origin2.x = 0; primary->s.origin2.y = 0;
 	nearby->s.origin2.x = 50; nearby->s.origin2.y = 0;
 	far_away->s.origin2.x = 5000; far_away->s.origin2.y = 0;
-	attacker->attack1.range = 200;
+	S_AttackProfileWrite(attacker, 0)->range = 200;
 	attacker->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','m','g','l'), .level = 1);
 	S_MoonGlaiveAttack(attacker, primary, 50);
 	T_FEQ(nearby->health.value, 450.0f, 0.001f);

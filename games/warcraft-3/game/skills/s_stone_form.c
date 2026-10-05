@@ -26,8 +26,8 @@ static bool stone_form_order(edict_t *unit, cstring_t order, uint32_t code) {
      * unit type supplies gameplay stats; the model tag supplies the visible
      * stone form, matching Warcraft's Required Animation Names behavior. */
     G_AddUnitAnimationProperties(unit, "alternate", target == stone);
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
+    S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
     move_reset_progress(unit);
     unit_stand(unit);
     return true;

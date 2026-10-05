@@ -517,7 +517,7 @@ static void G_InitGame(void) {
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
 
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
-    memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
+    G_ClearEdictStorage(MAX_ENTITIES);
     G_ResetSpawnCache();
     S_ResetWaygateCache();
     
@@ -547,6 +547,10 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    G_ResetAcquisitionPresence();
+    S_ClearUnitEventPlans();
+    CM_FinishPathJobs();
+    G_ShutdownPathWorker();
     G_FreeMovePathCache();
     if (g_edicts == NULL) {
         return;
@@ -565,9 +569,14 @@ static void G_ShutdownGame(void) {
     G_FreeModels();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
     G_ClearMoveSpatial();
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
+    G_ClearUnitRuntimeTypes();
+    S_ClearAttackProfiles();
+    G_ClearUnitSoundProfiles();
+    G_ClearUnitAnimationText();
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -945,7 +954,9 @@ void G_InvalidateCommands(gameClient_t *client) {
      * cards live when the owner changes tech, queue, food, or resources. */
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *viewer = game.clients + i;
-        if (!viewer->connected || viewer == client) continue;
+        /* A dirty card already includes every owner change before its next
+         * rebuild. Repeated CreateUnit/food changes must not rescan the map. */
+        if (!viewer->connected || viewer == client || viewer->commands_dirty) continue;
         FOR_CONTROLLABLE_SELECTED_UNITS(viewer, ent) {
             if (ent->s.player == client->ps.number) {
                 viewer->commands_dirty = true;
@@ -957,10 +968,13 @@ void G_InvalidateCommands(gameClient_t *client) {
 
 /* Live per-unit button state (Stop's idle glow) changed; rebuild the cards of every viewer selecting it. */
 void G_InvalidateUnitCommands(edict_t *unit) {
-    if (!unit) return;
+    /* Selection has an authoritative per-unit viewer mask. Unselected births
+     * and already-dirty viewers need no visibility/control query. */
+    if (!unit || !unit->selected) return;
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
-        if (client->connected && G_IsEntitySelected(client, unit)) client->commands_dirty = true;
+        if (!client->connected || client->commands_dirty || !(unit->selected & (1u << client->ps.number))) continue;
+        if (G_IsEntitySelected(client, unit)) client->commands_dirty = true;
     }
 }
 
@@ -1184,7 +1198,8 @@ static void G_RunFrame(void) {
     if (path_work_value)
         path_work_budget = atoi(path_work_value);
     path_work_budget = MAX(256, MIN(path_work_budget, 65536));
-    CM_ProcessPathJobs((uint32_t)path_work_budget);
+    G_SetPathWorkerEnabled(atoi(gi.CvarString("wc3_path_threads", "1")) != 0);
+    CM_BeginPathJobs((uint32_t)path_work_budget);
 
     G_UpdateClientCommandCards();
 
@@ -1197,6 +1212,10 @@ static void G_RunFrame(void) {
      * first; the overlay is emitted once that cinematic has returned to gameplay. */
     UI_FlushPendingGameResults();
 
+    /* Client payload construction does not change the flow job's numeric
+     * inputs. Publish before gameplay callbacks, deaths or frees can change
+     * eligibility of the next queued request. */
+    CM_FinishPathJobs();
     G_SolveCollisions();
     G_RunDeferredFrees();
     G_RunConsumedItemFrees();
@@ -1615,8 +1634,8 @@ wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *ent, entityState
         return WC3_MINIMAP_CONTACT_NONE;
 
     if (S_GoldMineIsOverlay(ent)) {
-        if (G_ActorHasSkill(ent, "Aegm")) return WC3_MINIMAP_CONTACT_GOLD_ENTANGLED;
-        if (G_ActorHasSkill(ent, "Abgm")) return WC3_MINIMAP_CONTACT_GOLD_HAUNTED;
+        if (G_ActorHasAbilityCode(ent, MAKEFOURCC('A','e','g','m'))) return WC3_MINIMAP_CONTACT_GOLD_ENTANGLED;
+        if (G_ActorHasAbilityCode(ent, MAKEFOURCC('A','b','g','m'))) return WC3_MINIMAP_CONTACT_GOLD_HAUNTED;
         return WC3_MINIMAP_CONTACT_GOLD_MINE;
     }
     /* Natural mines advertise the resource-source bit; avoid re-parsing every

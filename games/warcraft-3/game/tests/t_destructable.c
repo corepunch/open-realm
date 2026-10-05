@@ -193,8 +193,8 @@ static edict_t *make_destructable_test_attacker(float x, float y) {
     ent->health.value = 100.0f;
     ent->health.max_value = 100.0f;
     ent->svflags |= SVF_MONSTER;
-    ent->attack1.type = ATK_NORMAL;
-    ent->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
+    S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
     return ent;
 }
 
@@ -314,7 +314,7 @@ TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
     dest->targtype = TARG_WALL;
     attacker = make_destructable_test_attacker(10.0f, 0.0f);
     attacker->s.player = 0;
-    attacker->attack1.targetsAllowed = 128u; /* TARGET_FLAG_WALL */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 128u; /* TARGET_FLAG_WALL */
     game.clients[0].cheat_instant_kill = true;
 
     dest->s.renderfx |= RF_HIDDEN;
@@ -387,7 +387,7 @@ TEST(wc3_destructable, smart_order_requires_destructable_target_mask) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
-    attacker->attack1.targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(attacker->goalentity == NULL);
@@ -400,7 +400,7 @@ TEST(wc3_destructable, tree_requires_explicit_attack) {
     dest->targtype = TARG_TREE;
     /* Standard melee targs1 commonly contains debris but not tree. Retail
      * still lets explicit Attack cut a tree down. */
-    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
@@ -412,7 +412,7 @@ TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
-    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
@@ -424,7 +424,7 @@ TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
-    attacker->attack1.targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
@@ -1345,14 +1345,14 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
     }
     T_NOT_NULL(valid); T_NOT_NULL(missing);
     if (valid && missing) {
-        T_STREQ(valid->animation_request, "stand alternate");
+        T_STREQ(G_UnitAnimationRequest(valid), "stand alternate");
         T_NOT_NULL(valid->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
             T_ASSERT(valid->animation_override);
         }
-        T_STREQ(missing->animation_request, "death alternate");
+        T_STREQ(G_UnitAnimationRequest(missing), "death alternate");
         T_NULL(missing->animation);
         T_ASSERT(!missing->animation_override);
     }

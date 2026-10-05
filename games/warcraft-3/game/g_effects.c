@@ -323,7 +323,7 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
 void G_EffectValidateTarget(edict_t *effect) {
     if (!effect->goalentity || !effect->goalentity->inuse ||
         effect->goalentity->spawn_time != effect->damage) {
-        effect->goalentity = NULL;
+        S_SetMoveGoal(effect, &effect->goalentity, NULL);
         effect->movetype = MOVETYPE_NONE;
         effect->think = G_FreeEdict;
     }
@@ -401,7 +401,7 @@ edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *targe
         effect->s.origin = target->s.origin;
         effect->s.origin2 = target->s.origin2;
         effect->s.angle = target->s.angle;
-        effect->goalentity = target;
+        S_SetMoveGoal(effect, &effect->goalentity, target);
         effect->damage = target->spawn_time; /* target generation guard */
         effect->movetype = MOVETYPE_LINK;
         effect->prethink = G_EffectValidateTarget;
@@ -497,7 +497,7 @@ void G_DestroyEffect(edict_t *effect) {
     }
     effect->prethink = NULL;
     effect->s.sound = 0;
-    effect->goalentity = NULL;
+    S_SetMoveGoal(effect, &effect->goalentity, NULL);
     effect->movetype = MOVETYPE_NONE;
     effect->wait = 0.0f;
     effect->think = G_EffectThink;

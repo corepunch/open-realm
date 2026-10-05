@@ -1192,7 +1192,7 @@ TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_suppl
     g_edicts[0].inuse = true;
     g_edicts[0].health.value = 1.0f;
     g_edicts[0].s.player = 0;
-    g_edicts[0].selected = 1u << game.clients[0].ps.number;
+    G_SetEntitySelectionMask(g_edicts + 0, 1u << game.clients[0].ps.number);
 
     old_cvar = gi.CvarString;
     gi.CvarString = result_cheats_cvar;

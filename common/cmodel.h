@@ -92,6 +92,8 @@ uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
 bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
 void CM_ProcessPathJobs(uint32_t work_budget);
+void CM_BeginPathJobs(uint32_t work_budget);
+void CM_FinishPathJobs(void);
 bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
 bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
 /* Distance from a world point to the target entity's authored no-walk

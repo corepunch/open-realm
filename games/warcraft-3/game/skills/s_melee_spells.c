@@ -150,7 +150,7 @@ float S_BloodlustAttackBonus(edict_t const *unit) {
 }
 
 float S_BloodlustMoveBonus(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
+    uint32_t level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
     heroabilitystatus_t const *status = level ? unit_findstatus((edict_t *)unit, MAKEFOURCC('B','b','l','o')) : NULL;
     return level ? S_SpellData(status->data ? status->data : MAKEFOURCC('A','b','l','o'), level, 2) : 0;
 }

@@ -700,8 +700,8 @@ static edict_t *make_test_unit(void) {
     ent->health.max_value = 250.0f;
     ent->stand            = unit_stand;
     ent->movetype         = MOVETYPE_STEP;
-    ent->attack1.type     = ATK_NORMAL;
-    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(ent, 0)->type     = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     ent->targtype         = TARG_GROUND;
     unit_stand(ent);
     return ent;
@@ -3184,6 +3184,279 @@ TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     G_FowShutdown();
 }
 
+uint32_t G_TestFowSightBuilds(bool reset);
+void G_TestFowInvalidateSight(void);
+TEST(wc3_game, fow_stationary_sight_reuses_geometry_and_reexplores_masked_cells) {
+    reset_entities();G_FowInit();G_FowConnectPlayer(0);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,64);
+    unit->s.player=0;unit->health.value=unit->health.max_value=1;
+    unit->runtime.sight_radius.day=unit->runtime.sight_radius.night=128;
+    uint32_t cells=level.fow.width*level.fow.height;
+    uint8_t *visible=malloc(cells),*explored=malloc(cells);
+    G_TestFowSightBuilds(true);G_FowUpdate();
+    memcpy(visible,level.fow.players[0].visible,cells);
+    for(uint32_t i=0;i<64;i++)G_FowUpdate();
+    T_EQ(G_TestFowSightBuilds(false),1);
+    T_ASSERT(!memcmp(visible,level.fow.players[0].visible,cells));
+    /* A script may mask exploration while a stationary unit still owns sight. */
+    memset(level.fow.players[0].explored,0,cells);G_FowUpdate();
+    T_ASSERT(!memcmp(visible,level.fow.players[0].explored,cells));
+    for(uint32_t phase=0;phase<5;phase++) {
+        if(phase==0)unit->s.origin.x+=128;
+        if(phase==1)unit->runtime.sight_radius.day=unit->runtime.sight_radius.night=64;
+        if(phase==2){unit->shared_vision=2;G_FowConnectPlayer(1);}
+        if(phase==3)unit->health.value=0;
+        if(phase==4)unit->health.value=1;
+        G_FowUpdate();
+        for(uint32_t player=0;player<2;player++) {
+            memcpy(visible,level.fow.players[player].visible,cells);
+            memcpy(explored,level.fow.players[player].explored,cells);
+            G_TestFowInvalidateSight();G_FowUpdate();
+            T_ASSERT(!memcmp(visible,level.fow.players[player].visible,cells));
+            T_ASSERT(!memcmp(explored,level.fow.players[player].explored,cells));
+        }
+    }
+    free(visible);free(explored);G_FowShutdown();
+}
+
+void G_TestFowForceCasts(bool force);
+uint32_t G_TestFowCastBuilds(bool reset);
+TEST(wc3_game, fow_cast_cache_matches_ordered_shadow_and_rim_with_one_moving_source) {
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512,-256}, .max = {1536,1792}));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    edict_t *units[32], *trees[24];
+    FOR_LOOP(i, 32) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -480 + (int)(i % 8) * 224, -224 + (int)(i / 8) * 416);
+        units[i]->s.player = i & 1;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 193 + (i % 4) * 64;
+        units[i]->health.value = units[i]->health.max_value = 1;
+    }
+    FOR_LOOP(i, 24) {
+        trees[i] = alloc_test_unit(MAKEFOURCC('L','T','l','t'), -416 + (int)(i % 6) * 256, -96 + (int)(i / 6) * 384);
+        trees[i]->s.flags |= EF_FOW_BLOCKER;
+        trees[i]->health.value = trees[i]->health.max_value = 1;
+    }
+    uint32_t cells = level.fow.width * level.fow.height, height = level.fow.height;
+    size_t size = 3 * (2 * cells + 3 * height);
+    uint8_t *before = malloc(size), *expected = malloc(size);
+    T_NOT_NULL(before); T_NOT_NULL(expected);
+    edict_t *overlap = NULL;
+    for (uint32_t phase = 0; phase < 12; phase++) {
+        if (phase == 1) units[0]->s.origin.x += 64;
+        if (phase == 2) { trees[0]->health.value = 0; G_FowMarkBlockersDirty(); }
+        if (phase == 3) { trees[1]->s.origin.x += 64; G_FowMarkBlockersDirty(); }
+        if (phase == 4) { units[0]->shared_vision = 4; G_FowConnectPlayer(2); }
+        if (phase == 5) FOR_LOOP(p, 3) memset(level.fow.players[p].explored, 0, cells);
+        if (phase == 6) { trees[0]->health.value = 1; G_FowMarkBlockersDirty(); }
+        if (phase == 7) units[1]->health.value = 0;
+        if (phase == 8) units[0]->runtime.sight_radius.day = units[0]->runtime.sight_radius.night = 129;
+        if (phase == 9) { units[1]->health.value = 1; units[0]->shared_vision = 0; }
+        if (phase == 10) {
+            overlap = alloc_test_unit(MAKEFOURCC('L','T','l','t'), trees[1]->s.origin.x, trees[1]->s.origin.y);
+            overlap->s.flags |= EF_FOW_BLOCKER;
+            overlap->health.value = overlap->health.max_value = 1;
+            G_FowMarkBlockersDirty();
+        }
+        if (phase == 11) { overlap->health.value = 0; G_FowMarkBlockersDirty(); }
+        uint8_t *out = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; memcpy(out, planes[j], n); out += n; }
+        }
+        G_TestFowCastBuilds(true); G_FowUpdate();
+        if (phase == 0) T_EQ(G_TestFowCastBuilds(false), 32);
+        if (phase == 1 || phase == 8) T_EQ(G_TestFowCastBuilds(false), 1);
+        if (phase == 4 || phase == 5 || phase == 7 || phase == 9) T_EQ(G_TestFowCastBuilds(false), 0);
+        if (phase == 10 || phase == 11) T_EQ(G_TestFowCastBuilds(false), 0);
+        if (phase == 2 || phase == 3 || phase == 6) {
+            T_ASSERT(G_TestFowCastBuilds(false) > 0);
+            T_ASSERT(G_TestFowCastBuilds(false) < 32);
+        }
+        out = expected;
+        uint8_t const *saved = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) {
+                size_t n = j < 2 ? cells : height;
+                memcpy(out, planes[j], n); memcpy(planes[j], saved, n); out += n; saved += n;
+            }
+        }
+        /* Run the original production rasterizer from the same plane state,
+         * preserving the provider order and its live value2 rim propagation. */
+        G_TestFowForceCasts(true); G_FowUpdate();
+        saved = expected;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; T_EQ(memcmp(planes[j], saved, n), 0); saved += n; }
+        }
+        G_TestFowForceCasts(false);
+    }
+    free(before); free(expected); G_FowShutdown(); setup_test_world();
+}
+
+uint32_t G_TestFowSourceReplays(bool reset);
+uint32_t G_TestFowPrefixSkips(bool reset);
+uint32_t G_TestFowCoverSkips(bool reset);
+TEST(wc3_game, fow_covered_sources_skip_geometry_without_using_future_visibility) {
+    reset_entities(); setup_test_world();
+    /* Non-aligned bounds exercise partial right/bottom coverage tiles. */
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-97,-65}, .max = {1057,577}));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    edict_t *units[1024];
+    FOR_LOOP(i, 1024) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 512, 256);
+        units[i]->s.player = 0; units[i]->shared_vision = 2;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 2048;
+    }
+    G_TestFowCoverSkips(true); G_TestFowCastBuilds(true); G_TestFowSourceReplays(true);
+    G_FowUpdate();
+    T_EQ(G_TestFowCastBuilds(false), 1);
+    T_EQ(G_TestFowSourceReplays(false), 2);
+    T_EQ(G_TestFowCoverSkips(false), 2046);
+    uint32_t cells = level.fow.width * level.fow.height;
+    uint8_t *expected = malloc(cells); T_NOT_NULL(expected);
+    memcpy(expected, level.fow.players[0].visible, cells);
+    FOR_LOOP(i, cells) T_EQ(expected[i], 1);
+    /* Every source moves. Covered sources still need no first-move geometry
+     * allocation; only the first actual contributor is rasterized. */
+    FOR_LOOP(i, 1024) units[i]->s.origin.x += (i & 1) ? 64 : -64;
+    G_TestFowCoverSkips(true); G_TestFowCastBuilds(true); G_TestFowSourceReplays(true);
+    G_FowUpdate();
+    T_EQ(G_TestFowCastBuilds(false), 1);
+    T_EQ(G_TestFowSourceReplays(false), 2);
+    T_EQ(G_TestFowCoverSkips(false), 2046);
+    FOR_LOOP(p, 2) {
+        T_EQ(memcmp(expected, level.fow.players[p].visible, cells), 0);
+        memset(level.fow.players[p].explored, 0, cells);
+    }
+    G_FowUpdate();
+    FOR_LOOP(p, 2) T_EQ(memcmp(expected, level.fow.players[p].explored, cells), 0);
+    G_TestFowForceCasts(true); G_FowUpdate();
+    FOR_LOOP(p, 2) {
+        T_EQ(memcmp(expected, level.fow.players[p].visible, cells), 0);
+        T_EQ(memcmp(expected, level.fow.players[p].explored, cells), 0);
+    }
+    free(expected); G_FowShutdown(); setup_test_world();
+}
+
+TEST(wc3_game, fow_unchanged_blocker_cells_retain_sight_after_damage_and_overlap) {
+    reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->s.player = 0;
+    unit->runtime.sight_radius.day = unit->runtime.sight_radius.night = 512;
+    edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 256, 64);
+    tree->s.flags |= EF_FOW_BLOCKER; tree->health.value = tree->health.max_value = 100;
+    G_FowUpdate();
+    G_TestFowSourceReplays(true); G_TestFowCastBuilds(true);
+    tree->health.value = 50; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    edict_t *duplicate = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 256, 64);
+    duplicate->s.flags |= EF_FOW_BLOCKER;
+    G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    tree->health.value = 0; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_EQ(G_TestFowSourceReplays(false), 0); T_EQ(G_TestFowCastBuilds(false), 0);
+    duplicate->health.value = 0; G_FowMarkBlockersDirty(); G_FowUpdate();
+    T_ASSERT(G_TestFowSourceReplays(false) > 0); T_ASSERT(G_TestFowCastBuilds(false) > 0);
+    uint32_t cells = level.fow.width * level.fow.height;
+    uint8_t *expected = malloc(cells); T_NOT_NULL(expected);
+    memcpy(expected, level.fow.players[0].visible, cells);
+    G_TestFowForceCasts(true); G_FowUpdate();
+    T_EQ(memcmp(expected, level.fow.players[0].visible, cells), 0);
+    free(expected); G_FowShutdown(); setup_test_world();
+}
+
+TEST(wc3_game, fow_prefix_checkpoints_match_full_ordered_replay_across_dirty_blocks) {
+    reset_entities(); setup_test_world();
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512,-256}, .max = {1536,1792}));
+    G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1);
+    edict_t *units[800], *trees[12], *inserted = NULL;
+    FOR_LOOP(i, 800) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -320 + (i % 3) * 512, 256 + (i % 2) * 512);
+        units[i]->s.player = 0; units[i]->shared_vision = 2;
+        units[i]->runtime.sight_radius.day = units[i]->runtime.sight_radius.night = 257;
+        units[i]->health.value = units[i]->health.max_value = 1;
+    }
+    FOR_LOOP(i, 12) {
+        trees[i] = alloc_test_unit(MAKEFOURCC('L','T','l','t'), -192 + (i % 3) * 512, 128 + (i / 3) * 256);
+        trees[i]->s.flags |= EF_FOW_BLOCKER;
+        trees[i]->health.value = trees[i]->health.max_value = 1;
+    }
+    uint32_t cells = level.fow.width * level.fow.height, height = level.fow.height;
+    size_t size = 3 * (2 * cells + 3 * height);
+    uint8_t *before = malloc(size), *expected = malloc(size);
+    T_NOT_NULL(before); T_NOT_NULL(expected);
+    for (uint32_t phase = 0; phase < 12; phase++) {
+        /* The independent oracle invalidates caches; establish valid ordered
+         * checkpoints before applying the next mutation. */
+        G_FowUpdate();
+        /* Relocate an early duplicate onto another existing source. This
+         * dirties its block but leaves the accumulated prefix unchanged. */
+        if (phase == 0) units[0]->s.origin2 = units[1]->s.origin2;
+        if (phase == 1) units[799]->s.origin.y += 512;
+        if (phase == 2) { units[0]->s.origin.y += 512; units[799]->s.origin.x += 64; }
+        if (phase == 3) units[0]->runtime.sight_radius.day = units[0]->runtime.sight_radius.night = 64;
+        if (phase == 4) {
+            FOR_LOOP(p, 3) memset(level.fow.players[p].explored, 0, cells);
+            units[799]->s.origin.x -= 64;
+        }
+        if (phase == 5) { trees[0]->health.value = 0; G_FowMarkBlockersDirty(); }
+        if (phase == 6) units[0]->health.value = 0;
+        if (phase == 7) { units[799]->shared_vision |= 4; G_FowConnectPlayer(2); }
+        if (phase == 8) {
+            inserted = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 1280, 1536);
+            inserted->s.player = 0; inserted->runtime.sight_radius.day = inserted->runtime.sight_radius.night = 193;
+        }
+        if (phase == 9) G_FreeEdict(inserted);
+        if (phase == 10) units[400]->s.player = 1;
+        if (phase == 11) FOR_LOOP(i, 800) units[i]->s.origin.y -= 64;
+        FOR_LOOP(p, 3) {
+            memset(level.fow.players[p].dirty_visible_rows, 0, height);
+            memset(level.fow.players[p].dirty_explored_rows, 0, height);
+        }
+        uint8_t *out = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; memcpy(out, planes[j], n); out += n; }
+        }
+        G_TestFowSourceReplays(true); G_TestFowPrefixSkips(true); G_FowUpdate();
+        if (phase == 0 || phase == 1 || phase == 4) {
+            T_ASSERT(G_TestFowPrefixSkips(false) > 0);
+            T_ASSERT(G_TestFowSourceReplays(false) < 800 * 2);
+        }
+        out = expected;
+        uint8_t const *saved = before;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) {
+                size_t n = j < 2 ? cells : height;
+                memcpy(out, planes[j], n); memcpy(planes[j], saved, n); out += n; saved += n;
+            }
+        }
+        G_TestFowForceCasts(true); G_FowUpdate();
+        saved = expected;
+        FOR_LOOP(p, 3) {
+            fowPlayerGrid_t *grid = &level.fow.players[p];
+            uint8_t *planes[] = {grid->visible, grid->explored, grid->visible_rows,
+                grid->dirty_visible_rows, grid->dirty_explored_rows};
+            FOR_LOOP(j, 5) { size_t n = j < 2 ? cells : height; T_EQ(memcmp(planes[j], saved, n), 0); saved += n; }
+        }
+        G_TestFowForceCasts(false);
+    }
+    free(before); free(expected); G_FowShutdown(); setup_test_world();
+}
+
 TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
     reset_entities();
     G_FowInit();
@@ -3358,11 +3631,11 @@ TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 200.0f, 0.0f);
     guard->s.player = 0; enemy->s.player = 1;
     guard->svflags |= SVF_MONSTER; enemy->svflags |= SVF_MONSTER;
-    guard->attack1.type = ATK_NORMAL;
-    guard->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(guard, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(guard, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->targtype = TARG_GROUND;
-    guard->attack1.cooldown = 1.0f; guard->attack1.damageBase = 1;
-    guard->attack1.range = 64.0f; guard->runtime.acquisition_range = 300.0f;
+    S_AttackProfileWrite(guard, 0)->cooldown = 1.0f; S_AttackProfileWrite(guard, 0)->damageBase = 1;
+    S_AttackProfileWrite(guard, 0)->range = 64.0f; guard->runtime.acquisition_range = 300.0f;
     M_SetMove(guard,&holdpos_move_stand);
     gi.LinkEntity(guard); gi.LinkEntity(enemy);
     level.time = 300;
@@ -3681,10 +3954,11 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     G_UpdateTimeOfDay();
     ai_stand(first);
     T_ASSERT(G_UnitIsSleeping(first));
-    strlcpy(first->animation_props, "alternate,work", sizeof(first->animation_props));
-    strlcpy(first->animation_request, "stand ready", sizeof(first->animation_request));
+    G_StoreUnitAnimationProperties(first, "alternate,work");
+    G_StoreUnitAnimationRequest(first, "stand ready");
     T_ASSERT(first->currentmove != NULL);
     umove_t const *const saved_move = first->currentmove;
+    G_EnsureUnitStatusSlots(first);
     first->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','m','i','l'), .level = 1,
         .timestamp = 40000, .duration_ms = 45000, .data = 300
@@ -3775,9 +4049,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->movement.explicit_allied_attack = false;
     first->inventory[2] = NULL;
     first->cargo->units[3] = NULL;
-    first->animation_props[0] = '\0';
-    first->animation_request[0] = '\0';
-    memset(first->abilstatus, 0, sizeof(first->abilstatus));
+    G_StoreUnitAnimationProperties(first, "");
+    G_StoreUnitAnimationRequest(first, "");
+    G_EnsureUnitStatusSlots(first);
+    memset(first->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*first->abilstatus));
     memset(first->abilitycooldowns, 0, sizeof(first->abilitycooldowns));
     strlcpy(game.clients[0].jass.name, "Changed", sizeof(game.clients[0].jass.name));
     game.clients[0].ps.cinematic_portrait = 0;
@@ -3864,8 +4139,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(g_edicts[first - g_edicts].movement.explicit_allied_attack);
     T_ASSERT(g_edicts[first - g_edicts].inventory[2] == &g_edicts[second - g_edicts]);
     T_ASSERT(g_edicts[first - g_edicts].cargo->units[3] == &g_edicts[second - g_edicts]);
-    T_STREQ(g_edicts[first - g_edicts].animation_props, "alternate,work");
-    T_STREQ(g_edicts[first - g_edicts].animation_request, "stand ready");
+    T_STREQ(G_UnitAnimationProperties(g_edicts + (first - g_edicts)), "alternate,work");
+    T_STREQ(G_UnitAnimationRequest(g_edicts + (first - g_edicts)), "stand ready");
     T_ASSERT(g_edicts[first - g_edicts].stand == unit_stand);
     T_ASSERT(g_edicts[first - g_edicts].think == monster_think);
     /* currentmove is a process pointer; F_MMOVE relocates it so a loaded unit keeps behaving. */
@@ -3988,6 +4263,10 @@ static field_t const *find_save_field(cstring_t name) {
 }
 
 static void prepare_save_field(edict_t *unit, cstring_t name) {
+    if (!strncmp(name, "abilstatus[", strlen("abilstatus["))) {
+        G_EnsureUnitStatusSlots(unit);
+        return;
+    }
     savePool_t const *pool = find_save_pool(name);
     if (pool && !SavePoolSlot(unit, pool)) {
         void *slot = pool->alloc();
@@ -4172,10 +4451,33 @@ SAVE_FLOAT_FIELD_TEST(field_avatar_armor_round_trip, avatar->armor, 7.0f)
 SAVE_FLOAT_FIELD_TEST(field_avatar_health_round_trip, avatar->health, 600.0f)
 SAVE_FLOAT_FIELD_TEST(field_raven_height_round_trip, raven->fly_height, 125.0f)
 SAVE_FLOAT_FIELD_TEST(field_unitinfo_prop_window_round_trip, unitinfo.PropWindow, 37.5f)
-SAVE_FLOAT_FIELD_TEST(field_attack1_backswing_round_trip, attack1.backswingPoint, 0.35f)
-SAVE_FLOAT_FIELD_TEST(field_attack1_range_buffer_round_trip, attack1.rangeBuffer, 42.0f)
-SAVE_FLOAT_FIELD_TEST(field_attack2_backswing_round_trip, attack2.backswingPoint, 0.45f)
-SAVE_FLOAT_FIELD_TEST(field_attack2_range_buffer_round_trip, attack2.rangeBuffer, 84.0f)
+TEST(wc3_save, attack_profiles_preserve_shared_defaults_and_owned_overrides) {
+    reset_entities(); setup_test_world();
+    vec2_t point = {64, 64};
+    edict_t *first = unit_create(0, MAKEFOURCC('h','f','o','o'), &point, 0);
+    point.x = 192;
+    edict_t *second = unit_create(0, MAKEFOURCC('h','f','o','o'), &point, 0);
+    uint32_t first_id = first->s.number, second_id = second->s.number;
+    S_AttackProfileWrite(first, 0)->backswingPoint = 0.35f;
+    S_AttackProfileWrite(first, 0)->rangeBuffer = 42;
+    S_AttackProfileWrite(first, 1)->backswingPoint = 0.45f;
+    S_AttackProfileWrite(first, 1)->rangeBuffer = 84;
+    unitAttack_t shared = *S_AttackProfileRead(second, 0);
+    T_NULL(second->attack_overrides[0]);
+    cstring_t file = "/tmp/openrealm-shared-attack-profiles.bin";
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    first = g_edicts + first_id; second = g_edicts + second_id;
+    T_FEQ(S_AttackProfileRead(first, 0)->backswingPoint, 0.35f, 0);
+    T_FEQ(S_AttackProfileRead(first, 0)->rangeBuffer, 42, 0);
+    T_FEQ(S_AttackProfileRead(first, 1)->backswingPoint, 0.45f, 0);
+    T_FEQ(S_AttackProfileRead(first, 1)->rangeBuffer, 84, 0);
+    T_NOT_NULL(first->attack_overrides[0]); T_NOT_NULL(first->attack_overrides[1]);
+    T_NULL(second->attack_overrides[0]);
+    T_EQ(memcmp(S_AttackProfileRead(second, 0), &shared, sizeof(shared)), 0);
+    remove(file);
+    reset_entities(); setup_test_world();
+}
 SAVE_FLOAT_FIELD_TEST(field_raven_start_round_trip, raven->rise_start, 1000.0f)
 SAVE_FLOAT_FIELD_TEST(field_raven_duration_round_trip, raven->rise_duration, 2.0f)
 SAVE_INT_FIELD_TEST(field_raven_state_round_trip, raven->rise_state, RAVEN_RISE_ACTIVE)
@@ -4315,7 +4617,7 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     goal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 128, 0);
     unit->movement.route_resume_direction = (vec2_t){ 1.0f, 0.0f };
     unit->movement.route_resume_goal_origin = goal->s.origin2;
-    unit->movement.route_resume_goal = goal;
+    S_SetMoveGoal(unit, &unit->movement.route_resume_goal, goal);
     unit->movement.route_resume_goal_spawn = goal->spawn_time;
     unit->movement.route_resume_time = 1234;
     unit->movement.route_resume_radius = 31.0f;
@@ -4329,7 +4631,7 @@ TEST(wc3_save, route_resume_cache_and_wait_diagnostics_clear_on_round_trip) {
     unit->movement.path_wait_origin = unit->s.origin2;
 
     T_ASSERT(WriteGame(filename));
-    unit->movement.route_resume_goal = (edict_t *)(uintptr_t)1;
+    S_SetMoveGoal(unit, &unit->movement.route_resume_goal, (edict_t *)(uintptr_t)1);
     T_ASSERT(ReadGame(filename));
     unit = g_edicts + unit_index;
     T_NULL(unit->movement.route_resume_goal);
@@ -4574,7 +4876,7 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
 }
 
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
-SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus.source", abilstatus[3].source, 0)
+SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus->slots.source", abilstatus[3].source, 0)
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)
@@ -4765,7 +5067,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     if (!chain_marker->channel) chain_marker->channel = G_AllocChannel();
     assert(chain_marker->channel);
     chain_marker->owner = chain; chain_marker->channel->owner_spawn_time = chain->spawn_time;
-    chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
+    S_SetMoveGoal(chain_marker, &chain_marker->goalentity, mine); chain_marker->resources = mine->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
@@ -4773,7 +5075,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     land_mine->think = death_aoe->think = monster_think;
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
-    chain_marker->owner = chain_marker->goalentity = NULL;
+    chain_marker->owner = S_SetMoveGoal(chain_marker, &chain_marker->goalentity, NULL);
     unit->permanent_invisibility_reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
@@ -5161,7 +5463,7 @@ TEST(wc3_save, round_trip_active_move_group) {
     fast->stand = slow->stand = unit_stand;
     unit_stand(fast); unit_stand(slow);
     fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
-    fast->selected = slow->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(fast, G_SetEntitySelectionMask(slow, 1 << clent->client->ps.number));
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
     T_EQ(fast->current_order_id, G_OrderId("move"));
     T_EQ(slow->current_order_id, G_OrderId("move"));
@@ -5198,11 +5500,11 @@ TEST(wc3_save, round_trip_waypoint_references) {
     T_ASSERT(waypoint >= g_edicts && waypoint < g_edicts + globals.num_edicts);
     T_ASSERT(waypoint->svflags & SVF_NOCLIENT);
     G_InitWaypoints(); T_EQ(globals.num_edicts, count);
-    unit->goalentity = waypoint;
-    unit->movement.attackmove_waypoint = waypoint;
+    S_SetMoveGoal(unit, &unit->goalentity, waypoint);
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, waypoint);
     T_ASSERT(WriteGame(filename));
     waypoint->s.origin2 = (vec2_t){ 0 };
-    unit->goalentity = unit->movement.attackmove_waypoint = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL));
     Waypoint_add(&(vec2_t){ 1.0f, 1.0f });
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->goalentity == waypoint && unit->movement.attackmove_waypoint == waypoint);
@@ -5963,5 +6265,47 @@ TEST(wc3_save, removed_unit_is_removed_from_group_before_save) {
 /* =========================================================================
  * Suite runner
  * ========================================================================= */
+
+TEST(wc3_game, selection_index_visits_members_in_live_edict_order) {
+    reset_entities(); setup_test_world();
+    gameClient_t *client = game.clients;
+    client->ps.number = 0;
+    edict_t *units[4096];
+    FOR_LOOP(i, 4096) { units[i] = G_Spawn(); units[i]->health.value = 1; }
+    G_SetEntitySelectionMask(units[4000], 1);
+    G_SetEntitySelectionMask(units[100], 1);
+    G_SetEntitySelectionMask(units[2000], 2);
+    G_ResetTestSelectionChecks();
+    uint32_t count = 0;
+    FOR_SELECTED_UNITS(client, ent) {
+        T_ASSERT(ent == units[count ? 4000 : 100]);
+        count++;
+    }
+    T_EQ(count, 2);
+    T_EQ(G_GetTestSelectionChecks(), 2);
+    /* As with the former edict loop, callbacks may remove a future member
+     * and add a later one; the same traversal must observe both changes. */
+    count = 0;
+    FOR_SELECTED_UNITS(client, ent) {
+        if (!count) {
+            T_ASSERT(ent == units[100]);
+            G_SetEntitySelectionMask(units[4000], 0);
+            G_SetEntitySelectionMask(units[4095], 1);
+        } else T_ASSERT(ent == units[4095]);
+        count++;
+    }
+    T_EQ(count, 2);
+    G_ResetSpawnCache(); /* allocator cache reset is not selection reset */
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[100]);
+    G_SetEntitySelectionMask(units[100], 0);
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[4095]);
+    G_FreeEdict(units[4095]);
+    T_NULL(G_NextSelectedEntity(client, 0));
+    client->ps.number = 1;
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[2000]);
+    G_RebuildSelectionIndex();
+    T_ASSERT(G_NextSelectedEntity(client, 0) == units[2000]);
+    reset_entities(); setup_test_world();
+}
 
 #endif /* BZ_TESTS */

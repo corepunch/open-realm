@@ -733,3 +733,44 @@ TEST(renderer_cursor, resolves_all_retail_modes) {
     }
     cursor_active_model = NULL; cursor_anim = NULL;
 }
+
+/* Geometry is stubbed here so this test isolates snapshot filtering, provider
+ * order and height aggregation; actual MDX tracing remains unchanged. */
+static unsigned ground_trace_count;
+bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *hit) {
+    ground_trace_count++;
+    if (line->a.x != ent->origin.x) return false;
+    *hit = ent->origin;
+    return true;
+}
+
+TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit) {
+    model_t model = {0};
+    renderEntity_t entities[260] = {0};
+    viewDef_t view = { .entities = entities, .num_entities = 260 };
+    FOR_LOOP(i, 260) {
+        entities[i].model = &model;
+        entities[i].flags = RF_GROUND_CONFORM;
+        entities[i].origin = (vec3_t){0, 0, 17};
+        entities[i].ground_offset = 3;
+    }
+    ground_trace_count = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 0);
+    T_EQ(entities[0].origin.z, 17);
+    entities[257].flags = RF_GROUND_SURFACE;
+    entities[257].origin.z = -10;
+    entities[258].flags = RF_GROUND_SURFACE;
+    entities[258].origin.z = -5;
+    entities[259].flags = RF_GROUND_SURFACE | RF_HIDDEN;
+    entities[259].origin.z = 100;
+    entities[1].origin.x = 1;
+    entities[2].flags |= RF_HIDDEN;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 256 * 2);
+    T_EQ(entities[0].origin.z, -2);
+    T_EQ(entities[1].origin.z, 17);
+    T_EQ(entities[2].origin.z, 17);
+    T_EQ(entities[257].origin.z, -10);
+    T_EQ(entities[258].origin.z, -5);
+}

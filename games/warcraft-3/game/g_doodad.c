@@ -54,7 +54,7 @@ bool G_DoodadSetAnimation(edict_t *ent, cstring_t anim_name, bool random_animati
     if (!anim) return false;
 
     /* Persist the resolved sequence name so an animRandom choice survives save/load. */
-    strlcpy(ent->animation_request, anim->name, sizeof(ent->animation_request));
+    G_StoreUnitAnimationRequest(ent, anim->name);
     ent->animation = anim;
     M_SetMove(ent,&doodad_scripted_move);
     ent->aiflags &= ~AI_HOLD_FRAME;

@@ -61,19 +61,16 @@ static uint32_t waygate_actor_ability_alias(edict_t const *gate) {
     char alias_name[5] = {0};
 
     if (!gate) return 0;
-    if (gate->data.UnitAbilities && gate->data.UnitAbilities->abilList) {
-        PARSE_LIST(gate->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(gate, token)) continue;
-            memcpy(&alias, token, 4);
-            if (G_AbilityCode(alias) == BZ_AWRP) return alias;
-        }
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(gate->data.UnitAbilities, &count);
+    FOR_LOOP(i, count)
+        if (tokens[i].length == 4 && tokens[i].base == BZ_AWRP &&
+            G_ActorHasAbilityCode(gate, tokens[i].code)) return tokens[i].code;
     FOR_LOOP(i, ARRAY_COUNT(gate->abilities.added)) {
         uint32_t const alias = gate->abilities.added[i];
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
-        if (G_ActorHasSkill(gate, alias_name) && G_AbilityCode(alias) == BZ_AWRP)
+        if (G_AbilityCode(alias) == BZ_AWRP && G_ActorHasSkill(gate, alias_name))
             return alias;
     }
     return 0;
@@ -237,9 +234,9 @@ static void waygate_cancel(edict_t *unit);
 static void waygate_clear_order(edict_t *unit) {
     if (!unit) return;
     if (unit->goalentity == unit->movement.waygate_goal)
-        unit->goalentity = NULL;
+        S_SetMoveGoal(unit, &unit->goalentity, NULL);
     unit->movement.waygate_target = NULL;
-    unit->movement.waygate_goal = NULL;
+    S_SetMoveGoal(unit, &unit->movement.waygate_goal, NULL);
     unit->movement.waygate_target_spawn_time = 0;
     move_reset_progress(unit);
 }
@@ -312,8 +309,8 @@ static void ai_waygate_walk(edict_t *unit) {
             waygate_cancel(unit);
             return;
         }
-        unit->movement.waygate_goal = goal;
-        unit->goalentity = goal;
+        S_SetMoveGoal(unit, &unit->movement.waygate_goal, goal);
+        S_SetMoveGoal(unit, &unit->goalentity, goal);
     }
     distance = M_DistanceToGoal(unit);
     step = unit_movedistance(unit);
@@ -342,15 +339,15 @@ static bool waygate_order_use(edict_t *unit, edict_t *gate) {
     }
 
     unit->movement.follow_target = NULL;
-    unit->movement.attackmove_waypoint = NULL;
-    unit->movement.patrol_a = NULL;
-    unit->movement.patrol_b = NULL;
-    unit->movement.patrol_target = NULL;
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
     unit->movement.holding_position = false;
     waygate_clear_order(unit);
 
     if (!goal) {
-        unit->goalentity = NULL;
+        S_SetMoveGoal(unit, &unit->goalentity, NULL);
         unit->movement.waygate_target = gate;
         unit->movement.waygate_target_spawn_time = spawn_time;
         waygate_complete(unit, gate);
@@ -362,14 +359,24 @@ static bool waygate_order_use(edict_t *unit, edict_t *gate) {
     unit_setmove(unit, &waygate_move_walk);
     unit->movement.waygate_target = gate;
     unit->movement.waygate_target_spawn_time = spawn_time;
-    unit->movement.waygate_goal = goal;
-    unit->goalentity = goal;
+    S_SetMoveGoal(unit, &unit->movement.waygate_goal, goal);
+    S_SetMoveGoal(unit, &unit->goalentity, goal);
     move_reset_progress(unit);
     return true;
 }
 
 BZ_ABILITY_PROC(CAbilityWarp) {
     switch (msg) {
+        case A_UNIT_TYPE_INIT: {
+            if (ent || !call) return UNIT_INIT_UNKNOWN;
+            uint32_t count;
+            unitAbilityToken_t const *tokens = G_UnitAbilityTokens(call->unit_type, &count);
+            FOR_LOOP(i, count) if (tokens[i].length == 4 && tokens[i].base == BZ_AWRP) return UNIT_INIT_RUN;
+            return UNIT_INIT_SKIP_FALSE;
+        }
+        case A_UNIT_EVENT_MASK:
+            return UNIT_MESSAGE_SUBSCRIPTIONS(A_ENABLE, A_UNIT_INIT, A_DISABLE, A_UNIT_REMOVING,
+                A_TARGET_ORDER, A_MOVE_LEAVE, A_ORDER_ACCEPTED, A_UNIT_REMOVE);
         case A_ENABLE:
         case A_UNIT_INIT:
             if(!S_WaygateIsGate(ent))return false;

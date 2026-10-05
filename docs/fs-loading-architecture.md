@@ -40,6 +40,61 @@ archives remain authoritative for all Blizzard paths. WoW production UI does not
 native archive path when it exists, or construct runtime presentation when classic WoW itself has no FrameXML for that feature.
 `-data` and `extra_data` add further loose roots and archives after initialization.
 
+## File-existence probes and repeated absent names
+
+`game_import.FileExists` is mandatory and wired to `FS_FileExists` in
+`SV_InitGameProgs`. It opens/closes archive metadata or probes loose paths; it
+does not read/decompress file payloads. Use it for presence/variant selection,
+then use `ReadFile` for actual contents. Engine and game modules must be rebuilt
+together after an import-table change; this does not change network or save data.
+WC3 uses it for numbered/unnumbered death-sound and shadow-art selection. Reading
+the entire WAV for each existence check caused repeated Huffman/ADPCM decoding
+and seconds of latency during large native `CreateUnit` batches.
+
+## Partial archive reads for server model sequences
+
+`game_import.OpenFile` / `CloseFile` expose the mounted-MPQ read handle used by
+`FS_OpenFile` / `FS_CloseFile`. A successful open holds the filesystem read lock
+until close. A missing archive member returns NULL; the model loader then uses
+the existing `ReadFile` path for loose files and filename fallbacks. Close every
+successful handle before returning or issuing a whole-file fallback read.
+
+The WC3 server's MDLX loader visits chunk headers and seeks past geometry,
+textures and animation tracks. Only `SEQS` payloads are read into server animation
+records. It retains the whole reader's last-SEQS and truncated-record behavior;
+the renderer continues to load its own complete model. All three game/host pairs
+must be rebuilt after changing the import table; network and save layouts are
+unchanged.
+
+Each open compressed MPQ member owns a last-sector decode cache. Small reads and
+seeks within that sector reuse its decoded bytes, including when another member
+is read between them. Compressed `SINGLE_UNIT` members retain their complete
+decoded payload until close. A failed sector decode invalidates its cache tag
+before overwriting the buffer. This does not make archive handles safe for
+concurrent reads; existing filesystem locking still applies. The generated MPQ
+regressions exercise interleaved members, sector transitions and single-unit
+decoding, and the model regression compares streamed and whole-file records.
+
+`common/mpq.c` now retains absent names in the existing archive-local canonical
+name cache using `MPQ_HASH_ENTRY_FREE` as a non-block sentinel. Archive open also
+builds a flat index of name-hash pairs. The index precomputes the old
+probe-then-full-scan result, including duplicate/locale precedence and deleted
+slots; distinct absent names and full tables no longer require query-time scans.
+For power-of-two tables, a temporary array of distances to the next free slot
+keeps index construction linear in the table size. Non-power-of-two protected
+tables preserve the old masked probe for duplicate pairs once during open.
+Generated regressions cover both shapes, full tables, deleted entries, duplicate
+precedence and 128 distinct missing names in an 8,192-slot table. The latter
+stays below 1,024 lookup probes; positive block identities also match.
+Repeated absent names reuse the canonical name cache. Case and slash normalization
+match positive entries. Mounted archives have independent caches; closing and
+reopening an archive releases all presence/absence entries, so map overrides and
+replacement archives cannot inherit another archive's negative result. This
+cache applies to immutable open archives, not loose files. File enumeration
+validates cached block indexes before using them; stale listfile names retain
+empty enumeration records. `make test-mpq-compression` covers repeated misses,
+canonical variants, existing neighbors and replacement-archive lifetime.
+
 ## refImport_t FS surface
 
 `client/tr_public.h` — `refImport_t`:

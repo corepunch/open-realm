@@ -376,11 +376,36 @@ TARGTYPE G_GetTargetType(cstring_t str) {
 void SP_monster_unit(edict_t *edict);
 void SP_monster_tree(edict_t *edict);
 
+/* Only bulk-cleared, never initialized slots can omit the constructor clear.
+ * Reused slots retain the full clear regardless of their apparent contents. */
+static uint32_t spawn_zero_count, spawn_initialized_count;
+#ifdef BZ_TESTS
+static uint64_t spawn_clear_bytes;
+#endif
+
+void G_ClearEdictStorage(uint32_t count) {
+    assert(count <= MAX_ENTITIES);
+    memset(g_edicts, 0, (size_t)count * sizeof(*g_edicts));
+    spawn_zero_count = count;
+    spawn_initialized_count = 0;
+    G_ResetSelectionIndex();
+}
+
+void G_MarkEdictStorageUsed(uint32_t count) {
+    spawn_initialized_count = MAX(spawn_initialized_count, count);
+}
+
 static entitySet_t spawn_candidates;
 static uint32_t spawn_scan_count;
 
 void G_ResetSpawnCache(void) {
+    G_ResetAcquisitionPresence();
+    S_ResetLandMineThinkers();
+    S_InvalidateRallyProducers();
     spawn_candidates=(entitySet_t){0};spawn_scan_count=0;
+    G_ResetUnitResources();
+    G_ResetPlayerTechIndexes();
+    G_ClearUnitRuntimeTypes();
 }
 
 void G_MarkFreeEdict(edict_t *e) {
@@ -390,9 +415,18 @@ void G_MarkFreeEdict(edict_t *e) {
 }
 
 static void G_InitEdict(edict_t *e) {
+    G_SetEntitySelectionMask(e, 0);
+    S_MarkMoveGoals(e);
     entity_set_put(&spawn_candidates,(uint32_t)(e-g_edicts),false);
     G_RemoveMoveSpatialObject(e);
-    memset(e, 0, sizeof(edict_t));
+    uint32_t index = (uint32_t)(e - g_edicts);
+    if (index < spawn_initialized_count || index >= spawn_zero_count) {
+        memset(e, 0, sizeof(*e));
+#ifdef BZ_TESTS
+        spawn_clear_bytes += sizeof(*e);
+#endif
+    }
+    G_MarkEdictStorageUsed(index + 1);
     e->inuse = true;
     e->s.scale = 1;
     e->animation_speed = 1.0f;
@@ -608,20 +642,20 @@ static bool G_ClassIdIsPrintable(uint32_t class_id) {
     return true;
 }
 
+#ifdef BZ_TESTS
+static unitConstructionTrace_t construction_trace;
+void G_TestSetConstructionTrace(unitConstructionTrace_t trace) { construction_trace = trace; }
+void G_TestTraceConstruction(unitConstructionStage_t stage, edict_t const *unit, edictData_s const *captured) {
+    if (construction_trace) construction_trace(stage, unit, captured);
+}
+#endif
+
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(edict_t *edict) {
     G_MarkMoveSpatialObject(edict);
-    bool had_aura=S_UnitHasAuraSource(edict);
-    edict->data.UnitProfile = G_UnitProfile(edict->class_id);
-    edict->data.UnitBalance = G_UnitBalance(edict->class_id);
-    edict->data.UnitData = G_UnitData(edict->class_id);
-    edict->data.UnitUI = G_UnitUI(edict->class_id);
-    edict->data.UnitWeapons = G_UnitWeapons(edict->class_id);
-    edict->data.UnitAbilities = G_UnitAbil(edict->class_id);
-    edict->data.Doodads = G_Doodad(edict->class_id);
-    edict->data.ItemData = G_ItemData(edict->class_id);
-    edict->data.DestructableData = G_DestructableData(edict->class_id);
-    if(had_aura || S_UnitHasAuraSource(edict))S_InvalidateAuraSources();
+    bool had_aura = S_UnitHasAuraSource(edict);
+    edict->data = G_UnitRuntimeType(edict->class_id)->data;
+    if (had_aura || S_UnitHasAuraSource(edict)) S_MarkAuraSource(edict);
 }
 
 /* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks
@@ -642,15 +676,20 @@ void SP_CallSpawn(edict_t *edict) {
         return;
     edict->s.class_id = edict->class_id;
     G_BindEntityData(edict);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_BOUND_DATA, edict, NULL);
     if (edict->data.Doodads->id) {
         SP_SpawnDoodad(edict);
     } else if (edict->data.DestructableData->file) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
     } else if (edict->data.UnitUI->modelFile) {
-        if (!edict->own_seq) G_UnitOwnerInsert(edict);
-        SP_SpawnUnit(edict);
+        bool fresh = !edict->own_seq;
+        if (fresh) G_UnitOwnerInsert(edict);
+        G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_OWNER, edict, NULL);
+        if (fresh) SP_SpawnFreshUnit(edict);
+        else SP_SpawnUnit(edict);
         SP_monster_unit(edict);
+        G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_MONSTER, edict, NULL);
     } else if (edict->data.ItemData->file) {
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
@@ -767,6 +806,7 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     G_ClearPlayerAbilityAvailability(clent->client);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
+    G_ResetPlayerTechIndexes();
     memset(ps, 0, sizeof(player_t));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
@@ -832,8 +872,10 @@ void G_SpawnEntities(void) {
     G_BlightShutdown();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
     G_ClearMoveSpatial();
     M_ResetMoveMembers();
+    G_ResetSelectionIndex();
     G_ResetSpawnCache();
     S_ResetWaygateCache();
     memset(&level, 0, sizeof(level));
@@ -848,6 +890,7 @@ void G_SpawnEntities(void) {
     level.pathing_msec = level.time;
     level.pathing_clock.span = 300;
     level.pathing_counter = BZ_WC3_PATH_OWNER_START;
+    S_InitMoveFineScheduler();
 
     level.mapinfo = mapinfo;
     G_BlightInit();
@@ -958,6 +1001,7 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     if (!ent) {
         return NULL;
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_ALLOCATED, ent, NULL);
     ent->class_id = class_id;
     ent->s.class_id = class_id;
     ent->spawn_time = G_Time();
@@ -968,13 +1012,16 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     ent->s.scale = 1;
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_REQUESTED_POSE, ent, NULL);
     SP_CallSpawn(ent);
     if (!ent->own_seq) G_UnitOwnerInsert(ent);
     /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
      * that value. Link only after the class-owned spawn initializer runs. */
     gi.LinkEntity(ent);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_SERVER_LINK, ent, NULL);
     /* Spatial history starts at this authored spawn pose. */
     G_PublishMoveSpatialObject(ent);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FINE_PUBLICATION, ent, NULL);
     /* Dynamic unit creation must establish Hero progression independently of
      * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
      * custom/minimal data may omit UnitUI/model rows while still defining Hero
@@ -983,14 +1030,17 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     if (G_UnitIsHero(ent)) {
         G_HeroInitializeProgression(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_HERO, ent, NULL);
     if (play_birth && ent->birth) {
         ent->birth(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_BIRTH, ent, NULL);
     client = G_GetPlayerClientByNumber(player);
     if ((ent->svflags & SVF_MONSTER) && client && client->ps.number == player) {
         G_InvalidateCommands(client);
         G_InvalidateUnitShortcutsForUnit(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_UI, ent, NULL);
     return ent;
 }
 

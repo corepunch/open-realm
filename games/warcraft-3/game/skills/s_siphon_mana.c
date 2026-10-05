@@ -47,7 +47,7 @@ static void siphon_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     edict_t *ent = S_SpellChannelThinker(caster, spell->code);
     if (!ent->channel) ent->channel = G_AllocChannel();
     assert(ent->channel);
-    ent->goalentity = st.entity; ent->channel->target_spawn_time = st.entity->spawn_time;
+    S_SetMoveGoal(ent, &ent->goalentity, st.entity); ent->channel->target_spawn_time = st.entity->spawn_time;
     ent->resources = rank; ent->velocity = S_SpellData(spell->code, rank, 3);
     ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     ent->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, rank, G_UnitIsHero(st.entity)) * 1000.0f);

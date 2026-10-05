@@ -119,6 +119,8 @@ static void creep_sleep_think(edict_t *self) {
  * (Sleep Once/Allow On Any Player Slot) remain unresolved and are not registered. */
 BZ_ABILITY_PROC(CAbilitySleepAlways) {
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE, A_UNIT_REMOVE, A_DAMAGED, A_CANCEL, A_NO_ACQUIRE);
     case A_MOVE_LEAVE:
     case A_UNIT_REMOVE: creep_sleep_leave(ent); return true;
     case A_DAMAGED:
@@ -132,6 +134,14 @@ BZ_ABILITY_PROC(CAbilitySleepAlways) {
  * the unit has no explicit ACsp command-card entry. The clock remains game-owned. */
 BZ_ABILITY_PROC(CAbilityCreepSleep) {
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call || !call->unit_data) return UNIT_INIT_UNKNOWN;
+        /* A fresh unit has no retained sleep state. Non-sleeping types return
+         * true without allocating or observing owner/world state. */
+        return call->unit_data->canSleep ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_LEAVE, A_UNIT_REMOVE, A_DAMAGED, A_CANCEL,
+            A_NO_ACQUIRE, A_UNIT_INIT, A_IDLE, A_ENABLE, A_DISABLE);
     case A_UNIT_INIT:
         if (!ent->sleep && !ent->data.UnitData->canSleep) return true;
         if (!ent->sleep) ent->sleep = G_AllocSleep();

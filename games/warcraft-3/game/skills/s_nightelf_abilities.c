@@ -13,7 +13,10 @@ cstring_t const barkskin_orders[] = { "barkskinon", "barkskinoff", NULL };
 
 /* ---- Moon Glaive (Amgl / Amgr): passive attack bounce -------------------- */
 
-BZ_ABILITY_PROC(CAbilityMoonGlaive) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityMoonGlaive) {
+    if (msg == A_UNIT_TYPE_INIT) return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    return CAbilityPassive(ent, msg, call);
+}
 
 /* Called from S_ResolveAttackHit after the primary hit lands. Stock Amgl DataA
  * and Area are 0; that means one extra bounce inside attack range, not "no bounce".
@@ -29,7 +32,7 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
     data_a = S_SpellData(ID_MOON_GLAIVE, level, 1);
     total = data_a > 0.0f ? (uint32_t)data_a : 2; /* stock 0 → primary + 1 bounce */
     range = S_SpellNumber(ID_MOON_GLAIVE, ABILITY_NUMBER_AREA, level);
-    if (range <= 0.0f) range = attacker->attack1.range;
+    if (range <= 0.0f) range = S_AttackProfileRead(attacker, 0)->range;
     if (nvisited < 8) visited[nvisited++] = primary;
     current = primary;
     for (uint32_t i = 1; i < total; i++) {
@@ -50,7 +53,10 @@ void S_MoonGlaiveAttack(edict_t *attacker, edict_t *primary, int damage) {
 
 /* ---- Slow Poison (Aspo): passive poison on hit --------------------------- */
 
-BZ_ABILITY_PROC(CAbilitySlowPoison) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilitySlowPoison) {
+    if (msg == A_UNIT_TYPE_INIT) return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    return CAbilityPassive(ent, msg, call);
+}
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy.  Applies the
  * Bspo buff which the movement and attack-speed hooks read each frame. */
@@ -63,7 +69,7 @@ void S_SlowPoisonOnHit(edict_t *attacker, edict_t *target) {
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
 float S_SlowPoisonMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
+    uint32_t level = G_QueryUnitStatusLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
     return S_SpellData(ID_SLOW_POISON, level, 2);
 }

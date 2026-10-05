@@ -28,7 +28,7 @@ static void campaign_summon_execute(edict_t *caster, spellTarget_t st, abilityit
 }
 
 static void campaign_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
     }
@@ -72,7 +72,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, 
 BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES) if (target->abilstatus[i].level && target->abilstatus[i].timestamp) memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
+        FOR_LOOP(i, G_UnitStatusSlotCount(target)) if (target->abilstatus[i].level && target->abilstatus[i].timestamp) memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
         count++;
     }
 }
@@ -103,7 +103,7 @@ static bool ensnare_is_flyer(edict_t const *unit) {
 
 static heroabilitystatus_t *ensnare_status(edict_t *unit) {
     if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *slot = unit->abilstatus + i;
         if (!slot->level) continue;
         if (S_StatusIsEnsnare(slot->code))
@@ -178,7 +178,7 @@ bool S_StatusIsEnsnare(uint32_t code) {
 }
 
 bool S_UnitIsEnsnared(edict_t const *unit) {
-    if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
+    if (unit) FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
     return false;
 }
@@ -232,7 +232,7 @@ static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
     float adjust, target;
     if (!unit || !expiring) return;
     /* Web and Ensnare share one height transition: removing either cannot release the other. */
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *slot = unit->abilstatus + i;
         if (slot->level && slot != expiring && S_StatusIsEnsnare(slot->code)) return;
     }
@@ -268,11 +268,13 @@ static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t con
     if (slot) slot->data = spell->code;
     ensnare_begin_land(st.entity, spell->code, level);
     ensnare_refresh(st.entity);
-    st.entity->goalentity = NULL;
+    S_SetMoveGoal(st.entity, &st.entity->goalentity, NULL);
 }
 
 /* Name=Ensnare — bind; air takes Bena and lands via DataA/B (AB_UPDATE advances height). */
 BZ_ABILITY_PROC(CAbilityEnsnare) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(ensnare);
     if (msg == A_UPDATE) { ensnare_update(ent); return true; }
     if (msg == A_STATUS_REFRESH) { ensnare_refresh(ent); return true; }
     if (msg == A_STATUS_REMOVE) {

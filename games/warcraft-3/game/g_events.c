@@ -407,9 +407,11 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
 }
 
 void G_BeginEntityFrame(void) {
+    G_BeginAcquisitionFrame();
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts + i;
         if (ent->inuse) ent->old_origin = ent->s.origin2;
+        G_AcquisitionEntityLinked(ent);
     }
 }
 
@@ -437,6 +439,9 @@ void G_RunEntities(void) {
     }
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
+        /* The host draws its completed client snapshot without dispatching
+         * gameplay input or observing this partially updated entity batch. */
+        if (!(i & 31u)) gi.FrameCheckpoint();
         if (!ent->inuse) continue;
         G_RunEntity(ent);
     }

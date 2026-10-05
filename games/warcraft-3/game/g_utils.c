@@ -69,7 +69,8 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
     bool const had_static_pathing = G_EntityHasStaticPathing(ent);
-    if(S_UnitHasAuraSource(ent))S_InvalidateAuraSources();
+    bool const had_aura = S_UnitHasAuraSource(ent);
+    if (had_aura) S_MarkAuraSource(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
@@ -110,7 +111,11 @@ void G_FreeEdict(edict_t *ent) {
     gi.UnlinkEntity(ent);
     G_RemoveMoveSpatialObject(ent);
     G_PoolsReleaseEdict(ent);
+    S_MarkMoveGoals(ent);
+    G_SetEntitySelectionMask(ent, 0);
     memset(ent, 0, sizeof(*ent));
+    /* Removal callbacks can consume the earlier notification while still live. */
+    if (had_aura) S_MarkAuraSource(ent);
     M_TrackMove(ent);
     S_TrackMoveTimers(ent);
     ent->freetime = level.time;

@@ -116,7 +116,7 @@ TEST(wc3_waygate, exhausted_gate_stays_unallocated_until_ability_recreation) {
     T_ASSERT(!S_WaygateGetDestination(gates[255],&destination));T_FEQ(destination.x,0,0);T_FEQ(destination.y,0,0);
     /* Activation still authors alternate animation even though the original
      * bridge ignores exhausted edge0 and IsActive remains false. */
-    T_NOT_NULL(strstr(gates[255]->animation_props,"alternate"));
+    T_NOT_NULL(strstr(G_UnitAnimationProperties(gates[255]),"alternate"));
     G_DeferFreeEdict(gates[16]);
     T_NOT_NULL(gates[16]->waygate);
     T_EQ(gates[16]->waygate->edge_id,17);
@@ -168,14 +168,14 @@ TEST(wc3_waygate, runtime_state_and_activation_animation) {
 
     T_ASSERT(S_WaygateIsGate(fix.gate));
     T_ASSERT(S_WaygateIsActive(fix.gate));
-    T_ASSERT(strstr(fix.gate->animation_props, "alternate") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(fix.gate), "alternate") != NULL);
     T_ASSERT(S_WaygateGetDestination(fix.gate, &destination));
     T_FEQ(destination.x, 400.0f, 0.001f);
     T_FEQ(destination.y, 320.0f, 0.001f);
 
     S_WaygateSetActive(fix.gate, false);
     T_ASSERT(!S_WaygateIsActive(fix.gate));
-    T_ASSERT(strstr(fix.gate->animation_props, "alternate") == NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(fix.gate), "alternate") == NULL);
     waygate_done(fix);
 }
 
@@ -395,7 +395,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
     fix.gate->waygate->destination = (vec2_t){0};
     fix.gate->waygate->destination_set = false;
     fix.unit->movement.waygate_target = NULL;
-    fix.unit->movement.waygate_goal = NULL;
+    S_SetMoveGoal(fix.unit, &fix.unit->movement.waygate_goal, NULL);
     fix.unit->movement.waygate_target_spawn_time = 0;
     T_ASSERT(ReadGame(filename));
     fix.gate = g_edicts + gate_number;
@@ -425,9 +425,9 @@ TEST(wc3_save, rejects_invalid_waygate_entity_references) {
     fix.unit->movement.waygate_target = (edict_t *)(uintptr_t)1;
     T_ASSERT(!WriteGame(filename));
     fix.unit->movement.waygate_target = target;
-    fix.unit->movement.waygate_goal = (edict_t *)(uintptr_t)1;
+    S_SetMoveGoal(fix.unit, &fix.unit->movement.waygate_goal, (edict_t *)(uintptr_t)1);
     T_ASSERT(!WriteGame(filename));
-    fix.unit->movement.waygate_goal = goal;
+    S_SetMoveGoal(fix.unit, &fix.unit->movement.waygate_goal, goal);
     waygate_done(fix);
 }
 

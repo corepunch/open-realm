@@ -64,8 +64,8 @@ static edict_t *make_bot_harvest_unit(uint32_t class_id, float x, float y, uint3
     edict_t *unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     unit->targtype = TARG_GROUND;
     return unit;
 }
@@ -705,7 +705,7 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
     edict_t *mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     edict_t *tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
-    M_SetMove(first,&gold_move); first->goalentity = mine;
+    M_SetMove(first,&gold_move); S_SetMoveGoal(first, &first->goalentity, mine);
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
@@ -1332,9 +1332,9 @@ TEST(wc3_bot, remove_siege_drops_siege_attack_members_without_ordering_them) {
     edict_t *normal = make_bot_harvest_unit(type, 320, 0, 2, NULL);
     edict_t *dead = make_bot_harvest_unit(type, 352, 0, 2, NULL);
 
-    siege1->attack1.type = ATK_SIEGE;
-    siege2->attack2.type = ATK_SIEGE;
-    normal->attack1.type = ATK_NORMAL;
+    S_AttackProfileWrite(siege1, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(siege2, 1)->type = ATK_SIEGE;
+    S_AttackProfileWrite(normal, 0)->type = ATK_NORMAL;
     dead->health.value = 0;
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(4 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 4;
@@ -1356,7 +1356,7 @@ TEST(wc3_bot, remove_siege_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
     edict_t *siege = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 0, 2, NULL);
 
-    siege->attack1.type = ATK_SIEGE;
+    S_AttackProfileWrite(siege, 0)->type = ATK_SIEGE;
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = siege;
@@ -1703,7 +1703,7 @@ TEST(wc3_bot, purchase_zeppelin_requires_nearby_hero_and_uses_neutral_shop_purch
     hero->svflags |= SVF_MONSTER;
     hero->movetype = MOVETYPE_STEP;
     hero->health.value = hero->health.max_value = 1000.0f;
-    hero->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(hero, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     hero->targtype = TARG_GROUND;
     gi.LinkEntity(hero);
 
@@ -1742,19 +1742,19 @@ TEST(wc3_bot, get_mega_target_requires_watch_and_vulnerable_hostile_main) {
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 3072, 0, 1, &bot_harvester_abilities);
-    worker->data.UnitWeapons = &enabled_attack; worker->attack1.type = ATK_NORMAL;
+    worker->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(worker, 0)->type = ATK_NORMAL;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall); /* economy workers alone do not protect the main */
 
     defender = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 3100, 0, 1, NULL);
-    defender->data.UnitWeapons = &enabled_attack; defender->attack1.type = ATK_NORMAL;
+    defender->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(defender, 0)->type = ATK_NORMAL;
     T_NULL(G_BotGetMegaTarget(caller));
     defender->s.origin2.x = 5000;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     tower = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 3200, 0, 1, NULL);
-    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE;
+    tower->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE;
     T_NULL(G_BotGetMegaTarget(caller));
-    tower->attack1.type = ATK_NONE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_NONE;
     T_ASSERT(G_BotGetMegaTarget(caller) == enemy_hall);
 
     G_SetPlayerAlliance(caller, enemy, ALLIANCE_PASSIVE, true);
@@ -1777,12 +1777,12 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     assert(tower->ancient_root);
     tower->ancient_root->ability = 0;
     hall->data.UnitAbilities = &bot_hall_abilities;
-    tower->data.UnitWeapons = &enabled_attack; tower->attack1.type = ATK_PIERCE; tower->attack1.range = 0;
+    tower->data.UnitWeapons = &enabled_attack; S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE; S_AttackProfileWrite(tower, 0)->range = 0;
 
     T_ASSERT(G_BotIsTowered(caller, target));
 
     /* Authored attack/acquisition ranges are not part of retail IsTowered classification. */
-    tower->attack1.range = 99999; tower->runtime.acquisition_range = 1;
+    S_AttackProfileWrite(tower, 0)->range = 99999; tower->runtime.acquisition_range = 1;
     T_ASSERT(G_BotIsTowered(caller, target));
 
     /* The target owner changes with the tower so the query tests its ownership filter. */
@@ -1792,8 +1792,8 @@ TEST(wc3_bot, is_towered_requires_nearby_base_and_attack_capable_defending_build
     tower->s.player = 1;
     target->s.player = 1;
 
-    tower->attack1.type = ATK_NONE;
-    tower->attack2.type = ATK_NONE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_NONE;
+    S_AttackProfileWrite(tower, 1)->type = ATK_NONE;
     tower->data.UnitWeapons = &no_attack;
     target->s.player = 2;
     T_ASSERT(!G_BotIsTowered(caller, target));
@@ -1825,8 +1825,8 @@ TEST(wc3_bot, town_threatened_tracks_active_hostile_attacks_on_any_owned_unit) {
     enemy->stand = friendly->stand = unit_stand;
     unit->data.UnitWeapons = enemy->data.UnitWeapons = friendly->data.UnitWeapons = NULL;
     unit->targtype = building->targtype = TARG_GROUND;
-    enemy->attack1.type = ATK_NORMAL;
-    enemy->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(enemy, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
     enemy->targtype = TARG_GROUND;
     enemy->data.UnitWeapons = &(UnitWeapons_t const){ .attacksEnabled = 1 };
     G_SetPlayerAlliance(&game.clients[1].ps, player, ALLIANCE_PASSIVE, false);
@@ -1887,8 +1887,8 @@ TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
     unit->health.max_value = 100; unit->health.value = 20;
     unit->svflags |= SVF_MONSTER;
     enemy->svflags |= SVF_MONSTER;
-    unit->attack1.type = ATK_NORMAL;
-    enemy->attack1.type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(enemy, 0)->type = ATK_NORMAL;
     G_SetPlayerAlliance(player, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
     level.bots[2].flags = BOT_UNITS_FLEE;
     level.time = 1000;
@@ -1919,7 +1919,7 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_ASSERT(G_BotAddDefenders(player, 1, defender->class_id));
     G_BotSetCaptainHome(player, 2, 0, 0);
     level.bots[2].flags = BOT_DEFEND_PLAYER;
-    attacker->goalentity = ally_unit;
+    S_SetMoveGoal(attacker, &attacker->goalentity, ally_unit);
     M_SetMove(attacker,&attack_move);
     level.time = 1000;
 

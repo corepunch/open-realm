@@ -1,3 +1,4 @@
+#include "../g_entity_set.h"
 #include "s_skills.h"
 
 #define ID_STASIS_BUFF "Bsta"
@@ -113,10 +114,74 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 	}
 }
 
+/* The owner pointer and thinker callback remain authoritative. Cache their
+ * reverse lookup, rebuilding once after map/save replacement rather than
+ * scanning every edict for every ordinary unit/effect removal. */
+static edict_t *land_mine_thinkers[MAX_ENTITIES];
+static entitySet_t land_mine_members;
+static bool land_mine_multiple[MAX_ENTITIES];
+static bool land_mine_index_valid;
+#ifdef BZ_TESTS
+static uint32_t land_mine_lookup_visits;
+#endif
+
+void S_ResetLandMineThinkers(void) {
+    memset(land_mine_thinkers, 0, sizeof(land_mine_thinkers));
+    land_mine_members = (entitySet_t){0};
+    memset(land_mine_multiple, 0, sizeof(land_mine_multiple));
+    land_mine_index_valid = false;
+}
+
+static uint32_t land_mine_owner_index(edict_t const *mine) {
+    uintptr_t offset = (uintptr_t)mine - (uintptr_t)g_edicts;
+    return offset < sizeof(*mine) * MAX_ENTITIES && offset % sizeof(*mine) == 0
+        ? (uint32_t)(offset / sizeof(*mine)) : MAX_ENTITIES;
+}
+
+static void land_mine_index_thinker(edict_t *thinker) {
+    uint32_t index = land_mine_owner_index(thinker->owner);
+    if (index == MAX_ENTITIES) return;
+    entity_set_put(&land_mine_members, (uint32_t)(thinker - g_edicts), true);
+    edict_t *previous = land_mine_thinkers[index];
+    if (previous && previous != thinker && previous->inuse && previous->owner == thinker->owner &&
+        previous->think == land_mine_think) land_mine_multiple[index] = true;
+    /* The old ascending scan returns the lowest matching thinker. Preserve
+     * that choice if a restored world contains more than one for an owner. */
+    if (!previous || !previous->inuse || previous->owner != thinker->owner ||
+        previous->think != land_mine_think || thinker->s.number < previous->s.number)
+        land_mine_thinkers[index] = thinker;
+}
+
 static edict_t *land_mine_thinker(edict_t const *mine) {
-	if (!mine) return NULL;
-	FILTER_EDICTS(th, th->inuse && th->owner == mine && th->think == land_mine_think) return th;
-	return NULL;
+    uint32_t index = land_mine_owner_index(mine);
+    if (index == MAX_ENTITIES) return NULL;
+    if (!land_mine_index_valid) {
+        FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+            land_mine_lookup_visits++;
+#endif
+            edict_t *thinker = g_edicts + i;
+            if (thinker->inuse && thinker->owner && thinker->think == land_mine_think)
+                land_mine_index_thinker(thinker);
+        }
+        land_mine_index_valid = true;
+    }
+    edict_t *thinker = land_mine_thinkers[index];
+    if (thinker && thinker->inuse && thinker->owner == mine && thinker->think == land_mine_think) return thinker;
+    if (land_mine_multiple[index]) {
+        /* A retired first thinker must expose the next original match. Only
+         * thinker candidates participate, and their live ownership is checked. */
+        for (uint32_t i = entity_set_next(&land_mine_members, 0); i < globals.num_edicts;
+             i = entity_set_next(&land_mine_members, i + 1)) {
+            thinker = g_edicts + i;
+#ifdef BZ_TESTS
+            land_mine_lookup_visits++;
+#endif
+            if (thinker->inuse && thinker->owner == mine && thinker->think == land_mine_think)
+                return land_mine_thinkers[index] = thinker;
+        }
+    }
+    return NULL;
 }
 
 static void land_mine_remove_thinker(edict_t const *mine) {
@@ -226,20 +291,25 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 		thinker->resources = G_Time() + (uint32_t)(invis * 1000.0f);
 	}
 	thinker->think = land_mine_think;
+    land_mine_index_thinker(thinker);
 	return true;
 }
 
 BZ_ABILITY_PROC(CAbilityLandMine) {
 	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_AMIN;
-	bool owns_mine_ability = ent && code && G_UnitAbilityLevel(ent, code);
 
 	switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call) return UNIT_INIT_UNKNOWN;
+        return G_UnitHasAuthoredAbility(call->unit_type, code) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_FALSE;
+	case A_UNIT_EVENT_MASK:
+		return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT, A_ENABLE, A_LEVEL_CHANGED, A_DEATH, A_DISABLE, A_UNIT_REMOVE);
 	case A_UNIT_INIT:
 	case A_ENABLE:
 	case A_LEVEL_CHANGED:
 		return land_mine_initialize(ent, code);
 	case A_DEATH:
-		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		/* Death/explosion presentation must no longer be hidden by the trap's
 		 * live-unit invisibility state. */
@@ -259,7 +329,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 		G_SetEntityHidden(ent,false);
 		return true;
 	case A_UNIT_REMOVE:
-		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		return true;
 	default:
@@ -321,7 +391,7 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status) {
 
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except) {
 	if (!unit) return false;
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus + i != except &&
 		    S_UnitStatusIsTemporaryInvisibility(unit->abilstatus + i)) return true;
 	return false;
@@ -356,6 +426,11 @@ void S_PermanentInvisibilityInitialize(edict_t *unit) {
 /* Own Permanent Invisibility's spawn, add, remove, and level-change lifecycle. */
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call) return UNIT_INIT_UNKNOWN;
+        return G_UnitHasAuthoredAbility(call->unit_type, ID_APIV) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT, A_ENABLE, A_LEVEL_CHANGED, A_DISABLE, A_UNIT_REMOVE);
     case A_UNIT_INIT:
     case A_ENABLE:
     case A_LEVEL_CHANGED:

@@ -9,6 +9,7 @@ usage() {
     echo 'Add optional loose maps with --maps-dir=PATH (repeatable). Qualified slugs: roc-human1, tft-elf1.'
     echo 'Legacy positional archive paths are also accepted. Retail cinematics require manual Escape.'
     echo 'Environment: WINEPREFIX, WINE, WC3_RENDERER=default|opengl, WC3_BINARY, WC3_PARITY_LOGS, WC3_DRY_RUN=1'
+    echo 'OpenRealm refreshes the default build before launch; WC3_BINARY uses your supplied build unchanged.'
 }
 fail() { echo "wc3: $*" >&2; exit 2; }
 if [[ ${1:-} == --help || ${1:-} == -h ]]; then usage; exit 0; fi
@@ -81,6 +82,11 @@ if [[ $app == retail ]]; then
     [[ -z $map ]] || cmd+=(-loadfile "${map//\//\\}")
 else
     binary=${WC3_BINARY:-$root/build/bin/openwarcraft3}
+    # Tests and module-only builds can refresh libgame without rebuilding the
+    # executable's import table. Resolve the complete target before loading it.
+    if [[ -z ${WC3_BINARY:-} && ${WC3_DRY_RUN:-0} != 1 ]]; then
+        make -C "$root" openwarcraft3
+    fi
     [[ -x $binary ]] || { echo "Build first: make BUILD=release FFMPEG=1 openwarcraft3" >&2; exit 1; }
     cmd=("$binary" -data "$data" +set fs_expansion "$([[ $edition == tft ]] && echo 1 || echo 0)"
          +set vid_native 0 +set vid_fullscreen 0 +set vid_mode 2)

@@ -41,11 +41,11 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
                         S_SpellDuration(call->item->code, level, S_UnitIsResistant(target->entity)));
     /* unit_addtimedstatus zeroes data on replace; store applying rawcode after add like Purge. */
     buff_code = *((uint32_t const *)buff);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(target->entity)) {
         slot = target->entity->abilstatus + i;
         if (slot->level && slot->code == buff_code) { slot->data = call->item->code; break; }
     }
-    target->entity->goalentity = NULL;
+    S_SetMoveGoal(target->entity, &target->entity->goalentity, NULL);
     M_SetMove(target->entity,&holdpos_move_stand);
     return true;
 }

@@ -45,8 +45,8 @@ BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ances
  * the remaining buff lifetime.
  */
 static heroabilitystatus_t const *purge_status(edict_t const *unit) {
-    if (!unit) return NULL;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    if (!unit || G_UnitStatusQueryEmpty(unit)) return NULL;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *slot = unit->abilstatus + i;
         abilityitem_t item;
         if (!slot->level || !slot->data) continue;
@@ -66,7 +66,7 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     cstring_t buff;
     heroabilitystatus_t *slot;
     if (!st.entity) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity)) {
         heroabilitystatus_t *s = st.entity->abilstatus + i;
         if (!s->level || !s->timestamp) continue;
         if (S_StatusIsUndispellable(s)) continue;
@@ -75,7 +75,7 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!buff || strlen(buff) < 4) buff = "Bprg";
     unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity)) {
         slot = st.entity->abilstatus + i;
         if (slot->level && slot->code == *((uint32_t const *)buff)) { slot->data = spell->code; break; }
     }
@@ -157,7 +157,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     if (!st.entity || !buff || strlen(buff) < 4) return;
     unit_addtimedstatus(st.entity, buff, level, dur);
     thinker = G_Spawn();
-    thinker->owner = st.entity; thinker->goalentity = caster;
+    thinker->owner = st.entity; S_SetMoveGoal(thinker, &thinker->goalentity, caster);
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
     thinker->think = lsh_think; lsh_think(thinker);
 }
@@ -179,4 +179,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingWard) {
 /* Passive marker for the regen-life aura families (Aoar/Aabr).
  * The per-second HP regeneration is computed by S_RegenerationHealthAura; this
  * procedure exists only to provide a named TFT-class entry in the registry. */
-BZ_ABILITY_PROC(CAbilityAuraRegenLife) { return CAbilityPassive(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilityAuraRegenLife) {
+    if (msg == A_UNIT_TYPE_INIT) return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    return CAbilityPassive(ent, msg, call);
+}

@@ -149,22 +149,73 @@ bool G_BuildAllEnabled(void) {
     return atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
-static int32_t G_FindTechSlot(gameClient_t *client, uint32_t techid, bool create) {
-    int32_t free_slot = -1;
+#ifdef BZ_TESTS
+static uint32_t tech_lookup_work;
+#define TECH_LOOKUP_WORK() tech_lookup_work++
+#else
+#define TECH_LOOKUP_WORK() ((void)0)
+#endif
+typedef struct {
+    gameClient_t const *client;
+    uint16_t slots[MAX_PLAYER_TECH_STATE * 2], first_free, researched;
+    bool valid;
+} playerTechIndex_t;
+static playerTechIndex_t player_tech_indexes[MAX_CLIENTS];
+_Static_assert(MAX_PLAYER_TECH_STATE < UINT16_MAX, "Player tech index must fit slot identity");
 
-    if (!client || !techid) return -1;
-    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
-        if (client->tech[i].id == techid) return (int32_t)i;
-        if (!client->tech[i].id && free_slot < 0) free_slot = (int32_t)i;
+void G_ResetPlayerTechIndexes(void) { memset(player_tech_indexes, 0, sizeof(player_tech_indexes)); }
+
+static uint32_t player_tech_hash(uint32_t code) {
+    code ^= code >> 16;
+    code *= 0x7feb352du;
+    code ^= code >> 15;
+    return code & (MAX_PLAYER_TECH_STATE * 2 - 1);
+}
+
+static uint32_t player_tech_position(playerTechIndex_t const *index, uint32_t code) {
+    uint32_t at = player_tech_hash(code);
+    while (index->slots[at]) {
+        TECH_LOOKUP_WORK();
+        if (index->client->tech[index->slots[at] - 1].id == code) break;
+        at = (at + 1) & (MAX_PLAYER_TECH_STATE * 2 - 1);
     }
+    return at;
+}
+
+static playerTechIndex_t *player_tech_index(gameClient_t const *client) {
+    playerTechIndex_t *index = player_tech_indexes + client->ps.number % MAX_CLIENTS;
+    if (index->valid && index->client == client) return index;
+    *index = (playerTechIndex_t){ .client = client, .first_free = MAX_PLAYER_TECH_STATE, .valid = true };
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        TECH_LOOKUP_WORK();
+        if (!client->tech[i].id) {
+            if (index->first_free == MAX_PLAYER_TECH_STATE) index->first_free = i;
+            continue;
+        }
+        uint32_t at = player_tech_position(index, client->tech[i].id);
+        if (!index->slots[at]) index->slots[at] = i + 1;
+        if (client->tech[i].researched > 0) index->researched++;
+    }
+    return index;
+}
+
+static int32_t G_FindTechSlot(gameClient_t *client, uint32_t techid, bool create) {
+    if (!client || !techid) return -1;
+    playerTechIndex_t *index = player_tech_index(client);
+    uint32_t at = player_tech_position(index, techid);
+    if (index->slots[at]) return index->slots[at] - 1;
     if (!create) return -1;
-    if (free_slot < 0) {
+    uint32_t free_slot = index->first_free;
+    if (free_slot == MAX_PLAYER_TECH_STATE) {
         fprintf(stderr, "G_FindTechSlot: player %u tech state capacity %u exhausted for 0x%08x\n",
                 (unsigned)client->ps.number, (unsigned)MAX_PLAYER_TECH_STATE, (unsigned)techid);
         return -1;
     }
     client->tech[free_slot].id = techid;
     client->tech[free_slot].max_allowed = -1;
+    index->slots[at] = free_slot + 1;
+    do { index->first_free++; }
+    while (index->first_free < MAX_PLAYER_TECH_STATE && client->tech[index->first_free].id);
     return free_slot;
 }
 
@@ -357,7 +408,7 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
             int32_t const delta = new_value - old_value;
 
-            if (delta && (unit->attack1.numberOfDice || unit->attack2.numberOfDice)) {
+            if (delta && (S_AttackProfileRead(unit, 0)->numberOfDice || S_AttackProfileRead(unit, 1)->numberOfDice)) {
                 G_ApplyPermanentAttackDamageBonus(unit, (float)delta);
                 changed = true;
             }
@@ -366,23 +417,23 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
             int32_t const delta = new_value - old_value;
 
-            if (delta && unit->attack1.numberOfDice) {
-                unit->attack1.numberOfDice = MAX(0, (int32_t)unit->attack1.numberOfDice + delta);
+            if (delta && S_AttackProfileRead(unit, 0)->numberOfDice) {
+                S_AttackProfileWrite(unit, 0)->numberOfDice = MAX(0, (int32_t)S_AttackProfileRead(unit, 0)->numberOfDice + delta);
                 changed = true;
             }
-            if (delta && unit->attack2.numberOfDice) {
-                unit->attack2.numberOfDice = MAX(0, (int32_t)unit->attack2.numberOfDice + delta);
+            if (delta && S_AttackProfileRead(unit, 1)->numberOfDice) {
+                S_AttackProfileWrite(unit, 1)->numberOfDice = MAX(0, (int32_t)S_AttackProfileRead(unit, 1)->numberOfDice + delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ATTACK_RANGE) {
             float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
-            if (delta != 0.0f && unit->attack1.numberOfDice) {
-                unit->attack1.range = MAX(0.0f, unit->attack1.range + delta);
+            if (delta != 0.0f && S_AttackProfileRead(unit, 0)->numberOfDice) {
+                S_AttackProfileWrite(unit, 0)->range = MAX(0.0f, S_AttackProfileRead(unit, 0)->range + delta);
                 changed = true;
             }
-            if (delta != 0.0f && unit->attack2.numberOfDice) {
-                unit->attack2.range = MAX(0.0f, unit->attack2.range + delta);
+            if (delta != 0.0f && S_AttackProfileRead(unit, 1)->numberOfDice) {
+                S_AttackProfileWrite(unit, 1)->range = MAX(0.0f, S_AttackProfileRead(unit, 1)->range + delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
@@ -450,6 +501,7 @@ void G_ApplyPlayerUpgradesToUnit(edict_t *unit) {
     if (!unit || !unit->data.UnitBalance) return;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (!client || client->ps.number != unit->s.player) return;
+    if (!player_tech_index(client)->researched) return;
     upgrades = unit->data.UnitBalance->upgrades;
     for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         uint32_t upgrade_id;
@@ -495,6 +547,7 @@ void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, level_value);
     client->tech[slot].researched = new_level;
+    player_tech_index(client)->researched += (new_level > 0) - (old_level > 0);
     G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
@@ -512,6 +565,7 @@ void G_AddPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
         /* Returning to the default of 0; clear the slot without allocating. */
         if (slot >= 0) {
             client->tech[slot].researched = 0;
+            if (old_level > 0) player_tech_index(client)->researched--;
             G_ApplyTechLevelToOwnedUnits(client, techid, old_level, 0);
             G_InvalidateCommands(client);
         }
@@ -522,6 +576,7 @@ void G_AddPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, old_level + levels);
     client->tech[slot].researched = new_level;
+    player_tech_index(client)->researched += (new_level > 0) - (old_level > 0);
     G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
@@ -1567,7 +1622,7 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
     building->construction->restore_paused = worker->paused;
     building->construction->restore_hidden = worker->s.renderfx & RF_HIDDEN;
     worker->build = building;
-    worker->goalentity = building;
+    S_SetMoveGoal(worker, &worker->goalentity, building);
     if (!inside) return;
 
     G_SetEntityHidden(worker,true);
@@ -1665,7 +1720,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
     }
     gi.LinkEntity(worker);
     worker->build = NULL;
-    if (worker->goalentity == building) worker->goalentity = NULL;
+    if (worker->goalentity == building) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     if (worker->stand) worker->stand(worker);
 }
 

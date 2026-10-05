@@ -2,6 +2,7 @@
 #include "common/online.h"
 #include "../client/client.h"
 #include "server_api.h"
+#include "frame_budget.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -99,6 +100,24 @@ static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedica
         else
             SDL_Delay(0);
     }
+}
+
+static hostFrameBudget_t host_budget;
+static bool host_checkpoints, host_presenting;
+static uint32_t host_client_tick;
+
+void Com_FrameCheckpoint(void) {
+    if (!host_checkpoints || host_presenting || cls.state != ca_active || !scr_initialized) return;
+    uint64_t now = SDL_GetPerformanceCounter();
+    if (!Host_FrameCheckpointDue(&host_budget, now)) return;
+    uint32_t tick = SDL_GetTicks();
+    host_presenting = true;
+    CL_PresentationFrame(tick - host_client_tick);
+    host_client_tick = tick;
+    Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - now);
+    Com_LimitFrameRate(host_budget.start, host_budget.frequency, false);
+    host_budget.start = SDL_GetPerformanceCounter();
+    host_presenting = false;
 }
 
 #ifdef _WIN32
@@ -548,16 +567,27 @@ int main(int argc, string_t argv[]) {
     uint32_t startTime = SDL_GetTicks();
     uint32_t frameCount = 0;
     Uint64 performanceFrequency = SDL_GetPerformanceFrequency();
+    host_budget.frequency = performanceFrequency;
+    host_client_tick = startTime;
     while (true) {
         Uint64 frameStart = SDL_GetPerformanceCounter();
         uint32_t currentTime = SDL_GetTicks();
         uint32_t msec = currentTime - startTime;
+        int maxfps = Cvar_Integer("com_maxfps", 60);
+        host_budget.period = performanceFrequency / (uint64_t)(maxfps > 0 ? maxfps : 60);
+        host_budget.start = frameStart;
+        host_checkpoints = !dedicated;
         Online_Frame(msec);
         if (SV_IsActive()) {
             SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }
         if (!dedicated) {
-            CL_Frame(msec);
+            uint64_t render_start = SDL_GetPerformanceCounter();
+            uint32_t client_tick = SDL_GetTicks();
+            host_checkpoints = false;
+            CL_Frame(client_tick - host_client_tick);
+            host_client_tick = client_tick;
+            Host_FrameRendered(&host_budget, SDL_GetPerformanceCounter() - render_start);
         } else {
             /* Dedicated server: read console commands from stdin. */
             string_t cmd = Sys_ConsoleInput();
@@ -573,7 +603,7 @@ int main(int argc, string_t argv[]) {
             frameCount >= (uint32_t)Cvar_Integer("com_frame_limit", 0)) {
             Com_Quit();
         }
-        Com_LimitFrameRate(frameStart, performanceFrequency, dedicated);
+        Com_LimitFrameRate(host_budget.start, performanceFrequency, dedicated);
     }
 
     return 0;

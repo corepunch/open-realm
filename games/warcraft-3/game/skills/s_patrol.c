@@ -13,9 +13,9 @@ static void ai_patrol_walk(edict_t *ent) {
     float move_distance = unit_movedistance(ent);
 
     if (move_should_arrive(ent, move_distance) || move_is_blocked(ent, distance, move_distance)) {
-        ent->movement.patrol_target = ent->movement.patrol_target == ent->movement.patrol_a
-            ? ent->movement.patrol_b : ent->movement.patrol_a;
-        ent->goalentity = ent->movement.patrol_target;
+        S_SetMoveGoal(ent, &ent->movement.patrol_target, ent->movement.patrol_target == ent->movement.patrol_a
+            ? ent->movement.patrol_b : ent->movement.patrol_a);
+        S_SetMoveGoal(ent, &ent->goalentity, ent->movement.patrol_target);
         move_reset_progress(ent);
     } else {
         unit_changeangle(ent);
@@ -28,7 +28,7 @@ static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, CAbilityPatrol
 void order_patrol_resume(edict_t *self) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    self->goalentity = self->movement.patrol_target;
+    S_SetMoveGoal(self, &self->goalentity, self->movement.patrol_target);
     move_reset_progress(self);
     unit_setmove(self, &patrol_move_walk);
 }
@@ -36,10 +36,10 @@ void order_patrol_resume(edict_t *self) {
 void order_patrol(edict_t *self, edict_t *b) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = Waypoint_add(&self->s.origin2);
-    self->movement.patrol_b = b;
-    self->movement.patrol_target = b;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, Waypoint_add(&self->s.origin2));
+    S_SetMoveGoal(self, &self->movement.patrol_b, b);
+    S_SetMoveGoal(self, &self->movement.patrol_target, b);
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
     order_patrol_resume(self);

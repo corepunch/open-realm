@@ -47,7 +47,7 @@ static void thunderbolt_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->s.player = caster->s.player;
     G_InheritUnitTeamColor(missile, caster);
-    missile->goalentity = target;
+    S_SetMoveGoal(missile, &missile->goalentity, target);
     missile->owner = caster;
     missile->velocity = speed / 1000.0f;
     missile->damage = (uint32_t)S_SpellData(code, level, 1);

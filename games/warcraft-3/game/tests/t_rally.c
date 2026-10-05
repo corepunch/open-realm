@@ -265,7 +265,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     client->connected = true; client->ps.number = 0; client->ps.color = 6;
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 64, 96);
     producer->data.UnitProfile = &rally_train_profile;
-    producer->s.player = 0; producer->selected = 1;
+    producer->s.player = 0; G_SetEntitySelectionMask(producer, 1);
 
     T_ASSERT(G_SetRallyPoint(producer, &MAKE(vec2_t, 320.0f, 448.0f)));
     indicator = client->rally_indicator;
@@ -292,7 +292,7 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
     T_FEQ(indicator->s.origin.y, 224.0f, 0.01f);
     T_FEQ(indicator->s.origin.z, 32.0f, 0.01f);
 
-    producer->selected = 0;
+    G_SetEntitySelectionMask(producer, 0);
     G_UpdateRallyIndicator(client);
     T_NULL(client->rally_indicator);
     T_ASSERT(!indicator->inuse);

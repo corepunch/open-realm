@@ -41,7 +41,7 @@ static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
 static void ams_done(amsFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 static uint32_t ams_remaining(edict_t const *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BAM2) return unit->abilstatus[i].data;
     return 0;
 }
@@ -220,7 +220,7 @@ TEST(wc3_spell, anti_magic_shell_absorption_survives_save_load) {
     T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 100));
     T_EQ(ams_remaining(fix.ally), 200);
     T_ASSERT(WriteGame(path));
-    memset(fix.ally->abilstatus, 0, sizeof(fix.ally->abilstatus));
+    memset(fix.ally->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*fix.ally->abilstatus));
     T_EQ(ams_remaining(fix.ally), 0);
     T_ASSERT(ReadGame(path));
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 1);

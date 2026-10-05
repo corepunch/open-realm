@@ -770,9 +770,9 @@ uint32_t ClearSelection(jass_t *j) {
     FOR_LOOP(i, globals.num_edicts) {
         if (currentplayer) {
             /* Selection is a per-player bitmask; clear only this player's bit. */
-            g_edicts[i].selected &= ~(1u << PLAYER_NUM(currentplayer));
+            G_SetEntitySelectionMask(g_edicts + i, g_edicts[i].selected & (~(1u << PLAYER_NUM(currentplayer))));
         } else {
-            g_edicts[i].selected = 0;
+            G_SetEntitySelectionMask(g_edicts + i, 0);
         }
     }
     JassMarkSelectionDirty(currentplayer);
@@ -786,16 +786,16 @@ uint32_t SelectUnit(jass_t *j) {
     }
     if (flag) {
         if (currentplayer) {
-            whichUnit->selected |= 1 << PLAYER_NUM(currentplayer);
+            G_SetEntitySelectionMask(whichUnit, whichUnit->selected | (1 << PLAYER_NUM(currentplayer)));
         } else {
-            whichUnit->selected = -1;
+            G_SetEntitySelectionMask(whichUnit, -1);
         }
     } else {
         if (currentplayer) {
             /* SelectUnit(false) must preserve every other player's selection bit. */
-            whichUnit->selected &= ~(1u << PLAYER_NUM(currentplayer));
+            G_SetEntitySelectionMask(whichUnit, whichUnit->selected & (~(1u << PLAYER_NUM(currentplayer))));
         } else {
-            whichUnit->selected = 0;
+            G_SetEntitySelectionMask(whichUnit, 0);
         }
     }
     JassMarkSelectionDirty(currentplayer);

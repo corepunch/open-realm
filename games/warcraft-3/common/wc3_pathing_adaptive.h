@@ -13,8 +13,8 @@ typedef struct {
     bool warp;
     uint32_t warps;
     uint32_t level_capacity;
-    uint32_t indexed_nodes;
-    bool reuse_indices, indices_initialized;
+    uint32_t index_epoch;
+    bool reuse_indices;
     uint32_t size;
     wc3FinePoint_t goal;
 } wc3AccSearch_t;
@@ -26,23 +26,27 @@ static inline void wc3_acc_free(wc3AccSearch_t *search) {
     free(search->source_ids);free(search->gate_ids);
     search->source_ids=search->gate_ids=NULL;
     free(search->levels); search->levels = NULL; search->level_capacity = 0;
-    search->indexed_nodes=0;search->reuse_indices=search->indices_initialized=false;
+    search->index_epoch=0;search->reuse_indices=false;
 }
 
-/* Original1d58e0 uses integer Newton iteration and signed division towards zero. */
+/* Original1d58e0 stops when root - n/root is -1, 0 or 1. Its final
+ * truncated average is floor(sqrt(n)), including n=0 and UINT32_MAX. */
 static uint32_t wc3_acc_sqrt(uint32_t n) {
-    uint32_t root = n < 256 ? n / 12 + 1 : n < 65536 ? n / 200 + 21 : n / 26743 + 444;
-    int delta;
-    do {
-        delta = (int)(root - n / root);
-        root = (uint32_t)((int)(n / root + root) / 2);
-    } while (delta / 2);
-    return root;
+    return wc3_isqrt(n);
 }
 
 static uint32_t wc3_acc_cost(wc3FinePoint_t a, wc3FinePoint_t b) {
     uint32_t x = 24u * ((uint32_t)a.x - (uint32_t)b.x), y = 24u * ((uint32_t)a.y - (uint32_t)b.y);
     return wc3_acc_sqrt(x * x + y * y);
+}
+
+static inline int wc3_acc_index(wc3AccSearch_t const *search, int entry) {
+    if (!search->reuse_indices) return entry;
+    return (uint32_t)entry >> 16 == search->index_epoch ? (int)((uint32_t)entry & 65535) : -1;
+}
+
+static inline int wc3_acc_identity(wc3AccSearch_t const *search, uint32_t at) {
+    return (int)((search->reuse_indices ? search->index_epoch << 16 : 0) | (uint16_t)at);
 }
 
 /* Class1 blocks, class2 subdivides; class0 promotes through clear ancestors. */
@@ -51,6 +55,13 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
     uint32_t x = (uint32_t)(pos.x >> level), y = (uint32_t)(pos.y >> level);
     if (x >= map->width || y >= map->height) return -1;
     uint32_t cell = y * map->width + x;
+    int *requested = map->indices + cell;
+    /* Classes are immutable during a request. A current-epoch identity is
+     * the canonical node or a clear descendant's alias. Reuse it before
+     * walking the hierarchy; reset expires both without changing the retail
+     * ushort node identity. */
+    int found = wc3_acc_index(search, *requested);
+    if (found >= 0) return found;
     uint8_t cls = map->classes[cell];
     if (cls == 1) return -1;
     if (cls == 2) return level ? -2 : -1;
@@ -60,7 +71,7 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
         if (x >= parent->width || y >= parent->height || parent->classes[y * parent->width + x]) break;
         map = parent; cell = y * map->width + x; level++;
     }
-    if (map->indices[cell] < 0) {
+    if (wc3_acc_index(search, map->indices[cell]) < 0) {
         wc3FineSearch_t *work = &search->work;
         /* Original163ef0 appends without a fine-style identity cap, but
          * 1625f0 publishes only the low16 bits in the cell metadata. */
@@ -74,12 +85,15 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
             search->source_ids=sources;search->gate_ids=gates;search->level_capacity = work->node_capacity;
         }
         uint32_t at = work->count++;
-        map->indices[cell] = (uint16_t)at;
+        map->indices[cell] = wc3_acc_identity(search, at);
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
         search->source_ids[at]=search->warp && !level && search->markers ? search->markers[cell]:0;search->gate_ids[at]=0;
-        search->indexed_nodes=work->count;
     }
-    return map->indices[cell];
+    /* A clear descendant resolves to this same ancestor for the entire
+     * request. Retain that identity without assigning another representative,
+     * creating a node, or changing first-encounter ordering. */
+    if (search->reuse_indices) *requested = map->indices[cell];
+    return wc3_acc_index(search, map->indices[cell]);
 }
 
 static bool wc3_acc_clear(wc3AccSearch_t const *search, wc3FinePoint_t pos) {
@@ -123,7 +137,11 @@ static void wc3_acc_relax_edge(wc3AccSearch_t *search, int at, int parent,bool w
         next->gen++;
     }
     search->gate_ids[at]=warp?search->source_ids[parent]:0;
-    next->parent = parent; next->g = cost; next->h = wc3_acc_cost(next->pos,search->goal);
+    next->parent = parent; next->g = cost;
+    /* A node's representative and this request's goal never change. Keep
+     * the lazy first-relax publication (unreached nodes retain h=0), but do
+     * not recompute the same heuristic after every improved incoming edge. */
+    if (!next->h) next->h = wc3_acc_cost(next->pos,search->goal);
     wc3_fine_enqueue(work,(uint32_t)at);
 }
 
@@ -234,21 +252,16 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
 /* Shared ordinary/special setup and search; -2 is the original direct setup result, -1 is a partial search. */
 static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
-    /* Reset only cells touched by the preceding request. Retain the exact
-     * ushort publication and node/heap order, including identity wrap. */
-    if(!search->reuse_indices || !search->indices_initialized) {
+    /* High bits own request lifetime; low bits retain retail's ushort node
+     * identity. Ordinary reset is O(1), including promoted-cell aliases. Only
+     * epoch wrap clears the retained planes; owners replacing them reset epoch. */
+    if (!search->reuse_indices || !search->index_epoch || search->index_epoch == 65535) {
         for(unsigned level=0;level<4;level++) {
             wc3AccMap_t *map=search->maps+level;
-            memset(map->indices,255,sizeof(int)*map->width*map->height);
+            memset(map->indices,search->reuse_indices ? 0 : 255,sizeof(int)*map->width*map->height);
         }
-        search->indices_initialized=true;
-    } else for(uint32_t i=0;i<search->indexed_nodes;i++) {
-        unsigned level=search->levels[i];
-        wc3AccMap_t *map=search->maps+level;
-        wc3FinePoint_t p=work->nodes[i].pos;
-        map->indices[(uint32_t)(p.y>>level)*map->width+(uint32_t)(p.x>>level)]=-1;
-    }
-    search->indexed_nodes=0;
+        search->index_epoch = search->reuse_indices ? 1 : 0;
+    } else search->index_epoch++;
     work->heap_growth = BZ_WC3_ACC_HEAP_GROW;
     search->warps=0;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;

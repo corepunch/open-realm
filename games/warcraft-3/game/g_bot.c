@@ -264,8 +264,8 @@ bool G_BotTownThreatened(player_t *player) {
  * after direct native capture. */
 static bool G_BotTowerDefenseBuilding(edict_t *unit, uint32_t owner) {
     return G_BotUnitAlive(unit) && unit->s.player == owner && G_UnitIsBuilding(unit->class_id) &&
-        ((unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
-         (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1)));
+        ((S_AttackProfileRead(unit, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+         (S_AttackProfileRead(unit, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1)));
 }
 
 bool G_BotIsTowered(player_t *player, edict_t *target) {
@@ -302,9 +302,9 @@ static bool G_BotMegaCombatDefender(edict_t *unit, uint32_t owner, edict_t *hall
     if (!G_BotUnitAlive(unit) || unit == hall || unit->s.player != owner || G_UnitIsBuilding(unit->class_id)) return false;
     /* Workers remaining at an economy do not by themselves make the main base a defended
      * military position. Ahar is the stock/custom worker harvest command shared by melee workers. */
-    if (G_ActorHasSkill(unit, "Ahar")) return false;
-    return (unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
-           (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
+    if (G_ActorHasAbilityCode(unit, MAKEFOURCC('A','h','a','r'))) return false;
+    return (S_AttackProfileRead(unit, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+           (S_AttackProfileRead(unit, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
 }
 
 edict_t *G_BotGetMegaTarget(player_t *player) {
@@ -787,7 +787,7 @@ edict_t *G_BotExpansionPeon(player_t *player) {
     FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
         !worker->construction && !worker->training && !worker->build_project &&
         !S_GoldMineWorkerIsInside(worker) && !G_BuildingUpgradeActive(worker) &&
-        G_ActorHasSkill(worker, "Ahar") && worker->data.UnitProfile && worker->data.UnitProfile->builds) {
+        G_ActorHasAbilityCode(worker, MAKEFOURCC('A','h','a','r')) && worker->data.UnitProfile && worker->data.UnitProfile->builds) {
         float dist = Vector2_distance(&mine->s.origin2, &worker->s.origin2);
         if (!best || dist < best_dist || (dist == best_dist && worker->s.number < best->s.number)) {
             best = worker; best_dist = dist;
@@ -804,7 +804,7 @@ bool G_BotSetExpansion(player_t *player, edict_t *worker, uint32_t hall_id) {
     vec2_t center;
     if (!bot || !mine || !worker || !G_BotUnitAlive(worker) || worker->s.player != PLAYER_NUM(player) ||
         !balance || !profile || !G_UnitIsBuilding(hall_id) || !G_WorkerCanBuild(worker, hall_id) ||
-        !worker->data.UnitProfile || !G_ActorHasSkill(worker, "Ahar") ||
+        !worker->data.UnitProfile || !G_ActorHasAbilityCode(worker, MAKEFOURCC('A','h','a','r')) ||
         worker->construction || worker->training || worker->build_project ||
         S_GoldMineWorkerIsInside(worker) || G_BuildingUpgradeActive(worker) ||
         player->stats[PLAYERSTATE_RESOURCE_GOLD] < balance->goldCost ||
@@ -1026,7 +1026,7 @@ void G_BotHarvest(player_t *player, int32_t town_id, int32_t peons, bool gold) {
             !unit->construction && !unit->build_project &&
             (!unit->currentmove || (unit->currentmove->proc != CAbilityGoldMine &&
              unit->currentmove->proc != CAbilityHarvest && unit->currentmove->proc != CAbilityRepair)) && unit->data.UnitAbilities &&
-            G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
+            G_ActorHasAbilityCode(unit, MAKEFOURCC('A','h','a','r')) && !G_BotHarvesterReserved(bot, unit)) {
             float dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
             if (!best || dist < best_dist) { best = unit; best_dist = dist; }
         }
@@ -1086,8 +1086,8 @@ static float G_BotRetreatUnitPower(edict_t *unit) {
 
 static bool G_BotRetreatEnemyCombatant(edict_t *unit) {
     if (!G_BotUnitAlive(unit) || !(unit->svflags & SVF_MONSTER)) return false;
-    return (unit->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
-           (unit->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
+    return (S_AttackProfileRead(unit, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 0)) ||
+           (S_AttackProfileRead(unit, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(unit, 1));
 }
 
 static bool G_BotRetreatEnemyNearCaptain(botCaptain_t const *captain, edict_t *enemy) {
@@ -1362,7 +1362,7 @@ static bool G_BotUnitSiege(edict_t const *unit) {
      * the native's internal classifier. Stock WC3 siege engines author their combat
      * profile with the siege attack type, so use either active attack slot's authored
      * ATK_SIEGE value rather than a hard-coded unit rawcode list. */
-    return unit->attack1.type == ATK_SIEGE || unit->attack2.type == ATK_SIEGE;
+    return S_AttackProfileRead(unit, 0)->type == ATK_SIEGE || S_AttackProfileRead(unit, 1)->type == ATK_SIEGE;
 }
 
 /* InitMeleeGroup calls RemoveSiege before building the next assault specification.
@@ -1552,8 +1552,8 @@ static void G_BotOrderAssaultMember(bot_t *bot, edict_t *unit, int32_t target) {
                 S_UnitIsCycloned(enemy), S_UnitIsHiddenFromPlayer(enemy, PLAYER_NUM(bot->player)),
                 S_AttackCanTarget(unit, enemy),
                 S_UnitIsCycloned(unit), S_GoldMineWorkerIsInside(unit),
-                unit->attack1.type, unit->attack1.targetsAllowed,
-                unit->attack2.type, unit->attack2.targetsAllowed,
+                S_AttackProfileRead(unit, 0)->type, S_AttackProfileRead(unit, 0)->targetsAllowed,
+                S_AttackProfileRead(unit, 1)->type, S_AttackProfileRead(unit, 1)->targetsAllowed,
                 unit->goalentity == enemy && unit->currentmove && unit->currentmove->proc == CAbilityAttack,
                 unit->goalentity == enemy, unit->currentmove && unit->currentmove->proc == CAbilityAttack,
                 S_UnitAttackSlotEnabled(unit, 0), S_UnitAttackSlotEnabled(unit, 1));
@@ -1827,8 +1827,8 @@ static bool G_BotIndividualFleeCandidate(edict_t *unit, bool hero_policy) {
         G_UnitIsBuilding(unit->class_id) || unit->health.max_value <= 0.0f) return false;
     is_hero = G_UnitIsHero(unit);
     if (is_hero != hero_policy) return false;
-    if (!is_hero && (G_ActorHasSkill(unit, "Ahar") ||
-        (unit->attack1.type == ATK_NONE && unit->attack2.type == ATK_NONE))) return false;
+    if (!is_hero && (G_ActorHasAbilityCode(unit, MAKEFOURCC('A','h','a','r')) ||
+        (S_AttackProfileRead(unit, 0)->type == ATK_NONE && S_AttackProfileRead(unit, 1)->type == ATK_NONE))) return false;
     return unit->health.value / unit->health.max_value < BOT_INDIVIDUAL_FLEE_HEALTH_FRACTION;
 }
 

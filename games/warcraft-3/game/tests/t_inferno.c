@@ -55,7 +55,7 @@ typedef struct {
 } inFix_t;
 
 static uint32_t stun_ms(edict_t const *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
@@ -226,7 +226,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
     T_EQ(summon->class_id, BZ_HFOO);
     T_EQ(summon->s.player, fix.caster->s.player);
     T_ASSERT(S_UnitHasStatus(summon, BZ_BTLF));
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(summon))
         if (summon->abilstatus[i].level && summon->abilstatus[i].code == BZ_BTLF)
             T_EQ(summon->abilstatus[i].duration_ms, (uint32_t)(BZ_LIFE * 1000.0f));
     inferno_done(fix);

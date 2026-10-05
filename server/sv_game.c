@@ -147,10 +147,14 @@ void SV_InitGameProgs(void) {
     import.PositionedSound = PF_PositionedSound;
     import.MinimapPing = SV_MinimapPing;
     import.FontIndex = SV_FontIndex;
+    import.MediaRevision = SV_MediaRevision;
     import.GetTime = SV_GetTime;
     import.SetGameTime = SV_SetGameTime;
     import.SetPaused = SV_SetPaused;
     import.ReadFile = FS_ReadFile;
+    import.OpenFile = FS_OpenFile;
+    import.CloseFile = FS_CloseFile;
+    import.FileExists = FS_FileExists;
     import.ReadFileAll = FS_ReadFileAll;
     import.SetPriorityArchive = FS_SetPriorityArchive;
     import.error = PF_error;
@@ -161,6 +165,7 @@ void SV_InitGameProgs(void) {
     import.QueueMovie = CL_QueueMovie;
     import.ClearWorld = SV_ClearWorld;
     import.LoadingFrame = CL_LoadingFrame;
+    import.FrameCheckpoint = Com_FrameCheckpoint;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
     import.GetConfigstring = PF_GetConfigstring;

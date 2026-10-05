@@ -927,6 +927,128 @@ static uint32_t map_item_data_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static uint32_t map_ability_override_count;
 static uint32_t ability_data_generation;
+static uint32_t unit_data_generation;
+uint32_t G_UnitDataGeneration(void) { return unit_data_generation; }
+
+typedef struct unitAbilityCodes_s {
+    UnitAbilities_t const *row;
+    cstring_t list;
+    uint32_t generation, ability_generation, count, token_count;
+    uint64_t membership;
+    uint32_t *codes;
+    unitAbilityToken_t *tokens;
+    struct unitAbilityCodes_s *next;
+} unitAbilityCodes_t;
+static unitAbilityCodes_t *unit_ability_codes[512];
+
+#ifdef BZ_TESTS
+static uint32_t compiled_ability_queries;
+static uint32_t authored_membership_visits;
+void G_TestRecordAuthoredMembershipVisit(void) { authored_membership_visits++; }
+uint32_t G_TestAuthoredMembershipVisits(bool reset) {
+    uint32_t count = authored_membership_visits;
+    if (reset) authored_membership_visits = 0;
+    return count;
+}
+uint32_t G_TestCompiledAbilityQueries(bool reset) {
+    uint32_t count = compiled_ability_queries;
+    if (reset) compiled_ability_queries = 0;
+    return count;
+}
+#endif
+
+void G_ResetUnitAbilityCodes(void) {
+    FOR_LOOP(i, sizeof(unit_ability_codes) / sizeof(*unit_ability_codes)) {
+        unitAbilityCodes_t *entry = unit_ability_codes[i];
+        while (entry) {
+            unitAbilityCodes_t *next = entry->next;
+            free(entry->codes);
+            free(entry->tokens);
+            free(entry);
+            entry = next;
+        }
+    }
+    memset(unit_ability_codes, 0, sizeof(unit_ability_codes));
+}
+
+static unitAbilityCodes_t *G_CompiledUnitAbilities(UnitAbilities_t const *row) {
+#ifdef BZ_TESTS
+    compiled_ability_queries++;
+#endif
+    if (!row || !row->abilList) return NULL;
+    uintptr_t hash = (uintptr_t)row >> 4;
+    hash ^= hash >> 16;
+    uint32_t slot = hash % 512;
+    unitAbilityCodes_t *cached;
+    for (cached = unit_ability_codes[slot]; cached; cached = cached->next)
+        if (cached->row == row && cached->list == row->abilList && cached->generation == unit_data_generation && cached->ability_generation == ability_data_generation) break;
+    if (!cached) {
+        size_t capacity = 1;
+        for (cstring_t p = row->abilList; *p; p++) if (*p == ',') capacity++;
+        if (capacity > UINT32_MAX || capacity > SIZE_MAX / sizeof(unitAbilityToken_t)) {
+            gi.error("Unit ability list capacity overflow");
+            abort();
+        }
+        cached = malloc(sizeof(*cached));
+        if (!cached) { gi.error("Unit ability descriptor allocation failed"); abort(); }
+        *cached = (unitAbilityCodes_t){ .row = row, .list = row->abilList, .generation = unit_data_generation, .ability_generation = ability_data_generation,
+            .codes = malloc(capacity * sizeof(uint32_t)),
+            .tokens = malloc(capacity * sizeof(unitAbilityToken_t)), .next = unit_ability_codes[slot] };
+        if (!cached->codes || !cached->tokens) { gi.error("Unit ability list allocation failed"); abort(); }
+        char token[PARSER_MAX_SEGMENT];
+        wordExtractor_t parser = { .buffer = row->abilList, .delimiters = "" };
+        while (parse_segment_into(&parser, token)) {
+#ifdef BZ_TESTS
+            G_TestRecordStaticAbilityToken();
+#endif
+            unitAbilityToken_t decoded = { .code = FS_SLKKey(token), .length = strlen(token) };
+            decoded.base = G_AbilityCode(decoded.code);
+            cached->tokens[cached->token_count++] = decoded;
+            if (decoded.length == 4) {
+                cached->codes[cached->count++] = decoded.code;
+                cached->membership |= G_AbilityMembershipBit(decoded.code);
+            }
+        }
+        unit_ability_codes[slot] = cached;
+    }
+    return cached;
+}
+
+uint32_t const *G_UnitAbilityCodes(UnitAbilities_t const *row, uint32_t *count) {
+    unitAbilityCodes_t *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->count : 0;
+    return cached ? cached->codes : NULL;
+}
+
+/* Pure query scopes borrow the ordered array and its rejection filter together,
+ * avoiding a metadata lookup or linear negative scan for each ability family. */
+uint32_t const *G_UnitAbilityCodeSet(UnitAbilities_t const *row, uint32_t *count, uint64_t *membership) {
+    unitAbilityCodes_t const *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->count : 0;
+    *membership = cached ? cached->membership : 0;
+    return cached ? cached->codes : NULL;
+}
+
+/* A constant-size rejection filter accelerates the frequent negative query.
+ * A set bit still requires exact rawcode equality; collisions never grant an
+ * ability. The ordered arrays remain authoritative for callback enumeration. */
+bool G_UnitHasAuthoredAbility(UnitAbilities_t const *row, uint32_t code) {
+    unitAbilityCodes_t const *cached = G_CompiledUnitAbilities(row);
+    if (!cached || !(cached->membership & G_AbilityMembershipBit(code))) return false;
+    FOR_LOOP(i, cached->count) {
+#ifdef BZ_TESTS
+        G_TestRecordAuthoredMembershipVisit();
+#endif
+        if (cached->codes[i] == code) return true;
+    }
+    return false;
+}
+
+unitAbilityToken_t const *G_UnitAbilityTokens(UnitAbilities_t const *row, uint32_t *count) {
+    unitAbilityCodes_t *cached = G_CompiledUnitAbilities(row);
+    *count = cached ? cached->token_count : 0;
+    return cached ? cached->tokens : NULL;
+}
 
 typedef struct {
     cstring_t name, path;
@@ -978,6 +1100,8 @@ bool G_SLKStoreOptional(cstring_t name) {
     return false;
 }
 
+static void reset_sound_catalog_indexes(void);
+
 slkTestData_t *G_SetSLKRows(cstring_t slk, slkTestData_t *data) {
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
@@ -985,10 +1109,14 @@ slkTestData_t *G_SetSLKRows(cstring_t slk, slkTestData_t *data) {
             slkTestData_t *old = calloc(1, sizeof(*old));
             if (!old) return NULL;
             old->rows = *store->rows; old->count = *store->count;
-            if (!data->rows) {
+            /* Restoring an absent fixture table is an empty replacement,
+             * not a request to parse NULL and retain the previous stack rows. */
+            if (!data->rows && data->text) {
                 data->count = Stb_SlkLoadBuffer(data->text, store->schema, &data->rows, store->row_size);
                 if (!data->count) { free(old); return NULL; }
             }
+            reset_sound_catalog_indexes();
+            unit_data_generation++;
             FS_SLKFreeIndex(store->idx);
             *store->rows = data->rows; *store->count = data->count;
             if (!strcmp(store->name, "UnitWeapons"))
@@ -1017,6 +1145,7 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
         data->count = Stb_SlkLoadBuffer(data->text, profile_schema, &data->rows, sizeof(*g_UnitProfile));
         if (!data->count) { free(old); return NULL; }
     }
+    unit_data_generation++;
     FS_SLKFreeIndex(&profile_idx);
     g_UnitProfile = data->rows; g_UnitProfileCount = data->count;
     FS_SLKBuildIndex(&profile_idx, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
@@ -1450,6 +1579,7 @@ static void AddMapUnitDataOverride(unitData_t const *unit, uint32_t target_id, u
 
     FOR_LOOP(i, unit->numbeOfModifications)
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.UnitData), unit->modifications + i);
+    S_CompileMovementData(&override->row);
 }
 
 static void AddMapUnitBalanceOverride(unitData_t const *unit, uint32_t target_id, uint32_t base_id) {
@@ -1543,6 +1673,7 @@ static void AddMapItemDataOverride(unitData_t const *item, uint32_t target_id, u
 }
 
 void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
+    unit_data_generation++;
     uint32_t unit_capacity, item_capacity;
 
     free(map_unit_data_overrides);
@@ -2075,64 +2206,106 @@ cstring_t G_AbilityDataText(cstring_t name, cstring_t column) {
 }
 Doodads_t const *G_Doodad(uint32_t id) { static Doodads_t zero; Doodads_t *row = FS_SLKLookup(&doodad_idx, id); return row ? row : &zero; }
 UberSplatData_t const *G_UberSplat(uint32_t id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
+#ifdef BZ_TESTS
+static uint32_t sound_row_comparisons;
+uint32_t G_TestSoundRowComparisons(void) { return sound_row_comparisons; }
+#define SOUND_ROW_COMPARE() sound_row_comparisons++
+#else
+#define SOUND_ROW_COMPARE() ((void)0)
+#endif
+/* Sound labels are full case-sensitive names rather than FOURCC keys.
+ * Catalogs are immutable until replacement; indexes preserve the first row. */
+typedef struct {
+    UnitAckSounds_t const *rows;
+    uint32_t count, mask;
+    uint32_t *slots;
+} soundCatalogIndex_t;
+static soundCatalogIndex_t sound_catalogs[7];
+static uint32_t sound_catalog_generation;
+uint32_t G_SoundCatalogGeneration(void) { return sound_catalog_generation; }
+
+static void reset_sound_catalog_indexes(void) {
+    sound_catalog_generation++;
+    FOR_LOOP(i, sizeof(sound_catalogs) / sizeof(*sound_catalogs)) free(sound_catalogs[i].slots);
+    memset(sound_catalogs, 0, sizeof(sound_catalogs));
+}
+
+static uint32_t sound_catalog_hash(cstring_t name) {
+    uint32_t hash = 2166136261u;
+    for (unsigned char const *p = (unsigned char const *)name; *p; p++) hash = (hash ^ *p) * 16777619u;
+    return hash;
+}
+
+static uint32_t sound_catalog_slot(soundCatalogIndex_t const *index, cstring_t name) {
+    uint32_t slot = sound_catalog_hash(name) & index->mask;
+    while (index->slots[slot]) {
+        SOUND_ROW_COMPARE();
+        if (!strcmp(index->rows[index->slots[slot] - 1].name, name)) break;
+        slot = (slot + 1) & index->mask;
+    }
+    return slot;
+}
+
+static UnitAckSounds_t const *sound_catalog_lookup(uint32_t catalog, UnitAckSounds_t const *rows,
+                                                 uint32_t count, cstring_t name) {
+    soundCatalogIndex_t *index = sound_catalogs + catalog;
+    if (!name || !*name || !count) return NULL;
+    if (index->rows != rows || index->count != count) {
+        uint32_t capacity = 2;
+        if (count > UINT32_MAX / 4) { gi.error("Sound catalog is too large"); abort(); }
+        while (capacity < count * 2) capacity <<= 1;
+        free(index->slots);
+        *index = (soundCatalogIndex_t){ .rows = rows, .count = count, .mask = capacity - 1 };
+        index->slots = calloc(capacity, sizeof(*index->slots));
+        if (!index->slots) { gi.error("Cannot allocate sound catalog index"); abort(); }
+        FOR_LOOP(i, count) {
+            if (!rows[i].name) continue;
+            uint32_t slot = sound_catalog_slot(index, rows[i].name);
+            if (!index->slots[slot]) index->slots[slot] = i + 1;
+        }
+    }
+    uint32_t found = index->slots[sound_catalog_slot(index, name)];
+    return found ? rows + found - 1 : NULL;
+}
+
 UnitAckSounds_t const *G_UnitAckSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UnitAckSoundsCount)
-        if (g_UnitAckSounds[i].name && !strcmp(g_UnitAckSounds[i].name, name)) return g_UnitAckSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(0, g_UnitAckSounds, g_UnitAckSoundsCount, name);
+    return row ? row : &zero;
 }
 UnitAckSounds_t const *G_UnitCombatSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UnitCombatSoundsCount)
-        if (g_UnitCombatSounds[i].name && !strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(1, g_UnitCombatSounds, g_UnitCombatSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_UISound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_UISoundsCount)
-        if (g_UISounds[i].name && !strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(2, g_UISounds, g_UISoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AmbienceSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AmbienceSoundsCount)
-        if (g_AmbienceSounds[i].name && !strcmp(g_AmbienceSounds[i].name, name)) return g_AmbienceSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(3, g_AmbienceSounds, g_AmbienceSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AbilitySound(cstring_t name) {
     static UnitAckSounds_t zero;
-    UnitAckSounds_t const *row;
-
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AbilitySoundsCount)
-        if (g_AbilitySounds[i].name && !strcmp(g_AbilitySounds[i].name, name)) return g_AbilitySounds + i;
+    UnitAckSounds_t const *row = sound_catalog_lookup(4, g_AbilitySounds, g_AbilitySoundsCount, name);
+    if (row) return row;
     row = G_AmbienceSound(name);
     if (row->name && row->name[0]) return row;
     row = G_UISound(name);
     return row->name && row->name[0] ? row : &zero;
 }
-
 UnitAckSounds_t const *G_AnimSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_AnimSoundsCount)
-        if (g_AnimSounds[i].name && !strcmp(g_AnimSounds[i].name, name)) return g_AnimSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(5, g_AnimSounds, g_AnimSoundsCount, name);
+    return row ? row : &zero;
 }
-
 UnitAckSounds_t const *G_DialogSound(cstring_t name) {
     static UnitAckSounds_t zero;
-    if (!name || !*name) return &zero;
-    FOR_LOOP(i, g_DialogSoundsCount)
-        if (g_DialogSounds[i].name && !strcmp(g_DialogSounds[i].name, name)) return g_DialogSounds + i;
-    return &zero;
+    UnitAckSounds_t const *row = sound_catalog_lookup(6, g_DialogSounds, g_DialogSoundsCount, name);
+    return row ? row : &zero;
 }
 
 UnitAckSounds_t const *G_KeyedSound(cstring_t name) {
@@ -2319,6 +2492,9 @@ static void NormalizeArmorTypes(void) {
 }
 
 void InitUnitData(void) {
+    G_ResetUnitAbilityCodes();
+    unit_data_generation++;
+    reset_sound_catalog_indexes();
     stbIniCache_t profile_ini = { 0 };
 
     commandFuncConfig = NULL;
@@ -2345,6 +2521,8 @@ void InitUnitData(void) {
         slkStore_t *store = slk_stores + i;
         *store->count = Stb_SlkLoad(store->path, store->schema, store->rows, store->row_size);
         if (!*store->count && !store->optional) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        if (!strcmp(store->name, "UnitData"))
+            FOR_LOOP(j, g_UnitDataCount) S_CompileMovementData(g_UnitData + j);
         if (!strcmp(store->name, "UnitWeapons"))
             NormalizeWeaponTargetMasks(g_UnitWeapons, g_UnitWeaponsCount);
         if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
@@ -2356,6 +2534,9 @@ void InitUnitData(void) {
 uint32_t G_AbilityDataGeneration(void) { return ability_data_generation; }
 
 void ShutdownUnitData(void) {
+    G_ResetUnitAbilityCodes();
+    unit_data_generation++;
+    reset_sound_catalog_indexes();
     G_SetMapUnitOverrides(NULL);
     G_SetMapAbilityOverrides(NULL);
     FS_SLKFreeIndex(&profile_idx);

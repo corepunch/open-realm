@@ -28,7 +28,7 @@ static bool soul_trap_valid_link(edict_t const *carrier, edict_t const *target) 
 static void soul_trap_remove_possession(edict_t *carrier) {
     if (!carrier || !carrier->soul_possession_added || carrier->soul_trap_head) return;
     carrier->soul_possession_added = false;
-    if (G_ActorHasSkill(carrier, "Asou"))
+    if (G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(carrier, ID_SOUL_POSSESSION);
 }
 
@@ -105,7 +105,7 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
         if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
     }
-    if (remove_asou && G_ActorHasSkill(target, "Asou"))
+    if (remove_asou && G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
 }
 
@@ -129,7 +129,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     uint32_t const code = ID_SOUL_POSSESSION;
     if (!carrier || !carrier->inuse || M_IsDead(carrier) || !target || !target->inuse ||
         M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return false;
-    if (!G_ActorHasSkill(carrier, "Asou")) {
+    if (!G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(carrier, code)) {
             fprintf(stderr, "Soul Trap: unable to add Asou possession state to carrier %.4s\n",
                     (cstring_t)&carrier->class_id);
@@ -137,7 +137,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
         }
         carrier->soul_possession_added = true;
     }
-    if (target != carrier && !G_ActorHasSkill(target, "Asou")) {
+    if (target != carrier && !G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(target, code)) {
             soul_trap_remove_possession(carrier);
             fprintf(stderr, "Soul Trap: unable to add Asou trapped state to target %.4s\n",
@@ -157,7 +157,9 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     target->aiflags |= AI_SOUL_TRAPPED;
     S_SpellCancelChannel(target);
     G_ClearUnitOrderQueue(target);
-    target->goalentity = target->combatentity = target->secondarygoal = NULL;
+    S_SetMoveGoal(target, &target->secondarygoal, NULL);
+    target->combatentity = NULL;
+    S_SetMoveGoal(target, &target->goalentity, NULL);
     if (target->stand) target->stand(target);
     G_SetEntityHidden(target,true);
     target->svflags |= SVF_NOCLIENT;
@@ -171,7 +173,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
         G_DeselectEntity(client, target);
         G_SyncClientSelection(client);
     }
-    target->selected = 0;
+    G_SetEntitySelectionMask(target, 0);
     G_InvalidateUnitShortcutsForUnit(target);
     return true;
 }
@@ -332,8 +334,9 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
 
     if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
         return false;
+    if (!target->abilstatus) has_status_slot = true;
     if (!has_status_slot) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
+        FOR_LOOP(i, G_UnitStatusSlotCount(target))
             if (!target->abilstatus[i].level) { has_status_slot = true; break; }
     }
     if (!has_status_slot) return false;

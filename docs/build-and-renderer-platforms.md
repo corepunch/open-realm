@@ -6,7 +6,7 @@ The Makefile has four independent build choices:
 
 | Variable | Values | Default | Contract |
 |---|---|---|---|
-| `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2`; debug adds `-O0 -g` |
+| `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2 -fno-semantic-interposition`; debug adds `-O0 -g` |
 | `GL_BACKEND` | `gl`, `gles3` | `gl` | Desktop OpenGL 3.1, or Linux OpenGL ES 3.0 |
 | `MSAA` | `0`, `2`, `4`, `8` | `0` | Compile-time default framebuffer sample count |
 | `GLSL` | `120`, `140`, `150` | `140` | GLSL version for descriptor-based shaders (ignored when `GL_BACKEND=gles3`) |
@@ -282,3 +282,24 @@ uses that native ABI for headless input coverage. Keep the fixture's queue and
 text assertions intact; do not remove text coverage or alter gameplay input to
 accommodate the compatibility library. This is a validation runtime selection,
 not a project-owned replacement library or a required production deployment.
+
+## Matching engine and game-module builds
+
+The October 5 Rise of the Naga startup crash (PID 397464) was an engine/game import
+table mismatch, not a shader or SDL failure. The default `build/bin/openwarcraft3`
+was dated October 4 while `build/lib/libgame.so` had been rebuilt October 5.
+`G_InitGame` crashed on its first `gi.CvarString` call; the core contained a stack
+canary in that callback slot rather than `Cvar_String`. Building tests or a game
+module alone does not update an existing normal executable.
+
+`tools/parity/wc3.sh openrealm` now refreshes the complete `openwarcraft3` Make
+target before launching its default executable. A failed build stops the launch.
+`WC3_DRY_RUN=1` remains read-only, and an explicit `WC3_BINARY` remains a
+caller-supplied build. The refresh respects the Make build settings; it is not a
+conversion of an existing debug build into a performance benchmark. Performance
+captures use the explicit, matching release output directory documented in the
+WC3 performance workflow.
+
+After rebuilding, the same TFT `NightElfX01.w3x` launch with `+com_frame_limit 20`
+started and exited normally under GDB using the ordinary system SDL libraries.
+The launcher regression checks both build-failure propagation and dry-run behavior.

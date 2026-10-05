@@ -32,7 +32,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityCripple, cripple_validate, status_execute)
 
 /* DataA = movement speed reduction fraction; DataB = attack rate reduction; DataC = damage reduction. */
 float S_CrippleMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
+    uint32_t level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 1) : 0.0f;
 }
 

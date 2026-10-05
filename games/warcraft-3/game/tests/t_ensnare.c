@@ -106,7 +106,7 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
     T_FEQ(fix.ground->unitinfo.FlyHeight, 0, 0.001f);
 
     wp = Waypoint_add(&(vec2_t){200, 0});
-    fix.ground->goalentity = NULL;
+    S_SetMoveGoal(fix.ground, &fix.ground->goalentity, NULL);
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
     ens_done(fix);
@@ -128,7 +128,7 @@ TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
     T_ASSERT(fix.flyer->s.origin.z < 179.0f);
 
     wp = Waypoint_add(&(vec2_t){240, 0});
-    fix.flyer->goalentity = NULL;
+    S_SetMoveGoal(fix.flyer, &fix.flyer->goalentity, NULL);
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity != wp);
     ens_done(fix);
@@ -239,7 +239,7 @@ TEST(wc3_spell, ensnare_dispel_mid_land_starts_rise) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 1000; S_RunAbilityUpdates(fix.flyer);
     T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 159.0f);
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(fix.flyer))
         if (fix.flyer->abilstatus[i].level && S_StatusIsEnsnare(fix.flyer->abilstatus[i].code))
             slot = fix.flyer->abilstatus + i;
     T_NOT_NULL(slot);
@@ -263,7 +263,7 @@ TEST(wc3_spell, ensnare_second_bind_keeps_lock_after_first_expires) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     unit_addtimedstatus(fix.flyer, "Beng", 1, 20);
     T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(fix.flyer))
         if (fix.flyer->abilstatus[i].level && fix.flyer->abilstatus[i].code == BZ_BENA)
             slot = fix.flyer->abilstatus + i;
     T_NOT_NULL(slot);
@@ -284,14 +284,14 @@ TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
     level.time += 7000; unit_updatestatuses(fix.flyer);
     T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
     wp = Waypoint_add(&(vec2_t){280, 0});
-    fix.flyer->goalentity = NULL;
+    S_SetMoveGoal(fix.flyer, &fix.flyer->goalentity, NULL);
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity == wp);
     victim = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300, 0);
     victim->s.player = 0; victim->svflags |= SVF_MONSTER; victim->targtype = TARG_GROUND;
     victim->health.value = victim->health.max_value = 500;
-    fix.flyer->attack1.type = ATK_PIERCE; fix.flyer->attack1.range = 300.0f;
-    fix.flyer->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.flyer, 0)->type = ATK_PIERCE; S_AttackProfileWrite(fix.flyer, 0)->range = 300.0f;
+    S_AttackProfileWrite(fix.flyer, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     order_attack(fix.flyer, victim);
     T_ASSERT(fix.flyer->goalentity == victim);
     ens_done(fix);

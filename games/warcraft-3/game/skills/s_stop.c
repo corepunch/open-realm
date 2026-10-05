@@ -43,10 +43,10 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
         return;
     /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
     S_SpellCancelChannel(ent);
-    ent->movement.attackmove_waypoint = NULL;
-    ent->movement.patrol_a = NULL;
-    ent->movement.patrol_b = NULL;
-    ent->movement.patrol_target = NULL;
+    S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_target, NULL);
     ent->movement.follow_target = NULL;
     ent->movement.holding_position = false;
     if (record_guard) G_SetUnitGuardPosition(ent);
@@ -77,6 +77,8 @@ void order_stop_queued(edict_t *ent) {
 static void AbilityStop_Command(edict_t *clent);
 
 BZ_ABILITY_PROC(CAbilityStop) {
+    if (msg == A_UNIT_EVENT_MASK)
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_AUTO_COMBAT_START, A_AUTO_COMBAT_END, A_ORDER_ACCEPTED);
     if (msg == A_COMMAND) {
         AbilityStop_Command(call && call->client ? call->client : ent);
         return true;

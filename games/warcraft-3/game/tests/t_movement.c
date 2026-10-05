@@ -3453,7 +3453,7 @@ static void periodic_shared_pair_matches_retail(bool selected) {
         jass_callbyname(level.vm,"selectProducer",false);
         clent=alloc_test_unit(0,0,0); clent->client=game.clients;
         clent->client->ps.number=0; clent->client->menu.order_queued=false;
-        FOR_LOOP(i,2) units[i]->selected=1;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1);
     }
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t saves[]={"/tmp/wc3-public-pair-moving.bin","/tmp/wc3-public-pair-retry.bin"};
@@ -5367,7 +5367,7 @@ TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -5803,7 +5803,7 @@ TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
 TEST(wc3_movement, lumber_final_chop_fells_tree) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 10.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
@@ -5953,7 +5953,7 @@ TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
 
     chopper->collision = follower->collision = 16.0f;
     chopper->unitinfo.MoveSpeed = follower->unitinfo.MoveSpeed = 190.0f;
-    chopper->attack1.damagePoint = follower->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(chopper, 0)->damagePoint = S_AttackProfileWrite(follower, 0)->damagePoint = 0.01f;
     chopper->s.model = follower->s.model = 1;
     tree->collision = 0.0f;
     gi.LinkEntity(chopper);
@@ -6106,7 +6106,7 @@ TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     edge->collision = interior->collision = 0.0f;
 
     /* Seven blocked rows/columns model a dense forest around the clicked
@@ -6165,7 +6165,7 @@ TEST(wc3_movement, lumber_tree_dying_during_approach_retargets_immediately) {
 TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 500.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     tree->pain = test_tree_pain; tree->die = test_tree_die;
     tree_pained = 0; tree_died = false;
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
@@ -6196,7 +6196,7 @@ TEST(wc3_movement, lumber_final_chop_clamps_to_capacity) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
     HARVEST_LUMBER_CAPACITY = 25.0f;
@@ -6225,7 +6225,7 @@ TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     tree->invulnerable = true;
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
@@ -6246,7 +6246,7 @@ TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
     HARVEST_RANGE = 64.0f;
@@ -6271,7 +6271,7 @@ TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_lumber = 3;
     worker->s.renderfx |= RF_HAS_LUMBER;
     HARVEST_RANGE = 64.0f;
@@ -6325,7 +6325,7 @@ TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
     HARVEST_RANGE = 64.0f;
@@ -6484,7 +6484,7 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -6533,7 +6533,7 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -6600,7 +6600,7 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     worker->s.angle = 0.0f; /* stale facing points east, away from hall */
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -6879,8 +6879,8 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     gi.unicast = movement_noop_unicast;
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     attacker->stand = unit_stand;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_WALL;
     unit_stand(attacker);
     gate = make_smart_destructable(256.0f, 64.0f, &gate_data, TARG_WALL);
     G_SelectEntity(client, attacker);
@@ -6954,8 +6954,8 @@ TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     unit->stand = unit_stand;
     unit_stand(unit);
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = 256u; /* debris */
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = 256u; /* debris */
     debris = make_smart_destructable(256.0f, 64.0f, &debris_data, TARG_DEBRIS);
     G_SelectEntity(client, unit);
     snprintf(debris_number, sizeof(debris_number), "%u", (unsigned)debris->s.number);
@@ -6997,7 +6997,7 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
     setup_test_world();
     edict_t *worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     worker->movetype = MOVETYPE_STEP; worker->stand = unit_stand; worker->die = unit_die;
-    worker->collision = 0.0f; worker->attack1.damagePoint = 0.01f;
+    worker->collision = 0.0f; S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     edict_t *tree1 = make_harvest_tree(20.0f, 0.0f, 10.0f);
     tree1->s.model = G_RegisterModel("Doodads\\Terrain\\LordaeronTree\\LordaeronTree0.mdx");
     edict_t *tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
@@ -7052,7 +7052,7 @@ TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 1.0f);
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
@@ -7104,7 +7104,7 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
     old_tree->health.value = 0.0f;
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = old_tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, old_tree);
     HARVEST_SEARCH_RANGE = 1000.0f;
 
     harvest_walkback(worker);
@@ -7351,7 +7351,7 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
     gi.LinkEntity(worker); gi.LinkEntity(tree); gi.LinkEntity(hall);
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
 
     harvest_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
@@ -7403,7 +7403,7 @@ TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
 
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
     harvest_walkback(worker);
 
     T_ASSERT(worker->goalentity == mill);
@@ -7452,7 +7452,7 @@ TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
 
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
     harvest_walkback(worker);
 
     FOR_LOOP(i, 80) {
@@ -7757,7 +7757,7 @@ TEST(wc3_movement, gold_pickup_replaces_lumber_carry_state) {
     HARVEST_GOLD_CAPACITY = 10.0f;
     worker->harvested_lumber = 5;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
 
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
@@ -7787,7 +7787,7 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = mine; worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, mine); S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
@@ -7876,7 +7876,7 @@ TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
 
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
 
@@ -7911,7 +7911,7 @@ TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall); gi.LinkEntity(mill);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     harvestgold_minegold(worker); /* registers worker in mine */
 
     harvestgold_walkback(worker);
@@ -7979,6 +7979,79 @@ TEST(wc3_movement, waypoint_add_sets_origin) {
     T_NOT_NULL(wp);
     T_FEQ(wp->s.origin.x, 128.0f, 0.01f);
     T_FEQ(wp->s.origin.y, 256.0f, 0.01f);
+}
+
+/* Independent old collector: compare all eligible identities, including
+ * unreachable cycles, rather than only checking the next allocated slot. */
+static void waypoint_test_reclamation(void) {
+    entitySet_t retained={0},expected={0};
+    FILTER_EDICTS(unit,unit->inuse && !(unit->svflags&SVF_MOVE_WAYPOINT)) {
+        waypoint_retain(&retained,unit->goalentity);
+        waypoint_retain(&retained,unit->secondarygoal);
+        waypoint_retain(&retained,unit->movement.attackmove_waypoint);
+        waypoint_retain(&retained,unit->movement.patrol_a);
+        waypoint_retain(&retained,unit->movement.patrol_b);
+        waypoint_retain(&retained,unit->movement.patrol_target);
+        waypoint_retain(&retained,unit->movement.waygate_goal);
+        waypoint_retain(&retained,unit->movement.cargo_unload_goal);
+        waypoint_retain(&retained,unit->movement.flow_fallback_goal);
+        if(unit->movement.route_resume_valid)waypoint_retain(&retained,unit->movement.route_resume_goal);
+        if(unit->ancient_root)waypoint_retain(&retained,unit->ancient_root->approach_goal);
+    }
+    FILTER_EDICTS(point,point->inuse && (point->svflags&SVF_MOVE_WAYPOINT)) {
+        uint32_t i=point-g_edicts;
+        if(!(retained.bits[i/64]&(UINT64_C(1)<<(i%64))))entity_set_put(&expected,i,true);
+    }
+    waypoint_collect_available();
+    T_EQ(memcmp(&expected,&waypoint_available,sizeof(expected)),0);
+}
+
+TEST(wc3_movement, waypoint_root_changes_preserve_shared_chains_and_cycles) {
+    reset_entities();setup_test_world();G_InitWaypoints();
+    edict_t *unit=G_Spawn(),*other=G_Spawn(),*points[4];
+    vec2_t position={0,0};
+    FOR_LOOP(i,4)points[i]=Waypoint_add(&position);
+    S_SetMoveGoal(points[0],&points[0]->secondarygoal,points[1]);
+    S_SetMoveGoal(points[1],&points[1]->secondarygoal,points[2]);
+    S_SetMoveGoal(points[2],&points[2]->secondarygoal,points[1]);
+    S_SetMoveGoal(unit,&unit->goalentity,points[0]);
+    S_SetMoveGoal(unit,&unit->movement.patrol_a,points[0]);
+    S_SetMoveGoal(other,&other->movement.cargo_unload_goal,points[1]);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(unit,&unit->movement.patrol_a,NULL);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(other,&other->movement.cargo_unload_goal,NULL);
+    waypoint_test_reclamation(); /* The now-unrooted cycle is reclaimable. */
+    S_SetMoveGoal(unit,&unit->goalentity,other);
+    S_SetMoveGoal(other,&other->secondarygoal,points[3]);
+    waypoint_test_reclamation();
+    /* Sparse owner state and its release participate in the same barrier. */
+    unit->ancient_root=G_AllocAncientRoot();
+    S_SetMoveGoal(unit,&unit->ancient_root->approach_goal,points[0]);
+    waypoint_test_reclamation();
+    G_FreeAncientRoot(unit);waypoint_test_reclamation();
+    G_FreeEdict(other);waypoint_test_reclamation();
+    G_ResetWaypointCache();waypoint_test_reclamation();
+    reset_entities();
+}
+
+TEST(wc3_movement, waypoint_bulk_orders_reconcile_only_changed_owners) {
+    reset_entities();setup_test_world();G_InitWaypoints();
+    /* Unrelated scenery must be visited only by the initial index build. */
+    FOR_LOOP(i,4096)G_Spawn();
+    uint32_t initial=globals.num_edicts;
+    waypoint_owner_visits=0;
+    FOR_LOOP(i,1024) {
+        edict_t *unit=G_Spawn();vec2_t point={(float)i,0};
+        S_SetMoveGoal(unit,&unit->goalentity,Waypoint_add(&point));
+    }
+    waypoint_test_reclamation();
+    T_ASSERT(waypoint_owner_visits<=initial+3072);
+    uint32_t visits=waypoint_owner_visits;
+    waypoint_test_reclamation();T_EQ(waypoint_owner_visits,visits);
+    reset_entities();
 }
 
 /* New requests must never retarget an earlier live point head when storage wraps. */
@@ -8050,21 +8123,21 @@ TEST(wc3_movement, unit_movedistance_uses_scripted_move_speed) {
 TEST(wc3_movement, distance_to_goal_along_x_axis) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *wp   = alloc_test_unit(0, 100.0f, 0.0f);
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 100.0f, 0.01f);
 }
 
 TEST(wc3_movement, distance_to_goal_diagonal) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 50.0f, 0.1f);
 }
 
 TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
     edict_t *unit = make_moving_unit(10.0f, 10.0f);
     edict_t *wp   = alloc_test_unit(0, 10.0f, 10.0f);
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 0.0f, 0.01f);
 }
 
@@ -8333,7 +8406,7 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     vec2_t const origin = unit->s.origin2;
     float const angle = unit->s.angle;
     unit->aiflags |= AI_IMMOBILE;
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
 
     unit_changeangle(unit);
     unit_moveindirection(unit);
@@ -8374,18 +8447,18 @@ TEST(wc3_movement, propwin_turning_keeps_stand_animation_advancing) {
     unit->data.UnitData = &data;
     unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
     unit->unitinfo.MoveSpeed = 100.0f;
-    unit->goalentity = alloc_test_unit(0, target.x, target.y);
+    S_SetMoveGoal(unit, &unit->goalentity, alloc_test_unit(0, target.x, target.y));
     unit->s.angle = 0.0f;
     unit_issueorder(unit, "move", &target);
     unit->animation = &stand;
-    strlcpy(unit->animation_request, "stand", sizeof(unit->animation_request));
+    G_StoreUnitAnimationRequest(unit, "stand");
     unit->s.frame = stand.interval[0];
 
     monster_think(unit);
-    T_STREQ(unit->animation_request, "stand");
+    T_STREQ(G_UnitAnimationRequest(unit), "stand");
     uint32_t const stand_frame = unit->s.frame;
     monster_think(unit);
-    T_STREQ(unit->animation_request, "stand");
+    T_STREQ(G_UnitAnimationRequest(unit), "stand");
     T_ASSERT(unit->s.frame > stand_frame);
 }
 
@@ -8492,7 +8565,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
         rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
         units[i]->data.UnitData = rows + i;
-        units[i]->collision = 16; units[i]->selected = 1; units[i]->svflags |= SVF_MONSTER;
+        units[i]->collision = 16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags |= SVF_MONSTER;
         units[i]->stand = unit_stand; units[i]->movetype = MOVETYPE_STEP;
         unit_stand(units[i]); gi.LinkEntity(units[i]);
     }
@@ -8597,7 +8670,7 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
 
     FOR_LOOP(i, 3) {
         units[i]->collision = 16.0f;
-        units[i]->selected = 1 << clent->client->ps.number;
+        G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
         units[i]->stand = unit_stand;
         unit_stand(units[i]);
     }
@@ -8628,12 +8701,12 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
 
     building->collision = 64.0f;
     building->aiflags |= AI_IMMOBILE;
-    building->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(building, 1 << clent->client->ps.number);
     building->stand = unit_stand;
     unit_stand(building);
 
     peasant->collision = 16.0f;
-    peasant->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(peasant, 1 << clent->client->ps.number);
     peasant->stand = unit_stand;
     unit_stand(peasant);
 
@@ -8658,7 +8731,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     edict_t *units[] = { fast, slow };
     FOR_LOOP(i, 2) {
         units[i]->collision = 16.0f;
-        units[i]->selected = 1 << clent->client->ps.number;
+        G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
         units[i]->stand = unit_stand;
         unit_stand(units[i]);
     }
@@ -8684,7 +8757,7 @@ TEST(wc3_movement, group_move_refreshes_survivor_speed) {
         edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
         edict_t *units[] = { fast, slow };
         FOR_LOOP(i, 2) {
-            units[i]->selected = 1 << clent->client->ps.number;
+            G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
             units[i]->stand = unit_stand;
             unit_stand(units[i]);
         }
@@ -8716,6 +8789,7 @@ TEST(wc3_movement, predicted_pose_cache_observes_all_inputs_and_clock_wrap) {
     wc3Clock_t clock=level.pathing_clock;box2_t bounds=CM_GetWorldBounds();
     vec2_t world=unit->s.origin2;
     FOR_LOOP(change,20) {
+        S_MarkMoveGoals(unit);
         unit->movement=movement;unit->s.origin2=world;level.pathing_clock=clock;
         CM_SetupTestWorldBounds(&bounds);
         if(change==19)unit->s.origin2.x=unit->movement.pose_world.x=unit->movement.fine_pose.x=0;
@@ -8751,6 +8825,31 @@ TEST(wc3_movement, predicted_pose_cache_observes_all_inputs_and_clock_wrap) {
         T_EQ(memcmp(&again,&raw,sizeof(raw)),0);T_EQ(move_pose_cache_misses,misses+1);
     }
     CM_SetupTestWorldBounds(&bounds);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, stationary_predictions_scale_to_4096_owners) {
+    edict_t *units[4096];
+    reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=299.99f,.span=300,.epoch=0};
+    FOR_LOOP(i,4096) {
+        edict_t *unit=units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128+i*.03125f,256);
+        unit->movement.pose_valid=unit->movement.clock_valid=true;
+        unit->movement.pose_world=unit->s.origin2;
+        unit->movement.fine_pose=(vec2_t){4+i*.0009765625f,8};
+        unit->movement.pose_clock=level.pathing_clock;
+        unit->movement.velocity=(vec2_t){0,wc3_float(0x80000000)};
+        wc3GridPose_t pose;
+        unit_predicted_pose(unit,&pose);
+    }
+    uint32_t hits=move_pose_cache_hits;
+    level.pathing_clock=(wc3Clock_t){.time=.03f,.span=300,.epoch=1};
+    FOR_LOOP(i,4096) {
+        wc3GridPose_t cached,raw;
+        unit_predicted_pose(units[i],&cached);unit_predicted_pose_raw(units[i],&raw);
+        T_EQ(memcmp(&cached,&raw,sizeof(raw)),0);
+    }
+    T_EQ(move_pose_cache_hits,hits+4096);
+    reset_entities();setup_test_world();
 }
 
 TEST(wc3_movement, physical_owner_order_retains_creation_sequence_after_slot_reuse) {
@@ -8791,9 +8890,8 @@ TEST(wc3_movement, group_id_allocation_scales_with_requests_and_restores_reserve
     edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
     /* Restored/queued identities may lie ahead of the allocation counter. */
     unit->movement.previous_request_id=17;
-    unit->order_queue.count=1;unit->order_queue.entries[0].owner_context=19;
-    strcpy(unit->order_queue.entries[0].order,"move");
-    unit->order_queue.entries[0].target_type=UNIT_ORDER_TARGET_POINT;
+    T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,NULL,NULL,0,0,0));
+    unit->order_queue.entries[0].owner_context=19;
     level.next_move_group_id=16;
     T_EQ(move_allocate_group_id(),18u);
     T_EQ(move_allocate_group_id(),20u);
@@ -8831,13 +8929,13 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     FOR_LOOP(i, 4) { units[i]->stand = unit_stand; unit_stand(units[i]); }
     a->unitinfo.MoveSpeed = c->unitinfo.MoveSpeed = 300;
     b->unitinfo.MoveSpeed = 100; d->unitinfo.MoveSpeed = 200;
-    a->selected = b->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(a, G_SetEntitySelectionMask(b, 1 << clent->client->ps.number));
     level.next_move_group_id = 0;
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
     uint32_t first_group = a->movement.group_id;
     T_ASSERT(first_group != 0 && first_group == b->movement.group_id);
-    a->selected = b->selected = 0;
-    c->selected = d->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(a, G_SetEntitySelectionMask(b, 0));
+    G_SetEntitySelectionMask(c, G_SetEntitySelectionMask(d, 1 << clent->client->ps.number));
     level.next_move_group_id = UINT32_MAX;
     T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
     T_ASSERT(c->movement.group_id != 0 && c->movement.group_id != first_group);
@@ -8876,7 +8974,7 @@ TEST(wc3_movement, group_survivor_reorder_after_member_reuse_reaches_new_goal) {
             units[i]->think = monster_think;
             units[i]->health.value = units[i]->health.max_value = 250;
             units[i]->collision = 8;
-            units[i]->selected = 1;
+            G_SetEntitySelectionMask(units[i], 1);
             unit_stand(units[i]);
             gi.LinkEntity(units[i]);
         }
@@ -9018,9 +9116,9 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
     attacker->class_id = MAKEFOURCC('h','f','o','o');
     attacker->s.player = 0;
     attacker->collision = 31.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
 
     tower = alloc_test_unit(MAKEFOURCC('h','c','t','w'), tower_pos.x, tower_pos.y);
     tower->s.player = 0;
@@ -9068,7 +9166,7 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) < start_distance - 1000.0f);
     T_ASSERT(attacker->goalentity == target);
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) <=
-        attacker->attack1.range + attacker->collision + target->collision + 16.0f);
+        S_AttackProfileRead(attacker, 0)->range + attacker->collision + target->collision + 16.0f);
 }
 
 TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes) {
@@ -9094,9 +9192,9 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
     attacker->s.player = 0;
     attacker->collision = 31.0f;
     attacker->unitinfo.MoveSpeed = 300.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
 
     target = alloc_test_unit(MAKEFOURCC('h','c','t','w'), target_pos.x, target_pos.y);
     target->s.player = 1;
@@ -9357,7 +9455,7 @@ TEST(wc3_movement, gold_mine_stock_capacity_never_exceeds_one_with_six_workers) 
     T_EQ(S_GoldMineCapacity(mine), 1);
     FOR_LOOP(i, 6) {
         edict_t *worker = add_gold_worker(150.0f + (float)i, 0.0f);
-        worker->goalentity = worker->secondarygoal = mine;
+        S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
         harvestgold_minegold(worker);
         T_ASSERT(mine->peonsinside <= 1);
         if (i == 0) {
@@ -9400,8 +9498,8 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
     edict_t *c = add_gold_worker(500.0f, 0.0f);
     edict_t *d = add_gold_worker(500.0f, 0.0f);
     edict_t *e = add_gold_worker(500.0f, 0.0f);
-    a->goalentity = b->goalentity = mine1;
-    c->goalentity = d->goalentity = e->goalentity = mine2;
+    S_SetMoveGoal(a, &a->goalentity, S_SetMoveGoal(b, &b->goalentity, mine1));
+    S_SetMoveGoal(c, &c->goalentity, S_SetMoveGoal(d, &d->goalentity, S_SetMoveGoal(e, &e->goalentity, mine2)));
     harvestgold_minegold(a);
     harvestgold_minegold(b);
     harvestgold_minegold(c);
@@ -9429,12 +9527,12 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     edict_t *worker = add_gold_worker(0.0f, 0.0f);
     vec2_t point = { 100.0f, 100.0f };
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     HARVEST_GOLD_CAPACITY = 10.0f;
 
     harvestgold_minegold(worker);
     T_EQ(mine->peonsinside, 1);
-    T_ASSERT(strstr(mine->animation_props, "work") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "work") != NULL);
     T_ASSERT(worker->invulnerable);
     T_ASSERT(S_GoldMineWorkerIsInside(worker));
     harvestgold_minegold(worker);
@@ -9446,7 +9544,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
 
     harvestgold_walkback(worker);
     T_EQ(mine->peonsinside, 0);
-    T_ASSERT(strstr(mine->animation_props, "work") == NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "work") == NULL);
     T_ASSERT(!S_GoldMineWorkerIsInside(worker));
     T_ASSERT(!worker->invulnerable);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
@@ -9455,7 +9553,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     T_EQ(mine->peonsinside, 0);
 
     edict_t *removed = add_gold_worker(0.0f, 0.0f);
-    removed->goalentity = removed->secondarygoal = mine;
+    S_SetMoveGoal(removed, &removed->goalentity, S_SetMoveGoal(removed, &removed->secondarygoal, mine));
     harvestgold_minegold(removed);
     T_EQ(mine->peonsinside, 1);
     G_FreeEdict(removed);
@@ -9500,8 +9598,8 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     S_FreeMoveRoute(miner);
     memset(&route,0,sizeof(route));
     HARVEST_GOLD_CAPACITY = 10.0f;
-    miner->goalentity = miner->secondarygoal = mine;
-    waiter->goalentity = waiter->secondarygoal = mine;
+    S_SetMoveGoal(miner, &miner->goalentity, S_SetMoveGoal(miner, &miner->secondarygoal, mine));
+    S_SetMoveGoal(waiter, &waiter->goalentity, S_SetMoveGoal(waiter, &waiter->secondarygoal, mine));
 
     harvestgold_minegold(miner);
     harvestgold_minegold(waiter);
@@ -9760,7 +9858,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
 
     T_ASSERT(S_MineOverlayBind(mine, parent));
     S_CargoInitUnit(mine);
-    T_ASSERT(strstr(mine->animation_props, "second") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "second") != NULL);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
 
     level.time = 0;
@@ -10792,8 +10890,8 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     burrow->cargo->count = 1;
     peon->s.renderfx |= RF_HIDDEN;
     peon->paused = true;
-    burrow->attack1.type = ATK_PIERCE;
-    burrow->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(burrow, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(burrow, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
 
     order_attack(burrow, target);
@@ -11034,6 +11132,124 @@ TEST(wc3_movement, local_route_search_charges_only_its_player_row) {
     reset_entities(); setup_test_world();
 }
 
+TEST(wc3_movement, responsive_public_crowd_starts_and_restores_deterministically) {
+    reset_entities(); setup_test_world();
+    static uint8_t cells[256*256]; memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}});
+    CM_SetupTestPathmap(256,256,cells);
+    level.move_fine_responsive=true;
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==1024\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128+I2R(i-(i/32)*32)*128,128+I2R(i/32)*128,0)\n"
+        "set i=i+1\nendloop\nset i=0\n"
+        "loop\nexitwhen i==1024\n"
+        "call IssuePointOrder(army[i],\"move\",GetUnitX(army[i])+512,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    edict_t *units[1024]; vec2_t origins[1024]; uint32_t result[1024][5];
+    unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if(count<1024)units[count]=ent,origins[count]=ent->s.origin2;
+        count++;
+    }
+    T_EQ(count,1024); if(count!=1024) { reset_entities(); setup_test_world(); return; }
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35) { level.time+=5; globals.RunFrame(); }
+    cstring_t file="/tmp/openwarcraft3-responsive-crowd.bin";
+    T_ASSERT(level.move_fine_budgets[0].count>0);
+    T_ASSERT(WriteGame(file));
+    wc3Random_t random={0};
+    FOR_LOOP(pass,2) {
+        if(pass) { T_ASSERT(ReadGame(file)); T_ASSERT(level.move_fine_responsive); }
+        while(level.time<200) { level.time+=5; globals.RunFrame(); }
+        unsigned advancing=0;
+        FOR_LOOP(i,count) {
+            edict_t const *unit=units[i];
+            if(memcmp(&origins[i],&unit->s.origin2,sizeof(vec2_t)))advancing++;
+            uint32_t words[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),unit->current_order_id};
+            if(!pass)memcpy(result[i],words,sizeof(words));
+            else FOR_LOOP(k,5)T_EQ(result[i][k],words[k]);
+        }
+        T_EQ(advancing,1024);
+        if(!pass)random=level.pathing_random;
+        else { T_EQ(random.sum,level.pathing_random.sum); T_EQ(random.index,level.pathing_random.index); }
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, responsive_fine_queue_serves_frozen_demand_in_fifo_order) {
+    bool saved_policy=level.move_fine_responsive;
+    unsigned sizes[]={1,12,256,1024,1600,4096};
+    FOR_LOOP(mode,2) FOR_LOOP(size,sizeof(sizes)/sizeof(sizes[0])) {
+        reset_entities(); setup_test_world();
+        level.move_fine_responsive=mode!=0;
+        moveFineBudget_t *budget=level.move_fine_budgets;
+        budget->work=BZ_WC3_FINE_OWNER_WORK+1;
+        unsigned count=sizes[size];
+        edict_t *units[4096];
+        FOR_LOOP(i,count) {
+            units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+            T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i]));
+        }
+        T_EQ(budget->count,count);
+        S_BeginAbilityOwnerUpdates();
+        uint32_t grant=mode ? MAX(BZ_WC3_FINE_OWNER_WORK,count*(BZ_WC3_UNIT_FINE_WORK+1u)) : BZ_WC3_FINE_OWNER_WORK;
+        T_EQ(budget->limit,grant);
+        if(count>1)T_ASSERT(!S_AdmitUnitMoveFineRequest(units[count-1]));
+        unsigned admitted=0;
+        FOR_LOOP(i,count) {
+            if (!S_AdmitUnitMoveFineRequest(units[i])) break;
+            admitted++;
+            S_ChargeUnitMoveFineRequest(units[i],BZ_WC3_UNIT_FINE_WORK+1);
+            T_EQ(budget->limit,grant); /* No shrinking grant while the queue drains. */
+        }
+        T_EQ(admitted,mode ? count : MIN(count,2));
+        T_EQ(budget->count,count-admitted);
+        if(mode) {
+            T_NULL(budget->head); T_NULL(budget->tail);
+            S_BeginAbilityOwnerUpdates();
+            T_EQ(budget->limit,grant); /* The reset cadence remains fixed. */
+            S_BeginAbilityOwnerUpdates();
+            T_EQ(budget->limit,BZ_WC3_FINE_OWNER_WORK); T_EQ(budget->work,0);
+        }
+    }
+    reset_entities(); setup_test_world(); level.move_fine_responsive=saved_policy;
+}
+
+TEST(wc3_movement, adaptive_replacement_releases_old_fine_queue_position) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,152);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,312);
+    first->collision=second->collision=8;
+    level.pathing_counter=2000;
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    budget->work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    vec2_t goal={1512,1400},waypoint;
+    movePathQuery_t query={{&first->s.origin2,&goal,8,2},first,NULL,true};
+    /* Original166c30 unlinks a pending fine request before starting a new
+     * adaptive request. Its following denied fine refill rejoins the tail. */
+    T_ASSERT(!G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_ASSERT(first->movement.fine_route.adaptive_count>0);
+    T_EQ(budget->head,second); T_EQ(budget->tail,first); T_EQ(budget->count,2);
+    T_EQ(second->movement.fine_next,first); T_EQ(first->movement.fine_prev,second);
+    /* Retrying the retained adaptive leg must not change FIFO position. */
+    T_ASSERT(!G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_EQ(budget->head,second); T_EQ(budget->tail,first); T_EQ(budget->count,2);
+    budget->work=0;
+    T_ASSERT(S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_EQ(budget->count,0); T_NULL(budget->head); T_NULL(budget->tail);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_movement, pending_fine_request_removal_repairs_each_player_fifo) {
     FOR_LOOP(row,MAX_PLAYERS) {
         reset_entities(); setup_test_world(); edict_t *units[3];
@@ -11062,7 +11278,7 @@ TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
     clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
     FOR_LOOP(i,2) {
         units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
-        units[i]->collision=16; units[i]->selected=1; units[i]->svflags|=SVF_MONSTER;
+        units[i]->collision=16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags|=SVF_MONSTER;
         units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
     }
     vec2_t point={128,512}; T_ASSERT(move_selectlocation(clent,&point));
@@ -11086,7 +11302,7 @@ TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
     clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
     FOR_LOOP(i,2) {
         units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
-        units[i]->collision=16; units[i]->selected=1; units[i]->svflags|=SVF_MONSTER;
+        units[i]->collision=16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags|=SVF_MONSTER;
         units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
     }
     vec2_t first={128,512},next={384,256}; T_ASSERT(move_selectlocation(clent,&first));
@@ -11145,7 +11361,7 @@ static void selected_player_input_journeys(uint32_t const inputs[2][4],
         T_EQ(count,2); if (count!=2) continue;
         edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
         clent->client->ps.number=3; clent->client->menu.order_queued=queued;
-        FOR_LOOP(i,2) units[i]->selected=1u<<3;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1u<<3);
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         bool issued=false,mismatch=false;
         cstring_t saves[]={"/tmp/wc3-selected-input-moving.bin","/tmp/wc3-selected-input-arrival.bin"};
@@ -11222,7 +11438,7 @@ static void selected_queued_input_link(edict_t *unit) {
     selected_queued_input.index++; /* Prevent reentry through order publication. */
     T_EQ(level.pathing_counter,input[1]);
     /* Selection and Shift are recorded external input, including after load. */
-    FOR_LOOP(i,2) selected_queued_input.units[i]->selected=1u<<3;
+    FOR_LOOP(i,2) G_SetEntitySelectionMask(selected_queued_input.units[i], 1u<<3);
     selected_queued_input.client->client->menu.order_queued=true;
     vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
     T_ASSERT(move_selectlocation(selected_queued_input.client,&point));
@@ -11285,7 +11501,7 @@ static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input
         }
         edict_t *clent=g_edicts+3; clent->client=game.clients+3;
         clent->client->ps.number=3; clent->client->menu.order_queued=true;
-        FOR_LOOP(i,2) units[i]->selected=1u<<3;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1u<<3);
         level.started=level.scriptsConfigured=level.scriptsStarted=true;
         selected_queued_input=(typeof(selected_queued_input)){.link=gi.LinkEntity,.client=clent,
             .units={units[0],units[1]},.inputs=inputs+c*input_count,.count=input_count};
@@ -14022,6 +14238,30 @@ TEST(wc3_movement, public_overlap_and_retry_share_exact_saved_random_owner) {
     public_gate_journey(random_interleave_motion,sizeof(random_interleave_motion)/sizeof(*random_interleave_motion),
         random_interleave_script,times,sizeof(times)/sizeof(*times),"random101-interleave",26000,2,cells);
     memset(&gate_retry,0,sizeof(gate_retry));memset(&gate_repulse,0,sizeof(gate_repulse));
+}
+
+TEST(wc3_movement, prepared_movement_categories_preserve_live_row_semantics) {
+    cstring_t names[] = {NULL, "", "foot", "horse", "fly", "hover", "float", "amph", "_", "FOOT", "custom"};
+    unitMovementType_t types[] = {UNIT_MOVE_UNSPECIFIED, UNIT_MOVE_UNSPECIFIED,
+        UNIT_MOVE_FOOT, UNIT_MOVE_HORSE, UNIT_MOVE_FLY, UNIT_MOVE_HOVER,
+        UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_DISABLED, UNIT_MOVE_DISABLED, UNIT_MOVE_DISABLED};
+    FOR_LOOP(i, sizeof(names) / sizeof(*names)) {
+        UnitData_t data = {.moveTypeName = names[i]};
+        edict_t unit = {.data.UnitData = &data};
+        unitMovementType_t old = S_UnitMovementType(&data);
+        uint8_t flags = M_UnitStaticPathingFlags(&unit);
+        T_EQ(old, types[i]);
+        S_CompileMovementData(&data);
+        T_EQ(S_UnitMovementType(&data), old);
+        T_EQ(M_UnitStaticPathingFlags(&unit), flags);
+        T_EQ(M_UnitMoveDisabled(&unit), old == UNIT_MOVE_DISABLED);
+        /* A live rebind must not use the classification of the earlier name. */
+        data.moveTypeName = "amph";
+        T_EQ(S_UnitMovementType(&data), UNIT_MOVE_AMPH);
+        T_EQ(M_UnitStaticPathingFlags(&unit), CM_PATHING_UNAMPHIBIOUS);
+        unit.aiflags |= AI_FLYING;
+        T_EQ(M_UnitStaticPathingFlags(&unit), CM_PATHING_UNFLYABLE);
+    }
 }
 
 #endif

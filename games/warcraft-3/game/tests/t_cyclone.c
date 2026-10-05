@@ -101,7 +101,7 @@ TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
     T_ASSERT(!S_SpellAllowsTarget(BZ_AICY, fix.caster, fix.ally));
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AICY, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(fix.enemy))
         if (fix.enemy->abilstatus[i].level && fix.enemy->abilstatus[i].code == BZ_BCYC) {
             slot = fix.enemy->abilstatus + i; break;
         }
@@ -153,7 +153,7 @@ TEST(wc3_spell, cyclone_locks_move_attack_spell_and_damage) {
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
 
     wp = Waypoint_add(&(vec2_t){200, 0});
-    fix.enemy->goalentity = NULL;
+    S_SetMoveGoal(fix.enemy, &fix.enemy->goalentity, NULL);
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity != wp);
 
@@ -213,8 +213,8 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     wp = Waypoint_add(&(vec2_t){220, 0});
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity == wp);
-    fix.caster->attack1.type = ATK_NORMAL;
-    fix.caster->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.caster, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.caster, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     T_ASSERT(S_OrderAttack(fix.caster, fix.enemy));
     fix.enemy->health.value = 500;
     S_ResolveAttackHit(fix.caster, fix.enemy, 40);

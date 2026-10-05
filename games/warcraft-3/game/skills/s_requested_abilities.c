@@ -24,7 +24,7 @@ typedef struct {
 
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code) {
     if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code &&
             (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time())) return true;
     return false;
@@ -50,7 +50,7 @@ static void target_status_execute(edict_t *caster, spellTarget_t st, abilityitem
 }
 
 static void toggle_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(caster)) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
     }
@@ -96,7 +96,7 @@ static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, flo
 }
 
 float S_EarthquakeMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
+    uint32_t level = G_QueryUnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
     if (!level) return 0.0f;
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
@@ -260,7 +260,7 @@ static void death_coil_execute(edict_t *caster, spellTarget_t st, abilityitem_t 
     missile->s.origin = caster->s.origin;
     missile->s.angle = caster->s.angle;
     missile->s.model = art ? G_RegisterModel(art) : 0;
-    missile->goalentity = st.entity;
+    S_SetMoveGoal(missile, &missile->goalentity, st.entity);
     if (!missile->channel) missile->channel = G_AllocChannel();
     assert(missile->channel);
     missile->channel->target_spawn_time = st.entity->spawn_time;
@@ -323,7 +323,7 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     if (!marker->channel) marker->channel = G_AllocChannel();
     assert(marker->channel);
     marker->channel->owner_spawn_time = thinker->spawn_time;
-    marker->goalentity = target;
+    S_SetMoveGoal(marker, &marker->goalentity, target);
     marker->resources = target->spawn_time;
 }
 
@@ -387,7 +387,7 @@ void chain_lightning_think(edict_t *thinker) {
     S_SpellDamage(next, caster, (int)MAX(1.0f, thinker->wait));
     G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, next, NULL, true);
     chain_lightning_mark_visited(thinker, next);
-    thinker->goalentity = next;
+    S_SetMoveGoal(thinker, &thinker->goalentity, next);
     thinker->damage = next->spawn_time;
     thinker->s.origin2 = next->s.origin2;
     thinker->wait *= thinker->velocity;
@@ -424,7 +424,7 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
-    thinker->goalentity = st.entity;
+    S_SetMoveGoal(thinker, &thinker->goalentity, st.entity);
     thinker->damage = st.entity->spawn_time;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->wait = damage * (1.0f - S_SpellData(spell->code, level, 3));
@@ -575,7 +575,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
         level = S_SpellLevel(ent, spell->code);
         delay = MAX(0.0f, S_SpellData(spell->code, level, 2));
         thinker = S_SpellChannelThinker(ent, spell->code);
-        thinker->goalentity = target;
+        S_SetMoveGoal(thinker, &thinker->goalentity, target);
         if (!thinker->channel) thinker->channel = G_AllocChannel();
         assert(thinker->channel);
         thinker->channel->target_spawn_time = target->spawn_time;
@@ -741,7 +741,9 @@ static void animate_dead_execute(edict_t *caster, spellTarget_t st, abilityitem_
          * times out it must not create another raisable corpse. */
         selected->svflags &= ~SVF_DEADMONSTER; selected->s.flags &= ~EF_NOT_SELECTABLE;
         selected->aiflags &= ~AI_HOLD_FRAME; G_SetEntityHidden(selected,false);
-        selected->combatentity = selected->goalentity = selected->secondarygoal = NULL;
+        S_SetMoveGoal(selected, &selected->secondarygoal, NULL);
+        S_SetMoveGoal(selected, &selected->goalentity, NULL);
+        selected->combatentity = NULL;
         selected->wait = 0; G_ClearUnitOrderQueue(selected);
         selected->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
         G_SetHealth(selected, selected->health.max_value);
@@ -1039,7 +1041,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     edict_t *thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
+    thinker = G_Spawn(); thinker->owner = caster; S_SetMoveGoal(thinker, &thinker->goalentity, st.entity); thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f); thinker->think = acid_bomb_think;
 }
 

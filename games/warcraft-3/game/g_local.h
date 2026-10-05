@@ -41,6 +41,8 @@ typedef struct {
     vec2_t *group_points;
     uint32_t group_count, group_index;
     vec2_t group_goal;
+    vec2_t group_request; /* Derived world-coordinate key; admitted goal remains authoritative. */
+    uint32_t group_geometry; /* Process-local transform revision; cleared on save/load. */
     float group_radius;
     uint32_t group_revision;
     uint8_t group_mask; /* Coarse owner lane survives member query toggles. */
@@ -84,7 +86,7 @@ typedef struct moveGroup_s {
 
 /* Original player rows have independent ordinary fine work and intrusive queues. */
 typedef struct {
-    uint32_t work, countdown, count;
+    uint32_t work, countdown, count, limit;
     edict_t *head, *tail;
 } moveFineBudget_t;
 
@@ -172,11 +174,15 @@ if (NAME) { \
 } while (0)
 
 
+#define FOR_SELECTION_MEMBERS(client_t, ENT) \
+for (edict_t *ENT = G_NextSelectedEntity(client_t, 0); ENT; \
+     ENT = G_NextSelectedEntity(client_t, (uint32_t)(ENT - g_edicts) + 1))
+
 #define FOR_SELECTED_UNITS(client_t, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT))
+FOR_SELECTION_MEMBERS(client_t, ENT) if (G_IsEntitySelected(client_t, ENT))
 
 #define FOR_CONTROLLABLE_SELECTED_UNITS(client_t, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT) && G_UnitCanControl(client_t, ENT))
+FOR_SELECTION_MEMBERS(client_t, ENT) if (G_IsEntitySelected(client_t, ENT) && G_UnitCanControl(client_t, ENT))
 
 struct jass_function;
 KNOWN_AS(jass_s, jass_t);
@@ -746,6 +752,10 @@ typedef struct {
 
 typedef struct {
     unitOrder_t entries[MAX_UNIT_ORDER_QUEUE];
+} unitOrderStorage_t;
+
+typedef struct {
+    unitOrder_t *entries; /* allocate on first queued order; preserve ring slot addresses */
     uint32_t head;
     uint32_t count;
 } unitOrderQueue_t;
@@ -776,6 +786,9 @@ typedef enum {
 #define AB_PRIMARY_TIMER (1u << 15) // bit 15; receives primary-clock timer passes independent of server frames
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 #define AB_STATUS_POLICY (1u << 17) // bit 17; procedure classifies its attached buffs for public removal
+#define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
+#define AB_TYPE_UPDATE (1u << 20) // procedure declares type/state requirements for persistent updates
+#define AB_MOVE_SPEED_BONUS (1u << 18) // bit 18; receives the maximum move-speed bonus query
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
  * base classes.  SPELL_TARGET_UNIT_OR_POINT allows either (e.g. Carrion Swarm). */
@@ -901,7 +914,38 @@ typedef enum {
     A_UNIT_OWNER_CHANGING, /* Old owner remains published while behaviors cancel their orders/requests. */
     A_UNIT_OWNER_CHANGED, /* Ownership changes refresh behavior-owned policies after publishing the new player. */
     A_MOVE_SPEED_BONUS,  /* Aggregate all owners into call->move_speed_bonus; no stop-first dispatch. */
+    A_UNIT_EVENT_MASK,  /* InitAbilities: optional subscriptions for broadcast unit events; no unit state. */
+    A_UNIT_TYPE_INIT,   /* Pure per-type fresh-init contract; never sent as a unit lifecycle event. */
+    A_UNIT_TYPE_UPDATE, /* Pure update requirements; unknown procedures retain the full broadcast. */
+    A_TIMERS_RESET,     /* Discard derived timer membership before replacing level state. */
+    A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
+    A_NUM_MESSAGES,
 } abilityMsg_t;
+
+/* A recognized contract promises initialization changes only the owner's
+ * state, not another ability's ownership. Unknown procedures run normally and
+ * end fresh-init specialization for all following callbacks. Tagged values
+ * cannot be confused with a procedure's ordinary boolean result. */
+typedef enum {
+    UNIT_INIT_UNKNOWN = 0,
+    UNIT_INIT_RUN = 0x57434900,
+    UNIT_INIT_SKIP_FALSE,
+    UNIT_INIT_SKIP_TRUE,
+    UNIT_INIT_RUN_LOCAL, /* No metadata, registry, runtime-ability or callback mutations. */
+} unitInitPolicy_t;
+
+/* Update plans preserve registry order. A pointer requirement is tested live,
+ * so an effect can finish after the ability or original order was removed. */
+enum {
+    UNIT_UPDATE_RUN = 0x57435500,
+    UNIT_UPDATE_SKIP,
+    UNIT_UPDATE_POINTER_BASE = 0x57440000,
+};
+#define UNIT_UPDATE_POINTER(member) (UNIT_UPDATE_POINTER_BASE + offsetof(edict_t, member))
+
+typedef struct {
+    uint64_t bits[(A_NUM_MESSAGES + 63) / 64];
+} abilityMessageSet_t;
 
 typedef enum {
     UNIT_BUFF_KNOWN = 1u << 0,
@@ -942,6 +986,11 @@ struct ability_call_s {
         uint32_t level;
         bool enabled;
         float *move_speed_bonus; /* A_MOVE_SPEED_BONUS: maximum nonnegative flat contribution. */
+        struct { /* A_UNIT_TYPE_INIT/UPDATE: immutable inputs, never an instance. */
+            UnitAbilities_t const *unit_type;
+            UnitData_t const *unit_data;
+        };
+        abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
@@ -1009,6 +1058,22 @@ typedef struct {
     float max_value;
 } edictStat_t;
 typedef edictStat_t edictStat_s;
+
+typedef struct {
+    uint16_t select[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t yes[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t ready[MAX_UNIT_SELECT_SOUNDS];
+    uint16_t chop[3];
+    uint8_t num_select, num_yes, num_ready, num_chop;
+    int attack, death;
+} unitSoundProfile_t;
+
+typedef struct {
+    int pending;
+    int owner_pending; /* Owner-only one-shot queued for the next snapshot. */
+    int world_pending; /* Unfiltered world one-shot queued for the next snapshot. */
+    uint8_t world_pending_event;
+} unitSound_t;
 
 typedef struct edictAbilities_s {
     uint32_t added[MAX_ABILITIES];
@@ -1409,6 +1474,10 @@ typedef struct heroabilitystatus_s {
 } heroabilitystatus_t;
 
 typedef struct {
+    heroabilitystatus_t slots[MAX_UNIT_STATUSES];
+} unitStatusStorage_t;
+
+typedef struct {
     uint32_t code;       /* normalized AbilityData.code rawcode; zero means unused slot */
     uint32_t start_time; /* authoritative game time in milliseconds */
     uint32_t end_time;   /* authoritative game time in milliseconds */
@@ -1450,6 +1519,8 @@ typedef struct {
     edict_t *carrier;
     edict_t *item;
 } shopPawnItemParams_t;
+
+typedef struct unitAnimationText_s unitAnimationText_t;
 
 #define WC3_ANIMATION_REQUEST_SIZE 80
 #define WC3_ANIMATION_PROPERTIES_SIZE 128
@@ -1801,7 +1872,7 @@ struct edict_s {
     doodadHero_t hero;
     uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
-    heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    heroabilitystatus_t *abilstatus; /* optional pool; fixed slot order when present */
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
@@ -1948,8 +2019,7 @@ struct edict_s {
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
-    char animation_request[WC3_ANIMATION_REQUEST_SIZE];
-    char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
+    unitAnimationText_t const *animation_request, *animation_props;
     unitbalance_t runtime;
     color32_t vertex_color;
     bool vertex_color_set;
@@ -1962,8 +2032,8 @@ struct edict_s {
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
     unitInfo_t unitinfo;
-    unitAttack_t attack1;
-    unitAttack_t attack2;
+    unitAttack_t const *attack_profiles[2];
+    unitAttack_t *attack_overrides[2];
     uint32_t defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     float armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
     float permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
@@ -1972,20 +2042,8 @@ struct edict_s {
     float temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
     float temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
     float mana_regen_bonus; /* research/permanent mana regeneration modifiers */
-    struct {
-        uint16_t select[MAX_UNIT_SELECT_SOUNDS];
-        uint8_t num_select;
-        uint16_t yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
-        uint8_t num_yes;
-        uint16_t ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
-        uint8_t num_ready;
-        uint16_t chop[3]; uint8_t num_chop;        /* weapon-vs-wood impact variants */
-        int pending;
-        int owner_pending;                  /* owner-only one-shot queued for next snapshot */
-        int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
-        uint8_t world_pending_event;
-        int attack, death;
-    } sound;
+    unitSound_t sound;
+    unitSoundProfile_t const *sound_profile;
 
     void (*stand)(edict_t *);
     void (*birth)(edict_t *);
@@ -2011,8 +2069,37 @@ struct edict_s {
     } data;
 };
 
+/* Sound definitions never contain pending events. Readers cannot allocate or
+ * modify a shared profile; owner edits publish a new immutable logical value. */
+extern unitSoundProfile_t const unit_sound_empty;
+static inline unitSoundProfile_t const *G_UnitSoundProfile(edict_t const *ent) {
+    return ent->sound_profile ? ent->sound_profile : &unit_sound_empty;
+}
+unitSoundProfile_t const *G_InternUnitSoundProfile(unitSoundProfile_t const *value);
+void G_SetUnitSoundProfile(edict_t *ent, unitSoundProfile_t const *value);
+void G_ClearUnitSoundProfiles(void);
+
+/* Attack configuration is shared until a gameplay writer requests an override.
+ * Reading a fresh/partly constructed unit must preserve its old zero defaults. */
+extern unitAttack_t const unit_attack_empty[2];
+static inline unitAttack_t const *S_AttackProfileRead(edict_t const *ent, unsigned slot) {
+    assert(ent && slot < 2);
+    if (ent->attack_overrides[slot]) return ent->attack_overrides[slot];
+    return ent->attack_profiles[slot] ? ent->attack_profiles[slot] : unit_attack_empty + slot;
+}
+unitAttack_t *S_AttackProfileWrite(edict_t *, unsigned slot);
+unitAttack_t const *S_InternAttackProfile(unitAttack_t const *, unsigned slot);
+unitAttack_t const *S_CompileAttackProfile(UnitWeapon_t const *, unsigned slot, uint32_t type, uint32_t weapon);
+void S_AttackApplyDefaults(edict_t *, unsigned slot, unitAttack_t const *);
+void S_ClearAttackProfiles(void);
+unitAttack_t *G_AllocAttackOne(void);
+unitAttack_t *G_AllocAttackTwo(void);
+void G_FreeAttackOne(edict_t *);
+void G_FreeAttackTwo(edict_t *);
+
 typedef struct edictMovement_s edictMovement_s;
 typedef struct edictData_s edictData_s;
+#include "g_construction.h"
 typedef struct clientCamera_s clientCamera_s;
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
@@ -2388,6 +2475,7 @@ struct level_locals {
     wc3Clock_t pathing_clock;
     wc3Clock_t pathing_owner_deadline;
     bool pathing_owner_clock_valid;
+    bool move_fine_responsive; /* Saved simulation policy, selected at map start. */
     wc3Random_t pathing_random;
     uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
     moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
@@ -2671,6 +2759,7 @@ bool ReadGame(cstring_t filename);
 edict_t *G_Spawn(void);
 void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
+void G_ResetUnitResources(void);
 void G_BindEntityRuntime(edict_t *);
 void G_SpawnEntities(void);
 void G_InitLockedMapRandom(void);
@@ -2795,8 +2884,12 @@ uint32_t G_TimerRemaining(gtimer_t const *timer);
 
 edict_t *Waypoint_add(vec2_t const *);
 void G_ResetWaypointCache(void);
+void S_MarkMoveGoals(edict_t const *owner);
+edict_t *S_SetMoveGoal(edict_t *owner, edict_t **slot, edict_t *goal);
 void G_InitWaypoints(void);
 void G_ResetSpawnCache(void);
+void G_ClearEdictStorage(uint32_t count);
+void G_MarkEdictStorageUsed(uint32_t count);
 void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
 void G_RegisterGroundSurface(edict_t *);
@@ -2823,6 +2916,12 @@ bool         G_AnimationHasPrimary(animation_t const *animation, cstring_t prima
 animation_t const *G_GetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_SetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_ResetUnitAnimationProperties(edict_t *unit);
+void         G_ResetUnitAnimationPropertiesPrepared(edict_t *, unitAnimationDefaults_t *);
+cstring_t    G_UnitAnimationRequest(edict_t const *);
+cstring_t    G_UnitAnimationProperties(edict_t const *);
+void         G_StoreUnitAnimationRequest(edict_t *, cstring_t);
+void         G_StoreUnitAnimationProperties(edict_t *, cstring_t);
+void         G_ClearUnitAnimationText(void);
 void         G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add);
 void         G_FreeModels(void);
 
@@ -2881,9 +2980,16 @@ void S_SetUnitPaused(edict_t *, bool);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
+typedef enum {
+    UNIT_MOVE_UNSPECIFIED, UNIT_MOVE_FOOT, UNIT_MOVE_HORSE, UNIT_MOVE_FLY,
+    UNIT_MOVE_HOVER, UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_DISABLED
+} unitMovementType_t;
+void S_CompileMovementData(UnitData_t *);
+unitMovementType_t S_UnitMovementType(UnitData_t const *);
 bool M_UnitMoveDisabled(edict_t const *);
 bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);
+void SP_SpawnFreshUnit(edict_t *);
 uint32_t unit_spawn_aiflags(uint32_t);
 bool SP_TrainUnit(edict_t *, uint32_t);
 uint32_t G_ProductionQueueCount(edict_t *);
@@ -2932,6 +3038,9 @@ bool G_SetRallyPoint(edict_t *producer, vec2_t const *point);
 bool G_SetRallyEntity(edict_t *producer, edict_t *target);
 rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t * *target);
 bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced);
+void S_ResetLandMineThinkers(void);
+void S_InvalidateRallyProducers(void);
+void S_ForgetRallyProducer(edict_t *);
 void G_InvalidateRallyTarget(edict_t *target);
 void G_UpdateRallyIndicator(gameClient_t *client);
 
@@ -2992,6 +3101,8 @@ bool S_ValidateMoveShared(void);
 uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
 bool S_AdmitUnitMoveFineRequest(edict_t *unit);
 void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work);
+void S_CancelUnitMoveFineRequest(edict_t *unit);
+void S_InitMoveFineScheduler(void);
 void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
@@ -3007,6 +3118,10 @@ bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *, moveFineRoute_t *, bool *);
 bool G_AdvanceUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *,moveFineRoute_t *,vec2_t *,uint32_t *);
 void G_FreeMovePathCache(void);
+void G_RunPathJob(void (*work)(void *), void *data);
+void G_WaitPathJob(void);
+void G_SetPathWorkerEnabled(bool enabled);
+void G_ShutdownPathWorker(void);
 void G_FinishMovePathingInitialization(void);
 uint32_t G_GetMoveAdaptiveStateSize(void);
 point2_t G_GetMoveAdaptiveMapSize(unsigned);
@@ -3036,8 +3151,15 @@ bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 void S_RunAbilityUpdates(edict_t *);
 void S_RunAbilityOwnerUpdates(void);
 void S_RunAbilityTimers(void);
+void S_ResetAbilityTimers(void);
+void S_RebuildAbilityTimers(void);
 void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+bool S_InitFreshUnitAbilities(edict_t *);
+bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
+bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);
+bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
+void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
@@ -3064,6 +3186,7 @@ void S_AbilityCommand(edict_t *clent, ability_t const *ability);
 ability_t const *GetAbilityByIndex(uint32_t);
 uint32_t FindAbilityIndex(cstring_t);
 void InitAbilities(void);
+void S_ReplaceAbilityProcedure(ability_t const *, abilityProc_t);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
@@ -3130,6 +3253,7 @@ void G_StopBuildingUpgrade(edict_t *building, bool refund);
 void G_RunBuildingUpgradeFrame(edict_t *building);
 void G_UpdateBuildingUpgradeAnimation(edict_t *building);
 void G_ApplyPlayerUpgradesToUnit(edict_t *unit);
+void G_ResetPlayerTechIndexes(void);
 bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
 cstring_t G_AbilityRequirementField(uint32_t code, bool amounts);
 bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code);
@@ -3426,6 +3550,10 @@ int32_t G_CompareSelectionOrder(edict_t const *, edict_t const *);
 uint32_t G_GetOrderedSelectedUnits(gameClient_t *, edict_t * *, uint32_t);
 void G_SelectEntity(gameClient_t *, edict_t *);
 void G_DeselectEntity(gameClient_t *, edict_t *);
+uint32_t G_SetEntitySelectionMask(edict_t *, uint32_t);
+void G_ResetSelectionIndex(void);
+void G_RebuildSelectionIndex(void);
+edict_t *G_NextSelectedEntity(gameClient_t const *, uint32_t);
 bool G_IsEntitySelected(gameClient_t *, edict_t *);
 bool G_FocusSelectedUnit(gameClient_t *, edict_t *);
 bool G_CycleSelectionSubgroup(gameClient_t *);
@@ -3516,11 +3644,26 @@ bool unit_additem(edict_t *, edict_t *);
 void unit_addstatus(edict_t *, cstring_t, uint32_t);
 void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
 uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
+static inline uint32_t G_UnitStatusSlotCount(edict_t const *unit) {
+    return unit && unit->abilstatus ? MAX_UNIT_STATUSES : 0;
+}
+heroabilitystatus_t *G_EnsureUnitStatusSlots(edict_t *);
 typedef struct unitStatusQuery_s {
     edict_t const *unit;
-    uint32_t slots;
+    uint32_t slots, hero_slots, ability_count;
+    uint32_t const *abilities;
+    uint64_t ability_membership;
     struct unitStatusQuery_s *previous;
 } unitStatusQuery_t;
+/* Borrowed discovery for one pure mechanical calculation; never span callbacks
+ * or an ownership mutation. Nested owners restore the enclosing query. */
+extern unitStatusQuery_t *g_unit_status_query;
+static inline bool G_UnitStatusQueryEmpty(edict_t const *unit) {
+    return g_unit_status_query && g_unit_status_query->unit == unit && !g_unit_status_query->slots;
+}
+static inline uint32_t G_QueryUnitStatusLevel(edict_t const *unit, uint32_t code) {
+    return G_UnitStatusQueryEmpty(unit) ? 0 : G_UnitStatusLevel(unit, code);
+}
 void G_BeginUnitStatusQuery(edict_t const *,unitStatusQuery_t *);
 void G_EndUnitStatusQuery(unitStatusQuery_t *);
 bool unit_statusshowstimedbar(uint32_t);
@@ -3619,6 +3762,12 @@ extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(edict_t *);
 bool G_ActorHasSkill(edict_t const *, cstring_t);
+bool G_ActorHasAbilityCode(edict_t const *, uint32_t code);
+#ifdef BZ_TESTS
+void G_TestRecordStaticAbilityToken(void);
+uint32_t G_TestStaticAbilityTokens(bool reset);
+uint32_t S_TestMoveBonusMessages(bool reset);
+#endif
 bool G_ActorAddSkill(edict_t *, uint32_t);
 bool G_ActorRemoveSkill(edict_t *, uint32_t);
 bool G_ActorSetSkillPermanent(edict_t *, uint32_t, bool);
@@ -3728,6 +3877,9 @@ bool move_is_blocked(edict_t *, float, float);
 bool move_is_settled_near_goal(edict_t *, float, float);
 bool move_is_terminal_hold(edict_t const *);
 void move_reset_progress(edict_t *);
+void G_ResetAcquisitionPresence(void);
+void G_BeginAcquisitionFrame(void);
+void G_AcquisitionEntityLinked(edict_t const *);
 edict_t *G_FindNearestEnemy(edict_t *, float);
 float G_AcquisitionRange(edict_t const *);
 float G_FollowStopRange(edict_t const *follower, edict_t const *target);
@@ -3876,6 +4028,10 @@ void G_FreeRally(edict_t *ent);
 rally_t *G_AllocRally(void);
 void G_FreeFood(edict_t *ent);
 food_t *G_AllocFood(void);
+void G_FreeUnitStatus(edict_t *ent);
+unitStatusStorage_t *G_AllocUnitStatus(void);
+void G_FreeUnitOrders(edict_t *ent);
+unitOrderStorage_t *G_AllocUnitOrders(void);
 void G_FreeBuildwork(edict_t *ent);
 buildwork_t *G_AllocBuildwork(void);
 void G_FreeRevival(edict_t *ent);
@@ -3910,6 +4066,8 @@ void G_FreeDestructable(edict_t *ent);
 destructable_t *G_AllocDestructable(void);
 void G_FreeCargo(edict_t *ent);
 cargo_t *G_AllocCargo(void);
+void S_InvalidateCargoHolders(void);
+void S_CargoForgetHolder(edict_t const *);
 void G_FreeStock(edict_t *ent);
 stock_t *G_AllocStock(void);
 void G_FreeWaygate(edict_t *ent);

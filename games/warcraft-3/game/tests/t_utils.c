@@ -65,6 +65,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
 }
 
 void reset_entities(void) {
+    G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();
     G_ResetWaypointCache();
@@ -72,6 +73,10 @@ void reset_entities(void) {
     G_ResetMoveRegionEvents();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    /* Existing movement fixtures compare exact retail admission clocks.
+     * Responsive-policy tests opt in after resetting their world. */
+    level.move_fine_responsive=false;
+    S_ResetAbilityTimers();
     G_ClearMoveSpatial();
     M_ResetMoveMembers();
     uint32_t cap = globals.max_edicts;
@@ -90,7 +95,7 @@ void reset_entities(void) {
         G_FreeActorSkills(g_edicts+i);
     }
     G_PoolsReset();
-    memset(g_edicts, 0, sizeof(edict_t) * cap);
+    G_ClearEdictStorage(cap);
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
@@ -152,6 +157,8 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    S_ResetAbilityTimers();
+    G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();
     G_ResetDeferredFrees();
@@ -166,7 +173,7 @@ static void reset_test_state(void) {
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
     FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    G_ClearEdictStorage(globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */

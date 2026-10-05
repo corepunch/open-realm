@@ -101,7 +101,7 @@ TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
 	T_ASSERT(S_PurgeIsImmobilized(fix.enemy));
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 1.0f, 0.001f);
 	wp = Waypoint_add(&(vec2_t){200, 0});
-	fix.enemy->goalentity = NULL;
+	S_SetMoveGoal(fix.enemy, &fix.enemy->goalentity, NULL);
 	order_move(fix.enemy, wp);
 	T_ASSERT(fix.enemy->goalentity != wp);
 

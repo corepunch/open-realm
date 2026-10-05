@@ -6,15 +6,15 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 101, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 108, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
 - the quest and quest-item graph's strings and status flags;
 - the initial point-order waypoint reserve and its allocation cursor, plus additional managed destination edicts;
-- one used flag per entity slot, a raw `edict_t` block for used slots, and its retained native fine-route points;
-- sparse lifecycle records for all 27 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
+- one used flag per entity slot, a raw `edict_t` block for used slots, logical attack defaults/overrides, immutable sound profiles, bounded animation text, and retained native fine-route points;
+- sparse lifecycle records for all 29 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
 - ordinary fine-cell active insertion history after the pools: a64-bit publication counter, object count, owning-edict indexes and retained per-cell ranks;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
@@ -24,6 +24,42 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 77 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 77 because its client-record boundary has no list count; version 77 saves are likewise rejected by older exact-version readers.
+
+Version102 moves the eight ordered status records out of the raw edict into an
+optional pool. Units with no applied statuses own no record storage. Insertion
+allocates all eight slots together, and removal retains the allocation until
+edict release so synchronous inverse callbacks keep stable slot addresses.
+The raw pointer is excluded from the edict payload; the pool serializes every
+slot, including vacant ones, and remaps each applying source through `F_EDICT`.
+Timing, rank, origin rawcode and numeric payloads remain unchanged. Loading
+restores absent storage as null. Version101 and earlier layouts are rejected.
+
+Version106 separates shared immutable unit sound profiles from mutable pending
+events. Save records contain logical variant arrays/counts and attack/death sound
+indices, never profile pointers. Load re-interns values and rejects oversized
+variant counts. Selection response requests still clear during load; owner/world
+pending events retain their existing saved-state behavior.
+
+Version105 adds the route-owned world-request memo fields. They are derived
+`FIELD_RUNTIME` data, cleared in both unit and group route serializers; restored
+native goals and route points remain authoritative. Older layouts are rejected.
+
+Version104 replaces the inline attack copies with shared immutable profiles and
+optional per-slot overrides. Each edict payload stores a two-bit ownership mask,
+both logical default profiles and the values of any owned overrides. Restore
+interns immutable defaults and allocates only saved overrides. No process pointer
+is serialized. Pool reset runs before restoring edicts so it cannot discard
+newly restored attack overrides. The other 29 lifecycle pools retain their own
+later payloads. Version103 and all earlier layouts are rejected.
+
+Version103 moves the sixteen-entry command ring into an optional pool. A fresh
+unit has no queue allocation. The first queued order allocates the full ring;
+clearing or consuming it retains storage until edict release, preserving entry
+addresses during synchronous cancellation callbacks. Head and count remain in
+the raw edict; the pool stores every entry, including unused slots, through the
+existing queued-order schema. Loading rejects out-of-range counters or a nonempty
+ring without storage. Wrapped FIFO order and Move context survive reconstruction.
+Version102 and earlier saves are rejected by the exact-version guard.
 
 Version85 retains unit owned-pool insertion sequences and the64-bit allocation
 counter. Birth and genuine owner transfer insert a unit at the pool head; a
@@ -245,11 +281,17 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 ## Field Table
 
 `games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
-`edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as `abilstatus[]` (including each
-timed status's `timestamp` and `duration_ms`), `abilitycooldowns[]` (cooldown rawcode/start/end), and the inline WC3 animation-property strings (`animation_props` and
-`animation_request`) therefore round-trip with that raw record and need no `field_t` entry. The adjacent `runtime_fields[]` and
+`edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as
+`abilitycooldowns[]` (cooldown rawcode/start/end) and scalar animation state therefore round-trip with that raw record
+and need no `field_t` entry. Animation requests and properties are immutable references: format107 excludes their
+pointers and writes bounded logical text separately. The adjacent `runtime_fields[]` and
 `client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
 common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
+
+Status slots use the same rule in their optional pool record: scalar timing,
+rank and payload fields round-trip in the record, while the applying `source`
+is a nested `F_EDICT` field in `abilstatus->slots`. The edict's storage pointer
+is runtime state reconstructed by the pool stream.
 
 `EDICTFIELD(x, type)` describes one scalar field with `array_size == 0`. `EDICTFIELD(x, type, count)` describes a contiguous array from the base offset; the serializer walks `count` elements using the field type's element size. For example, the six inventory pointers use `EDICTFIELD(inventory, F_EDICT, MAX_INVENTORY)` rather than six duplicate descriptors.
 
@@ -1126,3 +1168,10 @@ Loading restores both arrays directly, preserving unconditional overlap erasure
 rather than restamping surviving gates. Two actual removal/save/load sequences
 retain complete native publication hashes and subsequent ordinary routes.
 Older versions are rejected. See [overlap routing](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
+
+Format107 replaces inline animation request/property arrays with shared immutable
+records. Both pointer fields are runtime-only. The edict payload writes the
+logical 80-byte request and 128-byte property buffers; load rejects unterminated
+buffers, interns their text, and resolves the selected animation after rebinding
+object data. This retains per-unit edits independently of later type defaults.
+Model resource resets discard resolved selections while retaining logical text.

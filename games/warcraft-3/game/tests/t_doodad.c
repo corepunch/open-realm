@@ -115,7 +115,7 @@ TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
         T_ASSERT(G_IsDoodad(ent));
         T_NOT_NULL(ent->animation);
         T_EQ(ent->s.frame, first);
-        T_STREQ(ent->animation_request, "Stand");
+        T_STREQ(G_UnitAnimationRequest(ent), "Stand");
         T_ASSERT(ent->think == monster_think);
         if (ent->animation && ent->think) {
             ent->think(ent);

@@ -121,12 +121,12 @@ static bool militia_prepare_approach(edict_t *worker, edict_t *hall) {
     range = worker->collision + MAX(0.0f, S_SpellRange(hall_ability, 1));
     if (CM_FindApproachPointToFootprintForRadius(
             hall, &worker->s.origin2, range, worker->collision, &approach)) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
     if (!hall->pathtex) {
-        worker->goalentity = hall;
+        S_SetMoveGoal(worker, &worker->goalentity, hall);
         move_reset_progress(worker);
         return true;
     }
@@ -160,7 +160,7 @@ static void militia_return_carried_resources(edict_t *worker) {
 
 static void militia_remove_buff(edict_t *unit) {
     uint32_t const code = MAKEFOURCC('B','m','i','l');
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code)
             memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
     }
@@ -197,7 +197,7 @@ static bool militia_transform_forward(edict_t *worker) {
     if (!militia_transform_type(worker, militia_type)) return false;
     worker->militia->active = true;
     militia_clear_pairing(worker);
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
     if (duration > 0.0f) unit_addtimedstatus(worker, MILITIA_BUFF, 1, duration);
     unit_stand(worker);
@@ -218,7 +218,7 @@ static bool militia_transform_back(edict_t *militia, bool resume_work) {
     militia->militia->previous_resource = 0;
     militia_clear_pairing(militia);
     if (resume_work) {
-        militia->goalentity = NULL;
+        S_SetMoveGoal(militia, &militia->goalentity, NULL);
         move_reset_progress(militia);
         militia_back_to_work(militia, resource);
     }
@@ -231,7 +231,7 @@ static void ai_militia_pair_walk(edict_t *worker) {
 
     if (!militia_partner_valid(worker, hall)) {
         militia_clear_pairing(worker);
-        worker->goalentity = NULL;
+        S_SetMoveGoal(worker, &worker->goalentity, NULL);
         move_reset_progress(worker);
         unit_stand(worker);
         return;
@@ -242,7 +242,7 @@ static void ai_militia_pair_walk(edict_t *worker) {
             : militia_transform_forward(worker);
         if (!transformed) {
             S_CancelMilitiaPairing(worker);
-            worker->goalentity = NULL;
+            S_SetMoveGoal(worker, &worker->goalentity, NULL);
             move_reset_progress(worker);
             unit_stand(worker);
         }
@@ -252,7 +252,7 @@ static void ai_militia_pair_walk(edict_t *worker) {
     step = unit_movedistance(worker);
     if (move_is_blocked(worker, distance, step) || worker->movement.flow_unreachable) {
         militia_clear_pairing(worker);
-        worker->goalentity = NULL;
+        S_SetMoveGoal(worker, &worker->goalentity, NULL);
         move_reset_progress(worker);
         unit_stand(worker);
         return;
@@ -260,7 +260,7 @@ static void ai_militia_pair_walk(edict_t *worker) {
     unit_changeangle_for_radius(worker, worker->collision);
     if (worker->movement.flow_goal_reached && !militia_in_range(worker, hall)) {
         militia_clear_pairing(worker);
-        worker->goalentity = NULL;
+        S_SetMoveGoal(worker, &worker->goalentity, NULL);
         move_reset_progress(worker);
         unit_stand(worker);
         return;
@@ -319,7 +319,7 @@ bool S_MilitiaTargetOrder(edict_t *worker, cstring_t order, edict_t *hall) {
     }
     if (!militia_prepare_approach(worker, hall)) {
         militia_clear_pairing(worker);
-        worker->goalentity = NULL;
+        S_SetMoveGoal(worker, &worker->goalentity, NULL);
         move_reset_progress(worker);
         if (!returning) worker->militia->ability = 0;
         return false;

@@ -22,6 +22,11 @@
  * covered third got no flow vector and stopped mid-map, looking "gated" when
  * the goal was actually reachable.  Bound by the real map size for full
  * coverage, matching the original's whole-map pathing. */
+#ifndef PATH_JOB_RUN
+#define PATH_JOB_RUN(work, data) work(data)
+#define PATH_JOB_WAIT() ((void)0)
+#endif
+
 #define HEATMAP_MAX_ITERATIONS(cells) ((int)(cells))
 
 typedef struct {
@@ -72,6 +77,20 @@ typedef struct {
     point2_t min, max;
     uint8_t flags;
 } pathGridQuery_t;
+
+/* Connectivity belongs to the static footprint class, not to a destination.
+ * A byte retains its eight allowed edges; one validity bit distinguishes an
+ * unvisited cell from a blocked cell. Cache eviction changes no search state.
+ * Static revisions discard derived edges before the next expansion. */
+#define PATH_CONNECTIVITY_SLOTS 8
+typedef struct {
+    pathGridQuery_t query;
+    uint8_t *edges, *valid;
+    uint32_t revision;
+    uint64_t used;
+} pathConnectivity_t;
+static pathConnectivity_t path_connectivity[PATH_CONNECTIVITY_SLOTS];
+static uint64_t path_connectivity_clock;
 
 #define HEATMAP_CACHE_SLOTS 16
 
@@ -148,31 +167,32 @@ static void heatmap_job_cancel(void) {
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
-static struct {
-    uint32_t cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
-} g_perf;
-
-void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
-
 typedef struct routePerfStats_s {
     uint32_t cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
 } routePerfStats_t;
+static routePerfStats_t g_perf;
+static _Thread_local routePerfStats_t *path_perf_owner;
+static routePerfStats_t path_work_perf;
+
+void CM_ResetTestPathPerfStats(void) { CM_FinishPathJobs(); memset(&g_perf, 0, sizeof(g_perf)); }
 
 routePerfStats_t CM_GetTestPathPerfStats(void) {
+    CM_FinishPathJobs();
     return (routePerfStats_t){
         g_perf.cache_hits, g_perf.cache_misses,
         g_perf.heatmap_iterations, g_perf.pathability_checks,
         g_perf.flow_cells_computed, g_perf.closest_reachable_calls,
     };
 }
-#define PERF_INC(field) g_perf.field++
-#define PERF_ADD(field, n) g_perf.field += (n)
+#define PERF_INC(field) (path_perf_owner ? path_perf_owner : &g_perf)->field++
+#define PERF_ADD(field, n) (path_perf_owner ? path_perf_owner : &g_perf)->field += (n)
 #else
 #define PERF_INC(field) ((void)0)
 #define PERF_ADD(field, n) ((void)0)
 #endif
 
 static void heatmap_cache_invalidate(void) {
+    CM_FinishPathJobs();
     pathmap.revision++;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
@@ -200,6 +220,7 @@ void CM_InvalidatePathCache(void) {
  * The public name is retained for callers, but cache entries now store prices
  * rather than a pre-baked VECTOR2 for every map cell. */
 bool CM_ActivateCachedFlow(uint32_t generation) {
+    CM_FinishPathJobs();
     if (!generation)
         return false;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
@@ -224,6 +245,7 @@ bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags) {
 }
 
 bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
+    CM_FinishPathJobs();
     vec2_t n;
     int cx, cy;
 
@@ -243,6 +265,7 @@ bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
 }
 
 bool CM_FlowCanReach(uint32_t generation, float x, float y) {
+    CM_FinishPathJobs();
     vec2_t n;
     int cx, cy;
 
@@ -286,6 +309,7 @@ static void rebuild_static_obstacle_prefix(void) {
 }
 
 void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
+    CM_FinishPathJobs();
     uint32_t n = width * height;
 
     SAFE_DELETE(pathmap.data, MemFree);
@@ -303,6 +327,12 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         SAFE_DELETE(heatmap_cache[i].prices, MemFree);
     }
+    FOR_LOOP(i, PATH_CONNECTIVITY_SLOTS) {
+        SAFE_DELETE(path_connectivity[i].edges, MemFree);
+        SAFE_DELETE(path_connectivity[i].valid, MemFree);
+    }
+    memset(path_connectivity, 0, sizeof(path_connectivity));
+    path_connectivity_clock = 0;
 
     pathmap.width = width;
     pathmap.height = height;
@@ -388,6 +418,53 @@ static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_
 
 static bool path_query_ok(point2_t pos, pathGridQuery_t const *query);
 
+static pathConnectivity_t *path_connectivity_for_query(pathGridQuery_t const *query) {
+    pathConnectivity_t *slot = path_connectivity;
+    uint32_t const cells = pathmap.width * pathmap.height;
+
+    FOR_LOOP(i, PATH_CONNECTIVITY_SLOTS) {
+        pathConnectivity_t *entry = path_connectivity + i;
+        if (entry->edges && path_queries_equal(&entry->query, query)) {
+            if (entry->revision != pathmap.revision) {
+                memset(entry->valid, 0, (cells + 7) / 8);
+                entry->revision = pathmap.revision;
+            }
+            entry->used = ++path_connectivity_clock;
+            return entry;
+        }
+        if (entry->used < slot->used)
+            slot = entry;
+    }
+    if (!slot->edges) {
+        slot->edges = MemAlloc(cells);
+        slot->valid = MemAlloc((cells + 7) / 8);
+    }
+    memset(slot->valid, 0, (cells + 7) / 8);
+    slot->query = *query;
+    slot->revision = pathmap.revision;
+    slot->used = ++path_connectivity_clock;
+    return slot;
+}
+
+static uint8_t path_connectivity_edges(pathConnectivity_t *entry, uint32_t cell, int x, int y) {
+    uint8_t bit = 1u << (cell & 7), edges = 0;
+    if (entry->valid[cell >> 3] & bit)
+        return entry->edges[cell];
+    FOR_LOOP(i, 8) {
+        if (!path_query_ok((point2_t){x + dx[i], y + dy[i]}, &entry->query))
+            continue;
+        if (i >= 4) {
+            bool const side_x = edges & (1 << (dx[i] < 0 ? 0 : 1));
+            bool const side_y = edges & (1 << (dy[i] < 0 ? 2 : 3));
+            if (!(side_x && side_y)) continue;
+        }
+        edges |= 1u << i;
+    }
+    entry->edges[cell] = edges;
+    entry->valid[cell >> 3] |= bit;
+    return edges;
+}
+
 static bool path_ok(int x, int y, int radius, uint8_t flags) {
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius, flags);
 }
@@ -413,7 +490,7 @@ static void begin_heatmap_build(heatmapJob_t *job, point2_t target, pathGridQuer
  * in heatmapJob_t lets game routing spread a large map flood over many frames,
  * while the synchronous test/tool API can run the same implementation to
  * completion in one call. */
-static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
+static bool step_heatmap_edges(heatmapJob_t *job, uint32_t work_budget, pathConnectivity_t *connectivity) {
     uint32_t const width = pathmap.width;
     uint32_t const cap = pathmap.width * pathmap.height + 1;
     uint32_t *const q = pathmap.queue;
@@ -430,18 +507,11 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
         int const ux = (int)(u % width);
         int const uy = (int)(u / width);
         /* Cardinal directions occupy slots 0-3; diagonals reuse those bits. */
-        uint8_t pathable_neighbors = 0;
+        uint8_t const edges = path_connectivity_edges(connectivity, u, ux, uy);
         FOR_LOOP(i, 8) {
+            if (!(edges & (1u << i))) continue;
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
-            if (!path_query_ok((point2_t){nx, ny}, &job->query))
-                continue;
-            pathable_neighbors |= 1 << i;
-            if (i >= 4) {
-                bool const side_x = pathable_neighbors & (1 << (dx[i] < 0 ? 0 : 1));
-                bool const side_y = pathable_neighbors & (1 << (dy[i] < 0 ? 2 : 3));
-                if (!(side_x && side_y)) continue;
-            }
             uint32_t const v = (uint32_t)nx + (uint32_t)ny * width;
             routeNode_t *const vn = &pathmap.heatmap[v];
             int const np = up + gv[i];
@@ -458,6 +528,11 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
     job->work_done += work;
     return job->head == job->tail;
 }
+
+static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
+    return step_heatmap_edges(job, work_budget, path_connectivity_for_query(&job->query));
+}
+
 
 static float pathmap_cell_world_size(void);
 
@@ -624,6 +699,7 @@ static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransfo
  * is normally called once after map spawning, and again only when a static
  * footprint changes (building creation or destructable death). */
 void CM_BakeStaticObstacles(void) {
+    CM_FinishPathJobs();
     uint32_t const cells = pathmap.width * pathmap.height;
 
     if (!pathmap.terrain || !pathmap.original)
@@ -689,6 +765,9 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
 }
 
 static void pathmap_cell_world_dimensions(float *cell_x, float *cell_y) {
+#ifdef PATH_CELL_WORLD_DIMENSIONS
+    PATH_CELL_WORLD_DIMENSIONS(cell_x, cell_y);
+#else
     *cell_x = FLT_MAX;
     *cell_y = FLT_MAX;
 
@@ -702,6 +781,7 @@ static void pathmap_cell_world_dimensions(float *cell_x, float *cell_y) {
         vec2_t b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
         *cell_y = fabsf(b.y - a.y);
     }
+#endif
 }
 
 static float pathmap_cell_world_size(void) {
@@ -1528,6 +1608,7 @@ static bool resolve_heatmap_request(edict_t const *goalentity, pathGridQuery_t c
  * mover cannot reach that component, so the whole-component flood is paid once
  * for an exceptional order rather than on every ordinary right click. */
 static bool closest_reachable_point(pathAccelParams_t const *params, pathGridQuery_t const *query, vec2_t *out) {
+    CM_FinishPathJobs();
     vec2_t n;
     vec2_t const *from = params->from, *target = params->target;
     point2_t start;
@@ -1722,6 +1803,7 @@ static uint32_t commit_heatmap(point2_t target, pathGridQuery_t const *query) {
  * a completed field now.  Game movement uses CM_RequestHeatmapForRadius() so a
  * large flood does not run to completion inside one unit think. */
 uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
+    CM_FinishPathJobs();
     point2_t target;
     int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     pathGridQuery_t query = path_radius_query(cells, CM_PATHING_UNWALKABLE);
@@ -1760,6 +1842,7 @@ uint32_t CM_BuildHeatmap(edict_t *goalentity) {
  * remain part of the identity, including asymmetric game-authored classes. */
 static uint32_t request_heatmap_query(point2_t target, pathGridQuery_t const *query,
                                      edict_t *requester, edict_t *goalentity) {
+    CM_FinishPathJobs();
     int cached = find_cached_heatmap(target, query);
     if (cached >= 0) {
         PERF_INC(cache_hits);
@@ -1792,22 +1875,73 @@ uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius) {
     return CM_RequestHeatmapForRadiusFlags(goalentity, radius, CM_PATHING_UNWALKABLE);
 }
 
-void CM_ProcessPathJobs(uint32_t work_budget) {
-    if (!heatmap_job.active || !work_budget || !pathmap.width || !pathmap.height)
-        return;
+static struct {
+    heatmapJob_t job;
+    pathConnectivity_t *connectivity;
+    uint32_t budget;
+    bool pending, complete;
+} path_work;
 
-    if (!heatmap_job.started)
-        begin_heatmap_build(&heatmap_job, heatmap_job.target, &heatmap_job.query);
+/* The worker only touches numeric frontier scratch and borrowed immutable
+ * static geometry. It never allocates, reads an edict, or publishes a cache. */
+static void path_job_run(void *unused) {
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+    memset(&path_work_perf, 0, sizeof(path_work_perf));
+    path_perf_owner = &path_work_perf;
+#endif
+    if (!path_work.job.started)
+        begin_heatmap_build(&path_work.job, path_work.job.target, &path_work.job.query);
+    path_work.complete = step_heatmap_edges(&path_work.job, path_work.budget, path_work.connectivity);
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+    path_perf_owner = NULL;
+#endif
+}
 
-    if (!step_heatmap_build(&heatmap_job, work_budget))
-        return;
+void CM_BeginPathJobs(uint32_t work_budget) {
+    CM_FinishPathJobs();
+    if (!heatmap_job.active || !work_budget || !pathmap.width || !pathmap.height) return;
+    path_work.job = heatmap_job;
+    path_work.connectivity = path_connectivity_for_query(&heatmap_job.query);
+    path_work.budget = work_budget;
+    path_work.pending = true;
+    PATH_JOB_RUN(path_job_run, NULL);
+}
 
+void CM_FinishPathJobs(void) {
+    if (!path_work.pending) return;
+    PATH_JOB_WAIT();
+    path_work.pending = false;
+    heatmap_job = path_work.job;
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+#define MERGE_PATH_PERF(field) g_perf.field += path_work_perf.field
+    MERGE_PATH_PERF(cache_hits); MERGE_PATH_PERF(cache_misses);
+    MERGE_PATH_PERF(heatmap_iterations); MERGE_PATH_PERF(pathability_checks);
+    MERGE_PATH_PERF(flow_cells_computed); MERGE_PATH_PERF(closest_reachable_calls);
+#undef MERGE_PATH_PERF
+#endif
+    if (!path_work.complete) return;
     commit_heatmap(heatmap_job.target, &heatmap_job.query);
     heatmap_job_cancel();
     (void)heatmap_job_start_next();
 }
 
+void CM_ProcessPathJobs(uint32_t work_budget) {
+    CM_BeginPathJobs(work_budget);
+    CM_FinishPathJobs();
+}
+
+#ifdef BZ_TESTS
+/* Observe the numeric frontier after publication, without exposing scratch to
+ * callers while its worker owns it. Generation identities are map-local. */
+void CM_TestCopyFlowPrices(int *prices, uint32_t count) {
+    CM_FinishPathJobs();
+    assert(count == pathmap.width * pathmap.height);
+    FOR_LOOP(i, count) prices[i] = pathmap.heatmap[i].price;
+}
+#endif
+
 void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
+    CM_FinishPathJobs();
     uint32_t const cap = pathmap.width * pathmap.height + 1;
     if (!status) return;
     memset(status, 0, sizeof(*status));

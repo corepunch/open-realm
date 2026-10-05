@@ -575,8 +575,9 @@ static inline bool eat_token(wordExtractor_t *p, cstring_t value) {
     return false;
 }
 
-static inline cstring_t parse_segment(wordExtractor_t *p) {
-    static char seg[PARSER_MAX_SEGMENT];
+/* A caller-owned token keeps nested metadata decoding from overwriting the
+ * outer parser's borrowed static token. The grammar stays shared. */
+static inline cstring_t parse_segment_into(wordExtractor_t *p, char seg[PARSER_MAX_SEGMENT]) {
     memset(seg, 0, PARSER_MAX_SEGMENT);
     if (*p->buffer == '\0') return NULL;
     parser_skip_ws(p);
@@ -614,6 +615,11 @@ static inline cstring_t parse_segment(wordExtractor_t *p) {
     }
     ++p->buffer;
     return seg;
+}
+
+static inline cstring_t parse_segment(wordExtractor_t *p) {
+    static char seg[PARSER_MAX_SEGMENT];
+    return parse_segment_into(p, seg);
 }
 
 static inline cstring_t parse_segment2(wordExtractor_t *p) {

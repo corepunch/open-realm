@@ -5,6 +5,20 @@
 
 #define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
 
+/* Only broadcast dispatch consumes these subscriptions. Direct calls retain
+ * the procedure's complete interface. Unqueried procedures keep all events. */
+static inline intptr_t S_UnitMessageSubscriptions(abilityCall_t const *call,
+                                                abilityMsg_t const *messages, size_t count) {
+    if (!call || !call->unit_messages) return false;
+    *call->unit_messages = (abilityMessageSet_t){0};
+    for (size_t i = 0; i < count; i++)
+        call->unit_messages->bits[messages[i] / 64] |= UINT64_C(1) << (messages[i] % 64);
+    return true;
+}
+#define UNIT_MESSAGE_SUBSCRIPTIONS(...) \
+    S_UnitMessageSubscriptions(call, (abilityMsg_t const[]){__VA_ARGS__}, \
+        sizeof((abilityMsg_t const[]){__VA_ARGS__}) / sizeof(abilityMsg_t))
+
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \
@@ -375,8 +389,10 @@ bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t con
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
 void S_InvalidateAuraSources(void);
+void S_MarkAuraSource(edict_t const *unit);
 bool S_UnitHasAuraSource(edict_t *);
 void S_InvalidateEnduranceSources(void);
+void S_MarkEnduranceSource(edict_t const *unit);
 float S_ApplyEnduranceMoveSpeed(edict_t *,float);
 float S_ApplyEnduranceAttackBonus(edict_t *,float);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);

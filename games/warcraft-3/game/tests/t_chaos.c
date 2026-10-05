@@ -69,4 +69,34 @@ static void chaos_ability_lifecycle(bool cancel, bool same_type) {
 TEST(wc3_chaos, deferred_morph_inherits_requirements_and_consumes_the_ability) {chaos_ability_lifecycle(false,false);}
 TEST(wc3_chaos, removing_pending_ability_cancels_the_morph) {chaos_ability_lifecycle(true,false);}
 TEST(wc3_chaos, same_type_morph_still_consumes_the_ability) {chaos_ability_lifecycle(false,true);}
+
+TEST(wc3_chaos, timer_membership_rebuild_and_retirement_skip_unrelated_entities) {
+    reset_entities();setup_test_world();
+    uint32_t old_count=globals.num_edicts;
+    globals.num_edicts=4096;
+    FOR_LOOP(i,globals.num_edicts) g_edicts[i].inuse=true;
+    S_ResetAbilityTimers();
+    chaos_timer_visits=0;S_RunAbilityTimers();T_EQ(chaos_timer_visits,0);
+
+    /* Saved pending timers are authoritative even on dead units; revival
+     * must not lose the deadline. Blocked-research phase 3 is not pending. */
+    unsigned slots[]={31,2048,4095};
+    FOR_LOOP(i,sizeof(slots)/sizeof(*slots)) {
+        edict_t *unit=g_edicts+slots[i];
+        unit->health.value=0;
+        chaos_schedule(unit,MAKEFOURCC('A','c','h','a'),i==1 ? 3 : 1);
+    }
+    S_ResetAbilityTimers();S_RebuildAbilityTimers();
+    chaos_timer_visits=0;S_RunAbilityTimers();T_EQ(chaos_timer_visits,2);
+    T_EQ(g_edicts[31].chaos.phase,1);T_EQ(g_edicts[4095].chaos.phase,1);
+    /* Removal without Disable and zeroed slot reuse retire on the next visit. */
+    g_edicts[31].inuse=false;
+    g_edicts[4095].chaos=(typeof(g_edicts[4095].chaos)){0};
+    chaos_timer_visits=0;S_RunAbilityTimers();T_EQ(chaos_timer_visits,2);
+    chaos_timer_visits=0;S_RunAbilityTimers();T_EQ(chaos_timer_visits,0);
+    FOR_LOOP(i,sizeof(slots)/sizeof(*slots))g_edicts[slots[i]].chaos=(typeof(g_edicts[0].chaos)){0};
+    for(unsigned i=old_count;i<globals.num_edicts;i++)g_edicts[i].inuse=false;
+    globals.num_edicts=old_count;
+    reset_entities();
+}
 #endif

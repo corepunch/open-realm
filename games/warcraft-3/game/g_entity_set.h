@@ -9,12 +9,15 @@ typedef struct {
 
 static inline void entity_set_put(entitySet_t *set, uint32_t index, bool present) {
     assert(index<MAX_ENTITIES);
-    uint64_t bit=UINT64_C(1)<<(index%64), group=UINT64_C(1)<<((index/64)%64);
-    if(present) {set->bits[index/64]|=bit; set->top[index/4096]|=group;}
-    else {
-        set->bits[index/64]&=~bit;
-        if(!set->bits[index/64])set->top[index/4096]&=~group;
-    }
+    uint32_t word = index / 64;
+    uint64_t bit = UINT64_C(1) << (index % 64), old = set->bits[word];
+    uint64_t changed = present ? old | bit : old & ~bit;
+    if (changed == old) return;
+    set->bits[word] = changed;
+    /* The summary changes only when a word enters or leaves the empty state. */
+    uint64_t group = UINT64_C(1) << (word % 64);
+    if (!old) set->top[word / 64] |= group;
+    else if (!changed) set->top[word / 64] &= ~group;
 }
 
 /* Preserve ascending identity even when callbacks add/remove members mid-loop. */

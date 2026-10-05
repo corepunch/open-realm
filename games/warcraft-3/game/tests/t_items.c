@@ -285,7 +285,8 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
 
-    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         hero->abilstatus[i].code = MAKEFOURCC('T','s','t','0') + (uint32_t)i;
@@ -295,7 +296,8 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','x','x')), 0);
 
-    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     hero->health.value = 0.0f;
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
@@ -1333,7 +1335,7 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     G_ClientCommand(clent, 2, command);
 
     T_FEQ(G_UnitArmorValue(unit), base_armor + 2.0f, 0.01f);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == MAKEFOURCC('B','d','e','f')) {
             found_buff = true;
             break;

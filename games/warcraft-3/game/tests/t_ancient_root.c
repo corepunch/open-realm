@@ -220,14 +220,14 @@ static void ancient_assert_morph_save_restore(bool rooted) {
     if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
     assert(unit->ancient_root);
     unit->ancient_root->destination = (vec2_t){ 320.0f, 192.0f };
-    unit->ancient_root->approach_goal = goal;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, goal);
     unit->ancient_root->approach_goal_spawn_time = goal->spawn_time;
     S_AncientBeginMorph(unit, rooted);
     end_time = unit->ancient_root->transition_end_time;
 
     T_ASSERT(WriteGame(filename));
     unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
-    unit->ancient_root->approach_goal = NULL;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, NULL);
     unit->ancient_root->transition_end_time = 0;
     M_SetMove(unit,NULL);
     T_ASSERT(ReadGame(filename));

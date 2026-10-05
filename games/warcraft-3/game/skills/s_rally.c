@@ -1,4 +1,33 @@
 #include "s_skills.h"
+#include "../g_entity_set.h"
+
+/* Derived membership follows rally storage allocation. Point/default rallies
+ * may remain members; the target and spawn identity are always checked live. */
+static entitySet_t rally_producers;
+static bool rally_producers_valid;
+#ifdef BZ_TESTS
+static uint32_t rally_invalidation_visits;
+#endif
+
+void S_InvalidateRallyProducers(void) { rally_producers_valid = false; }
+
+void S_ForgetRallyProducer(edict_t *ent) {
+    uintptr_t offset = (uintptr_t)ent - (uintptr_t)g_edicts;
+    if (offset < sizeof(*ent) * MAX_ENTITIES && offset % sizeof(*ent) == 0)
+        entity_set_put(&rally_producers, (uint32_t)(offset / sizeof(*ent)), false);
+}
+
+static void rally_prepare_producers(void) {
+    if (rally_producers_valid) return;
+    rally_producers = (entitySet_t){0};
+    FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+        rally_invalidation_visits++;
+#endif
+        if (g_edicts[i].inuse && g_edicts[i].rally) entity_set_put(&rally_producers, i, true);
+    }
+    rally_producers_valid = true;
+}
 
 static void G_ClearRallyIndicator(gameClient_t *client) {
     if (!client || !client->rally_indicator) return;
@@ -154,7 +183,7 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
     indicator->svflags = SVF_OWNER_ONLY;
     indicator->rally_indicator = true;
     indicator->owner = clent;
-    indicator->goalentity = type == RALLY_TARGET_POINT ? NULL : target;
+    S_SetMoveGoal(indicator, &indicator->goalentity, type == RALLY_TARGET_POINT ? NULL : target);
     indicator->movetype = indicator->goalentity ? MOVETYPE_LINK : MOVETYPE_NONE;
     if (type == RALLY_TARGET_POINT || target->targtype == TARG_ITEM) {
         M_CheckGround(indicator);
@@ -183,7 +212,12 @@ bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced) {
 
 void G_InvalidateRallyTarget(edict_t *target) {
     if (!target) return;
-    FOR_LOOP(i, globals.num_edicts) {
+    rally_prepare_producers();
+    for (uint32_t i = entity_set_next(&rally_producers, 0); i < globals.num_edicts;
+         i = entity_set_next(&rally_producers, i + 1)) {
+#ifdef BZ_TESTS
+        rally_invalidation_visits++;
+#endif
         edict_t *producer = &globals.edicts[i];
         if (!producer->inuse || !producer->rally || producer->rally->type != RALLY_TARGET_ENTITY ||
             producer->rally->entity != target ||

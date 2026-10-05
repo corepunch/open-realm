@@ -161,7 +161,7 @@ TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 100.0f);
     target->s.origin.z = 200.0f;
     missile->s.origin = (vec3_t){ 0.0f, 0.0f, 0.0f };
-    missile->goalentity = target;
+    S_SetMoveGoal(missile, &missile->goalentity, target);
     missile->movetype = MOVETYPE_FLYMISSILE;
     missile->velocity = 0.1f;
     missile->animation = &stand;
@@ -367,6 +367,99 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
     G_UpdateTimeOfDay();
 }
 
+/* Compare the result with the original broad phase, including its live
+ * eligibility decisions and encounter-order tie breaking. */
+static void assert_acquisition_matches_broadphase(edict_t *self, float radius) {
+    edict_t *cached = G_FindNearestEnemy(self, radius);
+    ai_force_broadphase = true;
+    edict_t *original = G_FindNearestEnemy(self, radius);
+    ai_force_broadphase = false;
+    T_ASSERT(cached == original);
+}
+
+TEST(wc3_combat, acquisition_presence_prunes_friends_and_tracks_live_transitions) {
+    reset_entities(); setup_test_world();
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, 0, 0);
+    attacker->s.player = 0; S_AttackProfileWrite(attacker, 0)->damageBase = 10; S_AttackProfileWrite(attacker, 0)->cooldown = 1;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND; attacker->targtype = TARG_GROUND;
+    gi.LinkEntity(attacker);
+    FOR_LOOP(i, 1024) {
+        edict_t *friendly = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, i % 16 * 24, i / 16 * 24);
+        friendly->s.player = i & 1; friendly->targtype = TARG_GROUND;
+        gi.LinkEntity(friendly);
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
+    G_BeginEntityFrame();
+    ai_broadphase_queries = 0;
+    FOR_LOOP(i, 128) T_NULL(G_FindNearestEnemy(attacker, 300));
+    T_EQ(ai_broadphase_queries, 0);
+    assert_acquisition_matches_broadphase(attacker, 300);
+
+    /* Alliance direction is queried live; the reverse relationship is not
+     * interchangeable. No presence rebuild is needed for alliance changes. */
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, false);
+    T_NOT_NULL(G_FindNearestEnemy(attacker, 300));
+    assert_acquisition_matches_broadphase(attacker, 300);
+    G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
+
+    edict_t *enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, 700, 0);
+    enemy->s.player = 2; enemy->targtype = TARG_GROUND; gi.LinkEntity(enemy);
+    assert_acquisition_matches_broadphase(attacker, 128);
+    enemy->s.origin2 = (vec2_t){64, 0}; gi.LinkEntity(enemy);
+    T_ASSERT(G_FindNearestEnemy(attacker, 128) == enemy);
+    assert_acquisition_matches_broadphase(attacker, 128);
+    enemy->invulnerable = true;
+    assert_acquisition_matches_broadphase(attacker, 128);
+    enemy->invulnerable = false;
+    G_SetUnitPlayer(enemy, 0);
+    T_NULL(G_FindNearestEnemy(attacker, 128));
+    G_BeginEntityFrame();
+    ai_broadphase_queries = 0;
+    T_NULL(G_FindNearestEnemy(attacker, 128));
+    T_EQ(ai_broadphase_queries, 0);
+    G_SetUnitPlayer(enemy, 2);
+    T_ASSERT(G_FindNearestEnemy(attacker, 128) == enemy);
+    assert_acquisition_matches_broadphase(attacker, 128);
+    enemy->svflags |= SVF_DEADMONSTER;
+    assert_acquisition_matches_broadphase(attacker, 128);
+    enemy->svflags &= ~SVF_DEADMONSTER;
+    T_ASSERT(G_FindNearestEnemy(attacker, 128) == enemy);
+    gi.UnlinkEntity(enemy);
+    assert_acquisition_matches_broadphase(attacker, 128);
+    gi.LinkEntity(enemy);
+    T_ASSERT(G_FindNearestEnemy(attacker, 128) == enemy);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_combat, acquisition_presence_preserves_bounds_and_candidate_order) {
+    reset_entities(); setup_test_world();
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, -20, -20);
+    attacker->s.player = 0; S_AttackProfileWrite(attacker, 0)->damageBase = 10; S_AttackProfileWrite(attacker, 0)->cooldown = 1;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND; attacker->targtype = TARG_GROUND;
+    gi.LinkEntity(attacker);
+    edict_t *first = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, 20, -20);
+    edict_t *second = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, -20, 20);
+    first->s.player = second->s.player = 1;
+    first->targtype = second->targtype = TARG_GROUND;
+    gi.LinkEntity(first); gi.LinkEntity(second);
+    G_BeginEntityFrame();
+    assert_acquisition_matches_broadphase(attacker, 80);
+    gi.LinkEntity(first);
+    assert_acquisition_matches_broadphase(attacker, 80);
+    /* A target center in another coarse cell may overlap the query through
+     * its actual server bounds. Presence uses those bounds, not the center. */
+    first->collision = 513;
+    first->s.origin2 = (vec2_t){600, 0}; gi.LinkEntity(first);
+    assert_acquisition_matches_broadphase(attacker, 700);
+    /* Out-of-map targets remain conservative positives, even after rebuild. */
+    attacker->s.origin2 = (vec2_t){3000, 3000}; gi.LinkEntity(attacker);
+    first->s.origin2 = (vec2_t){3020, 3000}; gi.LinkEntity(first);
+    G_BeginEntityFrame();
+    T_ASSERT(G_FindNearestEnemy(attacker, 80) == first);
+    assert_acquisition_matches_broadphase(attacker, 80);
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
     edict_t *target, *attacker;
 
@@ -395,10 +488,10 @@ TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
     tauren = make_combat_unit(MAKEFOURCC('o','t','a','u'), 700.0f, 48.0f, 0.0f);
     cairne->s.player = 4; tauren->s.player = 0;
     cairne->targtype = tauren->targtype = TARG_GROUND;
-    tauren->attack1.type = ATK_NORMAL;
-    tauren->attack1.cooldown = 1.5f;
-    tauren->attack1.damageBase = 25;
-    tauren->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(tauren, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(tauren, 0)->cooldown = 1.5f;
+    S_AttackProfileWrite(tauren, 0)->damageBase = 25;
+    S_AttackProfileWrite(tauren, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     gi.LinkEntity(cairne); gi.LinkEntity(tauren);
 
     T_ASSERT(G_FindNearestEnemy(tauren, 128.0f) == cairne);
@@ -429,14 +522,14 @@ TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 64.0f, 0.0f);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.type = ATK_PIERCE;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_AIR;
 
     T_ASSERT(!S_OrderAttack(attacker, target));
     T_NULL(attacker->goalentity);
 
-    attacker->attack1.targetsAllowed |= WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed |= WC3_TARGET_FLAG_AIR;
     T_ASSERT(S_OrderAttack(attacker, target));
     T_ASSERT(attacker->goalentity == target);
 }
@@ -449,10 +542,10 @@ TEST(wc3_combat, automatic_acquisition_skips_disallowed_nearer_target) {
     air = make_combat_unit(MAKEFOURCC('h','f','o','o'), 400.0f, 40.0f, 0.0f);
     ground = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     attacker->s.player = 0; air->s.player = ground->s.player = 1;
-    attacker->attack1.type = ATK_PIERCE;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damageBase = 10;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     air->targtype = TARG_AIR;
     ground->targtype = TARG_GROUND;
     gi.LinkEntity(attacker); gi.LinkEntity(air); gi.LinkEntity(ground);
@@ -467,11 +560,11 @@ TEST(wc3_combat, automatic_acquisition_includes_attackable_structures) {
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
     building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 80.0f, 0.0f);
     tower->s.player = 0; building->s.player = 1;
-    tower->attack1.type = ATK_PIERCE;
-    tower->attack1.cooldown = 1.0f;
-    tower->attack1.damageBase = 10;
-    tower->attack1.range = 700.0f;
-    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(tower, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(tower, 0)->damageBase = 10;
+    S_AttackProfileWrite(tower, 0)->range = 700.0f;
+    S_AttackProfileWrite(tower, 0)->targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
     tower->aiflags |= AI_IMMOBILE;
     building->targtype = TARG_STRUCTURE;
     building->runtime.flags |= UNIT_BALANCE_BUILDING;
@@ -487,11 +580,11 @@ TEST(wc3_combat, immobile_attacker_does_not_acquire_outside_weapon_range) {
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
     enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
     tower->s.player = 0; enemy->s.player = 1;
-    tower->attack1.type = ATK_PIERCE;
-    tower->attack1.cooldown = 1.0f;
-    tower->attack1.damageBase = 10;
-    tower->attack1.range = 100.0f;
-    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(tower, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(tower, 0)->damageBase = 10;
+    S_AttackProfileWrite(tower, 0)->range = 100.0f;
+    S_AttackProfileWrite(tower, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     tower->aiflags |= AI_IMMOBILE;
     enemy->targtype = TARG_GROUND;
     gi.LinkEntity(tower); gi.LinkEntity(enemy);
@@ -512,9 +605,9 @@ TEST(wc3_combat, immobile_attacker_cancels_explicit_attack_it_cannot_reach) {
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
     enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
     tower->s.player = 0; enemy->s.player = 1;
-    tower->attack1.type = ATK_PIERCE;
-    tower->attack1.range = 100.0f;
-    tower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(tower, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(tower, 0)->range = 100.0f;
+    S_AttackProfileWrite(tower, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     tower->aiflags |= AI_IMMOBILE;
     enemy->targtype = TARG_GROUND;
 
@@ -538,9 +631,9 @@ TEST(wc3_combat, alliance_change_stops_active_attack_before_next_hit) {
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -561,9 +654,9 @@ TEST(wc3_combat, explicit_attack_continues_against_allied_target) {
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
     target->targtype = TARG_STRUCTURE;
     G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
 
@@ -591,8 +684,8 @@ TEST(wc3_combat, tdamage_lethal_resets_attacker_to_stand) {
     edict_t *target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f, 0.0f);
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -674,7 +767,7 @@ TEST(wc3_combat, friendly_damage_does_not_trigger_counterattack) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     target->s.player = 0;
     attacker->s.player = 0;
-    target->attack1.type = ATK_NORMAL;
+    S_AttackProfileWrite(target, 0)->type = ATK_NORMAL;
 
     T_Damage(target, attacker, 1);
 
@@ -693,9 +786,9 @@ TEST(wc3_combat, attack_button_accepts_owned_building) {
     { static UnitWeapons_t const weapons = { .attacksEnabled = 3 }; attacker->data.UnitWeapons = &weapons; }
     building->s.player = 0;
     building->targtype = TARG_STRUCTURE;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
-    attacker->selected = 1 << clent->client->ps.number;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    G_SetEntitySelectionMask(attacker, 1 << clent->client->ps.number);
     building->svflags |= SVF_MONSTER;
     building->health.value = 100.0f;
     building->health.max_value = 100.0f;
@@ -714,9 +807,9 @@ TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
     { static UnitWeapons_t const weapons = { .attacksEnabled = 3 }; attacker->data.UnitWeapons = &weapons; }
     friendly->s.player = 0;
     friendly->targtype = TARG_GROUND;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->selected = 1 << clent->client->ps.number;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    G_SetEntitySelectionMask(attacker, 1 << clent->client->ps.number);
     friendly->svflags |= SVF_MONSTER;
     friendly->health.value = 100.0f;
     friendly->health.max_value = 100.0f;
@@ -739,9 +832,9 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->selected = 1 << clent->client->ps.number;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    G_SetEntitySelectionMask(attacker, 1 << clent->client->ps.number);
     friendly->svflags |= SVF_MONSTER;
     friendly->health.value = 100.0f;
     friendly->health.max_value = 100.0f;
@@ -756,7 +849,7 @@ TEST(wc3_combat, attack_button_does_not_order_unit_to_attack_itself) {
 
     clent->s.player = 0;
     unit->s.player = 0;
-    unit->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(unit, 1 << clent->client->ps.number);
     unit->svflags |= SVF_MONSTER;
     unit->health.value = 100.0f;
     unit->health.max_value = 100.0f;
@@ -780,10 +873,10 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     attacker->s.player = 0;
     building->s.player = 0;
     attacker->collision = 16.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.range = 90.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 90.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
     building->targtype = TARG_STRUCTURE;
 
     pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(color32_t));
@@ -796,9 +889,9 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
 
     /* Centre distance is intentionally beyond melee range. */
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &building->s.origin2) >
-             attacker->attack1.range);
+             S_AttackProfileRead(attacker, 0)->range);
     T_ASSERT(CM_DistanceToPathingFootprint(building, &attacker->s.origin2) <=
-             attacker->collision + attacker->attack1.range);
+             attacker->collision + S_AttackProfileRead(attacker, 0)->range);
 
     order_attack(attacker, building);
     T_STREQ(attacker->currentmove->animation, "walk");
@@ -827,10 +920,10 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     gate->destructable->pathing_active = true;
     attacker->s.player = 0;
     attacker->collision = 16.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.range = 90.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 90.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
 
     pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(color32_t));
     T_NOT_NULL(pathtex);
@@ -840,9 +933,9 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
         pathtex->map[i] = (color32_t){ 0, 0, 255, 255 };
     gate->pathtex = pathtex;
 
-    T_ASSERT(Vector2_distance(&attacker->s.origin2, &gate->s.origin2) > attacker->attack1.range);
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &gate->s.origin2) > S_AttackProfileRead(attacker, 0)->range);
     T_ASSERT(CM_DistanceToPathingFootprint(gate, &attacker->s.origin2) <=
-             attacker->collision + attacker->attack1.range);
+             attacker->collision + S_AttackProfileRead(attacker, 0)->range);
 
     order_attack(attacker, gate);
     T_STREQ(attacker->currentmove->animation, "walk");
@@ -861,12 +954,81 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
     gate->targtype = TARG_DEBRIS;
     if (!gate->destructable) gate->destructable = G_AllocDestructable();
     assert(gate->destructable);
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack2.type = ATK_SIEGE;
-    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
 
     T_ASSERT(S_AttackCanTarget(attacker, gate));
+}
+
+/* An unreachable route may move a private location waypoint to its reachable
+ * endpoint. An attacked object is authoritative world geometry, not that
+ * waypoint: keep its pose, footprint and spatial publication unchanged. */
+TEST(wc3_combat, unreachable_attack_keeps_target_geometry) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+
+    /* Cover both a destructable and a unit target through actual Attack
+     * dispatch. The longer weapon can hit across the wall after approaching;
+     * the shorter one must retain its unreachable target without damage. */
+    FOR_LOOP(range_case, 2) FOR_LOOP(kind, 2) {
+        setup_test_world();
+        reset_entities();
+        for (uint32_t y = 0; y < CELLS; y++) pathmap[y * CELLS + 7] = 2;
+        CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 512}));
+
+        edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500, 80, 240);
+        edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500, 432, 240);
+        attacker->collision = 16;
+        attacker->unitinfo.MoveSpeed = 80;
+        attacker->s.player = 0;
+        target->s.player = 1;
+        target->s.origin.z = 137;
+        target->targtype = TARG_GROUND;
+        if (!kind) {
+            target->svflags &= ~SVF_MONSTER;
+            target->svflags |= SVF_STATIC_SCENERY;
+            target->destructable = G_AllocDestructable();
+            target->destructable->placement_solid = true;
+            target->destructable->pathing_active = true;
+            target->targtype = TARG_DEBRIS;
+        }
+        S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+        S_AttackProfileWrite(attacker, 0)->range = range_case ? 256 : 90;
+        S_AttackProfileWrite(attacker, 0)->cooldown = 1;
+        S_AttackProfileWrite(attacker, 0)->damagePoint = 0.2f;
+        S_AttackProfileWrite(attacker, 0)->damageBase = 7;
+        S_AttackProfileWrite(attacker, 0)->targetsAllowed = kind ? WC3_TARGET_FLAG_GROUND : WC3_TARGET_FLAG_DEBRIS;
+        gi.LinkEntity(attacker);
+        gi.LinkEntity(target);
+        vec3_t const pose = target->s.origin;
+        box2_t const bounds = target->bounds;
+        float const angle = target->s.angle;
+        T_ASSERT(unit_issuetargetorder(attacker, "attack", target));
+
+        bool fallback = false, hit = false;
+        FOR_LOOP(frame, 200) {
+            level.time += 100;
+            if (attacker->currentmove && attacker->currentmove->think)
+                attacker->currentmove->think(attacker);
+            CM_ProcessPathJobs(4096);
+            fallback |= attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED;
+            hit |= target->health.value < 500;
+            T_EQ(memcmp(&target->s.origin, &pose, sizeof(pose)), 0);
+            T_EQ(memcmp(&target->bounds, &bounds, sizeof(bounds)), 0);
+            T_EQ(target->s.angle, angle);
+            if (!range_case) T_EQ(target->health.value, 500);
+            T_ASSERT(attacker->goalentity == target);
+        }
+        T_ASSERT(fallback);
+        T_EQ(hit, range_case != 0);
+        T_ASSERT(target->health.value > 0);
+        T_ASSERT(attacker->s.origin.x > 80);
+        T_ASSERT(attacker->s.origin.x < 7 * 32);
+    }
 }
 
 TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
@@ -877,12 +1039,12 @@ TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
     attacker->data.UnitWeapons = &weapons;
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 256.0f, 0.0f);
     target->targtype = TARG_AIR;
-    attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    attacker->attack2.damageBase = 17;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_PIERCE; S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 1)->damageBase = 17;
     T_ASSERT(S_OrderAttack(attacker, target));
-    T_EQ(attacker->attack1.type, ATK_NORMAL); T_EQ(attacker->attack1.targetsAllowed, WC3_TARGET_FLAG_GROUND);
-    T_EQ(attacker->attack2.type, ATK_PIERCE); T_EQ(attacker->attack2.damageBase, 17);
+    T_EQ(S_AttackProfileRead(attacker, 0)->type, ATK_NORMAL); T_EQ(S_AttackProfileRead(attacker, 0)->targetsAllowed, WC3_TARGET_FLAG_GROUND);
+    T_EQ(S_AttackProfileRead(attacker, 1)->type, ATK_PIERCE); T_EQ(S_AttackProfileRead(attacker, 1)->damageBase, 17);
 }
 
 TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
@@ -893,16 +1055,16 @@ TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
     target->targtype = TARG_AIR;
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_NORMAL; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack2.type = ATK_PIERCE; attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_PIERCE; S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_AIR;
     T_ASSERT(!S_AttackCanTarget(attacker, target));
 }
 
 TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
     attacker->data.UnitWeapons = NULL;
     T_ASSERT(!S_UnitAttackSlotEnabled(attacker, 0));
@@ -919,20 +1081,20 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
     attacker->data.UnitWeapons = &weapons;
-    attacker->goalentity = target;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_MISSILE;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 500.0f;
-    attacker->attack2.type = ATK_PIERCE;
-    attacker->attack2.weapon = WPN_MISSILE;
-    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    attacker->attack2.damageBase = 100;
-    attacker->attack2.numberOfDice = 0;
-    attacker->attack2.damagePoint = 0.1f;
-    attacker->attack2.cooldown = 1.0f;
-    attacker->attack2.projectile.speed = 1000;
-    attacker->attack2.range = 500.0f;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_PIERCE;
+    S_AttackProfileWrite(attacker, 1)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 1)->damageBase = 100;
+    S_AttackProfileWrite(attacker, 1)->numberOfDice = 0;
+    S_AttackProfileWrite(attacker, 1)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 1)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 1)->projectile.speed = 1000;
+    S_AttackProfileWrite(attacker, 1)->range = 500.0f;
     target->targtype = TARG_AIR;
     target->defense_type = 0; /* Pierce deals 200%; Normal deals 100%. */
     target->armor_value = 0.0f;
@@ -1294,33 +1456,33 @@ TEST(wc3_combat, hero_primary_attribute_adds_damage) {
     edict_t *h     = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str   = 22;
     G_RecomputeHeroStats(h);
-    float const dmg0 = h->attack1.damageBase;
+    float const dmg0 = S_AttackProfileRead(h, 0)->damageBase;
 
     h->hero.str = 30;            /* +8 Strength */
     G_RecomputeHeroStats(h);
 
-    T_FEQ(h->attack1.damageBase, dmg0 + 8.0f, 0.01f);
+    T_FEQ(S_AttackProfileRead(h, 0)->damageBase, dmg0 + 8.0f, 0.01f);
 }
 
 TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
     edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str = 22;
     h->hero.agi = 13;
-    h->attack1.permanentDamageBonus = 2.0f;
-    h->attack1.temporaryDamageBonus = 5.0f;
+    S_AttackProfileWrite(h, 0)->permanentDamageBonus = 2.0f;
+    S_AttackProfileWrite(h, 0)->temporaryDamageBonus = 5.0f;
     h->permanent_armor_bonus = 2.0f;
     h->temporary_armor_bonus = 3.0f;
 
     G_RecomputeHeroStats(h);
-    T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 22 + 2);
+    T_FEQ(S_AttackProfileRead(h, 0)->temporaryDamageBonus, 5.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(h, 0)->damageBase, h->data.UnitWeapons->attack1.damageBase + 22 + 2);
     T_FEQ(h->armor_value, h->data.UnitBalance->armor + 5.0f, 0.001f);
 
     h->hero.str = 30;
     h->hero.agi = 23;
     G_RecomputeHeroStats(h);
-    T_FEQ(h->attack1.temporaryDamageBonus, 5.0f, 0.001f);
-    T_EQ(h->attack1.damageBase, h->data.UnitWeapons->attack1.damageBase + 30 + 2);
+    T_FEQ(S_AttackProfileRead(h, 0)->temporaryDamageBonus, 5.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(h, 0)->damageBase, h->data.UnitWeapons->attack1.damageBase + 30 + 2);
     T_FEQ(h->armor_value, h->data.UnitBalance->armor + 10 * 0.3f + 5.0f, 0.001f);
 }
 
@@ -1739,8 +1901,8 @@ TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
     edict_t *enemy = make_combat_unit(MAKEFOURCC('h','g','r','u'), 100.0f, 50.0f, 0.0f);
     follower->s.player = leader->s.player = 0;
     enemy->s.player = 1;
-    follower->attack1.type = ATK_HERO;
-    follower->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(follower, 0)->type = ATK_HERO;
+    S_AttackProfileWrite(follower, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->targtype = TARG_GROUND;
 
     order_follow(follower, leader);
@@ -2007,25 +2169,25 @@ TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
  * remaining weapon cooldown and the authored backswing. */
 TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
     edict_t *u              = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    u->attack1.cooldown = 1.5f;
-    u->attack1.damagePoint = 0.3f;
-    u->attack1.backswingPoint = 0.5f;
+    S_AttackProfileWrite(u, 0)->cooldown = 1.5f;
+    S_AttackProfileWrite(u, 0)->damagePoint = 0.3f;
+    S_AttackProfileWrite(u, 0)->backswingPoint = 0.5f;
     attack_melee_cooldown(u);
     T_FEQ(u->wait, 1.2f, 0.001f);   /* cooldown - damagePoint wins */
 
     u->attack_cooldown_active = false;
-    u->attack1.cooldown = 1.0f;
-    u->attack1.damagePoint = 0.5f;
-    u->attack1.backswingPoint = 0.8f;
+    S_AttackProfileWrite(u, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(u, 0)->damagePoint = 0.5f;
+    S_AttackProfileWrite(u, 0)->backswingPoint = 0.8f;
     attack_ranged_cooldown(u);
     T_FEQ(u->wait, 0.8f, 0.001f);   /* backswing wins */
 
     /* If cooldown has elapsed by damage point but backswing remains, the
      * attack still cannot begin its next swing before backswing completes. */
     u->attack_cooldown_active = false;
-    u->attack1.cooldown = 0.4f;
-    u->attack1.damagePoint = 0.5f;
-    u->attack1.backswingPoint = 0.2f;
+    S_AttackProfileWrite(u, 0)->cooldown = 0.4f;
+    S_AttackProfileWrite(u, 0)->damagePoint = 0.5f;
+    S_AttackProfileWrite(u, 0)->backswingPoint = 0.2f;
     attack_melee_cooldown(u);
     T_STREQ(u->currentmove->animation, "stand ready");
     T_FEQ(u->wait, 0.2f, 0.001f);
@@ -2033,9 +2195,9 @@ TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {
 
 TEST(wc3_combat, attack_ground_recovery_respects_backswing) {
     edict_t *unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    unit->attack1.cooldown = 0.4f;
-    unit->attack1.damagePoint = 0.3f;
-    unit->attack1.backswingPoint = 0.8f;
+    S_AttackProfileWrite(unit, 0)->cooldown = 0.4f;
+    S_AttackProfileWrite(unit, 0)->damagePoint = 0.3f;
+    S_AttackProfileWrite(unit, 0)->backswingPoint = 0.8f;
 
     attack_ground_cooldown(unit);
 
@@ -2045,8 +2207,8 @@ TEST(wc3_combat, attack_ground_recovery_respects_backswing) {
 
 TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
     edict_t *u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
-    u->attack1.cooldown = 0.25f;
-    u->attack1.damagePoint = 0.4f;
+    S_AttackProfileWrite(u, 0)->cooldown = 0.25f;
+    S_AttackProfileWrite(u, 0)->damagePoint = 0.4f;
 
     attack_ranged_cooldown(u);
 
@@ -2059,16 +2221,16 @@ TEST(wc3_combat, cooldown_range_buffer_holds_then_chases_at_ready_time) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 130.0f, 0.0f);
     vec2_t const origin = attacker->s.origin2;
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 40.0f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 40.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
     attacker->unitinfo.MoveSpeed = 200.0f;
     target->targtype = TARG_GROUND;
-    attacker->goalentity = target;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
 
     attack_melee_cooldown(attacker);
     attacker->currentmove->think(attacker);
@@ -2089,14 +2251,14 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_swing_cooldown) {
     vec2_t const origin = attacker->s.origin2;
     uint32_t swing_cooldown_end;
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.damageBase = 10.0f;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 40.0f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damagePoint = 0.03f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10.0f;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 40.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.03f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2145,14 +2307,14 @@ TEST(wc3_combat, attack_animation_end_does_not_restart_expired_swing_cooldown) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     uint32_t swing_cooldown_end;
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.damageBase = 10.0f;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.cooldown = 0.4f;
-    attacker->attack1.damagePoint = 0.03f;
-    attacker->attack1.backswingPoint = 0.8f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10.0f;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 0.4f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.03f;
+    S_AttackProfileWrite(attacker, 0)->backswingPoint = 0.8f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2182,14 +2344,14 @@ TEST(wc3_combat, backswing_recovery_uses_damage_point_deadline) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     uint32_t swing_cooldown_end;
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.damageBase = 10.0f;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damagePoint = 0.03f;
-    attacker->attack1.backswingPoint = 0.8f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10.0f;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.03f;
+    S_AttackProfileWrite(attacker, 0)->backswingPoint = 0.8f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2214,11 +2376,11 @@ TEST(wc3_combat, attack_max_range_uses_both_unit_collision_edges) {
 
     attacker->collision = 20.0f;
     target->collision = 20.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 110.0f;
-    attacker->attack1.cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 110.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2234,11 +2396,11 @@ TEST(wc3_combat, attack_minimum_range_uses_unit_collision_edges) {
     attacker->data.UnitWeapons = &weapons;
     attacker->collision = 20.0f;
     target->collision = 20.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 200.0f;
-    attacker->attack1.cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 200.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2250,15 +2412,15 @@ TEST(wc3_combat, cooldown_buffer_survives_chase_until_weapon_is_ready) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 60.0f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 60.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
     target->targtype = TARG_GROUND;
-    attacker->goalentity = target;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
 
     attack_melee_cooldown(attacker);
     attacker->currentmove->think(attacker);
@@ -2280,21 +2442,21 @@ TEST(wc3_combat, attack2_uses_its_own_cooldown_range_buffer) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 0.0f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damagePoint = 0.1f;
-    attacker->attack2.type = ATK_PIERCE;
-    attacker->attack2.weapon = WPN_MISSILE;
-    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack2.range = 100.0f;
-    attacker->attack2.rangeBuffer = 60.0f;
-    attacker->attack2.cooldown = 1.0f;
-    attacker->attack2.damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 0.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_PIERCE;
+    S_AttackProfileWrite(attacker, 1)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 1)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 1)->rangeBuffer = 60.0f;
+    S_AttackProfileWrite(attacker, 1)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 1)->damagePoint = 0.1f;
     target->targtype = TARG_GROUND;
-    attacker->goalentity = target;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
 
     attack_ranged_cooldown(attacker);
     attacker->currentmove->think(attacker);
@@ -2309,13 +2471,13 @@ TEST(wc3_combat, target_leaving_true_range_before_damage_point_cancels_windup) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     float const health = target->health.value;
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 100.0f;
-    attacker->attack1.damagePoint = 0.3f;
-    attacker->attack1.cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.3f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2333,13 +2495,13 @@ TEST(wc3_combat, canceled_windup_cooldown_survives_chase_and_reacquisition) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 40.0f;
-    attacker->attack1.damagePoint = 0.3f;
-    attacker->attack1.cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 40.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.3f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2363,12 +2525,12 @@ TEST(wc3_combat, canceled_windup_cooldown_advances_after_attack_order_is_replace
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.damagePoint = 0.3f;
-    attacker->attack1.cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.3f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
     target->targtype = TARG_GROUND;
 
     order_attack(attacker, target);
@@ -2392,15 +2554,15 @@ TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.cooldown = 0.2f;
-    attacker->attack1.damagePoint = 0.1f;
-    attacker->attack1.backswingPoint = 0.8f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 0.2f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->backswingPoint = 0.8f;
     target->targtype = TARG_GROUND;
-    attacker->goalentity = target;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
 
     attack_melee_cooldown(attacker);
     target->s.origin2.x = 180.0f;
@@ -2427,10 +2589,10 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     unit_stand(attacker);
     attacker->s.player = 0;
     target->s.player = 1;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.rangeBuffer = 60.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->rangeBuffer = 60.0f;
     target->targtype = TARG_GROUND;
     T_ASSERT(S_OrderAttack(attacker, target));
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
@@ -2442,7 +2604,7 @@ TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
     {
         int const attacker_index = (int)(attacker - g_edicts);
         int const target_index = (int)(target - g_edicts);
-        attacker->goalentity = NULL;
+        S_SetMoveGoal(attacker, &attacker->goalentity, NULL);
         attacker->attack_cooldown_active = false;
         attacker->attack_cooldown_remaining = 0.0f;
         attacker->attack_cooldown_end_time = 0;
@@ -2465,10 +2627,10 @@ TEST(wc3_combat, direct_attack_rejects_reused_target_edict) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 80.0f, 0.0f);
     uint32_t const target_number = (uint32_t)(target - g_edicts);
 
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
     target->targtype = TARG_GROUND;
     order_attack(attacker, target);
     T_EQ(attacker->attack_target_spawn_time, target->spawn_time);
@@ -2483,8 +2645,8 @@ TEST(wc3_combat, direct_attack_rejects_reused_target_edict) {
     target->targtype = TARG_GROUND;
     target->s.origin2.x = 80.0f;
     target->data.UnitWeapons = attacker->data.UnitWeapons;
-    target->attack1.type = ATK_NORMAL;
-    target->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(target, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(target, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->health.value = 420.0f;
 
     attacker->currentmove->think(attacker);
@@ -2500,15 +2662,15 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
-    u->goalentity = target;
-    u->attack1.type = ATK_NORMAL;
-    u->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    u->attack1.range = 500.0f;
+    S_SetMoveGoal(u, &u->goalentity, target);
+    S_AttackProfileWrite(u, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(u, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(u, 0)->range = 500.0f;
     target->targtype = TARG_GROUND;
-    u->attack1.weapon = WPN_MISSILE;
-    u->attack1.cooldown = 1.0f;
-    u->attack1.damagePoint = 0.1f;
-    u->attack1.projectile.speed = 900;
+    S_AttackProfileWrite(u, 0)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(u, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(u, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(u, 0)->projectile.speed = 900;
     G_SetUnitColorOverride(u, 6);
     u->animation = NULL;
 
@@ -2537,10 +2699,10 @@ TEST(wc3_combat, artillery_uses_ranged_attack_state) {
     edict_t *target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_SIEGE;
-    attacker->attack1.weapon = WPN_ARTILLERY;
-    attacker->attack1.range = 500.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
     order_attack(attacker, target);
     T_NOT_NULL(attacker->currentmove);
@@ -2557,10 +2719,10 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
     float before, after;
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_SIEGE;
-    attacker->attack1.weapon = WPN_ARTILLERY;
-    attacker->attack1.range = 500.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->unitinfo.MoveSpeed = 220.0f;
     target->targtype = TARG_GROUND;
     order_attack(attacker, target);
@@ -2581,14 +2743,14 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
     edict_t *units[] = { primary, medium, small, outside };
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_ARTILLERY;
-    attacker->attack1.areaFull = 50.0f;
-    attacker->attack1.areaMedium = 100.0f;
-    attacker->attack1.areaSmall = 150.0f;
-    attacker->attack1.factorMedium = 0.5f;
-    attacker->attack1.factorSmall = 0.25f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(attacker, 0)->areaFull = 50.0f;
+    S_AttackProfileWrite(attacker, 0)->areaMedium = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->areaSmall = 150.0f;
+    S_AttackProfileWrite(attacker, 0)->factorMedium = 0.5f;
+    S_AttackProfileWrite(attacker, 0)->factorSmall = 0.25f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->targtype = TARG_GROUND;
         units[i]->defense_type = 7; /* none: default damage table multiplier 1 */
@@ -2622,25 +2784,25 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->goalentity = target;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.weapon = WPN_ARTILLERY;
-    attacker->attack1.damageBase = 100.0f;
-    attacker->attack1.numberOfDice = 0;
-    attacker->attack1.damagePoint = 0.1f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.projectile.speed = 1000;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    attacker->attack1.range = 500.0f;
-    attacker->attack1.areaFull = 40.0f;
-    attacker->attack1.areaMedium = 80.0f;
-    attacker->attack1.areaSmall = 120.0f;
-    attacker->attack1.factorMedium = 0.5f;
-    attacker->attack1.factorSmall = 0.25f;
-    attacker->attack2.type = ATK_SIEGE;
-    attacker->attack2.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    attacker->attack2.areaFull = attacker->attack2.areaMedium = attacker->attack2.areaSmall = 1.0f;
-    attacker->attack2.projectile.speed = 1000;
+    S_SetMoveGoal(attacker, &attacker->goalentity, target);
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->numberOfDice = 0;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->projectile.speed = 1000;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->areaFull = 40.0f;
+    S_AttackProfileWrite(attacker, 0)->areaMedium = 80.0f;
+    S_AttackProfileWrite(attacker, 0)->areaSmall = 120.0f;
+    S_AttackProfileWrite(attacker, 0)->factorMedium = 0.5f;
+    S_AttackProfileWrite(attacker, 0)->factorSmall = 0.25f;
+    S_AttackProfileWrite(attacker, 1)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 1)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(attacker, 1)->areaFull = S_AttackProfileWrite(attacker, 1)->areaMedium = S_AttackProfileWrite(attacker, 1)->areaSmall = 1.0f;
+    S_AttackProfileWrite(attacker, 1)->projectile.speed = 1000;
     target->targtype = bystander->targtype = TARG_GROUND;
     retarget->targtype = TARG_AIR;
     target->defense_type = bystander->defense_type = 7;
@@ -2663,7 +2825,7 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
         T_EQ(missile->artillery->attack_type, ATK_NORMAL);
         T_EQ(missile->artillery->area_targets, WC3_TARGET_FLAG_GROUND);
 
-        attacker->goalentity = retarget; /* impact must retain the launch profile */
+        S_SetMoveGoal(attacker, &attacker->goalentity, retarget); /* impact must retain the launch profile */
         target->s.origin2.x = target->s.origin.x = 400.0f;
         missile->s.origin.x = 199.0f;
         missile->s.origin.y = 0.0f;
@@ -2684,14 +2846,14 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     edict_t *missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
-    attacker->attack1.type = ATK_SIEGE;
-    attacker->attack1.weapon = WPN_ARTILLERY;
-    attacker->attack1.range = 500.0f;
-    attacker->attack1.damageBase = 73.0f;
-    attacker->attack1.damagePoint = 0.1f;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.projectile.speed = 900;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(attacker, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(attacker, 0)->range = 500.0f;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 73.0f;
+    S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->projectile.speed = 900;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     attacker->aiflags |= AI_IMMOBILE; /* in-range static artillery may still fire */
 
     T_ASSERT(S_OrderAttackGround(attacker, &point));
@@ -2720,8 +2882,8 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
 TEST(wc3_combat, attack_speed_scales_with_agility) {
     edict_t *h              = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi            = 20;       /* +40% -> divisor 1.4 */
-    h->attack1.cooldown    = 1.5f;
-    h->attack1.damagePoint = 0.3f;
+    S_AttackProfileWrite(h, 0)->cooldown    = 1.5f;
+    S_AttackProfileWrite(h, 0)->damagePoint = 0.3f;
 
     attack_melee_cooldown(h);
     T_FEQ(h->wait, (1.5f - 0.3f) / 1.4f, 0.001f);   /* recovery scaled */
@@ -2747,8 +2909,8 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     source->s.player = target->s.player = 0;
     source->abilities.added[0] = MAKEFOURCC('A','O','a','e');
     ARRAY_COUNT(source->abilities.added) = 1;
-    target->attack1.cooldown = 1.0f;
-    target->attack1.damagePoint = 0.2f;
+    S_AttackProfileWrite(target, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(target, 0)->damagePoint = 0.2f;
     target->hero.agi = 0;
 
     attack_melee_cooldown(target);
@@ -2798,8 +2960,8 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
     target = make_combat_unit(MAKEFOURCC('o','g','r','u'), 700.0f, 100.0f, 0.0f);
     source->s.player = target->s.player = 0;
     source->heroabilities[0] = (heroability_t){ .code = id, .level = 5 };
-    target->attack1.cooldown = 1.0f;
-    target->attack1.damagePoint = 0.2f;
+    S_AttackProfileWrite(target, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(target, 0)->damagePoint = 0.2f;
     target->hero.agi = 0;
 
     attack_melee_cooldown(target);
@@ -2858,8 +3020,8 @@ TEST(wc3_combat, endurance_provider_changes_are_immediate_and_saved) {
 TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
     edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi = 1000;
-    h->attack1.cooldown = 1.5f;
-    h->attack1.damagePoint = 0.3f;
+    S_AttackProfileWrite(h, 0)->cooldown = 1.5f;
+    S_AttackProfileWrite(h, 0)->damagePoint = 0.3f;
 
     attack_melee_cooldown(h);
     T_FEQ(h->wait, (1.5f - 0.3f) / 5.0f, 0.001f);
@@ -2877,8 +3039,8 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *footman = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
 
-    footman->attack1.cooldown = 1.5f;
-    footman->attack1.damagePoint = 0.3f;
+    S_AttackProfileWrite(footman, 0)->cooldown = 1.5f;
+    S_AttackProfileWrite(footman, 0)->damagePoint = 0.3f;
     footman->hero.agi = 0;
 
     attack_melee_cooldown(footman);
@@ -2906,7 +3068,7 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
 
 static edict_t *make_attacker(uint32_t atk_type) {
     edict_t *a = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
-    a->attack1.type = atk_type;
+    S_AttackProfileWrite(a, 0)->type = atk_type;
     return a;
 }
 
@@ -3363,6 +3525,7 @@ TEST(wc3_combat, spell_cooldowns_do_not_consume_buff_slots_and_share_base_code) 
     edict_t *caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
 
     level.time = 2000;
+    G_EnsureUnitStatusSlots(caster);
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         caster->abilstatus[i].code = MAKEFOURCC('B','0','0','0') + i;
         caster->abilstatus[i].level = 1;
@@ -3741,8 +3904,8 @@ TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
     vec2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     T_ASSERT(S_UnitIsEnsnared(unit));
@@ -3762,8 +3925,8 @@ TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
     float frozen_x, frozen_y;
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     S_OrderAttackGround(unit, &point);
     level.time += FRAMETIME;
@@ -3789,8 +3952,8 @@ TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 500; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 500; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     S_OrderAttackGround(unit, &point);
@@ -3808,10 +3971,10 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
     vec2_t point = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 500; unit->attack1.damageBase = 73;
-    unit->attack1.damagePoint = 0.1f; unit->attack1.cooldown = 1.0f;
-    unit->attack1.projectile.speed = 900; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 500; S_AttackProfileWrite(unit, 0)->damageBase = 73;
+    S_AttackProfileWrite(unit, 0)->damagePoint = 0.1f; S_AttackProfileWrite(unit, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(unit, 0)->projectile.speed = 900; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     T_ASSERT(!S_UnitCanTranslate(unit));
@@ -3832,8 +3995,8 @@ TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
     vec2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     S_OrderAttackGround(unit, &point);
@@ -3858,8 +4021,8 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
     vec2_t point = { 1000, 0 }, other = { 10, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     S_OrderAttackGround(unit, &point);
@@ -3882,10 +4045,10 @@ TEST(wc3_combat, entangling_roots_pauses_existing_attack_without_cancelling_orde
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     attacker->s.player = 0; target->s.player = 1;
-    attacker->attack1.type = ATK_NORMAL; attacker->attack1.weapon = WPN_NORMAL;
-    attacker->attack1.range = 100.0f; attacker->attack1.damageBase = 25.0f;
-    attacker->attack1.numberOfDice = 0; attacker->attack1.damagePoint = 0.1f;
-    attacker->attack1.cooldown = 1.0f; attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL; S_AttackProfileWrite(attacker, 0)->weapon = WPN_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f; S_AttackProfileWrite(attacker, 0)->damageBase = 25.0f;
+    S_AttackProfileWrite(attacker, 0)->numberOfDice = 0; S_AttackProfileWrite(attacker, 0)->damagePoint = 0.1f;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f; S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND; target->defense_type = 0; target->armor_value = 0.0f;
     target->health.value = target->health.max_value = 200.0f;
 
@@ -3914,8 +4077,8 @@ TEST(wc3_combat, attack_ground_roots_disarm_but_immobile_artillery_fires) {
     vec2_t near_rooted = { 50, 0 }, near = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "BEer", 1, 12);
     T_ASSERT(!S_UnitCanTranslate(unit));
@@ -3924,10 +4087,10 @@ TEST(wc3_combat, attack_ground_roots_disarm_but_immobile_artillery_fires) {
     FILTER_EDICTS(ent, ent->owner == unit && ent->movetype == MOVETYPE_FLYMISSILE) missile = ent;
     T_NULL(missile);
     tower = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
-    tower->attack1.type = ATK_SIEGE; tower->attack1.weapon = WPN_ARTILLERY;
-    tower->attack1.range = 500; tower->attack1.damageBase = 73;
-    tower->attack1.damagePoint = 0.1f; tower->attack1.cooldown = 1.0f;
-    tower->attack1.projectile.speed = 900; tower->aiflags |= AI_IMMOBILE;
+    S_AttackProfileWrite(tower, 0)->type = ATK_SIEGE; S_AttackProfileWrite(tower, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(tower, 0)->range = 500; S_AttackProfileWrite(tower, 0)->damageBase = 73;
+    S_AttackProfileWrite(tower, 0)->damagePoint = 0.1f; S_AttackProfileWrite(tower, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(tower, 0)->projectile.speed = 900; tower->aiflags |= AI_IMMOBILE;
     tower->targtype = TARG_GROUND;
     T_ASSERT(S_OrderAttackGround(tower, &near));
     tower->currentmove->think(tower);
@@ -3945,8 +4108,8 @@ TEST(wc3_combat, attack_ground_issued_order_holds_while_ensnared) {
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 100, 0);
     unit->s.player = 0;
-    unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
-    unit->attack1.range = 100; unit->unitinfo.MoveSpeed = 270;
+    S_AttackProfileWrite(unit, 0)->type = ATK_SIEGE; S_AttackProfileWrite(unit, 0)->weapon = WPN_ARTILLERY;
+    S_AttackProfileWrite(unit, 0)->range = 100; unit->unitinfo.MoveSpeed = 270;
     unit->targtype = TARG_GROUND;
     unit_addtimedstatus(unit, "Beng", 1, 12);
     T_ASSERT(G_IssueUnitPointOrder(unit, "attackground", &point, false, 0, 0.0f));
@@ -3964,10 +4127,10 @@ TEST(wc3_bot, target_heroes_policy_prioritizes_farther_hero_for_ai_acquisition) 
     near_unit = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 40.0f, 0.0f);
     far_hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 1000.0f, 90.0f, 0.0f);
     attacker->s.player = 0; near_unit->s.player = far_hero->s.player = 1;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.cooldown = 1.0f;
-    attacker->attack1.damageBase = 10;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(attacker, 0)->damageBase = 10;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     near_unit->targtype = far_hero->targtype = TARG_GROUND;
     gi.LinkEntity(attacker); gi.LinkEntity(near_unit); gi.LinkEntity(far_hero);
 
@@ -3990,10 +4153,10 @@ TEST(wc3_bot, smart_artillery_prioritizes_farther_structure_for_siege_ai) {
     near_unit = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 40.0f, 0.0f);
     far_building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 90.0f, 0.0f);
     siege->s.player = 0; near_unit->s.player = far_building->s.player = 1;
-    siege->attack1.type = ATK_SIEGE;
-    siege->attack1.cooldown = 1.0f;
-    siege->attack1.damageBase = 10;
-    siege->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(siege, 0)->type = ATK_SIEGE;
+    S_AttackProfileWrite(siege, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(siege, 0)->damageBase = 10;
+    S_AttackProfileWrite(siege, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
     near_unit->targtype = TARG_GROUND;
     far_building->targtype = TARG_STRUCTURE;
     far_building->runtime.flags |= UNIT_BALANCE_BUILDING;
@@ -4007,6 +4170,40 @@ TEST(wc3_bot, smart_artillery_prioritizes_farther_structure_for_siege_ai) {
     bot->flags &= ~BOT_SMART_ARTILLERY;
     T_ASSERT(G_FindNearestEnemy(siege, 128.0f) == near_unit);
     G_BotStop(0);
+}
+
+#endif
+
+#ifdef BZ_TESTS
+TEST(wc3_combat, acquisition_outside_world_does_not_poison_every_local_query) {
+    reset_entities(); setup_test_world();
+    box2_t world_bounds = CM_GetWorldBounds();
+    vec2_t center = {(world_bounds.min.x + world_bounds.max.x) * .5f,
+                     (world_bounds.min.y + world_bounds.max.y) * .5f};
+    edict_t *attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, center.x, center.y);
+    attacker->s.player = 0; attacker->targtype = TARG_GROUND;
+    edict_t *enemy = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420, world_bounds.max.x + 1000, center.y);
+    enemy->s.player = 2; enemy->targtype = TARG_GROUND;
+    gi.LinkEntity(attacker); gi.LinkEntity(enemy);
+    G_BeginEntityFrame();
+    T_ASSERT(ai_presence.overflow & (1u << 2));
+    ai_broadphase_queries = 0;
+    FOR_LOOP(i, 128) T_NULL(G_FindNearestEnemy(attacker, 64));
+    T_EQ(ai_broadphase_queries, 0);
+    assert_acquisition_matches_broadphase(attacker, 64);
+    attacker->s.origin2 = (vec2_t){enemy->s.origin2.x - 32, center.y};
+    gi.LinkEntity(attacker);
+    T_ASSERT(G_FindNearestEnemy(attacker, 64) == enemy);
+    assert_acquisition_matches_broadphase(attacker, 64);
+    /* Within-tick movement expands the envelope, retaining both old and new
+     * possible locations until the next rebuild. */
+    enemy->s.origin2.x = world_bounds.min.x - 1000;
+    gi.LinkEntity(enemy);
+    attacker->s.origin2.x = enemy->s.origin2.x + 32;
+    gi.LinkEntity(attacker);
+    T_ASSERT(G_FindNearestEnemy(attacker, 64) == enemy);
+    assert_acquisition_matches_broadphase(attacker, 64);
+    reset_entities(); setup_test_world();
 }
 
 #endif

@@ -121,10 +121,10 @@ typedef struct {
     wc3GridPose_t pose;
     bool valid;
 } movePoseCache_t;
-/* A small working set covers repeated pure predictions within group decisions.
- * Complete input bits remain truth; callbacks and external writers need no
- * invalidation protocol, and collisions simply recompute the original math. */
-static movePoseCache_t move_pose_cache[256];
+/* Entity numbers give every live owner its own prediction slot at full game
+ * capacity. Complete input bits remain truth; callbacks and external writers
+ * need no invalidation protocol. Tags also protect non-pool test actors. */
+static movePoseCache_t move_pose_cache[MAX_ENTITIES];
 typedef struct { moveGroup_t *group; uint64_t sequence; } moveGroupVisit_t;
 static moveGroup_t *move_group_head;
 static uint32_t move_group_first_free;
@@ -213,6 +213,17 @@ static void move_unlink_fine_request(edict_t *unit) {
     unit->movement.fine_prev=unit->movement.fine_next=NULL; unit->movement.fine_queued=false;
 }
 
+void S_CancelUnitMoveFineRequest(edict_t *unit) {
+    move_unlink_fine_request(unit);
+}
+
+void S_InitMoveFineScheduler(void) {
+    cstring_t policy=gi.CvarString("wc3_path_scheduler","responsive");
+    if (strcmp(policy,"responsive") && strcmp(policy,"retail"))
+        gi.error("wc3_path_scheduler must be responsive or retail (takes effect on map start)");
+    level.move_fine_responsive=!strcmp(policy,"responsive");
+}
+
 bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
     if (unit->s.player>=MAX_PLAYERS) {
         fprintf(stderr,"Move: invalid fine-search player %u for unit %u\n",unit->s.player,unit->s.number);
@@ -227,7 +238,8 @@ bool S_AdmitUnitMoveFineRequest(edict_t *unit) {
     if (now<unit->movement.fine_request_time) unit->movement.fine_request_time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
     if (now-unit->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL) return false;
     unit->movement.fine_request_time=now;
-    if (budget->work<=BZ_WC3_FINE_OWNER_WORK && (!budget->head || budget->head==unit)) {
+    uint32_t limit=level.move_fine_responsive ? MAX(BZ_WC3_FINE_OWNER_WORK,budget->limit) : BZ_WC3_FINE_OWNER_WORK;
+    if (budget->work<=limit && (!budget->head || budget->head==unit)) {
         move_unlink_fine_request(unit); return true;
     }
     if (!unit->movement.fine_queued) {
@@ -263,7 +275,18 @@ static void move_update_fine_budget(void) {
     if (!++level.pathing_counter) level.pathing_counter=BZ_WC3_PATH_OWNER_START;
     FOR_LOOP(i,MAX_PLAYERS) {
         moveFineBudget_t *budget=level.move_fine_budgets+i;
-        if (!budget->countdown) budget->work=0,budget->countdown=1;
+        if (!budget->countdown) {
+            budget->work=0; budget->countdown=1;
+            /* Freeze a service grant for the requests already waiting at this
+             * simulation boundary. Every queued request can execute its full
+             * bounded search, including the charged over-budget pop. Keep the
+             * grant fixed while it drains; recomputing from the shrinking FIFO
+             * would strand its tail. New requests still obey FIFO admission.
+             * No wall clock, worker timing or local selection affects this. */
+            budget->limit=level.move_fine_responsive ?
+                MAX(BZ_WC3_FINE_OWNER_WORK,budget->count*(BZ_WC3_UNIT_FINE_WORK+1u)) :
+                BZ_WC3_FINE_OWNER_WORK;
+        }
         else budget->countdown--;
     }
 }
@@ -415,7 +438,7 @@ static void move_route_resume_save(edict_t *self, edict_t *goal, float radius,
                                   uint8_t blocked_flags, vec2_t const *direction) {
     if (!self || !goal || !direction || Vector2_len(direction) <= 0.001f) return;
     self->movement.route_resume_direction = *direction;
-    self->movement.route_resume_goal = goal;
+    S_SetMoveGoal(self, &self->movement.route_resume_goal, goal);
     self->movement.route_resume_goal_origin = goal->s.origin2;
     self->movement.route_resume_goal_spawn = goal->spawn_time;
     self->movement.route_resume_time = level.time;
@@ -601,25 +624,39 @@ static bool unit_is_flying(edict_t const *ent) {
     return ent && (ent->aiflags & AI_FLYING) != 0;
 }
 
+static unitMovementType_t move_type_from_name(cstring_t name) {
+    if (!name || !*name) return UNIT_MOVE_UNSPECIFIED;
+    FOR_LOOP(i, sizeof(move_type_names) / sizeof(*move_type_names))
+        if (!strcmp(name, move_type_names[i])) return (unitMovementType_t)(UNIT_MOVE_FOOT + i);
+    return UNIT_MOVE_DISABLED;
+}
+
+void S_CompileMovementData(UnitData_t *data) {
+    data->compiledMoveTypeName = data->moveTypeName;
+    data->compiledMoveType = move_type_from_name(data->moveTypeName);
+}
+
+unitMovementType_t S_UnitMovementType(UnitData_t const *data) {
+    if (!data) return UNIT_MOVE_UNSPECIFIED;
+    if (data->compiledMoveTypeName == data->moveTypeName) return data->compiledMoveType;
+    /* In-memory fixture rows and an explicitly rebound field need not have
+     * passed through the metadata loader. Decode the live value in that case;
+     * never mutate a borrowed row or rely on its rawcode to identify it. */
+    return move_type_from_name(data->moveTypeName);
+}
+
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
     if (unit_is_flying(ent)) return CM_PATHING_UNFLYABLE;
-    cstring_t const type = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
-    if (type && !strcmp(type, "float")) return CM_PATHING_UNFLOATABLE;
-    if (type && !strcmp(type, "amph")) return CM_PATHING_UNAMPHIBIOUS;
+    unitMovementType_t type = S_UnitMovementType(ent ? ent->data.UnitData : NULL);
+    if (type == UNIT_MOVE_FLOAT) return CM_PATHING_UNFLOATABLE;
+    if (type == UNIT_MOVE_AMPH) return CM_PATHING_UNAMPHIBIOUS;
     return CM_PATHING_UNWALKABLE;
 }
 
-/* Warsmash MovementType.DISABLED: a unit row whose movetp names no movement type is pathable anywhere and
- * collides with nothing. Retail UnitData authors "_" on every building and scenery unit, so this is the
- * class that keeps a scripted pedestal or structure exactly where CreateUnit/SetUnitPosition put it.
- * A row with no movetp cell at all stays mobile: retail always authors the column, so absence is a
- * partial row rather than a statement about movement. */
+/* Missing/empty movetp is a partial row, not the authored disabled category.
+ * Buildings and scenery normally author "_" and retain their requested pose. */
 bool M_UnitMoveDisabled(edict_t const *ent) {
-    cstring_t const movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
-    if (!movetp || !*movetp) return false;
-    FOR_LOOP(i, sizeof(move_type_names) / sizeof(*move_type_names))
-        if (!strcmp(movetp, move_type_names[i])) return false;
-    return true;
+    return S_UnitMovementType(ent ? ent->data.UnitData : NULL) == UNIT_MOVE_DISABLED;
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
@@ -1092,9 +1129,7 @@ void S_PublishMovement(edict_t *self) {
         return;
     }
     wc3GridPose_t pose;
-    unit_grid_pose(self, &pose);
-    float velocity[2] = {self->movement.velocity.x, self->movement.velocity.y};
-    wc3_grid_step(&pose, velocity, wc3_elapsed(&level.pathing_clock, &self->movement.pose_clock));
+    unit_predicted_pose(self, &pose);
     vec2_t point = {pose.world[0], pose.world[1]};
     self->movement.sampled_pose = (vec2_t){pose.grid[0], pose.grid[1]};
     if (wc3_float_bits(point.x) == wc3_float_bits(self->s.origin2.x) &&
@@ -1160,8 +1195,12 @@ static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {
         .published=self->movement.pose_world,.origin=bounds.min,.velocity=self->movement.velocity,
         .now=level.pathing_clock,.committed=self->movement.pose_clock,
         .flags=(self->movement.pose_valid ? 1u : 0) | (self->movement.clock_valid ? 2u : 0)};
-    uintptr_t address=(uintptr_t)self;
-    movePoseCache_t *entry=move_pose_cache+(((address>>4)^(address>>16))&255u);
+    /* Zero velocity contributes exactly zero through the retail integer
+     * scalar multiply, including signed zero and an epoch crossing. Keep the
+     * original calculation on a miss; time cannot change its result. */
+    if(!self->movement.clock_valid || (!key.velocity.x && !key.velocity.y))
+        key.now=key.committed=(wc3Clock_t){0};
+    movePoseCache_t *entry=move_pose_cache+(uint32_t)self->s.number%MAX_ENTITIES;
     if(entry->valid && entry->unit==self && !memcmp(&entry->key,&key,sizeof(key))) {
 #ifdef BZ_TESTS
         move_pose_cache_hits++;
@@ -1337,7 +1376,10 @@ void S_InitUnitPosition(edict_t *self, vec2_t const *requested) {
     vec2_t old = self->s.origin2, point;
     if (!G_FindUnitPlacementPosition(self,requested,&point))
         fprintf(stderr,"WC3 CreateUnit: no legal point for %08x at (%.9g, %.9g); retaining requested position\n",self->class_id,requested->x,requested->y);
-    wc3GridPose_t pose; unit_grid_pose(self,&pose);
+    box2_t const bounds = CM_GetWorldBounds();
+    /* The retail factory overwrites both fine axes with its sentinel before
+     * either placement write. Only the map origin survives that initialization. */
+    wc3GridPose_t pose = {.origin = {bounds.min.x,bounds.min.y}};
     float world[2] = {point.x,point.y};
     wc3_grid_spawn_place(&pose,world);
     unit_commit_pose(self,&pose);
@@ -2099,10 +2141,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
             dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
             if (Vector2_len(&dir) <= 0.001f) {
                 self->movement.flow_unreachable = !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
-                /* Location targets are private waypoints.  When the clicked static
-                 * component is unreachable, replace the waypoint with the
-                 * closest legal point in this mover's component; aiming at the
-                 * raw click made local avoidance walk forever along walls. */
+                /* Keep the reachable approach on the mover. Only a private
+                 * location waypoint may adopt that endpoint; interaction
+                 * targets retain their authoritative pose and footprint. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
                     vec2_t const *from = &self->s.origin2, *target = &self->goalentity->s.origin2;
                     vec2_t closest;
@@ -2111,7 +2152,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                     self->movement.flow_fallback_target = *target;
                     self->movement.flow_fallback_radius = radius;
                     self->movement.flow_fallback_time = level.time;
-                    self->movement.flow_fallback_goal = self->goalentity;
+                    S_SetMoveGoal(self, &self->movement.flow_fallback_goal, self->goalentity);
                     self->movement.flow_fallback_state = MOVE_FALLBACK_RETRY;
                     pathAccelParams_t query = {from, target, radius, blocked_flags};
                     if (G_ClosestReachableMovePoint(&query, &closest)) {
@@ -2121,16 +2162,17 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                         self->movement.flow_fallback_target = *target;
                         self->movement.flow_fallback_approach = closest;
                         self->movement.flow_fallback_radius = radius;
-                        self->movement.flow_fallback_goal = self->goalentity;
-                        if (move_has_active_construction() &&
-                            Vector2_distance(&closest, target) > 1.0f) {
+                        S_SetMoveGoal(self, &self->movement.flow_fallback_goal, self->goalentity);
+                        if (!(self->goalentity->svflags & SVF_MOVE_WAYPOINT) ||
+                            (move_has_active_construction() &&
+                             Vector2_distance(&closest, target) > 1.0f)) {
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
                             unit_apply_route_heading(self, &dir, policy, route_result);
                         } else {
                             self->goalentity->s.origin2 = closest;
-                            self->goalentity->secondarygoal = NULL;
+                            S_SetMoveGoal(self->goalentity, &self->goalentity->secondarygoal, NULL);
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                         }
                     }
@@ -2238,8 +2280,81 @@ void unit_changeangle_interaction_ignore_units(edict_t *self) {
 
 static entitySet_t waypoint_available;
 static bool waypoint_cache_valid;
+static bool waypoint_index_valid;
+static entitySet_t waypoint_dirty, waypoint_roots, waypoint_live, waypoint_kinds, waypoint_chains;
+static uint32_t waypoint_references[MAX_ENTITIES];
+static uint16_t waypoint_owner_roots[MAX_ENTITIES][11];
+_Static_assert(MAX_ENTITIES <= UINT16_MAX, "Waypoint root identity must fit with a null sentinel");
+#ifdef BZ_TESTS
+static uint32_t waypoint_owner_visits;
+#endif
 
-void G_ResetWaypointCache(void) { waypoint_cache_valid=false; }
+void G_ResetWaypointCache(void) { waypoint_cache_valid=waypoint_index_valid=false; }
+
+/* Reference writers publish the pointer synchronously. Reclamation reconciles
+ * each changed owner once, after all writes, using compact identity columns.
+ * Reads never allocate and this derived index never claims entity identities. */
+void S_MarkMoveGoals(edict_t const *owner) {
+    uintptr_t offset=(uintptr_t)owner-(uintptr_t)g_edicts;
+    if(waypoint_index_valid && g_edicts && offset<sizeof(*owner)*MAX_ENTITIES && !(offset%sizeof(*owner)))
+        entity_set_put(&waypoint_dirty,offset/sizeof(*owner),true);
+}
+
+edict_t *S_SetMoveGoal(edict_t *owner, edict_t **slot, edict_t *goal) {
+    *slot=goal;
+    S_MarkMoveGoals(owner);
+    return goal;
+}
+
+static uint16_t waypoint_identity(edict_t const *point) {
+    uintptr_t offset=(uintptr_t)point-(uintptr_t)g_edicts;
+    return g_edicts && offset<sizeof(*point)*MAX_ENTITIES && !(offset%sizeof(*point)) ?
+        (uint16_t)(offset/sizeof(*point)+1) : 0;
+}
+
+static void waypoint_update_owner(uint32_t index) {
+    edict_t const *unit=g_edicts+index;
+    bool kind=(unit->svflags&SVF_MOVE_WAYPOINT)!=0;
+    edict_t *heads[11]={0};
+    if(unit->inuse && !kind) {
+        edict_t *live[]={unit->goalentity,unit->secondarygoal,unit->movement.attackmove_waypoint,
+            unit->movement.patrol_a,unit->movement.patrol_b,unit->movement.patrol_target,
+            unit->movement.waygate_goal,unit->movement.cargo_unload_goal,unit->movement.flow_fallback_goal,
+            unit->movement.route_resume_valid?unit->movement.route_resume_goal:NULL,
+            unit->ancient_root?unit->ancient_root->approach_goal:NULL};
+        memcpy(heads,live,sizeof(heads));
+    }
+    FOR_LOOP(i,sizeof(heads)/sizeof(*heads)) {
+        uint16_t next=waypoint_identity(heads[i]),old=waypoint_owner_roots[index][i];
+        if(next==old)continue;
+        if(old) {
+            assert(waypoint_references[old-1]);
+            if(!--waypoint_references[old-1])entity_set_put(&waypoint_roots,old-1,false);
+        }
+        if(next && !waypoint_references[next-1]++)entity_set_put(&waypoint_roots,next-1,true);
+        waypoint_owner_roots[index][i]=next;
+    }
+    entity_set_put(&waypoint_live,index,unit->inuse && kind);
+    entity_set_put(&waypoint_kinds,index,kind);
+    entity_set_put(&waypoint_chains,index,kind && waypoint_identity(unit->secondarygoal));
+#ifdef BZ_TESTS
+    waypoint_owner_visits++;
+#endif
+}
+
+static void waypoint_reconcile_owners(void) {
+    if(!waypoint_index_valid) {
+        waypoint_dirty=waypoint_roots=waypoint_live=waypoint_kinds=waypoint_chains=(entitySet_t){0};
+        memset(waypoint_references,0,sizeof(waypoint_references));
+        memset(waypoint_owner_roots,0,sizeof(waypoint_owner_roots));
+        FOR_LOOP(i,globals.num_edicts)waypoint_update_owner(i);
+        waypoint_index_valid=true;
+    } else {
+        for(uint32_t i=entity_set_next(&waypoint_dirty,0);i<globals.num_edicts;i=entity_set_next(&waypoint_dirty,i+1))
+            waypoint_update_owner(i);
+        waypoint_dirty=(entitySet_t){0};
+    }
+}
 
 static void waypoint_retain(entitySet_t *retained,edict_t *point) {
     while(point) {
@@ -2259,24 +2374,19 @@ static void waypoint_retain(entitySet_t *retained,edict_t *point) {
  * after Waypoint_add returns. The ordinary F_EDICT serializer owns all heads. */
 static void waypoint_collect_available(void) {
     entitySet_t retained={0};
-    memset(&waypoint_available,0,sizeof(waypoint_available));
-    FILTER_EDICTS(unit,unit->inuse && !(unit->svflags&SVF_MOVE_WAYPOINT)) {
-        waypoint_retain(&retained,unit->goalentity);
-        waypoint_retain(&retained,unit->secondarygoal);
-        waypoint_retain(&retained,unit->movement.attackmove_waypoint);
-        waypoint_retain(&retained,unit->movement.patrol_a);
-        waypoint_retain(&retained,unit->movement.patrol_b);
-        waypoint_retain(&retained,unit->movement.patrol_target);
-        waypoint_retain(&retained,unit->movement.waygate_goal);
-        waypoint_retain(&retained,unit->movement.cargo_unload_goal);
-        waypoint_retain(&retained,unit->movement.flow_fallback_goal);
-        if(unit->movement.route_resume_valid)waypoint_retain(&retained,unit->movement.route_resume_goal);
-        if(unit->ancient_root)waypoint_retain(&retained,unit->ancient_root->approach_goal);
+    waypoint_reconcile_owners();
+    FOR_LOOP(word,sizeof(retained.bits)/sizeof(*retained.bits)) {
+        retained.bits[word]=waypoint_roots.bits[word]&waypoint_kinds.bits[word];
+        if(retained.bits[word])retained.top[word/64]|=UINT64_C(1)<<(word%64);
     }
-    FILTER_EDICTS(point,point->inuse && (point->svflags&SVF_MOVE_WAYPOINT)) {
-        uint32_t index=point-g_edicts;
-        if(!(retained.bits[index/64]&(UINT64_C(1)<<(index%64))))
-            entity_set_put(&waypoint_available,index,true);
+    /* Only roots with a secondary edge need graph traversal. Shared chains
+     * and cycles retain the original first-mark stopping rule. */
+    for(uint32_t i=entity_set_next(&waypoint_chains,0);i<globals.num_edicts;i=entity_set_next(&waypoint_chains,i+1))
+        if(waypoint_references[i])waypoint_retain(&retained,g_edicts[i].secondarygoal);
+    waypoint_available=(entitySet_t){0};
+    FOR_LOOP(word,sizeof(retained.bits)/sizeof(*retained.bits)) {
+        waypoint_available.bits[word]=waypoint_live.bits[word]&~retained.bits[word];
+        if(waypoint_available.bits[word])waypoint_available.top[word/64]|=UINT64_C(1)<<(word%64);
     }
     waypoint_cache_valid=true;
 }
@@ -2326,7 +2436,7 @@ edict_t *Waypoint_add(vec2_t const *spot) {
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
     waypoint->heatmap2_radius = 0;
-    waypoint->secondarygoal = NULL;
+    S_SetMoveGoal(waypoint, &waypoint->secondarygoal, NULL);
     waypoint->collision = 0;
     M_CheckGround(waypoint);
     return waypoint;
@@ -2391,15 +2501,10 @@ uint32_t M_RefreshHeatmap(edict_t *self, float radius) {
     return M_RefreshHeatmapForMover(NULL, self, radius);
 }
 
-static cstring_t M_UnitMoveTypeName(edict_t const *self) {
-    return self && self->data.UnitData ? self->data.UnitData->moveTypeName : NULL;
-}
-
-static bool M_UnitUsesWaterSurface(edict_t const *self, cstring_t movetp) {
-    if (!movetp) return false;
-    if (!strcmp(movetp, "fly") || !strcmp(movetp, "hover") || !strcmp(movetp, "float"))
+static bool M_UnitUsesWaterSurface(edict_t const *self, unitMovementType_t type) {
+    if (type == UNIT_MOVE_FLY || type == UNIT_MOVE_HOVER || type == UNIT_MOVE_FLOAT)
         return true;
-    if (!strcmp(movetp, "amph")) {
+    if (type == UNIT_MOVE_AMPH) {
         return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
                !CM_TerrainPointIsWalkable(&self->s.origin2);
     }
@@ -2415,7 +2520,7 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     if (Vector2_distance(&self->s.origin2, &self->movement.flow_fallback_approach) <=
         unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE) {
         self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
-        self->movement.flow_fallback_goal = NULL;
+        S_SetMoveGoal(self, &self->movement.flow_fallback_goal, NULL);
         return false;
     }
     dir = Vector2_sub(&self->movement.flow_fallback_approach, &self->s.origin2);
@@ -2429,12 +2534,12 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
  * max(terrain, water).  Walkable destructables can raise every movement type
  * except float, matching Warsmash's "boats can't go on bridges" rule. */
 void M_CheckGround(edict_t *self) {
-    cstring_t const movetp = M_UnitMoveTypeName(self);
-    bool const floating = movetp && !strcmp(movetp, "float");
+    unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
+    bool const floating = type == UNIT_MOVE_FLOAT;
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float const cell = CM_PathCellWorldSize();
 
-    if (M_UnitUsesWaterSurface(self, movetp))
+    if (M_UnitUsesWaterSurface(self, type))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
     if (!floating) {
@@ -2618,7 +2723,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
-    self->movement.flow_fallback_goal = NULL;
+    S_SetMoveGoal(self, &self->movement.flow_fallback_goal, NULL);
     self->movement.flow_fallback_state = MOVE_FALLBACK_NONE;
     self->movement.worker_avoid_origin = self->s.origin2;
     self->movement.worker_avoid_heading = self->s.angle;
@@ -2686,7 +2791,7 @@ static float unit_effective_speed_with_bonus(edict_t *ent, float bonus) {
     float speed = (ent->unitinfo.move_flags & BZ_UNIT_SPEED_SET) || ent->unitinfo.MoveSpeed > 0
         ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     speed = wc3_add(speed, bonus);
-    uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
+    uint32_t level = G_QueryUnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
     speed = wc3_mul(speed, wc3_add(1, S_BloodlustMoveBonus(ent)));
@@ -2917,8 +3022,8 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
 }
 
 static bool follow_can_auto_attack(edict_t const *self) {
-    if (!self || !S_CargoAttacksEnabled(self) || self->attack1.cooldown <= 0.0f ||
-        (self->attack1.damageBase <= 0 && self->attack1.numberOfDice <= 0)) {
+    if (!self || !S_CargoAttacksEnabled(self) || S_AttackProfileRead(self, 0)->cooldown <= 0.0f ||
+        (S_AttackProfileRead(self, 0)->damageBase <= 0 && S_AttackProfileRead(self, 0)->numberOfDice <= 0)) {
         return false;
     }
     return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
@@ -2979,12 +3084,12 @@ static void ai_follow_walk(edict_t *ent) {
 
     if (!follow_target_is_valid(ent, target)) {
         ent->movement.follow_target = NULL;
-        if (ent->goalentity == target) ent->goalentity = NULL;
+        if (ent->goalentity == target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return;
     }
 
-    ent->goalentity = target;
+    S_SetMoveGoal(ent, &ent->goalentity, target);
     if (follow_can_auto_attack(ent) && G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
@@ -3033,11 +3138,11 @@ void order_follow_resume(edict_t *self) {
     target = self->movement.follow_target;
     if (!follow_target_is_valid(self, target)) {
         self->movement.follow_target = NULL;
-        if (self->goalentity == target) self->goalentity = NULL;
+        if (self->goalentity == target) S_SetMoveGoal(self, &self->goalentity, NULL);
         unit_stand(self);
         return;
     }
-    self->goalentity = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
     self->movement.holding_position = false;
     move_reset_progress(self);
     bool physical=!(self->aiflags&AI_FLYING) && !(target->aiflags&AI_FLYING) && !G_UnitIsStructure(target);
@@ -3058,10 +3163,10 @@ void order_follow(edict_t *self, edict_t *target) {
         !follow_target_is_valid(self, target)) {
         return;
     }
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = NULL;
-    self->movement.patrol_b = NULL;
-    self->movement.patrol_target = NULL;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     self->movement.follow_target = target;
     self->movement.holding_position = false;
     order_follow_resume(self);
@@ -3086,7 +3191,7 @@ static void move_hold(edict_t *ent) {
         /* Treat the normal near-goal blocked settle as completion of the
          * internal guard return; do not strand the unit in an active Move pose. */
         ent->movement.guard_state = GUARD_IDLE;
-        ent->goalentity = NULL;
+        S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return;
     }
@@ -3233,7 +3338,7 @@ static void ai_move_walk(edict_t *ent) {
         if (S_UnitAbilityMoveArrive(ent)) return;
         if (ent->movement.guard_state == GUARD_RETURNING) {
             ent->movement.guard_state = GUARD_IDLE;
-            ent->goalentity = NULL;
+            S_SetMoveGoal(ent, &ent->goalentity, NULL);
         }
         ent->stand(ent);
     } else {
@@ -3348,12 +3453,12 @@ void order_move(edict_t *self, edict_t *target) {
         return;
     if (self->movement.clock_valid) unit_commit_current_pose(self);
     move_cancel_displacement(self);
-    self->goalentity = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
     self->attack_target_spawn_time = 0;
-    self->movement.attackmove_waypoint = NULL;
-    self->movement.patrol_a = NULL;
-    self->movement.patrol_b = NULL;
-    self->movement.patrol_target = NULL;
+    S_SetMoveGoal(self, &self->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
+    S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     self->movement.follow_target = NULL;
     self->movement.holding_position = false;
 #ifdef WC3_DEBUG_BUILD
@@ -3509,8 +3614,8 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
          * range eligibility and native unit5c.40000000 need their own original
          * public producer captures. */
         float attack_range=0;
-        if (S_UnitAttackSlotEnabled(unit,0)) attack_range=MAX(attack_range,unit->attack1.range);
-        if (S_UnitAttackSlotEnabled(unit,1)) attack_range=MAX(attack_range,unit->attack2.range);
+        if (S_UnitAttackSlotEnabled(unit,0)) attack_range=MAX(attack_range,S_AttackProfileRead(unit, 0)->range);
+        if (S_UnitAttackSlotEnabled(unit,1)) attack_range=MAX(attack_range,S_AttackProfileRead(unit, 1)->range);
         if (attack_range>200)
             fprintf(stderr,"WC3 Move: ranged captain approach policy unresolved unit=%.4s range=%.9g\n",GetClassName(unit->class_id),attack_range);
         float world=unit->data.UnitWeapons && unit->data.UnitWeapons->attacksEnabled ?
@@ -3623,7 +3728,7 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
 
 /* Original16c6d0 chooses the closest predicted member, with strict ties.
  * TODO GROUP-04.6: preserve the path88.200000 preference and group200 bypass. */
-static edict_t *move_group_source(moveGroup_t const *group) {
+static edict_t *move_group_source(moveGroup_t const *group, wc3GridPose_t *selected) {
     box2_t bounds=CM_GetWorldBounds();
     float goal[2]={wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
     float best=FLT_MAX; edict_t *source=NULL;
@@ -3631,7 +3736,7 @@ static edict_t *move_group_source(moveGroup_t const *group) {
         edict_t *unit=group->members[i].unit; wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
         float dx=wc3_sub(goal[0],pose.grid[0]),dy=wc3_sub(goal[1],pose.grid[1]);
         float distance=wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy));
-        if (distance<best) { best=distance; source=unit; }
+        if (distance<best) { best=distance; source=unit; *selected=pose; }
     }
     return source;
 }
@@ -3639,9 +3744,9 @@ static edict_t *move_group_source(moveGroup_t const *group) {
 /* Original16de50 seeds the formation origin when the cohort is created,
  * before the next owner pass can predict a moving member at a later clock. */
 static void move_group_seed_route(moveGroup_t *group) {
-    edict_t *source=move_group_source(group);
+    wc3GridPose_t pose;
+    edict_t *source=move_group_source(group,&pose);
     if (!source) gi.error("Move: physical group has no route source");
-    wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     group->point=(vec2_t){pose.grid[0],pose.grid[1]};
 }
 
@@ -3706,7 +3811,8 @@ void S_CaptainGoHome(botCaptain_t *captain) {
 }
 
 static bool move_group_route(moveGroup_t *group) {
-    edict_t *source=move_group_source(group); if (!source) return false;
+    wc3GridPose_t pose;
+    edict_t *source=move_group_source(group,&pose); if (!source) return false;
     /* Original16c940 scans the live resolved members when routing samples a
      * local group. Membership pruning has already removed departed owners. */
     group->radius=0;
@@ -3714,7 +3820,6 @@ static bool move_group_route(moveGroup_t *group) {
         group->radius=group->members[i].unit->collision;
     moveShared_t const *shared=move_group_shared(group);
     if (shared) group->radius=shared->radius;
-    wc3GridPose_t pose; unit_predicted_pose(source,&pose);
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
         .mover=source,.target=group->target,.units=true,.fine=&fine};
@@ -3886,6 +3991,7 @@ static void move_run_group_updates(void) {
         owners[visits++]=(moveGroupVisit_t){group,group->sequence};
     }
     FOR_LOOP(g,visits) {
+        if (!(g & 7u)) gi.FrameCheckpoint();
         moveGroup_t *group=owners[g].group;
         if (!group->inuse || group->sequence!=owners[g].sequence) continue;
         group->ticking=true;
@@ -3907,7 +4013,7 @@ static void move_run_group_updates(void) {
                 G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             while(group->count) {
                 edict_t *unit=group->members[group->count-1].unit;
-                unit->movement.follow_target=NULL; unit->goalentity=NULL; unit_stand(unit);
+                unit->movement.follow_target=NULL; S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
             }
             move_release_group(group); continue;
         }
@@ -4145,7 +4251,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             }
         } else {
             edict_t *waypoint = Waypoint_add(&target);
-            waypoint->secondarygoal = route_waypoint;
+            S_SetMoveGoal(waypoint, &waypoint->secondarygoal, route_waypoint);
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;
             S_IssueMoveOrder(ent, waypoint, G_OrderId("move"));
@@ -4164,6 +4270,12 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
+            A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
+            A_PRIMARY_TIMER, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
+            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_COMMAND, A_TARGET_REMOVED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };
@@ -4189,6 +4301,14 @@ BZ_ABILITY_PROC(CAbilityMove) {
             move_reset_progress(ent);
             ent->movement.pose_clock=level.pathing_clock;
         }
+        return true;
+    case A_TIMERS_RESET:
+        if(ent)return 0;
+        move_timer_members=(entitySet_t){0};return true;
+    case A_TIMERS_REBUILD:
+        if(ent)return 0;
+        move_timer_members=(entitySet_t){0};
+        FOR_LOOP(i,globals.num_edicts) S_TrackMoveTimers(g_edicts+i);
         return true;
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;
@@ -4244,7 +4364,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             return false;
         move_detach_group(ent); ent->movement.group_id=0;
         ent->movement.follow_target = NULL;
-        if (ent->goalentity == call->removed_target) ent->goalentity = NULL;
+        if (ent->goalentity == call->removed_target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return true;
     default:

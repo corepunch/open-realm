@@ -92,3 +92,227 @@ The WC3 API tests cover:
 
 Runtime campaign validation should additionally check that a camera-only pan into unexplored terrain remains masked and that a
 cinematic reveal can show a remote area without coupling camera movement to fog mutation.
+
+## Ordered source checkpoints
+
+`G_FowUpdate` retains per-source geometry and adds ordered prefix checkpoints for
+ordinary unit sight. A checkpoint is the complete byte visibility plane and row
+mask after every source in its edict block has committed its blocker rim. It
+contains neither scripted modifiers nor timed spell reveals; those retain their
+original position after unit sight.
+
+Exact source-input comparison records independently dirty blocks for each viewer.
+Evaluation restores the preceding clean prefix, replays dirty sources in their
+original order, and compares the completed output with the old checkpoint. If
+those outputs match, unchanged later blocks can be skipped until the next dirty
+block. It never supplies an earlier source with a later source's visibility.
+Applying a saved prefix uses ordinary visibility/exploration writes, preserving
+scripted exploration masking and both dirty-row planes.
+
+Block size starts at 256 edict slots and doubles until all possible checkpoints
+fit within 2 MiB per viewer (32 MiB for all 16 viewers). Storage is allocated only
+for reached checkpoints. A map whose single plane exceeds that budget uses the
+exact full replay. Actual blocked-cell changes, source insertion/removal and viewer membership
+changes conservatively invalidate affected prefixes. A changed blocker witness
+with an identical blocked-cell grid preserves sight (damage to a surviving tree
+or an overlapping blocker, for example). Appending a non-revealing entity does
+not invalidate sight; partial checkpoint endpoints are validated on replay.
+All-moving or nonconverging inputs can still require a full ordered replay; this
+is not an approximation or a promise of constant fog cost. Checkpoints are
+derived state, released with fog state and reconstructed after loading.
+
+`wc3_game.fow_prefix_checkpoints_match_full_ordered_replay_across_dirty_blocks`
+compares all five visibility/exploration/row planes against the original
+rasterizer from the same initial state. Its 800 sources span multiple blocks;
+mutations include separated moving sources, sight-radius changes, blockers,
+scripted exploration masking, death, shared vision, insertion, removal and owner
+changes. Test counters separately verify that clean source blocks were skipped.
+
+Runtime310 validation: the focused fog suite passes 10,699 assertions in 15 tests
+in both Classic and TFT. The full engine suite passes 2,625 tests and 6,879,123
+assertions in each mode. `perf310-icecrown-raw-spawn-and-move-4096.jsonl` retains
+exact source221 final positions, membership and RNG on the populated IceCrown
+map. That dedicated capture does not establish rendered fog performance; the
+rendered capture still fails presentation deadlines.
+
+The runtime310 same-binary rendered A/B probe (`perf310-fog-ab.py` beside the
+reports) times `G_FowUpdate` using native Frida entry/exit hooks. The disabled arm
+sets the derived `fow_prefix_block` to zero before fog updates; it preserves the
+same rasterization and other caches. Median fog CPU was 9.901318 ms enabled and
+9.670793 ms disabled; this pair does **not** establish a speedup. Both captures
+still miss presentation deadlines. The corresponding `perf310-icecrown-fog-`
+`prefix-4096.jsonl` and `full-replay-4096.jsonl` are diagnostic captures, not raw
+constructor or deadline acceptance. Follow-up runtime311 removes invalidation
+when a blocker-record edit leaves the actual blocked-cell grid unchanged.
+
+Runtime311's unchanged-occlusion follow-up passes all 10,709 assertions in 16 fog
+tests in both data modes. The final rendered diagnostic
+`perf311-icecrown-fog-prefix-4096.jsonl` measures median fog CPU 9.436413 ms and
+maximum 105.944531 ms; its maximum presentation interval is 186.088622 ms.
+It still fails the frame budget. The unchanged-blocker cases now avoid source
+replay entirely in the regression fixture, but this capture does not establish
+a substantial overall performance win. Pure geometry construction, authoritative
+simulation cost and presentation scheduling remain outstanding work.
+
+## Exact ordered word evaluation
+
+The unit-sight pass maintains a world-aligned bitmap with 64 horizontal cells per
+word for each active viewer. It describes visibility accumulated **so far in
+source order**, not final visibility. Cell writes, packed eight-cell writes and
+restored prefixes update it. It is cleared before each pass, excluded from
+persistence, and never queried across scripted modifiers or timed reveals.
+
+Compiled source geometry owns two aligned masks: unconditional base cells and
+conditional blocker-rim candidates. A source is an identity operation if its base
+is already visible and no unseen rim candidate has a visible cardinal neighbor.
+Without an initial eligible rim candidate, propagation cannot start. A cold
+source may also skip geometry entirely when its conservative rectangle is
+already visible. The first contributor still executes normally; later sources
+cannot justify an earlier skip. Exploration is reapplied during prefix restore,
+so scripts may mask it between passes.
+
+For a contributing cached source, base masks are merged a word at a time. Only
+new bits are enumerated into byte visibility/exploration planes. Rim evaluation
+runs in ascending Y/word order. Each word computes seeds from above, below and
+its incoming horizontal neighbors, then propagates **only to the right** through
+uninterrupted candidate runs using shifts of 1, 2, 4, 8, 16 and 32. The next word
+sees the previous word's completed output; the next row sees the previous row's
+completed output. Newly revealed right-hand cells never retroactively reveal a
+missed cell to their left. This preserves the old ascending scalar scan rather
+than performing an undirected flood fill.
+
+The old temporary rim value 2 was only observed as nonzero within this pass.
+Committing its word result to value 1 preserves subsequent neighbor tests and
+produces the same visibility, exploration and dirty rows at the source boundary.
+The original scalar rasterizer remains the independent test oracle. Exhaustive
+8-bit candidate/seed combinations and deterministic full-width randomized cases
+also compare the word operator directly to an ascending scalar scan; a separate
+predicate test checks cardinal neighbors across word and map boundaries.
+
+This replaces repeated per-cell mask/rim processing with word operations plus
+enumeration of newly visible cells. Bitmap memory is
+`ceil(width / 64) * height * 8` bytes per viewer; source base/rim masks use their
+clipped row extent. Unique cold geometry still requires real rasterization.
+No visibility update is dropped, delayed to another simulation tick or based on
+worker completion time.
+
+Historical experiments: runtime313's rectangle-only certificate skipped just
+35 sources against 102,521 source evaluations on IceCrown. Runtime314's union of
+all possible writes was also too conservative: unseen rim candidates can be
+inert. The runtime313/314 same-window pair measured median fog CPU of 8.084270 /
+8.614672 ms, so neither experiment established a performance win. Runtime315's
+separate base/rim identity predicate passed 110,976 scalar-neighbor checks and
+the 17 existing fog regressions before the runtime316 row-word evaluator replaced
+the tile representation.
+
+
+Runtime316 passes 196,514 assertions in the word/predicate tests and 10,933 in
+17 whole-fog tests in both Classic and TFT modes. Its paired IceCrown capture
+with 4096 added units measured median fog CPU 4.517524 ms against runtime315's
+4.505763 ms; cold maxima were 99.377249 and 96.521338 ms respectively. Both missed
+presentation deadlines. The row-word replay alone therefore does not establish
+a performance improvement on this workload.
+
+The subsequent cold-path implementation records shadowcast geometry directly
+into the aligned base mask. It no longer allocates a second local bitmap or a
+per-cell rim list, converts between them, or updates viewer state on every
+shadowcast visit. The finished base is published once. Rim construction builds
+clipped disk spans and intersects them with a shared blocker bitmap, reducing
+its per-source square cell scan to row/word operations. The blocker bitmap is
+rebuilt only when actual blocked cells change; temporary viewer visibility is
+never an input to geometry compilation. Unobstructed disks are also constructed
+as word spans. Ordered publication and rim evaluation remain synchronous.
+
+
+Runtime317's direct construction passes the same 17 fog regressions in both
+modes. On the IceCrown rendered diagnostic, median fog CPU is 3.352541 ms and
+maximum 58.255559 ms, compared with runtime316's 4.517524 / 99.377249 ms. Peak
+presentation interval improves from 165.833142 to 122.454727 ms, but still fails
+the deadline gate. These captures establish useful progress, not completion or
+retail parity. Runtime318 additionally uses blocker words for the cold source's
+obstacle-presence query and retains the original floating-point disk boundary
+separately from the integer-distance blocker-rim boundary.
+
+
+The first runtime318 rendered capture is retained as adverse evidence:
+`perf318-direct-icecrown-fog-4096.jsonl` reports 10.176142-ms median fog CPU,
+226.338519-ms maximum, and a 417.986757-ms peak presentation interval. Constructor
+time also increased to 1978.387515 ms with 158 presentation frames during spawn.
+This capture does not establish the cause of the across-pipeline slowdown and
+must not be omitted when interpreting the earlier gain. The separate runtime318
+raw movement capture creates all 4096 units in 8.098037 ms CPU and exactly matches
+source221's final positions, member state and RNG. Raw creation remains above
+2 ms, and render acceptance remains open.
+
+
+Final-source validation: `make -j6 TEST_JOBS=6 test openwarcraft3` passes with
+native SDL2. Both Classic and TFT complete 2,630 tests / 7,075,879 assertions,
+including the exact integer-rim versus rounded-float-disk boundary fixture.
+The eight launcher Python regressions also pass. The normal launcher output and
+the separate release benchmark output have both been rebuilt from this source.
+
+
+The final same-window runtime316/318 pair, after all builds and tests completed,
+is `perf316-final-pair-icecrown-fog-4096.jsonl` versus
+`perf318-final-pair-icecrown-fog-4096.jsonl`:
+
+| Measurement | Previous geometry | Direct word geometry |
+|---|---:|---:|
+| Median fog CPU | 4.184831 ms | 3.617416 ms |
+| First-update maximum fog CPU | 81.897565 ms | 68.348673 ms |
+| Median active server CPU | 38.280777 ms | 39.441367 ms |
+| Maximum presentation interval | 150.829728 ms | 129.679286 ms |
+| Double-period gaps | 17 | 18 |
+
+This supports a local fog improvement, not a total-server or deadline win.
+The final rendered constructor included one presentation checkpoint and measured
+16.328199 ms; its separate raw 8.098037-ms measurement remains the comparable
+synchronous constructor evidence. The adverse earlier capture remains above.
+Final release-specific checks also pass: 196,522 assertions in three word tests
+and 10,933 in 17 fog tests, in both data modes.
+
+
+## Shared ray geometry and transparent spans
+
+The cold source evaluator now owns an explicit geometry context: read-only
+blocker cells and row/column bitmaps, world dimensions, immutable ray rows and
+one exclusively written source mask. It does not touch viewer visibility,
+exploration, RNG or entity state. Ordered base/rim publication remains unchanged.
+The original scalar rasterizer remains the differential oracle.
+
+A ray row stores the original floating-point left/right slopes and squared
+cell distance once per distance. All sources, radii and octants share it. Rows
+are prepared synchronously and released at map shutdown. Binary searches use
+the original strict comparisons to find the row's active interval; equality
+and neighboring representable floats are tested. Changes to `start` after an
+obstacle run retain the original per-cell test inside the interval.
+
+Obstacle-free intervals can emit clipped spans without running the cell state
+machine. A transposed blocker bitmap gives vertical rays the same word query as
+horizontal rays. The obstacle query includes cells outside the sight circle,
+because those cells can still affect shadow recursion. Only the output span is
+clipped by squared distance. A clear interval cannot change the wedge or launch
+recursion; blocked intervals retain the scalar transition order. Both blocker
+bitmaps rebuild together only when actual occlusion cells change.
+
+This changes excluded-column work from a linear scan to a binary search and
+changes clear horizontal intervals to word writes. Clear vertical intervals
+still write one output word per row. Obstructed intervals and recursive wedges
+remain real work; this is not a constant-time visibility algorithm.
+
+Focused release verification passes 213,613 assertions in five `wc3_fow.*`
+tests and 10,933 assertions in 17 game fog tests in both Classic and TFT modes.
+The clear-disk fixture compares all eight octants to the scalar oracle and
+requires zero per-cell geometry visits; slope-boundary tests include adjacent
+representable floats. The connected-viewer runtime318/320 pair reduces median
+fog CPU from 14.905264 to 4.140197 ms and cold maximum from 221.504292 to
+37.786242 ms, with identical final positions, membership and RNG. See
+[performance evidence and capture limits](performance.md#october-5-shared-fog-rays-and-ordered-spatial-hashing).
+The rendered runtime320 capture still has a 95.811346-ms maximum interval;
+visibility improvement is not presentation-budget acceptance.
+
+The final complete repository suite passes, including 2,633 tests and
+7,093,714 assertions per Classic/TFT mode. No visibility/exploration,
+dirty-plane, placement, membership or RNG mismatch was observed in these
+regressions and captures; this remains current-engine preservation evidence,
+not proof that all remaining retail fog/pathfinding differences are closed.

@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#if defined(__SSE2__)
+#include <emmintrin.h>
+#endif
 #include "wc3_math_tables.h"
 
 static uint32_t const wc3_exp_coeffs[] = { 0x3c1a534c, 0x3d296ec9, 0x3e2ab479, 0x3effffbd, 0x3f800000, 0x3f800000 };
@@ -13,26 +16,28 @@ static uint32_t const wc3_exp_coeffs[] = { 0x3c1a534c, 0x3d296ec9, 0x3e2ab479, 0
 static inline uint32_t wc3_float_bits(float f) { uint32_t w; memcpy(&w, &f, sizeof(w)); return w; }
 static inline float wc3_float(uint32_t w) { float f; memcpy(&f, &w, sizeof(f)); return f; }
 
-/* Explicit sign extension avoids relying on a host's right shift of negative integers. */
-static inline int64_t wc3_align(int32_t n, unsigned shift) {
-    uint32_t w = (uint32_t)n;
-    if (shift) w = (w >> shift) | (n < 0 ? UINT32_MAX << (32 - shift) : 0);
-    return w & 0x80000000u ? (int64_t)w - 0x100000000ll : w;
+/* Arithmetic alignment in the emulated 32-bit word, without implementation-
+ * defined signed shifts or widening/sign-extending both operands to 64 bits. */
+static inline uint32_t wc3_align(uint32_t word, unsigned shift) {
+    uint32_t sign = 0u - (word >> 31);
+    return ((word ^ sign) >> shift) ^ sign;
 }
 
-/* 6f06fbb0: align doubled signed significands, then truncate the normalized sum. */
+/* 6f06fbb0: doubled significands have at most 25 magnitude bits; their
+ * aligned sum fits signed 27 bits. Unsigned word addition therefore retains
+ * the exact signed result, including negative alignment truncation. */
 static inline uint32_t wc3_add_bits(uint32_t a, uint32_t b) {
     int ea = (a >> 23) & 255, eb = (b >> 23) & 255, exp = ea > eb ? ea : eb;
     if (!ea || eb - ea >= 23) return b;
     if (!eb || ea - eb >= 23) return a;
-    int32_t ma = ((a & 0x7fffff) | 0x800000) * 2, mb = ((b & 0x7fffff) | 0x800000) * 2;
-    int64_t sum = wc3_align(a & 0x80000000u ? -ma : ma, exp - ea);
-    sum += wc3_align(b & 0x80000000u ? -mb : mb, exp - eb);
+    uint32_t ma = ((a & 0x7fffff) | 0x800000) * 2, mb = ((b & 0x7fffff) | 0x800000) * 2;
+    uint32_t sum = wc3_align(a & 0x80000000u ? 0u - ma : ma, exp - ea);
+    sum += wc3_align(b & 0x80000000u ? 0u - mb : mb, exp - eb);
     if (!sum) return 0;
-    uint32_t mag = sum < 0 ? -sum : sum;
+    uint32_t sign = sum & 0x80000000u, mag = sign ? 0u - sum : sum;
     int shift = 8 - __builtin_clz(mag);
     uint32_t mant = shift < 0 ? mag << -shift : mag >> shift;
-    return ((uint32_t)(exp + shift - 1) << 23) | (mant & 0x7fffff) | (sum < 0 ? 0x80000000u : 0);
+    return ((uint32_t)(exp + shift - 1) << 23) | (mant & 0x7fffff) | sign;
 }
 
 /* 6f06f9c0: the exponent guard runs BEFORE product normalization, including overflow wrap. */
@@ -108,8 +113,18 @@ static inline void wc3_sincos(float angle, float *sine, float *cosine) {
     *cosine = wc3_trig_phase(phase, true);
 }
 
-/* Restoring integer root reproduces 6f071530 without a host libm operation. */
+/* Both 6f071530 and the adaptive Newton loop return floor(sqrt(n)). Use a
+ * hardware estimate where available, then prove/correct it with integer
+ * products. Host rounding mode cannot change the returned integer. The
+ * restoring path also supports CPUs without scalar hardware square root. */
 static inline uint32_t wc3_isqrt(uint32_t n) {
+#if defined(__SSE2__)
+    __m128d value = _mm_set_sd((double)n);
+    uint32_t root = (uint32_t)_mm_cvtsd_f64(_mm_sqrt_sd(value, value));
+    while ((uint64_t)root * root > n) root--;
+    while ((uint64_t)(root + 1) * (root + 1) <= n) root++;
+    return root;
+#else
     uint32_t root = 0, bit = 1u << 30;
     while (bit > n) bit >>= 2;
     while (bit) {
@@ -118,6 +133,7 @@ static inline uint32_t wc3_isqrt(uint32_t n) {
         bit >>= 2;
     }
     return root;
+#endif
 }
 
 /* 6f071480 reconstructs a scalar from a replicated significand's integer root. */

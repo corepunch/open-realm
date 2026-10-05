@@ -1,6 +1,25 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+
+TEST(wc3_building, repeated_tech_queries_use_index_and_keep_first_free_slots) {
+    gameClient_t *client = game.clients;
+    FOR_LOOP(i, 200) G_SetPlayerTechMaxAllowed(client, 0x62000000u + i, i + 1);
+    T_EQ(client->tech[0].id, 0x62000000u);
+    T_EQ(client->tech[199].id, 0x62000000u + 199);
+    tech_lookup_work = 0;
+    FOR_LOOP(i, 1024) {
+        T_EQ(G_GetPlayerTechMaxAllowed(client, 0x62000000u + 199), 200);
+        T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    }
+    T_ASSERT(tech_lookup_work < 1024 * 8);
+    G_SetPlayerTechResearched(client, 0x65000000u, 3);
+    T_EQ(client->tech[200].id, 0x65000000u);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 3);
+    G_AddPlayerTechResearched(client, 0x65000000u, -3);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    T_EQ(client->tech[200].id, 0x65000000u);
+}
 #include "../hud/hud_local.h"
 #include "../skills/s_skills.h"
 #include "jass/jass.h"
@@ -591,6 +610,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     trainee->food->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
+    G_EnsureUnitStatusSlots(building);
     building->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','u','n','s'), .level = 1 };
     G_SelectEntity(client, building);
@@ -1075,13 +1095,13 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 2;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 2;
     unit->armor_value = 3.0f;
 
     G_SetPlayerTechResearched(client, weapon, 1);
-    T_EQ(unit->attack1.numberOfDice, 3);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 3);
     G_SetPlayerTechResearched(client, weapon, 2);
-    T_EQ(unit->attack1.numberOfDice, 4);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 4);
 
     G_SetPlayerTechResearched(client, armor, 1);
     T_FEQ(unit->armor_value, 5.0f, 0.001f);
@@ -1091,10 +1111,10 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
     future = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->attack1.numberOfDice = 2;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 2;
     future->armor_value = 3.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_EQ(future->attack1.numberOfDice, 4);
+    T_EQ(S_AttackProfileRead(future, 0)->numberOfDice, 4);
     T_FEQ(future->armor_value, 7.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, weapon, 0);
@@ -1113,28 +1133,28 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 1;
-    unit->attack1.damageBase = 10;
-    unit->attack2.numberOfDice = 1;
-    unit->attack2.damageBase = 20;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->damageBase = 10;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->damageBase = 20;
 
     G_SetPlayerTechResearched(client, attack_damage, 1);
-    T_EQ(unit->attack1.damageBase, 12);
-    T_EQ(unit->attack2.damageBase, 22);
-    T_FEQ(unit->attack1.permanentDamageBonus, 2.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 2.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 12);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 22);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 2.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 2.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 3);
-    T_EQ(unit->attack1.damageBase, 14);
-    T_EQ(unit->attack2.damageBase, 24);
-    T_FEQ(unit->attack1.permanentDamageBonus, 4.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 4.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 14);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 24);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 4.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 4.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 0);
-    T_EQ(unit->attack1.damageBase, 10);
-    T_EQ(unit->attack2.damageBase, 20);
-    T_FEQ(unit->attack1.permanentDamageBonus, 0.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 0.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 10);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 20);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 0.0f, 0.001f);
 
     building_restore_upgrade_data(old, rows);
 }
@@ -1151,30 +1171,30 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 1;
-    unit->attack1.range = 400.0f;
-    unit->attack2.numberOfDice = 1;
-    unit->attack2.range = 250.0f;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->range = 400.0f;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->range = 250.0f;
 
     G_SetPlayerTechResearched(client, long_rifles, 1);
-    T_FEQ(unit->attack1.range, 537.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 387.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 537.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 387.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 3);
-    T_FEQ(unit->attack1.range, 559.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 409.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 409.0f, 0.001f);
 
     future = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->attack1.numberOfDice = 1;
-    future->attack1.range = 400.0f;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future, 0)->range = 400.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_FEQ(future->attack1.range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future, 0)->range, 559.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 0);
-    T_FEQ(unit->attack1.range, 400.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 250.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 400.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 250.0f, 0.001f);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -2207,7 +2227,7 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     owner->connected = viewer->connected = true;
     producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     producer->s.player = owner->ps.number;
-    producer->selected |= 1 << viewer->ps.number;
+    G_SetEntitySelectionMask(producer, producer->selected | (1 << viewer->ps.number));
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_CONTROL, true);
     owner->commands_dirty = viewer->commands_dirty = false;
@@ -2215,6 +2235,60 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     G_InvalidateCommands(owner);
     T_ASSERT(owner->commands_dirty);
     T_ASSERT(viewer->commands_dirty);
+
+    /* A batch repeats invalidation without repeating the selection scan. An
+     * independent viewer rebuild must still see the next owner change. */
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateCommands(owner);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateCommands(owner);
+    T_ASSERT(viewer->commands_dirty);
+    T_ASSERT(G_GetTestSelectionChecks() > 0);
+
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateUnitCommands(producer);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 1);
+
+    G_SetEntitySelectionMask(producer, 0);
+    owner->commands_dirty = viewer->commands_dirty = false;
+    G_ResetTestSelectionChecks();
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(!owner->commands_dirty && !viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+}
+
+TEST(wc3_building, rally_invalidation_visits_only_producers_and_checks_identity) {
+    reset_entities(); setup_test_world();
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    edict_t *other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 128);
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    UnitProfile_t profile = {.trains = "hfoo"};
+    producer->data.UnitProfile = &profile;
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    G_InvalidateRallyTarget(other); /* build derived membership once */
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 1024);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time++;
+    G_InvalidateRallyTarget(target);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time--;
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 0);
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    S_InvalidateRallyProducers(); /* map/save replacement rebuild */
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
@@ -2770,7 +2844,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 T_ASSERT(workers[1]->goalentity == barracks_goal);
                 T_ASSERT(move_is_active_order_walk(workers[1]));
                 T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
-                T_STREQ(workers[i]->build_preview->animation_request, "stand");
+                T_STREQ(G_UnitAnimationRequest(workers[i]->build_preview), "stand");
                 if (workers[i]->build_preview->animation) {
                     T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
                     T_EQ(workers[i]->build_preview->s.frame,
@@ -2993,7 +3067,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_FEQ(worker->s.origin2.x, before_displace.x, 0.001f);
     T_FEQ(worker->s.origin2.y, before_displace.y, 0.001f);
     T_ASSERT(move_displacement_active(worker));
-    T_STREQ(worker->animation_request, "walk");
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
     T_ASSERT(worker->goalentity == waypoint);
     T_ASSERT(move_is_active_order_walk(worker));
 
@@ -3022,7 +3096,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
      * steps, so the old eight-frame sample sat on the arrival threshold and flipped with libm rounding. */
     FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
-    T_STREQ(worker->animation_request, "walk");
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
     FOR_LOOP(frame, 240) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
     T_ASSERT(!move_displacement_active(worker));
@@ -4589,7 +4663,7 @@ TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
 
@@ -4621,7 +4695,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
     T_ASSERT(G_SetUnitAutocast(first, code, true));
@@ -4873,8 +4947,8 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
     worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->attack1.cooldown = 1.0f;
-    worker->attack1.damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
     building->s.player = worker->s.player;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
@@ -4910,10 +4984,10 @@ TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->attack1.type = ATK_NORMAL;
-    worker->attack1.cooldown = 1.0f;
-    worker->attack1.damageBase = 1;
-    worker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(worker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->s.player = 1;
     enemy->svflags |= SVF_MONSTER;
     enemy->targtype = TARG_GROUND;
@@ -5389,7 +5463,7 @@ TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     strlcpy(level.map_path, "Maps\\Campaign\\QueuedBuildSaveTest.w3m", sizeof(level.map_path));
     T_ASSERT(WriteGame(filename));
 
-    memset(&worker->order_queue, 0, sizeof(worker->order_queue));
+    G_ClearUnitOrderQueue(worker);
     preview->inuse = false;
     T_ASSERT(ReadGame(filename));
     worker = g_edicts + worker_number;
@@ -5608,7 +5682,7 @@ TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_wo
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
     clent->build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;
@@ -5636,7 +5710,7 @@ TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
     clent->build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;

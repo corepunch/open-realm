@@ -4,14 +4,14 @@
 #define ID_BMFL MAKEFOURCC('B', 'm', 'f', 'l') // rawcode; Mana Flare caster buff
 
 static void mana_flare_strip(edict_t *unit) {
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
 			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
 	G_InvalidateUnitInfoPanel(unit);
 }
 
 static heroabilitystatus_t *mana_flare_status(edict_t *unit) {
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
 			return unit->abilstatus + i;
 	return NULL;
@@ -37,6 +37,8 @@ static int mana_flare_damage(edict_t *flare, edict_t *victim, float cost) {
  * Channel: Bmfl on caster, DataE armor, flare enemies that spend mana in Area.
  */
 BZ_ABILITY_PROC(CAbilityManaFlare) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(channel);
 	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_MANA_FLARE;
 	uint32_t level;
 	cstring_t buff;

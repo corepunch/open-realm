@@ -1241,7 +1241,35 @@ static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float
  * explicit server-authored altitude offset (WC3 FlyHeight) and replace only the
  * coarse destructable-origin support height with the highest authored MDX hit. */
 void R_ConformGroundSurfaces(viewDef_t *viewdef) {
+    renderEntity_t const *local_surfaces[128];
+    renderEntity_t const **surfaces = local_surfaces;
+    uint32_t count = 0;
+
     if (!viewdef || (viewdef->rdflags & RDF_NOWORLDMODEL)) return;
+
+    /* Snapshot entities are mostly units and ordinary scenery. Compact the
+     * actual support providers once, retaining snapshot order. In particular,
+     * a world without bridges costs one linear pass, not units * entities.
+     * Keep exact mesh queries: general model bounds need not enclose the
+     * selectable geosets used by the walkable-surface trace. */
+    FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t const *ent = &viewdef->entities[i];
+        if ((ent->flags & RF_GROUND_SURFACE) && !(ent->flags & RF_HIDDEN) && ent->model)
+            count++;
+    }
+    if (!count) return;
+    if (count > sizeof(local_surfaces) / sizeof(*local_surfaces))
+        surfaces = ri.MemAlloc((long)((size_t)count * sizeof(*surfaces)));
+    if (!surfaces) {
+        fprintf(stderr, "WC3 renderer: cannot allocate walkable surface list\n");
+        abort();
+    }
+    count = 0;
+    FOR_LOOP(i, viewdef->num_entities) {
+        renderEntity_t const *ent = &viewdef->entities[i];
+        if ((ent->flags & RF_GROUND_SURFACE) && !(ent->flags & RF_HIDDEN) && ent->model)
+            surfaces[count++] = ent;
+    }
 
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
@@ -1252,22 +1280,19 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
             (ent->flags & RF_GROUND_SURFACE) || !ent->model) {
             continue;
         }
-
-        FOR_LOOP(j, viewdef->num_entities) {
-            renderEntity_t const *surface = &viewdef->entities[j];
+        FOR_LOOP(j, count) {
             float hit_z;
 
-            if (!(surface->flags & RF_GROUND_SURFACE)) continue;
-            if (!R_W3WalkableSurfaceHit(surface, ent->origin.x, ent->origin.y, &hit_z)) continue;
+            if (!R_W3WalkableSurfaceHit(surfaces[j], ent->origin.x, ent->origin.y, &hit_z)) continue;
             if (!found_surface || hit_z > authored_support) {
                 authored_support = hit_z;
                 found_surface = true;
             }
         }
-
         if (found_surface)
             ent->origin.z = authored_support + ent->ground_offset;
     }
+    if (surfaces != local_surfaces) ri.MemFree(surfaces);
 }
 
 vec2_t R_WorldOrigin(void) {
