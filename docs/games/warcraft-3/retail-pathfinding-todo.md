@@ -78,7 +78,12 @@ Individual spikes and mass-movement scaling remain unresolved; see the
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
 and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Current priority: finish mass-movement scaling and order-replacement spikes.
+Current priority: close all 142 remaining pathfinding leaves. Complete coherent
+chunks with Ghidra and Frida evidence, integrate each verified behavior into the
+engine, add production-path regressions, update the evidence and counts, and
+commit each completed chunk. Avoid further task splits except when necessary.
+
+Performance constraints remain open:
 Query-time whole-world synchronization has been removed. Dirty publication,
 sparse owner/provider membership, stamped search storage and bounded physical
 cohort lookup are integrated without closing unverified retail contracts.
@@ -102,12 +107,12 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FOOT — Footprints and query policy | 13 | 5 |
 | FINE — Fine search | 12 | 0 |
 | ACC — Adaptive search | 9 | 4 |
-| NUM — Numbers and random state | 25 | 18 |
+| NUM — Numbers and random state | 27 | 16 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 4 | 9 |
-| MOVE — Stepping and callbacks | 11 | 4 |
-| ORDER — Orders and reclamation | 12 | 24 |
+| MOVE — Stepping and callbacks | 12 | 3 |
+| ORDER — Orders and reclamation | 13 | 23 |
 | GROUP — Shared movement groups | 36 | 11 |
 | FORM — Formation and regrouping | 4 | 9 |
 | SEP — Repulsion and spatial records | 5 | 10 |
