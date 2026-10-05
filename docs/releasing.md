@@ -54,17 +54,18 @@ published Flatpak bundle. Retail game assets must not be packaged. Update the
 release's Validation paragraph with the completed run URL and verification result.
 
 If a job fails, inspect its failed logs and rerun only the failed jobs once the
-cause is addressed. A manual recovery must check out the release tag:
+cause is addressed. If the fix is to the workflow itself, rerunning the tag's
+jobs repeats the broken workflow; dispatch the fixed workflow instead:
 
 ```sh
-gh workflow run release.yml --repo corepunch/open-realm --ref TAG \
+gh workflow run release.yml --repo corepunch/open-realm --ref BRANCH \
   -f tag=TAG -f publish=true
 ```
 
-For publishing dispatches, checkout explicitly uses the `tag` input; `--ref`
-selects the workflow definition. This permits recovery from a branch containing
-workflow fixes while still building the original release commit. Validation
-dispatches with `publish=false` build `--ref` without uploads.
+`--ref` selects the workflow definition (`main` or a recovery branch carrying the
+fix). Publishing dispatches still check out and build the `tag` input, so the
+release contents stay those of the original release commit. Validation
+dispatches with `publish=false` build `--ref` itself and upload nothing.
 
 Windows regression builds keep their DLLs under `build/eos-tests/lib`, outside
 the executable directory. The regression step must put that directory on `PATH`:
@@ -97,8 +98,8 @@ passed. Windows completed 7 EOS service tests with 81 assertions and verified
 a 12-DLL runtime closure. All five uploaded assets were downloaded and matched
 GitHub's SHA-256 digests. Native executable headers confirmed x86_64; native
 archives, ZIP CRCs, required runtimes/notices, and identical standalone/embedded
-Flatpak bundles were verified. The workflow fix is tracked in
-[draft PR #577](https://github.com/corepunch/open-realm/pull/577).
+Flatpak bundles were verified. The workflow fix landed in
+[#577](https://github.com/corepunch/open-realm/pull/577).
 
 Native Linux still requires host SDL2 and graphics libraries. `otool -L` on the
 macOS Intel executable confirms a Homebrew dependency at
