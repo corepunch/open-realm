@@ -240,7 +240,7 @@ $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
 APP_SRCS          := $(filter-out server/sv_routing.c,$(shell find client server common sound -name '*.c'))
-RENDERER_BASE_DEPS  := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
+RENDERER_BASE_DEPS  := $(wildcard vendor/gl_shader/*.[ch]) $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
 RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
 SERVER_GAME_SRCS  := server/sv_quest.c
 GAME_BASE_DEPS    := $(SHARED_LIB) $(COMMON_HEADERS) $(COMMON_SRCS) $(SERVER_GAME_SRCS)

@@ -307,7 +307,7 @@ TEST_JOBS ?= 16
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-core.xml" TEST_JUNIT_SUITE="test-core" $(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net test-sound \
+	@$(MAKE) -j$(TEST_JOBS) test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
@@ -435,7 +435,7 @@ $(ZIP_FILE):
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
-	test-commands test-server-net test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
+	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
 	update-render-golden openwarcraft3-tests test-wc3-engine download
 
 .PHONY: test-menu-boundary
@@ -449,3 +449,7 @@ $(RENDERER_LIB): $(wildcard $(WC3_DIR)/renderer/w3m/*.h) renderer/r_cliff.h
 $(RENDERER_LIB): $(WC3_DIR)/common/wc3_coords.h renderer/r_game.h
 
 .PHONY: test-render-harness test-mpq-compression
+
+$(BIN_DIR)/test_renderer_model$(EXE_EXT) $(BIN_DIR)/test_renderer_shadows$(EXE_EXT): $(wildcard vendor/gl_shader/*.[ch])
+
+$(eval $(call test_schema,test-gl-shader,$(wildcard vendor/gl_shader/*.[ch]),$(TEST_CFLAGS),$(BIN_DIR)/test_gl_shader$(EXE_EXT),tests/test_runner.c tests/test_gl_shader.c shared/test.c,$(LIBS),))
