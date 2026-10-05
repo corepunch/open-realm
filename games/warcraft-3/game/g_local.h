@@ -25,6 +25,21 @@
 #include "games/warcraft-3/common/wc3_pathing_limits.h"
 typedef struct wc3SpatialActive_s wc3SpatialActive_t;
 
+/* Coarse paths are distinct owners from the member's fine path. Links are
+ * process-local; queue sequence and admission time are authoritative. */
+typedef struct moveCoarseRequest_s {
+    struct moveCoarseRequest_s *prev, *next;
+    uint64_t sequence;
+    uint32_t time;
+    uint8_t player, policy;
+    bool queued, waiting;
+} moveCoarseRequest_t;
+
+typedef struct {
+    uint32_t work, countdown, count, limit;
+    moveCoarseRequest_t *head, *tail;
+} moveCoarseBudget_t;
+
 /* Move owns the fine-coordinate chain; allocation follows route length, not the edict pool size. */
 typedef struct {
     vec2_t *points;
@@ -46,6 +61,7 @@ typedef struct {
     float group_radius;
     uint32_t group_revision;
     uint8_t group_mask; /* Coarse owner lane survives member query toggles. */
+    moveCoarseRequest_t adaptive_admission, group_admission;
 } moveFineRoute_t;
 
 typedef struct {
@@ -2479,6 +2495,8 @@ struct level_locals {
     wc3Random_t pathing_random;
     uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
     moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
+    moveCoarseBudget_t move_coarse_budgets[MAX_PLAYERS][3];
+    uint64_t move_coarse_sequence;
     edict_t *repulse_head;
     uint32_t repulse_phase;
     uint32_t pathing_msec;
@@ -3112,6 +3130,12 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *ro
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRouteStatus(movePathQuery_t const *query,moveFineRoute_t *route,vec2_t *out,uint32_t *status);
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
+bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy);
+void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
+void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);
+void S_ClearMoveCoarseRequests(void);
+bool S_RestoreMoveCoarseRequests(void);
+bool S_ValidateMoveCoarseRequests(void);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);
 bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *, moveFineRoute_t *, bool *);

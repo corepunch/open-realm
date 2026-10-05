@@ -1,5 +1,5 @@
 """Reject incomplete or altered portal captures and pin production fixtures."""
-import ast,copy,hashlib,json,re,sys,unittest
+import ast,copy,gzip,hashlib,json,re,sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/frida'))
@@ -45,7 +45,7 @@ class GateTraversalTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(producer).hexdigest(),self.fixture['producer_sha256'])
         for kind in ('edges','consumer'):
             self.assertEqual(hashlib.sha256((ROOT/f'tools/ghidra/fixtures/retail-gate-{kind}-1.27.json').read_bytes()).hexdigest(),self.fixture[kind+'_sha256'])
-        observer=(ROOT/'tools/frida/wc3_pathfinding.js').read_bytes()
+        observer=gzip.decompress((ROOT/'tools/ghidra/fixtures/sources'/ (self.fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js']+'.gz')).read_bytes())
         self.assertEqual(hashlib.sha256(observer).hexdigest(),self.fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js'])
 
 class GateLifetimeTests(unittest.TestCase):
@@ -110,7 +110,7 @@ class GateLifetimeTests(unittest.TestCase):
             producer=(ROOT/f'tools/frida/wc3_waygate_lifetime_{label}_probe.j').read_bytes()
             self.assertEqual(body.encode(),producer)
             self.assertEqual(hashlib.sha256(producer).hexdigest(),fixture['producer_sha256'])
-            self.assertEqual(hashlib.sha256((ROOT/'tools/frida/wc3_pathfinding.js').read_bytes()).hexdigest(),fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js'])
+            self.assertEqual(hashlib.sha256(gzip.decompress((ROOT/'tools/ghidra/fixtures/sources'/(fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js']+'.gz')).read_bytes())).hexdigest(),fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js'])
 
 class GateExitTests(unittest.TestCase):
     @classmethod
@@ -173,7 +173,7 @@ class GateExitTests(unittest.TestCase):
             producer=(ROOT/f'tools/frida/wc3_waygate_exit_{label}_probe.j').read_bytes()
             self.assertEqual(body.encode(),producer)
             self.assertEqual(hashlib.sha256(producer).hexdigest(),fixture['producer_sha256'])
-            self.assertEqual(hashlib.sha256((ROOT/'tools/frida/wc3_pathfinding.js').read_bytes()).hexdigest(),fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js'])
+            self.assertEqual(hashlib.sha256(gzip.decompress((ROOT/'tools/ghidra/fixtures/sources'/(fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js']+'.gz')).read_bytes())).hexdigest(),fixture['captures'][0]['metadata']['source_sha256']['wc3_pathfinding.js'])
 
 class MultipleGateTests(unittest.TestCase):
     def test_group_member_identity_and_complete_chain_are_strict(self):

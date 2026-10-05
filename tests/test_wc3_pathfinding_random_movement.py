@@ -1,5 +1,5 @@
 """Keep shared-owner movement words, member identity and producer provenance exact."""
-import ast,copy,hashlib,json,re,sys,unittest
+import ast,copy,gzip,hashlib,json,re,sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/frida'))
@@ -48,7 +48,9 @@ class RandomMovementTests(unittest.TestCase):
         self.assertEqual(body.encode(),producer);self.assertEqual(hashlib.sha256(producer).hexdigest(),self.fixture['producer_sha256'])
         for capture in self.fixture['captures']:
             for path in ('trace_wc3_pathfinding.py','wc3_pathfinding.js','wc3_pathfinding_random_movement.js'):
-                self.assertEqual(hashlib.sha256((ROOT/'tools/frida'/path).read_bytes()).hexdigest(),capture['metadata']['source_sha256'][path])
+                digest=capture['metadata']['source_sha256'][path]
+                data=(ROOT/'tools/frida'/path).read_bytes() if path=='wc3_pathfinding_random_movement.js' else gzip.decompress((ROOT/'tools/ghidra/fixtures/sources'/(digest+'.gz')).read_bytes())
+                self.assertEqual(hashlib.sha256(data).hexdigest(),digest)
 
     def test_both_movers_preserve_the_shared_draw_order_and_no_draw_countdowns(self):
         state=[4273436052,209508436];draws=0;owners=set();overlaps=0

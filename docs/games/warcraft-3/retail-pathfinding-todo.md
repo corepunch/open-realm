@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**194 done / 336 tasks; 142 remaining.** Payoff101 closes NUM-04.1/02: the
+**196 done / 336 tasks; 140 remaining.**
+
+Payoff102 integrates missing coarse admission alongside fine queues and closes
+SCHED-04.1/02 with complete repeated retail contention evidence and actual engine
+movement/save regressions. See [coarse and fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Payoff101 closes NUM-04.1/02: the
 shared overlap/retry draw order now reaches public movement, including paused
 membership and saved continuation. Native and engine agree on1361 motion commits,
 830 separation visits,91 retries and12667 saved continuation commits. Classic and
@@ -78,7 +84,7 @@ Individual spikes and mass-movement scaling remain unresolved; see the
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
 and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Current priority: close all 142 remaining pathfinding leaves. Complete coherent
+Current priority: close all 140 remaining pathfinding leaves. Complete coherent
 chunks with Ghidra and Frida evidence, integrate each verified behavior into the
 engine, add production-path regressions, update the evidence and counts, and
 commit each completed chunk. Avoid further task splits except when necessary.
@@ -110,7 +116,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | NUM — Numbers and random state | 27 | 16 |
 | ROUTE — Route progression and yielding | 7 | 9 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
-| SCHED — Scheduling and owner updates | 4 | 9 |
+| SCHED — Scheduling and owner updates | 6 | 7 |
 | MOVE — Stepping and callbacks | 12 | 3 |
 | ORDER — Orders and reclamation | 13 | 23 |
 | GROUP — Shared movement groups | 36 | 11 |
@@ -659,8 +665,8 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 
 ### SCHED-04 — Contention
 
-- [ ] **SCHED-04.1** Run two owners/classes competing for a fixed exhausted budget; record exact admission order, work and waiting duration.
-- [ ] **SCHED-04.2** Run repeated exhaustion with multiple groups; establish fairness/starvation behavior from queue state over a fixed-length trace.
+- [x] **SCHED-04.1** Two allied owners contend through96 independent public Move groups. [Payoff102](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos): two complete retail repeats preserve25,902 ordered scheduler records;517 captured owner-window transactions match7,225 actual engine assertions for admission/work/FIFO/time/reset state. Missing coarse admission is integrated alongside real public96-unit normal-frame/save continuation. Coarse waits reach3 passes; fine waits17/14. Priority producer mapping remains03.1.
+- [x] **SCHED-04.2** [Payoff102](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos): three public order waves over300 samples preserve FIFO order through repeated exhausted group/fine budgets for both players. Eight coarse episodes per player and443/561 fine episodes reach admission;20 fine episodes per player retire by independent unlink. One player1 fine request is still queued at the30-second boundary with one observed owner pass of waiting; the captured suffix admits it. Frozen queue snapshots, strict repeat/mutation rejection and production continuation regressions establish this fixed-trace behavior, without claiming a universal starvation bound or closing03.2/03.3.
 
 ## MOVE — Stepping and callbacks
 

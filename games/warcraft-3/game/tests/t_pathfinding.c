@@ -1358,9 +1358,11 @@ TEST(pathfinding, group_adaptive_storage_grows_and_reuses_backing_for_owned_part
     vec2_t source={4.25f*64,4.75f*64},goal={448.25f*64,400.75f*64},selected;
     edict_t *unit=make_unit_at(source.x,source.y); unit->collision=8; unit->aiflags=0;
     movePathQuery_t query={.geometry={&source,&goal,8,2},.units=true,.mover=unit};
+    level.pathing_counter=399;
     FOR_LOOP(pass,2) FOR_LOOP(k,2) {
         moveFineRoute_t route={0};
-        level.pathing_counter=400+40*pass+20*k;level.move_fine_budgets[0].work=0;
+        while(level.pathing_counter<400+40*pass+20*k) S_BeginAbilityOwnerUpdates();
+        level.move_fine_budgets[0].work=0;
         if(!k) T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
         else T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&selected));
         wc3AccSearch_t const *search=G_TestMoveAdaptiveSearch();

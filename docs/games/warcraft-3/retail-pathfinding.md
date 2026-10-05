@@ -740,3 +740,19 @@ and3094 saved continuation commits. Source overlap and ID exhaustion were
 integrated in payoffs94/93; group warps,blocked exits and wider mutation/eligibility
 remain separate. Strict earlier script deadlines now precede the owner within
 one primary quantum; equal-deadline heap policy remainsNUM-02.10.
+
+
+### Repeated two-player scheduler contention
+
+[Payoff102](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos)
+adds complete read-only budget/FIFO/time observations for96 singleton groups and
+three public order waves. Two repeats preserve25,902 ordered scheduler records.
+The engine now admits group/member coarse searches through their own player
+queues, rather than applying only the fine1100-work limit. Five native owner
+passes match517 production scheduler transactions; real public movement and
+save/load continuation regressions also pass. Fixed30-second waits peak at3
+coarse and17/14 fine owner passes. One fine request remains queued for one
+observed pass at the boundary and is admitted afterward. This closes contention
+leaves04.1/02; priority producers, active-traversal mutation and unsigned
+counter-wrap evidence remain open. Default responsive scheduling deliberately
+uses larger deterministic grants; select retail scheduling for exact admission.

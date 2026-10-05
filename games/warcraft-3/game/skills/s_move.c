@@ -259,7 +259,156 @@ void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work) {
     if (budget->work<BZ_WC3_FINE_FAST_WORK) unit->movement.fine_request_time=0;
 }
 
+/* Retail 1679c0 selects independent coarse pools; 167fa0 reloads after
+ * reload+1 owner visits. Request links are stable within edicts/heap groups. */
+static uint32_t const move_coarse_work[3]={800,300,900};
+static uint32_t const move_coarse_reload[3]={3,2,2};
+static uint32_t const move_coarse_search[3]={5000,2000,400};
+
+void S_CancelMoveCoarseRequest(moveCoarseRequest_t *request) {
+    if(request->queued) {
+        assert(request->player<MAX_PLAYERS && request->policy<3);
+        moveCoarseBudget_t *budget=&level.move_coarse_budgets[request->player][request->policy];
+        if(request->prev)request->prev->next=request->next;
+        else budget->head=request->next;
+        if(request->next)request->next->prev=request->prev;
+        else budget->tail=request->prev;
+        assert(budget->count);budget->count--;
+    }
+    request->prev=request->next=NULL;request->sequence=0;
+    request->queued=request->waiting=false;
+}
+
+bool S_AdmitMoveCoarseRequest(edict_t *unit,moveCoarseRequest_t *request,unsigned policy) {
+    if(!unit || !unit->inuse || unit->s.player>=MAX_PLAYERS || policy>=3)
+        gi.error("Move: invalid coarse admission owner/policy");
+    if(request->queued && (request->player!=unit->s.player || request->policy!=policy))
+        S_CancelMoveCoarseRequest(request);
+    request->player=unit->s.player;request->policy=policy;
+    uint32_t now=level.pathing_counter;
+    if(!now)now=level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+    if(now<request->time)request->time=now-BZ_WC3_FINE_REQUEST_INTERVAL;
+    request->waiting=true;
+    if(now-request->time<BZ_WC3_FINE_REQUEST_INTERVAL)return false;
+    request->time=now;
+    /* 166c30 checks the interval before leaving the member's fine queue. */
+    if(policy==2)S_CancelUnitMoveFineRequest(unit);
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[request->player][policy];
+    uint32_t limit=level.move_fine_responsive ? MAX(move_coarse_work[policy],budget->limit) : move_coarse_work[policy];
+    if(budget->work<=limit && (!budget->head || budget->head==request)) {
+        S_CancelMoveCoarseRequest(request);return true;
+    }
+    if(!request->queued) {
+        if(level.move_coarse_sequence==UINT64_MAX)gi.error("Move: coarse queue sequence exhausted");
+        request->sequence=++level.move_coarse_sequence;
+        request->prev=budget->tail;request->next=NULL;
+        if(budget->tail)budget->tail->next=request;
+        else budget->head=request;
+        budget->tail=request;budget->count++;request->queued=true;
+    }
+    request->time=0;return false;
+}
+
+void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *request,uint32_t work) {
+    assert(request->player<MAX_PLAYERS && request->policy<3);
+    level.move_coarse_budgets[request->player][request->policy].work+=work;
+    /* 166c30 uses this request's work, unlike fine's cumulative <64 test. */
+    if(work<32)request->time=0;
+}
+
+void S_ClearMoveCoarseRequests(void) {
+    FOR_LOOP(i,globals.num_edicts) {
+        moveFineRoute_t *route=&g_edicts[i].movement.fine_route;
+        route->adaptive_admission=route->group_admission=(moveCoarseRequest_t){0};
+    }
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveFineRoute_t *route=&level.move_groups[i]->route;
+        route->adaptive_admission=route->group_admission=(moveCoarseRequest_t){0};
+    }
+    memset(level.move_coarse_budgets,0,sizeof(level.move_coarse_budgets));
+    level.move_coarse_sequence=0;
+}
+
+static int move_compare_coarse_requests(void const *a,void const *b) {
+    uint64_t x=(*(moveCoarseRequest_t *const *)a)->sequence,y=(*(moveCoarseRequest_t *const *)b)->sequence;
+    return (x>y)-(x<y);
+}
+
+/* Save/restore is outside owner ticks. Rebuild only the process links from
+ * saved insertion ranks; gameplay admission/unlink never scans the pool. */
+static bool move_check_coarse_requests(bool restore) {
+    size_t capacity=2*((size_t)globals.num_edicts+ARRAY_COUNT(level.move_groups)),count=0;
+    moveCoarseRequest_t **requests=capacity ? malloc(capacity*sizeof(*requests)) : NULL;
+    if(capacity && !requests)return false;
+    bool valid=true;
+    FOR_LOOP(i,globals.num_edicts+ARRAY_COUNT(level.move_groups)) {
+        bool active=i<globals.num_edicts ? g_edicts[i].inuse : level.move_groups[i-globals.num_edicts]->inuse;
+        moveFineRoute_t *route=i<globals.num_edicts ? &g_edicts[i].movement.fine_route : &level.move_groups[i-globals.num_edicts]->route;
+        moveCoarseRequest_t *owners[2]={&route->adaptive_admission,&route->group_admission};
+        FOR_LOOP(j,2) {
+            moveCoarseRequest_t *r=owners[j];
+            if(*(uint8_t *)&r->queued>1 || *(uint8_t *)&r->waiting>1 || r->player>=MAX_PLAYERS || r->policy>=3)valid=false;
+            if(r->queued) {
+                if(!active || !r->waiting || !r->sequence || r->sequence>level.move_coarse_sequence)valid=false;
+                requests[count++]=r;
+            } else if(r->sequence || r->prev || r->next)valid=false;
+        }
+    }
+    if(count)qsort(requests,count,sizeof(*requests),move_compare_coarse_requests);
+    uint32_t counts[MAX_PLAYERS][3]={{0}};
+    moveCoarseRequest_t *first[MAX_PLAYERS][3]={{0}},*last[MAX_PLAYERS][3]={{0}};
+    uint64_t previous=0;
+    if(valid)FOR_LOOP(i,count) {
+        moveCoarseRequest_t *r=requests[i];unsigned p=r->player,k=r->policy;
+        if(r->sequence<=previous)valid=false;
+        previous=r->sequence;
+        if(!first[p][k])first[p][k]=r;
+        if(!restore && (r->prev!=last[p][k] || (last[p][k] && last[p][k]->next!=r)))valid=false;
+        counts[p][k]++;last[p][k]=r;
+    }
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+        moveCoarseBudget_t const *b=&level.move_coarse_budgets[p][k];
+        uint64_t maximum=(uint64_t)MAX_ENTITIES*3*(move_coarse_search[k]+1u);
+        if(b->count!=counts[p][k] || b->countdown>move_coarse_reload[k] ||
+           (b->limit && (b->limit<move_coarse_work[k] || b->limit>maximum ||
+            (!level.move_fine_responsive && b->limit!=move_coarse_work[k]))) ||
+           b->work>(uint64_t)MAX(b->limit,move_coarse_work[k])+move_coarse_search[k]+1u)valid=false;
+        if(!restore && (b->head!=first[p][k] || b->tail!=last[p][k] || (last[p][k] && last[p][k]->next)))valid=false;
+    }
+    if(valid && restore) {
+        FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+            level.move_coarse_budgets[p][k].head=level.move_coarse_budgets[p][k].tail=NULL;
+        }
+        FOR_LOOP(i,count) {
+            moveCoarseRequest_t *r=requests[i];moveCoarseBudget_t *b=&level.move_coarse_budgets[r->player][r->policy];
+            r->prev=b->tail;r->next=NULL;
+            if(b->tail)b->tail->next=r;else b->head=r;
+            b->tail=r;
+        }
+    }
+    free(requests);return valid;
+}
+
+bool S_ValidateMoveCoarseRequests(void) {return move_check_coarse_requests(false);}
+bool S_RestoreMoveCoarseRequests(void) {return move_check_coarse_requests(true);}
+
+static void move_update_coarse_budgets(void) {
+    FOR_LOOP(p,MAX_PLAYERS)FOR_LOOP(k,3) {
+        moveCoarseBudget_t *budget=&level.move_coarse_budgets[p][k];
+        if(!budget->countdown) {
+            budget->work=0;
+            /* Responsive admission services waiting coarse owners at every
+             * owner boundary. Retail retains each pool's reload+1 cadence. */
+            budget->countdown=level.move_fine_responsive ? 0 : move_coarse_reload[k];
+            uint64_t grant=level.move_fine_responsive ? (uint64_t)budget->count*(move_coarse_search[k]+1u) : 0;
+            if(grant>UINT32_MAX)gi.error("Move: coarse service grant exceeds counter domain");
+            budget->limit=MAX(move_coarse_work[k],(uint32_t)grant);
+        } else budget->countdown--;
+    }
+}
+
 void S_ClearMoveFineRequests(void) {
+    S_ClearMoveCoarseRequests();
     move_timer_members=(entitySet_t){0};
     FOR_LOOP(i,globals.num_edicts) {
         g_edicts[i].movement.fine_prev=g_edicts[i].movement.fine_next=NULL;
@@ -273,6 +422,7 @@ void S_ClearMoveFineRequests(void) {
 /* Original167310 visits every row;167fa0 clears work on countdown0 and reloads1. */
 static void move_update_fine_budget(void) {
     if (!++level.pathing_counter) level.pathing_counter=BZ_WC3_PATH_OWNER_START;
+    move_update_coarse_budgets();
     FOR_LOOP(i,MAX_PLAYERS) {
         moveFineBudget_t *budget=level.move_fine_budgets+i;
         if (!budget->countdown) {
@@ -373,6 +523,8 @@ static void move_update_shared(void) {
 }
 
 static void move_free_group_routes(moveGroup_t *group) {
+    S_CancelMoveCoarseRequest(&group->route.group_admission);
+    S_CancelMoveCoarseRequest(&group->route.adaptive_admission);
     free(group->route.points); free(group->route.adaptive_points); free(group->route.group_points);
 }
 
@@ -393,6 +545,7 @@ static void move_release_group(moveGroup_t *group) {
 }
 
 void S_ClearMoveGroups(void) {
+    S_ClearMoveCoarseRequests();
     memset(move_unit_groups,0,sizeof(move_unit_groups));
     move_group_id_bound=0;move_group_id_bound_valid=false;
     move_group_head=NULL;move_group_first_free=0;move_group_order_valid=false;
@@ -1877,6 +2030,8 @@ static void unit_changeangle_towards_point_policy(edict_t *self, vec2_t const *p
 
 /* Raw curves are process-owned: actor removal, reload and shutdown release them before edict replacement. */
 void S_FreeMoveRoute(edict_t *self) {
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.group_admission);
+    S_CancelMoveCoarseRequest(&self->movement.fine_route.adaptive_admission);
     free(self->movement.fine_route.points);
     free(self->movement.fine_route.adaptive_points);
     free(self->movement.fine_route.group_points);
@@ -1959,7 +2114,7 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
                  * when an admitted fine refill is denied or empty. Other
                  * ability routes retain their caller's movement policy until
                  * they enter the same member admission path. */
-                if (!query.fine_target) return MOVE_ROUTE_FAILED;
+                if (!query.fine_target && !curve->adaptive_admission.waiting) return MOVE_ROUTE_FAILED;
                 *dir=held;return MOVE_ROUTE_STOP;
             }
             path->target = *point.point; path->radius = point.radius; path->valid = true;
@@ -3305,6 +3460,10 @@ static void ai_move_walk(edict_t *ent) {
             /* TODO GROUP-04.6: blocked-source group recovery/physical admission.
              * The existing member recovery remains visible through its route state. */
             ent->movement.fine_route.group_count=0;
+            if(ent->movement.fine_route.group_admission.waiting) {
+                ent->movement.heading=ent->s.angle;ent->movement.turn_blocked=true;
+                unit_moveindirection(ent);return;
+            }
         }
         if (ent->movement.fine_route.group_count && (revision!=ent->movement.fine_route.group_revision ||
             previous.x!=ent->movement.fine_route.group_goal.x || previous.y!=ent->movement.fine_route.group_goal.y))
@@ -3825,7 +3984,8 @@ static bool move_group_route(moveGroup_t *group) {
         .mover=source,.target=group->target,.units=true,.fine=&fine};
     uint32_t revision=group->route.group_revision;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
-        fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
+        if(!group->route.group_admission.waiting)
+            fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
         return false;
     }
     if (group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;

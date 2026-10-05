@@ -1201,7 +1201,8 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     } else {
         /* Original166c30 leaves the fine FIFO before acquiring a replacement
          * adaptive route. A later fine refill is a new tail request. */
-        S_CancelUnitMoveFineRequest(input->mover);
+        if(route && !S_AdmitMoveCoarseRequest(input->mover,&route->adaptive_admission,2)) return false;
+        if(!route)S_CancelUnitMoveFineRequest(input->mover);
         move_acc_prepare();
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
             move_acc_enable_gates();
@@ -1211,6 +1212,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         move_acc_object_rectangle(input->mover,true);
         move_acc_object_rectangle(input->target,true);
         uint32_t result=wc3_acc_route(&move_acc,&req,move_acc_points),count=result&0x7fffffffu;
+        if(route)S_ChargeMoveCoarseRequest(&route->adaptive_admission,move_acc.work.pops);
         move_acc_object_rectangle(input->mover,false);
         move_acc_object_rectangle(input->target,false);
         if (!count) return false;
@@ -1302,6 +1304,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
             fprintf(stderr,"WC3 group routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
             return false;
         }
+        if(input->mover && !S_AdmitMoveCoarseRequest(input->mover,&route->group_admission,0))return false;
         vec2_t source=move_query_source(input);
         move_acc_prepare();
         FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
@@ -1311,6 +1314,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         move_acc_object_rectangle(input->mover,true);
         move_acc_object_rectangle(input->target,true);
         uint32_t count=wc3_acc_route(&move_acc,&req,move_acc_points)&0x7fffffffu;
+        if(input->mover)S_ChargeMoveCoarseRequest(&route->group_admission,move_acc.work.pops);
         move_acc_object_rectangle(input->mover,false);
         move_acc_object_rectangle(input->target,false);
         if (!count) return false;

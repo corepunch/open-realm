@@ -72,6 +72,7 @@
 #include "retail_captain_thirteen_mixed.h"
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
+#include "retail_scheduler_contention.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -11132,6 +11133,82 @@ TEST(wc3_movement, local_route_search_charges_only_its_player_row) {
     reset_entities(); setup_test_world();
 }
 
+/* Ordinary group paths use their own 800-work player buckets (retail 1679c0).
+ * Drive the complete hierarchy consumer; fine-search admission cannot enforce
+ * the group budget because it belongs to a different path object. */
+TEST(wc3_movement, group_route_contention_waits_for_owner_budget) {
+    reset_entities(); setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,48) cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    level.pathing_counter=1058;
+    uint32_t admitted[2]={0},waiting[2]={0};
+    FOR_LOOP(i,96) {
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+(i%8)*64,128+(i/8)*64);
+        unit->collision=31; unit->s.player=i%2;
+        vec2_t goal={1728,128+(i/8)*64},point;
+        movePathQuery_t query={{&unit->s.origin2,&goal,31,2},unit,NULL,true};
+        if(G_UnitMoveGroupDestination(&query,&unit->movement.fine_route,&point)) admitted[i%2]++;
+        else waiting[i%2]++;
+    }
+    FOR_LOOP(player,2) {
+        T_ASSERT(admitted[player]>0); T_ASSERT(waiting[player]>0);
+        T_EQ(admitted[player]+waiting[player],48);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, public_coarse_contention_saves_pending_two_player_orders) {
+    reset_entities(); setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,48) cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,true)\n"
+        "call SetPlayerAlliance(Player(1),Player(0),ALLIANCE_PASSIVE,true)\n"
+        "loop\nexitwhen i==96\n"
+        "set army[i]=CreateUnit(Player(i-(i/2)*2),'hRTE',128+I2R(i-(i/8)*8)*64,128+I2R(i/8)*64,0)\n"
+        "call SetUnitMoveSpeed(army[i],100)\ncall SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1728,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35) {level.time+=5;globals.RunFrame();}
+    FOR_LOOP(p,2) {
+        T_ASSERT(level.move_coarse_budgets[p][0].work>800);
+        T_ASSERT(level.move_coarse_budgets[p][0].count>0);
+    }
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    cstring_t file="/tmp/openwarcraft3-coarse-contention.bin";
+    T_ASSERT(WriteGame(file));
+    uint32_t states[96][9]; wc3Random_t random={0};
+    FOR_LOOP(pass,2) {
+        if(pass) {T_ASSERT(ReadGame(file));T_ASSERT(S_ValidateMoveCoarseRequests());}
+        while(level.time<2000) {level.time+=5;globals.RunFrame();}
+        unsigned n=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','R','T','E')) {
+            uint32_t words[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),unit->current_order_id,
+                unit->movement.fine_request_time,unit->movement.fine_queued,
+                unit->movement.fine_route.adaptive_admission.time,unit->movement.fine_route.adaptive_admission.queued};
+            if(n<96) {
+                if(!pass)memcpy(states[n],words,sizeof(words));
+                else FOR_LOOP(k,9)T_EQ(states[n][k],words[k]);
+            }
+            n++;
+        }
+        T_EQ(n,96);T_ASSERT(S_ValidateMoveCoarseRequests());
+        FOR_LOOP(p,2)T_EQ(level.move_coarse_budgets[p][0].count,0);
+        if(!pass)random=level.pathing_random;
+        else {T_EQ(random.sum,level.pathing_random.sum);T_EQ(random.index,level.pathing_random.index);}
+    }
+    remove(file);level.started=false;reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, responsive_public_crowd_starts_and_restores_deterministically) {
     reset_entities(); setup_test_world();
     static uint8_t cells[256*256]; memset(cells,0,sizeof(cells));
@@ -14264,4 +14341,75 @@ TEST(wc3_movement, prepared_movement_categories_preserve_live_row_semantics) {
     }
 }
 
-#endif
+TEST(wc3_movement, retail_coarse_and_fine_contention_matches_captured_owner_window) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    level.move_fine_responsive=false;level.pathing_counter=1058;
+    edict_t *paths[192];
+    FOR_LOOP(i,192)paths[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    FOR_LOOP(p,2)FOR_LOOP(k,3)level.move_coarse_budgets[p][k].countdown=2;
+    FOR_LOOP(i,sizeof(retail_scheduler_contention)/sizeof(retail_scheduler_contention[0])) {
+        uint32_t const *row=retail_scheduler_contention[i];
+        while(level.pathing_counter<row[0])S_BeginAbilityOwnerUpdates();
+        T_ASSERT(row[2]<192);if(row[2]>=192)break;
+        unsigned kind=row[1],player=row[3];edict_t *unit=paths[row[2]];
+        unit->s.player=player;
+        moveCoarseRequest_t *request=kind==0 ? &unit->movement.fine_route.group_admission : &unit->movement.fine_route.adaptive_admission;
+        moveCoarseBudget_t *coarse=&level.move_coarse_budgets[player][kind==3 ? 0 : kind];
+        moveFineBudget_t *fine=&level.move_fine_budgets[player];
+        T_EQ(unit->movement.fine_request_time,row[6]);T_EQ(request->time,row[7]);
+        T_EQ(kind==3 ? fine->work : coarse->work,row[10]);
+        T_EQ(kind==3 ? fine->count : coarse->count,row[12]);
+        T_EQ(kind==3 ? fine->countdown : coarse->countdown,row[16]);
+        bool admitted=kind==3 ? S_AdmitUnitMoveFineRequest(unit) : S_AdmitMoveCoarseRequest(unit,request,kind);
+        T_EQ(admitted,row[4]);
+        if(admitted) {
+            if(kind==3)S_ChargeUnitMoveFineRequest(unit,row[5]);
+            else S_ChargeMoveCoarseRequest(request,row[5]);
+        }
+        T_EQ(unit->movement.fine_request_time,row[8]);T_EQ(request->time,row[9]);
+        T_EQ(kind==3 ? fine->work : coarse->work,row[11]);
+        T_EQ(kind==3 ? fine->count : coarse->count,row[13]);
+        T_EQ(kind==3 ? fine->countdown : coarse->countdown,row[17]);
+        if(row[14]==UINT32_MAX) {T_ASSERT(kind==3 ? !fine->head : !coarse->head);}
+        else {
+            edict_t *head=paths[row[14]];
+            T_ASSERT(kind==3 ? fine->head==head : coarse->head==&head->movement.fine_route.group_admission);
+        }
+        if(row[15]==UINT32_MAX) {T_ASSERT(kind==3 ? !fine->tail : !coarse->tail);}
+        else {
+            edict_t *tail=paths[row[15]];
+            T_ASSERT(kind==3 ? fine->tail==tail : coarse->tail==&tail->movement.fine_route.group_admission);
+        }
+    }
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, coarse_saved_queue_rejects_corrupt_ranks_links_and_budget) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    edict_t *a=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    moveCoarseRequest_t *first=&a->movement.fine_route.group_admission;
+    moveCoarseRequest_t *second=&b->movement.fine_route.group_admission;
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[0][0];
+    budget->work=801;
+    T_ASSERT(!S_AdmitMoveCoarseRequest(a,first,0));T_ASSERT(!S_AdmitMoveCoarseRequest(b,second,0));
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    uint64_t sequence=second->sequence;second->sequence=first->sequence;
+    T_ASSERT(!S_RestoreMoveCoarseRequests());second->sequence=sequence;
+    second->player=255;T_ASSERT(!S_RestoreMoveCoarseRequests());second->player=0;
+    budget->count++;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->count--;
+    budget->countdown=4;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->countdown=0;
+    budget->work=UINT32_MAX;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->work=801;
+    second->prev=NULL;T_ASSERT(!S_ValidateMoveCoarseRequests());second->prev=first;
+    first->prev=second;T_ASSERT(!S_ValidateMoveCoarseRequests());first->prev=NULL;
+    /* Runtime links are excluded from saves; restore reconstructs insertion order. */
+    first->next=second->prev=NULL;budget->head=budget->tail=NULL;
+    T_ASSERT(S_RestoreMoveCoarseRequests());T_EQ(budget->head,first);T_EQ(budget->tail,second);
+    T_EQ(first->next,second);T_EQ(second->prev,first);T_ASSERT(S_ValidateMoveCoarseRequests());
+    S_CancelMoveCoarseRequest(first);T_EQ(budget->head,second);T_EQ(budget->count,1);
+    S_CancelMoveCoarseRequest(second);T_EQ(budget->count,0);T_NULL(budget->head);T_NULL(budget->tail);
+    reset_entities();setup_test_world();
+}
+
+#endif /* BZ_TESTS */

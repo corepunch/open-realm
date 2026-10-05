@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--yield-events', action='store_true', help='observe ordered moving-blocker decisions, actual resolved groups and blocker handles')
     parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
     parser.add_argument('--clock-events', action='store_true', help='observe original clock subdivision and path-owner update order during the scenario')
+    parser.add_argument('--scheduler-events', action='store_true', help='observe fine FIFO links, owner clocks and budget reset boundaries')
     parser.add_argument('--heading-events', action='store_true', help='capture raw vector-to-heading errors')
     parser.add_argument('--captain-approach-events', action='store_true', help='observe authored Captain AI approach ranges and enabled attack maxima without calling or changing game state')
     parser.add_argument('--captain-membership-events', action='store_true', help='observe Captain range departures, membership counters and private reissues without changing game state')
@@ -103,6 +104,7 @@ def main():
               'watchCell': args.watch_cell, 'blockerPatchSize': args.blocker_patch_size, 'blockers': args.blockers, 'taskEvents': args.task_events,
               'mapLoadEvents': args.map_load_events, 'widgetEvents': args.widget_events, 'motionEvents': args.motion_events,
               'velocityEvents': args.velocity_events, 'yieldEvents': args.yield_events, 'clockEvents': args.clock_events, 'headingEvents': args.heading_events,
+              'schedulerEvents': args.scheduler_events,
               'captainApproachEvents': args.captain_approach_events, 'captainMembershipEvents': args.captain_membership_events,
               'profileEvents': args.profile_events, 'gatePoolEvents':args.gate_pool_events,'gateMarkerEvents':args.gate_marker_events, 'adaptiveStorageEvents': args.adaptive_storage_events, 'fineStorageEvents': args.fine_storage_events, 'fineResultEvents': args.fine_result_events, 'numericEvents': args.numeric_events, 'randomEvents': args.random_events,
               'literalTexts': sorted({case['input'].lstrip('-') for case in json.loads(Path(__file__).with_name('wc3_literal_inputs.json').read_text())['cases'] if len(case['input'].lstrip('-')) > 10}) if args.literal_events else [],
@@ -118,7 +120,7 @@ def main():
         config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
-    source_paths = [Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
+    source_paths = [Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_waygate_capacity_probe.j'), Path(__file__).with_name('wc3_waygate_overlap_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),

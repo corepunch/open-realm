@@ -8497,3 +8497,101 @@ the final adaptive-header implementation. This closes NUM-04.1/02 for the shared
 overlap/retry owner; NUM-04.5/06 retain the separate startup/TLS-stream scope.
 The movement performance work and remaining scaling target are documented in
 [WC3 performance](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
+
+## Coarse and fine contention retain independent player FIFOs
+
+Payoff102 closes SCHED-04.1/02. The controlled flat64×64 fine scene contains a
+wall through columns32/33 and96 Footmen, alternating between two allied owners.
+Each unit receives an independent public Move at producer ticks10,100 and190;
+all300 samples complete. Independent captures `scheduler-contention-102-c.jsonl`
+and `scheduler-contention-102-e.jsonl` in the external1.27 runtime archive agree
+on all25,902 ordered scheduler observations through completion. The frozen
+[records](../../../tools/ghidra/fixtures/retail-scheduler-contention-1.27.jsonl.gz)
+and [certificate](../../../tools/ghidra/fixtures/retail-scheduler-contention-1.27.json)
+retain the target/source hashes, actual work and complete FIFO snapshots.
+`verify_wc3_scheduler_trace.py` rejects incomplete samples, missing search work,
+changed budgets/times/queue ends/reset cadence and different ordered repeats.
+
+Ghidra's typed `WC3PathSchedulerBucket` and `WC3PathPrefix` remain authoritative.
+The saved `OpenRealm_coarse_budget_contention` tag links admission168310,
+unlink1686a0, update167fa0/167310, coarse166c30, fine166e90 and route162cb0.
+Each player has four independent buckets:
+
+| Policy | Bucket selector limit | Owner work limit | Reload | Reset period |
+|---|---:|---:|---:|---:|
+| Group coarse | 5000 | 800 | 3 | 4 owner passes |
+| Priority coarse | 2000 | 300 | 2 | 3 owner passes |
+| Member coarse | 400 | 900 | 2 | 3 owner passes |
+| Fine | 700 | 1100 | 1 | 2 owner passes |
+
+The bucket selector limits are defaults, not proof of every producer’s search
+quota. This scene’s group/member/fine requests actually use5000/400/700; priority
+producer mapping remains open. Target-scheduling flag04000000 can change a
+bucket without changing the path-owned limits (`Path_SetTargetScheduling`168ab0).
+
+Unsigned work greater than the limit denies admission; equality admits. The
+search charges its actual popped nodes afterward, so work can overshoot. A
+nonempty queue admits only its head. Repeated denials retain insertion order
+without duplicating requests. Coarse admission first checks its10-pass request
+interval, then unlinks a previous fine request, then acquires its own bucket.
+Denial clears the coarse timestamp. A completed coarse search with fewer than32
+pops also clears it; fine clears its timestamp when cumulative bucket work is
+below64. Adaptive setup can return a one-point route without invoking the inner
+search; this is genuine zero work, not missing instrumentation.
+
+The first owner pass admits42 group searches and queues6 per player. It then
+executes42 member-coarse and42 fine wrapper requests per player. Repeated
+exhaustion denies24 group attempts for each owner and2214/2266 fine attempts.
+The maximum observed admitted FIFO wait is3 owner passes for either coarse
+owner,17 for player0 fine and14 for player1 fine. Eight coarse queue episodes
+per player reach admission;443/561 fine episodes do so. Twenty fine episodes per
+player leave their queue through independent unlink/replacement. One player1 fine request remains queued at the30-second producer boundary,
+with one observed owner pass of waiting. It is admitted in the captured suffix;
+the certificate reports the boundary state rather than using that later drain
+to claim an empty queue at30 seconds. These measurements establish
+bounded waits for this fixed producer, not a universal bound for arbitrary
+workloads. The earliest denied request remains ahead of later arrivals.
+
+The engine previously gated only fine searches. `G_UnitMoveGroupDestination`
+and the member adaptive consumer now acquire Move-owned coarse requests before
+searching and charge actual work afterward. Their intrusive queues provide O(1)
+admission and removal, without scanning units. Requests reside in stable edicts
+or heap-owned physical groups. Independent time/rank/work state survives
+save109; validation rejects bad policy/owner, duplicate ranks, impossible work
+or countdown, inconsistent counts and live links. Restore rebuilds process
+pointers from authoritative insertion ranks. The existing geometry-storage
+fixture now advances actual owner-budget callbacks instead of jumping the clock
+while retaining exhausted work.
+
+`retail_coarse_and_fine_contention_matches_captured_owner_window` compares517
+actual scheduler transactions over five owner passes:7,225 assertions cover
+admission, work, request times, queue head/tail/count and countdown. This is
+paired with the real public96-unit JASS Move/normal-RunFrame regression and883
+save/continue assertions for poses, velocities, orders, waits and RNG. That
+public regression verifies engine continuation; the captured scheduler window
+is the exact retail comparison. The full96-unit movement trajectory is not
+claimed exact to retail by this chunk.
+
+`wc3_path_scheduler=retail` retains the recovered limits/cadence. The authorized
+`responsive` policy freezes a queue-sized coarse service grant at every owner
+boundary; fine retains its existing deterministic service grant. It changes
+movement start times under contention. The public1024-unit regression still
+starts all units by200ms and reproduces5,130 saved continuation assertions.
+This scheduling change does not establish the0.8ms pathfinding performance target.
+Priority/non-unit producer mapping, mutation during active native traversal,
+counter wrap and the broader retail fidelity gaps remain open.
+
+The extended read-only observer changes historical source hashes. Earlier gate
+and random-consumer certificates now verify their original, hash-addressed source
+bytes under `tools/ghidra/fixtures/sources/`, rather than insisting that every
+future observer remain identical. New Scheduler102 observer/controller/map-maker
+sources are frozen the same way. No older expected observation is changed.
+
+Fresh original-x86 scheduler execution also passes64 bucket initialization,
+448 policy selections,1280 cadence checks,16,384 FIFO operations,162 interval
+cases,1024 class transitions and256 target-scheduling transitions. These isolate
+native primitives and complement the live producer evidence; they do not map
+unobserved priority/non-unit producers.
+
+Final `make test` passes Classic and TFT, each with2664 tests/7,227,304
+assertions, and612 pathfinding-tool checks. Production and test builds pass.

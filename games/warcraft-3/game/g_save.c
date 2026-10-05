@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format108 retains the fine scheduler policy and frozen service grants. */
-static uint32_t const save_version = 108;
+/* Format109 retains coarse admission ranks, times and independent budgets. */
+static uint32_t const save_version = 109;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -459,6 +459,28 @@ static field_t const move_fine_budget_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
+static field_t const move_coarse_budget_fields[] = {
+    TF(moveCoarseBudget_t, work, F_INT),
+    TF(moveCoarseBudget_t, countdown, F_INT),
+    TF(moveCoarseBudget_t, count, F_INT),
+    TF(moveCoarseBudget_t, limit, F_INT),
+    TF(moveCoarseBudget_t, head, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveCoarseBudget_t, tail, F_IGNORE, 0, FIELD_RUNTIME),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const move_coarse_request_fields[] = {
+    TF(moveCoarseRequest_t, prev, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveCoarseRequest_t, next, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveCoarseRequest_t, sequence, F_INT, 2),
+    TF(moveCoarseRequest_t, time, F_INT),
+    TF(moveCoarseRequest_t, player, F_INT),
+    TF(moveCoarseRequest_t, policy, F_INT),
+    TF(moveCoarseRequest_t, queued, F_INT),
+    TF(moveCoarseRequest_t, waiting, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
@@ -469,6 +491,8 @@ static field_t const level_fields[] = {
     F(level_locals, pathing_counter, F_INT),
     F(level_locals, move_fine_responsive, F_INT),
     F(level_locals, move_fine_budgets, F_STRUCT, MAX_PLAYERS, move_fine_budget_fields),
+    F(level_locals, move_coarse_budgets, F_STRUCT, MAX_PLAYERS*3, move_coarse_budget_fields),
+    F(level_locals, move_coarse_sequence, F_INT, 2),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
@@ -720,6 +744,8 @@ static field_t const unit_order_storage_fields[] = {
 };
 
 static field_t const move_route_fields[] = {
+    TF(moveFineRoute_t, adaptive_admission, F_STRUCT, 1, move_coarse_request_fields),
+    TF(moveFineRoute_t, group_admission, F_STRUCT, 1, move_coarse_request_fields),
     TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, count, F_INT),
     TF(moveFineRoute_t, index, F_INT),
@@ -798,6 +824,8 @@ static field_t const move_group_fields[] = {
 };
 
 static field_t const movement_fields[] = {
+    TF(struct edictMovement_s, fine_route.adaptive_admission, F_STRUCT, 1, move_coarse_request_fields),
+    TF(struct edictMovement_s, fine_route.group_admission, F_STRUCT, 1, move_coarse_request_fields),
     TF(edictMovement_s, fine_prev, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, fine_next, F_EDICT, 0, FIELD_NONE),
     TF(edictMovement_s, fine_queued, F_INT),
@@ -2694,6 +2722,7 @@ bool WriteGame(cstring_t filename) {
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 SaveGame: invalid unit owned-pool order\n"); goto done; }
     if (!S_ValidateCaptainHomeActors(false)) { fprintf(stderr,"WC3 SaveGame: invalid captain actor references\n"); goto done; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 SaveGame: invalid fine-request FIFO\n"); goto done; }
+    if (!S_ValidateMoveCoarseRequests()) { fprintf(stderr,"WC3 SaveGame: invalid coarse-request FIFOs\n"); goto done; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
     if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
@@ -2855,6 +2884,7 @@ bool ReadGame(cstring_t filename) {
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
+    if (!S_RestoreMoveCoarseRequests()) { fprintf(stderr,"WC3 LoadGame: invalid coarse-request FIFOs\n"); S_ClearMoveGroups(); fclose(f); return false; }
     if (!S_ValidateMoveShared()) {
         fprintf(stderr,"WC3 LoadGame: invalid shared Move references\n");
         S_ClearMoveGroups(); fclose(f); return false;

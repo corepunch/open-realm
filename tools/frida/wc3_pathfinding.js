@@ -1708,6 +1708,69 @@ function install(module) {
                     accLimit: this.path.add(0x86).readU16()});
         }
     });
+    const schedulerSnapshot = (bucket, path) => {
+        const owner=base.add(0xd53a48).readPointer();
+        const count=bucket.add(0x10).readU32(), queue=[];
+        if(count>512)throw new Error('Scheduler observer queue exceeds bounded fixture size');
+        let entry=bucket.add(0x14).readPointer();
+        for(let i=0;i<count;i++) {
+            if(entry.isNull() || entry.equals(ptr('0xffffffff')))throw new Error('Truncated scheduler FIFO');
+            queue.push(entry.toString());entry=entry.add(0x90).readPointer();
+        }
+        if(count && !entry.equals(ptr('0xffffffff')))throw new Error('Scheduler FIFO has an unexpected tail');
+        return {counter:owner.add(0x538).readU32(),clock:ints(owner.add(0x54),4).map(v=>v>>>0),
+            limit:bucket.add(4).readU32(),work:bucket.add(8).readU32(),countdown:bucket.add(12).readU32(),
+            queue,head:bucket.add(0x14).readPointer().toString(),tail:bucket.add(0x18).readPointer().toString(),
+            links:path ? ints(path.add(0x8c),2).map(v=>v>>>0) : null,
+            times:path ? ints(path.add(0x7c),2).map(v=>v>>>0) : null,
+            flags:path ? path.add(0x88).readU32() : null};
+    };
+    if(config.schedulerEvents) {
+        hook(0x167fa0,{onEnter(){
+            this.bucket=this.context.ecx;
+            this.offset=this.bucket.sub(base.add(0xd53a90)).toUInt32();
+            this.observe=this.offset<16*0x70 && this.offset%0x1c===0 &&
+                (this.bucket.add(8).readU32() || this.bucket.add(0x10).readU32());
+            if(this.observe)this.before=schedulerSnapshot(this.bucket,null);
+        },onLeave(){if(this.observe){
+            bump('scheduler-update');
+            if(counts['scheduler-update']<=config.samples)emit('scheduler-update',{
+                bucketOffset:this.offset,before:this.before,after:schedulerSnapshot(this.bucket,null)});
+        }}});
+        hook(0x166e90,{onEnter(){
+            this.path=this.context.ecx;
+            this.offset=((this.path.add(0x88).readU32()>>>16)&15)*0x70+0x54;
+            this.bucket=base.add(0xd53a90+this.offset);
+            this.before=schedulerSnapshot(this.bucket,this.path);
+        },onLeave(result){
+            bump('scheduler-fine-request');
+            if(counts['scheduler-fine-request']<=config.samples)emit('scheduler-fine-request',{
+                path:this.path.toString(),bucketOffset:this.offset,result:result.toUInt32(),
+                before:this.before,after:schedulerSnapshot(this.bucket,this.path)});
+        }});
+        hook(0x166c30,{onEnter(){
+            this.path=this.context.ecx;
+            const flags=this.path.add(0x88).readU32(), limit=this.path.add(0x86).readU16();
+            this.offset=((flags>>>16)&15)*0x70+(limit<=400 ? 0x38 : flags&0x4000000 ? 0x1c : 0);
+            this.bucket=base.add(0xd53a90+this.offset);
+            this.before=schedulerSnapshot(this.bucket,this.path);
+        },onLeave(result){
+            bump('scheduler-acc-request');
+            if(counts['scheduler-acc-request']<=config.samples)emit('scheduler-acc-request',{
+                path:this.path.toString(),bucketOffset:this.offset,result:result.toUInt32(),
+                before:this.before,after:schedulerSnapshot(this.bucket,this.path)});
+        }});
+        hook(0x1686a0,{onEnter(args){
+            this.bucket=this.context.ecx;this.path=args[0];
+            this.offset=this.bucket.sub(base.add(0xd53a90)).toUInt32();
+            this.before=schedulerSnapshot(this.bucket,this.path);
+        },onLeave(){
+            bump('scheduler-unlink');
+            if(counts['scheduler-unlink']<=config.samples)emit('scheduler-unlink',{
+                path:this.path.toString(),bucketOffset:this.offset,before:this.before,
+                after:schedulerSnapshot(this.bucket,this.path)});
+        }});
+    }
     hook(0x168310, {
         onEnter(args) {
             bump('scheduler-admission');
@@ -1715,6 +1778,7 @@ function install(module) {
             this.path = args[0];
             this.request = active.get(this.threadId);
             this.before = ints(this.bucket.add(4), 4);
+            this.schedulerBefore=config.schedulerEvents ? schedulerSnapshot(this.bucket,this.path) : null;
         },
         onLeave(ret) {
             if (counts['scheduler-admission'] <= config.samples)
@@ -1722,7 +1786,8 @@ function install(module) {
                     request: this.request ? this.request.request : null,
                     bucketOffset: this.bucket.sub(base.add(0xd53a90)).toUInt32(),
                     before: this.before, result: ret.toInt32(),
-                    after: ints(this.bucket.add(4), 4)});
+                    after: ints(this.bucket.add(4), 4),
+                    ...(config.schedulerEvents ? {stateBefore:this.schedulerBefore,stateAfter:schedulerSnapshot(this.bucket,this.path)} : {})});
         }
     });
     hook(0x168a80, {
