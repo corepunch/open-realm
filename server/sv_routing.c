@@ -56,6 +56,8 @@ struct {
     uint32_t *pathheap;       /* binary min-heap of pathmap indexes */
     uint32_t *obstacle_prefix; /* summed-area table for static nowalk cells */
     uint32_t *nofly_prefix;    /* summed-area table for static nofly cells */
+    uint32_t *nowater_prefix;  /* summed-area table for static nowater cells */
+    uint32_t *walk_water_prefix;   /* summed-area table for cells with both walk and water blockers */
     uint8_t *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
 
@@ -244,21 +246,30 @@ static void rebuild_static_obstacle_prefix(void) {
     uint32_t const stride = pathmap.width + 1;
     uint32_t const rows = pathmap.height + 1;
 
-    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.original)
+    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.nowater_prefix ||
+        !pathmap.walk_water_prefix || !pathmap.original)
         return;
 
     memset(pathmap.obstacle_prefix, 0, stride * rows * sizeof(uint32_t));
     memset(pathmap.nofly_prefix, 0, stride * rows * sizeof(uint32_t));
+    memset(pathmap.nowater_prefix, 0, stride * rows * sizeof(uint32_t));
+    memset(pathmap.walk_water_prefix, 0, stride * rows * sizeof(uint32_t));
     FOR_LOOP(y, pathmap.height) {
-        uint32_t walk_row_sum = 0, fly_row_sum = 0;
+        uint32_t walk_row_sum = 0, fly_row_sum = 0, water_row_sum = 0, walk_water_row_sum = 0;
         FOR_LOOP(x, pathmap.width) {
             pathMapCell_t const *cell = &pathmap.original[x + y * pathmap.width];
             walk_row_sum += cell->nowalk ? 1 : 0;
             fly_row_sum += cell->nofly ? 1 : 0;
+            water_row_sum += cell->nowater ? 1 : 0;
+            walk_water_row_sum += cell->nowalk && cell->nowater ? 1 : 0;
             pathmap.obstacle_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.obstacle_prefix[(x + 1) + y * stride] + walk_row_sum;
             pathmap.nofly_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.nofly_prefix[(x + 1) + y * stride] + fly_row_sum;
+            pathmap.nowater_prefix[(x + 1) + (y + 1) * stride] =
+                pathmap.nowater_prefix[(x + 1) + y * stride] + water_row_sum;
+            pathmap.walk_water_prefix[(x + 1) + (y + 1) * stride] =
+                pathmap.walk_water_prefix[(x + 1) + y * stride] + walk_water_row_sum;
         }
     }
 }
@@ -275,6 +286,8 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     SAFE_DELETE(pathmap.pathheap, MemFree);
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     SAFE_DELETE(pathmap.nofly_prefix, MemFree);
+    SAFE_DELETE(pathmap.nowater_prefix, MemFree);
+    SAFE_DELETE(pathmap.walk_water_prefix, MemFree);
     SAFE_DELETE(pathmap.approach_mask, MemFree);
     SAFE_DELETE(heatmap_pending, MemFree);
     heatmap_pending_count = heatmap_pending_capacity = 0;
@@ -298,6 +311,8 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     pathmap.pathheap = MemAlloc(n * sizeof(uint32_t));
     pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.nofly_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
+    pathmap.nowater_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
+    pathmap.walk_water_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.approach_mask = MemAlloc(n);
 
     if (cells) {
@@ -339,13 +354,17 @@ inline static bool is_valid_point(uint32_t x, uint32_t y) {
 
 static bool path_cell_blocks(pathMapCell_t const *cell, uint8_t blocked_flags) {
     uint8_t const flags = normalize_blocked_flags(blocked_flags);
-    if (!cell)
-        return true;
-    if ((flags & CM_PATHING_UNWALKABLE) && cell->nowalk)
-        return true;
-    if ((flags & CM_PATHING_UNFLYABLE) && cell->nofly)
-        return true;
-    return false;
+    uint8_t const selected = flags & (CM_PATHING_UNWALKABLE | CM_PATHING_UNFLYABLE | CM_PATHING_UNSWIMMABLE);
+
+    if (!cell) return true;
+    if (flags & CM_PATHING_REQUIRE_ALL)
+        return selected &&
+            (!(selected & CM_PATHING_UNWALKABLE) || cell->nowalk) &&
+            (!(selected & CM_PATHING_UNFLYABLE) || cell->nofly) &&
+            (!(selected & CM_PATHING_UNSWIMMABLE) || cell->nowater);
+    return ((selected & CM_PATHING_UNWALKABLE) && cell->nowalk) ||
+           ((selected & CM_PATHING_UNFLYABLE) && cell->nofly) ||
+           ((selected & CM_PATHING_UNSWIMMABLE) && cell->nowater);
 }
 
 static void reset_pathmap_data(void) {
@@ -537,11 +556,17 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                      * authored deck. Clear pixels outside the blocked rails are
                      * texture padding and must preserve the underlying river. */
                     if (walkable_surface) {
-                        if (blocked) cell->nowalk = 1;
-                        else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y))
+                        if (blocked) {
+                            cell->nowalk = 1;
+                            cell->nowater = 1;
+                        } else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y)) {
+                            /* A bridge opens the land route over water without
+                             * changing the underlying water-pathing channel. */
                             cell->nowalk = 0;
+                        }
                     } else {
                         cell->nowalk |= blocked;
+                        cell->nowater |= blocked;
                     }
                     cell->nofly |= blocks_fly;
                 }
@@ -635,7 +660,7 @@ void CM_BakeStaticObstacles(void) {
 /* Apply only dynamic (unit/monster) obstacles into pathmap.data for
  * closest-pathable-point queries at command time.  Static obstacles are
  * already baked into pathmap.original and copied in by reset_pathmap_data(). */
-static void apply_dynamic_obstacles(edict_t const *ignore) {
+static void apply_dynamic_obstacles(edict_t const *ignore, uint8_t mover_flags) {
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
         if (!ent->inuse || ent == ignore)
@@ -649,7 +674,7 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
             continue;
         point2_t p = LocationToPathMap(&ent->s.origin2);
         uint32_t radius = collision_radius_cells(ent->collision);
-        uint8_t const blocked_flags = entity_dynamic_pathing_flags(ent);
+        uint8_t const blocked_flags = entity_dynamic_pathing_flags(ent, mover_flags);
         FOR_LOOP(x, radius * 2) {
             FOR_LOOP(y, radius * 2) {
                 int px = (int)x + p.x - (int)radius;
@@ -658,6 +683,7 @@ static void apply_dynamic_obstacles(edict_t const *ignore) {
                     pathMapCell_t *cell = path_node(px, py);
                     if (blocked_flags & CM_PATHING_UNWALKABLE) cell->nowalk |= 1;
                     if (blocked_flags & CM_PATHING_UNFLYABLE) cell->nofly |= 1;
+                    if (blocked_flags & CM_PATHING_UNSWIMMABLE) cell->nowater |= 1;
                 }
             }
         }
@@ -768,7 +794,7 @@ bool CM_ClosestPathablePointForRadiusFlags(vec2_t const *location, float radius,
     }
 
     reset_pathmap_data();
-    apply_dynamic_obstacles(NULL);
+    apply_dynamic_obstacles(NULL, blocked_flags);
     n = CM_GetNormalizedMapPosition(location->x, location->y);
     tx = (int)floorf(n.x * pathmap.width);
     ty = (int)floorf(n.y * pathmap.height);
@@ -827,6 +853,8 @@ static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int r
         return false;
     prefix = flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix
            : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix
+           : flags == CM_PATHING_UNSWIMMABLE ? pathmap.nowater_prefix
+           : flags == (CM_PATHING_REQUIRE_ALL | CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE) ? pathmap.walk_water_prefix
            : NULL;
     if (!prefix) {
         for (int py = y0; py <= y1; py++)
@@ -1811,7 +1839,8 @@ void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Synthesize a pathmap from a raw byte array for unit tests.
- * Each byte is treated as a pathMapCell_t (bit 1 = nowalk, bit 2 = nofly).
+ * Each byte is treated as a pathMapCell_t (bit 1 = nowalk, bit 2 = nofly,
+ * bit 6 = nowater).
  * The world coordinate system is set up so cell (x,y) maps to
  * world position (x * cell_size, y * cell_size). */
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells) {

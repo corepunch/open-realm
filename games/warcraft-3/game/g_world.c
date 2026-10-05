@@ -7,8 +7,8 @@ static bool entity_is_live_walkable_surface(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
-static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
-    return M_UnitStaticPathingFlags(ent);
+static uint8_t entity_dynamic_pathing_flags(edict_t const *ent, uint8_t mover_flags) {
+    return M_UnitDynamicPathingFlags(ent, mover_flags);
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building

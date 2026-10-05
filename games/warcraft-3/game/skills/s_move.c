@@ -1,5 +1,5 @@
 /*
- * s_move.c — Move ability: ground movement orders for units.
+ * s_move.c — Move ability: movement orders for units.
  *
  * When a player right-clicks on empty ground, move_selectlocation() is called
  * on the server.  It creates a waypoint entity at the target position and
@@ -53,8 +53,21 @@ typedef enum {
     MOVE_IGNORE_UNITS,
 } moveCollisionPolicy_t;
 
-/* UnitData movetp values that name a movement type; anything else (retail authors "_") is movement-disabled. */
-static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "float", "amph" };
+typedef enum {
+    WC3_MOVE_GROUND,
+    WC3_MOVE_AIR,
+    WC3_MOVE_SEA,
+    WC3_MOVE_AMPHIBIOUS,
+    WC3_MOVE_DISABLED,
+} wc3MovementClass_t;
+
+typedef struct { cstring_t name; wc3MovementClass_t movement_class; } wc3MovementTypeMap_t;
+/* UnitData movetp values; unknown authored values (retail uses "_") are disabled. */
+static wc3MovementTypeMap_t const movement_types[] = {
+    { "foot", WC3_MOVE_GROUND }, { "horse", WC3_MOVE_GROUND },
+    { "hover", WC3_MOVE_GROUND }, { "fly", WC3_MOVE_AIR },
+    { "float", WC3_MOVE_SEA }, { "amph", WC3_MOVE_AMPHIBIOUS },
+};
 static edict_t *trymove_self = NULL;
 static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
 static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
@@ -238,7 +251,7 @@ float unit_movedistance(edict_t *self) {
 
 /* --- Collision-aware movement (block-and-slide) ---------------------------
  *
- * A unit only commits a step into a position that is free of walkable terrain
+ * A unit only commits a step into a position that is valid for its movement class
  * and of other units' collision circles.  When the steered heading is blocked
  * it tries progressively larger left/right deflections ("sliding"), so units
  * flow around obstacles instead of plowing through them.  Idle units are hard,
@@ -249,8 +262,74 @@ static bool unit_is_flying(edict_t const *ent) {
     return ent && (ent->aiflags & AI_FLYING) != 0;
 }
 
+static cstring_t unit_movement_type_name(edict_t const *ent) {
+    return ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
+}
+
+static wc3MovementClass_t unit_movement_class(edict_t const *ent) {
+    cstring_t const movetp = unit_movement_type_name(ent);
+
+    if (unit_is_flying(ent)) return WC3_MOVE_AIR;
+    if (!movetp || !*movetp) return WC3_MOVE_GROUND;
+    FOR_LOOP(i, sizeof(movement_types) / sizeof(*movement_types))
+        if (!strcmp(movetp, movement_types[i].name)) return movement_types[i].movement_class;
+    return WC3_MOVE_DISABLED;
+}
+
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
-    return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+    switch (unit_movement_class(ent)) {
+    case WC3_MOVE_AIR: return CM_PATHING_UNFLYABLE;
+    case WC3_MOVE_SEA: return CM_PATHING_UNSWIMMABLE;
+    case WC3_MOVE_AMPHIBIOUS:
+        return CM_PATHING_REQUIRE_ALL | CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
+    default: return CM_PATHING_UNWALKABLE;
+    }
+}
+
+typedef enum {
+    MOVE_DOMAIN_NONE   = 0,
+    MOVE_DOMAIN_GROUND = 1 << 0,
+    MOVE_DOMAIN_SEA    = 1 << 1,
+    MOVE_DOMAIN_AIR    = 1 << 2,
+} moveCollisionDomain_t;
+
+static uint8_t unit_collision_domains(edict_t const *ent) {
+    if (!ent) return MOVE_DOMAIN_NONE;
+    /* Structures remain precise ground/sea blockers in addition to their
+     * authored footprint, avoiding leakage through coarse 32u pathing cells. */
+    if (G_UnitIsStructure(ent)) return MOVE_DOMAIN_GROUND | MOVE_DOMAIN_SEA;
+    switch (unit_movement_class(ent)) {
+    case WC3_MOVE_AIR: return MOVE_DOMAIN_AIR;
+    case WC3_MOVE_SEA: return MOVE_DOMAIN_SEA;
+    case WC3_MOVE_AMPHIBIOUS: return MOVE_DOMAIN_GROUND | MOVE_DOMAIN_SEA;
+    case WC3_MOVE_DISABLED: return MOVE_DOMAIN_NONE;
+    default: return MOVE_DOMAIN_GROUND;
+    }
+}
+
+static uint8_t pathing_collision_domains(uint8_t mover_flags) {
+    uint8_t domains = 0;
+    if (mover_flags & CM_PATHING_UNWALKABLE) domains |= MOVE_DOMAIN_GROUND;
+    if (mover_flags & CM_PATHING_UNSWIMMABLE) domains |= MOVE_DOMAIN_SEA;
+    if (mover_flags & CM_PATHING_UNFLYABLE) domains |= MOVE_DOMAIN_AIR;
+    return domains ? domains : MOVE_DOMAIN_GROUND;
+}
+
+bool M_UnitsShareCollisionDomain(edict_t const *a, edict_t const *b) {
+    return (unit_collision_domains(a) & unit_collision_domains(b)) != 0;
+}
+
+/* Command-time obstacle stamping is game-owned: the shared router asks which
+ * pathing channels this blocker occupies for the requesting mover policy. */
+uint8_t M_UnitDynamicPathingFlags(edict_t const *ent, uint8_t mover_flags) {
+    uint8_t const overlap = unit_collision_domains(ent) & pathing_collision_domains(mover_flags);
+
+    if (!overlap) return 0;
+    if (mover_flags & CM_PATHING_REQUIRE_ALL)
+        return mover_flags & (CM_PATHING_UNWALKABLE | CM_PATHING_UNFLYABLE | CM_PATHING_UNSWIMMABLE);
+    if (overlap & MOVE_DOMAIN_AIR) return CM_PATHING_UNFLYABLE;
+    if (overlap & MOVE_DOMAIN_SEA) return CM_PATHING_UNSWIMMABLE;
+    return CM_PATHING_UNWALKABLE;
 }
 
 /* Warsmash MovementType.DISABLED: a unit row whose movetp names no movement type is pathable anywhere and
@@ -259,11 +338,7 @@ uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
  * A row with no movetp cell at all stays mobile: retail always authors the column, so absence is a
  * partial row rather than a statement about movement. */
 bool M_UnitMoveDisabled(edict_t const *ent) {
-    cstring_t const movetp = ent && ent->data.UnitData ? ent->data.UnitData->moveTypeName : NULL;
-    if (!movetp || !*movetp) return false;
-    FOR_LOOP(i, sizeof(move_type_names) / sizeof(*move_type_names))
-        if (!strcmp(movetp, move_type_names[i])) return false;
-    return true;
+    return unit_movement_class(ent) == WC3_MOVE_DISABLED;
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
@@ -280,10 +355,10 @@ static bool filter_blockers(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
-     * and ARE counted here — relying on the terrain footprint alone let units
-     * walk through buildings (coarse 32u cells, runtime-spawned statics not yet
-     * baked).  Flyers and ground units are on separate layers. */
-    return unit_is_flying(ent) == unit_is_flying(trymove_self);
+     * and ARE counted here — relying on the terrain footprint alone lets units
+     * leak through coarse 32u cells. Ground, sea and air movers otherwise only
+     * collide when their Warsmash-style movement domains overlap. */
+    return M_UnitsShareCollisionDomain(ent, trymove_self);
 }
 
 /* Distance from point p to the segment [a,b]. */

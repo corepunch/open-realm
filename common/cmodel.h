@@ -9,16 +9,20 @@ struct edict_s;
 
 typedef void (*cmLoadYield_t)(void);
 
-/* Warcraft III pathing bits used by movement-class-aware routing.  Existing
- * walkability APIs keep their historical UNWALKABLE behavior; callers that
- * need another movement class pass the appropriate blocked bit explicitly. */
-#define CM_PATHING_UNWALKABLE 0x02
-#define CM_PATHING_UNFLYABLE  0x04
+/* Generic byte-mask pathing channels used by the shared router. Existing
+ * walkability APIs keep their historical UNWALKABLE behavior; games select
+ * the channels and match policy required by their movement rules. */
+#define CM_PATHING_UNWALKABLE   0x02
+#define CM_PATHING_UNFLYABLE    0x04
+#define CM_PATHING_UNSWIMMABLE  0x40
+/* Generic query modifier: require every selected static blocker bit instead of
+ * the default any-selected-bit match. This is a routing policy bit, not WPM data. */
+#define CM_PATHING_REQUIRE_ALL  0x80
 
 typedef struct {
     vec2_t const *from, *target;
     float radius;
-    uint8_t blocked_flags; /* 0 preserves the legacy UNWALKABLE contract */
+    uint8_t blocked_flags; /* channels + query modifiers; 0 preserves legacy UNWALKABLE */
 } pathAccelParams_t;
 
 struct War3MapVertex {

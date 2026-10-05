@@ -103,6 +103,7 @@ void unit_stand(edict_t *self);
 
 #define MAP_W 10
 #define MAP_H 10
+#define AMPH_PATHING_FLAGS (CM_PATHING_REQUIRE_ALL | CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE)
 
 /*  0 = open, 2 = nowalk (bit 1 set, matching pathMapCell_t.nowalk). */
 static uint8_t open_map[MAP_W * MAP_H];   /* all open */
@@ -231,6 +232,31 @@ TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_pathfinding, pathtex_red_channel_blocks_ground_and_float) {
+    uint8_t cells[8 * 8] = { 0 };
+    vec2_t const center = { 4.5f, 4.5f };
+    edict_t *building;
+    pathTex_t *pathtex;
+
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), center.x, center.y);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(color32_t));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0] = (color32_t){ .b = 255, .a = 255 };
+    building->pathtex = pathtex;
+
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNSWIMMABLE));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     uint8_t cells[8 * 8] = { 0 };
     vec2_t target = { 4.5f, 4.5f };
@@ -247,6 +273,176 @@ TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     cells[4 * 8 + 4] = CM_PATHING_UNFLYABLE;
     setup_test_pathmap(8, 8, cells);
     T_ASSERT(!M_MoveIsValid(flyer, &target));
+}
+
+TEST(wc3_pathfinding, float_and_amphibious_static_pathing_match_warsmash) {
+    uint8_t cells[3] = {
+        CM_PATHING_UNSWIMMABLE,                         /* walkable land */
+        CM_PATHING_UNWALKABLE,                          /* swimmable water */
+        CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE /* neither */
+    };
+    vec2_t const land = { 0.5f, 0.5f };
+    vec2_t const water = { 1.5f, 0.5f };
+    vec2_t const blocked = { 2.5f, 0.5f };
+
+    setup_test_pathmap(3, 1, cells);
+
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&land, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&land, 0.0f, CM_PATHING_UNSWIMMABLE));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&land, 0.0f, AMPH_PATHING_FLAGS));
+
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&water, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&water, 0.0f, CM_PATHING_UNSWIMMABLE));
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&water, 0.0f, AMPH_PATHING_FLAGS));
+
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&blocked, 0.0f, AMPH_PATHING_FLAGS));
+}
+
+TEST(wc3_pathfinding, unit_movement_type_selects_static_pathing_policy) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    static UnitData_t const amph_data = { .moveTypeName = "amph" };
+    static UnitData_t const fly_data = { .moveTypeName = "fly" };
+    edict_t *unit;
+
+    reset_entities();
+    unit = make_unit_at(0.0f, 0.0f);
+
+    unit->data.UnitData = &foot_data;
+    T_EQ(M_UnitStaticPathingFlags(unit), CM_PATHING_UNWALKABLE);
+    unit->data.UnitData = &float_data;
+    T_EQ(M_UnitStaticPathingFlags(unit), CM_PATHING_UNSWIMMABLE);
+    unit->data.UnitData = &amph_data;
+    T_EQ(M_UnitStaticPathingFlags(unit), AMPH_PATHING_FLAGS);
+    unit->data.UnitData = &fly_data;
+    T_EQ(M_UnitStaticPathingFlags(unit), CM_PATHING_UNFLYABLE);
+}
+
+TEST(wc3_pathfinding, dynamic_pathing_domains_follow_requesting_mover) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    static UnitData_t const amph_data = { .moveTypeName = "amph" };
+    static UnitData_t const fly_data = { .moveTypeName = "fly" };
+    edict_t *unit;
+
+    reset_entities();
+    unit = make_unit_at(0.0f, 0.0f);
+
+    unit->data.UnitData = &foot_data;
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNWALKABLE), CM_PATHING_UNWALKABLE);
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNSWIMMABLE), 0);
+    T_EQ(M_UnitDynamicPathingFlags(unit, AMPH_PATHING_FLAGS),
+         CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE);
+
+    unit->data.UnitData = &float_data;
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNWALKABLE), 0);
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNSWIMMABLE), CM_PATHING_UNSWIMMABLE);
+    T_EQ(M_UnitDynamicPathingFlags(unit, AMPH_PATHING_FLAGS),
+         CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE);
+
+    unit->data.UnitData = &amph_data;
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNWALKABLE), CM_PATHING_UNWALKABLE);
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNSWIMMABLE), CM_PATHING_UNSWIMMABLE);
+
+    unit->data.UnitData = &fly_data;
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNFLYABLE), CM_PATHING_UNFLYABLE);
+    T_EQ(M_UnitDynamicPathingFlags(unit, CM_PATHING_UNWALKABLE), 0);
+}
+
+TEST(wc3_pathfinding, amphibious_command_destination_avoids_ground_and_sea_units) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    uint8_t cells[8 * 8] = { 0 };
+    vec2_t const target = { 4.5f, 4.5f };
+    vec2_t out;
+    edict_t *blocker;
+
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    blocker = make_unit_at(target.x, target.y);
+    blocker->svflags |= SVF_MONSTER;
+    blocker->collision = 0.1f;
+
+    blocker->data.UnitData = &foot_data;
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&target, 0.0f, AMPH_PATHING_FLAGS, &out));
+    T_ASSERT(Vector2_distance(&out, &target) > 0.01f);
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&target, 0.0f, CM_PATHING_UNSWIMMABLE, &out));
+    T_FEQ(out.x, target.x, 0.001f); T_FEQ(out.y, target.y, 0.001f);
+
+    blocker->data.UnitData = &float_data;
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&target, 0.0f, AMPH_PATHING_FLAGS, &out));
+    T_ASSERT(Vector2_distance(&out, &target) > 0.01f);
+    T_ASSERT(CM_ClosestPathablePointForRadiusFlags(&target, 0.0f, CM_PATHING_UNWALKABLE, &out));
+    T_FEQ(out.x, target.x, 0.001f); T_FEQ(out.y, target.y, 0.001f);
+}
+
+TEST(wc3_pathfinding, float_route_finds_water_detour_around_land) {
+    enum { W = 7, H = 5 };
+    uint8_t cells[W * H];
+    vec2_t const from = { 1.5f, 2.5f }, target = { 5.5f, 2.5f };
+    vec2_t waypoint = { 0 };
+    pathAccelParams_t const params = {
+        .from = &from, .target = &target, .radius = 0.0f, .blocked_flags = CM_PATHING_UNSWIMMABLE
+    };
+
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells)); /* open water */
+    for (int y = 1; y <= 3; y++) cells[y * W + 3] = CM_PATHING_UNSWIMMABLE; /* land island */
+    setup_test_pathmap(W, H, cells);
+
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNSWIMMABLE));
+    T_ASSERT(CM_FindPathWaypoint(&params, &waypoint));
+    T_ASSERT(fabsf(waypoint.y - from.y) > 0.01f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&waypoint, 0.0f, CM_PATHING_UNSWIMMABLE));
+}
+
+TEST(wc3_pathfinding, float_move_collision_uses_sea_domain) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    uint8_t cells[8 * 8];
+    vec2_t const target = { 4.5f, 4.5f };
+    edict_t *ship, *blocker;
+
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells)); /* swimmable water */
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    ship = make_unit_at(3.5f, 4.5f);
+    blocker = make_unit_at(target.x, target.y);
+    ship->data.UnitData = &float_data;
+    blocker->data.UnitData = &foot_data;
+    ship->collision = blocker->collision = 0.25f;
+    gi.LinkEntity(ship);
+    gi.LinkEntity(blocker);
+
+    T_ASSERT(M_MoveIsValid(ship, &target));
+
+    blocker->data.UnitData = &float_data;
+    T_ASSERT(!M_MoveIsValid(ship, &target));
+}
+
+TEST(wc3_pathfinding, amphibious_move_collision_overlaps_ground_and_sea_domains) {
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    static UnitData_t const amph_data = { .moveTypeName = "amph" };
+    uint8_t land_cells[8 * 8], water_cells[8 * 8];
+    vec2_t const target = { 4.5f, 4.5f };
+    edict_t *amph, *blocker;
+
+    memset(land_cells, CM_PATHING_UNSWIMMABLE, sizeof(land_cells));
+    setup_test_pathmap(8, 8, land_cells);
+    reset_entities();
+    amph = make_unit_at(3.5f, 4.5f);
+    blocker = make_unit_at(target.x, target.y);
+    amph->data.UnitData = &amph_data;
+    blocker->data.UnitData = &foot_data;
+    amph->collision = blocker->collision = 0.25f;
+    gi.LinkEntity(amph);
+    gi.LinkEntity(blocker);
+    T_ASSERT(!M_MoveIsValid(amph, &target));
+
+    memset(water_cells, CM_PATHING_UNWALKABLE, sizeof(water_cells));
+    setup_test_pathmap(8, 8, water_cells);
+    blocker->data.UnitData = &float_data;
+    T_ASSERT(!M_MoveIsValid(amph, &target));
 }
 
 TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
