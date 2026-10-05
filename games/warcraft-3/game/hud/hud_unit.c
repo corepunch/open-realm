@@ -493,7 +493,8 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
          * enabled the building attack: it cancels the current attack/order. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
+    if ((!S_AncientHasRootAbility(ent) || !S_AncientIsRooted(ent)) &&
+        ((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
          (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
         if ((S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.weapon == WPN_ARTILLERY) ||
