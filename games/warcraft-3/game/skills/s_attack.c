@@ -52,7 +52,16 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || slot >= 2) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
-    if (attacker->ancient_root && attacker->ancient_root->ability) enabled = S_AncientAttackMask(attacker);
+    if (S_AncientHasRootAbility(attacker)) {
+        /* Root/Unroot transitions must not retain an attack order from the
+         * previous form. Ancients can attack only in their stable uprooted
+         * state; the authored mask still chooses which slots that form uses. */
+        if (attacker->ancient_root && attacker->ancient_root->mode != ANCIENT_UPROOTED &&
+            attacker->ancient_root->mode != ANCIENT_ROOT_UNINITIALIZED) return false;
+        if ((!attacker->ancient_root || attacker->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED) &&
+            S_AncientIsRooted(attacker)) return false;
+        enabled = S_AncientAttackMask(attacker);
+    }
     return (enabled & (1u << slot)) != 0;
 }
 
