@@ -1876,6 +1876,25 @@ TEST(wc3_bot, convert_units_rejects_missing_conversion_ability) {
     T_ASSERT(!G_BotConvertUnits(player, 1, MAKEFOURCC('h','p','e','a')));
 }
 
+/* Conversion lookup must read the caller's rawcode through each ability source, not a shadowed macro local. */
+TEST(wc3_bot, convert_units_finds_authored_added_and_ranked_abilities) {
+    player_t *player = &game.clients[2].ps;
+    UnitAbilities_t const abilities = { .abilList = "Aave" };
+    uint32_t code = MAKEFOURCC('A','a','v','e'), source_id = MAKEFOURCC('h','p','e','a');
+    FOR_LOOP(i, 3) {
+        reset_entities();
+        InitUnitData();
+        edict_t *source = alloc_test_unit(source_id, 0, 0);
+        edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+        source->s.player = target->s.player = 2;
+        source->data.UnitAbilities = i ? NULL : &abilities;
+        if (i == 1) T_ASSERT(G_ActorAddSkill(source, code));
+        if (i == 2) source->heroabilities[0] = (heroability_t){ .code = code, .level = 1 };
+        /* The desired target count is already present, so discovery succeeds without starting a transform. */
+        T_ASSERT(G_BotConvertUnits(player, 1, source_id));
+    }
+}
+
 TEST(wc3_bot, individual_flee_policy_moves_damaged_combat_unit_home) {
     player_t *player = &game.clients[2].ps;
     edict_t *hall, *unit, *enemy;

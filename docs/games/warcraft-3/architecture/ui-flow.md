@@ -343,6 +343,27 @@ contains the active campaign selector: Warsmash builds the visible campaign entr
 because an optional static button frame bound successfully can leave the campaign screen showing only the
 difficulty control, with no campaign entry to click.
 
+Campaign arrow and camera buttons clone `CampaignArrowButtonTemplate` / `CampaignCameraButtonTemplate` from
+retail `StandardTemplates.fdf`. Both the ROC and TFT archives inspected here author `BackdropBackgroundSize 0.032`,
+with `0.007` insets in normal/pressed states and `0.004` in disabled state. The background tile span includes those
+insets: subtract half their total before calculating repeats in the inset interior. This matches
+[Warsmash's BackdropFrame](https://github.com/Retera/WarsmashModEngine/blob/main/core/src/com/etheller/warsmash/parsers/fdf/frames/BackdropFrame.java).
+The old renderer discarded the FDF span and divided the `0.018` interior by the 32px texture's nominal `0.032`
+span, sampling only `0..0.5625` of the icon and shifting it toward the lower right of the border. The fix carries
+`BackgroundSize` through both glue drawing and the retained HUD backdrop path to `drawBackdrop_t.backgroundSize`;
+no selector-specific position adjustment is needed. A zero span preserves intrinsic texture tiling for callers
+without authored tile geometry. Positive spans consumed entirely by insets are diagnosed and rejected.
+
+`menu_fdf.single_player_screen_loads_roc_campaigns` and its TFT counterpart draw both cloned icon types in normal,
+pressed, and disabled states, checking the authored span/insets passed to the renderer. The fixture contains the
+retail backdrop children; dimension-only templates cannot catch this bug. `renderer_backdrop.authored_tile_size_keeps_inset_icons_centered`
+checks complete stock-icon UV coverage, independence from source pixel resolution, unequal insets, non-stock spans,
+mirroring, repeating, untiled drawing, and invalid spans. Run `make test-menu test-renderer-model` for these checks.
+For framebuffer inspection, initialize Single Player before its campaign shortcut:
+`XDG_DATA_HOME=/tmp/wc3-icon-check build/bin/openwarcraft3 -data 'data/Warcraft III' -vid_hidden 1 +menu_game +menu_single_player_campaign_human +screenshot 120 +com_frame_limit 135`;
+add `-tft` for the expansion. The engine writes a JPEG under `screenshots/`. Builds without FFmpeg hide movie rows;
+the template-state tests still cover camera icons in that configuration.
+
 The menu's Easy/Normal/Hard selection writes `wc3_campaign_difficulty` (`0`, `1`, or `2`). For stock ROC/TFT campaign
 map paths, `G_SpawnEntities` uses that value as the initial `GetGameDifficulty()` state before `war3map.j`
 initialization; non-campaign maps retain the existing Normal default. Map script calls to `SetGameDifficulty` may

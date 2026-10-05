@@ -550,231 +550,39 @@ static cstring_t R_ShaderDefines(bool instancing) {
     return shader_defines_buf;
 }
 
-/* A compiled shader can still exceed resources at link time. Never draw with a failed program.
-   ri.error only prints in the client, so termination must not rely on that callback. */
-static void R_CheckShader(GLuint obj, GLenum check, cstring_t label) {
-    GLint ok = GL_FALSE, size = 0;
-    if (check == GL_LINK_STATUS) glGetProgramiv(obj, check, &ok);
-    else glGetShaderiv(obj, check, &ok);
-    if (ok) return;
-    if (check == GL_LINK_STATUS) glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &size);
-    else glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &size);
-    char *log = size > 1 ? malloc(size) : NULL;
-    if (log) {
-        log[0] = 0;
-        if (check == GL_LINK_STATUS) glGetProgramInfoLog(obj, size, NULL, log);
-        else glGetShaderInfoLog(obj, size, NULL, log);
-    }
-    fprintf(stderr, "%s failed: %s\n", label, log ? log : size > 1 ? "cannot allocate driver log" : "no driver log");
-    free(log);
-    exit(EXIT_FAILURE);
-}
+#include "vendor/gl_shader/gl_shader.c"
 
-static char const *R_GLSLTypeStr(uniformType_t type) {
-    switch (type) {
-        case UT_FLOAT:            return "float";
-        case UT_FLOAT_VEC2:       return "vec2";
-        case UT_FLOAT_VEC3:       return "vec3";
-        case UT_FLOAT_VEC4:       return "vec4";
-        case UT_COLOR:            return "vec4";
-        case UT_INT:              return "int";
-        case UT_INT_VEC2:         return "ivec2";
-        case UT_BOOL:             return "bool";
-        case UT_FLOAT_MAT3:       return "mat3";
-        case UT_FLOAT_MAT3_TRANSPOSE: return "mat3";
-        case UT_FLOAT_MAT4:       return "mat4";
-        case UT_SAMPLER_2D:       return "sampler2D";
-        case UT_SAMPLER_2D_RECT:  return "sampler2DRect";
-        case UT_SAMPLER_2D_ARRAY: return "sampler2DArray";
-        default:                  return "float";
-    }
-}
-
-int R_BuildShaderDeclarations(char *buf, int size, shader_desc_t const *desc,
-                              bool is_vertex, glsl_dialect_t dialect) {
-    char const *attr_kw  = (dialect == GLSL_DIALECT_120) ? "attribute" : "in";
-    char const *vsout_kw = (dialect == GLSL_DIALECT_120) ? "varying"   : "out";
-    char const *fsin_kw  = (dialect == GLSL_DIALECT_120) ? "varying"   : "in";
-    int n = 0;
-
-    /* GLSL 120 has no `texture` builtin; alias it so fragment bodies can
-       call texture() regardless of dialect. */
-    if (!is_vertex && dialect == GLSL_DIALECT_120)
-        n += snprintf(buf + n, size - n, "#define texture texture2D\n");
-
-    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
-        if (desc->Uniforms[i].count > 1)
-            n += snprintf(buf + n, size - n, "uniform %s %s[%u];\n",
-                          R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name,
-                          desc->Uniforms[i].count);
-        else
-            n += snprintf(buf + n, size - n, "uniform %s %s;\n",
-                          R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name);
-    }
-
-    if (is_vertex) {
-        for (int i = 0; i < MAX_SHADER_ATTRIBS && desc->Attributes[i].name; i++)
-            n += snprintf(buf + n, size - n, "%s %s %s;\n",
-                          attr_kw, R_GLSLTypeStr(desc->Attributes[i].type), desc->Attributes[i].name);
-        for (int i = 0; i < MAX_SHADER_SHARED && desc->Shared[i].name; i++)
-            n += snprintf(buf + n, size - n, "%s %s %s;\n",
-                          vsout_kw, R_GLSLTypeStr(desc->Shared[i].type), desc->Shared[i].name);
-    } else {
-        for (int i = 0; i < MAX_SHADER_SHARED && desc->Shared[i].name; i++)
-            n += snprintf(buf + n, size - n, "%s %s %s;\n",
-                          fsin_kw, R_GLSLTypeStr(desc->Shared[i].type), desc->Shared[i].name);
-        if (dialect != GLSL_DIALECT_120)
-            n += snprintf(buf + n, size - n, "out vec4 o_color;\n");
-    }
-    return n;
-}
-
-int R_BuildShaderMain(char *buf, int size, bool is_vertex, glsl_dialect_t dialect) {
-    if (is_vertex)
-        return snprintf(buf, size, "void main() { gl_Position = vert(); }\n");
-    return snprintf(buf, size, "void main() { %s = frag(); }\n",
-                    dialect == GLSL_DIALECT_120 ? "gl_FragColor" : "o_color");
-}
-
-static void R_SetShaderSourceFromDesc(GLuint stage, shader_desc_t const *desc,
-                                      bool is_vertex, char const *defines) {
-    /* Indexed by glsl_dialect_t — must stay in enum order. */
-    static char const *const version_prefix[] = {
-        "#version 120\n",
-        "#version 140\n",
-        "#version 150\n",
-        "#version 300 es\nprecision highp float;\nprecision highp int;\n",
-    };
-    glsl_dialect_t dialect =
+static gs_options_t R_ShaderOptions(char const *defines) {
+    return (gs_options_t){ .dialect =
 #ifdef BZ_GL_ES3
-        GLSL_DIALECT_ES3;
+        GLSL_DIALECT_ES3,
 #elif defined(BZ_GLSL_120)
-        GLSL_DIALECT_120;
+        GLSL_DIALECT_120,
 #elif defined(BZ_GLSL_150)
-        GLSL_DIALECT_150;
+        GLSL_DIALECT_150,
 #else
-        GLSL_DIALECT_140;
+        GLSL_DIALECT_140,
 #endif
-    char decls[2048], main_wrapper[128];
-    R_BuildShaderDeclarations(decls, sizeof(decls), desc, is_vertex, dialect);
-    R_BuildShaderMain(main_wrapper, sizeof(main_wrapper), is_vertex, dialect);
-    char const *strings[] = {
-        version_prefix[dialect],
-        defines ? defines : "",
-        decls,
-        is_vertex ? desc->VertexBody : desc->FragmentBody,
-        main_wrapper,
+        .defines = defines,
     };
-    R_Call(glShaderSource, stage, 5, strings, NULL);
 }
 
-/* Return exact CPU storage consumed by one value so cached comparisons never include struct padding. */
-static size_t R_UniformTypeSize(uniformType_t type) {
-    static uint8_t const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 9, 16, 1, 1, 1 };
-    if (type >= UT_COUNT) return 0;
-    if (type == UT_BOOL) return sizeof(bool);
-    if (type >= UT_INT && type <= UT_INT_VEC2) return widths[type] * sizeof(int);
-    if (type >= UT_SAMPLER_2D) return sizeof(int);
-    return widths[type] * sizeof(float);
+/* Public source inspection uses the same generator as compilation. */
+int R_BuildShaderDeclarations(char *buf, int size, shader_desc_t const *desc, bool vertex, glsl_dialect_t dialect) {
+    return gs_declarations(buf, size > 0 ? (size_t)size : 0, desc, vertex, dialect);
+}
+int R_BuildShaderMain(char *buf, int size, bool vertex, glsl_dialect_t dialect) {
+    return gs_main(buf, size > 0 ? (size_t)size : 0, vertex, dialect);
 }
 
-static GLuint shader_bound;
-
-/* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
+/* The reusable module returns failure; the engine retains its fatal built-in shader policy. */
 void R_LoadShaderState(shaderLoad_t const *load) {
-    shader_desc_t const *desc = load->desc;
-    cstring_t defines = load->defines;
-    shaderProg_t *prog = load->prog;
-    void *state = load->state;
-    GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
-    GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
-
-    R_SetShaderSourceFromDesc(vs, desc, true, defines);
-    R_Call(glCompileShader, vs);
-    R_CheckShader(vs, GL_COMPILE_STATUS, desc->Name);
-
-    R_SetShaderSourceFromDesc(fs, desc, false, defines);
-    R_Call(glCompileShader, fs);
-    R_CheckShader(fs, GL_COMPILE_STATUS, desc->Name);
-
-    GLuint progid = R_Call(glCreateProgram, );
-    for (int i = 0; i < MAX_SHADER_ATTRIBS && desc->Attributes[i].name; i++)
-        R_Call(glBindAttribLocation, progid, desc->Attributes[i].attrib, desc->Attributes[i].name);
-    R_Call(glAttachShader, progid, vs);
-    R_Call(glAttachShader, progid, fs);
-    R_Call(glLinkProgram, progid);
-    R_CheckShader(progid, GL_LINK_STATUS, desc->Name);
-    R_Call(glDeleteShader, vs);
-    R_Call(glDeleteShader, fs);
-    R_Call(glUseProgram, progid);
-    shader_bound = progid;
-
-    prog->progid = progid;
-    prog->desc = desc;
-    int unit = 0;
-    size_t cache_size = 0;
-    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
-        shaderUniform_t const *u = &desc->Uniforms[i];
-        size_t end = u->offset + R_UniformTypeSize(u->type) * (u->count ? u->count : 1);
-        prog->locs[i] = glGetUniformLocation(progid, u->name);
-        cache_size = MAX(cache_size, end);
-        if (u->type >= UT_SAMPLER_2D && u->type <= UT_SAMPLER_2D_ARRAY)
-            *(int *)((char *)state + u->offset) = unit++;
-    }
-    prog->cache = ri.MemAlloc((long)cache_size);
-    if (!prog->cache) ri.error("R_LoadShaderState: cache allocation failed for %s", desc->Name);
-    memset(prog->cache, 0, cache_size);
+    gs_options_t options = R_ShaderOptions(load->defines);
+    if (!gs_load(load->prog, load->desc, load->state, load->state_size, &options)) exit(EXIT_FAILURE);
 }
-
-/* Release linked programs before their GL context is destroyed. */
-void R_DeleteShader(shaderProg_t *prog) {
-    if (prog->progid) glDeleteProgram(prog->progid);
-    if (shader_bound == prog->progid) shader_bound = 0;
-    if (prog->cache) ri.MemFree(prog->cache);
-    memset(prog, 0, sizeof(*prog));
-}
-
-/* One typed state submission owns all uniforms; exact per-program caching avoids redundant driver calls. */
+void R_DeleteShader(shaderProg_t *prog) { gs_delete(prog); }
 void R_UploadShader(shaderProg_t *prog, void const *state) {
-    if (shader_bound != prog->progid) {
-        R_Call(glUseProgram, prog->progid);
-        shader_bound = prog->progid;
-    }
-    for (int i = 0; i < MAX_SHADER_UNIFORMS && prog->desc->Uniforms[i].name; i++) {
-        shaderUniform_t const *u = &prog->desc->Uniforms[i];
-        void const *data = (char const *)state + u->offset;
-        GLint loc = prog->locs[i];
-        GLsizei count = u->counted ? *(uint32_t const *)((char const *)state + u->count_offset) :
-                                     (u->count ? u->count : 1);
-        size_t bytes = R_UniformTypeSize(u->type) * count;
-        if (loc < 0) continue; /* Linked shader optimised this declared input away. */
-        if (u->counted && (count < 1 || count > (GLsizei)u->count)) {
-            fprintf(stderr, "R_UploadShader: invalid count %d for %s.%s[%u]\n", count, prog->desc->Name, u->name, u->count);
-            exit(EXIT_FAILURE);
-        }
-        if (prog->cache && !memcmp((char *)prog->cache + u->offset, data, bytes))
-            continue;
-        switch (u->type) {
-            case UT_FLOAT: R_Call(glUniform1fv, loc, count, data); break;
-            case UT_FLOAT_VEC2: R_Call(glUniform2fv, loc, count, data); break;
-            case UT_FLOAT_VEC3: R_Call(glUniform3fv, loc, count, data); break;
-            case UT_FLOAT_VEC4: case UT_COLOR: R_Call(glUniform4fv, loc, count, data); break;
-            case UT_INT: case UT_SAMPLER_2D: case UT_SAMPLER_2D_RECT: case UT_SAMPLER_2D_ARRAY:
-                R_Call(glUniform1iv, loc, count, data); break;
-            case UT_INT_VEC2: R_Call(glUniform2iv, loc, count, data); break;
-            case UT_BOOL: {
-                GLint values[count];
-                FOR_LOOP(j, count) values[j] = ((bool const *)data)[j];
-                R_Call(glUniform1iv, loc, count, values); break;
-            }
-            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, GL_FALSE, data); break;
-            case UT_FLOAT_MAT3_TRANSPOSE: R_Call(glUniformMatrix3fv, loc, count, GL_TRUE, data); break;
-            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, GL_FALSE, data); break;
-            default: fprintf(stderr, "R_UploadShader: invalid type for %s.%s\n", prog->desc->Name, u->name); exit(EXIT_FAILURE);
-        }
-        if (prog->cache)
-            memcpy((char *)prog->cache + u->offset, data, bytes);
-    }
+    if (!gs_apply(prog, state)) exit(EXIT_FAILURE);
 }
 
 static modelProg_t model_shader;

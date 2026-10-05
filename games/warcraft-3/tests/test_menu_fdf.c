@@ -44,6 +44,7 @@ static uintptr_t fake_texture_id;
 static texture_t *hover_texture;
 static uint32_t captured_hover_draws;
 static rect_t captured_text_rects[8], popup_row_rect;
+static drawBackdrop_t captured_backdrop;
 static cstring_t popup_row_text;
 static vec2_t fake_text_size;
 static handle_t test_mpq_archive;
@@ -273,7 +274,7 @@ static void test_draw_sprite(drawSprite_t const *sprite) {
 static void test_glue_changed(void) { captured_glue_changes++; }
 
 static void test_draw_backdrop(drawBackdrop_t const *draw_backdrop) {
-    (void)draw_backdrop;
+    captured_backdrop = *draw_backdrop;
     captured_draw_calls++;
 }
 
@@ -398,6 +399,7 @@ static void load_ui_files(cstring_t const *file_names, size_t count) {
 
     mi.ImageIndex = test_image_index;
     mi.FontIndex = test_font_index;
+    mi.GetRenderer = test_get_renderer;
     mi.Printf = test_ui_printf;
     test_command_imports();
     for (size_t i = 0; i < count; i++) {
@@ -2667,6 +2669,33 @@ static bool sp_row_blank(cstring_t box, uint32_t row) {
     return slot && slot->hidden;
 }
 
+/* Draw each cloned retail button state through the real menu path so authored tile geometry reaches the renderer. */
+static void sp_row_icon_geometry(cstring_t box) {
+    cstring_t const parts[] = { "Button", "CameraButton" };
+    uint32_t const states[] = { 0, UIFLAG_PRESSED, UIFLAG_DISABLED };
+    FOR_LOOP(i, 2) {
+        frameDef_t *button = sp_row(box, 0, parts[i]);
+        if (!require_not_null(button)) return;
+        bool hidden = button->hidden;
+        uint32_t flags = button->ui_flags;
+        button->hidden = false;
+        FOR_LOOP(j, 3) {
+            button->ui_flags = states[j];
+            captured_backdrop = (drawBackdrop_t){0};
+            UI_DrawFrame(button);
+            T_NOT_NULL(captured_backdrop.bg.texture);
+            T_NOT_NULL(captured_backdrop.edge.texture);
+            T_FEQ(captured_backdrop.backgroundSize, .032f, .00001f);
+            T_FEQ(captured_backdrop.screen.w, .032f, .00001f);
+            T_FEQ(captured_backdrop.screen.h, .032f, .00001f);
+            T_FEQ(captured_backdrop.insets.left, j == 2 ? .004f : .007f, .00001f);
+            T_EQ(captured_backdrop.flags, DRAW_TILE);
+        }
+        button->hidden = hidden;
+        button->ui_flags = flags;
+    }
+}
+
 TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     menuImport_t saved = mi;
     test_glue_setup();
@@ -3286,6 +3315,7 @@ static void test_single_player_campaign_profile(bool tft) {
                  : sp_row_shows("CampaignListBox", 2, "Undead Campaign", "Path of the Damned", false, 1));
     T_ASSERT(sp_row_blank("CampaignListBox", 7));
     T_ASSERT(sp_row_blank("CampaignListBox", 8));
+    sp_row_icon_geometry("CampaignListBox");
 
     captured_command[0] = '\0';
     Cmd_ExecuteString(tft ? "menu_single_player_campaign_select 1" : "menu_single_player_campaign_select 0");
@@ -3305,6 +3335,7 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(campaign_select_frame->hidden);
     T_ASSERT(!mission_select_frame->hidden);
     T_ASSERT(!mission_list_box->hidden);
+    sp_row_icon_geometry("MissionListBox");
     T_STREQ(mission_name->Text,
             tft ? "Curse of the Blood Elves" : "The Scourge of Lordaeron");
     T_STREQ(mission_name_header->Text,

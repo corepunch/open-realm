@@ -32,3 +32,11 @@ OpenWarcraft compiles its own Lua and XML parser from checked-in sources, matchi
   This supports retail archive listfiles and patch campaign data needed by the parity catalog.
 - `make test-mpq-compression` checks the upstream reference stream, truncated input, and output bounds.
   This adds method-byte decoding, not a claim that every legacy `MPQ_FILE_IMPLODE` layout is supported.
+
+## GL Shader (`vendor/gl_shader/`)
+
+- GL Shader 1.0.0, extracted from Open Realm and shared with Corepunch Orion UI.
+- Standalone C99 descriptors, profile generation, compilation and cached typed uniforms; MIT license retained.
+- Unity-included once by `renderer/r_shader.c`; update both repositories' complete vendor directory together.
+- See [shared shaders](architecture/shared-shaders.md) and the [module contract](../vendor/gl_shader/README.md).
+- `make test-gl-shader` exercises the shared contract; renderer model/shadow tests exercise integration.
