@@ -263,7 +263,9 @@ void S_ChargeUnitMoveFineRequest(edict_t *unit, uint32_t work) {
  * reload+1 owner visits. Request links are stable within edicts/heap groups. */
 static uint32_t const move_coarse_work[3]={800,300,900};
 static uint32_t const move_coarse_reload[3]={3,2,2};
-static uint32_t const move_coarse_search[3]={5000,2000,400};
+/* The priority bucket's selector is 2000, but a target group's path keeps
+ * its own 5000-node limit. Responsive grants must cover the actual search. */
+static uint32_t const move_coarse_search[3]={5000,5000,400};
 
 void S_CancelMoveCoarseRequest(moveCoarseRequest_t *request) {
     if(request->queued) {
@@ -277,6 +279,14 @@ void S_CancelMoveCoarseRequest(moveCoarseRequest_t *request) {
     }
     request->prev=request->next=NULL;request->sequence=0;
     request->queued=request->waiting=false;
+}
+
+void S_SetMoveCoarseTarget(moveCoarseRequest_t *request,bool target) {
+    unsigned policy=target ? 1 : 0;
+    if(request->policy==policy)return;
+    /* Native168ab0 changes membership without resetting the path's clock. */
+    S_CancelMoveCoarseRequest(request);
+    request->policy=policy;
 }
 
 bool S_AdmitMoveCoarseRequest(edict_t *unit,moveCoarseRequest_t *request,unsigned policy) {
@@ -869,8 +879,12 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
         wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
         &self->movement.sampled_pose : NULL;
     moveGroupMember_t const *member=move_find_member(self);
+    edict_t *target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity;
+    /* A point-order waypoint carries coordinates, not a resolved group target. */
+    if(target && (target->svflags&SVF_MOVE_WAYPOINT))target=NULL;
     return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,self->no_pathing ? 0 : M_UnitStaticPathingFlags(self)},
-        .mover=self,.target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity,.units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
+        .mover=self,.target=target,
+        .units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {

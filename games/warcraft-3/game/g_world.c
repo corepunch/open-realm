@@ -1266,6 +1266,8 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
  * zero offset. Shared cohort storage/formation admission remains GROUP-04.6. */
 bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
+    /* Native16ce10 updates target scheduling even when retaining a route. */
+    S_SetMoveCoarseTarget(&route->group_admission,input->target!=NULL);
     uint8_t mask=move_adaptive_mask(input);
     moveGridGeometry_t const *geometry = move_geometry();
     bool retained = route->group_points && route->group_count && route->group_index < route->group_count &&
@@ -1304,7 +1306,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
             fprintf(stderr,"WC3 group routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
             return false;
         }
-        if(input->mover && !S_AdmitMoveCoarseRequest(input->mover,&route->group_admission,0))return false;
+        if(input->mover && !S_AdmitMoveCoarseRequest(input->mover,&route->group_admission,route->group_admission.policy))return false;
         vec2_t source=move_query_source(input);
         move_acc_prepare();
         FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];

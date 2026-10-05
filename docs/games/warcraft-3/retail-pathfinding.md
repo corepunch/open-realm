@@ -756,3 +756,14 @@ observed pass at the boundary and is admitted afterward. This closes contention
 leaves04.1/02; priority producers, active-traversal mutation and unsigned
 counter-wrap evidence remain open. Default responsive scheduling deliberately
 uses larger deterministic grants; select retail scheduling for exact admission.
+
+### Target groups retain their search quota under priority scheduling
+
+[Payoff103](retail-pathfinding-engine.md#target-priority-keeps-the-groups-search-quota)
+maps the resolved-target producer through the actual group request. Two complete
+Smart/Follow repeats preserve2254 ordered scheduler/search/producer records.
+Target routes use the300-work priority bucket while retaining their5000-node
+search quota. The engine now changes queue policy before cached-route reuse and
+keeps coordinate-only point waypoints in the ordinary bucket. Ghidra persistence
+and `MapPathfinding.java` include this evidence and the previous contention
+mapping. SCHED-03.1 remains open for concrete class15 producer trajectories.

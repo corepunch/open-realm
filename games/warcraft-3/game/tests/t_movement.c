@@ -11981,6 +11981,15 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
                 FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
             trace.units[1]=units[1];
             level.time+=5; globals.RunFrame();
+            if(scenario==FOLLOW_SPEED && (level.time==1020 || level.time==8010)) {
+                unsigned member=level.time==1020 ? 0 : 1;
+                moveGroup_t const *group=move_find_group(units[member]->movement.group_id);
+                moveFineRoute_t const *route=group ? &group->route : &units[member]->movement.fine_route;
+                T_ASSERT(route->group_count>0);
+                T_EQ(route->group_admission.policy,member==0 ? 1 : 0);
+                T_ASSERT(level.move_coarse_budgets[0][member==0 ? 1 : 0].work>0);
+                T_ASSERT(S_ValidateMoveCoarseRequests());
+            }
             if(resize && level.time==(scenario==FOLLOW_RESEARCH ? 15100 : 10100)) { T_EQ(units[1]->class_id,custom_units[1].newUnitID); T_FEQ(units[1]->collision,changed_radius,0); }
             if(fresh && level.time==15000) {
                 moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
@@ -14409,6 +14418,36 @@ TEST(wc3_movement, coarse_saved_queue_rejects_corrupt_ranks_links_and_budget) {
     T_EQ(first->next,second);T_EQ(second->prev,first);T_ASSERT(S_ValidateMoveCoarseRequests());
     S_CancelMoveCoarseRequest(first);T_EQ(budget->head,second);T_EQ(budget->count,1);
     S_CancelMoveCoarseRequest(second);T_EQ(budget->count,0);T_NULL(budget->head);T_NULL(budget->tail);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target_group_routes_use_priority_budget_and_release_old_queue) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1728,128);
+    unit->collision=target->collision=31;
+    moveCoarseBudget_t *ordinary=&level.move_coarse_budgets[0][0],*priority=&level.move_coarse_budgets[0][1];
+    ordinary->work=801;
+    vec2_t goal={1728,128},point;
+    movePathQuery_t query={{&unit->s.origin2,&goal,31,2},unit,target,true};
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    T_ASSERT(G_UnitMoveGroupDestination(&query,route,&point));
+    T_EQ(ordinary->work,801);T_EQ(ordinary->count,0);T_ASSERT(priority->work>0);
+    T_EQ(route->group_admission.policy,1);
+    if(route->group_count) {
+        priority->work=301;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(unit,&route->group_admission,1));
+        T_EQ(priority->count,1);
+        uint32_t time=route->group_admission.time;
+        query.target=NULL;
+        /* Native16ce10 changes target scheduling before its retained-route bypass. */
+        T_ASSERT(G_UnitMoveGroupDestination(&query,route,&point));
+        T_EQ(priority->count,0);T_ASSERT(!route->group_admission.queued);
+        T_EQ(route->group_admission.policy,0);T_EQ(route->group_admission.time,time);
+        T_EQ(ordinary->work,801);T_EQ(ordinary->count,0);
+    }
     reset_entities();setup_test_world();
 }
 

@@ -8593,5 +8593,91 @@ cases,1024 class transitions and256 target-scheduling transitions. These isolate
 native primitives and complement the live producer evidence; they do not map
 unobserved priority/non-unit producers.
 
+## Target priority keeps the group's search quota
+
+Payoff103 corrects the group producer's choice of scheduling bucket. Native
+`PathGroup_RequestRoute`16ce10 is the sole static caller of
+`Path_SetTargetScheduling`168ab0. It resolves the group target and updates the
+priority flag **before** bypassing construction for a retained coarse route.
+Changing that flag unlinks previous scheduler membership and clears the fine
+selection flag, preserving the request timestamps and path-owned search limits.
+An unchanged flag does not unlink. Group preparation separately copies the
+class nibble from its first member, even when another member supplies the source.
+
+Read-only captures `scheduler-target-103-a.jsonl` and
+`scheduler-target-103-b.jsonl` repeat the complete stopped Smart/Follow producer
+on `PathingRE-FollowVelocityComplete-261002.w3m`. They agree on all2254 ordered
+scheduler, search and producer records, including1015 target-policy calls.
+The six group searches are:
+
+| Owner counter | Policy | Actual popped nodes | Path-owned quota |
+|---:|---|---:|---:|
+| 1058 | Target priority | 4 | 5000 |
+| 1164 | Target priority | 2 | 5000 |
+| 1291 | Point ordinary | 9 | 5000 |
+| 1300 | Target priority | 3 | 5000 |
+| 1317 | Target priority | 3 | 5000 |
+| 1334 | Target priority | 15 | 5000 |
+
+Priority's initialized selector2000 therefore does **not** limit this group's
+search to2000 nodes. Its owner work allowance is300, versus800 for ordinary
+group searches. Five member-coarse searches retain400 and six fine searches
+retain700. Actual popped nodes, work deltas, timestamps, flag updates, FIFO
+operations and reset cadence are checked independently before comparing repeats.
+All300 producer samples and the authored Stop/completion are mandatory.
+
+The [frozen records](../../../tools/ghidra/fixtures/retail-scheduler-target-1.27.jsonl.gz)
+and [certificate](../../../tools/ghidra/fixtures/retail-scheduler-target-1.27.json)
+pin both complete capture hashes, the map, producer and original observer
+generation. The exact generated JASS producer is retained as a hash-addressed
+source. Reproduce the verification with:
+
+```sh
+python3 tools/frida/verify_wc3_scheduler_target_trace.py \
+  /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/scheduler-target-103-a.jsonl \
+  --repeat /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/scheduler-target-103-b.jsonl \
+  --output /tmp/wc3-scheduler-target.json
+```
+
+The engine's Move-owned `S_SetMoveCoarseTarget` cancels the old coarse FIFO
+without resetting its clock, then changes the policy before retained-route
+reuse. `G_UnitMoveGroupDestination` admits and charges the selected bucket while
+retaining the5000-node group quota. Deterministic responsive grants and saved
+work validation now budget for that actual quota, rather than the priority
+selector. No saved layout changes; save109 remains current.
+
+The production query producer also excludes `SVF_MOVE_WAYPOINT` from its resolved
+target. These edicts carry point-order coordinates; treating their pointer as
+a real target would incorrectly put ordinary point moves into the priority pool.
+Captains and real Smart/Follow targets retain their original pointers.
+
+The new blocked-wall regression failed four of its five reached assertions
+before implementation and now checks successful target routing while the
+ordinary budget is exhausted, exact queue removal on a target-policy change,
+retained-route reuse and unchanged timestamps. The complete public Smart/Follow
+regression additionally checks both scheduling policies and live validation,
+alongside its existing raw-word motion and three saved continuations. Strict
+Python mutations reject truncated timelines, changed sources, search quotas,
+priority/class flags, work, timestamps, bucket policy, FIFO ends and cadence.
+
+`MapPathfinding.java` now replays the previous contention annotations and these
+target producer/consumer findings. It runs successfully in the active pinned
+Ghidra program, mapping694 functions without changing prototypes; saved comment
+readbacks match the replayable descriptions. The class15 inventory records
+bridge callers6cf5e0,6cfe00,6d30c0 and6d3190, all explicitly disabling adaptive
+routing before publishing class15. Unit activation68a060, owner change698ce0
+and captain virtual actor9d2f90 use their owner class instead. The four class15
+objects' concrete runtime identities and complete public trajectories remain
+unverified; SCHED-03.1 is not closed merely by fixing its target-priority slice.
+
+Focused validation follows the authorized batched full-suite cadence: Classic
+and TFT each pass all12 public target journeys with364082 assertions. The new
+wall/queue-policy regression passes14 assertions; the captured517-transaction
+window, public96-unit contention/save case and1024-unit responsive/save case
+remain passing. All seven scheduler Python checks pass, including the strict
+mutation tests for both producer generations. Production and test binaries
+build successfully. The full-suite checkpoint remains payoff102; this chunk
+does not claim another full validation or the unfinished performance target.
+
 Final `make test` passes Classic and TFT, each with2664 tests/7,227,304
 assertions, and612 pathfinding-tool checks. Production and test builds pass.
