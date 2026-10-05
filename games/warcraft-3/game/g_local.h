@@ -2642,6 +2642,8 @@ float unit_movedistance(edict_t *);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
+uint8_t M_UnitDynamicPathingFlags(edict_t const *, uint8_t mover_flags);
+bool M_UnitsShareCollisionDomain(edict_t const *, edict_t const *);
 bool M_UnitMoveDisabled(edict_t const *);
 bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);

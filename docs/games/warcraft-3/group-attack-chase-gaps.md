@@ -129,4 +129,5 @@ For completed implementation work, run `make test` as required by
 
 - [Attack Damage](attack-damage.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
+- [Naval Movement And Water Pathing](naval-movement.md)
 - [Shift Order Queue](order-queue.md)

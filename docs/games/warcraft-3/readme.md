@@ -111,6 +111,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Group Attack And Chase Gaps](group-attack-chase-gaps.md): remaining combat-movement parity work and acceptance coverage.
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
+- [Naval Movement And Water Pathing](naval-movement.md): `float`/`amph` routing, water pathing, collision domains, and bridge semantics.
 - [Way Gates](way-gates.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Map Trigger Strings in Authored Names](trigger-strings.md)

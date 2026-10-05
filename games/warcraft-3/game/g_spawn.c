@@ -1060,7 +1060,7 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
         if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
             continue;
         }
-        if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
+        if (!M_UnitsShareCollisionDomain(other, unit)) {
             continue;
         }
         delta = Vector2_sub(&other->s.origin2, point);
@@ -1079,7 +1079,7 @@ static bool G_RepositionBlocker(edict_t const *other) {
     edict_t *unit = reposition_unit;
     if (other == unit || (G_IsItem(unit) && other == unit->item->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
-        !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
+        !M_UnitsShareCollisionDomain(other, unit)) return false;
     dx = other->s.origin2.x - reposition_point->x;
     dy = other->s.origin2.y - reposition_point->y;
     reach = unit->collision + other->collision;
