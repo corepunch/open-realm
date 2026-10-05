@@ -1051,6 +1051,7 @@ void Get_Commands_f(edict_t *ent) {
     edict_t *selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
     gameClient_t *previous_ui_client;
     gameCommandButton_t buttons[12];
+    gameCommandButton_t unit_buttons[12];
     uint8_t count;
 
     if (!ent || !ent->client) return;
@@ -1075,10 +1076,19 @@ void Get_Commands_f(edict_t *ent) {
     previous_ui_client = ui_current_client;
     UI_SetCurrentClient(ent->client);
     UI_WriteStart(LAYER_COMMANDBAR);
-    count = (G_CanUseItemShop(ent->client, selected) || G_CanUseUnitShop(ent->client, selected))
-        ? G_GetShopButtons(&(shopItemButtonsParams_t){
-            .client = ent->client, .shop = selected, .buttons = buttons, .max_buttons = 12 })
-        : G_GetCommandButtons(selected, buttons, 12);
+    if (G_CanUseItemShop(ent->client, selected) || G_CanUseUnitShop(ent->client, selected)) {
+        uint8_t const shop_count = G_GetShopButtons(&(shopItemButtonsParams_t){
+            .client = ent->client, .shop = selected, .buttons = buttons, .max_buttons = 12 });
+        uint8_t const unit_count = G_GetCommandButtons(selected, unit_buttons,
+                                                        (uint8_t)(12 - shop_count));
+        count = shop_count;
+        FOR_LOOP(i, unit_count) {
+            buttons[count] = unit_buttons[i];
+            count++;
+        }
+    } else {
+        count = G_GetCommandButtons(selected, buttons, 12);
+    }
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }

@@ -1103,17 +1103,19 @@ CLIENTCOMMAND(Button) {
      * weaken G_UnitCanControl() for ordinary enemy/neutral units. Merchandise
      * commands are raw object IDs and the authoritative stock path decides
      * whether the selected shop sells an item or a non-Hero unit. */
-    if (G_CanUseItemShop(client, producer) || G_CanUseUnitShop(client, producer)) {
+    if ((G_CanUseItemShop(client, producer) || G_CanUseUnitShop(client, producer)) &&
+        strlen(classname) == 4) {
         uint32_t merchandise_id = 0;
-        if (strlen(classname) != 4) return;
         memcpy(&merchandise_id, classname, sizeof(merchandise_id));
         if (G_ShopSellsItem(producer, merchandise_id)) {
             if (G_ShopPurchaseItem(clent, producer, merchandise_id)) Get_Portrait_f(clent);
+            Get_Commands_f(clent);
+            return;
         } else if (G_ShopSellsUnit(producer, merchandise_id)) {
             G_ShopPurchaseUnit(clent, producer, merchandise_id);
+            Get_Commands_f(clent);
+            return;
         }
-        Get_Commands_f(clent);
-        return;
     }
     if (!G_UnitCanControl(client, producer)) return;
     if (!strncmp(classname, "revive:", 7)) {
