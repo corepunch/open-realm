@@ -3336,13 +3336,16 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(!mission_select_frame->hidden);
     T_ASSERT(!mission_list_box->hidden);
     sp_row_icon_geometry("MissionListBox");
+    /* Retail shows Human's fourteen rows unscrolled: the mission box has sixteen slots on the same 0.285 centre. */
+    T_FEQ(mission_list_box->Height, 16 * 0.0315625f, 0.0001f);
+    T_FEQ(mission_list_box->Points.y[FPP_MIN].offset, -0.2852f + 8 * 0.0315625f, 0.0001f);
     T_STREQ(mission_name->Text,
             tft ? "Curse of the Blood Elves" : "The Scourge of Lordaeron");
     T_STREQ(mission_name_header->Text,
             tft ? "Alliance Campaign" : "Human Campaign");
 #ifdef BZ_FFMPEG
-    /* Intro, blank, Opening, three missions, Ending: seven slots centred 1.5 down. */
-    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -1.5f * 0.0315625f, 0.0001f);
+    /* Intro, blank, Opening, three missions, Ending: seven of sixteen slots, centred 4.5 down. */
+    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -4.5f * 0.0315625f, 0.0001f);
     T_ASSERT(sp_row_shows("MissionListBox", 0, "Introduction",
                           tft ? "Alliance Introduction" : "Human Introduction", true, 0));
     T_ASSERT(sp_row_blank("MissionListBox", 1));
@@ -3357,8 +3360,8 @@ static void test_single_player_campaign_profile(bool tft) {
             tft ? "Movies\\HumanXIntro.mpq" : "Movies\\HumanIntro.mpq");
     T_STREQ(captured_command, "");
 #else
-    /* Three missions centred in ten slots: the column starts 3.5 slots down. */
-    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -3.5f * 0.0315625f, 0.0001f);
+    /* Three missions centred in sixteen slots: the column starts 6.5 slots down. */
+    T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, -6.5f * 0.0315625f, 0.0001f);
     T_ASSERT(tft ? sp_row_shows("MissionListBox", 0, "Chapter One", "Misconceptions", false, 0)
                  : sp_row_shows("MissionListBox", 0, "", "The Defense of Strahnbrad", false, 0));
     T_ASSERT(tft ? sp_row_shows("MissionListBox", 1, "Chapter Two", "A Dark Covenant", false, 1)
@@ -3371,7 +3374,7 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(mission_select_frame->hidden);
 
     if (!tft) {
-        /* Twelve missions overflow the ten slots: the column starts at the top and the wheel scrolls it. */
+        /* Eighteen missions overflow the sixteen slots: the column starts at the top and the wheel scrolls it. */
         float x = 0, y = 0;
         bool found = false;
 
@@ -3379,7 +3382,7 @@ static void test_single_player_campaign_profile(bool tft) {
         singlePlayerMenuScreen.draw();
         T_FEQ(sp_row("MissionListBox", 0, "")->Points.y[FPP_MIN].offset, 0.0f, 0.0001f);
         T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 0", false, 0));
-        T_ASSERT(sp_row_shows("MissionListBox", 9, "", "Scroll 9", false, 9));
+        T_ASSERT(sp_row_shows("MissionListBox", 15, "", "Scroll 15", false, 15));
         /* The fixture CampaignMenu has no size, so the box may hang off its corner at negative coordinates. */
         for (float fy = -1.0f; fy < 1.0f && !found; fy += 0.005f)
             for (float fx = -1.0f; fx < 1.0f && !found; fx += 0.005f)
@@ -3390,7 +3393,7 @@ static void test_single_player_campaign_profile(bool tft) {
         T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 1", false, 1));
         FOR_LOOP(i, 5) singlePlayerMenuScreen.scroll(x, y, -1);
         T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 2", false, 2));
-        T_ASSERT(sp_row_shows("MissionListBox", 9, "", "Scroll 11", false, 11));
+        T_ASSERT(sp_row_shows("MissionListBox", 15, "", "Scroll 17", false, 17));
         FOR_LOOP(i, 5) singlePlayerMenuScreen.scroll(x, y, 1);
         T_ASSERT(sp_row_shows("MissionListBox", 0, "", "Scroll 0", false, 0));
         Cmd_ExecuteString(back_button->OnClick);
