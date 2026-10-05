@@ -80,7 +80,9 @@ class PlacementIndexTests(unittest.TestCase):
             source.write_text(SOURCE)
             for optimization in ("-O0", "-O2"):
                 binary = Path(directory) / optimization[1:]
-                subprocess.run(["cc", "-std=c11", optimization, "-fsanitize=undefined",
+                # Included headers also define search helpers this placement-only fixture does not call.
+                subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function",
+                                optimization, "-fsanitize=undefined",
                                 "-fno-sanitize-recover=all", "-I", str(ROOT), str(source),
                                 "-o", str(binary)], check=True, capture_output=True, text=True)
                 result = subprocess.run([str(binary)], check=True, capture_output=True, text=True)

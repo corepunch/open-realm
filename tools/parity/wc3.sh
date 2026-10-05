@@ -87,7 +87,8 @@ else
     if [[ -z ${WC3_BINARY:-} && ${WC3_DRY_RUN:-0} != 1 ]]; then
         make -C "$root" openwarcraft3
     fi
-    [[ -x $binary ]] || { echo "Build first: make BUILD=release FFMPEG=1 openwarcraft3" >&2; exit 1; }
+    # A dry run only prints the command; requiring a built executable broke clean-checkout previews.
+    [[ ${WC3_DRY_RUN:-0} == 1 || -x $binary ]] || { echo "Build first: make BUILD=release FFMPEG=1 openwarcraft3" >&2; exit 1; }
     cmd=("$binary" -data "$data" +set fs_expansion "$([[ $edition == tft ]] && echo 1 || echo 0)"
          +set vid_native 0 +set vid_fullscreen 0 +set vid_mode 2)
     cmd+=(+set skip_cutscene "$skip")

@@ -20,6 +20,22 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +ui_start_command menu_main
 
 The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/menu/screens/main_menu.c`.
 
+### Parity launcher build and dry-run contract
+
+`tools/parity/wc3.sh openrealm` runs `make openwarcraft3` before loading the default executable and propagates build
+failure, preventing stale executable imports from loading refreshed modules. `WC3_BINARY` selects a supplied executable
+without rebuilding it. Real launches require an executable binary; `WC3_DRY_RUN=1` prints the command without building
+or requiring that binary, so command previews work in clean checkouts. The data directory must still exist.
+`tests/test_parity_launcher.py` copies the launcher into a temporary root without build artifacts to cover both build
+failure propagation and the default-binary dry run independently of local builds.
+
+```bash
+WC3DATA='data/Warcraft III' WC3_DRY_RUN=1 tools/parity/wc3.sh openrealm --map=menu
+python3 tests/test_parity_launcher.py
+```
+
+See [parity tooling](../tools/parity/README.md) for campaign aliases and retail launch options.
+
 ### White MDX geometry diagnosis
 
 If menu scenes or in-game MDX models retain geometry but render large white regions, log a failed

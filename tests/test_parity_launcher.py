@@ -77,6 +77,10 @@ class ParityLauncherTest(unittest.TestCase):
 
     def test_default_build_failure_prevents_loading_stale_modules(self):
         with tempfile.TemporaryDirectory() as directory:
+            # A clean checkout has no default binary; local builds must not mask that case.
+            launcher = Path(directory, 'tools/parity/wc3.sh')
+            launcher.parent.mkdir(parents=True)
+            launcher.write_bytes((ROOT / 'tools/parity/wc3.sh').read_bytes())
             bindir = Path(directory, 'bin')
             bindir.mkdir()
             make = bindir / 'make'
@@ -85,18 +89,21 @@ class ParityLauncherTest(unittest.TestCase):
             env = dict(os.environ, WC3DATA=directory, WC3_DRY_RUN='0',
                        PATH=str(bindir) + os.pathsep + os.environ['PATH'])
             env.pop('WC3_BINARY', None)
-            result = subprocess.run(['bash', str(ROOT / 'tools/parity/wc3.sh'),
+            result = subprocess.run(['bash', str(launcher),
                                      'openrealm', '--map=menu'], env=env,
                                     text=True, capture_output=True)
             self.assertEqual(result.returncode, 37)
             self.assertIn('refresh-default-build', result.stderr)
             self.assertNotIn('Server initialization', result.stdout)
             env['WC3_DRY_RUN'] = '1'
-            result = subprocess.run(['bash', str(ROOT / 'tools/parity/wc3.sh'),
+            result = subprocess.run(['bash', str(launcher),
                                      'openrealm', '--map=menu'], env=env,
                                     text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn('refresh-default-build', result.stderr)
+            cmd = shlex.split(result.stdout.split('Command: ', 1)[1])
+            self.assertEqual(cmd[0], str(Path(directory, 'build/bin/openwarcraft3')))
+            self.assertIn('+menu_main', cmd)
 
     def test_invalid_arguments(self):
         for args in [('openrealm', '--map=typo'), ('openrealm', '--map='),

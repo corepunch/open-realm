@@ -2609,6 +2609,15 @@ No production C warnings are reported.
 
 ## Blocked placement reaches the engine
 
+The query-local index in `wc3_pathing_placement.h` scans unblocked row/column bits in the original ring order.
+`__builtin_clzll` and `__builtin_ctzll` return signed `int`; both ternary branches must use signed arithmetic before
+storing the nonnegative index. Using `63u` in just the reverse branch caused GCC's `-Werror=sign-compare` to reject
+every pathfinding probe that included this header in CI. `tests/test_wc3_placement_index.py` compiles with
+`-Wall -Wextra -Werror` at `-O0`/`-O2`, suppressing only unused static helpers from the included headers, and uses UBSan
+to compare 12,000 indexed/scalar placements plus broad-witness pruning. Run it with
+`python3 tests/test_wc3_placement_index.py`; `make test-pathfinding-tools` checks the probe consumers with and without
+`BZ_WC3_FINE_TRACE` at both optimization levels.
+
 The ordinary CUnit vtable180 producer698050 enters653510, vtableDC67f490,
 6515f0 and bridge058cd0. The bridge converts world coordinates to fine cells,
 clips the permitted rectangle, and reaches owner16ecc0/fine14a1e0. Public

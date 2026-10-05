@@ -94,7 +94,8 @@ static bool wc3_placement_index_strip(wc3FinePlacement_t const *query, wc3Placem
     uint64_t const *rejected = vertical ? index->columns + fixed : index->rows + fixed;
     while (range & ~*rejected) {
         uint64_t remaining = range & ~*rejected;
-        unsigned at = reverse ? 63u - __builtin_clzll(remaining) : __builtin_ctzll(remaining);
+        /* Both builtins return int; keep both branches signed before storing the nonnegative bit index. */
+        unsigned at = reverse ? 63 - __builtin_clzll(remaining) : __builtin_ctzll(remaining);
         wc3FinePoint_t cell = {index->origin.x + (int)(vertical ? fixed : at),
                               index->origin.y + (int)(vertical ? at : fixed)};
         *witness = (wc3FineBox_t){0};
