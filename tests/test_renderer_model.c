@@ -83,7 +83,7 @@ static void BZ_TestShaderLog(GLuint obj, GLsizei size, GLsizei *length, GLchar *
     (void)obj; (void)length; shader_test.logs++;
     snprintf(log, size, "mock driver rejection");
 }
-static void *BZ_TestShaderMalloc(size_t size) { return shader_test.noalloc ? NULL : malloc(size); }
+static void *BZ_TestShaderMalloc(size_t size) { return shader_test.noalloc && size == (size_t)shader_test.logsize ? NULL : malloc(size); }
 static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code; longjmp(shader_exit, 1); }
 #define glShaderSource BZ_TestShaderSource
 #define glCreateShader BZ_TestCreateShader
@@ -112,6 +112,10 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #define malloc BZ_TestShaderMalloc
 #define exit BZ_TestShaderExit
 #include "renderer/r_shader.c"
+static void test_shader_source(GLuint stage, shader_desc_t const *desc, bool vertex, char const *defines) {
+    gs_options_t options = R_ShaderOptions(defines);
+    T_ASSERT(gs_source(stage, desc, vertex, &options));
+}
 #undef glShaderSource
 #undef glCreateShader
 #undef glCreateProgram
@@ -1459,7 +1463,7 @@ TEST(renderer_shader, grass_state_uses_one_matrix) {
 
 TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
     memset(&tr, 0, sizeof(tr));
-    R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
+    test_shader_source(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
     T_EQ(sd_model.Uniforms[0].count, BZ_BONE_PALETTE_MAX);
     T_EQ(sd_model.Uniforms[0].count_offset, offsetof(modelState_t, boneCount));
@@ -1471,7 +1475,7 @@ TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
 }
 
 TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
-    R_SetShaderSourceFromDesc(1, &sd_model, true, "#define BZ_USE_INSTANCING 1\n");
+    test_shader_source(1, &sd_model, true, "#define BZ_USE_INSTANCING 1\n");
     T_NOT_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING 1\n"));
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
@@ -1544,13 +1548,13 @@ static void reset_shader(void) {
 
 TEST(renderer_shader, default_world_shader_accepts_environment_lights) {
     memset(shader_src, 0, sizeof(shader_src));
-    R_SetShaderSourceFromDesc(1, &sd_default, true, NULL);
+    test_shader_source(1, &sd_default, true, NULL);
     T_ASSERT(strstr(shader_src, "uniform int u_lightCount;") != NULL);
     T_ASSERT(strstr(shader_src, "uniform mat4 u_lights[8];") != NULL);
     T_ASSERT(strstr(shader_src, "environment_lighting") != NULL);
 
     memset(shader_src, 0, sizeof(shader_src));
-    R_SetShaderSourceFromDesc(1, &sd_default, false, NULL);
+    test_shader_source(1, &sd_default, false, NULL);
     T_ASSERT(strstr(shader_src, "if (u_lightCount > 0)") != NULL);
     T_ASSERT(strstr(shader_src, "clamp(v_lighting, vec3(0.0), vec3(1.0))") != NULL);
     T_ASSERT(strstr(shader_src, "mix(0.35, 1.0") != NULL);
@@ -1559,7 +1563,7 @@ TEST(renderer_shader, default_world_shader_accepts_environment_lights) {
 /* Exercise the shadow descriptor's actual upload ABI and cache across fog enable/disable transitions. */
 TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
     spriteProg_t shader = {0};
-    reset_shader(); R_LoadShader(&sd_shadow_splat, NULL, &shader);
+    reset_shader(); R_LoadShader(&sd_shadow_splat, NULL, &shader); R_ApplyShader(&shader);
     memset(&upload, 0, sizeof(upload));
     shader.state.fogEnable = true;
     R_ApplyShader(&shader); T_EQ(upload.calls, 1); T_EQ(upload.integer, 1);
@@ -2559,7 +2563,7 @@ TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
    The descriptor always emits the receiver wiring and gates it behind GLSL `#ifdef USE_SHADOWMAPS`,
    so the raw source carries the same body in both builds. */
 TEST(renderer_shader, shadow_receiver_contract) {
-    R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
+    test_shader_source(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "return lighting;")); /* clamp moved out of vertex_lighting */
 #ifdef BZ_GLSL_120
     /* GLSL 120 uses varying for both stages; the old test incorrectly required 140+ in/out syntax. */
@@ -2570,7 +2574,7 @@ TEST(renderer_shader, shadow_receiver_contract) {
     T_NOT_NULL(strstr(shader_src, "v_shadowlight = vec3(0.0);"));
     T_NOT_NULL(strstr(shader_src, "contribution - u_lights[i][3].rgb * u_lights[i][3].a"));
 
-    R_SetShaderSourceFromDesc(1, &sd_model, false, NULL);
+    test_shader_source(1, &sd_model, false, NULL);
     T_NOT_NULL(strstr(shader_src, "light = min(light, vec3(1.0));")); /* clamp applied after occlusion */
 #ifdef BZ_GLSL_120
     T_NOT_NULL(strstr(shader_src, "varying vec3 v_shadowlight;"));
@@ -2760,15 +2764,15 @@ TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
 }
 
 /* The program cache preserves complete typed state while unchanged draw fields issue no driver uploads.
-   Zero-valued uniforms (including unit-0 samplers) match the link-time GL default, so they need no first upload. */
+   The first submission uploads every active field; subsequent submissions compare exact stored values. */
 TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
     sdTestProg_t shader = { .state.color = { 1, 2, 3, 4 }, .state.mvp = { .v = { 1 } } };
     reset_shader(); R_LoadShader(&sd_test, NULL, &shader); memset(&upload, 0, sizeof(upload));
     int uses = shader_test.uses;
-    R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(shader_test.uses, uses);
-    R_ApplyShader(&shader); T_EQ(upload.calls, 2);
-    shader.state.color.x = 5; R_ApplyShader(&shader); T_EQ(upload.calls, 3);
-    shader.state.mvp.v[0] = 2; R_ApplyShader(&shader); T_EQ(upload.calls, 4);
+    R_ApplyShader(&shader); T_EQ(upload.calls, 3); T_EQ(shader_test.uses, uses + 1);
+    R_ApplyShader(&shader); T_EQ(upload.calls, 3);
+    shader.state.color.x = 5; R_ApplyShader(&shader); T_EQ(upload.calls, 4);
+    shader.state.mvp.v[0] = 2; R_ApplyShader(&shader); T_EQ(upload.calls, 5);
     R_DeleteShader(&shader.prog);
 }
 
@@ -2779,7 +2783,7 @@ TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
     shader_desc_t desc = { .Name = "counted", .Uniforms = {{
         .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(testCountState_t, count), .counted = true,
     }} };
-    shaderProg_t prog = { .progid = 1, .desc = &desc, .locs = { 0 } };
+    shaderProg_t prog = { .progid = 1, .desc = &desc, .locs = { 0 }, .state_size = sizeof(state) };
     memset(&upload, 0, sizeof(upload)); R_UploadShader(&prog, &state);
     T_EQ(upload.calls, 1); T_EQ(upload.count, 2);
 }
@@ -2788,7 +2792,8 @@ TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
 TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) {
     union { float f[32]; int i[32]; bool b; } state = { 0 };
     shader_desc_t desc = { .Name = "upload" };
-    shaderProg_t prog = { .progid = 1, .desc = &desc };
+    float scratch[64];
+    shaderProg_t prog = { .progid = 1, .desc = &desc, .state_size = sizeof(state), .scratch = scratch };
     static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 9, 16, 0, 0, 0 };
     FOR_LOOP(type, UT_COUNT) {
         desc.Uniforms[0] = (shaderUniform_t){ .name = "value", .type = type };
@@ -2808,7 +2813,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
     desc.Uniforms[0] = (shaderUniform_t){ .name = "bool", .type = UT_BOOL };
     state.b = false; R_UploadShader(&prog, &state); T_EQ(upload.integer, 0);
     desc.Uniforms[0].type = UT_FLOAT_MAT3_TRANSPOSE;
-    R_UploadShader(&prog, &state); T_EQ(upload.transpose, GL_TRUE);
+    R_UploadShader(&prog, &state); T_EQ(upload.transpose, GL_FALSE);
     int calls = upload.calls; prog.locs[0] = -1;
     R_UploadShader(&prog, &state); T_EQ(upload.calls, calls);
 }

@@ -65,8 +65,8 @@ build/bin/opensc2 -data data/StarCraft2 +map TRaynor01 +com_frame_limit 20
 
 Fixed 128 entries cannot overcome a real uniform-storage limit. Supporting such devices needs a separate renderer design
 (e.g. palette batches with remapped vertices or another matrix transport). Do not claim the imported patch implements that.
-`R_CheckShader` now checks both `GL_COMPILE_STATUS` and `GL_LINK_STATUS`, prints the full driver log (or an explicit
-missing-log/allocation diagnostic), and exits with `EXIT_FAILURE`. This is intentional: `ri.error` is wired to `CON_printf`,
+The [shared shader compiler](shared-shaders.md) checks both `GL_COMPILE_STATUS` and `GL_LINK_STATUS`, prints the full driver log (or an explicit
+missing-log/allocation diagnostic), and returns failure to `R_LoadShaderState`, which exits with `EXIT_FAILURE`. This is intentional: `ri.error` is wired to `CON_printf`,
 and even `Com_Error` currently only prints, so neither guarantees termination. Do not replace this with either logger and
 continue drawing. `R_ModelShader` no longer substitutes `SHADER_DEFAULT`, which cannot skin model vertices. Successful links
 mark the attached shader objects for deletion; the linked program retains them for its lifetime.
