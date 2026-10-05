@@ -73,6 +73,7 @@
 #include "retail_public_twelve.h"
 #include "retail_owner_change.h"
 #include "retail_scheduler_contention.h"
+#include "retail_scheduler_work.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -10956,6 +10957,47 @@ TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaini
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
+
+/* Synthetic work boundaries execute the same unsigned charge/admission
+ * operations as the original x86; they are not claimed as public wrap cases. */
+TEST(wc3_movement, scheduler_work_wrap_matches_original_charge_and_clean_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    FOR_LOOP(player,MAX_PLAYERS)FOR_LOOP(i,sizeof(retail_scheduler_work)/sizeof(retail_scheduler_work[0])) {
+        uint32_t const *row=retail_scheduler_work[i];unsigned kind=row[0];
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        unit->s.player=player;unit->movement.fine_class=player;
+        level.pathing_counter=2000;
+        if(kind==3) {
+            moveFineBudget_t *budget=level.move_fine_budgets+player;
+            unit->movement.fine_request_time=1037;budget->work=row[1];
+            S_ChargeUnitMoveFineRequest(unit,row[2]);
+            T_EQ(budget->work,row[3]);T_EQ(unit->movement.fine_request_time,row[4]);
+            T_EQ(S_AdmitUnitMoveFineRequest(unit),row[5]);
+            T_EQ(budget->count,!row[5]);
+            T_EQ(budget->head,row[5]?NULL:unit);T_EQ(budget->tail,budget->head);
+            S_CancelUnitMoveFineRequest(unit);
+            budget->work=row[3];unit->movement.fine_request_time=row[4];
+            T_EQ(S_AdmitUnitMoveFineRequest(unit),row[5]);
+            T_EQ(budget->count,!row[5]);
+        } else {
+            moveCoarseBudget_t *budget=&level.move_coarse_budgets[player][kind];
+            moveCoarseRequest_t *request=&unit->movement.fine_route.adaptive_admission;
+            *request=(moveCoarseRequest_t){.player=player,.policy=kind,.time=1037};
+            budget->work=row[1];S_ChargeMoveCoarseRequest(request,row[2]);
+            T_EQ(budget->work,row[3]);T_EQ(request->time,row[4]);
+            T_EQ(S_AdmitMoveCoarseRequest(unit,request,kind),row[5]);
+            T_EQ(budget->count,!row[5]);
+            T_EQ(budget->head,row[5]?NULL:request);T_EQ(budget->tail,budget->head);
+            S_CancelMoveCoarseRequest(request);
+            budget->work=row[3];request->time=row[4];
+            T_EQ(S_AdmitMoveCoarseRequest(unit,request,kind),row[5]);
+            T_EQ(budget->count,!row[5]);
+        }
+    }
+    reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
 
 TEST(wc3_movement, projectile_fine_search_uses_shared_class15_and_preserves_owner) {
     reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;

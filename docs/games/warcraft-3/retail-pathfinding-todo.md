@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**197 done / 336 tasks; 139 remaining.**
+**198 done / 336 tasks; 138 remaining.**
+
+Payoff105 closes SCHED-03.3 with2560 original-instruction charge/wrap and
+clean-counter admission cases, matching engine operations in all64 buckets.
+Fine save validation now rejects unreachable work totals beyond admission plus
+one bounded search. Synthetic work wrap is distinguished from public movement
+and owner-clock rollover. See
+[work boundaries](retail-pathfinding-engine.md#work-counter-wrap-preserves-unsigned-admission).
 
 Payoff104 closes SCHED-03.1's class/priority producer inventory: RTTI-backed
 non-unit identities, repeated public class15 searches, engine projectile/fine
@@ -670,7 +677,7 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 
 - [x] **SCHED-03.1** Trace class/priority producers, including non-unit class15; record which runtime object can enqueue into each policy bucket. [Payoff103](retail-pathfinding-engine.md#target-priority-keeps-the-groups-search-quota) verifies target priority before route reuse while preserving group quota5000. [Payoff104](retail-pathfinding-engine.md#non-unit-path-producers-share-scheduler-class15) identifies all four explicit non-unit sites through five original RTTI classes, records actual class15 fine searches from public Aspa attacks in two complete550-record repeats, and integrates independent projectile class resolution, adaptive-disabled fine routing and save/load FIFO ownership. Unit/captain producers retain their player class; groups copy the first member's class. Engine matches captured route words/work and preserves launching player. Static-only line/point mappings are distinguished from observed SpiderAttack searches; full missile ability trajectories are outside this scheduling inventory.
 - [ ] **SCHED-03.2** Reclassify/requeue and delete a request during queue traversal; assert head/tail/count and next admitted request.
-- [ ] **SCHED-03.3** Cross the scheduler work-counter wrap; compare charged work and admission to an equivalent clean-counter run.
+- [x] **SCHED-03.3** Cross the scheduler work-counter wrap; compare charged work and admission to an equivalent clean-counter run. [Payoff105](retail-pathfinding-engine.md#work-counter-wrap-preserves-unsigned-admission) executes original post-search ADD/CMP/timestamp instruction slices and complete admission in2560 synthetic cases across all64 buckets. Engine production charge/admission matches captured work, timestamps, FIFO and clean-counter admission. Native fine uses cumulative64; coarse uses search-local32. Stock admission/search bounds exclude a public work overflow; the synthetic boundary is not presented as a live trajectory. Fine save validation closes the discovered unreachable-counter hole with retail/responsive inclusive-bound round trips and rejection regressions; save109 layout stays unchanged. Owner-clock wrap remains01.2.
 - [x] **SCHED-03.4** Explicitly split ordinary fine player-row ownership from03.1/03.2/04: partition work/FIFO across all16 unit-player classes, cancel ordinary Move while the old owner is published, unlink old requests before class changes and removals, and retain independent work/FIFOs/intervals through save/load. Compare public ownership-change motion/Stop words through complete stationary continuation. Other three policy pools, non-unit class15 producers and mutation during original active traversal remain the parent leaves. Evidence: [payoff40](retail-pathfinding-engine.md#ordinary-fine-search-belongs-to-the-unit-player),365 exactly repeated public lifecycle records/17 arithmetic commits/two native Stops; normal-frame motion/final Stop and before/after saved continuations; all240 different-player changes,16-row removals/independent saves and actual route-consumer charging. Debug/release RoC/TFT each pass189,902 assertions/2,313 tests; production builds, repository suite,175 Python tests and fresh scheduler/live corpus checks pass. Save76 and saved Ghidra roles/types are synchronized.
 
 ### SCHED-04 — Contention

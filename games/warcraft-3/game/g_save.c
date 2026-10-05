@@ -2082,6 +2082,10 @@ static bool ValidMoveFineRequests(void) {
         if (budget->limit && (budget->limit<BZ_WC3_FINE_OWNER_WORK ||
             budget->limit>MAX_ENTITIES*(BZ_WC3_UNIT_FINE_WORK+1u) ||
             (!level.move_fine_responsive && budget->limit!=BZ_WC3_FINE_OWNER_WORK))) return false;
+        /* Admission may overshoot by one bounded search; a saved counter near
+         * UINT32_MAX cannot be produced by the owner and could wrap on charge. */
+        if (budget->work>(uint64_t)MAX(budget->limit,BZ_WC3_FINE_OWNER_WORK)+
+            BZ_WC3_UNIT_FINE_WORK+1u) return false;
         edict_t const *prev=NULL,*unit=budget->head;
         uint32_t count=0;
         while (unit) {
@@ -3195,6 +3199,25 @@ TEST(wc3_save, fine_spatial_history_rejects_invalid_records) {
         T_ASSERT(ReadMoveSpatial(file));T_EQ(G_GetMoveSpatialSerial(),5);
         T_EQ(G_GetMoveSpatialObject(unit->s.number)->ranks[0],5);fclose(file);}
     reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, fine_work_bound_rejects_unreachable_saved_wrap_state) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    cstring_t file="/tmp/wc3-fine-work-bound.bin";
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    FOR_LOOP(mode,2) {
+        level.move_fine_responsive=mode!=0;
+        budget->limit=mode ? 4*(BZ_WC3_UNIT_FINE_WORK+1u) : BZ_WC3_FINE_OWNER_WORK;
+        uint32_t bound=budget->limit+BZ_WC3_UNIT_FINE_WORK+1u;
+        budget->work=bound;
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+        T_EQ(budget->work,bound);
+        budget->work=bound+1;T_ASSERT(!WriteGame(file));
+        budget->work=UINT32_MAX;T_ASSERT(!WriteGame(file));
+        budget->work=0;T_ASSERT(WriteGame(file));
+    }
+    remove(file);reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
 }
 
 TEST(wc3_save, responsive_fine_grant_and_policy_continue_after_restore) {

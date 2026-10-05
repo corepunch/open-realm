@@ -2,7 +2,8 @@
 """Verify retail scheduler initialization, FIFO admission and interval gates.
 
 Original x86 executes without stubs; synthetic requests isolate scheduling.
-No movement, caller work charging, or simulation timing is emulated.
+No movement or simulation timing is emulated. Work charging executes only the
+original post-search instruction slices, with explicit synthetic boundary inputs.
 """
 import argparse
 import hashlib
@@ -15,10 +16,11 @@ from pathlib import Path
 
 def main():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
-    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX
+    from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_ESI
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--header', type=Path, help='Emit row-zero original-code cases for the engine regression')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -188,12 +190,52 @@ def main():
         assert read(path + 0x84)[0] == ((400 if small else 5000) << 16 | 700)
         target_transition_cases += 1
 
+    # Execute the actual ADD/CMP/conditional timestamp stores. These boundary
+    # states are synthetic: admitted stock work plus a bounded search cannot
+    # reach UINT32_MAX. Compare admission after a wrap with a clean counter.
+    wrap_cases=[]
+    for row,kind,old,charge in itertools.product(range(16),range(4),
+            [0,63,1100,0xffffffe0,0xffffffff],[0,1,31,32,63,64,701,5001]):
+        bucket=table+row*0x70+kind*0x1c
+        path=paths[0]
+        write(bucket+4,defaults[kind][2],old,0,0,0,0)
+        write(path+0x7c,1037,1037)
+        machine.reg_write(UC_X86_REG_EAX,charge)
+        machine.reg_write(UC_X86_REG_EBX,path)
+        machine.reg_write(UC_X86_REG_ECX,bucket)
+        machine.reg_write(UC_X86_REG_ESI,bucket)
+        entry,end=(0x6f166fcd,0x6f166fdd) if kind==3 else (0x6f166db3,0x6f166dc5)
+        machine.emu_start(entry,end,count=10)
+        if machine.reg_read(UC_X86_REG_EIP)!=end:raise RuntimeError('charge slice did not finish')
+        work=(old+charge)&0xffffffff
+        time=0 if (work<64 if kind==3 else charge<32) else 1037
+        assert read(bucket+8)[0]==work
+        assert read(path+0x7c+(0 if kind==3 else 4))[0]==time
+        write(path+0x8c,0,0)
+        run(0x6f168310,bucket,path)
+        actual=machine.reg_read(UC_X86_REG_EAX)
+        links=read(path+0x8c,2);fifo=read(bucket+0x10,3)
+        write(bucket+8,work,0,0,0,0)
+        write(path+0x8c,0,0)
+        run(0x6f168310,bucket,path)
+        assert machine.reg_read(UC_X86_REG_EAX)==actual==int(work<=defaults[kind][2])
+        assert read(path+0x8c,2)==links and read(bucket+0x10,3)==fifo
+        wrap_cases.append([row,kind,old,charge,work,time,actual])
+
     report = dict(binary_sha256=digest, scope=__doc__, passed=True,
                   initialized_buckets=64, defaults=defaults,
                   class_transition_cases=transition_cases,
                   target_transition_cases=target_transition_cases,
                   selection_cases=selection_cases, cadence_checks=cadence_checks,
-                  queue_operations=operations, interval_cases=interval_cases)
+                  queue_operations=operations, interval_cases=interval_cases,
+                  work_charge_cases=len(wrap_cases), work_charge_rows=wrap_cases,
+                  work_charge_slices=[[0x6f166fcd,0x6f166fdd],[0x6f166db3,0x6f166dc5]])
+    if args.header:
+        header=['/* Generated from original x86 post-search charge slices; boundary states are synthetic. */',
+                '/* SHA256 '+digest+' */','static uint32_t const retail_scheduler_work[][6]={']
+        for row in wrap_cases:
+            if row[0]==0:header.append('    {'+','.join(str(v)+'u' for v in row[1:])+'},')
+        args.header.write_text('\n'.join(header+['};','']))
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

@@ -8752,3 +8752,63 @@ vtable locator/type-descriptor chains and checks the persisted producer mappings
 without mutation. Both scripts run successfully against the pinned Ghidra
 program, which is saved. Static producer mappings and observed runtime searches
 are labeled separately so these facts remain reusable without overstating parity.
+
+## Work-counter wrap preserves unsigned admission
+
+Payoff105 closes SCHED-03.3's work-counter boundary. Ghidra disassembly identifies
+the original post-search fine slice `166fcd..166fdd`: `ADD` to bucket work,
+unsigned compare of that cumulative result against64, then conditional clear
+of path `+7c`. Coarse slice `166db3..166dc5` adds the same way but compares the
+latest search's charged work against32 before clearing path `+80`. Neither
+addition saturates or widens its stored result.
+
+The original-x86 scheduler oracle now executes those exact instruction slices,
+without patching their code or substituting search calls. It supplies explicit
+synthetic pre-charge counters, charged work and request timestamps, then runs
+the complete original admission function. All2560 cases cover16 classes/four
+policies, zero/ordinary/high-bit counters, carry through `UINT32_MAX`, and both
+threshold edges. Admission and intrusive FIFO results agree with a second run
+starting at the clean post-charge counter. For example, adding64 to `ffffffe0`
+wraps to32: fine clears its timestamp; coarse retains1037 because64 is not below32.
+All four policies then admit from that clean unsigned work value.
+
+These are deliberately **synthetic work-state boundaries**, not a claim that a
+public retail battle reaches overflow. Retail admission rejects work above its
+allowance before the next bounded search. The observed stock search limits
+5000/400/700 and the known budget+1 cutoff keep work far below32-bit overflow;
+even a full unsigned16-bit path-owned search limit cannot bridge that gap.
+The previous complete public contention and non-unit captures remain the
+production witnesses for budget ownership and actual charging. Owner-clock
+rollover, a different state variable, remains SCHED-01.2.
+
+The [frozen original-code report](../../../tools/ghidra/fixtures/retail-scheduler-work-1.27.json.gz)
+pins the binary, oracle source and generated engine input header. Replay with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/verify_wc3_pathing_scheduler.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --report /tmp/wc3-scheduler-work.json \
+  --header /tmp/retail_scheduler_work.h
+```
+
+The engine regression consumes the captured results through Move's production
+charge/admission operations in all64 buckets and compares wrap with clean
+admission. Existing unsigned charge behavior matches; it needs no special
+wrap case. The engine payoff is closing the save-state hole found during this
+audit: fine FIFO validation previously accepted unreachable `UINT32_MAX` work,
+while coarse validation already enforced an admission-plus-one-search bound.
+Fine validation now permits the actual allowance plus701, including responsive
+grants, and rejects larger stored totals using a widened comparison. Both save
+and load use this validation. Save109's representation remains unchanged.
+
+The new save regression failed four assertions before the fix. It verifies the
+inclusive maximum through real write/read, rejects the next value and
+`UINT32_MAX`, then verifies a clean save, in both retail and responsive modes.
+Focused Classic/TFT checks also cover original-code charge/admission boundaries,
+real public contention/save continuation and responsive crowds. Twelve focused
+scheduler Python tests pass, including frozen-source and header provenance.
+Production/test binaries build. `MapPathfinding.java` includes the exact
+instruction boundaries, cumulative versus local threshold and synthetic scope;
+the replayed Ghidra program is saved. Full validation remains on the authorized
+batch cadence; no performance-target completion is claimed.
