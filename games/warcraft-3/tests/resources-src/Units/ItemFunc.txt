@@ -4,3 +4,10 @@ Hotkey=S
 [ktrm]
 Art=TestUI\Textures\solid_white.blp
 Hotkey=U
+
+[phea]
+Art=TestUI\Textures\solid_white.blp
+Hotkey=H
+[oven]
+Art=TestUI\Textures\solid_white.blp
+Hotkey=V

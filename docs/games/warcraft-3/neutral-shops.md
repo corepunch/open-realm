@@ -90,6 +90,8 @@ A shop button click is handled before the ordinary `G_UnitCanControl()` check. T
 shop actually carries the raw object ID, then dispatches to item or unit purchase. Item purchase revalidates patron, stock, inventory
 space, gold and lumber. Unit purchase revalidates patron, stock, gold, lumber and food before spawning anything.
 
+For the standard Night Elf Ancient of Wonders merchandise whose town-hall requirement is not carried by `ItemData`, command-card generation and the authoritative purchase path also evaluate a narrow compatibility dependency. This check is independent from `stockStart`/`stockRegen`: unlocking a tier does not recreate or reset the shop's stock state.
+
 A successful mercenary hire is immediate rather than a training queue. The new unit is created directly for the purchasing player
 without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units, then has food activated.
 Gold/lumber and shared stock are deducted only after spawn/placement succeeds. Failures leave resources and stock unchanged.
@@ -129,7 +131,7 @@ is not inserted into the shop's authored merchandise or stock.
 - Neutral Hero/Tavern sales are not implemented; Hero entries in `Sellunits` are deliberately excluded from the mercenary path.
 - Unit-sale trigger events (`EVENT_UNIT_SELL` / player-unit sale context) are not published yet.
 - Power-up/auto-use-on-acquire item semantics remain part of the broader item lifecycle and are not special-cased by the shop.
-- Shop merchandise tech-tree availability beyond authored stock timing is not yet modeled.
+- The stock Night Elf Ancient of Wonders uses a narrow `HACK:` compatibility table because its item rows expose stock timing but not the shop tier dependency consumed here. Potion of Healing, Potion of Mana, Scroll of Town Portal, and Staff of Preservation require Tree of Ages; Orb of Venom and Anti-Magic Potion require Tree of Eternity. The check reuses normal completed-tech requirement counting, including upgraded-town-hall equivalence, and is revalidated on purchase rather than being UI-only. Custom merchandise remains ungated. Equivalent stock merchandise dependencies for the Human, Orc, and Undead racial shops remain unmodeled until their dependency source is normalized or explicitly documented.
 
 ## Verification
 
@@ -137,6 +139,7 @@ is not inserted into the shop's authored merchandise or stock.
 
 - nearby inventory-unit item-shop patron resolution;
 - item purchase cost deduction and authoritative inventory handoff;
+- Ancient of Wonders Tree of Ages/Tree of Eternity button gating, authoritative locked-purchase rejection with unchanged stock/resources, and Tree of Eternity satisfying the predecessor Tree of Ages requirement;
 - out-of-range item purchase rejection with unchanged resources;
 - shared item stock exhaustion and `stockRegen` replenishment;
 - runtime `AddItemToStock` current/max overrides, replenishment, removal, and all-shop native registration;
@@ -150,5 +153,5 @@ is not inserted into the shop's authored merchandise or stock.
 - pawnable item removal and `PawnItemRate` refund.
 
 `games/warcraft-3/game/tests/t_game.c` additionally round-trips both item and unit shop stock/timer state through the save schema. The
-test fixture's `spro` and `nmer` rows carry explicit price/food/stock metadata. The focused gameplay suite is
+test fixture's `spro`, `phea`, `oven`, and `nmer` rows carry explicit price/food/stock metadata; the Night Elf unit-profile fixture also carries `etoa -> etoe` upgrade ancestry for the tier-equivalence regression. The focused gameplay suite is
 `+dedicated 1 +test 'wc3_items.*'`; save changes must also run the save tests and the full suite required by `CONTRIBUTING.md`.
