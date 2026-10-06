@@ -358,13 +358,21 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     /* Damage-triggered retaliation follows the weapon profile even though
      * players cannot issue an explicit rooted Attack order. */
     unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_AIR;
+    unit->attack2.type = ATK_NORMAL;
+    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->attack2.range = 256.0f;
+    unit->attack2.weapon = WPN_MISSILE;
     target->attack1.type = ATK_NORMAL;
     target->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->data.UnitWeapons = &weapons;
     T_Damage(unit, target, 1);
     T_ASSERT(unit->goalentity == target);
     T_EQ(unit->currentmove->proc, CAbilityAttack);
+    unit->wait = 0.0f;
+    unit->attack_cooldown_active = false;
+    unit->currentmove->think(unit);
+    T_STREQ(unit->currentmove->animation, "attack range");
 
     unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
     T_ASSERT(S_AncientIsRooted(unit));
