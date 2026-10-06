@@ -247,7 +247,7 @@ TEST(wc3_slk, map_w3a_applies_ability_unit_id_and_marks_authored_override) {
         "ID;PWXL;N;EBB;Y2;X4\n"
         "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"field\"\nC;Y1;X3;K\"data\"\nC;Y1;X4;K\"useSpecific\"\n"
         "C;Y2;X1;K\"AIbg\"\nC;Y2;X2;K\"UnitID\"\nC;Y2;X3;K-1\nC;Y2;X4;K\"AIbg\"\nE\n";
-    cstring_t custom_building = "hkee";
+    char custom_building[] = "hkee";
     unitModification_t mod = {
         .modID = MAKEFOURCC('A','I','b','g'), .type = mod_unitList,
         .level = 1, .data = custom_building
