@@ -1474,7 +1474,7 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     uint32_t first, last, span, frame;
 
     if (!building || !building->construction || !building->data.UnitBalance) return;
-    if (building->data.UnitBalance->buildTime <= 0) return;
+    if (building->data.UnitBalance->buildTime <= 0 && building->construction->duration_ms <= 0) return;
 
     /* Construction owns the birth sequence. Re-resolve it instead of relying
      * on whatever animation happened to be left on the entity by a previous
@@ -1485,7 +1485,8 @@ void G_UpdateConstructionAnimation(edict_t *building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = (float)building->data.UnitBalance->buildTime * 1000.0f;
+    duration = building->construction->duration_ms > 0 ? building->construction->duration_ms :
+               (float)building->data.UnitBalance->buildTime * 1000.0f;
     fraction = MAX(0.0f, MIN(1.0f, building->construction->progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
@@ -1532,6 +1533,7 @@ static bool G_StartConstruction(edict_t *building, constructionType_t type, bool
     building->construction->restore_hidden = false;
     building->construction->worker_release_time = 0;
     building->construction->progress = 0.0f;
+    building->construction->duration_ms = 0.0f;
     building->construction->paid = false;
     building->construction->payer = 0;
     building->construction->gold = 0;
@@ -1605,6 +1607,19 @@ bool G_StartNightElfOverlayConstruction(edict_t *building) {
     return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
 }
 
+/* Tiny Structures do not attach or consume a builder.  Their timer and
+ * construction state belong to the spawned building itself. */
+bool G_StartTinyConstruction(edict_t *building, float duration_seconds) {
+    if (!G_StartConstruction(building, CONSTRUCTION_TINY, false)) return false;
+    building->construction->duration_ms = MAX(0.0f, duration_seconds) * 1000.0f;
+    building->build = building;
+    /* G_StartConstruction initially uses normal UnitBalance buildTime.
+     * Refresh the first presentation frame after applying this ability's
+     * authored duration, before construction is published to clients. */
+    G_UpdateConstructionAnimation(building);
+    return true;
+}
+
 static edict_t *G_ConstructionWorker(edict_t *building) {
     edict_t *worker;
 
@@ -1668,7 +1683,8 @@ void G_RunConstructionFrame(edict_t *building) {
     if (!building || !building->construction || building->paused ||
         !building->data.UnitBalance) return;
 
-    duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
+    duration = MAX(1.0f, building->construction->duration_ms > 0 ?
+                   building->construction->duration_ms : (float)building->data.UnitBalance->buildTime * 1000.0f);
     hp = &building->health;
     /* Check the cheat before the Human paused-strategy gate: construction
      * state, not a worker behavior, owns instant completion. */
@@ -1683,7 +1699,8 @@ void G_RunConstructionFrame(edict_t *building) {
     if (building->construction->paused) return;
     if (building->construction->type != CONSTRUCTION_ORC &&
         building->construction->type != CONSTRUCTION_UNDEAD &&
-        building->construction->type != CONSTRUCTION_NIGHTELF) return;
+        building->construction->type != CONSTRUCTION_NIGHTELF &&
+        building->construction->type != CONSTRUCTION_TINY) return;
 
     if (building->construction->type == CONSTRUCTION_UNDEAD &&
         building->construction->worker_release_time &&

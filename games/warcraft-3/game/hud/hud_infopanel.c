@@ -1061,6 +1061,13 @@ void Get_Commands_f(edict_t *ent) {
      * cursor through the build subsystem before the generic menu reset loses
      * the callback that identifies the active placement mode. */
     G_ClearBuildPlacementMode(ent);
+    /* The command bar can also be rebuilt while item-owned building
+     * targeting is active (selection change, Escape, interrupted order). */
+    if (ent->client->menu.on_location_selected) {
+        gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+        gi.Write(PF_ENTITY, &(entityState_t){0});
+        gi.unicast(ent);
+    }
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
     if (!selected || (!G_UnitCanControl(ent->client, selected) &&
                       !G_CanUseItemShop(ent->client, selected) &&

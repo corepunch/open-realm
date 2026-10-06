@@ -994,6 +994,42 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
     return true;
 }
 
+/* Build Tiny uses the same game-authored cursor entity as ordinary worker
+ * placement.  The generic client already renders its snapped model and
+ * red/green pathing footprint.  Only the game chooses which building it is. */
+static bool spell_is_tiny_structure(ability_t const *spell) {
+    return spell && spell->proc == CAbilityTinyStructure;
+}
+
+static void spell_tiny_cursor_clear(edict_t *clent) {
+    entityState_t empty = {0};
+    if (!clent || !clent->client) return;
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
+    gi.unicast(clent);
+}
+
+static bool spell_tiny_cursor_show(edict_t *clent, edict_t *caster, uint32_t code) {
+    entityState_t cursor;
+    gameClient_t *owner;
+    uint32_t building;
+    if (!clent || !clent->client || !caster) return false;
+    building = S_TinyStructureUnitId(caster, code, MAX(1u, S_SpellLevel(caster, code)));
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!building || !G_UnitIsBuilding(building) || !owner) return false;
+    FillUnitData(&cursor, building, "stand");
+    cursor.player = caster->s.player;
+    G_SetEntityTeamColor(&cursor, owner->ps.color);
+    cursor.pathing_preview = EntityPathingPreviewPack(
+        caster->s.number,
+        EntityPathingPreviewPrevented(cursor.pathing_preview),
+        EntityPathingPreviewRequired(cursor.pathing_preview));
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &cursor);
+    gi.unicast(clent);
+    return true;
+}
+
 /* Called when user clicks a location for a POINT-target spell. */
 static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
@@ -1017,7 +1053,8 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
         if (!spell_begin_target_approach(caster, code, NULL, point,
                                          source_item, source_item_spawn_time)) return false;
         spell_order_accepted(caster, spell);
-        S_SpellCursorSplat(clent, 0.0f);
+        if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
+        else S_SpellCursorSplat(clent, 0.0f);
         G_SendPointConfirmation(clent, point, false);
         return true;
     }
@@ -1025,7 +1062,8 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     if (!spell_execute_point_target(clent, caster, code, level, spell, point,
                                     source_item, source_item_spawn_time, NULL)) return false;
     spell_order_accepted(caster, spell);
-    S_SpellCursorSplat(clent, 0.0f);
+    if (spell_is_tiny_structure(spell)) spell_tiny_cursor_clear(clent);
+    else S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
 }
@@ -1443,8 +1481,12 @@ void spell_cmd(edict_t *clent) {
         break;
     case SPELL_TARGET_POINT: {
         UI_AddCancelButton(clent);
-        float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
-        S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+        if (spell_is_tiny_structure(spell)) {
+            if (!spell_tiny_cursor_show(clent, caster, code)) return;
+        } else {
+            float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
+            S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+        }
         clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
     }

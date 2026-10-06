@@ -639,6 +639,11 @@ bool G_CancelTargetMode(edict_t *clent) {
 
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
         return false;
+    /* Reset a possible item-owned building model preview as well as the
+     * generic targeting state. A zero-model cursor is harmless for spells. */
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &(entityState_t){0});
+    gi.unicast(clent);
     memset(&client->menu, 0, sizeof(client->menu));
     Get_Commands_f(clent);
     return true;

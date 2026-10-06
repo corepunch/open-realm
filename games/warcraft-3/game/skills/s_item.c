@@ -651,3 +651,56 @@ BZ_ITEM_PROC(AbilityItemChangeTOD) {
     G_SetFalseTimeOfDay(hour, minute, duration);
     return true;
 }
+
+/* Stock Build Tiny abilities share the ordinary point-targeted item pipeline.
+ * Unlike worker construction, these items do not charge the building cost or
+ * install a builder.  The successful A_EXECUTE result lets the inventory
+ * caller consume the item only after a building has been created. */
+uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t level) {
+    uint32_t id = S_SpellUnitId(code, level);
+    /* The stock Tiny Great Hall is racially polymorphic.  Other abilities
+     * (including authored UnitID overrides) use their object-data unit. */
+    if (code == MAKEFOURCC('A','I','b','g') && caster && (!id || id == MAKEFOURCC('o','g','r','e'))) {
+        gameClient_t const *owner = G_GetPlayerClientByNumber(caster->s.player);
+        if (owner) switch (owner->ps.race) {
+        case kPlayerRaceHuman: return MAKEFOURCC('h','t','o','w');
+        case kPlayerRaceUndead: return MAKEFOURCC('u','n','p','l');
+        case kPlayerRaceNightElf: return MAKEFOURCC('e','t','o','l');
+        case kPlayerRaceOrc: return MAKEFOURCC('o','g','r','e');
+        default: break;
+        }
+    }
+    return id;
+}
+
+BZ_ABILITY_PROC(CAbilityTinyStructure) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    uint32_t level = code ? MAX(1u, S_SpellLevel(ent, code)) : 0;
+    uint32_t unit_id = code ? S_TinyStructureUnitId(ent, code, level) : 0;
+    vec2_t snapped;
+    if (msg != A_VALIDATE && msg != A_EXECUTE)
+        return CAbilitySimpleSpell(ent, msg, call);
+    if (!ent || !call || !call->target ||
+        call->target->type != SPELL_TARGET_POINT || !unit_id ||
+        !G_UnitIsBuilding(unit_id) || M_IsDead(ent) ||
+        G_EvaluateBuildPlacement(ent, unit_id, &call->target->point, &snapped) != PLACE_OK)
+        return false;
+    if (msg == A_VALIDATE) return true;
+    edict_t *building = SP_SpawnAtLocation(unit_id, ent->s.player, &snapped);
+    if (!building) return false;
+    /* A displacement failure is a failed cast: do not consume the item or
+     * leave a newly spawned, blocking structure behind. */
+    if (!G_DisplaceBuildOccupants(ent, building)) {
+        G_FreeEdict(building);
+        return false;
+    }
+    if (!G_StartTinyConstruction(building, S_SpellDuration(code, level, false))) {
+        G_FreeEdict(building);
+        return false;
+    }
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    if (building->inuse && building->construction &&
+        S_SpellDuration(code, level, false) <= 0.0f)
+        G_CompleteConstruction(building);
+    return true;
+}

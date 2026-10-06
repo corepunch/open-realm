@@ -365,7 +365,14 @@ static ability_t abilitylist[] = {
     // TODO: Aste a_figurine_rock_golem  /* Steal */
     // TODO: AIpv a_item_mana_restore_aoe  /* Vampiric Potion */
     // TODO: AIsr a_item_speed  /* Spell Damage Reduction */
-    // TODO: AIbl CAbilityOnFireHuman  /* Build Tiny Castle */
+    { "AIbl", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Castle */
+    { "AIbg", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Great Hall */
+    { "AIbt", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Scout Tower */
+    { "AIbb", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Blacksmith */
+    { "AIbf", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Farm */
+    { "AIbr", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Lumber Mill */
+    { "AIbs", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Barracks */
+    { "AIbh", CAbilityTinyStructure, AB_SPELL, SPELL_TARGET_POINT }, /* Build Tiny Altar of Kings */
     // TODO: Ashs a_spell  /* Wand of Shadowsight */
     // TODO: Aret CAbilityResurrection  /* Tome of Retraining */
     // TODO: ANpr a_button  /* Staff of Preservation */

@@ -327,6 +327,8 @@ BZ_ABILITY_PROC(CAbilityLightningShield);
 BZ_ABILITY_PROC(CAbilityHealingWard);
 BZ_ABILITY_PROC(CAbilityStasisTrap);
 BZ_ABILITY_PROC(CAbilityPlaceMine);
+uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t level);
+BZ_ABILITY_PROC(CAbilityTinyStructure);
 BZ_ABILITY_PROC(CAbilityLandMine);
 BZ_ABILITY_PROC(CAbilityEvilEye);
 BZ_ABILITY_PROC(CAbilityAuraRegenLife);

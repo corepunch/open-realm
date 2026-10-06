@@ -169,6 +169,7 @@ typedef enum {
     CONSTRUCTION_ORC,
     CONSTRUCTION_UNDEAD,
     CONSTRUCTION_NIGHTELF,
+    CONSTRUCTION_TINY, /* item-owned autonomous construction */
 } constructionType_t;
 
 typedef struct {
@@ -1398,6 +1399,7 @@ typedef struct {
     bool restore_hidden;
     uint32_t worker_release_time; /* Undead summon animation release time; 0 for other strategies */
     float progress;
+    float duration_ms; /* override of UnitBalance buildTime for Tiny Structures; 0 uses normal duration */
     bool paid;
     uint32_t payer;
     int32_t gold, lumber;
@@ -2893,6 +2895,7 @@ bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfOverlayConstruction(edict_t *building);
+bool G_StartTinyConstruction(edict_t *building, float duration_seconds);
 void G_RunConstructionFrame(edict_t *building);
 void G_UpdateConstructionAnimation(edict_t *building);
 void G_StopConstruction(edict_t *building);
