@@ -10,6 +10,7 @@ slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 #define TEST_AROO MAKEFOURCC('A', 'r', 'o', 'o')
+#define TEST_ARO1 MAKEFOURCC('A', 'r', 'o', '1')
 #define TEST_ARO2 MAKEFOURCC('A', 'r', 'o', '2')
 #define TEST_AHHB MAKEFOURCC('A', 'H', 'h', 'b')
 #define TEST_HBAR MAKEFOURCC('h', 'b', 'a', 'r')
@@ -31,7 +32,7 @@ static void ancient_capture_command_button(pfWriteType_t type, void const *value
 
 /* Distinct authored values prove the morph directions do not share a timer. */
 static char const ancient_root_tft[] =
-    "ID;PWXL;N;EBB;Y5;X10\n"
+    "ID;PWXL;N;EBB;Y6;X10\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
@@ -44,7 +45,10 @@ static char const ancient_root_tft[] =
     "C;Y4;X4;K\"structure\"\n"
     "C;Y5;X1;K\"Aro2\"\nC;Y5;X2;K\"Aro2\"\nC;Y5;X3;K\"1\"\n"
     "C;Y5;X5;K\"2.25\"\nC;Y5;X6;K\"6.75\"\n"
-    "C;Y5;X7;K\"2\"\nC;Y5;X8;K\"1\"\nC;Y5;X10;K\"1\"\nE\n";
+    "C;Y5;X7;K\"2\"\nC;Y5;X8;K\"1\"\nC;Y5;X10;K\"1\"\n"
+    "C;Y6;X1;K\"Aro1\"\nC;Y6;X2;K\"Aro1\"\nC;Y6;X3;K\"1\"\n"
+    "C;Y6;X5;K\"2.25\"\nC;Y6;X6;K\"6.75\"\n"
+    "C;Y6;X7;K\"0\"\nC;Y6;X8;K\"3\"\nC;Y6;X10;K\"1\"\nE\n";
 
 /* ROC keeps AbilityData's row-major Data11..Data34 columns. */
 static char const ancient_root_roc[] =
@@ -331,6 +335,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     unit = ancient_test_unit(true);
+    unit->ancient_root->ability = TEST_ARO1;
     unit->data.UnitWeapons = &weapons;
     unit->attack1.type = unit->attack2.type = ATK_NORMAL;
     unit->attack1.targetsAllowed = unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
