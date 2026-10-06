@@ -42,7 +42,7 @@
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
 #define HUD_CONSOLE_WIDE_MAX 8 // frames; retail ConsoleUI.fdf authors four widescreen tiles; headroom for custom skins
-#define HUD_DEFERRED_IMAGES 8 // symbolic skin keys registered at write time, not parse time; class-gated chrome only
+#define HUD_DEFERRED_IMAGES 8 // symbolic skin keys resolved at write time for recipient race/canvas
 #define HUD_DEFERRED_IMAGE_BASE MAX_IMAGES // handle base; deferred handles never alias a live CS_IMAGES slot
 
 typedef struct {

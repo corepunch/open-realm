@@ -112,6 +112,19 @@ TEST(wc3_canvas, console_load_defers_widescreen_tiles_and_collects_their_frames)
     canvas_teardown();
 }
 
+TEST(wc3_canvas, esc_menu_background_keeps_its_skin_key_separate_from_button_art) {
+    uint32_t background, button;
+    canvas_setup();
+    background = UI_LoadTexture("EscMenuBackground", true);
+    button = UI_LoadTexture("EscMenuButtonBackground", true);
+
+    T_ASSERT(background >= HUD_DEFERRED_IMAGE_BASE);
+    T_STREQ(UI_ImageKey(background), "EscMenuBackground");
+    T_ASSERT(button < HUD_DEFERRED_IMAGE_BASE);
+    T_STREQ(UI_ImageKey(button), "EscMenuButtonBackground");
+    canvas_teardown();
+}
+
 TEST(wc3_canvas, console_write_authors_extension_tiles_for_wide_clients_only) {
     edict_t *ent = &g_edicts[0];
     gameClient_t *client = ent->client;

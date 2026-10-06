@@ -298,6 +298,13 @@ bool UI_IsWideChromeKey(cstring_t key) {
     return false;
 }
 
+static bool UI_IsDeferredImageKey(cstring_t key) {
+    /* The stock Default skin maps EscMenuBackground and EscMenuButtonBackground
+     * to the same Human texture. Registering both by path aliases their live
+     * image slot and loses the key needed to select race art at write time. */
+    return UI_IsWideChromeKey(key) || (key && !strcmp(key, "EscMenuBackground"));
+}
+
 static uint32_t UI_DeferredImage(cstring_t key) {
     FOR_LOOP(i, HUD_DEFERRED_IMAGES) {
         if (!hud.deferred_key[i][0]) snprintf(hud.deferred_key[i], sizeof(hud.deferred_key[i]), "%s", key);
@@ -404,7 +411,7 @@ BZ_HOST_HIDDEN uint32_t UI_LoadTexture(cstring_t path, bool decorate) {
     uint32_t index;
 
     if (!path || !*path) return 0;
-    if (UI_IsWideChromeKey(path) && (index = UI_DeferredImage(path))) return index;
+    if (UI_IsDeferredImageKey(path) && (index = UI_DeferredImage(path))) return index;
 
     cstring_t resolved = UI_ThemeImagePath(path);
     index = gi.ImageIndex(resolved);
