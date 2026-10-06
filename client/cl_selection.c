@@ -36,8 +36,18 @@ static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vec2_t *center) {
 
 /* The configured capacity bounds local hints; the server reconciles legality through svc_set_selection. */
 void CL_ApplySelection(uint32_t const *ids, uint32_t n) {
-    char buffer[1024];
     n = MIN(n, CL_SelectionLimit());
+    CL_ApplySelectionCandidates(ids, n);
+}
+
+/* Marquee hits are only candidates: the server still has to reject trees,
+ * structures, foreign units, and other entities the client cannot classify.
+ * Send the wider query result, then keep the local prediction within the
+ * configured simultaneous-selection limit until the server reconciles it. */
+void CL_ApplySelectionCandidates(uint32_t const *ids, uint32_t n) {
+    char buffer[1024];
+    n = MIN(n, CL_SELECTION_CANDIDATE_LIMIT);
+    uint32_t const local_count = MIN(n, CL_SelectionLimit());
     strlcpy(buffer, n ? "select" : "select 0", sizeof(buffer));
     FOR_LOOP(i, n) {
         size_t used = strlen(buffer);
@@ -45,8 +55,8 @@ void CL_ApplySelection(uint32_t const *ids, uint32_t n) {
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", buffer);
-    cl.selection.num_selected = n;
-    memcpy(cl.selection.entity_nums, ids, sizeof(uint32_t) * n);
+    cl.selection.num_selected = local_count;
+    memcpy(cl.selection.entity_nums, ids, sizeof(uint32_t) * local_count);
 }
 
 static void CL_GroupAssign(uint32_t g) {
