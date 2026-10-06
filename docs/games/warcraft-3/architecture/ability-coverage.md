@@ -75,6 +75,13 @@ Directly copying another engine's ability classes is not mechanical. The local
 implementation should port behavior into flat C procedures, `umove_t` state
 machines, existing edict fields, and data loaded from SLK/config tables.
 
+`AIbl`, `AIbg`, `AIbt`, `AIbb`, `AIbf`, `AIbr`, `AIbs`, and `AIbh` now share
+a partial point-targeted Tiny Structures item ability: the gameplay layer
+validates placement and starts workerless automatic construction with the
+authored duration. The stock Tiny Great Hall selects the town hall by owner
+player race. Building-preview presentation, cast-range parity, and exotic
+custom-map cases still need verification. See [Tiny Structures](../tiny-structures.md).
+
 ## Local Registry
 
 | Code | Local file | Status |

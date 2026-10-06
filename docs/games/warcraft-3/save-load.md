@@ -31,6 +31,8 @@ The server's map-selection read checks both the format version and entity size b
 
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
+Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Structures resume using their ability-authored build duration, independently of the unit's normal build time. Exact-version readers reject older layouts.
+
 Version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
 
 Version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.

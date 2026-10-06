@@ -127,6 +127,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation.md](docs/games/warcraft-3/ability-implementation.md) |
+| WC3 Tiny Structures, item-owned construction, shared placement cursor, racial Tiny Great Hall | [docs/games/warcraft-3/tiny-structures.md](docs/games/warcraft-3/tiny-structures.md) |
 | WC3 creep ability aliases, `code=` mapping, parent-owned registry rows | [docs/games/warcraft-3/creep-ability-aliases.md](docs/games/warcraft-3/creep-ability-aliases.md) |
 <| WC3 item orb damage via `CAbilityAttackBonus` and `S_OrbOnHit` BuffID state | [docs/games/warcraft-3/item-orbs.md](docs/games/warcraft-3/item-orbs.md) |
 | WC3 poison on-hit buff state (`Aven`/`Apoi`/`Apo2`), data-driven periodic DPS | [docs/games/warcraft-3/poison-attacks.md](docs/games/warcraft-3/poison-attacks.md) |
