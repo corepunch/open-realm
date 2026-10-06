@@ -1339,6 +1339,64 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     return true;
 }
 
+/* Construction sites are walk-through until completion, so units can enter
+ * after the placement-time exit walk.  Once the footprint becomes solid,
+ * move any remaining occupants directly to a legal exit while retaining
+ * their current orders. */
+static void G_TeleportCompletedBuildingOccupants(edict_t *building) {
+    edict_t * *units;
+    vec2_t *positions;
+    uint32_t count = 0;
+
+    if (!building || !globals.num_edicts) return;
+    units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
+    positions = gi.MemAlloc(sizeof(*positions) * globals.num_edicts);
+    if (!units || !positions) {
+        fprintf(stderr, "WC3: unable to allocate completed-building displacement buffers\n");
+        if (positions) gi.MemFree(positions);
+        if (units) gi.MemFree(units);
+        return;
+    }
+    FILTER_EDICTS(ent, ent != building && ent->inuse && (ent->svflags & SVF_MONSTER) &&
+                  !(ent->svflags & SVF_DEADMONSTER) && !M_IsDead(ent) &&
+                  ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f &&
+                  CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
+        float angle;
+        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
+            fprintf(stderr, "WC3: unable to find exit for unit %ld inside completed building %ld\n",
+                    (long)(ent - g_edicts), (long)(building - g_edicts));
+            continue;
+        }
+        bool overlaps = false;
+        FOR_LOOP(i, count) {
+            if (Vector2_distance(&positions[i], &positions[count]) < units[i]->collision + ent->collision) {
+                overlaps = true;
+                break;
+            }
+        }
+        if (overlaps) {
+            fprintf(stderr, "WC3: exit for unit %ld overlaps another displaced unit at completed building %ld\n",
+                    (long)(ent - g_edicts), (long)(building - g_edicts));
+            continue;
+        }
+        units[count++] = ent;
+    }
+    FOR_LOOP(i, count) {
+        edict_t *unit = units[i];
+        vec2_t old_position = unit->s.origin2;
+        move_cancel_displacement(unit);
+        move_reset_progress(unit);
+        unit->s.origin2 = positions[i];
+        unit->s.origin.x = positions[i].x;
+        unit->s.origin.y = positions[i].y;
+        M_CheckGround(unit);
+        gi.LinkEntity(unit);
+        G_UnitPositionChanged(unit, &old_position);
+    }
+    gi.MemFree(positions);
+    gi.MemFree(units);
+}
+
 static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, uint32_t building_id,
                                                               vec2_t const *requested, vec2_t *snapped,
                                                               bool allow_friendly_displacement) {
@@ -1821,6 +1879,7 @@ void G_CompleteConstruction(edict_t *building) {
 	 * complete. */
     CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
+    G_TeleportCompletedBuildingOccupants(building);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);
