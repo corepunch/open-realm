@@ -2743,6 +2743,7 @@ bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
 bool S_AncientHasRootAbility(edict_t const *);
+bool S_AncientCanShowRootedAttackCommand(edict_t const *);
 bool S_AncientCanReceiveOrder(edict_t const *);
 bool S_AncientAbilityAvailable(edict_t const *, ability_t const *);
 uint32_t S_AncientAttackMask(edict_t const *);

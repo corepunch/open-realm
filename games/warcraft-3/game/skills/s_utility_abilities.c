@@ -53,6 +53,12 @@ bool S_AncientHasRootAbility(edict_t const *unit) {
 	return unit && unit->ancient_root && root_code(unit->ancient_root->ability) ? true : ancient_root_ability(unit) != 0;
 }
 
+bool S_AncientCanShowRootedAttackCommand(edict_t const *unit) {
+    uint32_t ability = unit && unit->ancient_root && root_code(unit->ancient_root->ability)
+        ? unit->ancient_root->ability : ancient_root_ability(unit);
+    return !S_AncientIsRooted(unit) || ability == ID_ROOT_PROTECTOR;
+}
+
 bool S_AncientCanReceiveOrder(edict_t const *unit) {
     return !unit || !S_AncientHasRootAbility(unit) || !unit->ancient_root ||
         unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED ||
