@@ -345,6 +345,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     target->targtype = TARG_GROUND;
 
     T_EQ(S_AncientAttackMask(unit), 0);
+    T_EQ(S_AncientRetaliationAttackMask(unit), 3);
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
     T_ASSERT(!S_AttackCanTarget(unit, target));
@@ -367,6 +368,7 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
 
     unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
     T_ASSERT(S_AncientIsRooted(unit));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 3);
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
     T_ASSERT(!S_AttackCanTarget(unit, target));
 

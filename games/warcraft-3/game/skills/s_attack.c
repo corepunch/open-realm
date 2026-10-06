@@ -176,10 +176,10 @@ static bool can_attack(edict_t const *ent) {
     if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
-    mask = S_AncientHasRootAbility(ent) ? (ent->data.UnitWeapons ? ent->data.UnitWeapons->attacksEnabled : 0) : 0;
-    if (S_AncientHasRootAbility(ent) && ent->ancient_root &&
-        (ent->ancient_root->mode == ANCIENT_ROOTING || ent->ancient_root->mode == ANCIENT_UPROOTING)) return false;
-    if (!S_AncientHasRootAbility(ent)) {
+    if (S_AncientHasRootAbility(ent)) {
+        mask = S_AncientRetaliationAttackMask(ent);
+    } else {
+        mask = 0;
         if (S_UnitAttackSlotEnabled(ent, 0)) mask |= 1u;
         if (S_UnitAttackSlotEnabled(ent, 1)) mask |= 2u;
     }
@@ -193,19 +193,17 @@ static bool can_attack(edict_t const *ent) {
 
 static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target) {
     uint32_t flag;
-    UnitWeapons_t const *weapons;
     if (!attacker || !S_AncientHasRootAbility(attacker) || !attacker->data.UnitWeapons ||
         (attacker->ancient_root && (attacker->ancient_root->mode == ANCIENT_ROOTING ||
                                     attacker->ancient_root->mode == ANCIENT_UPROOTING)))
         return S_AttackCanTarget(attacker, target);
-    weapons = attacker->data.UnitWeapons;
     if (!target || !target->inuse || attacker == target || M_IsDead((edict_t *)target) ||
         S_UnitIsCycloned(target) || S_UnitIsHiddenFromPlayer(target, attacker->s.player) ||
         attacker->s.player == target->s.player) return false;
     flag = G_TargetFlagForType(G_UnitTargetType(target));
-    return flag && ((attacker->attack1.type != ATK_NONE && (weapons->attacksEnabled & 1u) &&
+    return flag && ((attacker->attack1.type != ATK_NONE && (S_AncientRetaliationAttackMask(attacker) & 1u) &&
                      (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && (weapons->attacksEnabled & 2u) &&
+                    (attacker->attack2.type != ATK_NONE && (S_AncientRetaliationAttackMask(attacker) & 2u) &&
                      (attacker->attack2.targetsAllowed & flag)));
 }
 
