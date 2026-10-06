@@ -405,8 +405,10 @@ static void SinglePlayer_FinalizeLegacyCampaigns(void) {
     FOR_LOOP(i, campaign_count) {
         singlePlayerCampaign_t *campaign = &campaigns[i];
         if (!campaign->background[0]) {
+            UINAME key;
+            strlcpy(key, campaign->key, sizeof(key));
             snprintf(campaign->background, sizeof(campaign->background), "%.*sBackdrop",
-                     (int)(sizeof(campaign->background) - 9), campaign->key);
+                     (int)(sizeof(campaign->background) - 9), key);
             SinglePlayer_Warn("CampaignStrings: campaign '%s' has no Background key (pre-1.01 data?); using skin '%s'",
                               campaign->key, campaign->background);
         }
