@@ -375,6 +375,7 @@ static ability_t abilitylist[] = {
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
+    { "APsa", CAbilityItemSpeedAoe, AB_ITEM },  /* Rune of Speed */
     { "AIsa", CAbilityItemSpeedAoe, AB_ITEM },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
