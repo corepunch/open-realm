@@ -15,11 +15,13 @@
 
 #define SINGLE_PLAYER_MAX_CAMPAIGNS 16 // campaigns; UI parse/storage capacity; bounds authored campaign entries
 #define SINGLE_PLAYER_MAX_MISSIONS 128 // missions; UI parse/storage capacity; bounds authored mission entries
-#define SINGLE_PLAYER_LIST_ROWS 10 // rows; TFT CampaignListBox.fdf scroll bar (0.315625) holds ten list slots
+#define SINGLE_PLAYER_CAMPAIGN_LIST_ROWS 10 // rows; TFT CampaignListBox.fdf scroll bar (0.315625) holds ten list slots
+#define SINGLE_PLAYER_MISSION_LIST_ROWS 16 // rows; retail shows Human's 14-row column unscrolled; 16 stays above Back
+#define SINGLE_PLAYER_LIST_MAX_ROWS SINGLE_PLAYER_MISSION_LIST_ROWS // rows; widget storage; largest selector column
 #define SINGLE_PLAYER_LIST_ROW_HEIGHT 0.0315625f // FDF units; one slot; retail rows measure 0.032 apart
 #define SINGLE_PLAYER_LIST_WIDTH 0.27f // FDF units; arrow, header and name column
 #define SINGLE_PLAYER_LIST_X -0.287f // FDF units from CampaignMenu TOPRIGHT; retail arrows start at x=0.513
-#define SINGLE_PLAYER_LIST_Y -0.1274f // FDF units from CampaignMenu TOPRIGHT; centres the box 0.285 below the top
+#define SINGLE_PLAYER_LIST_CENTER_Y -0.2852f // FDF units from CampaignMenu TOPRIGHT; retail columns centre 0.285 below the top
 #define SINGLE_PLAYER_LIST_MAX_ENTRIES (UI_MAX_MAP_LIST_ITEMS * 2) // entries; every campaign row is followed by a blank
 #define SINGLE_PLAYER_CAMPAIGN_VISIBILITY_CVAR "wc3_campaign_visibility"
 #define SINGLE_PLAYER_LIST_FLAG_CINEMATIC 0x80000000u // bit; marks cinematic list items; separates them from mission indices
@@ -101,7 +103,7 @@ static SinglePlayerMenu_t single_player;
 /* Retail builds both selectors from CampaignStrings at runtime (Warsmash's CampaignMenuUI does the same): rows of
  * an arrow (map/campaign) or camera (movie) button with a gold header and a grey name, laid out in fixed slots.
  * Campaigns are separated by a blank slot and the Introduction cinematic is followed by one; a column that fits is
- * centred in the ten-slot box, a longer one scrolls. The static TutorialFrame/Mission0Frame rows authored by the
+ * centred in its box (ten campaign slots, sixteen mission slots), a longer one scrolls. The static TutorialFrame/Mission0Frame rows authored by the
  * 1.00 CampaignMenu.fdf are never shown by patched clients, so they stay hidden. */
 typedef struct {
     frameDef_t *slot, *arrow, *camera, *label, *desc;
@@ -115,14 +117,17 @@ typedef struct {
 
 typedef struct {
     frameDef_t *box;
-    singlePlayerListRow_t rows[SINGLE_PLAYER_LIST_ROWS];
+    singlePlayerListRow_t rows[SINGLE_PLAYER_LIST_MAX_ROWS];
     singlePlayerListEntry_t entries[SINGLE_PLAYER_LIST_MAX_ENTRIES];
     uint32_t count, scroll;
+    uint32_t slots; // visible rows; the box height
     cstring_t command;
 } singlePlayerList_t;
 
-static singlePlayerList_t campaign_rows = { .command = "menu_single_player_campaign_select %u" };
-static singlePlayerList_t mission_rows = { .command = "menu_single_player_mission_select %u" };
+static singlePlayerList_t campaign_rows = {
+    .slots = SINGLE_PLAYER_CAMPAIGN_LIST_ROWS, .command = "menu_single_player_campaign_select %u" };
+static singlePlayerList_t mission_rows = {
+    .slots = SINGLE_PLAYER_MISSION_LIST_ROWS, .command = "menu_single_player_mission_select %u" };
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static uint32_t campaign_count;
 static uint32_t campaign_order[SINGLE_PLAYER_MAX_CAMPAIGNS];
@@ -864,7 +869,7 @@ static bool SinglePlayer_BindList(singlePlayerList_t *list, frameDef_t *parent, 
     char row_name[sizeof(UINAME)];
 
     if (!(list->box = UI_FindChildFrame(parent, name))) return false;
-    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+    FOR_LOOP(i, list->slots) {
         singlePlayerListRow_t *row = &list->rows[i];
         cstring_t const parts[] = { "Button", "CameraButton", "Label", "Desc" };
         frameDef_t **frames[] = { &row->arrow, &row->camera, &row->label, &row->desc };
@@ -891,10 +896,10 @@ static void SinglePlayer_CreateList(singlePlayerList_t *list, frameDef_t *parent
     list->box = UI_Spawn(FT_FRAME, parent);
     if (!list->box) return;
     snprintf(list->box->Name, sizeof(list->box->Name), "%s", name);
-    UI_SetSize(list->box, SINGLE_PLAYER_LIST_WIDTH, SINGLE_PLAYER_LIST_ROWS * SINGLE_PLAYER_LIST_ROW_HEIGHT);
-    UI_SetPoint(list->box, FRAMEPOINT_TOPLEFT, single_player.CampaignMenu, FRAMEPOINT_TOPRIGHT,
-                SINGLE_PLAYER_LIST_X, SINGLE_PLAYER_LIST_Y);
-    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+    UI_SetSize(list->box, SINGLE_PLAYER_LIST_WIDTH, (float)list->slots * SINGLE_PLAYER_LIST_ROW_HEIGHT);
+    UI_SetPoint(list->box, FRAMEPOINT_TOPLEFT, single_player.CampaignMenu, FRAMEPOINT_TOPRIGHT, SINGLE_PLAYER_LIST_X,
+                SINGLE_PLAYER_LIST_CENTER_Y + (float)list->slots * SINGLE_PLAYER_LIST_ROW_HEIGHT * 0.5f);
+    FOR_LOOP(i, list->slots) {
         singlePlayerListRow_t *row = &list->rows[i];
 
         row->slot = UI_Spawn(FT_FRAME, list->box);
@@ -919,12 +924,12 @@ static void SinglePlayer_CreateList(singlePlayerList_t *list, frameDef_t *parent
 }
 
 static void SinglePlayer_LayoutList(singlePlayerList_t *list) {
-    uint32_t const max_scroll = list->count > SINGLE_PLAYER_LIST_ROWS ? list->count - SINGLE_PLAYER_LIST_ROWS : 0;
-    float const top = list->count < SINGLE_PLAYER_LIST_ROWS
-        ? (float)(SINGLE_PLAYER_LIST_ROWS - list->count) * SINGLE_PLAYER_LIST_ROW_HEIGHT * 0.5f : 0.0f;
+    uint32_t const max_scroll = list->count > list->slots ? list->count - list->slots : 0;
+    float const top = list->count < list->slots
+        ? (float)(list->slots - list->count) * SINGLE_PLAYER_LIST_ROW_HEIGHT * 0.5f : 0.0f;
 
     list->scroll = MIN(list->scroll, max_scroll);
-    FOR_LOOP(i, SINGLE_PLAYER_LIST_ROWS) {
+    FOR_LOOP(i, list->slots) {
         singlePlayerListRow_t const *row = &list->rows[i];
         uint32_t const index = list->scroll + i;
         singlePlayerListEntry_t const *entry = index < list->count ? &list->entries[index] : NULL;

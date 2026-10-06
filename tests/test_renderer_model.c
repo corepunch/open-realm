@@ -490,14 +490,33 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
     T_FEQ(sampled.ambient_intensity, 0.25f, 0.001f);
 }
 
-TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
-    mdxGeosetAnim_t geosetAnim = { .staticColor = { 0.85f, 0.40f, 0.10f } };
-    vec3_t rgb = { 0, 0, 0 };
+/* Read actual GEOA payloads: the Orc sky's orange RGB and a non-stock cool-blue tint must keep their channels. */
+TEST(renderer_model, static_geoset_colors_preserve_rgb_from_mdx) {
+    uint8_t bytes[][24] = {
+        { 0x00, 0x00, 0x80, 0x3f, 0x02, 0x00, 0x00, 0x00,
+          0x01, 0xf8, 0x77, 0x3f, 0xea, 0xec, 0xec, 0x3e,
+          0xe9, 0xf0, 0x70, 0x3d, 0x0a, 0x00, 0x00, 0x00 },
+        { 0x00, 0x00, 0x80, 0x3f, 0x02, 0x00, 0x00, 0x00,
+          0xcd, 0xcc, 0x4c, 0x3e, 0x33, 0x33, 0x33, 0x3f,
+          0x66, 0x66, 0x66, 0x3f, 0x0c, 0x00, 0x00, 0x00 },
+    };
+    vec3_t expected[] = { { 0.968628f, 0.462745f, 0.0588235f }, { 0.2f, 0.7f, 0.9f } };
 
-    MDLX_GetGeosetAnimationStaticColor(&geosetAnim, &rgb);
-    T_FEQ(rgb.x, geosetAnim.staticColor.z, 0.001f);
-    T_FEQ(rgb.y, geosetAnim.staticColor.y, 0.001f);
-    T_FEQ(rgb.z, geosetAnim.staticColor.x, 0.001f);
+    FOR_LOOP(i, 2) {
+        sizeBuf_t buffer = { .data = bytes[i], .cursize = sizeof(bytes[i]) };
+        mdxGeosetAnim_t anim = { 0 };
+        vec3_t rgb = { 0, 0, 0 };
+
+        ReadGeosetAnim(&buffer, &anim);
+        T_EQ(buffer.readcount, sizeof(bytes[i]));
+        T_EQ(anim.flags, 2);
+        T_EQ(anim.geosetId, i ? 12 : 10);
+        T_NULL(anim.colors);
+        MDLX_GetGeosetAnimationStaticColor(&anim, &rgb);
+        T_FEQ(rgb.x, expected[i].x, 0.000001f);
+        T_FEQ(rgb.y, expected[i].y, 0.000001f);
+        T_FEQ(rgb.z, expected[i].z, 0.000001f);
+    }
 }
 
 TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
