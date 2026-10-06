@@ -638,7 +638,7 @@
     },
     {
       "name": "WC3MoveSpeedPrefix",
-      "length": 132,
+      "length": 224,
       "fields": [
         {
           "offset": 0,
@@ -681,6 +681,18 @@
           "name": "slow_count",
           "type": "u32",
           "evidence": "speed oracle enter/exit publication"
+        },
+        {
+          "offset": 204,
+          "name": "retained_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff123 5ff490 resolves cc/d0 canonically;5fbea0 unlinks target subscriptions before invalidation. Read-only complete repeated before/after snapshots."
+        },
+        {
+          "offset": 216,
+          "name": "related_order",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff123 5fbfc0 resolves d8/dc as684ba0-derived order, conditionally unlinks6900c0, unconditionally invalidates identity."
         }
       ]
     },
@@ -11764,6 +11776,68 @@
         }
       ],
       "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+    },
+    {
+      "address": "6f6882e0",
+      "name": "Unit_RemoveFromWorld",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f688300",
+      "name": "Unit_RetireWorldPresence",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "notify_presentation",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "preserve_activity",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f5fbea0",
+      "name": "CAbilityMove_ClearRetainedTarget",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f5fbfc0",
+      "name": "CAbilityMove_ClearRelatedOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

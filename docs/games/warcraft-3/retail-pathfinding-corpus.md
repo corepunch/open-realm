@@ -1913,3 +1913,16 @@ Ghidra instruction/type readbacks. The corpus now has354 entries (121 oracle,
 121 archive and112 live contracts), with328 pinned inputs. The fresh Repair
 entry is verified independently of the authorized full-suite batch cadence.
 See [Repair ownership](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation).
+
+Payoff123 adds `live-follow-lifetime-261006`: two complete seven-subject Follow
+lifetimes export identical1,455 public records each, including sampled position
+words, loss/public-head decisions, actual damage-source handles, nested callback
+replacement and recreated subject ownership. Read-only hooks identify the real
+RemoveUnit/death caller chains. Velocity-hook counts differ; this contract does
+not certify complete combat trajectories. The two compressed captures, frozen
+JASS producer/extension, historical controller/builder generations and saved
+Ghidra readbacks are retained. Nine rejection/positive verifier tests are included
+in the aggregate pathfinding-tools suite. The inventory now has355 entries
+(121 oracles,121 archives,113 live contracts), with337 pinned inputs. A fresh
+strict run verifies the new entry, and complete inventory/hash checks pass.
+See [Follow target loss](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).

@@ -1671,7 +1671,9 @@ TEST(pathfinding, retail_passages_match_all_lanes_classes_offsets_corners_and_ed
         movePathQuery_t query={.geometry=params,.units=true};
         moveFineRoute_t route={0}; vec2_t selected;
         bool built=G_BuildUnitMoveLocalRoute(&query,&route,&selected);
-        T_EQ(built,row->count>=2);
+        /* A native count-one result is a valid cached route (Payoff113/114),
+         * including partial/source-only passage outcomes. */
+        T_EQ(built,row->count>=1);
         if(built && route.count) {
             T_EQ(route.partial,!row->result); T_EQ(route.count,row->count);
             T_EQ(wc3_float_bits(route.points[0].x),row->words[4]);

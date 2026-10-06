@@ -14348,13 +14348,19 @@ static void modifier88_assert_state(cstring_t marker) {
     if(!strncmp(marker,"PATHBUFF ",9)) {
         unsigned index=modifier88_buff++;
         T_ASSERT(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))));
-        if(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))))T_STREQ(marker,modifier88_buff_markers[index]);
+        if(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers)))) {
+            if (strcmp(marker,modifier88_buff_markers[index])) fprintf(stderr,"Modifier88 buff%u time%u actual=%s expected=%s\n",index,level.time,marker,modifier88_buff_markers[index]);
+            T_STREQ(marker,modifier88_buff_markers[index]);
+        }
         return;
     }
     if(strncmp(marker,"PATHTRACE ",10))return;
     unsigned index=modifier88_marker++;
     T_ASSERT(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))));
-    if(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))))T_STREQ(marker,modifier88_markers[index]);
+    if(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers)))) {
+        if (strcmp(marker,modifier88_markers[index])) fprintf(stderr,"Modifier88 marker%u time%u actual=%s expected=%s\n",index,level.time,marker,modifier88_markers[index]);
+        T_STREQ(marker,modifier88_markers[index]);
+    }
     if(strstr(marker,"label=sample "))return;
     unsigned stage=modifier88_stage++;
     T_ASSERT(stage<(sizeof(modifier88_states)/sizeof(*(modifier88_states))));if(stage>=(sizeof(modifier88_states)/sizeof(*(modifier88_states))) || !unit)return;
@@ -14398,6 +14404,9 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
     level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
     level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
     modifier88_marker=modifier88_buff=modifier88_stage=0;test_preload_marker=modifier88_assert_state;
+    /* Spell completion is a supplied fixture input. The frozen public query
+     * first sees Bloodlust at tick105; its unobserved cast-request deadline
+     * must not be replaced with a rounded10.5-second authored timer. */
     T_ASSERT(run_test_jass(
         "globals\n"
         " unit udg_PathProbeUnit=null\n"
@@ -14412,6 +14421,9 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
         "endfunction\n"
         "function PathProbeTick takes nothing returns nothing\n"
         " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==105 then\n"
+        "  call Preload(\"CAPTURED_APPLY_BLOODLUST\")\n"
+        " endif\n"
         " if udg_PathProbeTick==10 then\n"
         "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
         "  call PathProbeRecord(\"point_move\")\n"
@@ -14465,9 +14477,6 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
         "function CapturedSlowApply takes nothing returns nothing\n"
         " call Preload(\"CAPTURED_APPLY_SLOW\")\n"
         "endfunction\n"
-        "function CapturedBloodlustApply takes nothing returns nothing\n"
-        " call Preload(\"CAPTURED_APPLY_BLOODLUST\")\n"
-        "endfunction\n"
         "function PathProbeInit takes nothing returns nothing\n"
         " call Preload(\"PATHPOSE case=speed_modifiers\")\n"
         " call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,false)\n"
@@ -14479,7 +14488,6 @@ TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restora
         " call SetCameraPosition(1008.0,1040.0)\n"
         " call PathProbeRecord(\"start_speed_modifiers\")\n"
         " call TimerStart(CreateTimer(),4.45,false,function CapturedSlowApply)\n"
-        " call TimerStart(CreateTimer(),10.5,false,function CapturedBloodlustApply)\n"
         " set udg_PathProbeTimer=CreateTimer()\n"
         " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
         "endfunction\n"

@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 116, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 117, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -33,6 +33,16 @@ after physical groups and unit routes have loaded. Invalid rank, class, policy,
 count, countdown or work rejects restoration; failed restoration clears all
 coarse queues before releasing groups. Version108 and older layouts are rejected.
 See [coarse/fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Version117 retains `movement.follow_target_spawn_time` beside the Follow target
+reference. Scheduled Follow and combat resumption reject a reused target slot
+whose incarnation differs. Temporary Smart combat can outlive the Follow parent;
+saving after public target removal but before deferred free preserves the combat
+head and pending work with the parent reference already withdrawn. An empty
+physical group drops its borrowed target on final detach while retaining its
+normal deferred allocation/admission lifetime. Current round-trips cover healthy
+Follow and the removed-parent combat interval; Version116 is rejected. Network
+messages are unchanged. See [Follow target loss](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
 
 Version116 extends the scalar `buildwork_t` pool with the Repair target's spawn
 generation and a target-retirement Boolean. `edict_t.build` remains an `F_EDICT`

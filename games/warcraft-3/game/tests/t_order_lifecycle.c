@@ -696,4 +696,199 @@ TEST(wc3_order_lifecycle, queued_repair_family_activates_after_move_in_server_fr
     building_restore_repair_data(old, rows);
 }
 
+TEST(wc3_order_lifecycle, public_move_follow_ignores_automatic_combat) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "move", target, false, 0));
+    level.time = 0; G_BeginAcquisitionFrame();
+    G_AcquisitionEntityLinked(enemy);
+    T_EQ(G_FindNearestEnemy(subject, G_AcquisitionRange(subject)), enemy);
+    subject->currentmove->think(subject);
+    T_EQ(subject->goalentity, target);
+    T_NE(subject->goalentity, enemy);
+    T_EQ(subject->current_order_id, 851986);
+    T_ASSERT(subject->currentmove->proc == CAbilityMove);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_combat_target_loss_preserves_head_until_enemy_loss) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    T_ASSERT(G_IssueUnitPointOrder(subject, "move", &(vec2_t){1024, 0}, true, 0, 0));
+    order_attack(subject, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    G_DeferFreeEdict(target);
+    T_NULL(subject->movement.follow_target);
+    T_EQ(subject->goalentity, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->order_queue.count, 1);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 851986);
+    T_EQ(subject->order_queue.count, 0);
+    T_NE(subject->goalentity, enemy);
+    G_RunDeferredFrees();
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_incarnation_and_combat_removal_survive_save_before_drain) {
+    cstring_t file = "/tmp/wc3-follow-retirement117.bin";
+    /* alloc_test_unit supplies transient weapon rows; restore must resolve a
+     * real authored row instead. The fixture MPQ has no UnitWeapons.slk. */
+    slkTestData_t *weapons = parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nE\n");
+    slkTestData_t *old_weapons = G_SetSLKRows("UnitWeapons", weapons);
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    target->spawn_time = 4242;
+    game.clients[0].ps.rdflags |= RDF_NOFOG;
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    T_EQ(subject->movement.follow_target_spawn_time, 4242);
+    T_ASSERT(WriteGame(file));
+    subject->movement.follow_target_spawn_time = 1;
+    T_ASSERT(ReadGame(file));
+    T_EQ(subject->movement.follow_target_spawn_time, 4242);
+    T_ASSERT(S_AttackCanTarget(subject, enemy));
+    order_attack(subject, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->goalentity, enemy);
+    G_DeferFreeEdict(target);
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    T_EQ(subject->current_order_id, 851971);
+    T_NULL(subject->movement.follow_target);
+    T_ASSERT(G_IsDeferredFree(target));
+    G_RunDeferredFrees();
+    T_ASSERT(!target->inuse);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 0);
+    remove(file);
+    reset_entities(); setup_test_world();
+    G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(weapons);
+}
+
+TEST(wc3_order_lifecycle, follow_damage_callback_nested_replacement_survives_owner_exit) {
+    for (int smart = 0; smart < 2; smart++) {
+        char script[4096];
+        reset_entities(); setup_test_world();
+        snprintf(script, sizeof(script),
+            "globals\nunit subject\nunit target\nunit enemy\ntrigger nested\n"
+            "integer removedHead=0\ninteger replacementHead=0\nendglobals\n"
+            "function child takes nothing returns nothing\n"
+            "call IssuePointOrder(subject, \"move\", 1024.0, 0.0)\n"
+            "call RemoveUnit(enemy)\nendfunction\n"
+            "function damaged takes nothing returns nothing\n"
+            "call RemoveUnit(target)\nset removedHead=GetUnitCurrentOrder(subject)\n"
+            "call TriggerExecute(nested)\nset replacementHead=GetUnitCurrentOrder(subject)\nendfunction\n"
+            "function verify takes nothing returns nothing\n"
+            "call BJassAssert(removedHead==%d, \"Follow loss head\")\n"
+            "call BJassAssert(replacementHead==851986, \"nested Move owns head\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(subject)==851986, \"old owner cannot complete replacement\")\n"
+            "endfunction\nfunction main takes nothing returns nothing\n"
+            "local trigger damage=CreateTrigger()\n"
+            "set subject=CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+            "set target=CreateUnit(Player(0), 'hfoo', 512.0, 0.0, 0.0)\n"
+            "set enemy=CreateUnit(Player(1), 'hfoo', 48.0, 0.0, 0.0)\n"
+            "call SetUnitUserData(subject, 900)\ncall SetUnitUserData(enemy, 901)\n"
+            "call IssueTargetOrder(subject, \"%s\", target)\n"
+            "set nested=CreateTrigger()\ncall TriggerAddAction(nested, function child)\n"
+            "call TriggerRegisterUnitEvent(damage, %s, EVENT_UNIT_DAMAGED)\n"
+            "call TriggerAddAction(damage, function damaged)\nendfunction\n",
+            smart ? 851971 : 0, smart ? "smart" : "move", smart ? "enemy" : "subject");
+        T_ASSERT(run_test_jass(script));
+        edict_t *subject = NULL, *enemy = NULL;
+        FILTER_EDICTS(ent, ent->inuse) {
+            if (ent->user_data == 900) subject = ent;
+            if (ent->user_data == 901) enemy = ent;
+        }
+        T_NOT_NULL(subject); T_NOT_NULL(enemy);
+        if (subject && enemy) {
+            if (smart) order_attack(subject, enemy);
+            T_Damage(smart ? enemy : subject, smart ? subject : enemy, 1);
+            level.started = level.scriptsConfigured = level.scriptsStarted = true;
+            level.time += FRAMETIME; globals.RunFrame();
+            jass_callbyname(level.vm, "verify", true);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(subject->current_order_id, 851986);
+            T_NULL(subject->movement.follow_target);
+            T_NE(subject->goalentity, enemy);
+            T_ASSERT(!enemy->inuse);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, smart_combat_enemy_death_resumes_healthy_follow_parent) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    order_attack(subject, enemy);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->movement.follow_target, target);
+    T_EQ(subject->goalentity, target);
+    T_ASSERT(subject->currentmove->proc == CAbilityMove);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, retired_follow_subject_reuse_does_not_inherit_old_callbacks) {
+    for (int smart = 0; smart < 2; smart++) {
+        reset_entities(); setup_test_world();
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *subject = review_order_unit(0, 0);
+        edict_t *target = review_order_unit(512, 0);
+        subject->spawn_time = 10;
+        T_ASSERT(G_IssueUnitTargetOrder(subject, smart ? "smart" : "move", target, false, 0));
+        T_ASSERT(G_IssueUnitPointOrder(subject, "move", &(vec2_t){1024, 0}, true, 0, 0));
+        G_DeferFreeEdict(subject); G_RunDeferredFrees();
+        level.time += 1001;
+        edict_t *replacement = review_order_unit(128, 0);
+        replacement->spawn_time = level.time;
+        T_EQ(replacement, subject);
+        T_NULL(replacement->movement.follow_target);
+        T_EQ(replacement->movement.follow_target_spawn_time, 0);
+        T_EQ(replacement->current_order_id, 0);
+        T_EQ(replacement->order_queue.count, 0);
+        T_ASSERT(G_IssueUnitPointOrder(replacement, "move", &(vec2_t){1024, 0}, false, 0, 0));
+        G_DeferFreeEdict(target);
+        T_EQ(replacement->current_order_id, 851986);
+        replacement->think = monster_think;
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(replacement->current_order_id, 851986);
+        T_ASSERT(replacement->s.origin2.x > 128);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_direct_free_cannot_adopt_reused_target) {
+    for (int smart = 0; smart < 2; smart++) {
+        reset_entities(); setup_test_world();
+        edict_t *subject = review_order_unit(0, 0);
+        edict_t *target = review_order_unit(512, 0);
+        target->spawn_time = level.time;
+        T_ASSERT(G_IssueUnitTargetOrder(subject, smart ? "smart" : "move", target, false, 0));
+        G_FreeEdict(target);
+        level.time += 1001;
+        edict_t *replacement = review_order_unit(128, 0);
+        replacement->spawn_time = level.time;
+        T_EQ(replacement, target);
+        subject->currentmove->think(subject);
+        T_NULL(subject->movement.follow_target);
+        T_EQ(subject->current_order_id, 0);
+        T_NE(subject->goalentity, replacement);
+    }
+    reset_entities(); setup_test_world();
+}
+
 #endif

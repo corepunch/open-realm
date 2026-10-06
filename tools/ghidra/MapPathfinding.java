@@ -748,7 +748,7 @@ public class MapPathfinding extends GhidraScript {
         {"6f15e310", "SimClock_QueueAgentRequest", "Use clock38 free block or allocator24, increment3c; request=block+4 with deadline4,delay8,clockC,flags10=20000,serial14,wrapper18,value1c; push clock+4 heap through04f990. Full queue-pop corpus covers free-list allocation and empty-heap insertion."},
         {"6f674180", "Unit_ClearOrderMovementFlag", "Resolve separate unit19c/1a0 order identity; clear its20 bit4.432 queue-head prefixes verify conditional clearing and unchanged identity. Distinct from internal queue head174/178."},
         {"6f67df00", "Unit_DispatchInternalTaskQueue", "Static: resolve CTask head174/178 (distinct user COrder head19c/1a0); event=task30; set unit5c bit1; virtual10 dispatch. Cleared bit1 returns, else bit2 selects pop691260 or clear2/repeat. Arrival handler calls after pop. Full callback/queue mutation behavior not yet executed."},
-        {"6f5ff490", "CAbilityMove_OnTargetLost", "Validates event target via 5fb940 then cleanup/replacement policy. Live Apiv loss cancels Smart follow before group callback blocks. User head resolution is at5ff5d9..5ff5f0 (Unit19c/1a0), distinct from internal task query69c6a0. Public RemoveUnit Follow witness retires head synchronously; this witness alone does not prove the RemoveUnit caller graph or combat-parent branch. Payoff48 KillUnit stack reaches recovery5fb190 and arrival5fa7a0 before return, clearing Follow at tick100; RemoveUnit agrees. Actual pool address/public handle reuse at110 does not adopt replacement until Smart120. Full combat/queued parents remain open."},
+        {"6f5ff490", "CAbilityMove_OnTargetLost", "Validates event target via 5fb940 then cleanup/replacement policy. Live Apiv loss cancels Smart follow before group callback blocks. User head resolution is at5ff5d9..5ff5f0 (Unit19c/1a0), distinct from internal task query69c6a0. Public RemoveUnit Follow witness retires head synchronously; Payoff123 proves RemoveUnit virtual84 ->6882e0 ->688300 ->651010 with repeated caller stacks. Seven-case complete repeats distinguish Move loss from Smart combat, nested replacement and healthy-parent retention. Payoff48 KillUnit stack reaches recovery5fb190 and arrival5fa7a0 before return, clearing Follow at tick100; RemoveUnit agrees. Actual pool address/public handle reuse at110 does not adopt replacement until Smart120. Full combat/queued parents remain open."},
         {"6f5fb940", "CAbilityMove_ValidateTarget", "0 valid; dd null/rejected/visibility failure; a9/aa target-state branches. Calls 66fdd0(owner,target,0,4)."},
         {"6f23a760", "PathGroup_IsTargetNotVisible", "Resolved-unit case negates 66fdd0(firstMember,target,0,4), equivalent to IsUnitVisible(target,member owner). Missing wrappers return false. Live fog loss/reacquisition and610-marker no-attach comparison verified; allvisibility combinations remainopen."},
         {"6f16cd30", "PathGroup_SampleDestination", "Resolved target and zero refresh countdown sample position+group offset, mark -1 for reload. Otherwise retains cached path destination; no target uses fixed XY. Scene53 directly observes approach followed by a persistent target cohort while the public Smart head survives; cached target positions remain until countdown0. Target speed changes during sub-cell travel. Payoff49 tick100 target location174/105.375 fine is first admitted at counter1368; tick90 axis target returns toward its Move point and is sampled172.2073059/104.8294907 at1334. Tick90 SetUnitPosition instead samples174/105.375, after target Stop. Follow head remains851971 throughout."},
@@ -787,6 +787,10 @@ public class MapPathfinding extends GhidraScript {
         {"6f071570", "Math_ReciprocalSquareRoot", "ECX output, EDX scalar input; original software square root 071480 followed by reciprocal 0711e0, EAX returns output pointer. Cap-transition normalization composition verified."},
         {"6f48f410", "Unit_GetMaximumFlatMoveSpeedBonus", "ECX Unit, stack4 scalar output, RET4. Traverse attached list through canonical payload resolver and virtual184; max(0,contributions), never sum.126 full original/C compositions; repeated actual TFT Boots60 queries on a RoC-format map."},
         {"6f569830", "CAbilityMoveSpeedBonus_GetContribution", "ECX AIms, stack4 output, RET4, EAX output pointer; copies scalar88. Repeated owned Hero Boots on a RoC-format map show authored60 and max across two distinct attached objects. DataA writer remains separately required."},
+        {"6f6882e0", "Unit_RemoveFromWorld", "Payoff123 actual RemoveUnit210c10 virtual84 enters6882e0: virtual98 then688300(1,0). Read-only repeated caller stack688373 ->651010 within native/callback removal proves the semantic loss source; storage retirement is separately694690. ECX Unit, no stack arguments, plainRET."},
+        {"6f688300", "Unit_RetireWorldPresence", "ECX Unit, stack4 notify-presentation, stack8 preserve-activity, RET8. Guard Unit20 bit1; set5c bit8, virtual14c(1,1), live-unit cleanup699e30/699d80 then set20 bit1 BEFORE651010(-1,-1). Payoff123 repeated public RemoveUnit and nested damage callback caller witnesses."},
+        {"6f5fbea0", "CAbilityMove_ClearRetainedTarget", "ECX Move, plainRET. Resolve canonical cc/d0 identity and retain Unit while unlinking652dd0 and6901c0 subscriptions; invalidate both words only after valid resolution. Payoff123 readonly before/after identity snapshots across loss, arrival and target-task replacement; no gameplay writes."},
+        {"6f5fbfc0", "CAbilityMove_ClearRelatedOrder", "ECX Move, plainRET. Flag20.1000 invokes5fceb0; resolve d8/dc identity as684ba0-derived order, unlink6900c0 if valid, then always invalidate both words. Called before retained-target clear and cant-path recovery in5ff490."},
         {"6f2148f0", "Jass_SetTerrainPathable", "Native registration; negates Boolean then updates fine-map high-bit mask."}
     };
 
@@ -825,13 +829,14 @@ public class MapPathfinding extends GhidraScript {
             f.setComment(row[2] + "\nRecovered descriptive name, not an original debug symbol. "
                 + "See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 " + HASH);
         }
-        String[][] spacingLabels = {
+        String[][] evidenceLabels = {
+            {"6f68836e", "UnitRemoval_TargetLostPublication"},
             {"6fd541bc", "PathFormation_DefaultRankGap"},
             {"6fd541c8", "PathFormation_AlternateRankGap"},
             {"6fd541c4", "PathFormation_DefaultDepthPadding"},
             {"6fd541d0", "PathFormation_AlternateDepthPadding"}
         };
-        for (String[] label : spacingLabels)
+        for (String[] label : evidenceLabels)
             createLabel(toAddr(label[0]), label[1], true, SourceType.USER_DEFINED);
         println("Mapped " + ROWS.length + " evidence-backed pathfinding functions; prototypes unchanged.");
     }

@@ -55,14 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**214 done / 336 tasks; 122 remaining.**
+**215 done / 336 tasks; 121 remaining.**
 
-Payoff122 closes ORDER-01.11: concrete Repair/Renew/Restoration own admission,
-Smart work interception, approach completion, autocast interruption and pending
-activation. Four complete retail captures verify5,048 public records and eight
-native Shift inputs; engine regressions cover normal frames, death/reuse and
-Save116, including deferred target retirement. Ghidra mappings and readbacks are
-saved. See [Repair ownership](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation).
+Payoff123 closes ORDER-01.17: two complete retail repeats match1,455 public
+records each through Follow parent loss, temporary combat, nested replacement
+and target/subject reuse. Engine regressions preserve queued ownership and
+Save117 before deferred cleanup; empty-group target retirement stays constant-time.
+Ghidra annotations, typed identities and portable mappings are saved. See
+[Follow target loss](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
 
 Payoff121 implements the verified siege-roster and disabled-weapon approach
 range producers within GROUP-03.4.6.2.1.2, including retained physical ranges
@@ -831,7 +831,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [x] **ORDER-01.15** Match retail's synchronous healthy active Follow head retirement when public RemoveUnit removes its target, while retaining OpenRealm's deferred edict/event lifetime. Verify both Move/Smart IDs, pending point activation, rejection of queued removed targets, unrelated/repeated removal and already-replaced point orders; prove next-frame cleanup and natural queued arrival. Evidence: [synchronous Follow loss](retail-pathfinding-engine.md#current-follow-and-hold-ownership), isolated failing engine regression followed by Move-owned notification/queued handoff,132 passing checks, repeated public retail tick130 current0 and122/122 strict corpus outcomes. Combat-parent/direct-free/reentrant-generation/save composition is split into01.17; runtime/lifetime producers remain BASE-03.1/TARGET.
 - [ ] **ORDER-01.16** Trace and integrate Build current ownership through each construction race strategy, accepted/queued placement, approach/work, interruption/cancel/refund policy, rejected replacement, death and save/reuse. Resolve the actual public command from the construction owner instead of generic Move or publisher history; split the race matrix into bounded leaves if necessary.
 
-- [ ] **ORDER-01.17** Extend01.15 target loss through temporary automatic-combat ownership, direct free/death, callback reentrant removal, generation-safe target/subject reuse and save before deferred drain. Recover the actual removal-to-target-loss caller graph and preserve command/queue/event ownership through each composition; public healthy Follow head0 alone does not establish these policies.
+- [x] **ORDER-01.17** Extend01.15 target loss through temporary automatic-combat ownership, direct free/death, callback reentrant removal, generation-safe target/subject reuse and save before deferred drain. Payoff123: seven-case complete retail repeats match1,455 public records each; actual RemoveUnit virtual84/6882e0/688300/651010 and death caller stacks prove loss publication. Move ignores automatic acquisition, Smart retains combat until enemy loss, healthy parents resume and nested replacement survives unwind. Seven engine regressions reproduce stale reuse/acquisition/ownership/save failures, then preserve pending activation, actual callback/frame cleanup and Save117. Empty physical owners drop borrowed targets in constant time. Full combat trajectory/timing remains01.10. [Evidence](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
 
 - [ ] **ORDER-01.18** Compose Patrol automatic acquisition, actual damage, enemy loss and endpoint resume while preserving public head851991, then interrupt/reject/save/reuse during combat. Recover original d0175 endpoint progression/arrival and blocked-route policy, including queued-origin capture timing; compare complete original decisions with the owning engine ability. ORDER-01.9 no-enemy reversal does not certify these branches.
 

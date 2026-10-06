@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--metadata-events',action='store_true',help='observe ordinary toggle admission, ability dispatch and exported JASS rows')
     parser.add_argument('--timer-events', action='store_true', help='read public timer words, scalar getters and pause/resume state')
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
+    parser.add_argument('--follow-lifetime-events', action='store_true', help='read target-loss owner states and native caller stacks')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
     parser.add_argument('--yield-events', action='store_true', help='observe ordered moving-blocker decisions, actual resolved groups and blocker handles')
     parser.add_argument('--velocity-events', action='store_true', help='capture raw velocity commits and selected simulation clocks')
@@ -130,7 +131,7 @@ def main():
         config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
-    source_paths = [Path(__file__).with_name('wc3_repair_queue_probe.j'),Path(__file__).with_name('wc3_repair_orders_probe.j'),Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
+    source_paths = [Path(__file__).with_name('wc3_follow_lifetime_probe.j'),Path(__file__).with_name('wc3_repair_queue_probe.j'),Path(__file__).with_name('wc3_repair_orders_probe.j'),Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_waygate_capacity_probe.j'), Path(__file__).with_name('wc3_waygate_overlap_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
@@ -157,6 +158,9 @@ def main():
     if args.random_movement_events:
         extension=Path(__file__).with_name('wc3_pathfinding_random_movement.js')
         provenance[extension.name]=hashlib.sha256(extension.read_bytes()).hexdigest()
+    if args.follow_lifetime_events:
+        follow_extension=Path(__file__).with_name('wc3_pathfinding_follow_lifetime.js')
+        provenance[follow_extension.name]=hashlib.sha256(follow_extension.read_bytes()).hexdigest()
     captain_ai = map_path.with_suffix('.ai')
     if captain_ai.is_file():
         provenance['captain_ai'] = hashlib.sha256(captain_ai.read_bytes()).hexdigest()
@@ -210,6 +214,11 @@ def main():
                 anchor='    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);'
                 if source.count(anchor)!=1:raise RuntimeError('shared-owner observer installation point differs')
                 source=source.replace(anchor,anchor+'\n    installPathRandomMovement(base,hook);',1)
+            if args.follow_lifetime_events:
+                source += '\n'+follow_extension.read_text()
+                anchor='    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);'
+                if source.count(anchor)!=1:raise RuntimeError('target-loss observer installation point differs')
+                source=source.replace(anchor,anchor+'\n    installPathFollowLifetime(base,hook);',1)
             script = session.create_script(source)
             script.on('message', message)
             script.load()

@@ -10183,3 +10183,108 @@ Eight Repair evidence checks,19 corpus checks and55 Frida-controller checks pass
 the new fresh corpus entry verifies all four complete captures. The extra queue
 fixture initializes a real JASS VM before calling RunFrame; calling RunFrame on
 the earlier minimal no-VM unit fixture is invalid and was corrected in the test.
+
+
+## Follow target loss preserves temporary combat ownership
+
+Payoff123 integrates ORDER-01.17. Two complete read-only retail runs of
+`PathFollowLifetime123d.w3m` export the same1,455 ten-word public records
+(digest `8ca7e9a85f961a1256c03ef0dd1c0773f11ad4224d5a6efef8b899625f45607e`).
+Seven independently observed subjects cover target Move versus Smart, RemoveUnit
+versus KillUnit, combat, synchronous damaged-trigger removal, nested
+TriggerExecute replacement, target/subject recreation and a healthy Follow
+parent after enemy death. Damage-source handles prove that the observed Smart
+attacks came from the corresponding subject. Paused friendly targets avoid
+call-for-help combat contaminating that evidence.
+
+Public target Move851986 ignores nearby automatic acquisition and the scripted
+one-damage retaliation input. It completes synchronously when its target is
+removed or killed. Smart851971 can enter combat while retaining its public head.
+Losing its Follow target leaves the enemy fight active; enemy death completes
+the old head. A healthy-target control retains Smart through enemy death instead.
+During the damage callback, removing the Move target exposes head0; removing the
+Smart parent during combat retains851971. Nested Move then publishes851986, and
+the old callback/combat owner cannot overwrite that replacement on unwind.
+Recreated subjects start with head0 and never inherit an old command.
+
+Ghidra and actual stacks establish the missing RemoveUnit caller chain:
+`210c10 -> Unit virtual84 ->6882e0 ->688300(1,0) ->651010`.
+The stock Unit vtable's84 slot points to6882e0.688300 marks Unit20 retired bit1
+before emitting target loss;679bb0 marks the death state before its separate
+publication. Move5ff490 resolves canonical cc/d0 target identity, clears its
+related d8/dc order through5fbfc0, unlinks target subscriptions through5fbea0,
+then performs the existing recovery policy. Four explicit thiscall ABIs,
+two newly named identity fields, the call-site label and saved annotations are
+recorded in `retail-follow-lifetime-ghidra-1.27.json`, MapPathfinding.java and
+the portable type schema. Post-save readback reports no unsaved program changes.
+
+The engine first reproduced six stale-target reuse failures, four combat/queue
+ownership failures, three acquisition failures and a save failure involving an
+empty Follow group. Move now captures and saves its target's spawn incarnation,
+checks it both on its scheduled walk and on combat resumption, and suppresses
+automatic acquisition for an explicit target Move. Attack forwards parent loss
+to Move without finishing combat; loss of the actual enemy completes/resumes
+through Attack's existing owner transition. Pending orders therefore remain
+queued during parent loss and activate once the active enemy owner completes.
+
+When the last member detaches, an empty physical group drops its borrowed target
+in constant time. It retains its allocations and admission position until the
+normal later owner visit. This keeps saves valid between target removal and
+deferred storage release without adding a scan of every physical group to each
+removal. Save117 adds only the logical Follow incarnation field; older save
+versions are rejected and network layout is unchanged.
+
+Engine regressions also run a real damaged-trigger/nested-trigger callback,
+actual server-frame deferred cleanup, target/subject slot reuse, healthy-parent
+resumption, queued handoff and save/load before the deferred drain. The save
+fixture supplies an authored UnitWeapons row because the generated test archive
+has none; a transient alloc_test_unit row cannot survive metadata rebinding.
+
+Reproduce the frozen evidence with:
+
+```sh
+python3 tools/frida/verify_wc3_follow_lifetime_trace.py \
+  --fixture tools/ghidra/fixtures/retail-follow-lifetime-1.27.json \
+  --output /tmp/follow-lifetime-report.json
+```
+
+The two runs have2,001 and2,059 velocity-hook observations. Their public records,
+including sampled position words, match exactly; whole combat trajectories and
+attack timing remain ORDER-01.10. Failed exploratory captures with attacking
+friendly targets are not accepted evidence. This ownership leaf does not certify
+the whole retail pathfinder.
+
+Focused Classic and TFT checks each pass34 order tests/513 assertions,
+188 combat tests/4,620 assertions, twelve existing exact public Smart Follow
+journeys/364,088 assertions, prior-version rejection/217 assertions and
+layout rejection/four assertions. Rebuilt production/test modules also pass the
+127-test unit suite; its exposed Stone Form immediate-owner regression is fixed
+separately in `c6b59f3a`. Nine Follow verifier controls,19 corpus controls and55
+Frida controller controls pass. The fresh strict Follow corpus entry verifies
+both raw captures; inventory/hash checks cover all355 entries, without claiming
+a fresh execution of the entire corpus.
+
+The batch checkpoint exposed two earlier fixture assumptions: passage admission
+still rejected native count-one routes despite Payoff113/114, and the supplied
+Bloodlust execution callback used rounded10.5 rather than its captured primary
+clock10.499238967895508. The first run failed64 passage assertions and460
+modifier state/marker assertions while every modifier motion commit still
+matched. The passage matrix now accepts count-one results and compares their
+literal route words. The supplied Bloodlust
+completion now runs before the tick105 public observer, where the frozen capture
+first sees the buff; it no longer invents a10.5-second spell request deadline.
+The observed primary sample clock is not proof of that unobserved deadline:
+using the primary clock as Slow's deadline changes its integrated position.
+The existing supplied Slow completion remains unchanged. Neither spell's actual
+cast-request timing is certified by this numerical movement fixture.
+Expected markers, states and all590 motion rows remain unchanged. Production
+timer ordering is unchanged; complete spell execution timing remains excluded.
+Mismatch diagnostics now show both actual and expected public markers.
+
+The full batch checkpoint passes `make -j6 TEST_JOBS=6 test openwarcraft3`
+with the native SDL2 environment: Classic and TFT each run2,746 tests/
+7,987,453 assertions, and the aggregate pathfinding Python target passes723
+checks. Other aggregate engine/standalone suites pass; terminal exit is0.
+The new strict Follow entry and the original speed-modifier entry each verify
+from fresh outputs. Logs are retained in
+`/GitHub/wc3-analysis/runtime/payoff123/full-test-fixed.log`.

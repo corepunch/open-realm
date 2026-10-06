@@ -599,6 +599,15 @@ static void move_detach_group(edict_t *unit) {
     if (!group) return;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time) {
         group->members[i]=group->members[--group->count];
+        /* Empty owners retain allocations/FIFO position until their next visit.
+         * Their borrowed target is no longer needed by any member. Drop it
+         * here so a removal/save needs neither a dangling reference nor a scan
+         * of all physical groups. */
+        if (!group->count) {
+            group->target = NULL;
+            group->target_spawn = group->target_refresh = 0;
+            group->flags &= ~0x1000u;
+        }
         /* Native171340 detaches now, but16c150 retires the empty owner at its
          * next visit. Its coarse FIFO entry and allocations remain until then,
          * for ordinary groups as well as groups with shared parameters. */
@@ -3311,7 +3320,7 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
 }
 
 static bool follow_can_auto_attack(edict_t const *self) {
-    if (!self || !S_CargoAttacksEnabled(self) || S_AttackProfileRead(self, 0)->cooldown <= 0.0f ||
+    if (!self || self->current_order_id == 851986 || !S_CargoAttacksEnabled(self) || S_AttackProfileRead(self, 0)->cooldown <= 0.0f ||
         (S_AttackProfileRead(self, 0)->damageBase <= 0 && S_AttackProfileRead(self, 0)->numberOfDice <= 0)) {
         return false;
     }
@@ -3371,7 +3380,8 @@ static void ai_follow_walk(edict_t *ent) {
     float follow_range;
     bool standing;
 
-    if (!follow_target_is_valid(ent, target)) {
+    if (!follow_target_is_valid(ent, target) ||
+        ent->movement.follow_target_spawn_time != target->spawn_time) {
         ent->movement.follow_target = NULL;
         if (ent->goalentity == target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
@@ -3425,7 +3435,8 @@ void order_follow_resume(edict_t *self) {
         return;
     }
     target = self->movement.follow_target;
-    if (!follow_target_is_valid(self, target)) {
+    if (!follow_target_is_valid(self, target) ||
+        self->movement.follow_target_spawn_time != target->spawn_time) {
         self->movement.follow_target = NULL;
         if (self->goalentity == target) S_SetMoveGoal(self, &self->goalentity, NULL);
         unit_stand(self);
@@ -3457,6 +3468,7 @@ void order_follow(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     self->movement.follow_target = target;
+    self->movement.follow_target_spawn_time = target->spawn_time;
     self->movement.holding_position = false;
     order_follow_resume(self);
 }
@@ -4677,7 +4689,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_DEATH:
         /* Native death retires active Follow heads synchronously, before the
          * next physical-owner update or a replacement target can be created. */
-        S_UnitTargetRemoved(ent); return true;
+        S_UnitTargetRemoved(ent);
+        return true;
     case A_QUEUE_ORDER_START:
         return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
@@ -4765,12 +4778,16 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     }
     case A_TARGET_REMOVED:
-        if (!call || !move_is_following(ent) || ent->movement.follow_target != call->removed_target)
-            return false;
-        move_detach_group(ent); ent->movement.group_id=0;
+        if (!call || ent->movement.follow_target != call->removed_target) return false;
         ent->movement.follow_target = NULL;
-        if (ent->goalentity == call->removed_target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
-        unit_stand(ent);
+        ent->movement.follow_target_spawn_time = 0;
+        /* Attack can temporarily own Smart's task. Retire its Follow parent
+         * without completing the public head or advancing the pending FIFO. */
+        if (move_is_following(ent)) {
+            move_detach_group(ent); ent->movement.group_id=0;
+            if (ent->goalentity == call->removed_target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
+            unit_stand(ent);
+        }
         return true;
     default:
         return false;

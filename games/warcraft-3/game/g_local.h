@@ -2007,6 +2007,7 @@ struct edict_s {
         edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
+        uint32_t follow_target_spawn_time; /* incarnation captured by the Follow owner */
         bool holding_position;
         /* Stop establishes a WC3 guard point. Automatic idle combat may leave
          * that point temporarily, then returns once the combat detour ends. */

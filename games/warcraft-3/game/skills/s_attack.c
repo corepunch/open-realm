@@ -1166,11 +1166,25 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     return any;
 }
 
-BZ_COMMAND_PROC(AbilityAttack) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = attack_menu_selecttarget;
-    clent->client->menu.on_location_selected = attackmove_selectlocation;
-    clent->client->menu.supports_order_queue = true;
+BZ_ABILITY_PROC(CAbilityAttack) {
+    switch (msg) {
+    case A_TARGET_REMOVED: {
+        if (!call) return false;
+        bool handled = CAbilityMove(ent, msg, call) != 0;
+        if (ent->goalentity != call->removed_target) return handled;
+        attack_finish_after_combat(ent, call->removed_target, "target_removed");
+        return true;
+    }
+    case A_COMMAND: {
+        edict_t *clent = call && call->client ? call->client : ent;
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_entity_selected = attack_menu_selecttarget;
+        clent->client->menu.on_location_selected = attackmove_selectlocation;
+        clent->client->menu.supports_order_queue = true;
+        return true;
+    }
+    default: return false;
+    }
 }
 
 static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location) {
