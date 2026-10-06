@@ -2427,6 +2427,32 @@ TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
+TEST(wc3_unit, stoneform_immediate_direction_rejection_preserves_move_and_queue) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    uint32_t const astn = MAKEFOURCC('A','s','t','n');
+    vec2_t destination = {256, 64}, successor = {320, 64};
+    edict_t *unit;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->svflags |= SVF_MONSTER;
+    T_ASSERT(G_ActorAddSkill(unit, astn));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &destination, false, 0, false));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &successor, true, 0, false));
+    T_ASSERT(!unit_issueimmediateorder(unit, "unstoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
+    T_EQ(unit->current_order_id, 851986);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+    T_ASSERT(unit_issueimmediateorder(unit, "stoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(!unit_issueimmediateorder(unit, "stoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(unit_issueimmediateorder(unit, "unstoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
 TEST(wc3_unit, stoneform_command_applies_to_focused_unit_type_subgroup) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
     cstring_t command[] = { "button", "Astn" };

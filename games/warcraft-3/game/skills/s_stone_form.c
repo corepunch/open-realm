@@ -65,9 +65,21 @@ BZ_ABILITY_PROC(CAbilityStoneForm) {
         if (executed) Get_Commands_f(call->client);
         return executed;
     }
-    case A_ORDER:
-        /* Immediate orders use shared cast validation, preserving ownership and cooldown checks. */
-        return false;
+    case A_ORDER: {
+        abilityAliasRef_t ref;
+        uint32_t base, stone;
+        if (!ent || !call || !call->order) return false;
+        ref = S_ResolveAbilityAlias(ent, MAKEFOURCC('A','s','t','n'));
+        if (!ref.alias || !stone_form_types(ref.alias, &base, &stone)) return false;
+        if (!strcmp(call->order, "stoneform")) {
+            if (ent->class_id != base) return false;
+        } else if (!strcmp(call->order, "unstoneform")) {
+            if (ent->class_id != stone) return false;
+        } else return false;
+        /* Registered immediate owners also own rejection. Validate direction
+         * before the shared cast commits mana, cooldown and order cleanup. */
+        return S_CastNoTargetSpell(ent, ref.alias);
+    }
     case A_VALIDATE:
         return stone_form_can_transform(ent, code);
     case A_EXECUTE:
