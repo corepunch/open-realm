@@ -102,6 +102,15 @@ bool G_ItemUseAbility(edict_t const *item, abilityitem_t *resolved) {
 
     if (!selected.ability) return false;
     *resolved = selected;
+    if (selected.code == MAKEFOURCC('A','I','b','l') || selected.code == MAKEFOURCC('A','I','b','g')) {
+        char item_code[5], ability_code[5], implementation_code[5];
+        memcpy(item_code, &item->class_id, 4); item_code[4] = '\0';
+        memcpy(ability_code, &selected.code, 4); ability_code[4] = '\0';
+        uint32_t implementation = G_AbilityCode(selected.code);
+        memcpy(implementation_code, &implementation, 4); implementation_code[4] = '\0';
+        fprintf(stderr, "WC3_TINY item=%s abilities=\"%s\" selected=%s implementation=%s\n",
+                item_code, abilities, ability_code, implementation_code);
+    }
     return true;
 }
 

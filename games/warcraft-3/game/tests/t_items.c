@@ -2084,6 +2084,67 @@ TEST(wc3_items, pickup_event_detects_arthas_urn) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Stock Blizzard.j creates new loot rather than moving a carried item.
+ * The synthetic MPQ provides only these real BJ wrappers and their native
+ * dependencies; production loads Blizzard.j from the installed game archive. */
+TEST(wc3_items, blizzard_unit_and_widget_drop_item_create_world_loot) {
+    edict_t *unit = NULL, *unit_drop = NULL, *widget_drop = NULL, *item_widget_drop = NULL;
+    uint32_t created = 0;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit source = CreateUnit(Player(0), 'Hpal', 128.0, 128.0, 0.0)\n"
+        "  local item first = UnitDropItem(source, 'spro')\n"
+        "  local item second = WidgetDropItem(source, 'ratf')\n"
+        "  local item third = WidgetDropItem(first, 'rde2')\n"
+        "  call BJassAssert(first != null, \"UnitDropItem failed to create a world item\")\n"
+        "  call BJassAssert(second != null, \"WidgetDropItem failed to create a world item\")\n"
+        "  call BJassAssert(third != null, \"WidgetDropItem rejected an item widget\")\n"
+        "  call BJassAssert(first != second and second != third, \"drops reused a handle\")\n"
+        "  call BJassAssert(GetItemDropID(first) == GetUnitTypeId(source), \"unit drop ID missing\")\n"
+        "  call BJassAssert(GetItemDropID(second) == 0, \"widget drop got a unit drop ID\")\n"
+        "  call BJassAssert(GetItemDropID(third) == 0, \"item widget drop got a unit drop ID\")\n"
+        "  call BJassAssert(GetItemType(first) == ITEM_TYPE_CHARGED, \"itemtype enum equality failed\")\n"
+        "  call BJassAssert(GetItemType(first) == ConvertItemType(1), \"itemtype values need value equality\")\n"
+        "  call BJassAssert(GetItemLevel(first) == 1, \"authored item level lost\")\n"
+        "  call BJassAssert(bj_stockAllowedCharged[1], \"unit drop did not update stock\")\n"
+        "  call BJassAssert(not bj_stockAllowedPermanent[1], \"widget drop updated stock\")\n"
+        "  call BJassAssert(GetItemX(first) >= 96.0 and GetItemX(first) <= 160.0, \"unit drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(first) >= 96.0 and GetItemY(first) <= 160.0, \"unit drop Y out of range\")\n"
+        "  call BJassAssert(GetItemX(second) >= 96.0 and GetItemX(second) <= 160.0, \"widget drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(second) >= 96.0 and GetItemY(second) <= 160.0, \"widget drop Y out of range\")\n"
+        "  call BJassAssert(GetItemX(third) >= GetItemX(first)-32.0 and GetItemX(third) <= GetItemX(first)+32.0, \"item-widget drop X out of range\")\n"
+        "  call BJassAssert(GetItemY(third) >= GetItemY(first)-32.0 and GetItemY(third) <= GetItemY(first)+32.0, \"item-widget drop Y out of range\")\n"
+        "  call BJassAssert(UnitDropItem(source, -1) == null, \"unit sentinel should return null\")\n"
+        "  call BJassAssert(WidgetDropItem(source, -1) == null, \"widget sentinel should return null\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (!ent->inuse) continue;
+        if (ent->class_id == MAKEFOURCC('H','p','a','l')) unit = ent;
+        if (ent->class_id == MAKEFOURCC('s','p','r','o')) unit_drop = ent;
+        if (ent->class_id == MAKEFOURCC('r','a','t','f')) widget_drop = ent;
+        if (ent->class_id == MAKEFOURCC('r','d','e','2')) item_widget_drop = ent;
+        if (G_IsItem(ent)) created++;
+    }
+    T_NOT_NULL(unit);
+    T_NOT_NULL(unit_drop);
+    T_NOT_NULL(widget_drop);
+    T_NOT_NULL(item_widget_drop);
+    T_EQ(created, 3);
+    if (unit_drop && widget_drop && item_widget_drop) {
+        T_ASSERT(unit_drop->item->in_world && widget_drop->item->in_world && item_widget_drop->item->in_world);
+        T_NULL(unit_drop->item->carrier);
+        T_NULL(widget_drop->item->carrier);
+        T_NULL(item_widget_drop->item->carrier);
+        T_EQ(unit_drop->item->drop_id, MAKEFOURCC('H','p','a','l'));
+        T_EQ(widget_drop->item->drop_id, 0);
+        T_EQ(item_widget_drop->item->drop_id, 0);
+    }
+}
+
 TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
     edict_t *item = NULL;
     edict_t *unit;

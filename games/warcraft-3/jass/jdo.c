@@ -230,7 +230,7 @@ static bool jass_valuehandle(cstring_t type) {
         "dialogevent", "unitevent", "limitop", "unittype", "gamespeed", "placement", "startlocprio",
         "gamedifficulty", "aidifficulty", "gametype", "mapflag", "mapvisibility", "mapsetting", "mapdensity", "mapcontrol",
         "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
-        "texmapflags", "fogstate", "effecttype"
+        "texmapflags", "fogstate", "effecttype", "itemtype"
     };
     FOR_LOOP(i, sizeof(value_handles) / sizeof(value_handles[0])) if (!strcmp(type, value_handles[i])) return true;
     return false;

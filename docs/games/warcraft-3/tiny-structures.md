@@ -18,6 +18,12 @@ Human Town Hall endpoint to the owner's race; that rule does not apply to
 `AIbl` or the other Tiny Structures. It applies only to stock `htow`/`ogre`
 endpoints, and an explicit map `UnitID` override takes precedence.
 
+Runtime diagnostics prefixed `WC3_TINY` on stderr report the item's authored
+ability list and selected alias, the ability's authored endpoint and
+race-adjusted result, and the requested versus spawned unit rawcode. These
+records distinguish alias selection from object-data resolution or spawn
+problems.
+
 The stock endpoints checked in TFT `AbilityData.slk` are:
 
 | Ability | Stock endpoint |

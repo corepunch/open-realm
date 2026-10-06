@@ -24,6 +24,38 @@ For a carried item, the carrier's matching inventory slot must point back to
 the item. `G_AddItemToSlot`, `G_PickupItem`, `G_DropItemAt`, `G_DropItem`, and
 `G_RemoveItem` own the world/inventory relationship.
 
+## Blizzard.j Item Drop Helpers
+
+`UnitDropItem(unit, itemId)` and `WidgetDropItem(widget, itemId)` are **Blizzard.j
+script functions**, not the native `UnitDropItemPoint` inventory operation. OpenRealm
+loads the retail `Scripts\Blizzard.j` before the map script, so no separate C
+implementation or additional game-owned loot store is needed.
+
+- Both return `null` for item ID `-1`. Otherwise they roll independent
+  `GetRandomReal(position - 32, position + 32)` values for X and Y, call
+  `CreateItem`, and return the *new* world item. They do not remove or transfer
+  an item from inventory and do not trigger item-acquisition or -drop events.
+- `UnitDropItem` additionally sets `SetItemDropID(newItem, GetUnitTypeId(unit))`
+  and invokes `UpdateStockAvailability(newItem)`. That BJ helper compares the
+  authored `GetItemType` value against `ITEM_TYPE_PERMANENT`, `ITEM_TYPE_CHARGED`,
+  and `ITEM_TYPE_ARTIFACT` and enables the corresponding `bj_stockAllowed*`
+  array index using `GetItemLevel`.
+- `WidgetDropItem` intentionally does **not** set drop ID or update stock.
+  Its position getters accept units, destructables, and items as widgets,
+  including dying source widgets that remain accessible during death triggers.
+- `itemtype` is an enum-style JASS handle: distinct native handles with the
+  same itemtype value must compare equal. This is required for
+  `UpdateStockAvailability` to work; arbitrary entity/widget handles retain
+  identity-based comparisons.
+
+The synthetic test archive contains minimal matching Blizzard.j wrappers only
+for executable regression coverage; production behavior continues to use the
+installed game's Blizzard.j. `wc3_items.blizzard_unit_and_widget_drop_item_create_world_loot`
+checks offsets, handle separation, the `-1` sentinel, the unit-only drop ID,
+stock eligibility and creation without inventory occupancy. Destructable
+loot-trigger integration and source-lifetime edge cases remain separately
+subject to map/runtime coverage; these wrappers do not force pathable drops.
+
 ## Inventory Capability And Capacity
 
 Inventory is ability-defined, not hero-defined. `G_InventoryCapacity` scans the
