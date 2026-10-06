@@ -124,6 +124,10 @@ TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
     T_EQ(G_UnitStatusLevel(fix.flyer, BZ_BENG), 0);
     T_ASSERT(S_UnitIsEnsnared(fix.flyer));
     T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    /*6877b0 changes the fine profile without republishing movement class. */
+    T_EQ(M_UnitStaticPathingFlags(fix.flyer),2);
+    T_EQ(S_UnitMoveCategory(fix.flyer),0xca);
+    T_EQ(S_UnitMoveCoarseMask(fix.flyer),4);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
     T_ASSERT(fix.flyer->s.origin.z < 179.0f);
 
@@ -152,6 +156,10 @@ TEST(wc3_spell, ensnare_expiry_restores_flyer) {
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
+    /*6877b0 changes the fine profile without republishing movement class. */
+    T_EQ(M_UnitStaticPathingFlags(fix.flyer),2);
+    T_EQ(S_UnitMoveCategory(fix.flyer),0xca);
+    T_EQ(S_UnitMoveCoarseMask(fix.flyer),4);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
 
     level.time += 7000; unit_updatestatuses(fix.flyer);

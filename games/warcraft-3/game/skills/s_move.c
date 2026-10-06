@@ -93,8 +93,6 @@ typedef enum {
     MOVE_IGNORE_UNITS,
 } moveCollisionPolicy_t;
 
-/* UnitData movetp values that name a movement type; anything else (retail authors "_") is movement-disabled. */
-static cstring_t const move_type_names[] = { "foot", "horse", "fly", "hover", "float", "amph" };
 typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
 static moveRepulseQuery_t *repulse_query;
 static edict_t *trymove_self = NULL;
@@ -821,10 +819,7 @@ static bool unit_is_flying(edict_t const *ent) {
 }
 
 static unitMovementType_t move_type_from_name(cstring_t name) {
-    if (!name || !*name) return UNIT_MOVE_UNSPECIFIED;
-    FOR_LOOP(i, sizeof(move_type_names) / sizeof(*move_type_names))
-        if (!strcmp(name, move_type_names[i])) return (unitMovementType_t)(UNIT_MOVE_FOOT + i);
-    return UNIT_MOVE_DISABLED;
+    return wc3_movement_parse(name);
 }
 
 void S_CompileMovementData(UnitData_t *data) {
@@ -843,16 +838,40 @@ unitMovementType_t S_UnitMovementType(UnitData_t const *data) {
 
 uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
     if (unit_is_flying(ent)) return CM_PATHING_UNFLYABLE;
-    unitMovementType_t type = S_UnitMovementType(ent ? ent->data.UnitData : NULL);
-    if (type == UNIT_MOVE_FLOAT) return CM_PATHING_UNFLOATABLE;
-    if (type == UNIT_MOVE_AMPH) return CM_PATHING_UNAMPHIBIOUS;
-    return CM_PATHING_UNWALKABLE;
+    if(ent && ent->movement.captain_actor_type)return CM_PATHING_UNWALKABLE;
+    wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent ? ent->data.UnitData : NULL);
+    /* Forced-ground producers change the fine profile, retaining the
+     * authored/coarse class. The physical layer is already ability-owned. */
+    return profile->support==WC3_SUPPORT_FLIGHT ? wc3_movement_profiles[UNIT_MOVE_FOOT].query : profile->query;
 }
 
-/* Missing/empty movetp is a partial row, not the authored disabled category.
- * Buildings and scenery normally author "_" and retain their requested pose. */
+wc3MovementProfile_t const *S_UnitMovementProfile(UnitData_t const *data) {
+    return wc3_movement_profile(S_UnitMovementType(data));
+}
+
+uint8_t S_UnitMoveCategory(edict_t const *ent) {
+    if(!ent || unit_is_flying(ent))return 0;
+    if(ent->movement.captain_actor_type)return 2;
+    wc3MovementProfile_t const *profile=S_UnitMovementProfile(ent->data.UnitData);
+    return profile->support==WC3_SUPPORT_FLIGHT ? wc3_movement_profiles[UNIT_MOVE_FOOT].category : profile->category;
+}
+
+uint8_t S_UnitMoveCoarseMask(edict_t const *ent) {
+    if(ent && ent->movement.captain_actor_type)
+        return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
+    return wc3_movement_coarse_mask(S_UnitMovementProfile(ent ? ent->data.UnitData : NULL)->path_class);
+}
+
+/*68a060 constructs the implicit Move owner when the captured authored speed
+ * is nonzero, regardless of movetp.685310/698af0 read and write that owner;
+ * a zero pathing query must not disable a positive-speed unit. The instance
+ * speed and explicit setter flag retain an existing owner when shared defaults
+ * change; allocator-only owners also publish their speed there. Captains own
+ * their independent speed even without a UnitBalance row. */
 bool M_UnitMoveDisabled(edict_t const *ent) {
-    return S_UnitMovementType(ent ? ent->data.UnitData : NULL) == UNIT_MOVE_DISABLED;
+    return ent && !ent->movement.captain_actor_type && ent->data.UnitBalance &&
+        ent->data.UnitBalance->speed==0 && ent->unitinfo.MoveSpeed==0 &&
+        !(ent->unitinfo.move_flags&BZ_UNIT_SPEED_SET);
 }
 
 /* BoxEdicts predicate: solid units/buildings sharing this mover's collision
@@ -917,7 +936,8 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
     if(target && (target->svflags&SVF_MOVE_WAYPOINT))target=NULL;
     return (movePathQuery_t){ .geometry={&self->s.origin2,member ? &member->world_destination : point.point,point.radius,self->no_pathing ? 0 : M_UnitStaticPathingFlags(self)},
         .mover=self,.target=target,
-        .units=units,.fine=fine,.fine_target=member ? &member->destination : NULL };
+        .units=units,.fine=fine,.fine_target=member ? &member->destination : NULL,
+        .coarse_mask=S_UnitMoveCoarseMask(self) };
 }
 
 static bool move_route_line(edict_t *self, moveRoutePoint_t point) {
@@ -2797,10 +2817,10 @@ uint32_t M_RefreshHeatmap(edict_t *self, float radius) {
     return M_RefreshHeatmapForMover(NULL, self, radius);
 }
 
-static bool M_UnitUsesWaterSurface(edict_t const *self, unitMovementType_t type) {
-    if (type == UNIT_MOVE_FLY || type == UNIT_MOVE_HOVER || type == UNIT_MOVE_FLOAT)
+static bool M_UnitUsesWaterSurface(edict_t const *self, wc3MovementProfile_t const *profile) {
+    if (profile->support == WC3_SUPPORT_FLIGHT || profile->support == WC3_SUPPORT_WATER_MAX)
         return true;
-    if (type == UNIT_MOVE_AMPH) {
+    if (profile->support == WC3_SUPPORT_DEEP_WATER) {
         return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
                !CM_TerrainPointIsWalkable(&self->s.origin2);
     }
@@ -2835,7 +2855,7 @@ void M_CheckGround(edict_t *self) {
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float const cell = CM_PathCellWorldSize();
 
-    if (M_UnitUsesWaterSurface(self, type))
+    if (M_UnitUsesWaterSurface(self, wc3_movement_profile(type)))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
     if (!floating) {
@@ -4204,7 +4224,7 @@ static bool move_group_route(moveGroup_t *group) {
     if (shared) group->radius=shared->radius;
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
-        .mover=source,.target=group->target,.units=true,.fine=&fine};
+        .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source)};
     uint32_t revision=group->route.group_revision;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
         if(!group->route.group_admission.waiting)

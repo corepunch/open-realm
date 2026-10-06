@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "127 executable original oracle contracts,121 archive audits and114 strict live contracts;362 total entries.",
+  "scope": "128 executable original oracle contracts,121 archive audits and114 strict live contracts;363 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35884,6 +35884,59 @@
         "Stop recovery and portal inventory retains unresolved virtual calls; no new live reentrancy proof.",
         "Live overlap reference uses a different heavier observer, not an observer-free marker file."
       ]
+    },
+    {
+      "id": "oracle-profiles",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_profiles.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "authored-profile-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "minimum": 617
+        },
+        "live_births": {
+          "equal": 39
+        },
+        "movement_events": {
+          "equal": 362
+        },
+        "research_markers": {
+          "equal": 574
+        },
+        "movement_markers": {
+          "equal": 272
+        },
+        "zero_query_movers": {
+          "equal": 7
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Complete original movement parser, exact bit/profile switch, builder and captured-speed Move-owner gate; compile the production immutable profile table; reconstruct unchanged full BASE freeze and four complete live captures plus both observer-free public controls.",
+      "exclusions": [
+        "Full numerical support/bridge/deep-water refresh fixtures remain MAP-02.2.",
+        "Morph/Burrow/Submerge and other runtime producer evidence does not certify their complete engine integration.",
+        "Public R2S movement witnesses have three-decimal precision; presentation support callback counts do not certify deterministic movement timing."
+      ]
     }
   ],
   "fixtures": [
@@ -35949,7 +36002,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "398eaa7884afc900a97657ef9e606bae083227b9f9e186c01df1d81697532b13"
+      "sha256": "0bbce39cc4645d2b497e42c1460c3a58261b9209a1bfc20d1be6471eef180dbd"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -36782,7 +36835,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "9d0d531a30e72100e1ff5d24f8029fb643cf74580aa8365ff8370d907f9402b7"
+      "sha256": "92c6acd8427bc7feb9c14a9f9faea14840a26b0231e80cac36e302a277167933"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37638,7 +37691,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "675fb8cb7e58c179e00d40df596f5c63205faad94c49203d566ac83849cfe0fa"
+      "sha256": "231df0ad497859ccd279911c42435fb848f9482633d5ed6bffae472487dc3ca4"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -37771,6 +37824,74 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_exclusions.py",
       "sha256": "e966969fb8e82ee023fc53f0c7cc5634c48a6a2f559733ac0e751a510d1adcfd"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_profile.h",
+      "sha256": "2d691ee71f88fd8a001209f720aa37e5d51ea5ab0f76805ca0c4826d5ab46fe4"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_movement_profiles.h",
+      "sha256": "d80954a586f456e8d8509514f7c363dea4076915f6405629f60bdaecda8b33b8"
+    },
+    {
+      "path": "tools/ghidra/wc3_movement_profile_probe.c",
+      "sha256": "547b9d7a553962d91caddb187d0b5e40595289dc338ea03c90161a811b91c276"
+    },
+    {
+      "path": "tools/ghidra/research/verify_base021_movement_types.py",
+      "sha256": "9a4f1533db7c2c1e73bcab8421705a6b69c63345b25faf4391ffaf6a8e93698f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/BASE-02.1-expected.json",
+      "sha256": "32ee710114a0f3d3e51bd1ad200c0d13e9006c380c4181fd31cfc43633c4b3d5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-profile-inputs-1.27.json.gz",
+      "sha256": "79dbc4980884dbc734eb5a043efd0bd940bfa269a505087c76bb97dbdb602eab"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-profile-ghidra-1.27.json",
+      "sha256": "6bf1954269c4fe9098202b416bf5daeda62fa44fcb9f9a4057bd651b9fcb39a5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-profile-types-1.27.json",
+      "sha256": "d6dded8665ac893ee8c9582ecf10c5172c139bf12ddb6e68fb14c41813b08f81"
+    },
+    {
+      "path": "tools/frida/control_wc3_movement_profiles.py",
+      "sha256": "d7ac80364fc11411ad8a944683795de59f38c04b43f1a689d91c7a8a5c741c11"
+    },
+    {
+      "path": "tools/frida/make_wc3_movement_profile_map.py",
+      "sha256": "fc44561d2fc4c00bae040d5bff907bee65ad331e56994f71182f93e4250a3989"
+    },
+    {
+      "path": "tools/frida/wc3_movement_profile_probe.j",
+      "sha256": "4a12c1ad215b12230da00b80f3c41dbbd932fe1af9ae62b65779686f231b13d4"
+    },
+    {
+      "path": "tools/frida/research/base021_freeze_expected.py",
+      "sha256": "8a7f6f0f526563def648f6c58d733bcf73e70095acb63ce84f34ce92376d9edf"
+    },
+    {
+      "path": "tools/frida/research/base021_make_map.py",
+      "sha256": "32bdb94a00388614932f2e8e0cb4a75d92b42ffc2b0e6e60cb1466e1ce3a67be"
+    },
+    {
+      "path": "tools/frida/research/base021_observer.js",
+      "sha256": "e2d7ef1868a82abfc1f4f22a199feaa58e4035773298e419a1e6bb5987ba81b7"
+    },
+    {
+      "path": "tools/frida/research/base021_probe.j",
+      "sha256": "780b5652584a9c2c36c1f2fa440e1d88ae2bad2f7526fb45547ebe3f7550e5af"
+    },
+    {
+      "path": "tools/frida/research/base021_trace.py",
+      "sha256": "0a4a1c25c6f68456a74faf53a86ff22f9eacd65d9fc9bc1b6125c5a3aeb324dc"
+    },
+    {
+      "path": "tools/frida/research/verify_base021_types_trace.py",
+      "sha256": "97f9a8f98f917254bd2b951c6d009cce6a880f8d9ba5f1c30fdc2501c51e0565"
     }
   ]
 }

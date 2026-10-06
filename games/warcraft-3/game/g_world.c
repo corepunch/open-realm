@@ -148,7 +148,7 @@ static bool entity_is_live_walkable_surface(edict_t const *ent) {
 static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; return 0xc2; }
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
     /* Query masks describe the mover; occupancy describes the encountered unit. */
-    return !ent || M_UnitMoveDisabled(ent) || (ent->aiflags & AI_FLYING) ? 0 : 0xca;
+    return S_UnitMoveCategory(ent);
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
@@ -635,13 +635,13 @@ static vec2_t move_object_point(edict_t const *ent) {
         wc3_mul(ent->movement.fine_pose.y,geometry->native_scale.y)};
 }
 
-/* TODO: the complete authored category table is BASE-02. This game adapter
- * uses the observed foot/horse/hover/float/amph categoryca;
- * flyers and disabled rows publish0. Buildings/destructables already own static footprints. */
+/* Authored fine publication is independent of the optional Move ability.
+ * Category-zero owners retain rectangles; buildings/destructables use their
+ * separately owned static footprints (BASE-02.2). */
 static bool move_has_spatial_record(edict_t const *ent) {
     if (ent->movement.captain_actor_type) return ent->inuse;
     return !IS_HOLLOW(ent) && ent->data.UnitData && !G_UnitIsStructure(ent) &&
-        !M_UnitMoveDisabled(ent) && ent->collision>0;
+        ent->collision>0;
 }
 
 /* Flight publishes an active fine rectangle with category zero. Spatial
@@ -777,7 +777,7 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
         if(ent==query->mover || (graph->suppress_target && ent==query->target) ||
             !ent->inuse || !move_has_dynamic_occupancy(ent))continue;
         uint32_t mask=graph->flags;mask|=mask<<24;
-        if(!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type?0x01000002:0x010000ca,
+        if(!wc3_fine_object_blocks((wc3FineObject_t){0x01000000u|S_UnitMoveCategory(ent),
             S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
         /* Without a target observer only the boolean rejection is visible.
          * Placement can additionally reuse this entire blocking rectangle. */
@@ -936,7 +936,7 @@ static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t 
  * Item drops retain their separately tracked producer. */
 bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     *out = *requested;
-    if (M_UnitMoveDisabled(unit)) return true;
+    if (!M_UnitStaticPathingFlags(unit)) return true;
     if (!world.map || !world.map->vertices || !pathmap.width || !pathmap.height) {
         fprintf(stderr,"WC3 placement: terrain/pathing data unavailable\n");
         return false;
@@ -964,13 +964,13 @@ static bool move_portal_admit(void const *data,float const *point) {
 
 bool G_FindUnitMovePortalPosition(edict_t *unit,vec2_t const *fine,vec2_t *out) {
     if(!unit || !world.map || !world.map->vertices || !pathmap.width || !pathmap.height)return false;
-    uint8_t mask=M_UnitStaticPathingFlags(unit);unsigned lane=0;
+    uint8_t mask=S_UnitMoveCoarseMask(unit);unsigned lane=0;
     while(lane<4 && move_acc_masks[lane]!=mask)lane++;
     if(lane==4)gi.error("Move portal placement: unsupported movement mask %02x",mask);
     move_acc_prepare();move_acc_enable_gates();
     FOR_LOOP(i,4)move_acc.maps[i].classes=move_acc_classes[lane][i];
     uint32_t cls=wc3_fine_class(unit->collision/pathmap_cell_world_size());
-    movePortalPlacement_t data={.graph={.flags=unit->no_pathing?0:mask,.endpoint=true},
+    movePortalPlacement_t data={.graph={.flags=unit->no_pathing?0:M_UnitStaticPathingFlags(unit),.endpoint=true},
         .source={wc3_mul(fine->x,.5f),wc3_mul(fine->y,.5f)},.size=1u<<(cls>>1)};
     movePathQuery_t objects={.mover=unit,.units=true};move_query_objects(&data.graph,&objects,NULL);
     wc3FinePlacement_t query={.point={fine->x,fine->y},.limit=6,
@@ -1195,7 +1195,9 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const
 /* SetUnitPathing changes the member's fine query, not its authored hierarchy
  * lane or the acquired coarse chain. Fresh local refinement uses query0. */
 static uint8_t move_adaptive_mask(movePathQuery_t const *input) {
-    return input->mover && input->mover->no_pathing ? M_UnitStaticPathingFlags(input->mover) : input->geometry.blocked_flags;
+    if(input->coarse_mask)return input->coarse_mask;
+    if(input->mover && input->mover->no_pathing)return S_UnitMoveCoarseMask(input->mover);
+    return input->geometry.blocked_flags ? input->geometry.blocked_flags : CM_PATHING_UNWALKABLE;
 }
 
 /* Native165f10 checks newly admitted coarse routes before any fine refill.
@@ -1284,7 +1286,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
 
 /* Original16e250 validates an offset with a separate30-attempt distance query, not a member fine route. */
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest) {
-    unsigned lane=0; uint32_t mask=M_UnitStaticPathingFlags(unit);
+    unsigned lane=0; uint32_t mask=S_UnitMoveCoarseMask(unit);
     while (lane<4 && move_acc_masks[lane]!=mask) lane++;
     if (lane==4) gi.error("Move formation: unsupported movement mask %02x",mask);
     move_acc_prepare();
@@ -1432,7 +1434,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
      * Native category2 captains have radius0 but retain one fine cell. */
     if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
         (object->movement.captain_actor_type || (!IS_HOLLOW(object) && object->data.UnitData &&
-         !G_UnitIsStructure(object) && !M_UnitMoveDisabled(object) && object->collision>0 &&
+         !G_UnitIsStructure(object) && object->collision>0 &&
          !(object->aiflags & AI_FLYING)))) {
         graph.target_links=move_spatial+(object-g_edicts);
         graph.has_target = true;

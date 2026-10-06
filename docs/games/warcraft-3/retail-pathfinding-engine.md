@@ -10735,3 +10735,13 @@ reports reconstruct unchanged; engine regressions cover published rectangles,
 alias/null boundaries and exact/partial/pre-acquire-denial exits. See
 [published rectangle contract and evidence](retail-pathfinding-exclusions.md).
 The broader MAP-04.1/02 tasks remain open.
+
+## Authored movement profiles separate query, occupancy and hierarchy
+
+Payoff131 closes BASE-02.1 with the full authored producer/lane/support-source
+inventory and a shared immutable engine profile table. Zero fine query does not
+disable a positive-speed Move owner; unbuild publishes category08. Member/group,
+portal and formation routing retain independent coarse selection, including
+Ensnare fine grounding with class3 retained. Complete original, compiled C and
+controlled live evidence is retained; numerical support fixtures remain MAP-02.2.
+See [authored profiles](retail-pathfinding-profiles.md).

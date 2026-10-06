@@ -3038,12 +3038,12 @@ void S_SetUnitPaused(edict_t *, bool);
 uint32_t M_RefreshHeatmap(edict_t *, float);
 uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
 uint8_t M_UnitStaticPathingFlags(edict_t const *);
-typedef enum {
-    UNIT_MOVE_UNSPECIFIED, UNIT_MOVE_FOOT, UNIT_MOVE_HORSE, UNIT_MOVE_FLY,
-    UNIT_MOVE_HOVER, UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_DISABLED
-} unitMovementType_t;
+#include "../common/wc3_pathing_profile.h"
 void S_CompileMovementData(UnitData_t *);
 unitMovementType_t S_UnitMovementType(UnitData_t const *);
+wc3MovementProfile_t const *S_UnitMovementProfile(UnitData_t const *);
+uint8_t S_UnitMoveCategory(edict_t const *);
+uint8_t S_UnitMoveCoarseMask(edict_t const *);
 bool M_UnitMoveDisabled(edict_t const *);
 bool M_IsDead(edict_t const *);
 void SP_SpawnUnit(edict_t *);
@@ -3151,6 +3151,7 @@ typedef struct {
     bool units;
     vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
     vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
+    uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
 } movePathQuery_t;
 void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);

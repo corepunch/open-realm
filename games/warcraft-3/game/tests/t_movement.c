@@ -15467,7 +15467,7 @@ TEST(wc3_movement, prepared_movement_categories_preserve_live_row_semantics) {
     cstring_t names[] = {NULL, "", "foot", "horse", "fly", "hover", "float", "amph", "_", "FOOT", "custom"};
     unitMovementType_t types[] = {UNIT_MOVE_UNSPECIFIED, UNIT_MOVE_UNSPECIFIED,
         UNIT_MOVE_FOOT, UNIT_MOVE_HORSE, UNIT_MOVE_FLY, UNIT_MOVE_HOVER,
-        UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_DISABLED, UNIT_MOVE_DISABLED, UNIT_MOVE_DISABLED};
+        UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_NONE, UNIT_MOVE_FOOT, UNIT_MOVE_NONE};
     FOR_LOOP(i, sizeof(names) / sizeof(*names)) {
         UnitData_t data = {.moveTypeName = names[i]};
         edict_t unit = {.data.UnitData = &data};
@@ -15477,7 +15477,7 @@ TEST(wc3_movement, prepared_movement_categories_preserve_live_row_semantics) {
         S_CompileMovementData(&data);
         T_EQ(S_UnitMovementType(&data), old);
         T_EQ(M_UnitStaticPathingFlags(&unit), flags);
-        T_EQ(M_UnitMoveDisabled(&unit), old == UNIT_MOVE_DISABLED);
+        T_ASSERT(!M_UnitMoveDisabled(&unit));
         /* A live rebind must not use the classification of the earlier name. */
         data.moveTypeName = "amph";
         T_EQ(S_UnitMovementType(&data), UNIT_MOVE_AMPH);

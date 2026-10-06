@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**223 done / 336 tasks; 113 remaining.**
+**224 done / 336 tasks; 112 remaining.**
+
+Payoff131 closes BASE-02.1: the complete authored movement-profile table now
+feeds Move query/category and independent hierarchy selection. Positive-speed
+zero-query units move; unbuild publishes category08. Full original, compiled C
+and repeated/control live evidence is retained. See
+[authored movement profiles](retail-pathfinding-profiles.md).
 
 Payoff130 corrects coarse exclusion to use published fine rectangles, including
 category-zero flying targets, and consolidates ordered search/restoration. Full
@@ -442,7 +448,7 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 
 ### BASE-02 — Supported input inventory
 
-- [ ] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface.
+- [x] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface. Payoff131: complete original parser/builder/class table and support-source inventory, immutable engine profile integration, native birth/movement and Ensnare regressions; [evidence](retail-pathfinding-profiles.md). Numerical support fixtures remain MAP-02.2. Research handoff: [BASE-02.1](retail-pathfinding-handoffs/BASE-02.1/HANDOFF.md).
 - [ ] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer.
 - [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
 - [x] **BASE-02.4** Capture stock foot/horse/hover/fly/float/amph/disabled profiles and port their terrain/object masks. Seven public CreateUnit types publish14 paired getter/mask rows; float40/amph80 now reach engine Move validation, routes and command destinations. Original WPM256-byte outputs match C, including02+40 ->80; original widgetc2 now blocks all ground lanes and releases correctly. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries). Full authored parsing and support transitions remain02.1.

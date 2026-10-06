@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **353 entries**: **54** distinct original-code oracle
-scripts plus **67** declared variants, **121** archived JSONL audits and **111**
+The inventory now has **363 entries**: **61** distinct original-code oracle
+scripts plus **67** declared variants, **121** archived JSONL audits and **114**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1965,3 +1965,12 @@ isolated owner's allocation count. See [engine integration](retail-pathfinding-e
 Inventory is361 entries (126 original-oracle contracts,121 archive audits,
 114 live contracts),455 pinned inputs. No new live scene was run; the portable
 bundle preserves the handoff's complete captures and control markers.
+
+## Authored movement profiles
+
+Payoff131 adds the complete original movement parser/profile builder and
+compiled production table, plus the native captured-speed Move-owner gate.
+Four full live captures and two observer-free controls retain39 births and
+574/272 public markers, including positive-speed zero-query movement. The
+full research freeze is reconstructed byte-identically; numerical support
+fixtures remain MAP-02.2. See [authored profiles](retail-pathfinding-profiles.md).

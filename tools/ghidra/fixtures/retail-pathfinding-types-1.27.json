@@ -9887,7 +9887,8 @@
           "type": "u32",
           "storage": "ECX"
         }
-      ]
+      ],
+      "convention": "__fastcall"
     },
     {
       "address": "6f05c6f0",
