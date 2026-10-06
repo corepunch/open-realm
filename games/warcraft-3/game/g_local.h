@@ -275,6 +275,7 @@ typedef struct {
     uint32_t ability_item_spawn_time;
     bool supports_order_queue; /* active target mode accepts Shift chaining */
     bool order_queued;         /* transient modifier for the current target callback */
+    bool order_alt;            /* physical Alt modifier; interpreted by the owning ability */
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     bool ability_off;          /* command-card separate-off variant selected for this dispatch */
     edict_t *dragged_item;      /* transient inventory item carried by the cursor for a drop order */
@@ -847,7 +848,7 @@ typedef enum {
 typedef struct {
     struct { edict_t *unit; uint32_t spawn; } units[BZ_WC3_GROUP_ORDER_UNITS];
     uint32_t count, order_id, issuer_player;
-    bool queued;
+    bool queued, formation_toggle;
     cstring_t order;
     vec2_t const *point;
 } groupPointOrder_t;

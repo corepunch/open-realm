@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**201 done / 336 tasks; 135 remaining.**
+**202 done / 336 tasks; 134 remaining.**
+
+Payoff109 closes FORM-03.1: four actual ordinary/Alt input captures reproduce
+one complete mixed-rank formation owner tick, and all456 scalar stages match
+in the engine. Move now runs the recovered ordinary projected classifier and
+held-member stop path; physical UI policy survives admission/save. Ghidra and
+MapPathfinding.java are saved. FORM-01.3 remains open for the wider producers.
+See [actual UI formation policy](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).
 
 Payoff108 closes FORM-01.2: repeated public mixed-rank creation and Chaos
 prove installed mover ranks and ordered layout buckets. Move now owns/saves
@@ -916,7 +923,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 ### FORM-03 — Layout-to-motion chain
 
-- [ ] **FORM-03.1** Compose refresh, adaptive destination query, held-member classification, all decisions and commit in one unblocked group tick; assert intermediate offsets and speeds.
+- [x] **FORM-03.1** Compose refresh, adaptive destination query, held-member classification, all decisions and commit in one unblocked group tick; assert intermediate offsets and speeds. **Payoff109:** four actual ordinary/Alt six-member ticks match all456 native scalar stage words; engine now classifies ordinary mixed ranks and executes the held stop/turn path. See [evidence and scope](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).
 - [ ] **FORM-03.2** Repeat with one blocked offset and with cached versus fresh routes; assert held/released members and fallback destination.
 
 ### FORM-04 — Regroup triggers

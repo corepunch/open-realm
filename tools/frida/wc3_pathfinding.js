@@ -1524,6 +1524,10 @@ function install(module) {
                     moverFlags:mover.add(0xd8).readU32()};})};
     };
     if(config.profileEvents) {
+        for(const [rva,mask] of [[0x16d7e0,0x20],[0x16dc50,2],[0x16dcb0,4],[0x16dc70,8],[0x16dc90,0x10]])hook(rva,{
+            onEnter(args){this.observe=formationRankScenario;if(this.observe){this.request=this.context.ecx;this.row={request:this.request.toString(),identity:ints(this.request.add(0x14),2),mask,enabled:args[0].toUInt32(),before:this.request.add(0x100).readU32(),caller:this.returnAddress.sub(base).toUInt32()};}},
+            onLeave(){if(this.observe){bump('formation-policy-set');emit('formation-policy-set',{...this.row,after:this.request.add(0x100).readU32()});}}
+        });
         hook(0x680430,{onEnter(){this.observe=formationRankScenario;if(this.observe)this.rawcode=this.context.ecx.toUInt32();},
             onLeave(result){if(this.observe){bump('formation-authored-rank');emit('formation-authored-rank',{rawcode:this.rawcode,rank:result.toUInt32()});}}});
         hook(0x171070,{onEnter(args){this.observe=formationRankScenario;if(this.observe){this.mover=this.context.ecx;
@@ -2104,7 +2108,7 @@ function install(module) {
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
-            if(value.includes('label=start_formation_ranks ')){formationRankScenario=true;pairScenario=true;}
+            if((value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

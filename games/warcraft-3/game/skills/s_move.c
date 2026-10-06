@@ -3904,12 +3904,15 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*request->point; group->age=UINT32_MAX;
+    /* Native89caf0 sets canonical2/4/8 from packet10;16bdb0 copies
+     * them to the physical owner before its first tick. */
+    group->flags=request->formation_toggle ? 14u : 0;
     if (shared_id) {
         moveShared_t *shared=S_FindMoveShared(shared_id);
         if (!shared) gi.error("Move: missing new shared parameter owner");
         if (shared->references==UINT32_MAX) gi.error("Move: shared parameter reference overflow");
         group->shared_id=shared_id; shared->references++;
-        group->flags=0xd00; /* Captain policy100/800 and extra target-refresh400. */
+        group->flags|=0xd00; /* Captain policy100/800 and extra target-refresh400. */
     }
     bool any=false;
     FOR_LOOP(i,request->count) {
@@ -4020,6 +4023,54 @@ void S_SetMoveFormationRank(edict_t *unit, uint32_t rank) {
     unit->movement.formation_rank=rank&15u;
 }
 
+/* Original16b2f0 projects predicted positions, not formation offsets.
+ * Cohorts have at most twelve rows: fixed scratch storage and the native
+ * strict comparisons and minimum-to-tail swaps also retain the native tie behavior. */
+static void move_group_classify(moveGroup_t *group) {
+    /* Equal ranks cannot exceed the running rank minimum or encounter a
+     * lower-ranked peer. Skip pure scalar projection/sorting for this common
+     * case, independently of positions, radii and arrived-member flags. */
+    uint32_t rank=group->members[0].unit->movement.formation_rank;
+    bool mixed=false;
+    for(uint32_t i=1;i<group->count;i++) {
+        if(group->members[i].unit->movement.formation_rank!=rank) {mixed=true;break;}
+    }
+    if(!mixed)return;
+    struct { float lower, upper; uint32_t member; } intervals[BZ_WC3_GROUP_ORDER_UNITS];
+    float sine,cosine;
+    wc3_sincos(wc3_float(wc3_float_bits(group->heading)^0x80000000u),&sine,&cosine);
+    FOR_LOOP(i,group->count) {
+        edict_t *unit=group->members[i].unit;wc3GridPose_t pose;
+        unit_predicted_pose(unit,&pose);
+        float position=wc3_sub(wc3_mul(pose.grid[0],cosine),wc3_mul(pose.grid[1],sine));
+        float radius=wc3_add(wc3_div(unit->collision,32),1);
+        intervals[i]=(typeof(intervals[0])){wc3_sub(position,radius),wc3_add(position,radius),i};
+    }
+    for(uint32_t tail=group->count;tail>1;) {
+        tail--;uint32_t minimum=tail;
+        for(uint32_t i=tail;i>0;) {
+            i--;if(intervals[i].lower<intervals[minimum].lower)minimum=i;
+        }
+        if(minimum!=tail) {
+            typeof(intervals[0]) swap=intervals[tail];intervals[tail]=intervals[minimum];intervals[minimum]=swap;
+        }
+    }
+    uint32_t rank_limit=16;
+    for(uint32_t i=group->count;i>0;) {
+        i--;moveGroupMember_t *member=group->members+intervals[i].member;
+        if(member->flags&0x10000)continue;
+        uint32_t rank=member->unit->movement.formation_rank;
+        if(rank>rank_limit) {member->flags|=0x200000;continue;}
+        rank_limit=rank;
+        for(uint32_t j=i;j>0 && !(member->flags&0x200000);) {
+            j--;if(!(intervals[j].lower<intervals[i].upper))break;
+            moveGroupMember_t const *other=group->members+intervals[j].member;
+            if(!(other->flags&0x10000) && other->unit->movement.formation_rank<rank)
+                member->flags|=0x200000;
+        }
+    }
+}
+
 static bool move_group_route(moveGroup_t *group) {
     wc3GridPose_t pose;
     edict_t *source=move_group_source(group,&pose); if (!source) return false;
@@ -4111,11 +4162,19 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
         return;
     }
     member->arrived=wc3_arrival_update(&arrival); member->in_range=arrival.in_range;
-    member->flags&=~0x200000u;
     float old_angle=unit->s.angle;
     if (member->arrived) {
         member->flags|=0x10000; member->forced_arrival=false;
         member->speed=0; member->heading=old_angle;
+        return;
+    }
+    if (member->flags&0x200000) {
+        /* Original16fd90 turns a held member with stop1 and cancels its
+         * pending scheduler records; it does not run a fresh local route. */
+        float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
+        unit_turn_toward(unit,wc3_vector_heading(x,y));
+        member->speed=0;member->heading=unit->s.angle;unit->s.angle=old_angle;
+        move_unlink_requests(unit);
         return;
     }
     if (wc3_yield_advance(&unit->movement.wait_delay,false)) {
@@ -4258,7 +4317,7 @@ static void move_run_group_updates(void) {
         if (move_test_group_route) move_test_group_route(group,NULL);
 #endif
         FOR_LOOP(i,group->count) group->members[i].flags&=~0x200000u;
-        if (group->shared_id && group->count>1 && !(group->flags&0x200)) {
+        if (group->count>1 && !(group->flags&0x200)) {
             if (!group->cooldown && !(group->flags&2)) {
                 /* Original169b00 denies projected classification for adjusted,
                  * forced or special members and partial member paths. The
@@ -4266,6 +4325,7 @@ static void move_run_group_updates(void) {
                  * mover01000000 and nonzero projected priority producers. */
                 FOR_LOOP(i,group->count) if ((group->members[i].flags&0xe0000) ||
                     group->members[i].unit->movement.fine_route.partial) {group->cooldown=66;break;}
+                if (!group->cooldown) move_group_classify(group);
             }
             /* Original16c630 keeps peers eligible after65 ticks, even when
              * their current requested speed is zero. */
@@ -4386,7 +4446,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             if (G_UnitHasActiveOrder(units[i]) || units[i]->order_queue.count) idle=false;
         }
         if (ground) {
-            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.issuer_player=clent->client->ps.number};
+            groupPointOrder_t request={.count=num_units,.order_id=G_OrderId("move"),.order="move",.point=location,.queued=queued && !idle,.formation_toggle=clent->client->menu.order_alt,.issuer_player=clent->client->ps.number};
             FOR_LOOP(i,num_units) request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
             bool accepted=G_IssueGroupPointOrder(&request);
             if (accepted) G_SendPointConfirmation(clent,location,false);

@@ -9065,3 +9065,98 @@ with `verify_wc3_formation_rank_trace.py CAPTURE --repeat REPEAT --output REPORT
 `runtime/formation-ranks-108-d.jsonl` and `runtime/formation-ranks-108-e.jsonl`
 under the pinned1.27 evidence root. Earlier108a omitted its custom ability and
 was discarded;108b/c were diagnostic captures preceding the centering probes.
+
+## Ordinary and Alt formation ticks retain the actual UI policy
+
+Payoff109 closes FORM-03.1 by composing layout refresh, per-member destination
+admission, projected held-member classification, all decisions and velocity
+commits in one real, unblocked six-member owner tick. The engine previously
+skipped projected classification for ordinary groups and cleared the held bit
+inside each member decision. This was observable with mixed authored ranks:
+ordinary members incorrectly behaved like a formation-bypass order.
+
+The original `formation_policy` map creates six Footman clones, with installed
+ranks `0/1/2/3/0/1`, collision31 and speeds150/150/150/350/350/350. A reviewed
+owned Winelib helper presses Move and clicks client pixel560/230 at producer
+sample30, optionally holding Alt. These are OS inputs; the Frida observer
+never invokes a game function or edits game memory. Four independent captures
+(a/c ordinary, b/d Alt) finish all120 public samples and a terminal footer.
+Their absolute admission clocks differ. Only the first complete owner tick
+is asserted to repeat: every layout offset, admitted member destination,
+held/eligible flag, speed, heading, velocity and committed scalar matches.
+The engine uses each capture's exact input and commit clock words, with no
+subtraction, rounding or observer-provided decisions.
+
+| Original stage | Contract recovered and consumed in Move |
+|---|---|
+| `6b9f70` point dispatcher | Ordinary packet8; Alt packet18 (hex). Alt additionally prepares a third canonical request. |
+| `89caf0` options wrapper | Packet10 Boolean calls canonical setters `16dc50/16dcb0/16dc70`, in order. False leaves0; true installs2,6,e. |
+| `16bdb0` physical admission | Copies canonical request100 flags into physical group80. |
+| `16b2f0` projected classification | Project predicted positions with negative group heading; expand by fine radius+1; strict backward minimum-to-tail sort, then rank sweep. Ordinary first tick holds rows1/2/3/5. |
+| `16c250` member decisions | Physical bit2 skips classification; temporary exclusion is frozen before every decision. Alt keeps all six moving; ordinary holds four. |
+| `16fd90` held step | Turn toward the member destination with stop1, and unlink the mover's scheduler requests. Preserve member200000 through this decision. |
+| `169b50` / `16c580` commits | Bit8 denies shared speed-cap selection. Ordinary held200000 also denies sharing in this particular tick; requested and actual speeds must be distinguished. |
+
+`move_group_classify` uses fixed twelve-row scratch storage. Its quadratic
+comparison count is bounded by the retail physical cohort limit, and it never
+scans the world or allocates. Equal ranks cannot trigger either hold predicate,
+so uniform cohorts take a linear rank check and skip software trig, projections
+and sorting entirely. This uses a property of the recovered algorithm, not a
+particular unit type. It works from installed ranks and predicted
+positions, not rawcode cases or the six fixture-specific hold outcomes.
+Classification now runs for every eligible ordinary physical group, with the
+existing partial-route/adjusted-member cooldown gate and bit2 bypass. A held
+member turns and cancels local fine/coarse requests instead of performing a
+fresh route query. All member decisions precede all commits.
+
+The universal client reports physical Alt as an optional `alt` token on
+`point` and `smartpoint`, alongside the existing `queue` token. The game
+interprets it only while dispatching the point callback; Move copies the
+result into the accepted group's policy. Direct JASS point orders do not
+synthesize this UI modifier. Save111 clears transient `menu.order_alt` and
+retains the existing serialized physical flags. The ordinary2..12 same-lane
+UI cohort path is covered; larger selections, air/mixed lanes and target
+commands are not certified by these captures.
+
+A fifth completed diagnostic uses Shift+Alt and two actual clicks. Its first
+idle cohort has policye, its first later singleton still has e, and four later
+singleton reconstructions have0. `5faaf0` constructs a fresh request without
+calling `89caf0` or copying the old options. Therefore this chunk does not
+blindly put Alt bits into every queued reconstruction. Queued Alt's original
+request lifetime and full motion equality remain unresolved under FORM-01.3;
+this diagnostic is not claimed as a complete queued replay match.
+
+Spacing bit20 is a separate canonical policy. Its setter `16d7e0` has no
+static code xrefs; scanning the pinned image also found no absolute preferred
+entry pointer. This does not prove complete indirect unreachability. Neither
+ordinary nor Alt inputs call it. `16dc90` writes another independent bit10,
+with static callers at05a65a,05bb6a and89cd99. FORM-01.3 remains open for the
+remaining policy producers; no extra TODOs were created.
+
+Evidence is frozen in `tools/ghidra/fixtures/retail-formation-policy-1.27*`,
+with five filtered stage streams, full source provenance and a Ghidra readback
+of twelve function names/comments/xrefs. The saved Ghidra project and
+`MapPathfinding.java` contain the same evidence. The verifier rejects missing
+producer boundaries, modified source/input hashes, missing option calls,
+changed owner identities and inconsistent layout/decision/commit stages.
+`selected_formation_policy_matches_original_complete_owner_tick` drives real
+construction, selected Move and normal ability owner updates; all456 native
+scalar stage words agree across the four captures. Geometry is checked too.
+`selected_point_retains_formation_toggle_policy` covers actual command dispatch,
+owner updates and saving the policy. The first regression failed3 policy
+assertions; the full-tick reproducer then exposed missing classification.
+Client input round-trips fail before the fix and cover none/Alt/Shift/both.
+Focused Classic/TFT checks run per chunk; this is not another full-repository
+validation checkpoint.
+
+Reproduce the map with `make_wc3_pathfinding_map.py --scenario formation_policy`
+and use `trace_wc3_pathfinding.py --seconds 100 --samples 30000 --profile-events
+--task-events --motion-events --velocity-events --x11-display :94 --continue-at
+65 --continue-after-start 5 --point-click-at 30 --point-click 560 230
+--point-click-sample-ticks --point-input-helper OWNED_HELPER --point-native-key`,
+adding `--point-click-alt` for Alt. Map loading still requires the usual
+`--data`, `--map` and `--output` arguments. The optional queued diagnostic adds
+`--point-click-shift --point-click-extra 40 630 300`. The bounded source
+captures are `runtime/formation-policy-109-a.jsonl` through e under the local
+1.27 analysis report root. Generate the engine oracle with
+`verify_wc3_formation_policy_trace.py A B C D --header OUTPUT`.

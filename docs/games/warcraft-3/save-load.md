@@ -1193,3 +1193,12 @@ rebind or metadata edit alone must not change it. Group layout reads the
 instance value. Writers/loaders reject ranks above15; version109 is rejected
 rather than deriving a historical installed value from the current type row.
 See [mixed-rank evidence](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout).
+
+### Physical Alt point modifier (Save111)
+
+Save111 updates the transient client-menu mapping for `order_alt`; it is
+`F_IGNORE/FIELD_RUNTIME` and is explicitly cleared on restoration. The
+accepted physical group's existing saved flags retain its formation policy.
+No saved queued Alt reconstruction policy is invented: retail's original
+request lifetime and later fresh requests are distinct. Save110 is rejected
+before restoring the world. See [actual UI formation policy](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).

@@ -178,6 +178,13 @@ static bool G_CommandQueueRequested(uint32_t argc, cstring_t argv[], uint32_t fi
     return false;
 }
 
+static bool G_CommandAltRequested(uint32_t argc, cstring_t argv[], uint32_t first_optional) {
+    for (uint32_t i = first_optional; i < argc; i++) {
+        if (!strcmp(argv[i], "alt")) return true;
+    }
+    return false;
+}
+
 static bool G_SelectionListContains(edict_t *const *selection, uint32_t count, edict_t const *ent) {
     FOR_LOOP(i, count) {
         if (selection[i] == ent) return true;
@@ -995,8 +1002,10 @@ CLIENTCOMMAND(Point) {
         bool accepted;
 
         client->menu.order_queued = queued;
+        client->menu.order_alt = G_CommandAltRequested(argc, argv, 3);
         accepted = client->menu.on_location_selected(clent, &loc);
         client->menu.order_queued = false;
+        client->menu.order_alt = false;
         if (accepted && !queued) Get_Commands_f(clent);
     }
 }
@@ -1110,9 +1119,12 @@ CLIENTCOMMAND(SmartPoint) {
      * units, so rally-capable selections do not enter this path. */
     if (non_rally) {
         bool const old_queued = client->menu.order_queued;
+        bool const old_alt = client->menu.order_alt;
         client->menu.order_queued = queued;
+        client->menu.order_alt = G_CommandAltRequested(argc, argv, 3);
         if (move_selectlocation(clent, &loc)) issued = true;
         client->menu.order_queued = old_queued;
+        client->menu.order_alt = old_alt;
     }
     if (rally || issued) {
         G_QueueOrderSound(G_GetMainControllableUnit(client));
