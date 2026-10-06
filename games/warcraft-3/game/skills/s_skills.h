@@ -196,6 +196,7 @@ BZ_ABILITY_PROC(CAbilityMaxLifeMod);
 BZ_ABILITY_PROC(CAbilityExperienceMod);
 BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
+BZ_ABILITY_PROC(CAbilityItemHealAoe);
 BZ_ABILITY_PROC(CAbilityItemGold);
 BZ_ABILITY_PROC(CAbilityItemSpeed);
 BZ_ABILITY_PROC(CAbilityItemSpeedAoe);

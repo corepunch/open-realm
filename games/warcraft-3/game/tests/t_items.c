@@ -581,6 +581,63 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIha\"\nC;Y2;X2;K\"AIha\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"237\"\nC;Y2;X5;K\"80\"\n"
+        "C;Y2;X6;K\"friend,hero,nonhero,ground,air,organic\"\nE\n";
+    static ItemData_t healing_data = { .abilList = "AIha", .powerup = true,
+                                       .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *nearby, *distant, *mechanical, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    nearby = make_item_test_inventory_unit(50, 0);
+    distant = make_item_test_inventory_unit(100, 0);
+    mechanical = make_item_test_inventory_unit(30, 0);
+    picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    nearby->svflags |= SVF_MONSTER;
+    distant->svflags |= SVF_MONSTER;
+    mechanical->svflags |= SVF_MONSTER;
+    picker->targtype = nearby->targtype = distant->targtype = TARG_GROUND;
+    mechanical->targtype = TARG_MECHANICAL;
+    picker->health.value = 25.0f;
+    nearby->health.value = 50.0f;
+    distant->health.value = 25.0f;
+    mechanical->health.value = 25.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('r','h','e','3'), 32, 0);
+    rune->data.ItemData = &healing_data;
+    T_EQ(FindAbilityForCommand("AIha")->proc, CAbilityItemHealAoe);
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->health.value, 100.0f, 0.01f);
+    T_FEQ(nearby->health.value, 100.0f, 0.01f);
+    T_FEQ(distant->health.value, 25.0f, 0.01f);
+    T_FEQ(mechanical->health.value, 25.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* An unwounded group still triggers normal powerup consumption. */
+    picker->health.value = nearby->health.value = 100.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','h','e','3'), 32, 0);
+    rune->data.ItemData = &healing_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X8\n"
