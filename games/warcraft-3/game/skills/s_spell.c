@@ -1017,13 +1017,6 @@ static bool spell_tiny_cursor_show(edict_t *clent, edict_t *caster, uint32_t cod
     building = S_TinyStructureUnitId(caster, code, MAX(1u, S_SpellLevel(caster, code)));
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!building || !G_UnitIsBuilding(building) || !owner) return false;
-    if (code == MAKEFOURCC('A','I','b','l') || code == MAKEFOURCC('A','I','b','g')) {
-        char ability_code[5], building_code[5];
-        memcpy(ability_code, &code, 4); ability_code[4] = '\0';
-        memcpy(building_code, &building, 4); building_code[4] = '\0';
-        fprintf(stderr, "WC3_TINY preview ability=%s building=%s caster=%u\n",
-                ability_code, building_code, (unsigned)caster->s.number);
-    }
     FillUnitData(&cursor, building, "stand");
     cursor.player = caster->s.player;
     G_SetEntityTeamColor(&cursor, owner->ps.color);

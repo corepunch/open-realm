@@ -687,15 +687,14 @@ BZ_ITEM_PROC(AbilityItemChangeTOD) {
  * caller consume the item only after a building has been created. */
 uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t level) {
     uint32_t id = S_SpellUnitId(code, level);
-    uint32_t authored_id = id;
     bool overridden = G_AbilityHasUnitIdOverride(code);
     /* Only the stock AIbg endpoint is race-dependent. The stock AbilityData
-     * row names the Human Town Hall; expand that default (and the historic
-     * Orc-row form) by owner race. Explicit W3A UnitID overrides remain exact.
+     * row names the Human Town Hall; expand only that authored endpoint by
+     * owner race. Explicit W3A UnitID overrides remain exact.
      * AIbl and every other Tiny Structure use their authored UnitID directly. */
     if (code == MAKEFOURCC('A','I','b','g') && caster &&
         !overridden &&
-        (!id || id == MAKEFOURCC('h','t','o','w') || id == MAKEFOURCC('o','g','r','e'))) {
+        id == MAKEFOURCC('h','t','o','w')) {
         gameClient_t const *owner = G_GetPlayerClientByNumber(caster->s.player);
         if (owner) switch (owner->ps.race) {
         case kPlayerRaceHuman: id = MAKEFOURCC('h','t','o','w'); break;
@@ -704,16 +703,6 @@ uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t le
         case kPlayerRaceOrc: id = MAKEFOURCC('o','g','r','e'); break;
         default: break;
         }
-    }
-    if (code == MAKEFOURCC('A','I','b','l') || code == MAKEFOURCC('A','I','b','g')) {
-        gameClient_t const *owner = caster ? G_GetPlayerClientByNumber(caster->s.player) : NULL;
-        char ability_code[5], authored_code[5], result_code[5];
-        memcpy(ability_code, &code, 4); ability_code[4] = '\0';
-        memcpy(authored_code, &authored_id, 4); authored_code[4] = '\0';
-        memcpy(result_code, &id, 4); result_code[4] = '\0';
-        fprintf(stderr, "WC3_TINY resolve ability=%s level=%u authored=%s override=%d race=%d result=%s\n",
-                ability_code, (unsigned)level, authored_code, overridden,
-                owner ? (int)owner->ps.race : -1, result_code);
     }
     return id;
 }
@@ -733,14 +722,6 @@ BZ_ABILITY_PROC(CAbilityTinyStructure) {
     if (msg == A_VALIDATE) return true;
     edict_t *building = SP_SpawnAtLocation(unit_id, ent->s.player, &snapped);
     if (!building) return false;
-    if (code == MAKEFOURCC('A','I','b','l') || code == MAKEFOURCC('A','I','b','g')) {
-        char ability_code[5], requested_code[5], actual_code[5];
-        memcpy(ability_code, &code, 4); ability_code[4] = '\0';
-        memcpy(requested_code, &unit_id, 4); requested_code[4] = '\0';
-        memcpy(actual_code, &building->class_id, 4); actual_code[4] = '\0';
-        fprintf(stderr, "WC3_TINY spawned ability=%s requested=%s actual=%s entity=%u\n",
-                ability_code, requested_code, actual_code, (unsigned)building->s.number);
-    }
     /* A displacement failure is a failed cast: do not consume the item or
      * leave a newly spawned, blocking structure behind. */
     if (!G_DisplaceBuildOccupants(ent, building)) {

@@ -1,14 +1,13 @@
 # Tiny Structures (TFT)
 
-## Item alias selection and building endpoint resolution
+## HumanX01 item data and building endpoint resolution
 
-HumanX01 drops the item rawcode `tgrh`. Its map object data changes the display
-name to **Tiny Castle**, while the retail `ItemData.slk` ability list is
-`AIbg,AIbl`. Both are aliases of the same item-build implementation. OpenRealm
-previously stopped at the first usable item ability, `AIbg`; an Orc owner then
-followed the Great Hall path and got `ogre`. Item activation now resolves
-same-implementation aliases in authored list order and uses the final alias,
-`AIbl`, whose object-data `UnitID` is `hcas`.
+HumanX01 drops the item rawcode `tgrh`. Its `war3map.w3t` entry has no item
+modifications, so the item keeps the loaded `ItemData.slk` display name and
+ability list. In the runtime data inspected for this map, the name is **Tiny
+Great Hall** and the ability list is `AIbg`. That ability's stock endpoint is
+the Human Town Hall (`htow`); this is why the preview and placement are a Town
+Hall. The campaign's “Tiny Castle” hint text does not change the item data.
 
 The placement cursor and cast execution both call `S_TinyStructureUnitId()`,
 so the selected ability rawcode resolves to the same building for preview,
@@ -17,12 +16,6 @@ the active ability rawcode's own level data. Only `AIbg` expands its stock
 Human Town Hall endpoint to the owner's race; that rule does not apply to
 `AIbl` or the other Tiny Structures. It applies only to stock `htow`/`ogre`
 endpoints, and an explicit map `UnitID` override takes precedence.
-
-Runtime diagnostics prefixed `WC3_TINY` on stderr report the item's authored
-ability list and selected alias, the ability's authored endpoint and
-race-adjusted result, and the requested versus spawned unit rawcode. These
-records distinguish alias selection from object-data resolution or spawn
-problems.
 
 The stock endpoints checked in TFT `AbilityData.slk` are:
 
@@ -94,13 +87,12 @@ all of the TFT presentation and targeting behaviour is complete:
 - Check build-on resources (e.g. unusual custom structures), blight and
   placement error messages; specialised worker-build side effects may still
   differ from item placement in custom maps.
-- Verify the Tiny Castle (`tgrh` → `AIbl` → `hcas`) preview and completed
-  construction in `HumanX01.w3x`, along with zero and positive authored
-  durations.
-- Headless regressions cover item alias selection, stock endpoint resolution,
-  racial Great Hall selection, and W3A `UnitID` overrides. A full inventory to
-  placement integration fixture is still needed to assert preview/spawn
-  agreement and item-charge commitment through the live command pipeline.
+- Verify Tiny Structure preview and completed construction in the campaign
+  with actual object data, along with zero and positive authored durations.
+- Headless regressions cover stock endpoint resolution, racial Great Hall
+  selection, and W3A `UnitID` overrides. A full inventory-to-placement
+  integration fixture is still needed to assert preview/spawn agreement and
+  item-charge commitment through the live command pipeline.
 
 ## Code ownership
 
