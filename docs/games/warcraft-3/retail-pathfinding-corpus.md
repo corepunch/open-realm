@@ -1856,3 +1856,19 @@ contracts. Fresh getter/boundary/dispatcher/mutation/release reports pass. Saved
 Ghidra readback and content-addressed observer/map sources accompany the engine's
 full movement/save regressions. NUM-02.9/02.10 close; see
 [callback order, catch-up and retirement](retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).
+
+Payoff119 adds `live-metadata-defend-261006`, `live-metadata-rally-261006` and
+`live-metadata-busy-261006`. Three complete two-repeat public scenes compare
+all210 six-word records and99 movement commits, plus original queue identities,
+modal selectors/flags and interception results. Accepted normal Defend/Rally
+cancel Move; repeated/disabled/unresearched/invalid requests reject before
+admission. The full engine tests include15 saved continuations/245 suffix commits.
+
+Inventory is351 contracts:121 original-code oracles,121 archives and109 live
+contracts. The three new fresh reports and the existing timer-mutation/same-cell
+contracts pass. Frozen captures, strict mutation tests, two partial Ghidra types,
+verified ABI declarations and saved13-function readback accompany the engine
+change. Ordinary native admission is the certified boundary; broader cast and
+Shift/UI timing remain separate. Rally D/E's probe-source omission is recorded
+explicitly with an independent exact map-embedding certificate. See
+[modal admission](retail-pathfinding-engine.md#modal-orders-validate-before-replacing-active-movement).

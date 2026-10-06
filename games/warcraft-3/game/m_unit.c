@@ -525,6 +525,8 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
+    { "defend", 852055, 0 },
+    { "undefend", 852056, 0 },
 
     { "avatar", 852086, MAKEFOURCC('A','H','a','v') },
     { "blizzard", 852089, MAKEFOURCC('A','H','b','z') },
@@ -905,10 +907,9 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
     }
-    /* Rally is producer metadata rather than an interruptible unit behavior. */
+    /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
-        if (!queue) G_ClearUnitOrderQueue(self);
-        return G_SetRallyEntity(self, target);
+        return S_IssueRallyTargetOrder(self,target,queue);
     }
     if (S_GoldMineWorkerIsInside(self)) {
         return false;
@@ -967,11 +968,10 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
-    /* Rally-point changes are metadata and apply immediately even when Shift is down. */
+    /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
-        if (!queue) G_ClearUnitOrderQueue(self);
-        accepted = G_SetRallyPoint(self, point);
+        accepted = S_IssueRallyPointOrder(self,point,queue);
         if (accepted) {
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
@@ -1200,8 +1200,11 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (accepted) {
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-            return true;
         }
+        /* A registered order owner also owns rejection. Falling through to
+         * generic spell execution would turn a rejected direction into a
+         * second, opposite toggle. */
+        return accepted;
     }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);

@@ -3659,6 +3659,42 @@
           "evidence": "Registered native1fd1d0 tail root vtable5c=0557b0; native118 retirement witnesses resolve original agent release."
         }
       ]
+    },
+    {
+      "name": "WC3ModalAbilityPrefix",
+      "length": 52,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Native119 actual Defendb47bd0 and shared modal dispatcher virtual308/318/330/334."
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Complete3fcda0/5ef450/427c50/43a8b0; active80 in repeated public on/off controls."
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "5c7ea0/5f4290 owner30 loads; actual Defend publication."
+        }
+      ]
+    },
+    {
+      "name": "WC3ModalEventPrefix",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 8,
+          "name": "id",
+          "type": "u32",
+          "evidence": "Complete423d20/5ef450/424e80 event selector; native119 event snapshots."
+        }
+      ]
     }
   ],
   "methods": [
@@ -11194,6 +11230,161 @@
         }
       ],
       "convention": "__cdecl"
+    },
+    {
+      "address": "6f3fcda0",
+      "name": "ModalAbility_ValidateToggleDirection",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f423d20",
+      "name": "ModalAbility_DispatchToggleEvent",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:WC3ModalEventPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f5ef450",
+      "name": "Defend_DispatchModalEvent",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:WC3ModalEventPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f5c7ea0",
+      "name": "Defend_ApplyModifiers",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f5f4290",
+      "name": "Defend_RemoveModifiers",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f5d4340",
+      "name": "Defend_ActivateOwner",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f5d4350",
+      "name": "Defend_DeactivateOwner",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f4371a0",
+      "name": "Ability_RejectOrderInterception",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f673e80",
+      "name": "Unit_CancelQueuedOrderSuccessors",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f424e80",
+      "name": "Rally_DispatchPointOrTargetEvent",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:WC3ModalEventPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
     }
   ],
   "globals": [

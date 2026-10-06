@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**211 done / 336 tasks; 125 remaining.**
+**212 done / 336 tasks; 124 remaining.**
+
+Payoff119 closes ORDER-01.14: accepted public Defend/Rally cancel active Move;
+repeated, disabled, unresearched and invalid commands reject before admission.
+Three repeated retail scenes match210 public records and99 engine movement
+commits, including15 saved continuations. Concrete owners handle explicit
+directions, inverse cleanup and queue cancellation. Ghidra evidence is saved.
+See [modal admission](retail-pathfinding-engine.md#modal-orders-validate-before-replacing-active-movement).
 
 Payoff118 closes NUM-02.9/02.10: original callback/rearm order, shared owner
 deadline ties and deferred public timer retirement now drive exact engine Move.
@@ -800,7 +807,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 - [ ] **ORDER-01.11** Trace and integrate Repair current-head admission/approach/work/completion/interruption, Smart repair identity and auto-repair/internal approaches, pending activation, death and save/reuse through s_repair.c and the concrete retail owner. Preserve publisher/callback identity separately.
 - [ ] **ORDER-01.12** Trace and integrate Harvest/return-resource current ownership across each race/resource path, Smart admission, mine/cargo entry, internal approaches, completion/interruption, queued activation, death and save/reuse. Inventory early-return publisher paths explicitly; construction is separately01.16.
 - [ ] **ORDER-01.13** Trace and integrate ability current-head ownership through target/point approaches, execution, channels, instant actions, completion/inverse/interruption, rejection, queued policy, death and save/reuse. Concrete abilities own these transitions; internal order_move must not invent public Move identity. Split by bounded cast family as necessary.
-- [ ] **ORDER-01.14** Trace metadata/toggle interception and integrate preservation/replacement of an existing active user head through concrete owning abilities. Cover busy/idle/rejected actions and queue/save state. The public Defend witness while head0 does not establish preservation of a busy head; start with69b2f0 virtual22c and dispatch bypasses.
+- [x] **ORDER-01.14** Trace metadata/toggle interception and integrate preservation/replacement of an existing active user head through concrete owning abilities. Payoff119: Defend and runtime ARal share original virtual22c's reject body; accepted normal native admission replaces Move and retires the instantaneous head, while repeated/disabled/unresearched/invalid requests preserve busy Move. Three complete two-repeat scenes verify210 public records and99 motion commits; concrete ability owners, queue/save controls and15 saved continuations agree. Other cast families and Shift/UI entry timing retain existing ORDER-01.13/BASE scope. [Evidence](retail-pathfinding-engine.md#modal-orders-validate-before-replacing-active-movement).
 - [x] **ORDER-01.15** Match retail's synchronous healthy active Follow head retirement when public RemoveUnit removes its target, while retaining OpenRealm's deferred edict/event lifetime. Verify both Move/Smart IDs, pending point activation, rejection of queued removed targets, unrelated/repeated removal and already-replaced point orders; prove next-frame cleanup and natural queued arrival. Evidence: [synchronous Follow loss](retail-pathfinding-engine.md#current-follow-and-hold-ownership), isolated failing engine regression followed by Move-owned notification/queued handoff,132 passing checks, repeated public retail tick130 current0 and122/122 strict corpus outcomes. Combat-parent/direct-free/reentrant-generation/save composition is split into01.17; runtime/lifetime producers remain BASE-03.1/TARGET.
 - [ ] **ORDER-01.16** Trace and integrate Build current ownership through each construction race strategy, accepted/queued placement, approach/work, interruption/cancel/refund policy, rejected replacement, death and save/reuse. Resolve the actual public command from the construction owner instead of generic Move or publisher history; split the race matrix into bounded leaves if necessary.
 

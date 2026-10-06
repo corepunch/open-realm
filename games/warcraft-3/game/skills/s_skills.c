@@ -12,6 +12,7 @@ int G_AutocastDebugLevel(void) {
 cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static cstring_t const defend_orders[] = { "defend", "undefend", NULL };
 static cstring_t const move_orders[] = { "move", "smart", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
@@ -129,7 +130,7 @@ static ability_t abilitylist[] = {
     { "Agyb", CAbilityPassive, AB_PASSIVE },  /* Flying Machine Bombs */
     { "Asth", CAbilityPassive, AB_PASSIVE },  /* Storm Hammers */
     { "Agyv", CAbilityTrueSight, AB_PASSIVE },  /* True Sight */
-    { "Adef", CAbilityDefend, AB_SPELL | AB_TOGGLE },  /* Defend */
+    { "Adef", CAbilityDefend, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, defend_orders },  /* Defend */
     { "Afla", CAbilityFlare, AB_SPELL, SPELL_TARGET_POINT },  /* Flare */
     { "Adts", CAbilityMagicSentry, AB_PASSIVE },  /* Magic Sentry */
     { "Ainf", CAbilityInnerFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Inner Fire */

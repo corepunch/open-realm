@@ -178,6 +178,14 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return false;
     case A_VALIDATE:
         return ent && G_IsNight();
+    case A_ORDER: {
+        if (!call || !call->order || strcmp(call->order,"ambush")) return false;
+        /* Both classes expose Hide. The actual unit's authored alias owns
+         * validation/execution, including the Akama acquisition policy. */
+        abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,akama ? ID_AHID : ID_ASHM);
+        if (!ref.alias) ref=S_ResolveAbilityAlias(ent,akama ? ID_ASHM : ID_AHID);
+        return ref.alias && S_CastNoTargetSpell(ent,ref.alias);
+    }
     case A_EXECUTE:
         if (!ent || !G_IsNight()) return false;
         order_stop_cleanup(ent);

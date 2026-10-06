@@ -473,16 +473,61 @@ BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spe
 BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
 BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
+/* Defend's modal selector rejects repeated directions before order admission.
+ * Its virtual22c does not intercept Move: accepted stance changes cancel the
+ * user chain, then retire their instantaneous head to0 (native119). */
+static bool defend_set(edict_t *ent, abilityitem_t const *item, bool enabled) {
+    if (!ent || !item || !item->code ||
+        !G_UnitAbilityResearchAvailable(ent,item->code) || !G_IsUnitAbilityAvailable(ent,item->code) ||
+        human_has_status(ent,item->code) == enabled) return false;
+    order_stop_cleanup(ent);
+    if (!enabled) {
+        uint32_t rank=G_UnitStatusLevel(ent,item->code);
+        human_remove_status(ent,item->code);
+        S_HumanStatusExpired(ent,item->code,rank);
+    } else {
+        if (!S_SpellApplyTimedStatus(ent,GetClassName(item->code),S_SpellLevel(ent,item->code),0))
+            return false;
+        G_AddUnitAnimationProperties(ent,"defend",true);
+        S_UnitAbilityEvent(ent,A_MOVE_PARAMETERS_CHANGED);
+    }
+    G_InvalidateUnitInfoPanel(ent);
+    return true;
+}
+
 /* Name=Defend; Untip=Stop Defend */
 BZ_ABILITY_PROC(CAbilityDefend) {
-    spellTarget_t target = msg == A_EXECUTE && call && call->target ?
-        *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     uint32_t const code = call && call->item ? call->item->code : 0;
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_REMOVE);
+    case A_COMMAND: {
+        edict_t *clent=call ? call->client : NULL;
+        if (!clent || !clent->client) return false;
+        edict_t *primary=G_GetMainSelectedUnit(clent->client);
+        cstring_t order=human_has_status(primary,code) ? "undefend" : "defend";
+        bool accepted=false;
+        FOR_CONTROLLABLE_SELECTED_UNITS(clent->client,unit)
+            if (unit_issueimmediateorder(unit,order)) accepted=true;
+        Get_Commands_f(clent);
+        return accepted;
+    }
     case A_TOGGLE_ON: return ent && human_has_status(ent, code);
-    case A_EXECUTE:
-        if (!call || !call->item || !G_UnitAbilityResearchAvailable(ent, code)) return false;
-        human_toggle_execute(ent, target, call->item);
+    case A_EXECUTE: return defend_set(ent,call ? call->item : NULL,!human_has_status(ent,code));
+    case A_ORDER: {
+        if (!call || !call->order ||
+            (strcmp(call->order,"defend") && strcmp(call->order,"undefend"))) return false;
+        abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,MAKEFOURCC('A','d','e','f'));
+        abilityitem_t item=S_AbilityItem(ref.alias);
+        return ref.alias && defend_set(ent,&item,!strcmp(call->order,"defend"));
+    }
+    case A_DISABLE:
+    case A_UNIT_REMOVE:
+        if (human_has_status(ent,code)) {
+            uint32_t rank=G_UnitStatusLevel(ent,code);
+            human_remove_status(ent,code);
+            S_HumanStatusExpired(ent,code,rank);
+        }
         return true;
     case A_PROJECTILE_HIT: return defend_projectile_reaction(call ? call->projectile : NULL);
     default: return CAbilitySimpleSpell(ent, msg, call);
@@ -598,7 +643,12 @@ float S_HumanMoveFactor(edict_t const *unit) {
         uint32_t code = status->data ? status->data : MAKEFOURCC('A','s','l','o');
         factor = wc3_mul(factor, wc3_sub(1, S_SpellData(code, level, 1)));
     }
-    if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','d','e','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','d','e','f'), level, 3);
+    FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status=unit->abilstatus+i;
+        if (status->level && (!status->timestamp || status->timestamp>G_Time()) &&
+            G_AbilityCode(status->code)==MAKEFOURCC('A','d','e','f'))
+            factor=wc3_mul(factor,wc3_sub(1,S_SpellData(status->code,status->level,3)));
+    }
     if ((level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('A','m','d','f')))) factor *= 1.0f - S_SpellData(MAKEFOURCC('A','m','d','f'), level, 3);
     factor *= 1.0f - S_SlowAuraMoveReduction(unit);
     if (G_QueryUnitStatusLevel(unit, MAKEFOURCC('B','m','l','t'))) return 0.0f;
@@ -735,7 +785,10 @@ void S_HumanBreakInvisibility(edict_t *unit) {
 void S_HumanStatusExpired(edict_t *unit, uint32_t code, uint32_t level) {
     (void)level;
     if (!unit) return;
-    if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) G_AddUnitAnimationProperties(unit, "defend", false);
+    if (G_AbilityCode(code) == MAKEFOURCC('A','d','e','f')) {
+        G_AddUnitAnimationProperties(unit, "defend", false);
+        S_UnitAbilityEvent(unit,A_MOVE_PARAMETERS_CHANGED);
+    }
     if (code == MAKEFOURCC('B','i','n','v') &&
         !S_UnitHasTemporaryInvisibility(unit, unit_findstatus(unit, code)))
         G_SetEntityHidden(unit,false);

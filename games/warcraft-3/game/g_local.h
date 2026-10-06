@@ -3077,6 +3077,8 @@ bool G_HeroCanBeRevivedAt(edict_t const *altar, edict_t const *hero);
 bool G_UnitHasRally(edict_t const *producer);
 void G_ResetRallyTarget(edict_t *producer);
 bool G_SetRallyPoint(edict_t *producer, vec2_t const *point);
+bool S_IssueRallyPointOrder(edict_t *producer, vec2_t const *point, bool queue);
+bool S_IssueRallyTargetOrder(edict_t *producer, edict_t *target, bool queue);
 bool G_SetRallyEntity(edict_t *producer, edict_t *target);
 rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t * *target);
 bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced);

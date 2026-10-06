@@ -12412,6 +12412,93 @@ cleanup_timer118:
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
+
+#include "retail_metadata_motion_119.h"
+#include "retail_metadata_rally_motion_119.h"
+#include "retail_metadata_busy_motion_119.h"
+static void check_metadata_scene_119(char const *script,uint32_t const (*records)[6],unsigned record_count,
+    uint32_t const (*motion)[7],unsigned motion_count,unsigned duration) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    char const ability_slk[]="ID;PWXL;N;E\nB;X5;Y3;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\nC;X4;K\"Dur1\"\nC;X5;K\"DataC2\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;X2;K\"Adef\"\nC;X3;K\"0.3\"\nC;X4;K\"0\"\nC;X5;K\"0.3\"\nC;Y3;X1;K\"ARal\"\nC;X2;K\"ARal\"\nE\n";
+    char const upgrade_slk[]="ID;PWXL;N;E\nB;X6;Y2;D0\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\nC;X3;K\"effect1\"\n"
+        "C;X4;K\"base1\"\nC;X5;K\"mod1\"\nC;X6;K\"code1\"\n"
+        "C;Y2;X1;K\"Rhde\"\nC;X2;K1\nC;X3;K\"rlev\"\nC;X4;K0\nC;X5;K0\nC;X6;K\"Adef\"\nE\n";
+    slkTestData_t *arows=parse_slk_string(ability_slk),*urows=parse_slk_string(upgrade_slk);
+    slkTestData_t *old_a=G_SetSLKRows("AbilityData",arows),*old_u=G_SetSLKRows("UpgradeData",urows);
+    float radius=31,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','p','g','r'),.type=mod_string,.data="Rhde"}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),
+        .newUnitID=MAKEFOURCC('h','T','1','9'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    memset(game.clients[0].tech,0,sizeof(game.clients[0].tech));
+    bool compiled=run_test_jass(script);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_metadata119;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={105,405,505,2005,2505};unsigned saved[5]={0},steps=0,suffix=0;
+    char files[5][64];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-metadata119-%u.bin",times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<duration && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<motion_count);if(steps>=motion_count){mismatch=true;break;}
+                uint32_t const *expected=motion[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"metadata119 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,motion_count);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,record_count*6);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<record_count);T_ASSERT(entry->child>=0 && entry->child<6);
+            T_EQ(entry->type,entry->child<3 ? HT_INTEGER : HT_REAL);
+            if(entry->parent>=0 && entry->parent<record_count && entry->child>=0 && entry->child<6) {
+                uint32_t word=entry->child<3 ? (uint32_t)entry->value.integer : wc3_float_bits(entry->value.real);
+                T_EQ(word,records[entry->parent][entry->child]);
+                if(word!=records[entry->parent][entry->child])fprintf(stderr,"metadata119 row%d field%d actual=%08x expected=%08x\n",entry->parent,entry->child,word,records[entry->parent][entry->child]);
+            }
+        }
+    }
+    fprintf(stderr,"metadata119 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_metadata119:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_a);G_SetSLKRows("UpgradeData",old_u);free_slk_rows(arows);free_slk_rows(urows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_defend_orders_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_script_119,metadata_records_119,84,metadata_motion_119,13,7100);
+}
+TEST(wc3_movement, public_rally_orders_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_rally_script_119,metadata_rally_records_119,40,metadata_rally_motion_119,13,3100);
+}
+TEST(wc3_movement, public_busy_defend_rejections_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_busy_script_119,metadata_busy_records_119,86,metadata_busy_motion_119,73,7100);
+}
+
 #include "retail_gate_retry.h"
 static struct { uint32_t const (*rows)[14]; unsigned count,index; bool mismatch; } gate_retry;
 

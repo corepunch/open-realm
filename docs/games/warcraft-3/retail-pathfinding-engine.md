@@ -9869,3 +9869,74 @@ MapPathfinding.java and MapPathfindingTypes.java. The frozen nine-function
 readback is `retail-timer-mutation-118-static.json`, with `unsaved=false`.
 This closes the timer scheduling/mutation scope, not the remaining overall
 retail pathfinding or frame-budget gates.
+
+## Modal orders validate before replacing active movement
+
+Payoff119 closes ORDER-01.14's concrete modal/metadata admission scope. Ordinary
+public `defend`, `undefend` and runtime-added `ARal` point orders enter normal
+mode1 admission. Accepted requests cancel the existing Move and its pending
+successors; their instantaneous action retires to public current order0.
+Repeated Defend directions, unavailable/unresearched Defend and invalid requests
+reject before admission and leave the active Move intact. Repeated Rally point
+orders are accepted. Removing ARal makes subsequent Rally requests reject.
+
+The busy scene explicitly issues a second Move while Defend is active, then
+attempts Defend again; it repeats this with undefend after travel has resumed.
+The rejected direction preserves851986 and continued committed travel. These
+controls supersede the earlier idle-head witness: final head0 alone cannot
+distinguish cancellation from metadata interception.
+
+Original69b2f0 offers virtual22c interception. Both the Defend and Rally tables
+resolve that slot to4371a0 (`XOR EAX,EAX; RET4`), which returns false. There is
+no positive interception in these scenes. Modal3fcda0 validates the explicit
+on/off selector against ability flags20.80 before dispatch. Event8 passes through
+423d20/5ef450 and the concrete Defend virtual330/334 handlers. The modifiers are
+applied/removed through5c7ea0/5f4290; the immediate speed cap becomes433cffff,
+the binary32 word just below189, from an authored base270 and DataC=.3. The
+engine uses the recovered scalar operation order rather than a decimal speed
+approximation. Original673e80 clears queued successors while retaining its
+current head; its return is void, so incidental EAX is excluded from comparisons.
+
+`CAbilityDefend` now owns registered explicit on/off orders, validates direction
+and availability before cancellation, stores the actual authored alias/rank,
+and publishes modifier changes synchronously. Disable/removal runs its inverse
+without replacing a subsequent Move or pending queue. The command-card owner
+applies the primary selection's explicit direction to controllable selected
+units. Registered order rejection ends dispatch; the previous generic spell
+fall-through could execute the opposite toggle after rejection. Shadow Meld's
+existing Hide execution now enters through its own registered order handler,
+retaining the actual stock/Akama alias and existing validation policy.
+
+Rally's `S_IssueRallyPointOrder`/`S_IssueRallyTargetOrder` validate capability
+before normal public-order cancellation. Authored/runtime ARal is sufficient
+even on a mobile unit, and explicit removal disables the legacy capability
+fallback. Direct command-card metadata setters retain their separate boundary.
+These captures establish ordinary public native admission, not retail Shift/UI
+timing or every instant/cast family. Existing BASE/ORDER-01.13 tasks own those
+broader domains; see [Rally contracts](rally-points.md).
+
+Three completed, read-only original1.27 scenes each have two exact repeats:
+Defend84 public six-word records/13 movement commits, Rally40/13, busy-rejection
+86/73. The exports include tick, current order, acceptance, cap and position.
+Canonical identity joins retain original queue head/tail/count, flags, caller,
+selector and scalar clock words. The verifier checks complete observer/producer
+lifetimes, hash/provenance, record ordering and footer motion counts. Frozen
+raw streams and content-addressed observer/map-builder sources are committed.
+Rally D/E's capture source list omitted its probe filename; the recorded actual
+map hash and an offline exact comparison of the embedded probe globals/functions
+provide a separate `probe_embedding` certificate. This is not a retroactively
+captured probe hash. Busy F/G includes all three producer source hashes.
+
+The production JASS/frame path reproduces all210 public records and99 native
+motion commits. Five saves per scene replay245 exact suffix commits in total;
+Save114 is unchanged. Separate queue, alias-removal, command-card and Rally
+capability regressions pass. The new owner regressions failed against the
+committed implementation before the fix. Focused Classic/TFT validation covers
+24 invocations, including existing Mana Shield, Hide, Raven, Ancient and Repair
+orders. It does not substitute for the scheduled full-suite checkpoint.
+
+MapPathfinding.java adds12 function mappings and updates69b2f0; the type schema
+adds two partial prefixes and10 verified ABI declarations. Saved names,
+comments, xrefs, prototypes, return instructions and layout readback are in
+`retail-metadata-119-static.json` with `unsaved=false`. No original function
+bodies or asset files are redistributed.

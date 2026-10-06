@@ -2546,6 +2546,108 @@ TEST(wc3_spell, defend_toggle_reports_state_and_updates_animation_properties) {
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Repeated requests reject before cancellation; accepted Defend/undefend
+ * replace Move and pending orders, then retire their instantaneous head to0. */
+TEST(wc3_spell, defend_orders_replace_busy_head_and_reject_repeated_or_disabled_requests) {
+    const char slk[] =
+        "ID;PWXL;N;E\nB;X4;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;X2;K\"Adef\"\nC;X3;K\"0.25\"\nC;X4;K\"0\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_hero(MAKEFOURCC('h','f','o','o'),500,0,0,0);
+    UnitAbilities_t abilities={.abilList="Adef"};unit->data.UnitAbilities=&abilities;
+    vec2_t goal={512,0},queued={768,64};uint32_t code=MAKEFOURCC('A','d','e','f');
+    T_EQ(G_OrderId("defend"),852055);T_EQ(G_OrderId("undefend"),852056);
+    T_ASSERT(!unit_issueimmediateorder(unit,"undefend"));
+    T_ASSERT(unit_issueorder(unit,"move",&goal));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&queued,true,0,0));
+    T_ASSERT(unit_issueimmediateorder(unit,"defend"));
+    T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);
+    T_ASSERT(!unit_is_walking(unit));T_ASSERT(S_UnitHasStatus(unit,code));T_FEQ(S_HumanMoveFactor(unit),0.75f,0);
+    T_ASSERT(unit_issueorder(unit,"move",&goal));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&queued,true,0,0));
+    edict_t *destination=unit->goalentity;umove_t const *move=unit->currentmove;
+    uint32_t group=unit->movement.group_id;
+    T_ASSERT(!unit_issueimmediateorder(unit,"defend"));T_ASSERT(S_UnitHasStatus(unit,code));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->goalentity,destination);
+    T_EQ(unit->currentmove,move);T_EQ(unit->movement.group_id,group);T_EQ(G_UnitQueuedOrderCount(unit),1);
+    T_ASSERT(WriteGame("/tmp/wc3-defend119-save.bin"));
+    T_ASSERT(unit_issueimmediateorder(unit,"undefend"));T_ASSERT(!S_UnitHasStatus(unit,code));
+    T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);
+    T_ASSERT(ReadGame("/tmp/wc3-defend119-save.bin"));
+    T_ASSERT(S_UnitHasStatus(unit,code));T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_EQ(G_UnitQueuedOrderCount(unit),1);T_ASSERT(!unit_issueimmediateorder(unit,"defend"));
+    T_ASSERT(unit_issueimmediateorder(unit,"undefend"));
+    T_EQ(unit->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(unit),0);T_FEQ(S_HumanMoveFactor(unit),1,0);
+    T_ASSERT(unit_issueorder(unit,"move",&goal));T_ASSERT(G_IssueUnitPointOrder(unit,"move",&queued,true,0,0));
+    T_ASSERT(!unit_issueimmediateorder(unit,"undefend"));
+    G_SetPlayerAbilityAvailable(&game.clients[0],code,false);
+    T_ASSERT(!unit_issueimmediateorder(unit,"defend"));T_ASSERT(!S_UnitHasStatus(unit,code));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
+    G_SetPlayerAbilityAvailable(&game.clients[0],code,true);
+    T_ASSERT(unit_issueimmediateorder(unit,"defend"));T_EQ(unit->current_order_id,0);
+    remove("/tmp/wc3-defend119-save.bin");G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_command_applies_primary_direction_to_controllable_selection) {
+    char const slk[]="ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;X2;K\"Adef\"\nC;X3;K\"0.25\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *player=&g_edicts[0],*units[2];
+    UnitAbilities_t abilities={.abilList="Adef"};
+    abilityitem_t item=S_AbilityItem(MAKEFOURCC('A','d','e','f'));
+    abilityCall_t call=MAKE(abilityCall_t,.item=&item,.client=player);
+    reset_entities();setup_test_world();
+    player->client=&game.clients[0];player->s.player=0;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,64*i);
+        units[i]->health.value=units[i]->health.max_value=500;
+        units[i]->svflags|=SVF_MONSTER;units[i]->stand=unit_stand;unit_stand(units[i]);
+        units[i]->data.UnitAbilities=&abilities;
+        G_SetEntitySelectionMask(units[i],1<<player->client->ps.number);
+        T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){512,64*i}));
+        T_ASSERT(G_IssueUnitPointOrder(units[i],"move",&(vec2_t){768,64*i},true,0,0));
+    }
+    edict_t *primary=G_GetMainSelectedUnit(player->client);
+    T_ASSERT(primary==units[0] || primary==units[1]);
+    T_ASSERT(S_AbilityMessage(primary,A_COMMAND,&call));
+    FOR_LOOP(i,2) {
+        T_ASSERT(S_UnitHasStatus(units[i],item.code));
+        T_EQ(units[i]->current_order_id,0);T_EQ(G_UnitQueuedOrderCount(units[i]),0);
+    }
+    edict_t *other=primary==units[0] ? units[1] : units[0];
+    T_ASSERT(unit_issueimmediateorder(other,"undefend"));
+    T_ASSERT(unit_issueorder(other,"move",&(vec2_t){512,0}));
+    T_ASSERT(G_IssueUnitPointOrder(other,"move",&(vec2_t){768,0},true,0,0));
+    T_ASSERT(S_AbilityMessage(primary,A_COMMAND,&call));
+    T_ASSERT(!S_UnitHasStatus(primary,item.code));T_ASSERT(!S_UnitHasStatus(other,item.code));
+    T_EQ(primary->current_order_id,0);
+    T_EQ(other->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(other),1);
+    FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i],0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_spell, defend_alias_removal_restores_speed_without_replacing_move_or_queue) {
+    char const slk[]="ID;PWXL;N;E\nB;X3;Y2;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\n"
+        "C;Y2;X1;K\"Ad19\"\nC;X2;K\"Adef\"\nC;X3;K\"0.125\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=make_hero(MAKEFOURCC('h','f','o','o'),500,0,0,0);
+    UnitAbilities_t abilities={.abilList="Ad19"};unit->data.UnitAbilities=&abilities;
+    uint32_t code=MAKEFOURCC('A','d','1','9');
+    T_ASSERT(unit_issueimmediateorder(unit,"defend"));T_ASSERT(S_UnitHasStatus(unit,code));
+    T_FEQ(S_HumanMoveFactor(unit),0.875f,0);T_STREQ(G_UnitAnimationProperties(unit),"defend");
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){512,0}));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){768,64},true,0,0));
+    T_ASSERT(G_ActorRemoveSkill(unit,code));T_ASSERT(!S_UnitHasStatus(unit,code));
+    T_FEQ(S_HumanMoveFactor(unit),1,0);T_STREQ(G_UnitAnimationProperties(unit),"");
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
+    T_ASSERT(!unit_issueimmediateorder(unit,"defend"));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(G_UnitQueuedOrderCount(unit),1);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_twice) {
 	const char slk[] =
 		"ID;PWXL;N;EBB;Y2;X10\n"

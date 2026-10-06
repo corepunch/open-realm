@@ -5,7 +5,7 @@ let numericCase = null;
 let randomCase = null;
 let speedCase = null;
 let positionCase = null;
-let timerInputsActive = false;
+let timerInputsActive = false, metadataScenario = false;
 let pairScenario = false, formationRankScenario = false;
 let resizeScenario = false;
 const resizeTargets = new Map();
@@ -38,6 +38,23 @@ function install(module) {
     installed = true;
     emit('module', {base: base.toString(), path: module.path});
     const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if(config.metadataEvents) {
+        const unitOrders = unit => ({head:ints(unit.add(0x19c),2).map(v=>v>>>0),tail:ints(unit.add(0x1a8),2).map(v=>v>>>0),count:unit.add(0x1b4).readU32()});
+        for(const [rva,event]of [[0x69b2f0,'metadata-interception'],[0x673e80,'metadata-clear-pending']])hook(rva,{
+            onEnter(args){this.observe=metadataScenario;if(this.observe){this.unit=this.context.ecx;this.row={unit:this.unit.toString(),before:unitOrders(this.unit),caller:this.returnAddress.sub(base).toUInt32()};
+                if(event==='metadata-interception'){this.order=args[0];this.row.command=this.order.add(0x24).readU32();}
+            }},onLeave(result){if(this.observe)emit(event,{...this.row,result:result.toUInt32(),after:unitOrders(this.unit)});}
+        });
+        for(const [rva,event]of [[0x5ef450,'metadata-defend-event'],[0x3fcda0,'metadata-toggle-validation']])hook(rva,{
+            onEnter(args){this.observe=metadataScenario;if(this.observe){this.ability=this.context.ecx;this.row={ability:this.ability.toString(),vtable:this.ability.readPointer().sub(base).toUInt32(),flags:this.ability.add(0x20).readU32(),input:event==='metadata-defend-event' ? args[0].add(8).readU32() : args[0].toUInt32(),caller:this.returnAddress.sub(base).toUInt32()};}},
+            onLeave(result){if(this.observe)emit(event,{...this.row,result:result.toUInt32(),afterFlags:this.ability.add(0x20).readU32()});}
+        });
+    }
+    if(config.metadataEvents) {
+        for(const [rva,kind]of [[0x211520,'integer'],[0x2116a0,'real']])hook(rva,{
+            onEnter(args){if(metadataScenario)emit('metadata-row',{kind,parent:args[1].toInt32(),child:args[2].toInt32(),word:kind==='real' ? args[3].readU32() : args[3].toUInt32()});}
+        });
+    }
     if (config.fineResultEvents) {
         hook(0x148100, {
             onEnter(args) {
@@ -2156,6 +2173,7 @@ function install(module) {
         if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
         if (value.startsWith('PATHRANK ')) emit('formation-rank-marker',{value});
         if (/^PATH(BUFF|CAST) /.test(value)) emit('modifier-marker',{value});
+        if(value.startsWith('PATHMETA ')){if(value.startsWith('PATHMETA case=metadata_'))metadataScenario=true;emit('metadata-marker',{value});}
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;

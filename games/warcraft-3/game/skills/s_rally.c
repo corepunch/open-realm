@@ -49,6 +49,10 @@ bool G_UnitHasRally(edict_t const *producer) {
 
     if (!producer || !producer->data.UnitProfile) return false;
     if (S_AncientHasRootAbility(producer) && !S_AncientIsRooted(producer)) return false;
+    uint32_t const code=MAKEFOURCC('A','R','a','l');
+    FOR_LOOP(i,ARRAY_COUNT(producer->abilities.removed))
+        if(producer->abilities.removed[i]==code) return false;
+    if (G_ActorHasAbilityCode(producer,code)) return true;
     trains = producer->data.UnitProfile->trains;
     return (trains && *trains) || G_UnitCanReviveHeroes(producer);
 }
@@ -56,6 +60,20 @@ bool G_UnitHasRally(edict_t const *producer) {
 void G_ResetRallyTarget(edict_t *producer) {
     if (!producer) return;
     G_FreeRally(producer);
+}
+
+/* The ordinary public order reaches mode1 admission, even for metadata.
+ * Validate before cancellation; direct metadata setters keep their own boundary. */
+bool S_IssueRallyPointOrder(edict_t *producer, vec2_t const *point, bool queue) {
+    if (!G_UnitHasRally(producer) || !point) return false;
+    if (!queue) order_stop_cleanup(producer);
+    return G_SetRallyPoint(producer,point);
+}
+
+bool S_IssueRallyTargetOrder(edict_t *producer, edict_t *target, bool queue) {
+    if (!G_UnitHasRally(producer) || !target || !target->inuse) return false;
+    if (!queue) order_stop_cleanup(producer);
+    return G_SetRallyEntity(producer,target);
 }
 
 bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {

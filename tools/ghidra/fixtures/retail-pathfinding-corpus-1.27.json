@@ -33098,6 +33098,664 @@
       "exclusions": [
         "Retirement capture windows certify complete lifecycle chains only; full-scene completion is the separate mutation capture pair."
       ]
+    },
+    {
+      "id": "live-metadata-defend-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_metadata_trace.py",
+        "--capture",
+        "{archive}/runtime/payoff119/metadata-b.jsonl",
+        "{archive}/runtime/payoff119/metadata-c.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-metadata-defend-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "sha256": "a0aed7a8c8538f898614acafe04cfe7023f5a1961ce4a8104d8b46f4a17049e4",
+        "bytes": 239060,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+            "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+            "wc3_pathfinding.js": "e8b15f90efae6d38de910725148083d89bba24915f41fa85102bcc6338b1665f",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "209850dc8d9d177dae91de180f07053d6656cbd3cef32d1d0951e2c5204225d1",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "5d337cf6e02c395024b413a06bc574324fb6bdc7f002960a346e6772985dbca8"
+          },
+          "map": "Maps\\PathingRE-Metadata119B.w3m",
+          "seconds": 135.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "metadataEvents": true
+        },
+        "capture": "runtime/payoff119/metadata-b.jsonl"
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "sha256": "45306ae0a404482c7859201110044a6b1d1d3509c5f35a99610d14e1759fd23d",
+            "bytes": 239059,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+                "wc3_pathfinding.js": "e8b15f90efae6d38de910725148083d89bba24915f41fa85102bcc6338b1665f",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "209850dc8d9d177dae91de180f07053d6656cbd3cef32d1d0951e2c5204225d1",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "5d337cf6e02c395024b413a06bc574324fb6bdc7f002960a346e6772985dbca8"
+              },
+              "map": "Maps\\PathingRE-Metadata119B.w3m",
+              "seconds": 135.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true
+            },
+            "capture": "runtime/payoff119/metadata-c.jsonl"
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "report": "live-metadata-defend-261006.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "records": {
+          "equal": 168
+        },
+        "motion_commits": {
+          "equal": 26
+        },
+        "interceptions": {
+          "equal": 16
+        },
+        "validations": {
+          "equal": 38
+        }
+      },
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Public Defend native on/off during Move and idle, repeated/research/disabled rejection, exact immediate caps and13 movement commits; engine public JASS plus queue/save controls. Additional cast/toggle families retain their own domain tasks.",
+      "exclusions": [
+        "Other modal/cast families and Shift/UI producer timing remain outside this native witness."
+      ]
+    },
+    {
+      "id": "live-metadata-rally-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_metadata_trace.py",
+        "--capture",
+        "{archive}/runtime/payoff119/rally-d.jsonl",
+        "{archive}/runtime/payoff119/rally-e.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-metadata-rally-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "sha256": "b6d4f4db461562f062d0f0eae6bf38aa62a4532e1d0f26c421f721d3bf860206",
+        "bytes": 154271,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+            "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+            "wc3_pathfinding.js": "19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "555ad22b1a65dbb70b16ecb05d950154ef4dfc0623a008940756c5ceae5d6104",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "6a8b1d8669f5376dfcd5423ccda0a0d481c47b44fa1803bd9e61bb0180bde767"
+          },
+          "map": "Maps\\PathingRE-Rally119D.w3m",
+          "seconds": 135.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "metadataEvents": true
+        },
+        "capture": "runtime/payoff119/rally-d.jsonl"
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "sha256": "30b8bdb097c9b2a02ec68a3b48049115e1ca4d0ee56adbfb9cce868adb7de8e9",
+            "bytes": 154270,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c",
+                "wc3_pathfinding.js": "19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "555ad22b1a65dbb70b16ecb05d950154ef4dfc0623a008940756c5ceae5d6104",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "6a8b1d8669f5376dfcd5423ccda0a0d481c47b44fa1803bd9e61bb0180bde767"
+              },
+              "map": "Maps\\PathingRE-Rally119D.w3m",
+              "seconds": 135.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true
+            },
+            "capture": "runtime/payoff119/rally-e.jsonl"
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "report": "live-metadata-rally-261006.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "records": {
+          "equal": 80
+        },
+        "motion_commits": {
+          "equal": 26
+        },
+        "interceptions": {
+          "equal": 12
+        },
+        "validations": {
+          "equal": 2
+        }
+      },
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Public runtime-added/removed ARal setrally, normal mode1 cancellation of Move and rejection without admission, all40 public records and13 movement commits. Direct command-card setters and queued UI producers are separate boundaries; no claim of their retail timing.",
+      "exclusions": [
+        "Other modal/cast families and Shift/UI producer timing remain outside this native witness."
+      ]
+    },
+    {
+      "id": "live-metadata-busy-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_metadata_trace.py",
+        "--capture",
+        "{archive}/runtime/payoff119/busy-f.jsonl",
+        "{archive}/runtime/payoff119/busy-g.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-metadata-busy-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "sha256": "83560aadef301cc0f5a4545069f95d5424216c12bb8fd7975107b1227a0efea0",
+        "bytes": 366251,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+            "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+            "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+            "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "4e53ab2f893ae9769d9e45cbc45eb9f39b2e9133cebd7addd183e55a0f93e031",
+            "wc3_pathfinding.js": "19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "67467eb29ddce7a93b93b1c77b607a927574888b4e14ab5c9adb21955c6f83ad",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "da1c7fb26421f52faea3e51472696257c7fbafa70dde7c0731d631f41bc004d1"
+          },
+          "map": "Maps\\PathingRE-Busy119F.w3m",
+          "seconds": 135.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": false,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "metadataEvents": true
+        },
+        "capture": "runtime/payoff119/busy-f.jsonl"
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "sha256": "de75024e97224fda51f0aeafbfcedb2425df5b994ddabfcf31ee1e50b393a392",
+            "bytes": 366252,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+                "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "4e53ab2f893ae9769d9e45cbc45eb9f39b2e9133cebd7addd183e55a0f93e031",
+                "wc3_pathfinding.js": "19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "67467eb29ddce7a93b93b1c77b607a927574888b4e14ab5c9adb21955c6f83ad",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "da1c7fb26421f52faea3e51472696257c7fbafa70dde7c0731d631f41bc004d1"
+              },
+              "map": "Maps\\PathingRE-Busy119F.w3m",
+              "seconds": 135.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": false,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true
+            },
+            "capture": "runtime/payoff119/busy-g.jsonl"
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "report": "live-metadata-busy-261006.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "records": {
+          "equal": 172
+        },
+        "motion_commits": {
+          "equal": 146
+        },
+        "interceptions": {
+          "equal": 20
+        },
+        "validations": {
+          "equal": 42
+        }
+      },
+      "evidence": [
+        "L",
+        "C"
+      ],
+      "scope": "Public repeated on/off, disabled and invalid orders while Move is active: rejected commands preserve head851986, accepted Defend cancels it; actual travel73 commits,86 public records, engine queue and saved continuation checks.",
+      "exclusions": [
+        "Other modal/cast families and Shift/UI producer timing remain outside this native witness."
+      ]
     }
   ],
   "fixtures": [
@@ -33163,7 +33821,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "862b074876e8407f326c13ef6becd535056f6d784315cb90dbef7e6507533553"
+      "sha256": "3ae7ba6483755b61a0e5cd13bba3dcdc293beb52410420b75fe6a0ba859df49d"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -33981,6 +34639,134 @@
     {
       "path": "tools/ghidra/fixtures/retail-timer-release-1.27.json",
       "sha256": "a990428f1006a21e30d59578ebfac8b385d75d6b4410a262aabcf177a598ebab"
+    },
+    {
+      "path": "tools/frida/make_wc3_pathfinding_map.py",
+      "sha256": "67467eb29ddce7a93b93b1c77b607a927574888b4e14ab5c9adb21955c6f83ad"
+    },
+    {
+      "path": "tools/frida/trace_wc3_pathfinding.py",
+      "sha256": "4e53ab2f893ae9769d9e45cbc45eb9f39b2e9133cebd7addd183e55a0f93e031"
+    },
+    {
+      "path": "tools/frida/wc3_pathfinding.js",
+      "sha256": "19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8"
+    },
+    {
+      "path": "tools/ghidra/MapPathfinding.java",
+      "sha256": "8d512cb3df09b298c6c5d0f107a0db7d1a08eb740eb4916cb6c90ea108210e74"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
+      "sha256": "9989cbf2491a0e17f760e01b74d53c3b529186d0b6c2d0d8adc5469dbb619a78"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_metadata_motion_119.h",
+      "sha256": "10cd60d1dcac0cafeb931f41e75c9c968643f3258e20916d8f88884ad0a16678"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_metadata_rally_motion_119.h",
+      "sha256": "1f1f8cbed5cb1532fdfad4ce9590c9a06b808ae3ee42dcc69f9944f7f50ef11f"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_metadata.py",
+      "sha256": "68d74c815a9b1d1cdc5bbb876f573414d00bfc66e61d55bf52550bf02a85dfa2"
+    },
+    {
+      "path": "tools/frida/verify_wc3_metadata_trace.py",
+      "sha256": "f01ccd11a733f82b6a528e6b8d2870563ff75f0b832f67d99131bf40da8c3a08"
+    },
+    {
+      "path": "tools/frida/wc3_metadata_busy_probe.j",
+      "sha256": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25"
+    },
+    {
+      "path": "tools/frida/wc3_metadata_orders_probe.j",
+      "sha256": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04"
+    },
+    {
+      "path": "tools/frida/wc3_metadata_rally_probe.j",
+      "sha256": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-119-static.json",
+      "sha256": "6605be110136dfefb5e70745dfb3f09073638ff329bd7828cf57ef571661878b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-busy-1.27-f.jsonl.gz",
+      "sha256": "053e8954802f62aed251ffe15644197aa5a78efc943412fd5fe629d4df9409d0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-busy-1.27-g.jsonl.gz",
+      "sha256": "c45c3b1efd2997682f98613f29be79061307bc83adcc9cbea732be6418a63bd1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-busy-1.27.json",
+      "sha256": "0ae2c67abe5f232e03f4ca976d45fe05a57df654bbf9375a5b5393782694eac4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-defend-1.27-b.jsonl.gz",
+      "sha256": "22a454a8c76267b638ece917f7138c2c7dabb89faba6c6decc8a4637570715f8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-defend-1.27-c.jsonl.gz",
+      "sha256": "13fec12dc9f0746a53713221931ea6e2bf04fb4f9394c2befb66391c8c5acad6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-defend-1.27.json",
+      "sha256": "9afc4e5415f271eeb8a66c0fc9de90488ab3870684bba9c49759cd12ce7a9780"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-rally-1.27-d.jsonl.gz",
+      "sha256": "f196d5f35300e80959e99b7506fb7514ee016704eae095caaf6c68c0c10f7c23"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-rally-1.27-e.jsonl.gz",
+      "sha256": "e9cd4b2df59d7ea5e0c32408844ccb5cd2c12c13ef4bf1e950cc6a0def4ffdd7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-metadata-rally-1.27.json",
+      "sha256": "c4a83e33b349951c9ebde27eea4044a9b867ef36696e6f1a90f1b444ec1ee8b2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/19dab037f6c3dd797f7e91892fd9648f7d799dc4071b30ccc3f272b9fe5b82c8.gz",
+      "sha256": "22e8d24236eedd8ea942c0233b43f3e5860fa583f52dfc08191936041298f280"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/209850dc8d9d177dae91de180f07053d6656cbd3cef32d1d0951e2c5204225d1.gz",
+      "sha256": "c23de6989b95e5757ac2ea5398b02abc42d8998be0c12a5ab3b2c53820eeeaf4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/4e53ab2f893ae9769d9e45cbc45eb9f39b2e9133cebd7addd183e55a0f93e031.gz",
+      "sha256": "e7881828a1107d5b0584cb2c83914f4fd043112428bdbf24c16abbf9864c4c14"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/555ad22b1a65dbb70b16ecb05d950154ef4dfc0623a008940756c5ceae5d6104.gz",
+      "sha256": "033119e945c50c26c808b9c7aa3ed9646c9e88a333e3ccd633a993ecd4569a61"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/67467eb29ddce7a93b93b1c77b607a927574888b4e14ab5c9adb21955c6f83ad.gz",
+      "sha256": "c37089e7b73d0fecf1d93afe2e74cb9e9ba7ecfb78de00b922404cb72ac8e7e6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25.gz",
+      "sha256": "bbd60607eaec06a91a6cc08f112f5829dd7f3d97ff4afd2737968ea2383eb472"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04.gz",
+      "sha256": "0583366ab19d7a846ea2a4b0bf5895fc3836c25e0e9962da855d823d304fbb7a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f.gz",
+      "sha256": "0f005f367fa4dca33a74e929e2282ae34c8404d2f7088db655c71f4a737b1a74"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/c55a5dd2cf641188fc4d1d7725838980f2c764e6b5b17c01ee349918c33a8e5c.gz",
+      "sha256": "847e1c9cf5f6ef4f82a13bb63c87ec87281bfabae72816f931d6732709e5be62"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/e8b15f90efae6d38de910725148083d89bba24915f41fa85102bcc6338b1665f.gz",
+      "sha256": "e44c47b3e40c52625fded0429b9f98c040e0132ea4c60de25b48e2ef61caba45"
     }
   ]
 }
