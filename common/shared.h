@@ -200,6 +200,7 @@ enum {
     FLAG(RF_BUILDING, 21),       /* WC3 structure; enables building-only presentation */
     FLAG(RF_GROUND_CONFORM, 22), /* presentation: conform entity Z to authored model ground surfaces */
     FLAG(RF_GROUND_SURFACE, 23), /* presentation: model may provide an authored walkable support surface */
+    FLAG(RF_UNIT, 24),           /* gameplay unit; prioritize in broad box-selection candidate queries */
 };
 
 enum {
@@ -221,6 +222,7 @@ enum {
     FLAG(EF_RESOURCE_SOURCE, 13), /* resource source presentation metadata */
     FLAG(EF_RESOURCE_RETURN, 14), /* resource-return destination presentation metadata */
     FLAG(EF_HOVER_MANA, 15),      /* client may expose this entity's mana on world hover */
+    FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
 };
 
 enum {
@@ -732,7 +734,7 @@ typedef struct entityState_s {
     uint16_t sound;
     uint32_t frame;
     uint8_t event;
-    uint16_t flags;
+    uint32_t flags;
     uint8_t renderfx;
     uint8_t ability;
     uint16_t pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */

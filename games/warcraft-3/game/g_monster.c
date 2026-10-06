@@ -412,6 +412,7 @@ void SP_SpawnUnit(edict_t *self) {
     UnitWeapons_t const *w = self->data.UnitWeapons;
     cstring_t uber_splat = ui->groundTexture;
     cstring_t path_tex = d->pathingTexture;
+    self->s.flags |= EF_UNIT;
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
     if (S_UnitTypeIsGoldMine(self->class_id)) self->s.flags |= EF_RESOURCE_SOURCE;

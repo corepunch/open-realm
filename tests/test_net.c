@@ -3485,10 +3485,10 @@ TEST(net, entity_delta_preserves_destructable_presentation_image) {
 
 /* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so
  * guard its round trip explicitly. */
-TEST(net, entity_delta_preserves_not_selectable_flag) {
+TEST(net, entity_delta_preserves_selection_candidate_flags) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_NOT_SELECTABLE }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_NOT_SELECTABLE | EF_UNIT }, out = { 0 };
     uint32_t bits = 0;
     int number;
 
@@ -3499,6 +3499,7 @@ TEST(net, entity_delta_preserves_not_selectable_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(out.flags & EF_UNIT);
 }
 
 TEST(net, entity_delta_preserves_wc3_resource_placement_flags) {

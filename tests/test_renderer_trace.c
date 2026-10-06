@@ -12,6 +12,22 @@ bool R_TraceModel(renderEntity_t const *ent, line3_t const *line, float *distanc
     (void)ent; (void)line; (void)distance; return false;
 }
 
+TEST(renderer_view, box_candidates_prioritize_units_before_scene_props) {
+    model_t model = {0};
+    renderEntity_t entities[94] = {0};
+    uint32_t selected[24] = {0};
+    viewDef_t view = { .entities = entities, .num_entities = 94, .viewport = {0, 0, 1, 1} };
+    rect_t rect = { .x = 0, .y = 0, .w = 1024, .h = 768 };
+
+    Matrix4_identity(&view.viewProjectionMatrix);
+    FOR_LOOP(i, 70) entities[i] = (renderEntity_t){ .number = i + 1, .model = &model, .origin = {0, 0, 0} };
+    FOR_LOOP(i, 24) entities[70 + i] = (renderEntity_t){ .number = 100 + i, .model = &model,
+        .flags = RF_UNIT, .origin = {0, 0, 0} };
+
+    T_EQ(R_EntitiesInRect(&view, &rect, 24, selected), 24);
+    FOR_LOOP(i, 24) T_EQ(selected[i], 100 + i);
+}
+
 /* Exact snapshot terrain can change while the rendered target stays above a narrow depression. */
 TEST(renderer_view, pan_plane_uses_rendered_target) {
     viewDef_t view = { .viewport = { 0, 0.22f, 1, 0.76f }, .target = { 0, 0, 10 } };

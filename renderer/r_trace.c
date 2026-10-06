@@ -86,17 +86,23 @@ uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const *rect, uint32_t
         .h = MAX(a.y, b.y) - MIN(a.y, b.y),
     };
     uint32_t count = 0;
-    FOR_LOOP(i, viewdef->num_entities) {
-        renderEntity_t const *ent = &viewdef->entities[i];
-        if (!ent->number || !ent->model || (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {
-            continue;
-        }
-        vec3_t const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
-        if (Rect_contains(&screen, (vec2_t *)&org)) {
-            if (count >= max) {
-                break;
+    /* The result is a bounded candidate list, not an authoritative selection.
+     * Put gameplay units first so map props cannot fill the list before the
+     * server gets a chance to filter them. Keep other entities in the second
+     * pass for interactions such as selecting structures by themselves. */
+    FOR_LOOP(pass, 2) {
+        FOR_LOOP(i, viewdef->num_entities) {
+            renderEntity_t const *ent = &viewdef->entities[i];
+            bool const is_unit = (ent->flags & RF_UNIT) != 0;
+            if (is_unit != (pass == 0) || !ent->number || !ent->model ||
+                (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {
+                continue;
             }
-            array[count++] = ent->number;
+            vec3_t const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
+            if (Rect_contains(&screen, (vec2_t *)&org)) {
+                array[count++] = ent->number;
+                if (count >= max) return count;
+            }
         }
     }
     return count;
