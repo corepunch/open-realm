@@ -302,7 +302,22 @@ static bool UI_IsDeferredImageKey(cstring_t key) {
     /* The stock Default skin maps EscMenuBackground and EscMenuButtonBackground
      * to the same Human texture. Registering both by path aliases their live
      * image slot and loses the key needed to select race art at write time. */
-    return UI_IsWideChromeKey(key) || (key && !strcmp(key, "EscMenuBackground"));
+    static cstring_t const keys[] = {
+        "EscMenuBackground",
+        "EscMenuButtonBackground",
+        "EscMenuButtonPushedBackground",
+        "EscMenuButtonDisabledBackground",
+        "EscMenuButtonDisabledPushedBackground",
+        "EscMenuButtonBorder",
+        "EscMenuButtonPushedBorder",
+        "EscMenuButtonDisabledBorder",
+        "EscMenuButtonDisabledPushedBorder",
+        "EscMenuButtonMouseOverHighlight",
+    };
+    if (UI_IsWideChromeKey(key)) return true;
+    FOR_LOOP(i, sizeof(keys) / sizeof(keys[0]))
+        if (key && !strcmp(key, keys[i])) return true;
+    return false;
 }
 
 static uint32_t UI_DeferredImage(cstring_t key) {
