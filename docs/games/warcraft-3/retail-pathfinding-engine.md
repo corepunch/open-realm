@@ -9615,3 +9615,110 @@ runner tests reject a zero-exit failing test, incomplete journals, changed
 profiles and stale output directories. Focused differential, fine-results and
 corpus tests pass; the full repository checkpoint remains on the agreed
 roughly-dozen-chunk cadence.
+
+
+## Authored timer timeout survives scheduling and pause
+
+Payoff116 ports a verified timer input contract directly into gameplay.
+`TimerGetTimeout` now returns the authored scalar retained at `TimerStart`,
+rather than converting the integer scheduling duration back to seconds. The
+existing saved `scalar_timeout` owns this value; no save-layout change is needed.
+C integer timer producers refresh it from their own supplied duration before
+public scalar producers replace it with the exact original word. Reads remain
+constant time and require no conversion or allocation.
+
+Retail public216c40 resolves the timer then calls233d50, which directly copies
+script timer+48 into its scalar output. A missing handle returns zero. Its
+result does not depend on the current request, effective scheduling interval,
+expiration or paused remainder. Public elapsed216be0 and remaining216c10 use
+232500 and233190 instead; these are distinct contracts, not aliases for timeout.
+All public wrappers return raw words in EAX under cdecl/plainRET. The three
+core functions take the timer in ECX, scalar output at stack4, return that
+pointer in EAX and execute RET4.
+
+The genuine public producer `wc3_timer_inputs_probe.j`, scene116, runs13
+one-shot inputs on the flat64×64 map. It reads all three getters immediately
+and on40 subsequent100-ms ticks, pauses all13 timers at tick11 and resumes them
+at tick22. Short, zero, negative, adjacent and large inputs are retained:
+
+| Source literal | Compiled authored word |
+| --- | --- |
+| `-0.1` | `bdccccce` |
+| `-0.001` | `ba83126f` |
+| `0.0` | `00000000` |
+| `0.0001` | `38d1b718` |
+| `0.004999999` | `3ba3d708` |
+| `0.005` | `3ba3d70a` |
+| `0.005000001` | `3ba3d70d` |
+| `0.099999994` | `3dcccccc` |
+| `0.1` | `3dccccce` |
+| `0.100000001` | `3dcccccd` |
+| `299.99997` | `4395ffff` |
+| `300.00003` | `43960000` |
+| `1000000.25` | `49742404` |
+
+Use the actual compiled words, not a host decimal parser's interpretation.
+The preserved timeout is also consumed by a separate one-shot callback:
+`SetUnitMoveSpeed(actor, TimerGetTimeout(GetExpiredTimer()) * 2000.0)`, followed
+by public Move from272/304 to640/512. That creates an observable numerical
+movement regression rather than a getter-only comparison.
+
+Two complete read-only Frida streams each contain5145 raw records,1600 public
+getter calls,2037 scalar getter calls and70 committed movement records. Their
+normalized4831-event histories repeat exactly: callback/marker ordering,
+encounter identities, authored/effective values, embedded method RVAs, all
+three primary clock words, fine pose/velocity and heading. The raw B/C streams
+are frozen as `retail-timer-inputs-1.27-{b,c}.jsonl.gz`; the fixture pins producer,
+map and observer hashes, and content-addressed source archives preserve the
+captured generations. Capture A used a constant movement speed and is retained
+locally as exploratory evidence, outside this movement contract.
+
+`verify_wc3_timer_trace.py` rejects changed raw hashes/provenance, incomplete
+or duplicate footers, missing terminal markers, errors, missing/extra/reordered
+events and altered scalar words. uint32 validation rejects JSON floats,
+booleans, negative values and overflow. Pointer/handle values normalize by
+encounter, never by address sorting. Non-timer/non-commit diagnostics are outside
+the normalized contract; no whole simulation claim is implied.
+
+A first public scalar regression fails against the old engine getter. The
+full gameplay regression also fails when only the old getter is restored:
+19 assertions fail by the third observed commit. With the fix, actual normal
+5-ms server frames reproduce every one of the70 native movement records. Four
+saves at80/450/1100/2200 ms resume165 further exact suffix commits. The script
+also records41×13 timeout values into an ordinary JASS hashtable; all533 words
+remain exact after each continuation. Its test-entry/unit fixture/SaveReal
+transformations and every C motion literal are checked against the native
+producer and raw fixture. Classic and TFT each pass13030 assertions in this
+regression, plus the focused native timeout, integer-restart, queued-pause,
+callback-restart and timer/dialog save tests. These paths stay synchronous and
+use the existing deterministic timer/Move owners.
+
+The original-code oracle executes whole233d50/232500/233190, including original
+virtual running-clock methods, on243 supplied states (729 getter calls).
+It verifies output words, preserved registers, RET4 cleanup, output canaries
+and unchanged timer/request/clock backing. Runtime scalar initialization uses
+original registered startup. Independent no-request, canceled and running
+states are kept separate. O0/O2 C ABI checks compare the software subtraction
+helper only; they do not certify complete engine elapsed/remaining getters.
+
+Ghidra now retains `WC3EventClockControlPrefix` and
+`WC3ScriptTimerScalarPrefix`, eleven explicit getter prototypes, descriptive
+function names, comments and xrefs. Replayed `MapPathfindingTypes.java` and
+`MapPathfinding.java` mappings are saved; fresh decompilation and readback with
+`unsaved=false` are frozen in `retail-timer-getters-116-static.json`. Unknown
+bytes and complete object size remain unspecified.
+
+This evidence also identifies the remaining work in NUM-02.9.2/02.10/02.11.
+An uncanceled request uses its event clock's virtual remaining/elapsed getters;
+otherwise remaining copies cached+50 and elapsed subtracts it from authored+48.
+Effective duration can include unsigned16-bit full-span counts plus residual,
+and the minimum scheduling interval is a distinct word `38d1b717`. The large
+input `49742404` initially returns remaining `49742403`. Running elapsed uses
+remaining and effective duration, including both software subtractions at zero.
+Pause stores the current remaining without changing the authored timeout;
+resume can restart an expired timer's effective period while preserving that
+original timeout. Due callbacks observe temporarily installed timer deadlines,
+which differ from the primary clock read by the movement observer. Host elapsed
+milliseconds are not a valid replacement for these rules. Those engine getter,
+long/epoch and heap mutation ports remain open; the new captures do not close
+this broader checkbox.

@@ -107,6 +107,7 @@ void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t c
     if (!timer) return;
     timer->generation++;
     timer->scalar_timing=false;
+    timer->scalar_timeout=timeout/1000.0f;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout; timer->updated = level.time;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
     FOR_LOOP(i, MAX_TIMERDIALOGS) if (level.timer_dialogs[i].inuse && level.timer_dialogs[i].timer == timer)

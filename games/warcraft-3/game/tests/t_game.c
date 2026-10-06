@@ -6287,6 +6287,22 @@ TEST(wc3_save, restores_triggers_and_events_created_after_main) {
     remove(filename);
 }
 
+/* Original233d50 returns the retained timeout, even after Pause/Resume.
+ * It is independent of the request's effective minimum scheduling interval. */
+TEST(wc3_jass, timer_timeout_preserves_public_scalar_before_after_pause_and_save) {
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    T_ASSERT(run_test_jass("globals\n timer scalarTimer=null\nendglobals\n"
+        "function check takes nothing returns nothing\n"
+        "call BJassAssert(TimerGetTimeout(scalarTimer)==0.0001,\"timeout lost scalar word\")\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set scalarTimer=CreateTimer()\ncall TimerStart(scalarTimer,0.0001,false,null)\n"
+        "call check()\ncall PauseTimer(scalarTimer)\ncall check()\ncall ResumeTimer(scalarTimer)\ncall check()\nendfunction\n"));
+    cstring_t file="/tmp/wc3-timer-timeout116.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    jass_callbyname(level.vm,"check",true);jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
     level.time = 1000;
     gtimer_t *timer = G_AllocJassTimer(); T_NOT_NULL(timer); if (!timer) return;
@@ -6298,7 +6314,9 @@ TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
     level.time = 2000; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 65u);
     G_TimerResume(timer); T_EQ(timer->updated, 2000u);
     level.time = 2025; G_RunTimers(); G_RunTimers(); T_EQ(G_TimerRemaining(timer), 40u);
+    timer->scalar_timeout=123.5f; /* A C producer replaces any earlier public scalar. */
     G_TimerStart(timer, 12, false, NULL); T_EQ(G_TimerRemaining(timer), 12u);
+    T_EQ(timer->scalar_timeout, 12/1000.0f);
     level.time = 2035; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 2u); T_ASSERT(timer->running);
     level.time = 2037; G_RunTimers(); T_EQ(G_TimerRemaining(timer), 0u); T_ASSERT(!timer->running);
     G_TimerStart(timer, 100, true, NULL); G_TimerDestroy(timer);

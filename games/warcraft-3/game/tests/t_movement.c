@@ -12230,6 +12230,66 @@ cleanup_same_cell114:
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
 }
 
+#include "retail_timer_motion_116.h"
+TEST(wc3_movement, public_timer_timeout_drives_exact_motion_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),
+        .newUnitID=MAKEFOURCC('h','T','1','6'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(timer_script_116);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_timer116;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={80,450,1100,2200};unsigned saved[4]={0},steps=0,suffix=0;
+    char files[4][64];FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-timer116-%u.bin",times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,5) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<4100 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<70);if(steps>=70){mismatch=true;break;}
+                uint32_t const *expected=timer_motion_116[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"timer116 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,70);if(pass)suffix+=steps-saved[pass-1];
+        uint32_t const timeout[]={0xbdccccce,0xba83126f,0,0x38d1b718,0x3ba3d708,0x3ba3d70a,
+            0x3ba3d70d,0x3dcccccc,0x3dccccce,0x3dcccccd,0x4395ffff,0x43960000,0x49742404};
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,41*13);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<=40);T_ASSERT(entry->child>=0 && entry->child<13);
+            T_EQ(entry->type,HT_REAL);
+            if(entry->child>=0 && entry->child<13)T_EQ(wc3_float_bits(entry->value.real),timeout[entry->child]);
+        }
+    }
+    fprintf(stderr,"timer116 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,4)remove(files[i]);
+cleanup_timer116:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
 #include "retail_gate_retry.h"
 static struct { uint32_t const (*rows)[14]; unsigned count,index; bool mismatch; } gate_retry;
 

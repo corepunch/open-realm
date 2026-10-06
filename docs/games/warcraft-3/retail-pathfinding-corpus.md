@@ -1820,3 +1820,17 @@ and91 suffix commits after five saves. The fresh-route adapter also accepts
 count1 when deriving its fine destination. Numerical/header and extra-refill/
 missing-commit negatives retain this scope; the other public route-mode
 combinations remain open. See [public single-point lifetimes](retail-pathfinding-engine.md#public-single-point-lifetimes-preserve-cached-motion).
+
+
+Payoff116 adds `oracle-timer-getters` and `live-timer-inputs-261006`.
+Whole original scalar getters cover243 supplied states/729 calls, including
+original running-clock virtual methods and explicit canceled/no-request cases.
+The C ABI comparison checks software subtraction only. Two complete public
+scene116 streams pin13 authored timeout words across41 reads each and70
+getter-driven Move commits each; actual engine/save continuation is covered by
+the corresponding full game regression. Strict mutation tests reject damaged
+provenance, incomplete captures, changed/reordered values and non-uint32 words.
+Inventory is343 entries:119 original oracle contracts,121 archives and103 live
+contracts. The two new fresh corpus reports pass. Engine elapsed/remaining,
+long/epoch scheduling and general heap mutation remain open; see
+[authored timeout](retail-pathfinding-engine.md#authored-timer-timeout-survives-scheduling-and-pause).

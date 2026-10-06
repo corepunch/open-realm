@@ -5,6 +5,7 @@ let numericCase = null;
 let randomCase = null;
 let speedCase = null;
 let positionCase = null;
+let timerInputsActive = false;
 let pairScenario = false, formationRankScenario = false;
 let resizeScenario = false;
 const resizeTargets = new Map();
@@ -106,6 +107,18 @@ function install(module) {
 
     for(const [name,rva,n] of [['UnitRemoveBuffs',0x218d90,3],['UnitRemoveBuffsEx',0x218dc0,8]])hook(rva,{onEnter(args){this.row=positionCase==='speed_modifiers'?{name,args:Array.from({length:n-1},(_,i)=>args[i+1].toUInt32()),...modifierClock()}:null;if(this.row)emit('modifier-remove-begin',this.row);},onLeave(){if(this.row)emit('modifier-remove-end',{...this.row,...modifierClock()});}});
     hook(0x48eb10,{onEnter(args){this.row=positionCase==='speed_modifiers'?{unit:this.context.ecx.toString(),args:Array.from({length:9},(_,i)=>args[i].toUInt32()),...modifierClock()}:null;if(this.row)emit('modifier-filter-begin',this.row);},onLeave(ret){if(this.row)emit('modifier-filter-end',{...this.row,count:ret.toUInt32(),...modifierClock()});}});
+    if(config.timerEvents) {
+        const timerClock=()=>{const o=base.add(0xd53a48).readPointer();return {clock:ints(o.add(0x54),4).map(v=>v>>>0),counter:o.add(0x538).readU32()};};
+        for(const [name,rva]of [['timeout',0x216c40],['elapsed',0x216be0],['remaining',0x216c10]])hook(rva,{
+            onEnter(args){this.row=timerInputsActive?{name,handle:args[0].toUInt32(),...timerClock()}:null;},
+            onLeave(ret){if(this.row)emit('timer-getter',{...this.row,word:ret.toUInt32()});}
+        });
+        for(const [name,rva]of [['timeout',0x233d50],['elapsed',0x232500],['remaining',0x233190]])hook(rva,{
+            onEnter(args){this.row=null;if(!timerInputsActive)return;this.out=args[0];const t=this.context.ecx;this.row={name,timer:t.toString(),stored:[t.add(0x48).readU32(),t.add(0x50).readU32()],request:t.add(0x30).readPointer().toString(),clockMethods:ints(t.add(0x24).readPointer(),8).map(v=>(v-base.toUInt32())>>>0),...timerClock()};},
+            onLeave(){if(this.row)emit('timer-scalar-getter',{...this.row,word:this.out.readU32()});}
+        });
+        hook(0x249ca0,{onEnter(args){this.row=timerInputsActive?{timer:this.context.ecx.toString(),timeout:args[0].readU32(),periodic:args[1].toUInt32(),...timerClock()}:null;},onLeave(){if(this.row)emit('timer-start',this.row);}});
+    }
     if (config.motionEvents) {
         for (const rva of [0x6b9f70,0x6baaa0,0x6bb050,0x6bb980]) hook(rva, {onEnter() {
             const action=this.context.ecx;
@@ -2102,6 +2115,7 @@ function install(module) {
             emit('blocker-lifecycle-marker',{value});
             if (config.watchCell) snapshotBlockerGeometry(value);
         }
+        if(config.timerEvents && value.startsWith('PATHTIMER ')){timerInputsActive=true;emit('timer-marker',{value});}
         if (value.startsWith('PATHCAPTAIN ')) emit('captain-marker',{value});
         if (value.startsWith('PATHPAIR ')) emit('pair-marker',{value});
         if (value.startsWith('PATHDOZEN ')) emit('twelve-marker',{value});

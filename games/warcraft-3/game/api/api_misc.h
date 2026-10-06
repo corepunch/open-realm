@@ -420,7 +420,8 @@ uint32_t TimerGetRemaining(jass_t *j) {
 }
 uint32_t TimerGetTimeout(jass_t *j) {
     gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, whichTimer ? whichTimer->duration / 1000.0f : 0.0f);
+    /* Original233d50 reads the authored timeout, not its scheduling period. */
+    return jass_pushnumber(j, whichTimer ? whichTimer->scalar_timeout : 0.0f);
 }
 uint32_t PauseTimer(jass_t *j) {
     G_TimerPause(jass_checkhandle(j, 1, "timer")); return 0;
