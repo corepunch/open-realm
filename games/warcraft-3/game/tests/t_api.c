@@ -5285,6 +5285,57 @@ TEST(wc3_api, multiselect_order_matches_warsmash_priority_level_and_rawcode) {
     T_ASSERT(G_GetMainSelectedUnit(client) == higher_priority);
 }
 
+/* Selection policy tests use the same CVar callback as gameplay. */
+static cstring_t selection_limit_test_value;
+static cstring_t (*selection_limit_original_cvar)(cstring_t, cstring_t);
+static cstring_t selection_limit_test_cvar(cstring_t name, cstring_t fallback) {
+    if (!strcmp(name, "wc3_selection_limit")) return selection_limit_test_value;
+    return selection_limit_original_cvar ? selection_limit_original_cvar(name, fallback) : fallback;
+}
+
+TEST(wc3_api, selection_limit_defaults_to_24_and_accepts_only_classic_12) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    selection_limit_original_cvar = old_cvar;
+    gi.CvarString = selection_limit_test_cvar;
+    selection_limit_test_value = "24";
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "12";
+    T_EQ(G_SelectionLimit(), 12);
+    selection_limit_test_value = "garbage";
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "0";
+    T_EQ(G_SelectionLimit(), 24);
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, selection_limit_direct_insert_and_runtime_reduction) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    edict_t *units[25];
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "24";
+    gi.CvarString = selection_limit_test_cvar;
+    client->ps.number = 0;
+    FOR_LOOP(i, 25) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i * 32.0f, 0);
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        G_SelectEntity(client, units[i]);
+    }
+    edict_t *ordered[25];
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, 25), 24);
+    T_ASSERT(!G_IsEntitySelected(client, units[24]));
+
+    /* The periodic validation pass must remove extra authoritative members. */
+    selection_limit_test_value = "12";
+    G_UpdateClientSelections();
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, 25), 12);
+    T_ASSERT(!G_IsEntitySelected(client, units[12]));
+    G_SelectEntity(client, units[24]);
+    T_ASSERT(!G_IsEntitySelected(client, units[24]));
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     gameClient_t *client = &game.clients[0];
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

@@ -4,6 +4,8 @@
 
 Numbered control groups are a generic client feature stored on `cl.groups`. Warcraft III and StarCraft II ship default 0–9 binds; other games can bind `group` the same way. Recalling a group uses the normal server-authoritative selection mechanism.
 
+For classic 12-unit selection, set `wc3_selection_limit 12` and also `cl_selection_limit 12` to make local box selection match the authoritative cap. See [Selection Limit](selection-limit.md).
+
 ## Key Bindings
 
 Shipped in `games/warcraft-3/share/config.cfg` and `games/starcraft-2/share/config.cfg`. Do **not** add number-key handling in `CL_Input`; new gameplay hotkeys belong in `bind` lines. WoW does not ship these binds because 0–9 are action-bar slots.
@@ -38,7 +40,7 @@ DWORD group_last;
 DWORD group_last_ms;
 ```
 
-Each group stores up to `MAX_SELECTED_ENTITIES` (64) entity IDs. Warcraft III's authoritative `CMD_Select` path currently applies `WC3_SELECTION_LIMIT` (12) when the group is recalled, so the client storage ceiling is intentionally broader than the server-side simultaneous-selection ceiling.
+Each group stores up to `MAX_SELECTED_ENTITIES` (64) entity IDs. Warcraft III's authoritative `CMD_Select` path uses `wc3_selection_limit` (24 by default, or 12 in classic mode) when the group is recalled. The client storage ceiling remains independent of the game-specific limit.
 
 ### Command
 

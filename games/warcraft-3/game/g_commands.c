@@ -5,7 +5,11 @@
 #include "g_local.h"
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t *clent, uint32_t argc, cstring_t argv[])
-#define WC3_SELECTION_LIMIT 12
+/* Server authority and HUD share the same WC3-only selection policy. */
+uint32_t G_SelectionLimit(void) {
+    cstring_t value = gi.CvarString ? gi.CvarString("wc3_selection_limit", "24") : "24";
+    return value && !strcmp(value, "12") ? 12u : WC3_SELECTION_MAX;
+}
 #define WC3_ENEMIES_CLEAR_RADIUS 768.0f
 
 typedef struct {
@@ -107,7 +111,7 @@ uint32_t G_GetOrderedSelectedUnits(gameClient_t *client, edict_t * *out, uint32_
             out[insert] = ent;
         } else if (G_CompareSelectionOrder(ent, out[max_out - 1]) < 0) {
             /* Keep the best max_out entries even if malformed/scripted state
-             * ever exceeds the normal 12-unit authoritative selection cap. */
+             * ever exceeds the configured authoritative selection cap. */
             insert = max_out - 1;
             out[insert] = ent;
         } else {
@@ -212,13 +216,13 @@ edict_t *G_GetMainSelectedUnit(gameClient_t *client) {
 
 void G_SyncClientSelection(gameClient_t *client) {
     edict_t *clent;
-    uint32_t selected[WC3_SELECTION_LIMIT];
+    uint32_t selected[WC3_SELECTION_MAX];
     uint32_t count = 0;
 
     if (!client) return;
     client->selection_dirty = false;
     FOR_SELECTED_UNITS(client, ent) {
-        if (count >= WC3_SELECTION_LIMIT) break;
+        if (count >= G_SelectionLimit()) break;
         selected[count++] = ent->s.number;
     }
 
@@ -250,14 +254,14 @@ bool G_FocusSelectedUnit(gameClient_t *client, edict_t *ent) {
 }
 
 bool G_CycleSelectionSubgroup(gameClient_t *client) {
-    edict_t *ordered[WC3_SELECTION_LIMIT];
+    edict_t *ordered[WC3_SELECTION_MAX];
     edict_t *main;
     uint32_t count;
     uint32_t main_index = 0;
     uint32_t next_index;
 
     if (!client) return false;
-    count = G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_LIMIT);
+    count = G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX);
     if (count < 2) return false;
 
     main = G_GetMainSelectedUnit(client);
@@ -302,12 +306,14 @@ void G_SelectEntity(gameClient_t *client, edict_t *ent) {
      * they are no longer valid gameplay selection targets. */
     if (!client || !ent || !ent->inuse) return;
     if (M_IsDead(ent) || (ent->s.flags & EF_NOT_SELECTABLE)) return;
+    uint32_t count = 0;
+    if (ent->selected & (1u << client->ps.number)) return;
     FOR_SELECTED_UNITS(client, selected) {
         (void)selected;
         had_selection = true;
-        break;
+        if (++count >= G_SelectionLimit()) return;
     }
-    ent->selected |= 1 << client->ps.number;
+    ent->selected |= 1u << client->ps.number;
     if (!had_selection) G_FocusSelectedUnit(client, ent);
 }
 
@@ -404,10 +410,19 @@ void G_UpdateClientSelections(void) {
         /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
          * deliberately hides dead/unselectable entities, while this pass must
          * clear stale selection bits after visibility/selectability changes. */
+        uint32_t count = 0;
+        uint32_t const limit = G_SelectionLimit();
         FILTER_EDICTS(ent, ent->selected & bit) {
             if (!G_UnitCanBeSelected(client, ent)) {
                 G_DeselectEntity(client, ent);
                 changed = true;
+            } else if (count >= limit) {
+                G_DeselectEntity(client, ent);
+                G_PublishEvent(ent, EVENT_PLAYER_UNIT_DESELECTED);
+                G_PublishEvent(ent, EVENT_UNIT_DESELECTED);
+                changed = true;
+            } else {
+                count++;
             }
         }
         if (!changed && !client->selection_dirty) {
@@ -785,12 +800,12 @@ CLIENTCOMMAND(Select) {
         bool const same_type = argc >= 3 && !strcmp(argv[2], "sametype");
         edict_t *same_type_anchor = NULL;
         edict_t *voice = NULL;
-        edict_t *old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t *old_selection[WC3_SELECTION_MAX] = { 0 };
         uint32_t old_count = 0;
         uint32_t selected_count = 0;
 
         FOR_SELECTED_UNITS(client, selected) {
-            if (old_count >= WC3_SELECTION_LIMIT) break;
+            if (old_count >= WC3_SELECTION_MAX) break;
             old_selection[old_count++] = selected;
         }
         if (same_type) {
@@ -824,7 +839,7 @@ CLIENTCOMMAND(Select) {
                 if (G_IsEntitySelected(client, e)) {
                     continue;
                 }
-                if (selected_count >= WC3_SELECTION_LIMIT) {
+                if (selected_count >= G_SelectionLimit()) {
                     break;
                 }
                 G_SelectEntity(client, e);
@@ -915,11 +930,11 @@ CLIENTCOMMAND(Focus) {
      * different portrait, including another unit in the same type subgroup,
      * only changes focus and leaves the full selection intact. */
     if (G_GetMainSelectedUnit(client) == target) {
-        edict_t *old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t *old_selection[WC3_SELECTION_MAX] = { 0 };
         uint32_t old_count = 0;
 
         FOR_SELECTED_UNITS(client, selected) {
-            if (old_count >= WC3_SELECTION_LIMIT) break;
+            if (old_count >= WC3_SELECTION_MAX) break;
             old_selection[old_count++] = selected;
         }
         if (old_count <= 1) return;

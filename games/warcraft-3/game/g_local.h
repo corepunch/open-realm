@@ -3178,6 +3178,8 @@ extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav c
 extern uint8_t g_numTreeFallSounds;
 
 // g_command.c
+#define WC3_SELECTION_MAX 24 // units; Reforged selection capacity, also bounds WC3 stack arrays
+uint32_t G_SelectionLimit(void);
 int32_t G_CompareSelectionOrder(edict_t const *, edict_t const *);
 uint32_t G_GetOrderedSelectedUnits(gameClient_t *, edict_t * *, uint32_t);
 void G_SelectEntity(gameClient_t *, edict_t *);
