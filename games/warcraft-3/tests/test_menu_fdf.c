@@ -2689,7 +2689,7 @@ static void sp_row_icon_geometry(cstring_t box) {
             T_FEQ(captured_backdrop.screen.w, .032f, .00001f);
             T_FEQ(captured_backdrop.screen.h, .032f, .00001f);
             T_FEQ(captured_backdrop.insets.left, j == 2 ? .004f : .007f, .00001f);
-            T_EQ(captured_backdrop.flags, DRAW_TILE);
+            T_EQ(captured_backdrop.flags, DRAW_TILE | DRAW_BLEND_ALL);
         }
         button->hidden = hidden;
         button->ui_flags = flags;
