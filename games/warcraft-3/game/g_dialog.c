@@ -139,6 +139,31 @@ static void DialogStyleText(frameDef_t *frame) {
     if (!frame->Font.Color.a) frame->Font.Color = COLOR32_WHITE;
 }
 
+static void DialogApplyBackdrop(frameDef_t *root) {
+    frameDef_t *backdrop;
+    if (!root) return;
+
+    backdrop = root->DialogBackdropName[0]
+        ? UI_FindChildFrame(root, root->DialogBackdropName) : NULL;
+    if (!backdrop) {
+        backdrop = UI_Spawn(FT_BACKDROP, root);
+        if (!backdrop) return;
+        snprintf(backdrop->Name, sizeof(backdrop->Name), "JassChoiceDialogBackdrop");
+    }
+
+    /* ScriptDialog is not present in every Warcraft data set. Always author
+     * the same race-skinned chrome used by the in-game menu, including when
+     * its FDF template exists but leaves the backdrop unskinned. */
+    backdrop->Type = FT_BACKDROP;
+    backdrop->Backdrop.Background = UI_LoadTexture("EscMenuBackground", true);
+    backdrop->Backdrop.EdgeFile = UI_LoadTexture("EscMenuBorder", true);
+    backdrop->DecorateFileNames = true;
+    UI_SetPoint(backdrop, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT, 0, 0);
+    UI_SetPoint(backdrop, FRAMEPOINT_BOTTOMRIGHT, root, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
+    root->DialogBackdrop = backdrop;
+    snprintf(root->DialogBackdropName, sizeof(root->DialogBackdropName), "%s", backdrop->Name);
+}
+
 /* Client windows accept a server-authored FDF frame tree. The ScriptDialog
  * template provides Warcraft styling when it is present in the game archives. */
 void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
@@ -152,6 +177,7 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
     if (!root) return;
     snprintf(root->Name, sizeof(root->Name), "JassChoiceDialog");
     UI_SetSize(root, 0.36f, 0.28f);
+    DialogApplyBackdrop(root);
     UI_CenterFrame(root);
     message = UI_FindFrameNear(root, "ScriptDialogText");
     if (!message) message = UI_Spawn(FT_TEXT, root);
