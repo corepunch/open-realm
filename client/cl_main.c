@@ -184,7 +184,15 @@ static void CL_MenuCommand(cstring_t command) {
     Cbuf_AddText("\n");
 }
 
-static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
+static void CL_SendDisconnect(bool send_disconnect) {
+    if (!send_disconnect || cls.state < ca_connected) return;
+    SZ_Clear(&cls.netchan.message);
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    MSG_WriteString(&cls.netchan.message, "disconnect");
+    Netchan_Transmit(NS_CLIENT, &cls.netchan);
+}
+
+static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu, bool send_disconnect) {
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
         return;
@@ -192,12 +200,7 @@ static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu
 
     fprintf(stderr, "CL_Disconnect: %s\n", reason && *reason ? reason : "disconnected");
 
-    if (cls.state >= ca_connected) {
-        SZ_Clear(&cls.netchan.message);
-        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        MSG_WriteString(&cls.netchan.message, "disconnect");
-        Netchan_Transmit(NS_CLIENT, &cls.netchan);
-    }
+    CL_SendDisconnect(send_disconnect);
 
     if (cls.netchan.remote_address.type == NA_EOS) Online_Leave();
     CL_ClearState();
@@ -218,7 +221,7 @@ static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu
 }
 
 void CL_Disconnect(cstring_t reason, bool notify) {
-    CL_DisconnectInternal(reason, notify, true);
+    CL_DisconnectInternal(reason, notify, true, true);
 }
 
 /* UI library FS_ReadFile wrapper — tries engine filesystem first,
@@ -465,7 +468,7 @@ static bool CL_OnlineGame(uint32_t index, menuLanGame_t *out) {
 static void CL_OnlineLeave(void) {
     bool const host = Online_IsHost();
     if (host || cls.netchan.remote_address.type == NA_EOS)
-        CL_DisconnectInternal("Left Internet room.", false, false);
+        CL_DisconnectInternal("Left Internet room.", false, false, !host);
     if (host) SV_Shutdown();
     Online_Leave();
 }
@@ -727,7 +730,10 @@ execute:
          * navigation.  Shut the client/server world down first, then rebuild
          * the menu after clearing the map asset scope so FDF/model state is
          * valid again even after a runtime menu restart. */
-        CL_DisconnectInternal("Game ended.", false, false);
+        /* SV_Shutdown immediately follows. Its local peer needs no disconnect
+         * packet, which would survive the shutdown and drop the next session. */
+        CL_DisconnectInternal("Game ended.", false, false,
+                              cls.netchan.remote_address.type != NA_LOOPBACK);
         SV_Shutdown();
         CL_RebuildMenu(pending.arg[0] ? pending.arg : "menu_main");
         break;
@@ -821,6 +827,30 @@ TEST(client_session, menu_action_menu_is_deferred_until_client_frame) {
     /* Client-owned leave buttons use this path so they cannot rebuild FDF/menu
      * state while the gameplay window input callback is still on the stack. */
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
+}
+
+TEST(client_session, shutdown_disconnect_does_not_leave_a_loopback_command_for_next_session) {
+    struct client_static old_cls = cls;
+    uint8_t packet_data[MAX_MSGLEN];
+    sizeBuf_t packet = { .data = packet_data, .maxsize = sizeof(packet_data) };
+    netadr_t from;
+
+    memset(&cls, 0, sizeof(cls));
+    while (NET_GetLoopPacket(NS_SERVER, &from, &packet)) {}
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    cls.netchan.remote_address.type = NA_LOOPBACK;
+    cls.state = ca_connected;
+
+    CL_SendDisconnect(false);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &packet), 0);
+
+    /* Ordinary client disconnects still tell their server to release the slot. */
+    CL_SendDisconnect(true);
+    T_ASSERT(NET_GetLoopPacket(NS_SERVER, &from, &packet) > 0);
+    T_EQ(MSG_ReadByte(&packet), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&packet), "disconnect");
+
+    cls = old_cls;
 }
 
 static uint32_t cl_test_menu_shutdown_count;
