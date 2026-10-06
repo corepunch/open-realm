@@ -413,6 +413,7 @@ void UI_ClearTextures(void);
 /* -------------------------------------------------------------------------- */
 frameDef_t *UI_Spawn(FRAMETYPE type, frameDef_t *parent);
 frameDef_t *UI_CloneFrameTree(frameDef_t const *source, frameDef_t *parent);
+void UI_FreeFrameTree(frameDef_t *root);
 uint32_t UI_FindFrameNumber(cstring_t name);
 void UI_SetText(frameDef_t *frame, cstring_t format, ...);
 void UI_SetTextPointer(frameDef_t *frame, cstring_t text);
@@ -1139,6 +1140,31 @@ frameDef_t *UI_Spawn(FRAMETYPE type, frameDef_t *parent) {
     }
     fprintf(stderr, "FDF: frame capacity %u exhausted\n", MAX_UI_CLASSES);
     return NULL;
+}
+
+/* Release one pooled frame and the dynamic strings, lists, and camera token it owns. */
+static void UI_ReleaseFrame(frameDef_t *frame) {
+    if (frame->camera_event_instance_id && ui_release_camera_event_instance)
+        ui_release_camera_event_instance(frame->camera_event_instance_id);
+    UI_FreeFrameDynamicText(frame);
+    UI_FreeFrameMenuItems(frame);
+    memset(frame, 0, sizeof(*frame));
+}
+
+/* Reclaim a serialized temporary tree so repeated server-authored windows do not exhaust the shared FDF frame pool. */
+void UI_FreeFrameTree(frameDef_t *root) {
+    bool release[MAX_UI_CLASSES] = { false };
+    uintptr_t address = (uintptr_t)root, base = (uintptr_t)frames;
+
+    if (!root || address < base || address >= base + sizeof(frames) ||
+        (address - base) % sizeof(frames[0])) return;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        frameDef_t *frame = frames + i;
+        for (frameDef_t const *parent = frame; parent; parent = parent->Parent) {
+            if (parent == root) { release[i] = true; break; }
+        }
+    }
+    FOR_LOOP(i, MAX_UI_CLASSES) if (release[i]) UI_ReleaseFrame(frames + i);
 }
 
 typedef struct {
@@ -1878,6 +1904,7 @@ frameDef_t *UI_CloneFrameTree(frameDef_t const *source, frameDef_t *parent) {
     FOR_LOOP(i, count) {
         copies[i] = UI_Spawn(sources[i]->Type, parent);
         if (!copies[i]) {
+            while (i) UI_ReleaseFrame(copies[--i]);
             return NULL;
         }
         uintptr_t camera_event_instance_id = copies[i]->camera_event_instance_id;

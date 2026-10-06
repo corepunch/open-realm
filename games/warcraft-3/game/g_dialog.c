@@ -2,6 +2,10 @@
  * svc_window frames and returns an opaque choice; ownership remains in game.dll. */
 #include "g_local.h"
 #include "hud/hud_local.h"
+#include "generated/script_dialog.h"
+#include "generated/script_dialog_button.h"
+
+static bool dialog_fdf_warning_printed, button_fdf_warning_printed;
 
 static bool DialogIsPlayer(player_t const *player, uint32_t *number) {
     if (!player || !number || !game.clients) return false;
@@ -50,6 +54,7 @@ jassDialog_t *G_JassDialogCreate(void) {
     return dialog;
 }
 
+/* Store optional presentation metadata without growing this native's argument list. */
 jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *dialog, cstring_t label,
         jassDialogButtonOptions_t const *options) {
     if (!G_JassDialog(dialog) || level.dialog_button_count >= MAX_JASS_DIALOG_BUTTONS) return NULL;
@@ -142,15 +147,13 @@ static void DialogStyleText(frameDef_t *frame) {
     if (!frame->Font.Color.a) frame->Font.Color = COLOR32_WHITE;
 }
 
-static void DialogApplyBackdrop(frameDef_t *root) {
-    frameDef_t *backdrop;
-    if (!root) return;
+/* Supply race-skinned chrome and bounds for the dialog's backdrop. */
+static bool DialogApplyBackdrop(frameDef_t *root, frameDef_t *backdrop) {
+    if (!root) return false;
 
-    backdrop = root->DialogBackdropName[0]
-        ? UI_FindChildFrame(root, root->DialogBackdropName) : NULL;
     if (!backdrop) {
         backdrop = UI_Spawn(FT_BACKDROP, root);
-        if (!backdrop) return;
+        if (!backdrop) return false;
         snprintf(backdrop->Name, sizeof(backdrop->Name), "JassChoiceDialogBackdrop");
     }
 
@@ -161,69 +164,112 @@ static void DialogApplyBackdrop(frameDef_t *root) {
     backdrop->Backdrop.Background = UI_LoadTexture("EscMenuBackground", true);
     backdrop->Backdrop.EdgeFile = UI_LoadTexture("EscMenuBorder", true);
     backdrop->DecorateFileNames = true;
+    /* HACK: retail ScriptDialog FDF omits backdrop anchors; the client requires explicit bounds to fill the dialog. */
     UI_SetPoint(backdrop, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT, 0, 0);
     UI_SetPoint(backdrop, FRAMEPOINT_BOTTOMRIGHT, root, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
     root->DialogBackdrop = backdrop;
     snprintf(root->DialogBackdropName, sizeof(root->DialogBackdropName), "%s", backdrop->Name);
+    return true;
 }
 
 /* Client windows accept a server-authored FDF frame tree. The ScriptDialog
  * template provides Warcraft styling when it is present in the game archives. */
 void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
-    frameDef_t *root, *message, *source;
+    frameDef_t *root = NULL, *message, *source, *previous = NULL;
+    ScriptDialog_t dialog_frames, clone_frames;
+    ScriptDialogButton_t button_template, button_frames;
+    bool stock_dialog, stock_button;
+    float content_height = 0.10f;
     uint32_t n = 0, omitted = 0;
     if (!ent || !ent->client || !dialog) return;
-    UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf");
-    UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
-    source = UI_FindFrame("ScriptDialog");
+    stock_dialog = UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf") && ScriptDialog_Load(&dialog_frames);
+    stock_button = stock_dialog && ScriptDialogButton_Load(&button_template);
+    if (!stock_dialog && !dialog_fdf_warning_printed) {
+        fprintf(stderr, "WC3 JASS dialog: ScriptDialog FDF unavailable; using native frame types\n");
+        dialog_fdf_warning_printed = true;
+    }
+    if (stock_dialog && !stock_button && !button_fdf_warning_printed) {
+        fprintf(stderr, "WC3 JASS dialog: ScriptDialogButton FDF unavailable; using native button frames\n");
+        button_fdf_warning_printed = true;
+    }
+    source = stock_dialog ? dialog_frames.ScriptDialog : NULL;
     root = source ? UI_CloneFrameTree(source, NULL) : UI_Spawn(FT_DIALOG, NULL);
-    if (!root) return;
+    if (!root) {
+        fprintf(stderr, "WC3 JASS dialog %u: failed to allocate a dialog frame\n", dialog->id);
+        return;
+    }
     snprintf(root->Name, sizeof(root->Name), "JassChoiceDialog");
-    UI_SetSize(root, 0.36f, 0.28f);
-    DialogApplyBackdrop(root);
+    if (source && !ScriptDialog_Bind(&clone_frames, root)) {
+        fprintf(stderr, "WC3 JASS dialog %u: cloned ScriptDialog binding is incomplete\n", dialog->id);
+        goto cleanup;
+    }
+    if (!root->Width || !root->Height) {
+        /* TODO: retail ScriptDialog dimensions are absent in some data sets; retain a stock-shaped native fallback. */
+        UI_SetSize(root, 0.288f, 0.17f);
+    }
+    if (!DialogApplyBackdrop(root, source ? clone_frames.ScriptDialogBackdrop : NULL)) {
+        fprintf(stderr, "WC3 JASS dialog %u: failed to allocate backdrop\n", dialog->id);
+        goto cleanup;
+    }
     UI_CenterFrame(root);
-    message = UI_FindFrameNear(root, "ScriptDialogText");
+    message = source ? clone_frames.ScriptDialogText : NULL;
     if (!message) message = UI_Spawn(FT_TEXT, root);
-    if (!message) return;
+    if (!message) {
+        fprintf(stderr, "WC3 JASS dialog %u: failed to allocate message text\n", dialog->id);
+        goto cleanup;
+    }
     snprintf(message->Name, sizeof(message->Name), "JassChoiceMessage");
-    UI_SetSize(message, 0.30f, 0.06f);
-    UI_SetPoint(message, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.025f);
     DialogStyleText(message);
     UI_SetText(message, "%s", dialog->message);
     FOR_LOOP(i, level.dialog_button_count) {
         jassDialogButton_t const *entry = &level.dialog_buttons[i];
         frameDef_t *button, *text;
         if (!entry->inuse || entry->dialog_id != dialog->id) continue;
-        if (n >= 12) { ++omitted; continue; }
-        source = UI_FindFrame("ScriptDialogButton");
-        if (!source) source = UI_FindFrame("StandardButtonTemplate");
-        button = source ? UI_CloneFrameTree(source, root) : UI_Spawn(FT_GLUETEXTBUTTON, root);
-        if (!button) break;
-        snprintf(button->Name, sizeof(button->Name), "JassChoiceButton%u", n);
-        UI_SetSize(button, 0.24f, 0.027f);
-        UI_SetPoint(button, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.10f - n * 0.032f);
-        text = button->Button.NormalText.frame[0]
-            ? UI_FindFrameNear(button, button->Button.NormalText.frame)
-            : NULL;
-        if (!text) text = UI_Spawn(FT_TEXT, button);
-        if (text) {
-            snprintf(text->Name, sizeof(text->Name), "JassChoiceButtonText%u", n);
-            UI_SetSize(text, 0.23f, 0.027f);
-            UI_SetPoint(text, FRAMEPOINT_CENTER, button, FRAMEPOINT_CENTER, 0, 0);
-            DialogStyleText(text);
-            UI_SetText(text, "%s", entry->text);
-            snprintf(button->Button.NormalText.frame, sizeof(button->Button.NormalText.frame), "%s", text->Name);
+        if (n >= MAX_JASS_DIALOG_UI_BUTTONS) { ++omitted; continue; }
+        if (stock_button) button = UI_CloneFrameTree(button_template.ScriptDialogButton, root);
+        else button = UI_Spawn(FT_GLUETEXTBUTTON, root);
+        if (!button) {
+            fprintf(stderr, "WC3 JASS dialog %u: failed to allocate button %u\n", dialog->id, entry->id);
+            goto cleanup;
         }
+        if (stock_button && !ScriptDialogButton_Bind(&button_frames, button)) {
+            fprintf(stderr, "WC3 JASS dialog %u: cloned button %u binding is incomplete\n", dialog->id, entry->id);
+            goto cleanup;
+        }
+        snprintf(button->Name, sizeof(button->Name), "JassChoiceButton%u", n);
+        if (!button->Width || !button->Height) {
+            /* TODO: this fallback applies only when no button dimensions exist in the loaded stock FDF. */
+            UI_SetSize(button, 0.159f, 0.031f);
+        }
+        /* HACK: ScriptDialog FDF supplies a button template but no row container or dynamic anchors. */
+        if (previous) UI_SetPoint(button, FRAMEPOINT_TOP, previous, FRAMEPOINT_BOTTOM, 0, -0.004f);
+        else UI_SetPoint(button, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.10f);
+        content_height += button->Height + 0.004f;
+        previous = button;
+        text = stock_button ? button_frames.ScriptDialogButtonText : NULL;
+        if (!text) text = UI_Spawn(FT_TEXT, button);
+        if (!text) {
+            fprintf(stderr, "WC3 JASS dialog %u: failed to allocate label for button %u\n", dialog->id, entry->id);
+            goto cleanup;
+        }
+        snprintf(text->Name, sizeof(text->Name), "JassChoiceButtonText%u", n);
+        UI_SetPoint(text, FRAMEPOINT_CENTER, button, FRAMEPOINT_CENTER, 0, 0);
+        DialogStyleText(text);
+        UI_SetText(text, "%s", entry->text);
+        snprintf(button->Button.NormalText.frame, sizeof(button->Button.NormalText.frame), "%s", text->Name);
         UI_SetOnClick(button, UI_WINDOW_CLOSE_COMMAND_PREFIX "jassdialog %u %u", dialog->id, entry->id);
         ++n;
     }
     if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is 12\n", dialog->id, omitted);
-    UI_SetSize(root, 0.36f, MAX(0.17f, 0.115f + n * 0.032f));
+    /* HACK: expand the template around its generated rows; stock FDF has no variable-height choice layout. */
+    UI_SetSize(root, root->Width, MAX(root->Height, content_height + 0.012f));
     UI_SetCurrentClient(ent->client);
     UI_WriteWindow(ent, root, &MAKE(uiWindowDef_t, .id = WC3_JASS_DIALOG_WINDOW,
         .class_id = WC3_JASS_DIALOG_WINDOW,
         .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE | UI_WINDOW_NO_PAUSE | UI_WINDOW_NO_ESCAPE));
     UI_SetCurrentClient(NULL);
+cleanup:
+    UI_FreeFrameTree(root);
 }
 
 void UI_JassDialogHide(edict_t *ent) {

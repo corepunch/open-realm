@@ -48,9 +48,12 @@ previous active choice and clears its authoritative visible bit.
   and score-screen policy are not implemented here.
 * Button hotkeys are stored, but the generic `svc_window` keyboard shortcut
   routing is not implemented. Mouse input is supported.
-* UI emits at most 12 buttons in a window; unusually large custom-map dialogs
-  need scrolling/pagination and retail scaling research.
-* ScriptDialog FDF styling is used if available. Final visual alignment,
+* UI emits at most 12 buttons in a window; omitted choices are reported to
+  stderr. Unusually large custom-map dialogs need scrolling/pagination and
+  retail scaling research.
+* ScriptDialog and ScriptDialogButton use generated bindings to stock FDF.
+  The retail FDF has no variable-height choice rows, so row anchors and dialog
+  height are generated from the runtime button count. Final visual alignment,
   actual clickable rendering, and exact retail dialog layout require in-game
   verification at 640×480 and widescreen resolutions.
 * Save restores dialog identities and visibility. The load and client-begin
@@ -67,6 +70,9 @@ event pathways. It must not use a map-specific event or client UI hook.
 `wc3_dialog.*` covers creation, distinct handles, clear/destroy lifecycle,
 JASS native calls, a choice event, correct `GetClickedButton` /
 `GetClickedDialog` / `GetTriggerPlayer` context, registration selection, and
-duplicate click rejection. The rendering path and campaign integration still
-require manual user-side testing; no compilation, tests, or game launches were
-performed while preparing this change.
+duplicate click rejection. It also verifies player-number identity when a
+client slot differs from its Warcraft player number, and checks that repeated
+dialog serialization reclaims temporary FDF frames. The disabled-label
+serialization path and save-version rejection have focused regressions.
+`make test` passed with 46,711 assertions after the audit fixes. Retail visual
+alignment and campaign integration still require user-side game verification.
