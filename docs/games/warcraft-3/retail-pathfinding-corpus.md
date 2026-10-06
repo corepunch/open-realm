@@ -1926,3 +1926,18 @@ in the aggregate pathfinding-tools suite. The inventory now has355 entries
 (121 oracles,121 archives,113 live contracts), with337 pinned inputs. A fresh
 strict run verifies the new entry, and complete inventory/hash checks pass.
 See [Follow target loss](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
+
+Payoff128 adds `oracle-spatial-save`:24 original saved-rectangle insertion-stage
+replays using real constructors, plus byte-exact reconstruction of the full
+MAP-06.2 report from16 retained capture/marker files. Four matched UI-load
+movers contribute308 exact resumed commits; two unrelated loaded movers and
+three failed load attempts remain excluded. The16 raw inputs are kept in a
+compressed portable bundle with their original hashes (including CRLF marker
+bytes); no game binary/assets are redistributed. Save118 engine regressions
+exercise rebuilt target/blocker order, clipped memberships and four public
+active routes at three checkpoints. Five Python checks reject damaged or
+self-rehashed altered captures and verify saved Ghidra readbacks. Inventory:
+360 entries (125 original-oracle contracts,121 archive audits,114 live contracts),
+446 pinned inputs. The isolated insertion oracle supplies decoded fields; its
+executable scope does not include retail stream decoding or SEP-03 maintenance.
+See [spatial save/load integration](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order).

@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**221 done / 336 tasks; 115 remaining.**
+**222 done / 336 tasks; 114 remaining.**
+
+Payoff128 closes MAP-06.2: load rebuilds active fine membership in save order,
+with exact retail UI-load suffix evidence and actual engine ordering/active-route
+regressions. Save118 removes per-cell ranks from the payload. See
+[spatial load order](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order).
 
 Payoff127 closes SEP-01.3: the repeated live policy matrix now drives engine
 eligibility and channel/type lifecycle regressions. Integer selector parsing
@@ -503,7 +508,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 ### MAP-06 — Map lifetime
 
 - [ ] **MAP-06.1** Destroy and reload a map with a live mover; record which routes, grids and handles are cleared or rebuilt and assert first subsequent movement.
-- [ ] **MAP-06.2** Save/load during an active route; determine retained versus rebuilt path state and compare resumed movement with the uninterrupted control.
+- [x] **MAP-06.2** Save/load during an active route; determine retained versus rebuilt path state and compare resumed movement with the uninterrupted control. Payoff128: complete retail UI-load four-mover suffixes (308 exact commits), rebuilt chains in save order, 24 original insertion cases, Save118 logical rectangles and actual engine target/blocker order, clipped geometry and four-route saved continuations. [Evidence](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order). Proximity query/stamp/maintenance contracts remain SEP-02/03.
 
 ## FOOT — Footprints and query policy
 

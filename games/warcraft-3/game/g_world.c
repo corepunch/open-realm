@@ -689,18 +689,25 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
 
 uint64_t G_GetMoveSpatialSerial(void) { return move_spatial_serial; }
 
-void G_SetMoveSpatialSerial(uint64_t serial) { move_spatial_serial=serial; }
-
 wc3SpatialActive_t const *G_GetMoveSpatialObject(uint32_t index) {
     assert(index<MAX_ENTITIES); return move_spatial+index;
 }
 
-bool G_SetMoveSpatialObject(uint32_t index, wc3SpatialActive_t const *data) {
-    if (index>=MAX_ENTITIES || !data ||
-        !wc3_spatial_valid(data,move_spatial_serial)) return false;
-    move_spatial_prepare();move_spatial_unlink(index);
-    move_spatial[index]=*data; move_spatial_insert(index);
-    move_spatial_geometry[index].valid=false; return true;
+/* Original14d000 re-emits the saved rectangle in object load order. Cell
+ * chains are rebuilt by prepend; movement-era publication ranks are not saved
+ * identities. Keep the rectangle itself: loading must not predict a new pose. */
+bool G_LoadMoveSpatialObject(uint32_t index, wc3SpatialActive_t const *saved) {
+    if(!saved)return false;
+    wc3FineBox_t box=saved->box;
+    int64_t width=(int64_t)box.max.x-box.min.x, height=(int64_t)box.max.y-box.min.y;
+    if(index>=globals.num_edicts || !g_edicts[index].inuse ||
+        width<=0 || height<=0 || width>4 || height>4 ||
+        move_spatial[index].box.min.x!=move_spatial[index].box.max.x) return false;
+    move_spatial_prepare();
+    if(!wc3_spatial_update(move_spatial+index,box,&move_spatial_serial))return false;
+    move_spatial_insert(index);
+    move_spatial_geometry[index].valid=false;
+    return true;
 }
 
 /* Original15d360 rounds a fine object's half-open rectangle into base

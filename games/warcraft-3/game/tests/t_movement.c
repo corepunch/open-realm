@@ -13374,10 +13374,14 @@ TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continua
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
     unsigned steps=0;bool mismatch=!unit;
-    unsigned const times[]={1200,5995,6000,7000,11995,12000,13000,18000};
-    char files[8][64];unsigned saved[8]={0},suffix=0;
-    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-overlap-%u.bin",times[i]);
-    FOR_LOOP(pass,9) {
+    /* This retail capture never loaded a save. Once target leave/reentry at
+     * 6000 changes the chain, LoadGame rebuilds it in save order (MAP-06.2),
+     * so those suffixes cannot use the uninterrupted movement oracle. Test
+     * that changed consumer explicitly in wc3_spatial_load instead. */
+    unsigned const times[]={1200,5995,12000,13000,18000};
+    char files[5][64];unsigned saved[5]={0},suffix=0;
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-overlap-%u.bin",times[i]);
+    FOR_LOOP(pass,6) {
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
         while(level.time<31000 && !mismatch) {
@@ -13389,7 +13393,7 @@ TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continua
                 FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
                 if(mismatch)fprintf(stderr,"Overlap commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
             }
-            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
         }
         T_EQ(steps,sizeof(overlap81_motion)/sizeof(*overlap81_motion));
         T_ASSERT(!jass_rterror_pending(level.vm));
@@ -13397,7 +13401,7 @@ TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continua
         if(pass)suffix+=steps-saved[pass-1];
     }
     fprintf(stderr,"Overlap native commits=%u saved suffix commits=%u\n",steps,suffix);
-    FOR_LOOP(i,8)remove(files[i]);
+    FOR_LOOP(i,5)remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;

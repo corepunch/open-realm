@@ -829,6 +829,20 @@ public class MapPathfinding extends GhidraScript {
         {"6f6951a0", "UnitData_GetRepulsePrio", "[SEP-01.2] ECX = rawcode (by value), plain RET; hashes via 6f198420 and returns UnitData record+230 (authored repulsePrio, raw int from loader 66bf40) or 0 if absent. SEP-01.2"},
         {"6f69c490", "Unit_OnSuspendBeginEvent", "[SEP-01.2] CUnit event 0xd0145 (handler 690490, vtable 6fb77eb0 slot+c). Refresh first (Unit+5c 0x200000 already set by PauseUnit), then if Unit+54>0 set 5c 0x100000 and Unit_AcquireSeparationSuppression. Live PauseUnit(true). SEP-01.2"},
         {"6f69c580", "Unit_OnSuspendEndEvent", "[SEP-01.2] CUnit event 0xd0146. Refresh first (still suppressed), then if 5c 0x100000 clear it and JMP Unit_ReleaseSeparationSuppression (second refresh re-enables). Live PauseUnit(false). SEP-01.2"},
+        {"6f14d380", "SpatialMap_InsertRectangle", "[MAP-06.2] Thiscall ECX map, stack4 rectangle (y0,x0,y1,x1), stack8 object; RET8. Clips to +54..60 and prepends kind-1 records row-major via 6f14d2e0. Only caller: SpatialObject_Load 6f14d000."},
+        {"6f14d000", "SpatialObject_Load", "[MAP-06.2] Spatial object vtable slot (6fa9096c+4). Thiscall ECX object, stack4 stream; RET4. Reads map, payload handles, +34, rectangle +1C..28, +38 stamp, +3C refs, +40 flags; if not 0x10000000 re-inserts the saved rectangle via 6f14d380."},
+        {"6f14d430", "SpatialObject_Save", "[MAP-06.2] Spatial object vtable slot 6fa9096c. Thiscall ECX object, stack4 stream; RET4. Writes map/payload handles, +34, rectangle, +38, +3C, +40."},
+        {"6f14d620", "SpatialMap_Save", "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only."},
+        {"6f14d4c0", "SpatialMap_SaveCell", "[MAP-06.2] Thiscall ECX map, stack4 stream, stack8 x, stackC y, stack10 collector; RET10, EAX 1 written / 0 skipped. Collector 6f14cdf0 (flagged objects only, chain order) then x, y, high byte, count, handles."},
+        {"6f14d1d0", "SpatialMap_LoadSaved", "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d140, stamp +B4, PathRandom +BC/+C0, cells refilled 0xffffff, dirty zeroed, saved cells via 6f14d0b0, new maintenance request (same arithmetic as 6f14c990)."},
+        {"6f14d0b0", "SpatialMap_LoadCell", "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Reads x, y, high byte, count; sets cell high byte; prepends each saved handle as kind 1 (6f14d2e0) in saved order, so the saved chain order is reversed."},
+        {"6f14d590", "SpatialMap_SaveGeometry", "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Width, height, +44..+50 floats, bounds +54..+60, scale +64/+68."},
+        {"6f14d140", "SpatialMap_LoadGeometry", "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Inverse of 6f14d590."},
+        {"6f15c750", "PathMaps_Save", "[MAP-06.2] Thiscall ECX owner, stack4 stream; RET4. Writes 6 map handles, full compaction 6f14dfc0 of +234 then +238, 6f14d620 for both, adaptive 6f163120, then search-system handles."},
+        {"6f15c180", "PathMaps_LoadSaved", "[MAP-06.2] Thiscall ECX owner, stack4 stream; RET4. Reads 6 map handles, 6f14d1d0 for +234/+238, 6f162f20 adaptive, then +24C/+250 handles."},
+        {"6f15b4f0", "PathOwner_Save", "[MAP-06.2] Thiscall ECX owner, stack4 stream; RET4. Section-framed: PathMaps_Save 6f15c750 first, then 6f167500, 6f15c8b0 x2, 6f15c930. Caller 6f04dd30."},
+        {"6f15b1c0", "PathOwner_LoadSaved", "[MAP-06.2] Thiscall ECX owner, stack4 stream. Calls PathMaps_LoadSaved 6f15c180. Caller 6f04ced0."},
+        {"6f14d2e0", "SpatialMap_PrependInsertion", "[SEP-03.1] Thiscall ECX map, stack4 cell word pointer, stack8 object; RET8. Prepends a kind-1 record (free list or 6f14dde0 append); +B0++ only (object +3C untouched, no dirty bit). Callers: save-load 6f14d0b0 and 6f14d380."},
     };
 
     public void run() throws Exception {

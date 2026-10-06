@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 117, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 118, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -15,7 +15,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - the initial point-order waypoint reserve and its allocation cursor, plus additional managed destination edicts;
 - one used flag per entity slot, a raw `edict_t` block for used slots, logical attack defaults/overrides, immutable sound profiles, bounded animation text, and retained native fine-route points;
 - sparse lifecycle records for all 29 edict pools, written after the edicts, with per-pool counts and owning-edict indexes;
-- ordinary fine-cell active insertion history after the pools: a64-bit publication counter, object count, owning-edict indexes and retained per-cell ranks;
+- ordinary fine-cell memberships after the pools: object count, owning-edict indexes and logical rectangles in entity save order; load rebuilds per-cell insertion ranks by prepending in that order;
 - basic attack projectiles retain their launch-time attack type, and fixed-point artillery projectiles retain their launch-time attack type and splash profile, in the serialized edict; attack cooldowns persist as simulation-time deadlines and keep elapsing across order changes;
 - group membership, trigger enabled state, timer state, weather-effect registry state, unread gameplay events, and a semantic JASS VM snapshot;
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
@@ -33,6 +33,18 @@ after physical groups and unit routes have loaded. Invalid rank, class, policy,
 count, countdown or work rejects restoration; failed restoration clears all
 coarse queues before releasing groups. Version108 and older layouts are rejected.
 See [coarse/fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Version118 replaces serialized fine-cell publication ranks with logical rectangles.
+Retail `SpatialObject_Load` (`6f14d000`) re-emits ordinary memberships through
+`SpatialMap_InsertRectangle` (`6f14d380`); it does not restore the old cell chain.
+OpenRealm now rebuilds ranks in the same object stream order through
+`G_LoadMoveSpatialObject`. Unchanged geometry links keep that rebuilt order;
+subsequent leave/reentry can change it normally. Poses, active routes, wait state,
+repulsion, scheduling and shared RNG retain their existing logical save fields.
+A spatial record is20 bytes instead of148; the obsolete global8-byte rank counter
+is also removed. Invalid rectangles, duplicate owners, inactive owners and
+truncated streams reject restoration and clear partially reconstructed membership.
+Version117 is rejected. See [spatial load order](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order).
 
 Version117 retains `movement.follow_target_spawn_time` beside the Follow target
 reference. Scheduled Follow and combat resumption reject a reused target slot

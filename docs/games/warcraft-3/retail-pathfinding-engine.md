@@ -7243,7 +7243,8 @@ match all501 commits and **1,999 suffix commits across eight Save91
 continuations**, with25,045 assertions per edition. The separate fine-route
 regression covers both target/blocker orders. Ten malformed spatial-state
 records are rejected; the valid serializer round-trip retains the counter and
-cell ranks. Map replacement, direct/deferred removal and edict birth clear
+cell ranks. These are historical Save91 results; [Payoff128](#spatial-load-rebuilds-membership-in-save-order)
+replaces that load-order assumption and its affected suffix assertions. Map replacement, direct/deferred removal and edict birth clear
 ownership; ordinary pose prediction does not reorder committed occupancy.
 
 The composed spatial oracle compares **81,920 engine active-cell orders**
@@ -10566,3 +10567,82 @@ two kernel contracts, 86 metadata tests, 401 spell tests and four existing repul
 Production and test builds pass. The staged corpus contains 359 valid inventory/hash contracts; the fresh policy
 report passes its strict manifest checks, and 24 Python corpus/evidence checks pass. The pure kernel target
 passes 263,464 assertions without a full game rebuild.
+
+## Spatial load rebuilds membership in save order
+
+Payoff128 closes MAP-06.2 from the completed [retail save/load handoff](retail-pathfinding-handoffs/MAP-06.2/HANDOFF.md).
+Retail save compacts proximity and fine maps, then writes logical objects. Load
+constructs a new owner/map/clock, restores the saved fields and prepends each
+ordinary rectangle in object load order (`14d000 -> 14d380 -> 14d2e0`). Static
+saved-cell handles also prepend in saved order (`14d0b0`). Live moving proximity
+cell530 changes `[M,C0,C1,C2] -> [C2,C1,C0,M]`; the idle four-unit cell has a
+different movement-era order but the same post-load order. This rule follows the
+saved object stream; it is not a request to reverse every old chain blindly.
+
+The full retained UI capture resumes four movers word-identically to the
+uninterrupted control, with74/99/60/75 commits (308 total) from the matched save
+point to arrival. Both observed and observer-free JASS suffixes agree with their
+own control suffixes. Their whole files differ because the UI saved on different
+ticks; that false comparison remains in the frozen report. The all-movers capture
+also contains two unrelated loaded movers whose trajectories are not certified.
+Scripted save without load preserves481 commits across the four tracked movers.
+Failed JASS LoadGame and `-loadfile` attempts remain failed evidence in the retained
+input bundle, not successful load witnesses. No new live run is claimed here.
+
+`verify_wc3_pathing_spatial_save.py` reruns the original saved-rectangle insertion
+stage with real owner/map/object constructors, four clipped/unclipped rectangles
+and all six load orders:24 cases. The supplied decoded rectangles/reference
+counts are inputs; this isolated oracle does not emulate the stream decoder.
+Its complete chains and candidate orders must equal the frozen original output.
+Separately, it reconstructs the entire unchanged MAP-06.2 report from16 retained
+capture/marker files and requires byte identity (`0856f6f3...d8249`).
+Fourteen mapping names/comments are saved and read back with no unsaved Ghidra
+changes; signatures are recorded without inventing new calling-convention claims.
+
+The engine now saves ordinary logical rectangles and reconstructs active fine
+ranks through `G_LoadMoveSpatialObject` in the serialized object stream order.
+It preserves saved rectangles without admission, pose prediction or RNG draws.
+The derived intrusive broadphase still touches only each object's own cells;
+no global sort or extra per-frame entity scan is introduced. Save118 removes
+128 bytes of ranks per active object and the8-byte shared publication counter.
+The game/network entity layout is unchanged. Older saves are rejected according
+to the repository's exact-version policy.
+
+`wc3_spatial_load` checks actual four-blocker order before and after save/load,
+unchanged presentation relinks, an order-sensitive fine target observer, a real
+subsequent leave/reentry, fractional/clipped rectangles at all four footprint
+sizes (including a flyer), and four public Move orders resumed at three active
+checkpoints. The four-mover engine test compares every frame's pose, velocity,
+route cursors, wait/repulsion state, order, owner clock and shared RNG. It is an
+engine preservation test, not a claim that this synthetic map recreates the full
+retail scene. The live capture supplies the separate retail producer evidence.
+
+The earlier Save91 overlap test asserted that every saved suffix matched a
+capture that never loaded a save. That assumption fails after the target's
+movement re-prepends its chain: the first changed motion appears at7230 after
+loading the6000 checkpoint. The captured uninterrupted501 commits remain the
+oracle. Five unchanged-order/removed-blocker checkpoints retain exact suffix
+checks; the changed-order consumer has its own explicit regression instead of
+an unsupported uninterrupted-trajectory assertion.
+
+Classic/TFT each pass206 focused tests /652,348 assertions; the new spatial
+suite contributes317,515 assertions. Because the correction changes every active
+load, the broader movement suite was run once:349 tests /5,186,690 assertions
+pass per edition. The union is553 tests /5,533,155 assertions per edition. The adjusted native overlap regression
+retains501 original commits and1,163 exact saved suffix commits across its five
+valid checkpoints. The unchanged strict corpus entry and25 Python checks pass
+from the isolated staged tree; full-repository validation remains on the
+authorized batch cadence. Logs: `/GitHub/wc3-analysis/runtime/payoff128/`.
+
+Proximity query ordering, lazy records, native stamp alias/repair and periodic
+maintenance remain SEP-02/03. Rebuilding compact active fine memberships does
+not implement those outstanding contracts. Adaptive map state remains an
+independent saved publication; load must not refresh pending terrain edits.
+
+```sh
+make BUILD=release -j6 openwarcraft3-tests openwarcraft3
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests \
+  -data build/tests +dedicated 1 +test 'wc3_spatial_load.*'
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_spatial_save.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --report /tmp/spatial-save-fresh.json
+```

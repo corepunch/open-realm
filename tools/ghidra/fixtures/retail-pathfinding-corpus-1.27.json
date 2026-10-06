@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "124 executable original oracle contracts,121 archive audits and114 strict live contracts;359 total entries.",
+  "scope": "125 executable original oracle contracts,121 archive audits and114 strict live contracts;360 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35701,6 +35701,55 @@
       "exclusions": [
         "Research captures independently establish the36-case live matrix; this entry does not run a live scene. Mechanical Critter/counting work producers remain SEP-01.2; spatial ordering and full crowd trajectories remain SEP-02/03/04."
       ]
+    },
+    {
+      "id": "oracle-spatial-save",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_spatial_save.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spatial-save-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "insertion_cases": {
+          "equal": 24
+        },
+        "captured_files": {
+          "equal": 16
+        },
+        "matched_movers": {
+          "equal": 4
+        },
+        "resumed_commits": {
+          "equal": 308
+        },
+        "frozen_sha256": {
+          "equal": "0856f6f36fecb20f81f0b9b17b4e091c926d325632055de94ac952b8937d8249"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "Original14d380 saved-rectangle insertion stage with real constructors,24 load-order/clipping cases; full unchanged MAP-06.2 report reconstruction from16 retained raw captures/marker files; four matched UI-load mover suffixes and rebuilt save-order chains. No new live run.",
+      "exclusions": [
+        "Isolated oracle supplies decoded saved fields; it does not execute the full stream decoder.",
+        "Two unrelated loaded movers and failed JASS/-loadfile attempts do not certify resumed movement.",
+        "Proximity query/stamp/maintenance contracts remain SEP-02/03."
+      ]
     }
   ],
   "fixtures": [
@@ -36599,7 +36648,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "d8607cd66107041a1e19c0a767e94c8cedbfbf7f779d4c10c4dd25dcfdd6f1a0"
+      "sha256": "007e83c0dd18fb8d53a85b29d3b87ef89c7ec6f7c5ffe260bdcb8776102bd90f"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37456,6 +37505,38 @@
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
       "sha256": "675fb8cb7e58c179e00d40df596f5c63205faad94c49203d566ac83849cfe0fa"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
+      "sha256": "5689a2273ed85f499864aae01ef8aece34a838247b69d206ffdb1354e75d6eed"
+    },
+    {
+      "path": "tools/ghidra/research/sep03_map05_spatial_harness.py",
+      "sha256": "68d17ddff0dacbff5631899bc3694a2815651449ac0318eff1e6363a4623db18"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/MAP-06.2-expected.json",
+      "sha256": "0856f6f36fecb20f81f0b9b17b4e091c926d325632055de94ac952b8937d8249"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spatial-load-insertion-1.27.json",
+      "sha256": "2668a49ccced585418e9ac6fa44b97398ab52a230373ed535c91c06736e8efe9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spatial-save-inputs-1.27.json.gz",
+      "sha256": "a3f7380377488a1e102b59de25d61266dd94fde71d16f8f40f7ec39268ac724f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spatial-save-ghidra-1.27.json",
+      "sha256": "e70688822f671d9633cb8fb2424050a6dd47bc49fcd099d14950d4cdd730f0c8"
+    },
+    {
+      "path": "tools/frida/research/sep03_map06_expected.py",
+      "sha256": "e5e6f59db7692de5db6c5477b1b107e6261e0696611de7620e56a1cdabc7dd06"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_spatial_load.c",
+      "sha256": "eb8ce44194fd826c40c3e6f75a7552627aaa330e9299f800fd2e525a366948a9"
     }
   ]
 }
