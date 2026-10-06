@@ -28,6 +28,7 @@
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
+#include "retail_formation_boundary_111.h"
 #include "retail_public_pair.h"
 #include "retail_selected_point.h"
 #include "retail_selected_idle_shift.h"
@@ -7806,6 +7807,110 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     T_EQ(mine->resources, 90);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+/* Drive the registered public JASS producer, not just the scalar helper.
+ * The admitted poses are native layout-entry inputs; moving velocity with a
+ * zero elapsed interval exercises stopping without inventing earlier history. */
+TEST(wc3_movement, group_point_request_twelve_boundary_matches_retail_layouts) {
+    FOR_LOOP(c,sizeof(retail_formation_boundary_111)/sizeof(*retail_formation_boundary_111)) {
+        typeof(*retail_formation_boundary_111) const *fixture=retail_formation_boundary_111+c;
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        currentplayer=&game.clients[0].ps;
+        char script[1800];
+        snprintf(script,sizeof(script),
+            "globals\ngroup boundary=null\nunit array members\nendglobals\n"
+            "function issueBoundary takes nothing returns nothing\n"
+            "call BJassAssert(GroupPointOrder(boundary,\"move\",%.9g,%.9g),\"boundary accepted\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nset boundary=CreateGroup()\n"
+            "loop\nexitwhen i==%u\nset members[i]=CreateUnit(Player(0),'hfoo',128+I2R(i)*64,128,0)\n"
+            "call GroupAddUnit(boundary,members[i])\nset i=i+1\nendloop\nendfunction\n",
+            wc3_float(fixture->goal[0]),wc3_float(fixture->goal[1]),fixture->count);
+        T_ASSERT(run_test_jass(script));
+        ggroup_t *collection=level.groups[0];T_EQ(collection->num_units,fixture->count);
+        edict_t *units[25],*old_goals[25];uint32_t n=MIN(fixture->count,12);
+        level.pathing_clock=(wc3Clock_t){.time=.5f,.span=8};
+        FOR_LOOP(i,fixture->count) {
+            edict_t *unit=units[i]=collection->units[i];
+            unit->collision=31;unit->stand=unit_stand;unit->movetype=MOVETYPE_STEP;
+            S_SetMoveFormationRank(unit,i%4);
+            T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1792,128}));
+            old_goals[i]=unit->goalentity;
+            if(i<n) {
+                unit->movement.fine_pose=(vec2_t){wc3_float(fixture->rows[i][0]),wc3_float(fixture->rows[i][1])};
+                unit->s.origin2=(vec2_t){wc3_mul(unit->movement.fine_pose.x,32),wc3_mul(unit->movement.fine_pose.y,32)};
+                unit->movement.pose_world=unit->s.origin2;unit->movement.pose_valid=true;
+            }
+            unit->movement.velocity=(vec2_t){64,0};unit->movement.clock_valid=true;
+            unit->movement.pose_clock=level.pathing_clock;gi.LinkEntity(unit);
+        }
+        jass_callbyname(level.vm,"issueBoundary",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        moveGroup_t *group=move_find_group(units[0]->movement.group_id);
+        T_NOT_NULL(group);if(!group)continue;T_EQ(group->count,n);
+        FOR_LOOP(i,n) {
+            T_EQ(group->members[i].unit,units[i]);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x),fixture->goal[0]);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y),fixture->goal[1]);
+            T_EQ(units[i]->movement.velocity.x,0);
+        }
+        for(uint32_t i=n;i<fixture->count;i++) {
+            T_EQ(units[i]->movement.group_id,0);
+            T_EQ(units[i]->goalentity,old_goals[i]);T_EQ(units[i]->movement.velocity.x,64);
+            T_ASSERT(units[i]->movement.clock_valid);
+        }
+        T_ASSERT(move_group_route(group));
+        T_EQ(wc3_float_bits(group->heading),fixture->heading);
+        FOR_LOOP(i,n) {
+            T_EQ(wc3_float_bits(group->members[i].offset.x),fixture->rows[i][3]);
+            T_EQ(wc3_float_bits(group->members[i].offset.y),fixture->rows[i][4]);
+        }
+        G_FreeJassGroup(collection);currentplayer=NULL;
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Native23acd0 copies point words into its request and stack context before
+ * admission. A moving producer's point storage may change during admission;
+ * every retained member must still receive the same entry-time destination. */
+TEST(wc3_movement, group_point_request_owns_destination_during_moving_admission) {
+    static uint32_t const sizes[]={1,11,12};
+    static cstring_t const orders[]={"move","patrol"};
+    FOR_LOOP(o,sizeof(orders)/sizeof(*orders)) FOR_LOOP(c,sizeof(sizes)/sizeof(*sizes)) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *units[12];
+        groupPointOrder_t request={.count=sizes[c],.order=orders[o],.order_id=G_OrderId(orders[o])};
+        FOR_LOOP(i,request.count) {
+            units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128+i*64);
+            units[i]->collision=0;units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;
+            unit_stand(units[i]);
+            request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        }
+        level.pathing_clock=(wc3Clock_t){.time=.5f,.span=8};
+        units[0]->movement.velocity=(vec2_t){64,0};
+        units[0]->movement.pose_clock=(wc3Clock_t){.time=0,.span=8};
+        units[0]->movement.clock_valid=true;
+        vec2_t expected=units[0]->s.origin2;
+        request.point=&units[0]->s.origin2;
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        if(!o)T_ASSERT(units[0]->s.origin2.x>expected.x);
+        FOR_LOOP(i,request.count) {
+            T_NOT_NULL(units[i]->goalentity);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x),wc3_float_bits(expected.x));
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y),wc3_float_bits(expected.y));
+        }
+        if(!o) {
+            moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+            T_NOT_NULL(group);T_EQ(group->count,request.count);
+            T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(expected.x));
+        }
+    }
+    reset_entities();setup_test_world();
 }
 
 TEST(wc3_movement, retry_members_follow_physical_ownership_without_scanning_scenery) {

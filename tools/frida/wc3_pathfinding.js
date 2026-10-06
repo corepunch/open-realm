@@ -2125,7 +2125,7 @@ function install(module) {
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
-            if((value.includes('label=start_formation_blocked ') || value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
+            if((value.includes('label=start_formation_boundary ') || value.includes('label=start_formation_blocked ') || value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

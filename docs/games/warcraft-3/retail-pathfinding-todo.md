@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**203 done / 336 tasks; 133 remaining.**
+**204 done / 336 tasks; 132 remaining.**
+
+Payoff111 closes FORM-02.3: public moving-group boundaries retain the first
+12 entries, and admission now owns its destination through moving-unit stops.
+Two complete native repeats and actual engine JASS/layout regressions pass;
+see [moving formation boundary](retail-pathfinding-engine.md#public-moving-formations-retain-a-twelve-member-request-boundary).
 
 Payoff110 closes FORM-03.2: blocked-slot adjustment now follows classification,
 and fine queries use current predicted sources. Repeated fresh/cached native
@@ -124,7 +129,7 @@ Individual spikes and mass-movement scaling remain unresolved; see the
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
 and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Current priority: close all 140 remaining pathfinding leaves. Complete coherent
+Current priority: close all 132 remaining pathfinding leaves. Complete coherent
 chunks with Ghidra and Frida evidence, integrate each verified behavior into the
 engine, add production-path regressions, update the evidence and counts, and
 commit each completed chunk. Avoid further task splits except when necessary.
@@ -923,8 +928,8 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 - [x] **FORM-02.1** 144 complete layouts and 48 refresh cases are recorded. Evidence: [formation layout][formation-layout]; mixed moving radii and untested size domains remain excluded.
 - [x] **FORM-02.2** Run mixed-radius/oblique layouts with equal sort keys; assert assignments, row dimensions, centering and rotation. Evidence: [exact formation geometry](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders),865 complete original/production C raw-word cases, including720 mixed moving/radius/rank/heading/tie/clock-domain cases. Larger caller domains and live group producer remain02.3/FORM-05.
-- [ ] **FORM-02.3** Test moving members and sizes at/beyond the twelve-member table boundary; establish the original caller precondition or exact supported behavior.
-- [x] **FORM-02.4** Explicit engine integration split from02.2/03: consume the verified twelve-member layout in actual selection Move and Shift queues, using authored ranks, fine-grid radii, strict tie assignment and software centering/rotation. Evidence: [ranked group orders](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders), actual three-member regression fails all six destination coordinates before the port and passes exact destination/queue words afterward. Larger selections retain the diagnosed existing engine policy pending02.3; clock prediction, original heading producer and refresh-to-motion remain FORM-01/03.
+- [x] **FORM-02.3** Test moving members and sizes at/beyond the twelve-member table boundary; establish the original caller precondition or exact supported behavior. **Payoff111:** two completed public moving-group producers at11/12/13/25 retain11/12/12/12 insertion-ordered members; all188 native offset words match production C. Actual engine JASS boundaries retain unadmitted orders and match94 layout words. Admission now owns its point, fixing21 reproduced destination failures. Saved Ghidra maps the caller bound and dynamic backing helpers. See [contract and scope](retail-pathfinding-engine.md#public-moving-formations-retain-a-twelve-member-request-boundary).
+- [x] **FORM-02.4** Explicit engine integration split from02.2/03: consume the verified twelve-member layout in actual selection Move and Shift queues, using authored ranks, fine-grid radii, strict tie assignment and software centering/rotation. Evidence: [ranked group orders](retail-pathfinding-engine.md#ranked-formation-layout-reaches-group-orders), actual three-member regression fails all six destination coordinates before the port and passes exact destination/queue words afterward. Selections above twelve retain the existing engine extension; the public producer bound is established in02.3; clock prediction, original heading producer and refresh-to-motion remain FORM-01/03.
 
 ### FORM-03 — Layout-to-motion chain
 

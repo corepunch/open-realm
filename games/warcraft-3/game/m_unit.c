@@ -1055,6 +1055,12 @@ bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point) {
  * admission. Unhandled orders keep the same spell/build/point dispatch. */
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request) {
     if (!request || !request->point || request->count>BZ_WC3_GROUP_ORDER_UNITS) return false;
+    /* Native23acd0 owns point words before attachment/admission. Stopping a
+     * moving candidate or an issued-order callback may change caller storage;
+     * nested orders must not change this batch's point or retained identities. */
+    vec2_t point=*request->point;
+    groupPointOrder_t retained=*request;
+    retained.point=&point;request=&retained;
     ability_t const *owner=FindAbilityByOrder(request->order);
     if (owner) {
         abilityitem_t item={.code=FS_SLKKey(owner->classname),.ability=owner};

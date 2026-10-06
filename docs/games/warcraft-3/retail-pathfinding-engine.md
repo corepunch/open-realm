@@ -9241,3 +9241,79 @@ test targets build, and Ghidra is saved. This is focused movement validation,
 not the full repository batch checkpoint. No save format or network layout
 changes, extra task IDs or closure of wider regroup/crowd/moving-target cases
 are claimed.
+
+## Public moving formations retain a twelve-member request boundary
+
+Payoff111 closes FORM-02.3 and fixes destination ownership during group admission.
+`G_IssueGroupPointOrder` borrowed its caller's point through all member orders.
+When that point aliases a moving entity's position, stopping the first member
+commits its predicted position and changes the point seen by later members.
+The new regression reproduces21 incorrect destination words in eleven- and
+twelve-member Move requests before the fix. Generic dispatch now takes a
+bounded stack copy of the request and its point before calling an ability or
+individual order owner. There is no allocation, deferred admission, ID reservation
+or change to candidate order. The same entry-time point reaches all retained
+members, including when a nested order changes the caller's storage.
+
+The native `23acd0` copies X/Y into its canonical request at23ad5c..23ad67 and
+into the stack context at23adb2..23adc3. Its two `22ed70` calls explicitly push
+limit12: all `233da0` attachments precede all `234160` admissions. The canonical
+request's candidate and readiness arrays also have12 entries. Member backing
+storage itself is dynamic: `16c060` appends44-byte rows and `16da80` fills their
+11-word templates. Growing that storage does not establish that the formation
+layout's12-slot temporary buckets or count-indexed capacity tables support
+larger cohorts. The public caller supplies the required bound.
+
+Two completed read-only captures use public individually issued Move orders,
+then public GroupPointOrder at fixed timer ticks10/20/30/40 with collection
+sizes11/12/13/25. They attach and admit11/12/12/12 members, respectively. The
+prefix stays in insertion order; candidates beyond12 are not substituted or
+ordered in a second cohort. Before each public group call,11/4/3/3 admitted
+members respectively have nonzero committed velocity. Admission stops and
+commits those movers before layout. Both runs finish45 samples and a terminal
+footer without observer errors or stream caps. Each full stream has37,718 rows.
+All94 formation offset words, the supplied layout poses, and installed ranks
+repeat exactly. A freshly compiled production scalar probe matches all188
+words across the two captures.
+
+The engine regression drives the registered JASS GroupPointOrder producer for
+all four collection sizes, verifies admitted prefix identity and point words,
+and retains the existing order, velocity and clock of members beyond12. It
+then executes production group routing/layout and compares the native heading
+and94 offsets. Its explicit input boundary is the native admitted pose at
+layout entry. Moving velocity is supplied with zero elapsed time to test
+stopping at that boundary; earlier engine/native trajectories are not claimed.
+The separate mutable-point regression exercises a nonzero elapsed interval.
+It also checks generic Patrol dispatch without assuming that Patrol commits
+Move's old velocity at the same stage. This scope does not close formation
+refresh triggers, larger AI roster policies or full moving-target journeys.
+Selections above12 remain the existing engine extension; the retail public
+JASS limit is not an instruction to discard those user selection orders.
+
+Reproduce the bounded native scene with:
+
+```sh
+python3 tools/frida/make_wc3_pathfinding_map.py --base BASE.w3m \
+  --scenario formation_boundary --output DATA/Maps/PathingRE-FormationBoundary111.w3m
+DISPLAY=:94 WINEPREFIX=OWNED_PREFIX FRIDA_PYTHON tools/frida/trace_wc3_pathfinding.py \
+  --data DATA --map 'Maps\PathingRE-FormationBoundary111.w3m' \
+  --seconds 100 --samples 30000 --profile-events --task-events \
+  --motion-events --velocity-events --x11-display :94 \
+  --continue-at 65 --continue-after-start 5 --output CAPTURE.jsonl
+```
+
+`BASE.w3m` is the
+existing Human02Interlude base with the flat64-by64 fine-grid fixture; DATA and
+OWNED_PREFIX designate the isolated retail1.27 installation and Wine prefix.
+Frozen full streams, checksums, original sources and the saved ten-function
+Ghidra readback are `tools/ghidra/fixtures/retail-formation-boundary-1.27*`.
+`MapPathfinding.java` includes the append/fill names and copied-point/limit
+contract. Readback has `unsaved=false`; no prototype was guessed from a
+misaligned decompiler parameter list.
+
+Validation passes10 focused engine tests and929 assertions per Classic/TFT
+schema, production/test builds,19 formation Python checks and the engine
+boundary audit. The Python verifiers include changed-source, missing-boundary,
+nonmoving-input, membership, point, pose, offset and truncation negatives.
+This is a focused chunk, not the full repository checkpoint. No saved or
+networked layout changes are required.

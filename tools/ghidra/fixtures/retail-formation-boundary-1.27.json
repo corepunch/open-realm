@@ -1,0 +1,963 @@
+{
+  "native_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+    "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+    "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+    "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+    "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+    "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+    "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+    "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+    "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+    "trace_wc3_pathfinding.py": "b403fa54046dbf44b4e4a676cc883e9b5ffd46557ef0b79c0a95f7ed0364c66f",
+    "wc3_pathfinding.js": "1abfeb614b99bb84d64acac243b97ea5b2e4c09ac10a6ffc987e38365d2a091a",
+    "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+    "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+    "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+    "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+    "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+    "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+    "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+    "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+    "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+    "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+    "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+    "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+    "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+    "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+    "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+    "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+    "make_wc3_pathfinding_map.py": "7d4097220bfaa4b953bb55bb7bf88b8c4a1981306b234443c9d8fa9f798ee6bb",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+    "map": "c132959739fa91115d18cd8c4637c4dac78688ad29b834bb20539a73627d2bbd"
+  },
+  "static_sha256": "37dcb943fdd04c3bcea7daeb3eac20fc026aee437ec955952bd5e6ad522105b2",
+  "captures": [
+    {
+      "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/formation-boundary-111-a.jsonl",
+      "raw_sha256": "329d1153c1114cc6faae2c113473ccb1e484df5d43ffc7b700b96ae4b45f4e97",
+      "file": "retail-formation-boundary-1.27.jsonl.gz",
+      "sizes": [
+        11,
+        12,
+        13,
+        25
+      ],
+      "admitted": [
+        11,
+        12,
+        12,
+        12
+      ],
+      "moving": [
+        11,
+        4,
+        3,
+        3
+      ],
+      "layout_words": 94,
+      "fixtures": [
+        {
+          "count": 11,
+          "point": [
+            1155006464,
+            1153433600
+          ],
+          "heading": 1059743897,
+          "rows": [
+            [
+              1091086238,
+              1082617238,
+              0,
+              1092120311,
+              1010193408
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1070160004,
+              1067325895
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3234607533,
+              1075667827
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3240841028,
+              3211788288
+            ],
+            [
+              1091086238,
+              1099029335,
+              0,
+              1074876446,
+              1091832472
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1084649745,
+              3227036963
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3224382842,
+              3221902995
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3227308370,
+              3240287491
+            ],
+            [
+              1094237302,
+              1095853062,
+              0,
+              1086112511,
+              1083455533
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              3221457310,
+              1086022516
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1063264664,
+              3235448908
+            ]
+          ]
+        },
+        {
+          "count": 12,
+          "point": [
+            1132462080,
+            1153433600
+          ],
+          "heading": 1071053262,
+          "rows": [
+            [
+              1094191741,
+              1077080321,
+              0,
+              3235350525,
+              1089604549
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              3234099186,
+              1074146155
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3232847848,
+              3226976437
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3231596509,
+              3238882099
+            ],
+            [
+              1093730984,
+              1100969162,
+              0,
+              3211075709,
+              1090730123
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              3197681745,
+              1076819469
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              1050198102,
+              3224303123
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              1063592061,
+              3238213771
+            ],
+            [
+              1097907994,
+              1098918319,
+              0,
+              1084112861,
+              1091398451
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              1085364199,
+              1079492782
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1086615538,
+              3221629809
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              1087866876,
+              3237088198
+            ]
+          ]
+        },
+        {
+          "count": 13,
+          "point": [
+            1153433600,
+            1153433600
+          ],
+          "heading": 1058858140,
+          "rows": [
+            [
+              1090703378,
+              1082149540,
+              0,
+              1092750308,
+              3178682624
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1074788341,
+              1070233999
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3233030099,
+              1078875379
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3240233956,
+              1031198976
+            ],
+            [
+              1093246035,
+              1103385988,
+              0,
+              1079484472,
+              1092145670
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1085546448,
+              3226359031
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3222271994,
+              3217717654
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3235378162,
+              3231177517
+            ],
+            [
+              1098028479,
+              1101321947,
+              0,
+              1087894514,
+              1083693869
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              3213926254,
+              1087137602
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1066442596,
+              3234621252
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              3226968120,
+              3239629318
+            ]
+          ]
+        },
+        {
+          "count": 25,
+          "point": [
+            1153433600,
+            1132462080
+          ],
+          "heading": 1021760698,
+          "rows": [
+            [
+              1093967731,
+              1077156578,
+              0,
+              1090951305,
+              3233053903
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1076882967,
+              1033808935
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3225060856,
+              1085895216
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3238434954,
+              1085570255
+            ],
+            [
+              1097022765,
+              1104716585,
+              0,
+              1090604188,
+              1086545138
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1077577202,
+              3233378864
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3224366621,
+              3181292588
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3238261395,
+              3194880573
+            ],
+            [
+              1100398023,
+              1102710446,
+              0,
+              1090777747,
+              1047396925
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              1076188731,
+              1086220177
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              3223672386,
+              3233703826
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              3238087836,
+              3234028787
+            ]
+          ]
+        }
+      ],
+      "counts": {
+        "metadata": 1,
+        "module": 1,
+        "loading-key": 2,
+        "maps": 1,
+        "hierarchy-update": 32,
+        "marker": 48,
+        "formation-authored-rank": 25,
+        "path-destination": 391,
+        "chaos-clock": 194,
+        "movement-profile": 100,
+        "movement-mask-publication": 50,
+        "scheduler-class": 54,
+        "formation-rank-trig": 150,
+        "formation-rank-set": 25,
+        "task-prepend": 1264,
+        "move-group-bind": 366,
+        "mover-stop": 294,
+        "task-cleanup": 244,
+        "move-previous-cohort-search": 25,
+        "arrival-input": 72,
+        "point-bound-admission": 25,
+        "move-request-candidate": 72,
+        "arrival-range": 72,
+        "group-target": 29,
+        "move-request-bind-candidate": 72,
+        "move-request-activate": 348,
+        "point-task": 72,
+        "player-order-queued": 97,
+        "replan-check": 115,
+        "scheduler-target": 2496,
+        "group-routing-radius": 29,
+        "scheduler-admission": 118,
+        "search": 164,
+        "route": 121,
+        "formation-rank-layout": 34,
+        "formation-group-route": 2496,
+        "pair-group-phase-begin": 4992,
+        "group-footprint-state": 2496,
+        "mover-radius-state": 3750,
+        "formation-member-destination": 77,
+        "arrival-evaluation": 3750,
+        "arrival-transition": 35,
+        "motion-decision": 3745,
+        "pair-group-phase-end": 4992,
+        "velocity-commit": 3750,
+        "group-completion": 14,
+        "public-timer-rearm": 150,
+        "spatial-clean-dirty": 16,
+        "group-point-native-begin": 4,
+        "group-point-request-begin": 4,
+        "move-request-created": 4,
+        "group-point-member-begin": 94,
+        "group-point-member-end": 94,
+        "group-point-request-end": 4,
+        "group-point-native-end": 4,
+        "formation-rank-buckets": 4,
+        "formation-rank-center": 4,
+        "formation-rank-mean": 4,
+        "retry-init": 3,
+        "retry-result": 3,
+        "pause-native": 25,
+        "trace-end": 1
+      },
+      "fixture_sha256": "0f1ec881d4dd66661f3cd39102cade0aa623089059090d4ea4c2f69de5de1ef4"
+    },
+    {
+      "report": "/GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/formation-boundary-111-b.jsonl",
+      "raw_sha256": "0103d1663acc622f7bb3e29b07da0225943a49a6c312304592aa31961f6ece46",
+      "file": "retail-formation-boundary-1.27-repeat.jsonl.gz",
+      "sizes": [
+        11,
+        12,
+        13,
+        25
+      ],
+      "admitted": [
+        11,
+        12,
+        12,
+        12
+      ],
+      "moving": [
+        11,
+        4,
+        3,
+        3
+      ],
+      "layout_words": 94,
+      "fixtures": [
+        {
+          "count": 11,
+          "point": [
+            1155006464,
+            1153433600
+          ],
+          "heading": 1059743897,
+          "rows": [
+            [
+              1091086238,
+              1082617238,
+              0,
+              1092120311,
+              1010193408
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1070160004,
+              1067325895
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3234607533,
+              1075667827
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3240841028,
+              3211788288
+            ],
+            [
+              1091086238,
+              1099029335,
+              0,
+              1074876446,
+              1091832472
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1084649745,
+              3227036963
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3224382842,
+              3221902995
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3227308370,
+              3240287491
+            ],
+            [
+              1094237302,
+              1095853062,
+              0,
+              1086112511,
+              1083455533
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              3221457310,
+              1086022516
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1063264664,
+              3235448908
+            ]
+          ]
+        },
+        {
+          "count": 12,
+          "point": [
+            1132462080,
+            1153433600
+          ],
+          "heading": 1071053262,
+          "rows": [
+            [
+              1094191741,
+              1077080321,
+              0,
+              3235350525,
+              1089604549
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              3234099186,
+              1074146155
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3232847848,
+              3226976437
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3231596509,
+              3238882099
+            ],
+            [
+              1093730984,
+              1100969162,
+              0,
+              3211075709,
+              1090730123
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              3197681745,
+              1076819469
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              1050198102,
+              3224303123
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              1063592061,
+              3238213771
+            ],
+            [
+              1097907994,
+              1098918319,
+              0,
+              1084112861,
+              1091398451
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              1085364199,
+              1079492782
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1086615538,
+              3221629809
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              1087866876,
+              3237088198
+            ]
+          ]
+        },
+        {
+          "count": 13,
+          "point": [
+            1153433600,
+            1153433600
+          ],
+          "heading": 1058858140,
+          "rows": [
+            [
+              1090703378,
+              1082149540,
+              0,
+              1092750308,
+              3178682624
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1074788341,
+              1070233999
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3233030099,
+              1078875379
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3240233956,
+              1031198976
+            ],
+            [
+              1093246035,
+              1103385988,
+              0,
+              1079484472,
+              1092145670
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1085546448,
+              3226359031
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3222271994,
+              3217717654
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3235378162,
+              3231177517
+            ],
+            [
+              1098028479,
+              1101321947,
+              0,
+              1087894514,
+              1083693869
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              3213926254,
+              1087137602
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              1066442596,
+              3234621252
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              3226968120,
+              3239629318
+            ]
+          ]
+        },
+        {
+          "count": 25,
+          "point": [
+            1153433600,
+            1132462080
+          ],
+          "heading": 1021760698,
+          "rows": [
+            [
+              1093967731,
+              1077156578,
+              0,
+              1090951305,
+              3233053903
+            ],
+            [
+              1091091749,
+              1088585749,
+              1,
+              1076882967,
+              1033808935
+            ],
+            [
+              1091086238,
+              1092859582,
+              2,
+              3225060856,
+              1085895216
+            ],
+            [
+              1091091749,
+              1095843842,
+              3,
+              3238434954,
+              1085570255
+            ],
+            [
+              1097022765,
+              1104716585,
+              0,
+              1090604188,
+              1086545138
+            ],
+            [
+              1094230546,
+              1082669566,
+              1,
+              1077577202,
+              3233378864
+            ],
+            [
+              1094237302,
+              1088604186,
+              2,
+              3224366621,
+              3181292588
+            ],
+            [
+              1094230546,
+              1092885752,
+              3,
+              3238261395,
+              3194880573
+            ],
+            [
+              1100398023,
+              1102710446,
+              0,
+              1090777747,
+              1047396925
+            ],
+            [
+              1094230546,
+              1099042423,
+              1,
+              1076188731,
+              1086220177
+            ],
+            [
+              1097374201,
+              1082738373,
+              2,
+              3223672386,
+              3233703826
+            ],
+            [
+              1100602223,
+              1088840151,
+              3,
+              3238087836,
+              3234028787
+            ]
+          ]
+        }
+      ],
+      "counts": {
+        "metadata": 1,
+        "module": 1,
+        "loading-key": 2,
+        "maps": 1,
+        "hierarchy-update": 32,
+        "marker": 48,
+        "formation-authored-rank": 25,
+        "path-destination": 391,
+        "chaos-clock": 194,
+        "movement-profile": 100,
+        "movement-mask-publication": 50,
+        "scheduler-class": 54,
+        "formation-rank-trig": 150,
+        "formation-rank-set": 25,
+        "task-prepend": 1264,
+        "move-group-bind": 366,
+        "mover-stop": 294,
+        "task-cleanup": 244,
+        "move-previous-cohort-search": 25,
+        "arrival-input": 72,
+        "point-bound-admission": 25,
+        "move-request-candidate": 72,
+        "arrival-range": 72,
+        "group-target": 29,
+        "move-request-bind-candidate": 72,
+        "move-request-activate": 348,
+        "point-task": 72,
+        "player-order-queued": 97,
+        "replan-check": 115,
+        "scheduler-target": 2496,
+        "group-routing-radius": 29,
+        "scheduler-admission": 118,
+        "search": 164,
+        "route": 121,
+        "formation-rank-layout": 34,
+        "formation-group-route": 2496,
+        "pair-group-phase-begin": 4992,
+        "group-footprint-state": 2496,
+        "mover-radius-state": 3750,
+        "formation-member-destination": 77,
+        "arrival-evaluation": 3750,
+        "arrival-transition": 35,
+        "motion-decision": 3745,
+        "pair-group-phase-end": 4992,
+        "velocity-commit": 3750,
+        "group-completion": 14,
+        "public-timer-rearm": 150,
+        "spatial-clean-dirty": 16,
+        "group-point-native-begin": 4,
+        "group-point-request-begin": 4,
+        "move-request-created": 4,
+        "group-point-member-begin": 94,
+        "group-point-member-end": 94,
+        "group-point-request-end": 4,
+        "group-point-native-end": 4,
+        "formation-rank-buckets": 4,
+        "formation-rank-center": 4,
+        "formation-rank-mean": 4,
+        "retry-init": 3,
+        "retry-result": 3,
+        "pause-native": 25,
+        "trace-end": 1
+      },
+      "fixture_sha256": "0f1ec881d4dd66661f3cd39102cade0aa623089059090d4ea4c2f69de5de1ef4"
+    }
+  ]
+}
