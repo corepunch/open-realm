@@ -2192,6 +2192,45 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     gi.unicast = old_unicast;
 }
 
+TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
+    enum { CELLS = 16 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    static DestructableData_t const gate_data = {
+        .file = "Doodads/TestGate.mdx",
+        .walkable = false,
+    };
+    edict_t *attacker = make_moving_unit(80.0f, 240.0f);
+    edict_t *gate = make_smart_destructable(432.0f, 240.0f, &gate_data, TARG_WALL);
+    vec2_t const authored_gate_position = gate->s.origin2;
+    bool fallback_reached = false;
+
+    for (int y = 0; y < CELLS; ++y)
+        pathmap[y * CELLS + 7] = CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    attacker->collision = 16.0f;
+    attacker->unitinfo.MoveSpeed = 80.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
+    attacker->attack1.range = 64.0f;
+    gi.LinkEntity(attacker);
+
+    T_ASSERT(S_OrderAttack(attacker, gate));
+    FOR_LOOP(frame, 200) {
+        attacker->currentmove->think(attacker);
+        CM_ProcessPathJobs(4096);
+        if (attacker->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED) {
+            fallback_reached = true;
+            break;
+        }
+    }
+
+    T_ASSERT(fallback_reached);
+    T_FEQ(gate->s.origin2.x, authored_gate_position.x, 0.01f);
+    T_FEQ(gate->s.origin2.y, authored_gate_position.y, 0.01f);
+}
+
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     static DestructableData_t const bridge_data = {
         .file = "Doodads/Terrain/WoodBridgeLarge45/WoodBridgeLarge45.mdx",

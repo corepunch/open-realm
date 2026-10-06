@@ -876,16 +876,31 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                         self->movement.flow_fallback_approach = closest;
                         self->movement.flow_fallback_radius = radius;
                         self->movement.flow_fallback_goal = self->goalentity;
-                        if (move_has_active_construction() &&
+                        if ((move_has_active_construction() || !unit_routes_to_location(self)) &&
                             Vector2_distance(&closest, target) > 1.0f) {
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
                             unit_apply_heading(self, &dir, policy);
-                        } else {
+                        } else if (unit_routes_to_location(self) && !move_has_active_construction()) {
+                            /* Point orders own private waypoints, so moving that
+                             * waypoint to the reachable boundary is safe. Entity
+                             * goals (attack, harvest, repair, etc.) are shared
+                             * gameplay objects; never rewrite their position to
+                             * make an approach route reachable. */
                             self->goalentity->s.origin2 = closest;
                             self->goalentity->secondarygoal = NULL;
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                        } else {
+                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                            self->movement.flow_fallback_approach = closest;
+                            self->movement.flow_fallback_goal = self->goalentity;
+                            self->movement.flow_fallback_radius = radius;
+                            self->movement.flow_fallback_target = *target;
+                            self->movement.flow_fallback_time = level.time;
+                            dir = Vector2_sub(&closest, &self->s.origin2);
+                            self->movement.flow_direct = true;
+                            unit_apply_heading(self, &dir, policy);
                         }
                     }
                     return;
