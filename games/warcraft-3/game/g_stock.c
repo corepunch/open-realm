@@ -10,7 +10,7 @@
 /* Warsmash and retail unit data treat Makeitems as merchandise alongside
  * Sellitems. In particular, the stock Ancient of Wonders authors its list as
  * Makeitems in NightElfUnitFunc.txt. */
-cstring_t G_GetShopItemList(edict_t const *shop) {
+static cstring_t G_GetShopItemList(edict_t const *shop) {
     static char items[2048];
     cstring_t sell = shop && shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
     cstring_t make = shop && shop->data.UnitProfile ? shop->data.UnitProfile->makeItems : NULL;
@@ -467,6 +467,13 @@ static int32_t G_FindShopItemStock(edict_t *shop, uint32_t item_id) {
     return -1;
 }
 
+/* Initializes and restocks the live merchandise; returns its entry count. */
+uint32_t G_UpdateShopItemStock(edict_t *shop) {
+    G_InitItemStock(shop);
+    FOR_LOOP(i, shop->stock->item_count) G_UpdateItemStockEntry(shop, i);
+    return shop->stock->item_count;
+}
+
 static void G_StartItemRestock(edict_t *shop, uint32_t index) {
     ItemData_t const *item;
 
@@ -712,10 +719,9 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
     if (!client || !buttons || !max_buttons || !G_CanUseItemShop(client, shop)) return 0;
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
-    G_InitItemStock(shop);
     patron = G_FindShopPatron(client, shop);
 
-    FOR_LOOP(i, shop->stock->item_count) {
+    FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
         char code[5] = {0};
         char requirement_reason[128] = {0};
         gameCommandButton_t *button;
@@ -723,7 +729,6 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         uint32_t now;
 
         if (count >= max_buttons) break;
-        G_UpdateItemStockEntry(shop, i);
         memcpy(code, &shop->stock->items[i].id, 4);
         button = &buttons[count];
         if (!G_BuildCommandButton(shop, code, false, 0, button)) continue;

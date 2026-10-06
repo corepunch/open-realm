@@ -881,6 +881,41 @@ TEST(server_net, local_map_uses_loopback_without_udp) {
     test_mapinfo = NULL;
 }
 
+/* Q2 CL_Disconnect always tells its server, and a dead server never reads its queue (SV_Frame
+ * needs svs.initialized), so the farewell outlives SV_Shutdown. The next local client is admitted
+ * directly into slot 0 rather than through a handshake queued behind it, so it must not get it. */
+TEST(server_net, stale_loopback_disconnect_does_not_drop_next_local_session) {
+    static struct netchan client;
+    mapInfo_t info;
+
+    NET_Shutdown(); reset_server_state(4);
+    memset(&info, 0, sizeof(info)); test_mapinfo = &info;
+    SV_Map("Maps\\Melee\\Test.w3m"); drain_client_packets();
+    T_EQ(svs.clients[0].state, cs_connected);
+
+    memset(&client, 0, sizeof(client));
+    client.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client.message, client.message_buf, MAX_MSGLEN);
+    MSG_WriteByte(&client.message, clc_stringcmd);
+    MSG_WriteString(&client.message, "disconnect");
+    Netchan_Transmit(NS_CLIENT, &client);
+    SV_Shutdown();
+
+    SV_Map("Maps\\Melee\\Test.w3m"); drain_client_packets();
+    T_EQ(svs.clients[0].state, cs_connected);
+    SV_Frame(FRAMETIME);
+    T_EQ(svs.clients[0].state, cs_connected);
+    T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+
+    /* The new session's own commands still arrive: only the dead session's queue is discarded. */
+    MSG_WriteByte(&client.message, clc_stringcmd);
+    MSG_WriteString(&client.message, "disconnect");
+    Netchan_Transmit(NS_CLIENT, &client);
+    SV_Frame(FRAMETIME);
+    T_EQ(svs.clients[0].state, cs_free);
+    SV_Shutdown(); test_mapinfo = NULL;
+}
+
 TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
     uint8_t data[MAX_MSGLEN];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };

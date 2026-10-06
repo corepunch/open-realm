@@ -882,6 +882,30 @@ TEST(net, loopback_round_trip) {
     T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
+TEST(net, loopback_clear_discards_only_the_named_receiver_queue) {
+    static uint8_t   msg_buf[MAX_MSGLEN];
+    static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t adr = loopback_adr(), from;
+    uint8_t const to_server[] = { 0x11, 0x12 }, to_client[] = { 0x21 }, later[] = { 0x31, 0x32, 0x33 };
+
+    drain_loopback(NS_SERVER); drain_loopback(NS_CLIENT);
+    NET_SendPacket(NS_CLIENT, sizeof(to_server), to_server, adr);
+    NET_SendPacket(NS_CLIENT, sizeof(to_server), to_server, adr);
+    NET_SendPacket(NS_SERVER, sizeof(to_client), to_client, adr);
+
+    NET_ClearLoopPackets(NS_SERVER);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), 0);
+    T_EQ(NET_GetLoopPacket(NS_CLIENT, &from, &msg), (int)sizeof(to_client));
+    T_EQ(msg.data[0], 0x21);
+
+    /* The cleared queue keeps working for the next session. */
+    NET_SendPacket(NS_CLIENT, sizeof(later), later, adr);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), (int)sizeof(later));
+    T_ASSERT(memcmp(msg.data, later, sizeof(later)) == 0);
+    NET_ClearLoopPackets(NS_SERVER);
+    T_EQ(NET_GetLoopPacket(NS_SERVER, &from, &msg), 0);
+}
+
 TEST(net, loopback_multiple_packets_in_order) {
     static uint8_t   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };

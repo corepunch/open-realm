@@ -41,10 +41,15 @@ static uint32_t ancient_root_ability(edict_t const *unit) {
     return 0;
 }
 
+/* An Ancient walking to its root site is still in its uprooted form. */
+bool S_AncientIsMorphing(edict_t const *unit) {
+    return unit && unit->ancient_root && (unit->ancient_root->mode == ANCIENT_UPROOTING ||
+        (unit->ancient_root->mode == ANCIENT_ROOTING && !unit->ancient_root->approaching));
+}
+
 bool S_AncientIsRooted(edict_t const *unit) {
     if (!unit || !root_code(ancient_root_ability(unit))) return false;
-    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED ||
-        unit->ancient_root->mode == ANCIENT_ROOTING || unit->ancient_root->mode == ANCIENT_UPROOTING)
+    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED || S_AncientIsMorphing(unit))
         return G_UnitIsStructure(unit) && (unit->aiflags & AI_IMMOBILE);
     return unit->ancient_root->mode == ANCIENT_ROOTED;
 }
@@ -60,11 +65,7 @@ bool S_AncientCanShowRootedAttackCommand(edict_t const *unit) {
 }
 
 bool S_AncientCanReceiveOrder(edict_t const *unit) {
-    return !unit || !S_AncientHasRootAbility(unit) || !unit->ancient_root ||
-        unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED ||
-        unit->ancient_root->mode == ANCIENT_ROOTED ||
-        unit->ancient_root->mode == ANCIENT_UPROOTED ||
-        (unit->ancient_root->mode == ANCIENT_ROOTING && unit->ancient_root->approaching);
+    return !S_AncientHasRootAbility(unit) || !S_AncientIsMorphing(unit);
 }
 
 bool S_AncientAbilityAvailable(edict_t const *unit, ability_t const *ability) {
@@ -98,11 +99,11 @@ uint32_t S_AncientAttackMask(edict_t const *unit) {
 }
 
 /* Ordinary weapons remain available for automatic counterattacks while a
- * rooted Ancient's Root ability hides explicit Attack orders and buttons. */
+ * rooted Ancient's Root ability hides explicit Attack orders and buttons.
+ * The uprooted form only has the weapons its authored mask enables. */
 uint32_t S_AncientRetaliationAttackMask(edict_t const *unit) {
-    if (!S_AncientHasRootAbility(unit) ||
-        (unit->ancient_root && (unit->ancient_root->mode == ANCIENT_ROOTING ||
-                                unit->ancient_root->mode == ANCIENT_UPROOTING))) return 0;
+    if (!S_AncientHasRootAbility(unit) || S_AncientIsMorphing(unit)) return 0;
+    if (!S_AncientIsRooted(unit)) return S_AncientAttackMask(unit);
     return unit->data.UnitWeapons ? unit->data.UnitWeapons->attacksEnabled : 0;
 }
 

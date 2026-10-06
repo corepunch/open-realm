@@ -78,6 +78,7 @@ void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to)
 // (> 0) on success, 0 when no packet is available.
 int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg);
 int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg);
+void NET_ClearLoopPackets(NETSOURCE netsrc);
 
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, uint32_t length, uint8_t *data);

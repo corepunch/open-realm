@@ -314,14 +314,14 @@ static ability_t abilitylist[] = {
     /* CampaignAbilityStrings.txt */
 
     /* ItemAbilityStrings.txt */
-    { "AIsp", CAbilityItemSpeed, AB_ITEM },  /* Item Temporary Speed Bonus */
+    { "AIsp", CAbilityItemSpeed, AB_ITEM | AB_POWERUP },  /* Item Temporary Speed Bonus */
     // TODO: AIdm a_bounce  /* Item Area tree/wall damage */
     // TODO: AIfl a_button  /* Item Capture The Flag */
     // TODO: AIfm a_button  /* Item Capture The Flag */
     // TODO: AIfn a_button  /* Item Capture The Flag */
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
-    { "AIha", CAbilityItemHealAoe, AB_ITEM },  /* Item Area Healing / Healing Runes */
+    { "AIha", CAbilityItemHealAoe, AB_ITEM | AB_POWERUP },  /* Item Area Healing / Healing Runes */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
     // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
@@ -353,7 +353,7 @@ static ability_t abilitylist[] = {
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
     // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
-    { "AIgo", CAbilityItemGold, AB_ITEM },  /* Chest of Gold / Gold Coins */
+    { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
     // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
     // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */
@@ -375,8 +375,8 @@ static ability_t abilitylist[] = {
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
-    { "APsa", CAbilityItemSpeedAoe, AB_ITEM },  /* Rune of Speed */
-    { "AIsa", CAbilityItemSpeedAoe, AB_ITEM },  /* Scroll of Haste / Speed AOE */
+    { "APsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Rune of Speed */
+    { "AIsa", CAbilityItemSpeedAoe, AB_ITEM | AB_POWERUP },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */

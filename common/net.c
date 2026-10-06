@@ -102,6 +102,12 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, void const *data) {
     }
 }
 
+/* Discard everything queued for netsrc to read, e.g. a dead session's datagrams. */
+void NET_ClearLoopPackets(NETSOURCE netsrc) {
+    struct loopback *buf = &loopbufs[!netsrc];
+    buf->read = buf->write;
+}
+
 int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     struct loopback *buf = &loopbufs[!netsrc];
     if (buf->read == buf->write)

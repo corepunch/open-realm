@@ -2199,7 +2199,7 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
         .file = "Doodads/TestGate.mdx",
         .walkable = false,
     };
-    edict_t *attacker = make_moving_unit(80.0f, 240.0f);
+    edict_t *attacker = make_moving_unit(80.0f, 80.0f);
     edict_t *gate = make_smart_destructable(432.0f, 240.0f, &gate_data, TARG_WALL);
     vec2_t const authored_gate_position = gate->s.origin2;
     bool fallback_reached = false;
@@ -2227,6 +2227,15 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     }
 
     T_ASSERT(fallback_reached);
+    FOR_LOOP(frame, 60) {
+        attacker->currentmove->think(attacker);
+        CM_ProcessPathJobs(4096);
+    }
+    /* The attacker starts off the gate's row, so only steering reaches the
+     * approach point in front of the wall (column 7 spans x 224..256). */
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &attacker->movement.flow_fallback_approach) < 16.0f);
+    T_ASSERT(attacker->s.origin2.x < 224.0f - attacker->collision);
+    T_FEQ(attacker->movement.flow_fallback_approach.y, authored_gate_position.y, 16.0f);
     T_FEQ(gate->s.origin2.x, authored_gate_position.x, 0.01f);
     T_FEQ(gate->s.origin2.y, authored_gate_position.y, 0.01f);
     T_ASSERT(attacker->goalentity == gate);

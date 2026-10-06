@@ -478,10 +478,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (ent->currentmove && ent->currentmove->think == ai_birth && !G_UnitIsStructure(ent)) {
         return 0;
     }
-    if (ent->ancient_root && (ent->ancient_root->mode == ANCIENT_UPROOTING ||
-        (ent->ancient_root->mode == ANCIENT_ROOTING && !ent->ancient_root->approaching))) {
-        return 0;
-    }
+    if (S_AncientIsMorphing(ent)) return 0;
 
     if (b->speed > 0 && !(ent->aiflags & AI_IMMOBILE)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);

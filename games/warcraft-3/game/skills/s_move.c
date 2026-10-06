@@ -858,7 +858,8 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                 /* Location targets are private waypoints.  When the clicked static
                  * component is unreachable, replace the waypoint with the
                  * closest legal point in this mover's component; aiming at the
-                 * raw click made local avoidance walk forever along walls. */
+                 * raw click made local avoidance walk forever along walls.
+                 * Entity goals steer to that approach point instead. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
                     vec2_t const *from = &self->s.origin2, *target = &self->goalentity->s.origin2;
                     vec2_t closest;
@@ -877,26 +878,18 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                         self->movement.flow_fallback_approach = closest;
                         self->movement.flow_fallback_radius = radius;
                         self->movement.flow_fallback_goal = self->goalentity;
-                        if ((move_has_active_construction() || !unit_routes_to_location(self)) &&
-                            Vector2_distance(&closest, target) > 1.0f) {
-                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
+                        /* Point orders own a private waypoint (cf. Q2 movetarget);
+                         * entity goals are shared gameplay objects and must never be moved. */
+                        bool const owns_goal = unit_routes_to_location(self) && !move_has_active_construction();
+                        if (owns_goal) {
+                            self->goalentity->s.origin2 = closest;
+                            self->goalentity->secondarygoal = NULL;
+                        } else if (Vector2_distance(&closest, target) > 1.0f) {
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
                             unit_apply_heading(self, &dir, policy);
-                        } else if (!move_has_active_construction() && unit_routes_to_location(self)) {
-                            /* Point orders own private waypoints, so moving that
-                             * waypoint to the reachable boundary is safe. Entity
-                             * goals (attack, harvest, repair, etc.) are shared
-                             * gameplay objects; never rewrite their position to
-                             * make an approach route reachable. */
-                            self->goalentity->s.origin2 = closest;
-                            self->goalentity->secondarygoal = NULL;
-                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
-                        } else {
-                            /* If the closest point is already the target, retain
-                             * the target and let its owning behavior resolve arrival. */
-                            self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                         }
+                        self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                     }
                     return;
                 }
