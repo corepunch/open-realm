@@ -583,16 +583,21 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
 
 TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X7\n"
+        "ID;PWXL;N;EBB;Y3;X8\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y1;X8;K\"Area1\"\n"
         "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\n"
+        "C;Y3;X1;K\"APsa\"\nC;Y3;X2;K\"APsa\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"3.5\"\nC;Y3;X5;K\"7.5\"\nC;Y3;X6;K\"Bspx\"\nC;Y3;X7;K\"hero,ground\"\nC;Y3;X8;K\"90\"\n"
         "E\n";
     static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
+    static ItemData_t rune_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit;
     edict_t *item;
+    edict_t *recipient;
     heroabilitystatus_t *status;
 
     setup_test_world();
@@ -609,6 +614,7 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     T_ASSERT(G_InventoryCanUseItems(unit));
     T_STREQ(G_ItemAbilityList(item), "AIsp");
     T_EQ(FindAbilityForCommand("AIsp")->proc, CAbilityItemSpeed);
+    T_EQ(FindAbilityForCommand("APsa")->proc, CAbilityItemSpeedAoe);
     T_ASSERT(G_PickupItem(unit, item));
     status = unit_findstatus(unit, MAKEFOURCC('B','s','p','x'));
     T_NOT_NULL(status);
@@ -620,6 +626,22 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
         level.time = status->timestamp;
         unit_updatestatuses(unit);
         T_ASSERT(!S_ItemSpeedActive(unit));
+    }
+    T_ASSERT(item->item->pending_use_removal);
+
+    recipient = make_item_test_inventory_unit(50, 0);
+    recipient->s.player = 0;
+    recipient->svflags |= SVF_MONSTER;
+    recipient->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), 0, 0);
+    item->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(recipient, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 7500);
+        T_EQ(status->data, MAKEFOURCC('A','P','s','a'));
+        T_ASSERT(S_ItemSpeedActive(recipient));
     }
     T_ASSERT(item->item->pending_use_removal);
 
