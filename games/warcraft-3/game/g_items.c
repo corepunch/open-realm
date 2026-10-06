@@ -76,6 +76,35 @@ cstring_t G_ItemAbilityList(edict_t const *item) {
     return abilities && *abilities ? abilities : NULL;
 }
 
+/* Some item lists include both an ability alias and its implementation row,
+ * such as tgrh's AIbg,AIbl. When command-capable entries share an implementation,
+ * the last authored alias supplies the effective ability data. Preserve the
+ * first unrelated usable ability so ordinary multi-ability items retain their
+ * existing selection behavior. */
+bool G_ItemUseAbility(edict_t const *item, abilityitem_t *resolved) {
+    cstring_t abilities = G_ItemAbilityList(item);
+    abilityitem_t selected = {0};
+
+    if (!resolved) return false;
+    *resolved = (abilityitem_t){0};
+    if (!abilities) return false;
+
+    PARSE_LIST(abilities, name, parse_segment) {
+        abilityitem_t candidate = S_AbilityItem(FS_SLKKey(name));
+        bool usable = candidate.ability &&
+            ((candidate.ability->flags & AB_ITEM) || S_AbilityHasCommand(candidate.ability));
+        if (!usable) continue;
+        if (!selected.ability ||
+            (G_AbilityCode(candidate.code) == G_AbilityCode(selected.code) &&
+             candidate.ability->proc == selected.ability->proc))
+            selected = candidate;
+    }
+
+    if (!selected.ability) return false;
+    *resolved = selected;
+    return true;
+}
+
 static bool G_ItemSendAbilityMessage(edict_t *unit, edict_t const *item, abilityMsg_t msg) {
     abilityCall_t call = MAKE(abilityCall_t, .source_item = (edict_t *)item,
                               .source_item_spawn_time = item ? item->spawn_time : 0);
@@ -747,7 +776,7 @@ void G_RemoveItem(edict_t *item) {
 void G_UseItem(edict_t *unit, uint32_t slot) {
     edict_t *item;
     edict_t *clent;
-    cstring_t abilities;
+    abilityitem_t ability_item;
 
     if (!unit || !G_InventoryCanUseItems(unit) ||
         slot >= G_InventoryCapacity(unit) || unit->s.player >= MAX_PLAYERS) {
@@ -760,34 +789,21 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
 
     clent = G_GetPlayerEntityByNumber(unit->s.player);
     if (!clent || !clent->client) return;
-    abilities = G_ItemAbilityList(item);
-    if (!abilities) return;
+    if (!G_ItemUseAbility(item, &ability_item)) return;
 
-    PARSE_LIST(abilities, ability_name, parse_segment) {
-        ability_t const *ability = FindAbilityForCommand(ability_name);
-        abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
-        bool succeeded = false;
-
-        if (!ability) continue;
-        clent->client->menu.ability_code = *((uint32_t const *)ability_name);
-        if (ability->flags & AB_ITEM) {
-            succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
-        } else if (S_AbilityHasCommand(ability)) {
-            clent->client->menu.ability_item = item;
-            clent->client->menu.ability_item_spawn_time = item->spawn_time;
-            S_AbilityCommand(clent, ability);
-            if (!clent->client->menu.on_entity_selected && !clent->client->menu.on_location_selected) {
-                clent->client->menu.ability_item = NULL;
-                clent->client->menu.ability_item_spawn_time = 0;
-            }
-            return;
-        } else {
-            continue;
-        }
-
-        if (succeeded) G_CompleteItemUse(unit, item);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
+    clent->client->menu.ability_code = ability_item.code;
+    if (ability_item.ability->flags & AB_ITEM) {
+        if (S_AbilityMessage(clent, A_ITEM_USE, &call)) G_CompleteItemUse(unit, item);
         return;
+    }
+
+    clent->client->menu.ability_item = item;
+    clent->client->menu.ability_item_spawn_time = item->spawn_time;
+    S_AbilityCommand(clent, ability_item.ability);
+    if (!clent->client->menu.on_entity_selected && !clent->client->menu.on_location_selected) {
+        clent->client->menu.ability_item = NULL;
+        clent->client->menu.ability_item_spawn_time = 0;
     }
 }
 

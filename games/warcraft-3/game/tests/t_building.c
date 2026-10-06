@@ -420,6 +420,58 @@ static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows
     free_slk_rows(rows);
 }
 
+TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_race) {
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y9;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AIbl\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K1\nC;Y2;X4;K\"hcas\"\n"
+        "C;Y3;X1;K\"AIbg\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K1\nC;Y3;X4;K\"htow\"\n"
+        "C;Y4;X1;K\"AIbt\"\nC;Y4;X2;K\"AIbl\"\nC;Y4;X3;K1\nC;Y4;X4;K\"hwtw\"\n"
+        "C;Y5;X1;K\"AIbb\"\nC;Y5;X2;K\"AIbl\"\nC;Y5;X3;K1\nC;Y5;X4;K\"hbla\"\n"
+        "C;Y6;X1;K\"AIbf\"\nC;Y6;X2;K\"AIbl\"\nC;Y6;X3;K1\nC;Y6;X4;K\"hhou\"\n"
+        "C;Y7;X1;K\"AIbr\"\nC;Y7;X2;K\"AIbl\"\nC;Y7;X3;K1\nC;Y7;X4;K\"hlum\"\n"
+        "C;Y8;X1;K\"AIbs\"\nC;Y8;X2;K\"AIbl\"\nC;Y8;X3;K1\nC;Y8;X4;K\"hbar\"\n"
+        "C;Y9;X1;K\"AIbh\"\nC;Y9;X2;K\"AIbl\"\nC;Y9;X3;K1\nC;Y9;X4;K\"halt\"\nE\n";
+    uint32_t const great_hall = MAKEFOURCC('A','I','b','g');
+    uint32_t const great_hall_races[] = {
+        MAKEFOURCC('h','t','o','w'), MAKEFOURCC('o','g','r','e'),
+        MAKEFOURCC('u','n','p','l'), MAKEFOURCC('e','t','o','l')
+    };
+    uint32_t const races[] = {
+        kPlayerRaceHuman, kPlayerRaceOrc, kPlayerRaceUndead, kPlayerRaceNightElf
+    };
+    uint32_t const codes[] = {
+        MAKEFOURCC('A','I','b','l'), MAKEFOURCC('A','I','b','t'),
+        MAKEFOURCC('A','I','b','b'), MAKEFOURCC('A','I','b','f'),
+        MAKEFOURCC('A','I','b','r'), MAKEFOURCC('A','I','b','s'),
+        MAKEFOURCC('A','I','b','h')
+    };
+    uint32_t const structures[] = {
+        MAKEFOURCC('h','c','a','s'), MAKEFOURCC('h','w','t','w'),
+        MAKEFOURCC('h','b','l','a'), MAKEFOURCC('h','h','o','u'),
+        MAKEFOURCC('h','l','u','m'), MAKEFOURCC('h','b','a','r'),
+        MAKEFOURCC('h','a','l','t')
+    };
+    slkTestData_t *rows, *old;
+    edict_t *caster;
+
+    setup_test_world();
+    rows = parse_slk_string(ability_slk);
+    old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    caster->s.player = 0;
+    for (uint32_t race = 0; race < sizeof(races) / sizeof(races[0]); race++) {
+        game.clients[0].ps.race = races[race];
+        T_EQ(S_TinyStructureUnitId(caster, great_hall, 1), great_hall_races[race]);
+        T_EQ(S_TinyStructureUnitId(caster, codes[0], 1), structures[0]);
+    }
+    for (uint32_t i = 1; i < sizeof(codes) / sizeof(codes[0]); i++)
+        T_EQ(S_TinyStructureUnitId(caster, codes[i], 1), structures[i]);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_building, hud_texture_paths_are_authored_per_recipient) {
     stbIniCache_t old = game.config.theme, custom = {0};
     gameClient_t *previous = ui_current_client;

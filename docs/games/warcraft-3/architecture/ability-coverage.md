@@ -78,9 +78,11 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 `AIbl`, `AIbg`, `AIbt`, `AIbb`, `AIbf`, `AIbr`, `AIbs`, and `AIbh` now share
 a partial point-targeted Tiny Structures item ability: the gameplay layer
 validates placement and starts workerless automatic construction with the
-authored duration. The stock Tiny Great Hall selects the town hall by owner
-player race. Building-preview presentation, cast-range parity, and exotic
-custom-map cases still need verification. See [Tiny Structures](../tiny-structures.md).
+authored duration. Item activation resolves the final alias when multiple
+listed abilities share an implementation, so HumanX01's `tgrh` item selects
+Tiny Castle `AIbl` (`hcas`) instead of the preceding Tiny Great Hall alias
+`AIbg`. The stock Great Hall alias remains owner-race dependent, with explicit
+map `UnitID` overrides preserved. See [Tiny Structures](../tiny-structures.md).
 
 ## Local Registry
 
