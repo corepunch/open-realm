@@ -2974,6 +2974,67 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_building, construction_start_and_completion_clear_occupants) {
+    enum { CELLS = 128, FOOTPRINT = 9 };
+    static uint8_t pathmap[CELLS * CELLS];
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    edict_t *builder, *occupant, *occupant2, *building;
+    pathTex_t *pathtex;
+    vec2_t const center = { 0.0f, 0.0f };
+
+    setup_test_world();
+    memset(pathmap, 0, sizeof(pathmap));
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
+                                  .max = { 2048.0f, 2048.0f }));
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
+    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
+    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
+    building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), center.x, center.y);
+    occupant->svflags |= SVF_MONSTER;
+    occupant->s.model = 1;
+    occupant->movetype = MOVETYPE_STEP;
+    occupant->collision = 16.0f;
+    occupant2->svflags |= SVF_MONSTER;
+    occupant2->s.model = 1;
+    occupant2->movetype = MOVETYPE_STEP;
+    occupant2->collision = 16.0f;
+    building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
+    building->stand = unit_stand;
+    pathtex = gi.MemAlloc(pathtex_size);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = pathtex->height = FOOTPRINT;
+    FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+    building->pathtex = pathtex;
+    gi.LinkEntity(builder); gi.LinkEntity(occupant); gi.LinkEntity(occupant2); gi.LinkEntity(building);
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
+             occupant->collision + occupant2->collision);
+
+    /* Walk-through construction allows a unit to enter again. Completion
+     * must clear it after the finished footprint has been baked. */
+    occupant->s.origin2 = center;
+    occupant->s.origin.x = center.x;
+    occupant->s.origin.y = center.y;
+    gi.LinkEntity(occupant);
+    occupant2->s.origin2 = center;
+    occupant2->s.origin.x = center.x;
+    occupant2->s.origin.y = center.y;
+    gi.LinkEntity(occupant2);
+    G_CompleteConstruction(building);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
+             occupant->collision + occupant2->collision);
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
     gameClient_t *client = &game.clients[0];
     edict_t *worker, *mine;
