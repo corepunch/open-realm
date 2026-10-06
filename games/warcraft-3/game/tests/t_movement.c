@@ -2229,6 +2229,7 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     T_ASSERT(fallback_reached);
     T_FEQ(gate->s.origin2.x, authored_gate_position.x, 0.01f);
     T_FEQ(gate->s.origin2.y, authored_gate_position.y, 0.01f);
+    T_ASSERT(attacker->goalentity == gate);
 }
 
 TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {

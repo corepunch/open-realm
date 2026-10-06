@@ -882,7 +882,7 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                             dir = Vector2_sub(&closest, &self->s.origin2);
                             self->movement.flow_direct = true;
                             unit_apply_heading(self, &dir, policy);
-                        } else if (unit_routes_to_location(self) && !move_has_active_construction()) {
+                        } else if (!move_has_active_construction() && unit_routes_to_location(self)) {
                             /* Point orders own private waypoints, so moving that
                              * waypoint to the reachable boundary is safe. Entity
                              * goals (attack, harvest, repair, etc.) are shared
@@ -892,15 +892,9 @@ static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
                             self->goalentity->secondarygoal = NULL;
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
                         } else {
+                            /* If the closest point is already the target, retain
+                             * the target and let its owning behavior resolve arrival. */
                             self->movement.flow_fallback_state = MOVE_FALLBACK_APPLIED;
-                            self->movement.flow_fallback_approach = closest;
-                            self->movement.flow_fallback_goal = self->goalentity;
-                            self->movement.flow_fallback_radius = radius;
-                            self->movement.flow_fallback_target = *target;
-                            self->movement.flow_fallback_time = level.time;
-                            dir = Vector2_sub(&closest, &self->s.origin2);
-                            self->movement.flow_direct = true;
-                            unit_apply_heading(self, &dir, policy);
                         }
                     }
                     return;
