@@ -1279,6 +1279,11 @@ struct gtimer_s {
     float scalar_timeout;
     wc3Clock_t scalar_deadline;
     bool scalar_timing;
+    float scalar_period, scalar_residual, scalar_paused_remaining;
+    uint32_t scalar_segments, scalar_remaining_segments, scalar_sequence;
+    bool scalar_segmented;
+    wc3Clock_t scalar_fired_clock;
+    int32_t scalar_heap_index; /* derived, rebuilt after load */
     bool periodic, paused, running;
 };
 
@@ -2432,6 +2437,11 @@ struct level_locals {
     uint32_t num_triggers;
     gtimer_t timers[MAX_TIMERS];
     uint32_t num_timers;
+    uint32_t timer_sequence, timer_heap_count;
+    uint32_t timer_heap[MAX_TIMERS];
+    uint64_t timer_integer_bits[(MAX_TIMERS+63)/64], timer_integer_top;
+    wc3Clock_t timer_clock, timer_source_clock;
+    bool timer_clock_valid;
     timerdialog_t timer_dialogs[MAX_TIMERDIALOGS];
     leaderboard_t leaderboards[MAX_LEADERBOARDS];
     int32_t player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
@@ -2891,6 +2901,14 @@ void G_ClearSaveRegistries(void);
 bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
+struct jass_context;
+wc3Clock_t G_TimerQueryClock(struct jass_context const *);
+float G_TimerRemainingScalar(gtimer_t const *, wc3Clock_t const *);
+float G_TimerElapsedScalar(gtimer_t const *, wc3Clock_t const *);
+void G_TimerStartScalarAt(gtimer_t *, float, bool, struct jass_function const *, wc3Clock_t const *);
+void G_TimerPauseAt(gtimer_t *, wc3Clock_t const *);
+void G_TimerResumeAt(gtimer_t *, wc3Clock_t const *);
+void G_RebuildTimerQueue(void);
 void G_RunTimers(void);
 void G_RunTimersBeforePathOwner(wc3Clock_t const *);
 void G_StartProjectilePresentation(edict_t *ent);

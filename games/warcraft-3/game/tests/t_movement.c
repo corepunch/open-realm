@@ -3838,14 +3838,16 @@ TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
     T_NOT_NULL(source); if (!source) return;
     edict_t *previous=NULL; uint32_t born=UINT32_MAX,clock=0;
     unsigned cases=0,steps[8]={0},saved_cases=0,saved_steps[8]={0};
-    uint32_t saved_born=0,saved_clock=0,previous_index=0;
+    uint32_t saved_born=0,saved_clock=0,previous_index=0,saved_remaining=0;
     cstring_t file="/tmp/openwarcraft3-public-spawn-phase.bin";
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(pass,2) {
         if (pass) {
             T_ASSERT(ReadGame(file)); cases=saved_cases; memcpy(steps,saved_steps,sizeof(steps));
             born=saved_born; clock=saved_clock; previous=&g_edicts[previous_index];
-            T_EQ(level.time,10300u); T_EQ(G_TimerRemaining(&level.timers[0]),100u);
+            T_EQ(level.time,10300u);
+            wc3Clock_t timer_clock=G_TimerQueryClock(NULL);
+            T_EQ(wc3_float_bits(G_TimerRemainingScalar(level.timers,&timer_clock)),saved_remaining);
         }
         for (unsigned frame=pass ? 2060 : 0;frame<3000;frame++) {
             level.time+=5; globals.RunFrame();
@@ -3859,6 +3861,8 @@ TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
             }
             uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
             if (!pass && frame==2059) {
+                wc3Clock_t timer_clock=G_TimerQueryClock(NULL);
+                saved_remaining=wc3_float_bits(G_TimerRemainingScalar(level.timers,&timer_clock));
                 T_ASSERT(WriteGame(file)); saved_cases=cases; memcpy(saved_steps,steps,sizeof(steps));
                 saved_born=born; saved_clock=clock; previous_index=previous-g_edicts;
             }
@@ -12270,21 +12274,77 @@ TEST(wc3_movement, public_timer_timeout_drives_exact_motion_and_saved_continuati
             if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
         }
         T_EQ(steps,70);if(pass)suffix+=steps-saved[pass-1];
-        uint32_t const timeout[]={0xbdccccce,0xba83126f,0,0x38d1b718,0x3ba3d708,0x3ba3d70a,
-            0x3ba3d70d,0x3dcccccc,0x3dccccce,0x3dcccccd,0x4395ffff,0x43960000,0x49742404};
         hashtable_t const *table=level.hashtables;
-        T_EQ(table->num_entries,41*13);
+        T_EQ(table->num_entries,41*39);
         FOR_LOOP(i,table->num_entries) {
             hashtableEntry_t const *entry=table->entries+i;
-            T_ASSERT(entry->parent>=0 && entry->parent<=40);T_ASSERT(entry->child>=0 && entry->child<13);
+            T_ASSERT(entry->parent>=0 && entry->parent<=40);T_ASSERT(entry->child>=0 && entry->child<39);
             T_EQ(entry->type,HT_REAL);
-            if(entry->child>=0 && entry->child<13)T_EQ(wc3_float_bits(entry->value.real),timeout[entry->child]);
+            if(entry->parent>=0 && entry->parent<=40 && entry->child>=0 && entry->child<39)T_EQ(wc3_float_bits(entry->value.real),timer_getters_117[entry->parent][entry->child%13][entry->child/13]);
         }
     }
     fprintf(stderr,"timer116 native commits=%u saved suffix=%u\n",steps,suffix);
     T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,4)remove(files[i]);
 cleanup_timer116:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+#include "retail_timer_motion_117.h"
+TEST(wc3_movement, public_timer_getters_drive_motion_across_segments_pause_and_epoch_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),
+        .newUnitID=MAKEFOURCC('h','T','1','6'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(timer_script_117);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_timer117;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={11000,22500,299500,300500,305500};unsigned saved[5]={0},steps=0,suffix=0;
+    char files[5][64];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-timer117-%u.bin",times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<351000 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<320);if(steps>=320){mismatch=true;break;}
+                uint32_t const *expected=timer_motion_117[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"timer117 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,320);T_EQ(level.pathing_clock.epoch,1u);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,351*39);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<=350);T_ASSERT(entry->child>=0 && entry->child<39);
+            T_EQ(entry->type,HT_REAL);
+            if(entry->parent>=0 && entry->parent<=350 && entry->child>=0 && entry->child<39)T_EQ(wc3_float_bits(entry->value.real),timer_epoch_getters_117[entry->parent][entry->child%13][entry->child/13]);
+        }
+    }
+    fprintf(stderr,"timer117 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_timer117:
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;

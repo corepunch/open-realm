@@ -407,16 +407,19 @@ uint32_t TimerStart(jass_t *j) {
     bool periodic = jass_checkboolean(j, 3);
     /* Warcraft accepts null to start/reset a timer without an expiration callback. */
     jassFunc_t const *handlerFunc = jass_toboolean(j, 4) ? jass_checkcode(j, 4) : NULL;
-    if (whichTimer) G_TimerStartScalar(whichTimer, timeout, periodic, handlerFunc);
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    if (whichTimer) G_TimerStartScalarAt(whichTimer, timeout, periodic, handlerFunc, &clock);
     return 0;
 }
 uint32_t TimerGetElapsed(jass_t *j) {
     gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, whichTimer ? (whichTimer->duration - G_TimerRemaining(whichTimer)) / 1000.0f : 0.0f);
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    return jass_pushnumber(j, G_TimerElapsedScalar(whichTimer, &clock));
 }
 uint32_t TimerGetRemaining(jass_t *j) {
     gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
-    return jass_pushnumber(j, G_TimerRemaining(whichTimer) / 1000.0f);
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    return jass_pushnumber(j, G_TimerRemainingScalar(whichTimer, &clock));
 }
 uint32_t TimerGetTimeout(jass_t *j) {
     gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
@@ -424,10 +427,12 @@ uint32_t TimerGetTimeout(jass_t *j) {
     return jass_pushnumber(j, whichTimer ? whichTimer->scalar_timeout : 0.0f);
 }
 uint32_t PauseTimer(jass_t *j) {
-    G_TimerPause(jass_checkhandle(j, 1, "timer")); return 0;
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    G_TimerPauseAt(jass_checkhandle(j, 1, "timer"), &clock); return 0;
 }
 uint32_t ResumeTimer(jass_t *j) {
-    G_TimerResume(jass_checkhandle(j, 1, "timer")); return 0;
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    G_TimerResumeAt(jass_checkhandle(j, 1, "timer"), &clock); return 0;
 }
 uint32_t GetExpiredTimer(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->timer, "timer");

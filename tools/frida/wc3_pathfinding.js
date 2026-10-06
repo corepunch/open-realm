@@ -114,7 +114,7 @@ function install(module) {
             onLeave(ret){if(this.row)emit('timer-getter',{...this.row,word:ret.toUInt32()});}
         });
         for(const [name,rva]of [['timeout',0x233d50],['elapsed',0x232500],['remaining',0x233190]])hook(rva,{
-            onEnter(args){this.row=null;if(!timerInputsActive)return;this.out=args[0];const t=this.context.ecx;this.row={name,timer:t.toString(),stored:[t.add(0x48).readU32(),t.add(0x50).readU32()],request:t.add(0x30).readPointer().toString(),clockMethods:ints(t.add(0x24).readPointer(),8).map(v=>(v-base.toUInt32())>>>0),...timerClock()};},
+            onEnter(args){this.row=null;if(!timerInputsActive)return;this.out=args[0];const t=this.context.ecx;const configClock=base.add(0xd3c82c).readPointer().add(0x40).readPointer();const request=t.add(0x30).readPointer();const control={flags:t.add(0x34).readU32(),segments:t.add(0x38).readU16(),remainingSegments:t.add(0x3a).readU16(),residual:t.add(0x3c).readU32(),request:request.isNull()?null:ints(request.add(4),6).map(v=>v>>>0)};this.row={name,timer:t.toString(),timerClock:ints(configClock.add(0x40),4).map(v=>v>>>0),control,stored:[t.add(0x48).readU32(),t.add(0x50).readU32()],request:t.add(0x30).readPointer().toString(),clockMethods:ints(t.add(0x24).readPointer(),8).map(v=>(v-base.toUInt32())>>>0),...timerClock()};},
             onLeave(){if(this.row)emit('timer-scalar-getter',{...this.row,word:this.out.readU32()});}
         });
         hook(0x249ca0,{onEnter(args){this.row=timerInputsActive?{timer:this.context.ecx.toString(),timeout:args[0].readU32(),periodic:args[1].toUInt32(),...timerClock()}:null;},onLeave(){if(this.row)emit('timer-start',this.row);}});

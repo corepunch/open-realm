@@ -76,12 +76,12 @@ class TimerTests(unittest.TestCase):
         table=source.split('timer_motion_116[][7]={',1)[1].split('};',1)[0]
         motion=[[0,r['clock'][0],*r['position'],*r['velocity'],r['heading']]for r in self.fixture['events']if r['event']=='velocity-commit']
         self.assertEqual([int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',table)],[w for row in motion for w in row])
-        body=source.split('timer_script_116[]=',1)[1]
+        body=source.split('timer_script_116[]=',1)[1].split('/* Original public116',1)[0]
         script=''.join(json.loads(line.strip().rstrip(';'))for line in body.splitlines()if line.strip().startswith('"'))
         original=(ROOT/'tools/frida/wc3_timer_inputs_probe.j').read_text()
         expected=original.replace('@SCENARIO@','116').replace("'hfoo'","'hT16'")
         expected=expected.replace('globals\n','globals\n hashtable udg_PathTimeoutWords=null\n',1)
-        expected=expected.replace(' call Preload("PATHTIMER read="',' call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i,TimerGetTimeout(udg_PathInputTimer[i]))\n call Preload("PATHTIMER read="',1)
+        expected=expected.replace(' call Preload("PATHTIMER read="',' call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i,TimerGetTimeout(udg_PathInputTimer[i]))\n call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i+13,TimerGetElapsed(udg_PathInputTimer[i]))\n call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i+26,TimerGetRemaining(udg_PathInputTimer[i]))\n call Preload("PATHTIMER read="',1)
         expected=expected.replace(' local timer moveTimer=CreateTimer()\n',' local timer moveTimer=CreateTimer()\n set udg_PathTimeoutWords=InitHashtable()\n',1)
         expected+='function main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n'
         self.assertEqual(script,expected)
@@ -108,6 +108,78 @@ class TimerTests(unittest.TestCase):
             self.assertEqual(method['name'],f['name'])
             self.assertTrue(f['returns'])
             cleanup=0 if method['convention']=='__cdecl'else 4
+            self.assertTrue(all(r['cleanup']==cleanup for r in f['returns']))
+        for layout in static['layouts']:
+            declared=next(l for l in schema['layouts']if l['name']==layout['name'])
+            self.assertLessEqual(layout['length'],declared['length'])
+            # Later evidence may name undefined bytes, while retaining every prior field.
+            declared_fields={(f['offset'],f['name'])for f in declared['fields']}
+            self.assertTrue({(f['offset'],f['name'])for f in layout['fields']}<=declared_fields)
+
+class TimerEpochTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-epoch-1.27.json').read_text())
+        cls.raw=[gzip.decompress((ROOT/f'tools/ghidra/fixtures/retail-timer-epoch-1.27-{tag}.jsonl.gz').read_bytes())for tag in ('b','c')]
+        cls.rows=[json.loads(line)for line in cls.raw[0].splitlines()]
+
+    def test_complete_repeats_include_elapsed_remaining_control_and_epoch(self):
+        for raw,cap in zip(self.raw,self.fixture['captures']):
+            self.assertEqual(verify(raw,self.fixture,cap),dict(public_getters=13692,scalar_getters=17328,motion_commits=320,timeouts=4563))
+        self.assertEqual(len(self.fixture['events']),40551)
+        self.assertEqual({r['clock'][1]for r in self.fixture['events']if r['event']=='velocity-commit'},{0,1})
+        self.assertIn('NUM-02.10',self.fixture['scope'])
+
+    def test_all_getter_tables_and_motion_words_equal_native_capture(self):
+        for filename,name,ticks in [('retail_timer_motion_116.h','timer_getters_117',41),('retail_timer_motion_117.h','timer_epoch_getters_117',351)]:
+            f=self.fixture if ticks==351 else json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-inputs-1.27.json').read_text())
+            table=[[[None]*3 for _ in range(13)]for _ in range(ticks)];read=None
+            for r in f['events']:
+                if r['event']=='timer-marker' and (match:=re.fullmatch(r'PATHTIMER read=(\d+) tick=(\d+)',r['value'])):read=tuple(map(int,match.groups()))
+                if r['event']=='timer-getter' and read:
+                    actor,tick=read;k=['timeout','elapsed','remaining'].index(r['name'])
+                    if table[tick][actor][k]is None:table[tick][actor][k]=r['word']
+            source=(ROOT/'games/warcraft-3/game/tests'/filename).read_text()
+            body=source.split(name+'[',1)[1].split('={',1)[1].split('};',1)[0]
+            actual=[int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',body)]
+            expected=[w for tick in table for actor in tick for w in actor]
+            self.assertNotIn(None,expected);self.assertEqual(actual,expected)
+        motion=source.split('timer_motion_117[][7]={',1)[1].split('};',1)[0]
+        actual=[int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',motion)]
+        expected=[w for r in self.fixture['events']if r['event']=='velocity-commit'for w in [0,r['clock'][0],*r['position'],*r['velocity'],r['heading']]]
+        self.assertEqual(actual,expected)
+        body=source.split('timer_script_117[]=',1)[1].split('static uint32_t const timer_epoch_getters_',1)[0]
+        script=''.join(json.loads(line.strip().rstrip(';'))for line in body.splitlines()if line.strip().startswith('"'))
+        original=(ROOT/'tools/frida/wc3_timer_boundaries_probe.j').read_text().replace('@SCENARIO@','117').replace("'hfoo'","'hT16'")
+        original=original.replace('globals\n','globals\n hashtable udg_PathTimeoutWords=null\n',1)
+        original=original.replace(' call Preload("PATHTIMER read="',' call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i,TimerGetTimeout(udg_PathInputTimer[i]))\n call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i+13,TimerGetElapsed(udg_PathInputTimer[i]))\n call SaveReal(udg_PathTimeoutWords,udg_PathProbeTick,i+26,TimerGetRemaining(udg_PathInputTimer[i]))\n call Preload("PATHTIMER read="',1)
+        original=original.replace(' local timer moveTimer=CreateTimer()\n',' local timer moveTimer=CreateTimer()\n set udg_PathTimeoutWords=InitHashtable()\n',1)
+        original+='function main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n'
+        self.assertEqual(script,original)
+
+    def test_clock_segment_remainder_deadline_and_serial_mutations_fail(self):
+        for key,index in [('timerClock',0),('timerClock',1),('segments',None),('remainingSegments',None),('residual',None),('request',0),('request',3)]:
+            bad=copy.deepcopy(self.rows);r=next(r for r in bad if r.get('event')=='timer-scalar-getter')
+            target=r if key=='timerClock'else r['control']
+            if index is None:target[key]^=1
+            else:target[key][index]^=1
+            raw=b'\n'.join(json.dumps(row).encode()for row in bad)+b'\n';cap=copy.deepcopy(self.fixture['captures'][0])
+            cap.update(sha256=hashlib.sha256(raw).hexdigest(),bytes=len(raw))
+            with self.subTest(key=key,index=index),self.assertRaisesRegex(ValueError,'words/lifecycle'):verify(raw,self.fixture,cap)
+
+    def test_frozen_provenance_and_saved_ghidra_layouts(self):
+        for name,digest in self.fixture['captures'][0]['metadata']['source_sha256'].items():
+            source=gzip.decompress((ROOT/f'tools/ghidra/fixtures/sources/{digest}.gz').read_bytes())
+            self.assertEqual(hashlib.sha256(source).hexdigest(),digest)
+        static=json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-epoch-117-static.json').read_text())
+        schema=json.loads((ROOT/'tools/ghidra/fixtures/retail-pathfinding-types-1.27.json').read_text())
+        mapping=(ROOT/'tools/ghidra/MapPathfinding.java').read_text()
+        self.assertFalse(static['unsaved']);self.assertTrue(static['passed']);self.assertEqual(len(static['functions']),11)
+        for f in static['functions']:
+            self.assertTrue(f['decompiled']);self.assertIn('"'+f['address']+'", "'+f['name']+'"',mapping)
+            m=next(m for m in schema['methods']if m['address']==f['address']);self.assertEqual(m['name'],f['name'])
+            cleanup=sum(4 for p in m['parameters']if type(p['storage'])is int)
+            if f['address']!='6f002170':self.assertTrue(f['returns'])
             self.assertTrue(all(r['cleanup']==cleanup for r in f['returns']))
         for layout in static['layouts']:
             declared=next(l for l in schema['layouts']if l['name']==layout['name'])

@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format112 combines retail Move state with mandatory delayed ability identity guards. */
-static uint32_t const save_version = 112;
+/* Format113 persists counted scalar timer requests, ordered queue identities and callback clocks. */
+static uint32_t const save_version = 113;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -323,6 +323,17 @@ static field_t const trigger_fields[] = {
 static field_t const timer_fields[] = {
     F(gtimer_s, scalar_timeout, F_FLOAT),
     F(gtimer_s, scalar_timing, F_INT),
+    F(gtimer_s, scalar_period, F_FLOAT),
+    F(gtimer_s, scalar_residual, F_FLOAT),
+    F(gtimer_s, scalar_paused_remaining, F_FLOAT),
+    F(gtimer_s, scalar_segments, F_INT),
+    F(gtimer_s, scalar_remaining_segments, F_INT),
+    F(gtimer_s, scalar_sequence, F_INT),
+    F(gtimer_s, scalar_segmented, F_INT),
+    F(gtimer_s, scalar_fired_clock.time, F_FLOAT),
+    F(gtimer_s, scalar_fired_clock.epoch, F_INT),
+    F(gtimer_s, scalar_fired_clock.span, F_FLOAT),
+    F(gtimer_s, scalar_heap_index, F_IGNORE, 0, FIELD_RUNTIME),
     F(gtimer_s, scalar_deadline.time, F_FLOAT),
     F(gtimer_s, scalar_deadline.epoch, F_INT),
     F(gtimer_s, scalar_deadline.span, F_FLOAT),
@@ -496,6 +507,18 @@ static field_t const level_fields[] = {
     F(level_locals, move_fine_budgets, F_STRUCT, MAX_PLAYERS, move_fine_budget_fields),
     F(level_locals, move_coarse_budgets, F_STRUCT, MAX_PLAYERS*3, move_coarse_budget_fields),
     F(level_locals, move_coarse_sequence, F_INT, 2),
+    F(level_locals, timer_sequence, F_INT),
+    F(level_locals, timer_clock_valid, F_INT),
+    F(level_locals, timer_clock.time, F_FLOAT),
+    F(level_locals, timer_clock.epoch, F_INT),
+    F(level_locals, timer_clock.span, F_FLOAT),
+    F(level_locals, timer_source_clock.time, F_FLOAT),
+    F(level_locals, timer_source_clock.epoch, F_INT),
+    F(level_locals, timer_source_clock.span, F_FLOAT),
+    F(level_locals, timer_heap, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, timer_heap_count, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, timer_integer_bits, F_IGNORE, 0, FIELD_RUNTIME),
+    F(level_locals, timer_integer_top, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, pathing_clock.time, F_FLOAT),
     F(level_locals, pathing_clock.epoch, F_INT),
     F(level_locals, pathing_clock.span, F_FLOAT),
@@ -2830,6 +2853,26 @@ bool ReadGame(cstring_t filename) {
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
+    FOR_LOOP(i,level.num_timers) {
+        gtimer_t const *timer=level.timers+i;
+        int32_t epoch=(int32_t)(timer->scalar_deadline.epoch-level.pathing_clock.epoch);
+        if(timer->scalar_timing && (!isfinite(timer->scalar_timeout) ||
+            !isfinite(timer->scalar_period) || !isfinite(timer->scalar_residual) ||
+            !isfinite(timer->scalar_paused_remaining) || !isfinite(timer->scalar_deadline.time) ||
+            !isfinite(timer->scalar_deadline.span) || timer->scalar_deadline.span<=0 ||
+            timer->scalar_segments>UINT16_MAX || timer->scalar_remaining_segments>timer->scalar_segments ||
+            (timer->scalar_segmented && !timer->scalar_remaining_segments) ||
+            (timer->running && !timer->paused && (epoch < -1 || epoch > 1)))) {
+            fprintf(stderr,"WC3 LoadGame: invalid scalar timer at slot %u\n",(unsigned)i);
+            fclose(f);return false;
+        }
+    }
+    if(level.timer_clock_valid && (!isfinite(level.timer_clock.time) ||
+       !isfinite(level.timer_clock.span) || level.timer_clock.span<=0 ||
+       !isfinite(level.timer_source_clock.time) || !isfinite(level.timer_source_clock.span) ||
+       level.timer_source_clock.span<=0)) {
+        fprintf(stderr,"WC3 LoadGame: invalid timer publication clock\n");fclose(f);return false;
+    }
     ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
     G_ResetMoveRegionEvents();
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 LoadGame: invalid AI initialization players\n"); fclose(f); return false; }
@@ -2932,6 +2975,7 @@ bool ReadGame(cstring_t filename) {
         S_TrackMoveTimers(ent);
         if (gi.LinkEntity) gi.LinkEntity(ent);
     }
+    G_RebuildTimerQueue();
     G_RebuildSelectionIndex();
     S_RebuildAbilityTimers();
     G_RebuildSavedMovePathing();
@@ -3568,8 +3612,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-109.bin",
         "/tmp/openwarcraft3-wc3-save-version-110.bin",
         "/tmp/openwarcraft3-wc3-save-version-111.bin",
+        "/tmp/openwarcraft3-wc3-save-version-112.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112 };
 
     reset_entities();
     setup_test_world();

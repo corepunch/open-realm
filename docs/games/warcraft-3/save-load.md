@@ -252,7 +252,7 @@ identities are rebuilt from source; old continuations cannot be reused. Eight
 expression-authored Move continuations verify callback and movement state before
 and after order admission. See [compiled expression parity](retail-pathfinding-engine.md#compiled-expressions-retain-retail-arithmetic-and-evaluation-order).
 
-The embedded snapshot starts with `JSVM`, snapshot format version 8, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
+The embedded snapshot starts with `JSVM`, snapshot format version 9, a program-identity hash, mutable-global count, and sleeping-coroutine count. It stores:
 
 - mutable scalar globals and sparse array entries;
 - integer, real, boolean, string, code, null, and supported typed-handle values;
@@ -1232,3 +1232,19 @@ incarnation guards and updated optional ability pool layouts. Both parent format
 owned sparse status pool; loading rebuilds its pointer references before resolving
 source generations. Shared channel and missile constructors publish goal changes
 through Move and retain the projectile producer’s scheduler/pose initialization.
+
+### Counted scalar timers and callback clocks (Save113 / JASS9)
+
+Save113 retains authored timeout separately from effective scalar period,
+120-second segment counts/residual, frozen paused remainder, raw deadline and
+registration serial. Timer publication/source clocks and the serial allocator
+are persisted. Borrowed due-clock state is retained in JASS snapshot9 for saved
+callback contexts; yielding releases it. Snapshot8 and Save112 are rejected.
+
+The indexed scalar heap, per-timer heap index and active C millisecond timer
+bitset are derived state. Load clears and rebuilds them from logical running/
+paused records. The reader rejects nonfinite scalar timer inputs/deadlines,
+impossible segment counts and running requests outside the adjacent epoch
+domains before queue reconstruction. Five actual public getter-driven Move
+continuations cross segmentation, pause/resume and the300-second wrap. See
+[counted timer evidence](retail-pathfinding-engine.md#counted-timer-requests-use-their-own-scalar-clock).

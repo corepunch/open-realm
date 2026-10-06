@@ -9722,3 +9722,82 @@ which differ from the primary clock read by the movement observer. Host elapsed
 milliseconds are not a valid replacement for these rules. Those engine getter,
 long/epoch and heap mutation ports remain open; the new captures do not close
 this broader checkbox.
+
+## Counted timer requests use their own scalar clock
+
+Payoff117 closes NUM-02.9.2 and NUM-02.11. The pending getter/epoch scope above
+is superseded by a production implementation and complete public trajectories.
+NUM-02.10 still owns general shared-deadline callback mutation and catch-up.
+
+Original registered startup002170 initializes `Timer_SegmentQuantum` atd3c894
+to120 (`42f00000`), independently of the primary clock's300-second epoch.
+EventClock_StartCountedRequest0602a0 converts the timeout through the original
+wrapped signed-integer helper, divides by120 and stores the low16-bit count.
+Original modulo supplies residual18. Counted requests initially schedule120;
+a zero-count request uses its residual clamped to minimum `38d1b717`.
+Registration increments clock50 and stores the unsigned sequence in request14.
+The raw deadline is software-add(current timer time, effective period); creation
+does not normalize it across an epoch prematurely.
+
+Remaining composes `(remaining_segments-1)*120`, the current raw request
+remaining, then the residual, in the original software operation order.
+Running elapsed subtracts that result from the effective counted duration;
+expired/paused elapsed instead subtracts frozen remaining50 from authored48.
+This explains both the one-bit loss in a tiny effective period and the large
+input `49742404` initially returning remaining `49742403`. Pause stores the
+actual getter word before cancellation. Resume rebuilds an effective request
+from that frozen word while retaining the authored timeout and callback.
+
+Original0522e0 temporarily installs each due request's time during dispatch.
+Public native calls made inside that callback therefore use its borrowed timer
+clock, including nested synchronous JASS calls and timer-expire conditions.
+Yield releases that borrowed context. The engine now carries this explicitly
+rather than reading host milliseconds or the primary movement publication.
+At a wrap,054050 drains the old span first;052170 software-subtracts the span
+from every queued raw deadline and increments the epoch, then dispatch resumes
+in the new domain. A paused remainder does not age or participate in rebasing.
+
+Two complete read-only native117 captures each contain13,692 public getters,
+17,328 original scalar getters and320 actual movement commits. Their40,551
+normalized events agree, including the embedded timer clock, control flags,
+counts/residual, request deadline/period/serial and original method RVAs.
+The public scene pauses all13 inputs at11/290 seconds and resumes at22/305.
+At299 seconds TimerGetElapsed sets Move speed; at305 TimerGetRemaining sets
+another Move speed. Actual movement crosses the natural300-second epoch.
+No observer writes or code substitutions produce these values.
+
+The full game regression runs ordinary5-ms server frames. An ordinary JASS
+hashtable exports all351×13×3 getter words; all match the native producer.
+Every320 committed fine pose/velocity/heading words matches too. Saves at
+11,000/22,500/299,500/300,500/305,500 ms replay1,113 exact suffix commits.
+Classic and TFT each pass342,896 assertions after the explicit epoch check.
+The shorter116 scene now checks all three getters as well:34,350 assertions,
+70 native movement records and165 saved suffix records. Before the getter and
+clock rewrite, its added elapsed/remaining checks failed2,775 assertions.
+
+The additional original-code oracle runs the registered120 initializer from
+poisoned storage, whole0602a0 construction and virtual core getters for all13
+actual compiled public inputs.208 whole original heap insert/pop entries verify
+deadline order and unsigned sequence ties;26 whole052170 deadline rebase words
+match original software subtraction. Backing/free-list storage is explicitly
+supplied, without replacing any executed code or claiming public callback
+reachability for those controlled calls.
+
+The engine uses an indexed scalar deadline/sequence heap: O(log n) admission,
+restart and cancellation; O(1) next due lookup. C millisecond producers retain
+their existing ascending-slot observations in a sparse two-level bitset, whose
+live iteration observes newly admitted later slots. Empty public-timer ticks
+therefore no longer scan every allocated timer. Epoch rebasing still performs
+the genuine O(n) queued-deadline adjustment at the300-second boundary.
+Save113 persists logical counted requests, registration sequence, publication
+clocks and borrowed callback contexts (JASS snapshot9). Queue storage is derived
+and rebuilt on load; prior formats are rejected. This is a numerical/scheduling
+improvement, not a claim that the remaining global frame-budget target is met.
+
+Ghidra mappings now include11 further constructor/control/heap/rebase functions,
+explicit operand-backed prototypes, request serial/data and control receiver/
+flags fields, the heap prefix and the registered quantum global. The saved
+readback has `unsaved=false` in `retail-timer-epoch-117-static.json`; function
+names, comments, xrefs and layouts are reproducible through MapPathfinding.java
+and MapPathfindingTypes.java. Frozen raw captures, sources and scenario-derived
+engine literals are pinned by corpus checks and mutation regressions.

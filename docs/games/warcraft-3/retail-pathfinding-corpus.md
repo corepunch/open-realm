@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **341 entries**: **53** distinct original-code oracle
-scripts plus **65** declared variants, **121** archived JSONL audits and **102**
+The inventory now has **345 entries**: **53** distinct original-code oracle
+scripts plus **67** declared variants, **121** archived JSONL audits and **104**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1834,3 +1834,10 @@ Inventory is343 entries:119 original oracle contracts,121 archives and103 live
 contracts. The two new fresh corpus reports pass. Engine elapsed/remaining,
 long/epoch scheduling and general heap mutation remain open; see
 [authored timeout](retail-pathfinding-engine.md#authored-timer-timeout-survives-scheduling-and-pause).
+
+Payoff117 adds `oracle-timer-boundaries` and `live-timer-epoch-261006`: original
+120-second initialization/counting, unsigned heap serial ordering and deadline
+rebasing compose with two full public getter-driven Move captures across the
+300-second epoch. Engine normal-frame/Save113 continuations verify all getter
+and movement words. NUM-02.9.2/02.11 close; shared-deadline callback mutation
+remains NUM-02.10. Earlier getter/capture scopes remain recorded independently.

@@ -32348,6 +32348,273 @@
         "Engine elapsed/remaining, long/epoch scheduling and general heap mutation remain open",
         "No complete unit/task/route/RNG parity claim"
       ]
+    },
+    {
+      "id": "oracle-timer-boundaries",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_timer_getters.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}",
+        "--boundaries",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-timer-epoch-1.27.json"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "timer-boundaries-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 243
+        },
+        "getter_calls": {
+          "equal": 729
+        },
+        "engine_subtraction_cases": {
+          "equal": 243
+        },
+        "construction_cases": {
+          "equal": 13
+        },
+        "heap_cases": {
+          "equal": 208
+        },
+        "rebase_cases": {
+          "equal": 26
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original registered120 quantum initializer, complete counted timer construction and virtual public getter outputs against13 native inputs,208 original heap insert/pop unsigned serial order entries,26 exact deadline rebases. External preallocated object/free-list backing; no stubs. Engine actual getter/Move/save parity is separately tested.",
+      "exclusions": [
+        "General public shared-deadline mutation/catch-up in NUM-02.10"
+      ]
+    },
+    {
+      "id": "live-timer-epoch-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_timer_trace.py",
+        "--capture",
+        "{archive}/runtime/payoff117/timer-b.jsonl",
+        "{archive}/runtime/payoff117/timer-c.jsonl",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-timer-epoch-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "sha256": "59708af2db96c8df94b794c66c4f51ae2217f2a97ceaa6040b5a9c8a406b8a0a",
+        "bytes": 11603108,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "4b6e002416b0bac9c9129685df69eee79b0ebc397a971deb14a938979a0cd3db",
+            "wc3_pathfinding.js": "7ae26c6f1f86a7655633fb91098720e8d89e5c393569542b746f9286a86c27a8",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "5a1a09fdc26b4663e8296a6c637e02864c38e6dc77668b231fdf720c4d540691",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "map": "d3b7c79aee5f6cd3bb0e8ccc980c633f4dbef0d4ce418b07d6e012486f33f141"
+          },
+          "map": "Maps\\PathingRE-Timer117Epoch.w3m",
+          "seconds": 540.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 30000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "timerEvents": true
+        },
+        "capture": "runtime/payoff117/timer-b.jsonl"
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "sha256": "11fac008c18f5d3fedf5fc1ebeb84574a0a5a5d20bbae1d053b0aa2cd3db9e21",
+            "bytes": 11603109,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "4b6e002416b0bac9c9129685df69eee79b0ebc397a971deb14a938979a0cd3db",
+                "wc3_pathfinding.js": "7ae26c6f1f86a7655633fb91098720e8d89e5c393569542b746f9286a86c27a8",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "5a1a09fdc26b4663e8296a6c637e02864c38e6dc77668b231fdf720c4d540691",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "map": "d3b7c79aee5f6cd3bb0e8ccc980c633f4dbef0d4ce418b07d6e012486f33f141"
+              },
+              "map": "Maps\\PathingRE-Timer117Epoch.w3m",
+              "seconds": 540.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 30000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "timerEvents": true
+            },
+            "capture": "runtime/payoff117/timer-c.jsonl"
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "report": "live-timer-epoch-261006.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "public_getters": {
+          "equal": 27384
+        },
+        "scalar_getters": {
+          "equal": 34656
+        },
+        "motion_commits": {
+          "equal": 640
+        },
+        "timeout_words": {
+          "equal": 9126
+        }
+      },
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete repeated original117 public scalar timeout/elapsed/remaining,120-second counted segments, paused/resumed remainder and300-second timer-clock rebase. Actual getter-driven Move crosses the epoch; full engine public getter/motion/save regression. General periodic catch-up, shared-deadline callback mutation and scheduler heap parity remain NUM-02.10.",
+      "exclusions": [
+        "General shared-deadline public callback mutation/catch-up in NUM-02.10"
+      ]
     }
   ],
   "fixtures": [
@@ -32413,7 +32680,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "796cae3cdcc9c73f5a9f8257934400145299bc7d6a4f1718d6fd8bd889183163"
+      "sha256": "d5963b5fdd74bfa5e9ccb1f0c50cb6bc09d93994ff1cbdcc9457624ba248d745"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -33175,6 +33442,34 @@
     {
       "path": "tools/ghidra/fixtures/retail-timer-getters-116-static.json",
       "sha256": "dc3dcbc59e0fb542e720d2c43a848ddee5cca5f3e4ee542e15c8e42a14445480"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_timer_motion_116.h",
+      "sha256": "352534fe734d00d4f785b968117e8102cc5d6fd27216c4cabd3004ac54326606"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_timer_motion_117.h",
+      "sha256": "f815f911ec74241aab126a5f6b119bc6218df845b71f7f82c96336e6466f001d"
+    },
+    {
+      "path": "tools/frida/wc3_timer_boundaries_probe.j",
+      "sha256": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-timer-epoch-1.27.json",
+      "sha256": "cd6d973b21ea339eb883cb30d0dfc81251f8d90745185b72c092448504d0ae6d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-timer-epoch-1.27-b.jsonl.gz",
+      "sha256": "055dfb7803af5f7c67a8617c044924a78ec77d09795f4d0ad74072beb8544a92"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-timer-epoch-1.27-c.jsonl.gz",
+      "sha256": "8284d4d0df12780195674d1c560a9880eaa75e60e440bd904676fcdeba42f689"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-timer-epoch-117-static.json",
+      "sha256": "6488c827b6846c070109064c1c9d96ac8ed0db860b4aedb2044f3895f2868099"
     }
   ]
 }

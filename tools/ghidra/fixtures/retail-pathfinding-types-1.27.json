@@ -2096,7 +2096,7 @@
     },
     {
       "name": "WC3TimerRequestPrefix",
-      "length": 28,
+      "length": 32,
       "fields": [
         {
           "offset": 4,
@@ -2123,10 +2123,22 @@
           "evidence": "0542d0 periodic1/cancel10000;053630 clears10000 and sets queued20000"
         },
         {
+          "offset": 20,
+          "name": "serial",
+          "type": "u32",
+          "evidence": "04f830/04f1a0 unsigned secondary comparison;0602a0 incrementsclock50. Whole208 original insert/pop ordering entries including shared deadlines."
+        },
+        {
           "offset": 24,
           "name": "receiver",
           "type": "ptr:void",
           "evidence": "0542d0 invokes receiver vtablec(request); live request snapshots"
+        },
+        {
+          "offset": 28,
+          "name": "callback_data",
+          "type": "u32",
+          "evidence": "060840 stores caller-supplied data;060d40 reads before count/callback transitions."
         }
       ]
     },
@@ -3491,10 +3503,22 @@
           "evidence": "Payoff116 complete233190/232500 virtual calls; repeated embedded clock method RVAs."
         },
         {
+          "offset": 8,
+          "name": "receiver",
+          "type": "ptr:void",
+          "evidence": "0602a0 binds retained receiver;0606c0 releases before clear. Receiver can be null in whole original external construction backing."
+        },
+        {
           "offset": 12,
           "name": "request",
           "type": "ptr:WC3TimerRequestPrefix",
           "evidence": "Payoff116 direct060a90/060590 deadline/period getters and public core request snapshots."
+        },
+        {
+          "offset": 16,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "0602a0 periodic2,alternate4,segmented10;0606c0 clears2/4; native117 raw controls pinned at every getter."
         },
         {
           "offset": 20,
@@ -3555,6 +3579,30 @@
           "name": "paused_remaining",
           "type": "WC3PathScalar",
           "evidence": "233190 no-request/canceled fallback;232500 subtracts this from authored48. Engine elapsed/remaining port is still pending."
+        }
+      ]
+    },
+    {
+      "name": "WC3TimerHeapPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "requests",
+          "type": "ptr:ptr:WC3TimerRequestPrefix",
+          "evidence": "04f830 parent insert/04f1a0 child pop; timer clock embeds this container at+4. Preallocated external backing drives whole original208 entries."
+        },
+        {
+          "offset": 24,
+          "name": "capacity",
+          "type": "u32",
+          "evidence": "04f830 parent insert/04f1a0 child pop; timer clock embeds this container at+4. Preallocated external backing drives whole original208 entries."
+        },
+        {
+          "offset": 28,
+          "name": "count",
+          "type": "u32",
+          "evidence": "04f830 parent insert/04f1a0 child pop; timer clock embeds this container at+4. Preallocated external backing drives whole original208 entries."
         }
       ]
     }
@@ -10805,6 +10853,218 @@
         }
       ],
       "evidence": "Registered public cdecl timer handle at stack4; plainRET; raw scalar word in EAX, zero for unresolved handle. Calls 233190. Read-only repeated public116 capture; no host FPU return."
+    },
+    {
+      "address": "6f002170",
+      "name": "Timer_InitializeSegmentQuantum",
+      "returns": "ptr:WC3PathScalar",
+      "parameters": [],
+      "convention": "__cdecl"
+    },
+    {
+      "address": "6f0602a0",
+      "name": "EventClock_StartCountedRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "ptr:WC3EventClockControlPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "timeout",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "callback_data",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "periodic",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "alternate_clock",
+          "type": "u32",
+          "storage": 20
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f060430",
+      "name": "EventClock_QueueResidualRequest",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "callback_data",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "period",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f0606c0",
+      "name": "EventClock_CancelRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "ptr:WC3EventClockControlPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f060840",
+      "name": "SimClock_AllocateTimerRequest",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "callback_data",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "period",
+          "type": "WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "deadline",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "serial",
+          "type": "u32",
+          "storage": 20
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f060d40",
+      "name": "EventClock_DispatchCountedRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "control",
+          "type": "ptr:WC3EventClockControlPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f240420",
+      "name": "ScriptTimer_Pause",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:WC3ScriptTimerScalarPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f245ac0",
+      "name": "ScriptTimer_Resume",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:WC3ScriptTimerScalarPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f052170",
+      "name": "SimClock_RebaseTimerDeadlines",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f04f830",
+      "name": "TimerHeap_InsertRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "ptr:WC3TimerHeapPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f04f1a0",
+      "name": "TimerHeap_PopRequest",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "ptr:WC3TimerHeapPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
     }
   ],
   "globals": [
@@ -11173,6 +11433,12 @@
       "name": "WaygateMapPoolOwner",
       "type": "ptr:WC3WaygatePoolOwnerPrefix",
       "evidence": "Original constructor/bridge assembly and complete pool oracle; two public259-birth read-only captures retain776 identical availability/active/getter events."
+    },
+    {
+      "address": "6fd3c894",
+      "name": "Timer_SegmentQuantum",
+      "type": "WC3PathScalar",
+      "evidence": "Original registered002170 tail Math_FromInteger120 produces42f00000;0602a0 partitions timeout by this quantum, not clock span300."
     }
   ]
 }

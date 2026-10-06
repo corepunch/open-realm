@@ -6324,6 +6324,38 @@ TEST(wc3_jass, timer_countdown_uses_elapsed_time_and_pause_cursor) {
     T_EQ(G_TimerRemaining(timer), 100u);
 }
 
+/* Exercise both producers across a membership-word boundary and restoration.
+ * C host milliseconds never age public scalar requests, and vice versa. */
+TEST(wc3_save, mixed_timer_domains_keep_sparse_membership_after_save) {
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=1000;level.scheduled_frame=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==70\ncall TimerStart(CreateTimer(),1.0,false,null)\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    T_EQ(level.num_timers,70u);
+    G_TimerStart(level.timers,50,false,NULL);
+    G_TimerStart(level.timers+64,100,false,NULL);
+    G_TimerStart(level.timers+69,200,true,NULL);
+    G_TimerPause(level.timers+64);
+    level.time=1050;G_RunTimers();
+    T_ASSERT(!level.timers[0].running);T_EQ(G_TimerRemaining(level.timers+64),100u);
+    T_EQ(G_TimerRemaining(level.timers+69),150u);T_ASSERT(level.timers[1].running);
+    G_TimerResume(level.timers+64);level.time=1150;G_RunTimers();
+    T_ASSERT(!level.timers[64].running);T_EQ(G_TimerRemaining(level.timers+69),50u);
+    cstring_t file="/tmp/wc3-mixed-timer117.bin";T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,70)G_TimerDestroy(level.timers+i);
+    T_ASSERT(ReadGame(file));remove(file);
+    T_EQ(G_TimerRemaining(level.timers+69),50u);T_ASSERT(level.timers[1].running);
+    level.time=1200;G_RunTimers();T_EQ(G_TimerRemaining(level.timers+69),200u);
+    G_TimerPause(level.timers+69);T_ASSERT(level.timers[69].paused);
+    level.scheduled_frame=true;
+    FOR_LOOP(i,210) {
+        G_RunTimers();wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    FOR_LOOP(i,70)if(i!=0 && i!=64 && i!=69)T_ASSERT(!level.timers[i].running);
+    T_EQ(G_TimerRemaining(level.timers+69),200u);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;
+}
+
 TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
     cstring_t file = "/tmp/openwarcraft3-timer-elapsed-save.bin";
     cstring_t script = "globals\ntimer moverTimer\ninteger calls=0\nendglobals\n"
@@ -6333,18 +6365,40 @@ TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
         "call TimerStart(moverTimer,0.1,true,function on_tick)\nendfunction\n"
         "function first takes nothing returns nothing\ncall BJassAssert(calls==1,\"timer restarted early\")\nendfunction\n"
         "function second takes nothing returns nothing\ncall BJassAssert(calls==2,\"timer restart deadline missed\")\nendfunction\n";
-    T_ASSERT(run_test_jass(script));
-    level.time = 100; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
-    gtimer_t *timer = &level.timers[0]; T_EQ(timer->duration, 200u); T_EQ(timer->updated, 100u);
-    level.time = 145; T_EQ(G_TimerRemaining(timer), 155u); T_ASSERT(WriteGame(file));
-    G_TimerDestroy(timer); level.time = 1000; T_ASSERT(ReadGame(file));
-    timer = &level.timers[0]; T_EQ(level.time, 145u); T_EQ(timer->updated, 100u);
-    T_EQ(timer->remaining, 200u); T_EQ(G_TimerRemaining(timer), 155u);
-    G_RunTimers(); G_RunTimers(); T_EQ(timer->remaining, 155u);
-    level.time = 299; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "first", false);
-    T_EQ(G_TimerRemaining(timer), 1u);
-    level.time = 300; G_RunTimers(); jass_runevents(level.vm); jass_callbyname(level.vm, "second", false);
-    T_ASSERT(!timer->running); T_ASSERT(!jass_rterror_pending(level.vm)); remove(file);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=0;level.timer_clock_valid=false;
+    T_ASSERT(run_test_jass(script));level.scheduled_frame=true;
+    while(level.time<105) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"first",false);
+    gtimer_t *timer=level.timers;T_EQ(timer->duration,200u);T_EQ(timer->updated,105u);
+    while(level.time<145) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    wc3Clock_t clock=G_TimerQueryClock(NULL);
+    uint32_t remaining=wc3_float_bits(G_TimerRemainingScalar(timer,&clock));
+    uint32_t sequence=timer->scalar_sequence,deadline=wc3_float_bits(timer->scalar_deadline.time);
+    T_ASSERT(WriteGame(file));G_TimerDestroy(timer);level.time=1000;T_ASSERT(ReadGame(file));
+    level.scheduled_frame=true;timer=level.timers;clock=G_TimerQueryClock(NULL);
+    T_EQ(level.time,145u);T_EQ(wc3_float_bits(G_TimerRemainingScalar(timer,&clock)),remaining);
+    T_EQ(timer->scalar_sequence,sequence);T_EQ(wc3_float_bits(timer->scalar_deadline.time),deadline);
+    T_EQ(level.timer_heap_count,1);T_EQ(timer->scalar_heap_index,0);
+    G_RunTimers();clock=G_TimerQueryClock(NULL);remaining=wc3_float_bits(G_TimerRemainingScalar(timer,&clock));
+    G_RunTimers();clock=G_TimerQueryClock(NULL);T_EQ(wc3_float_bits(G_TimerRemainingScalar(timer,&clock)),remaining);
+    while(level.time<295) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"first",false);
+    while(level.time<305) {
+        level.time+=5;G_RunTimers();jass_runevents(level.vm);
+        wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    }
+    jass_callbyname(level.vm,"second",false);
+    T_ASSERT(!timer->running);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;remove(file);
 }
 
 TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
@@ -6370,7 +6424,10 @@ TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
         "  call BJassAssert(timerFired == 0, \"paused timer expiration action still ran\")\n"
         "endfunction\n"));
 
-    G_RunTimers();
+    /* Exercise the queued C timer event path. Scalar public callbacks drain
+     * synchronously, so changing only level.time would never queue this event. */
+    level.scheduled_frame=false;G_TimerStart(level.timers,0,true,NULL);
+    G_RunTimers();T_ASSERT(level.timers[0].running);T_ASSERT(!level.timers[0].scalar_timing);
     jass_callbyname(level.vm, "PausePending", false);
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "VerifyDropped", false);

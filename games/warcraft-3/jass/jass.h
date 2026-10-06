@@ -84,6 +84,8 @@ struct jass_context {
     handle_t region;
     uint32_t timer_generation;
     uint8_t timer_pending;
+    wc3Clock_t timer_clock;
+    uint8_t hasTimerClock;
     jassFunc_t const *func;
 };
 

@@ -23,7 +23,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 8 // chained arithmetic changes saved token identities
+#define BZ_JASS_SNAPSHOT_VERSION 9 // retain exact borrowed timer clock across saved callbacks
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -557,6 +557,10 @@ jasscoroutine_t *jass_startcoroutine(jass_t *j, jassContext_t const *context) {
     co_state->stack_pointer = co_state->stack;
     co_state->num_stack = 0;
     co_state->context = *context;
+    if (!co_state->context.hasTimerClock && jass_getcontext(j)->hasTimerClock) {
+        co_state->context.timer_clock = jass_getcontext(j)->timer_clock;
+        co_state->context.hasTimerClock = true;
+    }
     /* Event-response state and GetLocalPlayer() selection are independent.
      * Nested TriggerExecute/ExecuteFunc calls inherit the event response from
      * their parent coroutine, while local-player branches inherit only the
@@ -697,6 +701,7 @@ void jass_sleep(jass_t *j, uint32_t msec) {
     }
     co->wake_time = jass_gettime() + msec;
     co->yielded = true;
+    co->state->context.hasTimerClock = false;
 }
 
 static bool jass_yielded(jass_t *j) {
@@ -1164,6 +1169,10 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
+        if (params->timer && ((gtimer_t const *)params->timer)->scalar_timing) {
+            tmp_state.context.timer_clock = ((gtimer_t const *)params->timer)->scalar_fired_clock;
+            tmp_state.context.hasTimerClock = true;
+        }
         tmp_state.context.region = params->region ? params->region : jass_getcontext(j)->region;
         jass_pushfunction(&tmp_state, cond->expr);
         edict_t *previous_unit = currentunit;
@@ -1259,6 +1268,8 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .region = params->region,
                                   .timer_generation = params->timer ? ((gtimer_t const *)params->timer)->generation : 0,
                                   .timer_pending = params->timer_pending,
+                                  .timer_clock = params->timer ? ((gtimer_t const *)params->timer)->scalar_fired_clock : (wc3Clock_t){0},
+                                  .hasTimerClock = params->timer && ((gtimer_t const *)params->timer)->scalar_timing,
                               ));
         jassVar_t *loop_index = find_global(j, "bj_forLoopAIndex");
         /* Keep queued and suspended actions on the loop index captured at dispatch. */
@@ -2761,7 +2772,9 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
         !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, (void *)&context->timer_generation, sizeof(context->timer_generation)) ||
-        !jass_snapshot_io(snapshot, (void *)&context->timer_pending, sizeof(context->timer_pending))) return false;
+        !jass_snapshot_io(snapshot, (void *)&context->timer_pending, sizeof(context->timer_pending)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->timer_clock, sizeof(context->timer_clock)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->hasTimerClock, sizeof(context->hasTimerClock))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
         if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
@@ -2787,7 +2800,11 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
         !jass_snapshot_io(snapshot, &context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, &context->timer_generation, sizeof(context->timer_generation)) ||
         !jass_snapshot_io(snapshot, &context->timer_pending, sizeof(context->timer_pending)) ||
-        context->hasPoint > 1 || context->timer_pending > 1) return false;
+        !jass_snapshot_io(snapshot, &context->timer_clock, sizeof(context->timer_clock)) ||
+        !jass_snapshot_io(snapshot, &context->hasTimerClock, sizeof(context->hasTimerClock)) ||
+        context->hasPoint > 1 || context->timer_pending > 1 || context->hasTimerClock > 1 ||
+        (context->hasTimerClock && (!isfinite(context->timer_clock.time) ||
+         !isfinite(context->timer_clock.span) || context->timer_clock.span <= 0))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
         uint32_t present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;
