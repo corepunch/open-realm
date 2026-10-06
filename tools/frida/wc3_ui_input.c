@@ -18,12 +18,13 @@ static BOOL CALLBACK find_owned_window(HWND window, LPARAM unused) {
 }
 
 int main(int argc, char **argv) {
-    BOOL shift=FALSE,alt=FALSE,move=FALSE;
-    if (argc<4 || argc>7) return fprintf(stderr,"usage: wc3-ui-input pid client-x client-y [shift] [alt] [move]\n"),2;
+    BOOL shift=FALSE,alt=FALSE,move=FALSE,repair=FALSE;
+    if (argc<4 || argc>7) return fprintf(stderr,"usage: wc3-ui-input pid client-x client-y [shift] [alt] [move|repair]\n"),2;
     for (int i=4;i<argc;i++) {
         if (!lstrcmpA(argv[i],"shift") && !shift) shift=TRUE;
         else if (!lstrcmpA(argv[i],"alt") && !alt) alt=TRUE;
-        else if (!lstrcmpA(argv[i],"move") && !move) move=TRUE;
+        else if (!lstrcmpA(argv[i],"move") && !move && !repair) move=TRUE;
+        else if (!lstrcmpA(argv[i],"repair") && !repair && !move) repair=TRUE;
         else return fprintf(stderr,"unknown or repeated input option: %s\n",argv[i]),2;
     }
     target_pid=strtoul(argv[1],NULL,10);
@@ -35,11 +36,11 @@ int main(int argc, char **argv) {
     if (!ClientToScreen(target_window,&point)) return fprintf(stderr,"owned client transform failed: %lu\n",(unsigned long)GetLastError()),7;
     if (!SetCursorPos(point.x,point.y)) return fprintf(stderr,"owned cursor positioning failed: %lu\n",(unsigned long)GetLastError()),8;
     INPUT key={0}; key.type=INPUT_KEYBOARD;
-    if (move) {
-        key.ki.wVk='M';
-        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned Move key down failed\n"),11;
+    if (move || repair) {
+        key.ki.wVk=repair ? 'R' : 'M';
+        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned order key down failed\n"),11;
         Sleep(50); key.ki.dwFlags=KEYEVENTF_KEYUP;
-        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned Move key up failed\n"),12;
+        if (SendInput(1,&key,sizeof(key))!=1) return fprintf(stderr,"owned order key up failed\n"),12;
     }
     Sleep(300);
     key.ki.wVk=VK_LSHIFT; key.ki.dwFlags=0;

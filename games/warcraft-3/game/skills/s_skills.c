@@ -13,6 +13,9 @@ cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const defend_orders[] = { "defend", "undefend", NULL };
+static cstring_t const repair_orders[] = { "repair", "repairon", "repairoff", NULL };
+static cstring_t const renew_orders[] = { "renew", "renewon", "renewoff", NULL };
+static cstring_t const restoration_orders[] = { "restoration", "restorationon", "restorationoff", NULL };
 static cstring_t const move_orders[] = { "move", "smart", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
@@ -87,7 +90,7 @@ static ability_t abilitylist[] = {
     { "Arev", CAbilityPassive, AB_PASSIVE },  /* Revive Hero */
     { "Aawa", CAbilityPassive, AB_PASSIVE },  /* Revive Hero Instantly */
     { "Adet", CAbilityDetector, AB_PASSIVE },  /* Detector */
-    { "Arep", CAbilityRepair, AB_COMMAND | AB_AUTOCAST },  /* Repair */
+    { "Arep", CAbilityRepair, AB_COMMAND | AB_AUTOCAST, SPELL_TARGET_NONE, repair_orders },  /* Repair */
     { "AEpa", CAbilityPoisonArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Poison Arrows */
     { "AEbu", CAbilityBuild, AB_COMMAND },  /* Build (Night Elf) */
     { "AGbu", CAbilityBuild, AB_COMMAND },  /* Build (Naga) */
@@ -252,7 +255,7 @@ static ability_t abilitylist[] = {
     { "ACsa", CAbilityFlamingArrows, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Searing Arrows (creep) */
     { "AEar", CAbilityCreepAura, AB_PASSIVE },  /* Trueshot Aura */
     { "AEsf", CAbilityStarfall, AB_SPELL | AB_CHANNEL },  /* Starfall */
-    { "Aren", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST },  /* Renew */
+    { "Aren", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST, SPELL_TARGET_NONE, renew_orders },  /* Renew */
     { "Afae", CAbilityFaerieFire, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Faerie Fire */
     { "Arej", CAbilityRejuvination, AB_SPELL, SPELL_TARGET_UNIT },  /* Rejuvenation */
     { "Aroa", CAbilityRoar, AB_SPELL },  /* Roar */
@@ -301,7 +304,7 @@ static ability_t abilitylist[] = {
     { "AUfu", CAbilityFrostArmor, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
     { "AUdr", CAbilityDarkRitual, AB_SPELL, SPELL_TARGET_UNIT },  /* Dark Ritual */
     { "AUdd", CAbilityDeathAndDecay, AB_SPELL | AB_CHANNEL, SPELL_TARGET_POINT },  /* Death And Decay */
-    { "Arst", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST },  /* Restore */
+    { "Arst", CAbilityRepairGeneric, AB_COMMAND | AB_AUTOCAST, SPELL_TARGET_NONE, restoration_orders },  /* Restoration */
     { "AUin", CAbilityDreadLordInferno, AB_SPELL, SPELL_TARGET_POINT },  /* Inferno */
 
     /* No AbilityStrings source file */

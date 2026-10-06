@@ -936,6 +936,7 @@ typedef enum {
     A_UNIT_TYPE_UPDATE, /* Pure update requirements; unknown procedures retain the full broadcast. */
     A_TIMERS_RESET,     /* Discard derived timer membership before replacing level state. */
     A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
+    A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -983,6 +984,7 @@ typedef enum {
     ABILITY_ORDER_UNHANDLED,
     ABILITY_ORDER_REJECTED,
     ABILITY_ORDER_ACCEPTED,
+    ABILITY_ORDER_INTERCEPTED, /* Accepted by the current owner without replacing its public head or queue. */
 } abilityOrderResult_t;
 
 struct ability_call_s {
@@ -998,7 +1000,7 @@ struct ability_call_s {
         groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
-        struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
+        struct { edict_t *target; cstring_t order; bool queued; } issued_target_order; /* Issuer target admission/dispatch. */
         cstring_t classname;
         uint32_t level;
         bool enabled;
@@ -1616,6 +1618,8 @@ typedef struct {
     bool primary;
     float gold_accum;
     float lumber_accum;
+    uint32_t target_spawn_time; /* Repair-owned target generation, retained through saved work. */
+    bool target_removed; /* Retirement observed before the scheduled work owner completes. */
 } buildwork_t;
 
 typedef struct {

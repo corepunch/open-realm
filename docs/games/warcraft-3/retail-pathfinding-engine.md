@@ -690,7 +690,7 @@ metadata, instant actions and internal locomotion.
 | ORDER-01.8 | `s_move.c:S_IssueFollowOrder`, `order_follow_resume` | Move d0003/d0012 target branches5ff240/5fd270; public Smart/Move retain their IDs at rest |
 | ORDER-01.9 | `s_patrol.c:order_patrol`, `order_patrol_resume` | Move d0017 at5fdff0; native point admission, endpoint reversal, combat resume and queue/save ownership |
 | ORDER-01.10 | `s_attack.c:S_OrderAttack`, Attack Move/Attack Ground | Shared dispatch and Move d0016 at5fe1a0; distinguish public attack IDs from automatic sub-behaviors |
-| ORDER-01.11 | `s_repair.c:S_OrderRepair` | Shared owning-ability dispatch; trace concrete retail repair owner, approach, completion and interruption |
+| ORDER-01.11 | `s_repair.c` concrete Repair/Renew/Restoration owners | Completed current-head admission/work/interception, pending activation, completion/interruption and saved target lifetime; [payoff122](#repair-families-own-admission-work-and-pending-activation) |
 | ORDER-01.12 | `s_harvest_lumber.c`, `s_goldmine.c` and race-specific resource owners | Smart/Harvest dispatch; inventory early-return admissions and resource-return/internal approaches |
 | ORDER-01.13 | `s_spell.c` plus each concrete ability | Shared owning-ability dispatch; approach, execute, channel, inverse and instant ownership |
 | ORDER-01.14 | Each metadata/toggle owner | Shared interception69b2f0; preserve an existing active head when a metadata action is accepted |
@@ -10067,3 +10067,119 @@ checks,19 corpus checks, eight metadata checks and16 timer checks pass. The
 strict fresh corpus entry`live-captain-ranges-261006` verifies both original
 captures; Ghidra readback matches the saved program with no unsaved changes.
 The full repository suite follows the authorized batch cadence.
+
+## Repair families own admission, work and pending activation
+
+Payoff122 closes ORDER-01.11's current-order contract. Repair is not one generic
+`repair` branch: Arep (Peasant/Peon), Aren (Wisp) and Arst (Acolyte) have separate
+registered target and autocast commands. The concrete ability owns validation,
+work interception, approach, completion and interruption.
+
+| Ability | Target order | Autocast on/off |
+| --- | --- | --- |
+| Arep | repair852024 | repairon852025 / repairoff852026 |
+| Aren | renew852161 | renewon852162 / renewoff852163 |
+| Arst | restoration852202 | restorationon852203 / restorationoff852204 |
+
+`restore` is not the Arst command. Earlier diagnostic captures using it or using
+Repair for every race are excluded. Two complete four-race public captures,
+`runtime/payoff122/repair-f.jsonl` and `repair-g.jsonl`, match all1,316 exported
+records and the complete normalized admission/movement observation stream:
+566 velocity commits per run. Every worker has all300 timer samples, through
+natural completion. The frozen fixture retains raw health/position words; these
+retail repeat matches do not claim engine repair-rate or approach-trajectory
+numerical parity.
+
+Original3ff160 uses software subtraction of max life and current life, rejecting
+ordinary completed targets with less than1 missing life. Exactly1 is admitted.
+A target becoming full during approach does not immediately retire the accepted
+head: the worker continues to contact, where work completes. Smart approach
+owns851971; replacing it with the concrete command changes the head. During
+work,409630 has published the canonical target identity at owner138/13c.
+Interception4371b0 can then accept same-target Smart/concrete commands without
+replacing the old head, work timers or pending FIFO. The engine's new generic
+`A_TARGET_ORDER_ADMIT` hook gives the registered/active ability that decision
+before generic queue mutation. Issued target events still publish the accepted
+command independently of the retained current head.
+
+A valid autocast direction change interrupts Move or Repair and completes its
+head to0. An already-selected direction, unavailable ability or wrong Repair
+family rejects before clearing pending work. Internal construction's
+`S_OrderRepair` entry does not invent a public head; autocast uses the owning
+family's actual order name. The six Renew/Restoration toggle/target IDs now reach
+ordinary native dispatch and the Repair target-selection UI through flat ability
+registry rows.
+
+Public RemoveUnit(target) keeps the Repair head synchronously, then the scheduled
+owner completes it. Repair withdraws its target/goal immediately and saves this
+retirement separately. Direct free followed by slot reuse is guarded by the
+saved target spawn generation. KillUnit(worker) retires the head immediately;
+a recreated worker starts idle. Save116 retains the generation and removed-target
+state in the existing scalar buildwork pool. See [save contract](save-load.md).
+
+The pending-order witness uses external owned Winelib SendInput, with no Frida
+writes or calls into gameplay. `repair-queue-d.jsonl` and `repair-queue-e.jsonl`
+select one local-player worker at a time, issue an ordinary Move, then press
+Shift+R and click its damaged building at sample10/80/150/220. All four races
+retain851986 while waiting, activate852024/852202/852161 after Move finishes,
+and naturally complete to0. Each run contains1,208 complete public records and
+four native inputs. Input delivery phases differ between repeats; each complete
+stream has its own frozen normalized digest. Equality of the ownership sequence
+is established; full queue trajectory equality between runs is not claimed.
+
+Fixture setup matters: the source interlude's Player0 is not the local player.
+Creating selected workers for Player0 produced no user Repair order despite
+successful input delivery. The accepted fixture uses GetLocalPlayer(), a user
+controller and expanded camera bounds. A first diagnostic also omitted the
+`case=metadata_` prefix that enables exported hashtable observation. Neither
+incomplete/ineffective input witness is used for closure.
+
+Ghidra saves16 mapped functions, WC3RepairPrefix (0x1d0,12 known fields) and five
+explicit thiscall ABIs. Saved instruction/type readbacks and MapPathfinding.java
+retain target identities, concrete getters, completion threshold and common
+work inverse. Unmapped prefix bytes and timer internals remain unspecified.
+
+Reproduce the owned queue map with:
+
+```sh
+python tools/frida/make_wc3_pathfinding_map.py \
+  --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m \
+  --scenario repair_queue --output /path/to/w3/Maps/PathRepairQueue.w3m
+winegcc -o /tmp/wc3_ui_input.exe tools/frida/wc3_ui_input.c
+cp tools/frida/wc3_ui_input.c /tmp/wc3_ui_input.c
+```
+
+Use trace_wc3_pathfinding.py with an owned isolated display/server and the usual
+`--metadata-events --task-events --motion-events --velocity-events --profile-events`.
+Add `--point-input-helper /tmp/wc3_ui_input.exe --point-native-key
+--point-order-key repair --point-click-shift --point-click-sample-ticks
+--point-click-at 10 --point-click 512 330 --point-click-extra 80 512 330
+--point-click-extra 150 512 330 --point-click-extra 220 512 330` for the1024x768
+outer window used here. Keep both helper artifacts beside their launcher; other
+window geometries require observing the building's actual client pixels.
+The final probe sources and each capture's controller generation are pinned.
+
+The verifier reads repository archives by default:
+
+```sh
+python tools/frida/verify_wc3_repair_trace.py \
+  --fixture tools/ghidra/fixtures/retail-repair-orders-1.27.json \
+  --output /tmp/repair-orders.json
+python -m unittest discover -s tests -p test_wc3_pathfinding_repair.py
+```
+
+The engine regression first failed44 assertions against the old dispatch. Focused
+Classic/TFT checks cover native calls, all three family procedures, real server
+queue activation, completion, invalid replacement, internal approaches, work
+interception, death, target/worker reuse and saved continuation. The normal full
+repository suite remains on the authorized batch cadence. Repair costs/rates,
+construction race strategies and full Move/target policy parity retain their
+existing broader task scopes; this closure adds no new TODOs.
+
+Final focused results per edition: `wc3_order_lifecycle.*`427 assertions/27 tests,
+`wc3_api.current_order_repair_*`51 assertions, and `wc3_building.*`3,810
+assertions/153 tests. Prior-version rejection passes214 assertions, including115.
+Eight Repair evidence checks,19 corpus checks and55 Frida-controller checks pass;
+the new fresh corpus entry verifies all four complete captures. The extra queue
+fixture initializes a real JASS VM before calling RunFrame; calling RunFrame on
+the earlier minimal no-VM unit fixture is invalid and was corrected in the test.

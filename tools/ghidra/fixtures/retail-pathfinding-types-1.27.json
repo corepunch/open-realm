@@ -3773,6 +3773,84 @@
           "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
         }
       ]
+    },
+    {
+      "name": "WC3RepairPrefix",
+      "length": 464,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 80,
+          "name": "rank",
+          "type": "u32",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 312,
+          "name": "work_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 324,
+          "name": "other_work_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 340,
+          "name": "modifier0",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 348,
+          "name": "modifier1",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 356,
+          "name": "modifier2",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 364,
+          "name": "modifier3",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 368,
+          "name": "last_target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        },
+        {
+          "offset": 460,
+          "name": "health_effect",
+          "type": "ptr:void",
+          "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+        }
+      ]
     }
   ],
   "methods": [
@@ -11586,6 +11664,106 @@
         }
       ],
       "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+    },
+    {
+      "address": "6f3ff160",
+      "name": "Repair_ValidateUnitTarget",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3RepairPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+    },
+    {
+      "address": "6f4371b0",
+      "name": "Repair_InterceptRetainedTarget",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3RepairPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+    },
+    {
+      "address": "6f409630",
+      "name": "Repair_BeginUnitWork",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3RepairPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+    },
+    {
+      "address": "6f43a310",
+      "name": "Repair_UpdateWorkOwner",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3RepairPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "notify_gold",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "notify_lumber",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
+    },
+    {
+      "address": "6f436e10",
+      "name": "Repair_StopWorkOwner",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3RepairPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stop_flag",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
     }
   ],
   "globals": [

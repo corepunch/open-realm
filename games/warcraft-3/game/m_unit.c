@@ -525,6 +525,12 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
+    { "renew", 852161, 0 },
+    { "renewon", 852162, 0 },
+    { "renewoff", 852163, 0 },
+    { "restoration", 852202, 0 },
+    { "restorationon", 852203, 0 },
+    { "restorationoff", 852204, 0 },
     { "defend", 852055, 0 },
     { "undefend", 852056, 0 },
 
@@ -782,9 +788,6 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (S_GoldMineWorkerIsInside(self)) return false;
 
     self->movement.holding_position = false;
-    if (!strcmp(order, "repair")) {
-        return S_OrderRepair(self, target, 0);
-    }
     if (!strcmp(order, "smart")) {
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
@@ -913,6 +916,22 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     if (S_GoldMineWorkerIsInside(self)) {
         return false;
+    }
+    /* Validate/intercept through the owner before clearing pending work. A
+     * same-target interaction can retain its current task and public head. */
+    {
+        ability_t const *owner = FindAbilityByOrder(order);
+        abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
+        abilityCall_t call = {.issued_target_order = {target, order, queue}};
+        intptr_t result = ABILITY_ORDER_UNHANDLED;
+        if (owner) result = owner->proc(self, A_TARGET_ORDER_ADMIT, &call);
+        if (result == ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc != active))
+            result = active(self, A_TARGET_ORDER_ADMIT, &call);
+        if (result == ABILITY_ORDER_REJECTED) return false;
+        if (result == ABILITY_ORDER_INTERCEPTED) {
+            unit_publish_target_order(self, order, target, issuer_player);
+            return true;
+        }
     }
     if (!strcmp(order, "harvest")) {
         bool accepted = false;
@@ -1216,16 +1235,6 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
             }
             return accepted;
         }
-    }
-    if (!strcmp(order, "repairon")) {
-        bool const accepted = S_SetRepairAutocast(self, true);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return accepted;
-    }
-    if (!strcmp(order, "repairoff")) {
-        bool const accepted = S_SetRepairAutocast(self, false);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return accepted;
     }
     if (!strcmp(order, "autoharvestgold")) {
         bool const accepted = harvest_auto_start_gold(self);

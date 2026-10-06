@@ -34575,6 +34575,498 @@
       "exclusions": [
         "Full movement journeys, Hero/BTLF/suppression/target-adjustment producers and AI VM restoration remain open."
       ]
+    },
+    {
+      "id": "live-repair-orders-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_repair_trace.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-repair-orders-1.27.json",
+        "--capture",
+        "{archive}/runtime/payoff122/repair-f.jsonl",
+        "--capture",
+        "{archive}/runtime/payoff122/repair-g.jsonl",
+        "--capture",
+        "{archive}/runtime/payoff122/repair-queue-d.jsonl",
+        "--capture",
+        "{archive}/runtime/payoff122/repair-queue-e.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/payoff122/repair-f.jsonl",
+        "sha256": "4852e96ea1abcbb59f6f79578adbd0ef7ec20cadeec9da56bc726d8cbf3bce72",
+        "bytes": 3162910,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+            "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+            "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+            "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+            "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "661f88fbcc3947fe82aea3fe5f5fe2011e99a73431ebbcb7c8d55d271de7e263",
+            "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "8871797bc0a05ff0293c8b3902602c270d310137e1e95e1c1a92d88957e85500",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+            "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+            "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+            "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+            "map": "d21af689099b5ac65c67fba3134df33930b757a58c2b3199d73840e169dc52d7"
+          },
+          "map": "Maps\\PathRepair122f.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "metadataEvents": true
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/payoff122/repair-g.jsonl",
+            "sha256": "809b26c63c927f877c2352d71651298e30fa364bb1f29e690a01cf7d5edc9199",
+            "bytes": 3162910,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+                "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+                "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "661f88fbcc3947fe82aea3fe5f5fe2011e99a73431ebbcb7c8d55d271de7e263",
+                "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "8871797bc0a05ff0293c8b3902602c270d310137e1e95e1c1a92d88957e85500",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+                "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+                "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+                "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+                "map": "d21af689099b5ac65c67fba3134df33930b757a58c2b3199d73840e169dc52d7"
+              },
+              "map": "Maps\\PathRepair122f.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/payoff122/repair-queue-d.jsonl",
+            "sha256": "893b01aa2774450961509470737b55aa4123694b18f3d83cd4272cd37eea13d1",
+            "bytes": 2057558,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_repair_queue_probe.j": "69d5e4934e41b0b5ab7dda0fc4d5539dd79663ed9123fb78f2f96881163dc349",
+                "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+                "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+                "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "d41fe8bff9a63499214ada67fd3f3af70f6c0f222d36b7ca7e8f6b0f8f4a1851",
+                "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "aa118b59b46c0f6b0fb46e9a6634104f232e7a70e1ed38844eadc9f6fc779f62",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "wc3_ui_input.exe.so": "966976e1e0f2cb4e51933dcfd8762cf17a4bc1615caa8977aaa5ff4371ad736b",
+                "wc3_ui_input.c": "7be97b59d74042506669e9f2c404c7247b7f197a76f70652e8a17605611f8711",
+                "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+                "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+                "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+                "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+                "map": "b02b7b256dab3cc994cc736cd9edca012c008c6141db75b9bc511d0f801b1f35"
+              },
+              "map": "Maps\\PathRepairQueue122d.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true,
+              "pointInput": {
+                "at": 10.0,
+                "pixel": [
+                  512,
+                  330
+                ],
+                "api": "external Win32 SendInput",
+                "shift": true,
+                "alt": false,
+                "extra": [
+                  {
+                    "at": 80.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  },
+                  {
+                    "at": 150.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  },
+                  {
+                    "at": 220.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  }
+                ],
+                "nativeKey": true,
+                "sampleTicks": true
+              }
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/payoff122/repair-queue-e.jsonl",
+            "sha256": "381a3db25033a47ab0b13606c23847bc0493ec1f1a44a29e1266771f31ca0e86",
+            "bytes": 2057747,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_repair_queue_probe.j": "69d5e4934e41b0b5ab7dda0fc4d5539dd79663ed9123fb78f2f96881163dc349",
+                "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+                "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+                "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "d41fe8bff9a63499214ada67fd3f3af70f6c0f222d36b7ca7e8f6b0f8f4a1851",
+                "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "aa118b59b46c0f6b0fb46e9a6634104f232e7a70e1ed38844eadc9f6fc779f62",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "wc3_ui_input.exe.so": "966976e1e0f2cb4e51933dcfd8762cf17a4bc1615caa8977aaa5ff4371ad736b",
+                "wc3_ui_input.c": "7be97b59d74042506669e9f2c404c7247b7f197a76f70652e8a17605611f8711",
+                "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+                "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+                "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+                "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+                "map": "b02b7b256dab3cc994cc736cd9edca012c008c6141db75b9bc511d0f801b1f35"
+              },
+              "map": "Maps\\PathRepairQueue122d.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true,
+              "pointInput": {
+                "at": 10.0,
+                "pixel": [
+                  512,
+                  330
+                ],
+                "api": "external Win32 SendInput",
+                "shift": true,
+                "alt": false,
+                "extra": [
+                  {
+                    "at": 80.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  },
+                  {
+                    "at": 150.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  },
+                  {
+                    "at": 220.0,
+                    "pixel": [
+                      512,
+                      330
+                    ]
+                  }
+                ],
+                "nativeKey": true,
+                "sampleTicks": true
+              }
+            }
+          },
+          "capture_complete": true
+        }
+      ],
+      "capture_complete": true,
+      "expected_status": "verified",
+      "expected_exit": 0,
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Arep/Aren/Arst public current-head admission, approach, Smart work interception, completion, toggle interruption, death and target/worker retirement; repeated native Shift Repair activation for all four races. Repair rates/full numerical approach parity remain outside this ownership contract.",
+      "report": "live-repair-orders-261006.json",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "records": {
+          "equal": 5048
+        },
+        "native_inputs": {
+          "equal": 8
+        }
+      }
     }
   ],
   "fixtures": [
@@ -34640,7 +35132,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "f4203a90f9c178ff19cb4b43cdd7204df50ea7617d53d9ffa4798d5d4ea75029"
+      "sha256": "788405e3d29939530197e4ccf9b670a10d9eb2f36460129eb49d0c534c76a5ac"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -35461,11 +35953,11 @@
     },
     {
       "path": "tools/frida/make_wc3_pathfinding_map.py",
-      "sha256": "c336f39e9ba57c8cf334a6f4f491b8b50255711fd3ed94a7f3a9e92a2c1b206a"
+      "sha256": "aa118b59b46c0f6b0fb46e9a6634104f232e7a70e1ed38844eadc9f6fc779f62"
     },
     {
       "path": "tools/frida/trace_wc3_pathfinding.py",
-      "sha256": "aa33a3c4ae5615caa9f73152b8a31c396ee78710bb9665a5cac94ffe5376b973"
+      "sha256": "d41fe8bff9a63499214ada67fd3f3af70f6c0f222d36b7ca7e8f6b0f8f4a1851"
     },
     {
       "path": "tools/frida/wc3_pathfinding.js",
@@ -35473,7 +35965,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "bdd1dd5a4388c6c0ee2e886a51ac78ebd943dc5921287e4f9db87c4363f8b9a4"
+      "sha256": "1656cf5f2555e9e7ed7c0f386f491178ecae175fc8fecbc4196c1f7512c27b46"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -35842,6 +36334,54 @@
     {
       "path": "tools/ghidra/fixtures/sources/100b67ef860f0653c380eb742e6293d7fa93047b605c95714904a62d3ba3be95.gz",
       "sha256": "ecb31ed7b683f23d1c3d2129e863974212a621b2b3974e3ab355c5f09aa412e4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-orders-1.27.json",
+      "sha256": "fac0f353d5d569fd312d357b58d574b2b235e1a6ac2a090b3904e8019220c705"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-orders-ghidra-1.27.json",
+      "sha256": "6b9b0a19840f3cfb65e235c558393d73b29a9176a0c4e4640a58e5f6fd301466"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-functions-ghidra-1.27.json",
+      "sha256": "58d98a71db5e57bccedb84d4939dd7ec5fb1aa365c5e97314482aa6e3bf1d494"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/661f88fbcc3947fe82aea3fe5f5fe2011e99a73431ebbcb7c8d55d271de7e263.gz",
+      "sha256": "b1445a263099b2a93d7aa8c600f52d88b1fba4995bc503ec39c9db7b647f932f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-orders-1.27-f.jsonl.gz",
+      "sha256": "d52927fb4d404f7018680d9d8ec184e034fa68c6080a57f98730508d41724cc5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-orders-1.27-g.jsonl.gz",
+      "sha256": "711277306e8878d977062dfd00efefbd5df96abdfea142c8f32b992308dc2c94"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-queue-1.27-d.jsonl.gz",
+      "sha256": "b985552761a530c469e7a3e7290998a80937e7009d41ec42951f928ed37a5646"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repair-queue-1.27-e.jsonl.gz",
+      "sha256": "67fc0e491a24fca7947b0a8ddd0c6b165a025e5abcc3a39c31f68952bf48a703"
+    },
+    {
+      "path": "tools/frida/wc3_repair_orders_probe.j",
+      "sha256": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec"
+    },
+    {
+      "path": "tools/frida/wc3_repair_queue_probe.j",
+      "sha256": "69d5e4934e41b0b5ab7dda0fc4d5539dd79663ed9123fb78f2f96881163dc349"
+    },
+    {
+      "path": "tools/frida/verify_wc3_repair_trace.py",
+      "sha256": "f091f40af27b0c450b90a0256e3743627a0ff9e2342fd63e40f65d2312640baf"
+    },
+    {
+      "path": "tools/frida/wc3_ui_input.c",
+      "sha256": "7be97b59d74042506669e9f2c404c7247b7f197a76f70652e8a17605611f8711"
     }
   ]
 }

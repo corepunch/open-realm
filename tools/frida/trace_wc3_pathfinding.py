@@ -61,6 +61,7 @@ def main():
     parser.add_argument('--point-click-extra', action='append', type=float, nargs=3, metavar=('AT','X','Y'), help='additional owned Winelib Move click; ordered time and integer client pixels')
     parser.add_argument('--point-click-from-start', action='store_true', help='time owned Move input from the observed scenario start marker')
     parser.add_argument('--point-native-key', action='store_true', help='send Move targeting through the reviewed native Shift helper')
+    parser.add_argument('--point-order-key', choices=('move', 'repair'), default='move', help='native targeting key for the owned click')
     parser.add_argument('--point-click-sample-ticks', action='store_true', help='interpret click times as observed integer scenario sample ticks')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -85,6 +86,8 @@ def main():
         parser.error('--point-click-sample-ticks requires an owned helper and is separate from wall-clock start timing')
     if args.point_native_key and not args.point_input_helper:
         parser.error('--point-native-key requires the reviewed native input helper')
+    if args.point_order_key != 'move' and not args.point_native_key:
+        parser.error('--point-order-key repair requires --point-native-key')
     if args.point_click_from_start and not args.point_input_helper:
         parser.error('--point-click-from-start requires an owned helper click')
     point_plan = []
@@ -127,7 +130,7 @@ def main():
         config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
-    source_paths = [Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
+    source_paths = [Path(__file__).with_name('wc3_repair_queue_probe.j'),Path(__file__).with_name('wc3_repair_orders_probe.j'),Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_waygate_capacity_probe.j'), Path(__file__).with_name('wc3_waygate_overlap_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
@@ -242,14 +245,14 @@ def main():
                                        check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     if args.point_input_helper:
                         helper_output = subprocess.check_output([str(args.point_input_helper.resolve()), str(pid),
-                            *[str(v) for v in point_plan[clicked]['pixel']], *(['shift'] if args.point_click_shift else []), *(['alt'] if args.point_click_alt else []), *(['move'] if args.point_native_key else [])], env=env, timeout=10).decode()
+                            *[str(v) for v in point_plan[clicked]['pixel']], *(['shift'] if args.point_click_shift else []), *(['alt'] if args.point_click_alt else []), *([args.point_order_key] if args.point_native_key else [])], env=env, timeout=10).decode()
                         record({'event':'player-input-helper','output':helper_output,
                                 'sha256':hashlib.sha256(args.point_input_helper.read_bytes()).hexdigest()})
                     else:
                         subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in point_plan[clicked]['pixel']],
                                         'mousedown','1','sleep','0.2','mouseup','1'], check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     record({'event':'player-move-click','elapsed':time.monotonic()-start,
-                            'pixel':point_plan[clicked]['pixel'],'key':'m','button':1,'shift':args.point_click_shift,'alt':args.point_click_alt})
+                            'pixel':point_plan[clicked]['pixel'],'key':'r' if args.point_order_key == 'repair' else 'm','button':1,'shift':args.point_click_shift,'alt':args.point_click_alt})
                     clicked += 1
                 time.sleep(0.1)
             record({'event': 'trace-end', **script.exports_sync.finish()})

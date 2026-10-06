@@ -4,6 +4,7 @@
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
+bool run_test_jass(cstring_t src);
 void order_attack(edict_t *self, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
 void SV_Physics_Toss(edict_t *ent);
@@ -241,7 +242,7 @@ TEST(wc3_order_lifecycle, finishing_repair_preserves_production_queue) {
     queued->health.max_value = 420;
     queued->health.value = 0;
     queued->stand = unit_stand;
-    building->health.value = building->health.max_value - 0.001f;
+    building->health.value = building->health.max_value - 1.0f;
     T_ASSERT(S_OrderRepair(worker, building, 0));
     worker->currentmove->think(worker);
     building_restore_repair_data(old, rows);
@@ -542,6 +543,157 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     T_ASSERT(unit->movement.guard_state == GUARD_NONE);
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, repair_family_heads_survive_approach_and_complete_at_work) {
+    static cstring_t const names[] = {"repair", "renew", "restoration"};
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static uint32_t const ids[] = {852024, 852161, 852202};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        edict_t *worker = review_order_unit(0, 0);
+        edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        target->health.value = target->health.max_value - 100;
+        gi.LinkEntity(target);
+        T_EQ(G_OrderId(names[i]), ids[i]);
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, false, 0));
+        T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        target->health.value = target->health.max_value;
+        /* Full health during approach is completion at contact, not target loss. */
+        worker->currentmove->think(worker);
+        T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        worker->s.origin2 = target->s.origin2; gi.LinkEntity(worker);
+        worker->currentmove->think(worker);
+        worker->currentmove->think(worker);
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        target->health.value -= 100;
+        T_ASSERT(G_IssueUnitTargetOrder(worker, "smart", target, false, 0));
+        T_EQ(worker->current_order_id, 851971);
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){768,0}, true, 0, 0));
+        umove_t const *work = worker->currentmove;
+        worker->buildwork->gold_accum = 0.25f;
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, false, 0));
+        T_EQ(worker->current_order_id, 851971); T_EQ(worker->currentmove, work);
+        T_EQ(worker->order_queue.count, 1); T_FEQ(worker->buildwork->gold_accum, 0.25f, 0);
+        /* An unknown family must not retag or replace an accepted Smart repair. */
+        T_ASSERT(!G_IssueUnitTargetOrder(worker, names[(i + 1) % 3], target, false, 0));
+        T_EQ(worker->current_order_id, 851971);
+        T_EQ(worker->order_queue.count, 1);
+        T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        T_ASSERT(S_OrderRepair(worker, target, 0));
+        T_EQ(worker->current_order_id, 0); /* Internal construction work has no public head. */
+        unit_issueimmediateorder(worker, "stop");
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, repair_autocast_orders_validate_direction_before_interrupting) {
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static cstring_t const on[] = {"repairon", "renewon", "restorationon"};
+    static cstring_t const off[] = {"repairoff", "renewoff", "restorationoff"};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        edict_t *worker = review_order_unit(0, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        vec2_t goal = {512, 0}, pending = {768, 0};
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &goal, false, 0, 0));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &pending, true, 0, 0));
+        T_ASSERT(unit_issueimmediateorder(worker, on[i]));
+        T_EQ(worker->current_order_id, 0); T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &goal, false, 0, 0));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &pending, true, 0, 0));
+        edict_t *destination = worker->goalentity; umove_t const *move = worker->currentmove;
+        T_ASSERT(!unit_issueimmediateorder(worker, on[i]));
+        T_EQ(worker->current_order_id, 851986); T_EQ(worker->goalentity, destination);
+        T_EQ(worker->currentmove, move); T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey(codes[i]), false);
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+        T_EQ(worker->current_order_id, 851986); T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey(codes[i]), true);
+        T_ASSERT(unit_issueimmediateorder(worker, off[i]));
+        T_EQ(worker->current_order_id, 0); T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, repair_removed_target_cannot_become_a_reused_building) {
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    reset_entities(); setup_test_world();
+    edict_t *worker = review_order_unit(0, 0);
+    UnitAbilities_t abilities = {.abilList = "Arep"};
+    worker->data.UnitAbilities = &abilities;
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+    target->spawn_time = level.time;
+    target->health.value -= 100;
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", target, false, 0));
+    G_FreeEdict(target);
+    T_EQ(worker->current_order_id, 852024);
+    level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    replacement->spawn_time = level.time;
+    T_EQ(replacement, target); replacement->health.value -= 100;
+    float health = replacement->health.value;
+    worker->currentmove->think(worker);
+    T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+    T_FEQ(replacement->health.value, health, 0);
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", replacement, false, 0));
+    G_DeferFreeEdict(replacement);
+    T_EQ(worker->current_order_id, 852024); T_NULL(worker->build);
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){512,0}, false, 0, 0));
+    T_EQ(worker->current_order_id, 851986); T_NOT_NULL(worker->goalentity);
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, queued_repair_family_activates_after_move_in_server_frames) {
+    static cstring_t const names[] = {"repair", "renew", "restoration"};
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static uint32_t const ids[] = {852024, 852161, 852202};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *worker = review_order_unit(0, 0);
+        edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        worker->think = monster_think;
+        target->health.value -= 100;
+        gi.LinkEntity(target);
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+        game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){128,0}, false, 0, 0));
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, true, 0));
+        T_EQ(worker->current_order_id, 851986); T_EQ(worker->order_queue.count, 1);
+        for (int frame = 0; frame < 120 && worker->order_queue.count; frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_EQ(worker->order_queue.count, 0); T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        target->health.value = target->health.max_value;
+        for (int frame = 0; frame < 120 && worker->current_order_id; frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        T_EQ(worker->order_queue.count, 0);
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
 }
 
 #endif

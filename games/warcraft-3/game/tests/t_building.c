@@ -4723,7 +4723,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
 
 TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
     edict_t *worker;
-    UnitAbilities_t abilities = { .abilList = "Aren" };
+    UnitAbilities_t abilities = { .abilList = "Arep" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
 
@@ -4731,7 +4731,7 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     worker->data.UnitAbilities = &abilities;
-    repair = FindAbilityForCommand("Aren");
+    repair = FindAbilityForCommand("Arep");
 
     T_NOT_NULL(repair);
     T_EQ(G_OrderId("repair"), 852024);
@@ -5040,7 +5040,7 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
     building_restore_repair_data(old_abilities, rows);
 }
 
-TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
+TEST(wc3_building, normal_target_order_routes_renew_through_repair_behavior) {
     edict_t *worker;
     edict_t *building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
@@ -5055,7 +5055,7 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
 
-    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", building, false, worker->s.player));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "renew", building, false, worker->s.player));
     T_ASSERT(worker->build == building);
     T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
 

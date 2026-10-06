@@ -34,6 +34,8 @@ extern player_t *currentplayer;
 void unit_die(edict_t *self, edict_t *attacker);
 void unit_build(edict_t *self, uint32_t class_id);
 static edict_t *find_test_unit(uint32_t class_id);
+static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
+static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
 
 
@@ -5101,6 +5103,100 @@ TEST(wc3_api, current_order_follow_tracks_active_head_through_server_frames) {
     jass_callbyname(level.vm, "kill", false);
     T_ASSERT(!jass_rterror_pending(level.vm)); T_EQ(unit->order_queue.count, 0);
     remove(filename);
+}
+
+TEST(wc3_api, current_order_repair_native_frames_queue_save_death_and_reuse) {
+    cstring_t filename = "/tmp/wc3-repair122-save.bin";
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n unit worker = null\n unit target = null\nendglobals\n"
+        "function repair takes nothing returns nothing\n"
+        " call BJassAssert(IssueTargetOrder(worker, \"repair\", target), \"Repair accepted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==852024, \"Repair owns public head\")\nendfunction\n"
+        "function smart takes nothing returns nothing\n"
+        " call BJassAssert(IssueTargetOrder(worker, \"smart\", target), \"Smart Repair accepted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==851971, \"Smart retains public identity\")\nendfunction\n"
+        "function verifyRepair takes nothing returns nothing\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==852024, \"Repair remains current\")\nendfunction\n"
+        "function verifyIdle takes nothing returns nothing\n"
+        " call BJassAssert(GetUnitCurrentOrder(worker)==0, \"Repair head retired\")\nendfunction\n"
+        "function full takes nothing returns nothing\n"
+        " call SetUnitState(target, UNIT_STATE_LIFE, GetUnitState(target, UNIT_STATE_MAX_LIFE))\nendfunction\n"
+        "function kill takes nothing returns nothing\n call KillUnit(worker)\n call verifyIdle()\nendfunction\n"
+        "function removeTarget takes nothing returns nothing\n call RemoveUnit(target)\n call verifyRepair()\nendfunction\n"
+        "function recreate takes nothing returns nothing\n"
+        " set worker=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\n call verifyIdle()\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        " set worker=CreateUnit(Player(0),'hpea',64.0,64.0,0.0)\n"
+        " set target=CreateUnit(Player(0),'hbar',704.0,64.0,0.0)\nendfunction\n"));
+    edict_t *worker = find_test_unit(MAKEFOURCC('h','p','e','a'));
+    edict_t *target = find_test_unit(MAKEFOURCC('h','b','a','r'));
+    T_NOT_NULL(worker); T_NOT_NULL(target);
+    worker->health.value = worker->health.max_value = 100;
+    worker->collision = 8; worker->unitinfo.MoveSpeed = 256;
+    worker->movetype = MOVETYPE_STEP; worker->svflags |= SVF_MONSTER;
+    worker->think = monster_think; worker->stand = unit_stand; worker->die = unit_die;
+    target->health.max_value = 1000; target->health.value = 900;
+    target->collision = 32; target->stand = unit_stand;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    unit_stand(worker); gi.LinkEntity(worker); gi.LinkEntity(target);
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){768,128}, true, 0, 0));
+    target->health.value = 999.5f;
+    T_ASSERT(!G_IssueUnitTargetOrder(worker, "repair", target, false, 0));
+    T_EQ(worker->current_order_id, 852024); T_EQ(worker->order_queue.count, 1);
+    target->health.value = 900;
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(unit_issueimmediateorder(worker, "stop")); T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(worker->build, target); T_EQ(worker->order_queue.count, 1);
+    T_EQ(worker->buildwork->target_spawn_time, target->spawn_time);
+    T_ASSERT(!worker->buildwork->target_removed);
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    jass_callbyname(level.vm, "smart", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){192,64}, false, 0, 0));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", target, true, 0));
+    T_EQ(worker->current_order_id, 851986); T_EQ(worker->order_queue.count, 1);
+    T_ASSERT(WriteGame(filename)); T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(ReadGame(filename));
+    for (int frame = 0; frame < 120 && worker->order_queue.count; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_EQ(worker->order_queue.count, 0);
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "full", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    for (int frame = 0; frame < 3; frame++) { level.time += FRAMETIME; globals.RunFrame(); }
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    float approach_x = worker->s.origin.x;
+    for (int frame = 0; frame < 120 && worker->current_order_id; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    T_ASSERT(worker->s.origin.x > approach_x); T_NULL(worker->build);
+    jass_callbyname(level.vm, "verifyIdle", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    target->health.value = 900;
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "kill", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(worker->build); T_EQ(worker->order_queue.count, 0);
+    G_FreeEdict(worker); level.time += 1001;
+    jass_callbyname(level.vm, "recreate", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(find_test_unit(MAKEFOURCC('h','p','e','a')), worker);
+    jass_callbyname(level.vm, "repair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_callbyname(level.vm, "removeTarget", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(worker->buildwork->target_removed); T_NULL(worker->build);
+    T_ASSERT(WriteGame(filename)); T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(ReadGame(filename));
+    jass_callbyname(level.vm, "verifyRepair", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(worker->buildwork->target_removed); T_NULL(worker->build);
+    for (int frame = 0; frame < 8 && worker->current_order_id; frame++) {
+        level.time += FRAMETIME; globals.RunFrame();
+    }
+    jass_callbyname(level.vm, "verifyIdle", false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_NULL(worker->build);
+    remove(filename); building_restore_repair_data(old, rows);
 }
 
 TEST(wc3_api, current_order_hold_is_retired_while_behavior_persists) {

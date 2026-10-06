@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 112, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 116, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -33,6 +33,15 @@ after physical groups and unit routes have loaded. Invalid rank, class, policy,
 count, countdown or work rejects restoration; failed restoration clears all
 coarse queues before releasing groups. Version108 and older layouts are rejected.
 See [coarse/fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Version116 extends the scalar `buildwork_t` pool with the Repair target's spawn
+generation and a target-retirement Boolean. `edict_t.build` remains an `F_EDICT`
+reference. Public RemoveUnit withdraws that reference immediately but retains
+the current Repair head until its scheduled owner finishes; saving during this
+interval must preserve that distinction. Direct target-slot reuse cannot become
+the old Repair target. The current native regression round-trips active work,
+pending activation and the removed-target interval. Version115 is rejected.
+See [Repair ownership](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation).
 
 Version102 moves the eight ordered status records out of the raw edict into an
 optional pool. Units with no applied statuses own no record storage. Insertion

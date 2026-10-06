@@ -1899,3 +1899,17 @@ inventory has353 entries(121 oracle contracts,121 archive audits,111 live
 contracts), with316 pinned files. The verifier audits canonical identities across
 mover address reuse. Both raw streams and producer source generations are
 preserved as compressed content-addressed inputs.
+
+Payoff122 adds `live-repair-orders-261006`: four complete owned retail captures,
+5,048 exported public records and eight native Shift inputs. The two ordinary
+four-race Repair matrices match every normalized admission/movement record;
+external-input queue captures preserve the same Move→Repair→idle ownership
+sequence but pin each input phase separately. No full repair-rate or engine
+approach-trajectory equality is claimed. Negative controls reject missing
+columns, wrong kinds/words, retagged work heads, incomplete worker suffixes,
+missing completion/footer and uncontrolled Shift input. The repository retains
+all four compressed raw streams, the prior controller generation, and saved
+Ghidra instruction/type readbacks. The corpus now has354 entries (121 oracle,
+121 archive and112 live contracts), with328 pinned inputs. The fresh Repair
+entry is verified independently of the authorized full-suite batch cadence.
+See [Repair ownership](retail-pathfinding-engine.md#repair-families-own-admission-work-and-pending-activation).
