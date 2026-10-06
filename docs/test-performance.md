@@ -30,6 +30,24 @@ The final runs passed all 17 suite summaries. The default run processes about 1,
 
 ## Diagnostic Workflow
 
+### GitHub Actions jobs that never start
+
+A failed workflow can contain only cancelled jobs and no executed steps. Inspect check-run annotations before treating it as
+a build or test regression:
+
+```sh
+gh run view <run-id> --repo corepunch/open-realm --json conclusion,jobs
+gh api repos/corepunch/open-realm/check-runs/<check-run-id>/annotations
+```
+
+In [PR #585's CI run](https://github.com/corepunch/open-realm/actions/runs/37364440458), all four ordinary jobs were cancelled
+after about 15 minutes with empty step lists. Each reported `The job was not acquired by Runner of type hosted even after
+multiple attempts`. This identifies hosted-runner acquisition failure before checkout, compilation, or tests; rerun CI to
+obtain code validation. The accompanying Ubuntu migration notices were notices, not the failure. The EOS job was intentionally
+skipped by the fork-PR condition in `.github/workflows/c-cpp.yml`. See [CI build environment](../CONTRIBUTING.md#build-and-linking).
+
+### Local suite timing
+
 Run the full suite with timing:
 
 ```sh
