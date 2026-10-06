@@ -18,3 +18,6 @@ Art=TestUI\Textures\solid_white.blp
 Hotkey=V
 [TWN2]
 DependencyOr=etoa
+[bad1]
+Art=TestUI\Textures\solid_white.blp
+Requires=bad

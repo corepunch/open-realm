@@ -3464,6 +3464,8 @@ uint32_t G_ItemTypeFromClass(cstring_t cls);
 // g_stock.c / neutral shops
 bool G_IsItemShop(edict_t const *shop);
 bool G_IsUnitShop(edict_t const *shop);
+cstring_t G_GetShopItemList(edict_t const *shop);
+bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id, string_t reason, uint32_t reason_size);
 bool G_CanUseItemShop(gameClient_t *client, edict_t const *shop);
 bool G_CanUseUnitShop(gameClient_t *client, edict_t const *shop);
 float G_ShopActivationRadius(edict_t const *shop);

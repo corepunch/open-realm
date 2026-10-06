@@ -1194,6 +1194,41 @@ TEST(wc3_items, ancient_of_wonders_merchandise_uses_town_hall_tiers_in_ui_and_pu
     T_EQ(hero->inventory[2]->class_id, MAKEFOURCC('p','h','e','a'));
 }
 
+TEST(wc3_items, malformed_item_requirement_fails_closed_for_ui_and_purchase) {
+    static UnitProfile_t profile = { .sellItems = "bad1" };
+    static UnitAbilities_t abilities = { .abilList = "Apit", .heroAbilList = "" };
+    edict_t *player, *hero, *shop;
+    gameCommandButton_t button[2];
+    shopItemButtonsParams_t params;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    player->client->ps.number = 0;
+    player->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    hero = make_item_test_inventory_unit(0, 0);
+    hero->s.player = 0;
+    shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    shop->data.UnitProfile = &profile;
+    shop->data.UnitAbilities = &abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32.0f;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    params = (shopItemButtonsParams_t){
+        .client = player->client, .shop = shop, .buttons = button, .max_buttons = 2
+    };
+
+    T_EQ(G_GetShopItemButtons(&params), 1);
+    T_ASSERT(button[0].disabled);
+    T_ASSERT(strstr(button[0].ubertip, "Invalid item requirement data") != NULL);
+    T_ASSERT(!G_ShopPurchaseItem(player, shop, MAKEFOURCC('b','a','d','1')));
+    T_EQ(shop->stock->items[0].current, 1);
+    T_NULL(hero->inventory[0]);
+}
+
 TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
     edict_t *player;
     gameClient_t *client;

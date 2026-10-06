@@ -1873,7 +1873,7 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
     if (!client || G_FindFreeInventorySlot(hero) < 0) return false;
 
     FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
-        cstring_t items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
+        cstring_t items = G_GetShopItemList(shop);
         if (!items || G_FindShopPatron(client, shop) != hero) continue;
         PARSE_LIST(items, item_name, parse_segment) {
             uint32_t item_id;
@@ -1883,7 +1883,8 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
             if (strlen(item_name) != 4) continue;
             memcpy(&item_id, item_name, sizeof(item_id));
             data = G_ItemData(item_id);
-            if (!data || !data->file || !G_ShopSellsItem(shop, item_id)) continue;
+            if (!data || !data->file || !G_ShopSellsItem(shop, item_id) ||
+                !G_ShopItemRequirementsSatisfied(client, item_id, NULL, 0)) continue;
             if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
                 client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;
             FOR_LOOP(stock, shop->stock->item_count) {
