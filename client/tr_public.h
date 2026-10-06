@@ -39,6 +39,7 @@ enum {
     DRAW_TILE      = 1 << 2,
     DRAW_MIRRORED  = 1 << 3,
     DRAW_EDGE_2X2  = 1 << 4, /* edge texture uses WoW 2×2 quadrant UV layout */
+    DRAW_BLEND_ALL = 1 << 5, /* backdrop background uses texture alpha */
 };
 
 /* Text drawing parameters */
