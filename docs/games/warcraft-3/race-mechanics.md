@@ -151,13 +151,14 @@ Undead corpse mechanics now share authored raisability and lifetime state: `deat
 
 Undead worker conversion/destruction mechanics are also implemented at the broad-race level: `Auns` now channels authored `DataB` demolition damage, grants temporary `Buns` spell immunity, and returns the `DataA` resource pool progressively only for HP removed by Unsummon; `Asac`/`Alam` now queue the fixed Shade result at a Sacrificial Pit using the Shade's authored build time while hiding the Acolyte and preserving its food slot. See [Unsummon](unsummon.md) and [Undead Sacrifice](sacrifice.md). Remaining work in these two mechanics is presentation/command-error polish plus upgraded-building accumulated-cost parity for Unsummon.
 
-The principal remaining Night Elf race-mechanics gap is full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions. The current `Aroo` handler remains a placeholder `no_pathing`/movetype toggle; it must not be treated as retail-compatible merely because the rawcode is recognized. Stable rooted and uprooted attack slots follow each root ability's authored `AbilityData` `DataA`/`DataB` masks: `Aro2` (Ancient Protector) permits a rooted attack, while `Aro1` and `Aroo` do not. Attack slots remain disabled during the actual root/unroot morph. Root/Uproot still needs one shared dynamic structure/attack-state seam so targeting, Repair, combat, pathing, and command availability change atomically.
+The principal remaining Night Elf race-mechanics gap is full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions. The current `Aroo` handler remains a placeholder `no_pathing`/movetype toggle; it must not be treated as retail-compatible merely because the rawcode is recognized. Stable rooted and uprooted attack slots follow each root ability's authored `AbilityData` `DataA`/`DataB` masks: `Aro2` (Ancient Protector) permits a rooted attack, while `Aro1` and `Aroo` do not. The server resolves that mask from the authored root ability even before the per-unit root state is initialized, using the current structure/mobile state to select rooted versus uprooted data. Attack slots remain disabled during the actual root/unroot morph. Root/Uproot still needs one shared dynamic structure/attack-state seam so targeting, Repair, combat, pathing, and command availability change atomically.
 
 ## Verification
 
 After building, focused automated coverage should include:
 
 ```sh
+make test-wc3-engine WC3_PATTERN='wc3_ancient_root.*'
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
 make test-wc3-engine WC3_PATTERN='wc3_combat.*acquisition*'
 make test-wc3-engine WC3_PATTERN='wc3_save.*construction*'

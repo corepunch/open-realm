@@ -59,8 +59,6 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
             (attacker->ancient_root->mode == ANCIENT_ROOTING ||
              attacker->ancient_root->mode == ANCIENT_UPROOTING) &&
             !(attacker->ancient_root->mode == ANCIENT_ROOTING && attacker->ancient_root->approaching)) return false;
-        if ((!attacker->ancient_root || attacker->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED) &&
-            S_AncientIsRooted(attacker)) return false;
         enabled = S_AncientAttackMask(attacker);
     }
     return (enabled & (1u << slot)) != 0;

@@ -242,6 +242,7 @@ TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatc
 
 TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    static UnitAbilities_t protector_abilities = { .abilList = "Aro2" };
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
     edict_t *unit, *target;
@@ -275,6 +276,21 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
     unit->ancient_root->mode = ANCIENT_UPROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+
+    /* Map-start rooted Protectors can be queried before the A_UPDATE hook has
+     * allocated ancient_root runtime state. Their authored Aro2 rooted attack
+     * mask must still govern server validation and the command card. */
+    G_FreeAncientRoot(unit);
+    unit->data.UnitAbilities = &protector_abilities;
+    T_ASSERT(S_AncientIsRooted(unit));
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
 
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);

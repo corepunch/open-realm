@@ -77,15 +77,16 @@ bool S_AncientAbilityAvailable(edict_t const *unit, ability_t const *ability) {
 uint32_t S_AncientAttackMask(edict_t const *unit) {
     abilityLevel_t const *level;
     AbilityData_t const *data;
-    if (!unit || !unit->ancient_root || !unit->ancient_root->ability) return 3;
-    data = G_AbilityData(unit->ancient_root->ability);
-    if (data->id != unit->ancient_root->ability) {
+    uint32_t ability = unit && unit->ancient_root ? unit->ancient_root->ability : 0;
+    if (!ability) ability = ancient_root_ability(unit);
+    if (!unit || !ability) return 3;
+    data = G_AbilityData(ability);
+    if (data->id != ability) {
         fprintf(stderr, "WC3 Ancient Root: missing AbilityData %08x (attack mask)\n",
-                unit->ancient_root->ability);
+                ability);
         return 3;
     }
-    assert(unit->ancient_root);
-    level = G_AbilityLevel(unit->ancient_root->ability, 1);
+    level = G_AbilityLevel(ability, 1);
     return (uint32_t)level->data[S_AncientIsRooted(unit) ? 0 : 1].number;
 }
 
