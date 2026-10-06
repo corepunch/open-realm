@@ -39,6 +39,7 @@
 #include "retail_adaptive_wrap.h"
 #include "retail_adaptive_producer.h"
 #include "retail_adaptive_storage.h"
+#include "retail_coarse_scopes.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1561,6 +1562,138 @@ TEST(pathfinding, adaptive_source_and_target_exclusion_restore_nofly_ground_clas
             T_EQ(G_TestMovePathClass(masks[lane],level,x,y),before[lane][level][y*size.x+x]);
     }
     free(route.points); free(route.adaptive_points); level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, coarse_exclusion_rebuilds_published_target_rectangle_including_flight) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(mode,4) {
+        reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        CM_SetupTestPathmap(64,64,cells);
+        vec2_t source={272,304},goal={1872,1808},selected;
+        edict_t *unit=make_unit_at(source.x,source.y);
+        edict_t *target=make_unit_at(1008,1040);
+        target->collision=32;
+        if(mode&1)target->aiflags|=AI_FLYING;
+        G_PublishMoveSpatialObject(unit); G_PublishMoveSpatialObject(target);
+        wc3SpatialActive_t before=*G_GetMoveSpatialObject(target-g_edicts);
+        T_EQ(before.box.min.x,30); T_EQ(before.box.min.y,31);
+        T_EQ(before.box.max.x,33); T_EQ(before.box.max.y,34);
+        /* A display sample is not a fine-object publication. The exclusion
+         * scope must consume the committed rectangle rather than this sample. */
+        if(mode&2)target->s.origin2.x+=256;
+        T_EQ(G_TestMovePathClass(2,0,15,17),0);
+        T_EQ(G_TestMovePathClass(2,0,20,20),0);
+        /* Original054000 edits fine terrain only. The first cell is outside
+         * the half-open target, but inside15d360's rounded base coverage. */
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+            "call SetTerrainPathable(1008,1136,ConvertPathingType(1),false)\n"
+            "call SetTerrainPathable(1296,1296,ConvertPathingType(1),false)\nendfunction\n"));
+        T_EQ(G_TestStaticPathMask(31,35)&2,2);
+        T_EQ(G_TestMovePathClass(2,0,15,17),0);
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.mover=unit,.target=target,.units=true};
+        level.pathing_counter=old_counter+100+mode*10;
+        T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+        T_EQ(G_TestMovePathClass(2,0,15,17),2);
+        T_EQ(G_TestMovePathClass(2,1,7,8),2);
+        T_EQ(G_TestMovePathClass(2,2,3,4),2);
+        T_EQ(G_TestMovePathClass(2,3,1,2),2);
+        /* Uncovered fine edits remain unpublished; querying is not a full
+         * hierarchy rebuild, nor does it move the target's cell links. */
+        T_EQ(G_TestMovePathClass(2,0,20,20),0);
+        T_ASSERT(!memcmp(&before,G_GetMoveSpatialObject(target-g_edicts),sizeof(before)));
+        free(route.group_points);
+    }
+    level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+void G_TestMoveCoarseScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);
+typedef struct { unsigned role,stages; } coarseScopeTrace_t;
+static void check_coarse_scope_stage(void *data,unsigned stage,movePathQuery_t const *query) {
+    coarseScopeTrace_t *trace=data;
+    uint8_t masks[]={2,0x80,0x40,4}; unsigned at=0;
+    (void)query;
+    T_EQ(stage,trace->stages++);
+    FOR_LOOP(lev,4) {
+        unsigned side=32u>>lev;
+        FOR_LOOP(y,side) FOR_LOOP(x,side) {
+            unsigned byte=retail_coarse_scope_classes[trace->role][stage][at++];
+            FOR_LOOP(lane,4)T_EQ(G_TestMovePathClass(masks[lane],lev,x,y),(byte>>(6-2*lane))&3);
+        }
+    }
+}
+
+TEST(pathfinding, coarse_scope_observation_stages_match_original_alias_and_null_cases) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(role,2) FOR_LOOP(flying,2) {
+        reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+        uint8_t cells[64*64]={0};
+        cells[17*64+17]=cells[18*64+19]=cells[20*64+23]=cells[40*64+40]=0xff;
+        cells[21*64+21]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        CM_SetupTestPathmap(64,64,cells);
+        vec2_t source={18.25f*32,18.75f*32},goal={57.25f*32,58.75f*32},selected;
+        edict_t *unit=make_unit_at(source.x,source.y); unit->collision=48;
+        if(flying)unit->aiflags|=AI_FLYING;
+        G_PublishMoveSpatialObject(unit);
+        wc3FineBox_t box=G_GetMoveSpatialObject(unit-g_edicts)->box;
+        T_EQ(box.min.x,16); T_EQ(box.min.y,16); T_EQ(box.max.x,20); T_EQ(box.max.y,20);
+        coarseScopeTrace_t trace={role,0}; G_TestMoveCoarseScopeTrace(check_coarse_scope_stage,&trace);
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.mover=unit,.target=role?unit:NULL,.units=true};
+        level.pathing_counter=old_counter+100;
+        T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+        G_TestMoveCoarseScopeTrace(NULL,NULL); T_EQ(trace.stages,5);
+        free(route.group_points);
+    }
+    level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+static void count_coarse_scope_stage(void *data,unsigned stage,movePathQuery_t const *query) {
+    unsigned *count=data; (void)query;
+    T_EQ(stage,(*count)++);
+}
+
+TEST(pathfinding, coarse_scope_restores_exact_partial_and_pre_acquire_denial_exits) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(exit,4) {
+        reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+        uint8_t cells[64*64]={0};
+        cells[17*64+17]=cells[18*64+19]=4;
+        if(exit==1)for(unsigned y=54;y<64;y++)for(unsigned x=54;x<64;x++)cells[y*64+x]=0xff;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}}); CM_SetupTestPathmap(64,64,cells);
+        vec2_t source={18.25f*32,18.75f*32},goal={58.25f*32,58.75f*32},selected;
+        edict_t *unit=make_unit_at(source.x,source.y),*target=make_unit_at(20.25f*32,20.75f*32);
+        unit->collision=target->collision=48;
+        G_PublishMoveSpatialObject(unit); G_PublishMoveSpatialObject(target);
+        uint32_t size=G_GetMoveAdaptiveStateSize(); uint8_t *before=malloc(size),*after=malloc(size);
+        T_ASSERT(G_GetMoveAdaptiveState(before,size));
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.mover=unit,.target=target,.units=true};
+        level.pathing_counter=old_counter+100;
+        S_SetMoveCoarseTarget(&route.group_admission,true);
+        if(exit==2)route.group_admission.time=level.pathing_counter;
+        if(exit==3)level.move_coarse_budgets[S_MoveSchedulingClass(unit)][route.group_admission.policy].work=UINT32_MAX;
+        unsigned stages=0; G_TestMoveCoarseScopeTrace(count_coarse_scope_stage,&stages);
+        bool admitted=G_UnitMoveGroupDestination(&query,&route,&selected);
+        G_TestMoveCoarseScopeTrace(NULL,NULL);
+        T_EQ(admitted,exit<2); T_EQ(stages,exit<2?5:0);
+        if(admitted) {
+            vec2_t actual=route.group_points[0];
+            bool exact=wc3_float_bits(actual.x)==wc3_float_bits(goal.x/64) &&
+                wc3_float_bits(actual.y)==wc3_float_bits(goal.y/64);
+            T_EQ(exact,exit==0);
+        }
+        T_ASSERT(G_GetMoveAdaptiveState(after,size)); T_ASSERT(!memcmp(before,after,size));
+        S_CancelMoveCoarseRequest(&route.group_admission);
+        free(route.group_points); free(before); free(after);
+    }
+    level.pathing_counter=old_counter;
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 

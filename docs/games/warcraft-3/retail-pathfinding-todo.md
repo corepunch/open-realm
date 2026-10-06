@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **223 done / 336 tasks; 113 remaining.**
 
+Payoff130 corrects coarse exclusion to use published fine rectangles, including
+category-zero flying targets, and consolidates ordered search/restoration. Full
+original scope/edit evidence and production boundary/exit regressions are
+retained. MAP-04.1/02 remain open for their broader owner integration. See
+[published exclusion geometry](retail-pathfinding-exclusions.md).
+
 Payoff129 closes MAP-06.1: map replacement retires old routes, queues, spatial
 owners and worker frontiers before freeing world data or unit rows. Actual MPQ
 reloads compare exact public movement across eight restarts and a changed-size

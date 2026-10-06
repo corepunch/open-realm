@@ -714,11 +714,44 @@ bool G_LoadMoveSpatialObject(uint32_t index, wc3SpatialActive_t const *saved) {
  * cells, clears their traversal lanes for admission, then rebuilds the same
  * rectangle and its three parents. Edge terrain is deliberately excluded too. */
 static void move_acc_object_rectangle(edict_t const *object, bool clear) {
-    if (!object || !object->inuse || !move_has_dynamic_occupancy(object)) return;
-    vec2_t p=move_object_point(object);
-    wc3FineBox_t box=wc3_fine_cover(wc3_fine_class(object->collision/pathmap_cell_world_size()),
-        (wc3FinePoint_t){(int)floorf(p.x),(int)floorf(p.y)});
+    if (!object) return;
+    wc3FineBox_t box=move_spatial[object-g_edicts].box;
+    if (box.min.x>=box.max.x || box.min.y>=box.max.y) return;
     move_acc_rebuild_rectangle(box,clear);
+}
+
+#ifdef BZ_TESTS
+static void (*move_coarse_scope_trace)(void *,unsigned,movePathQuery_t const *);
+static void *move_coarse_scope_data;
+void G_TestMoveCoarseScopeTrace(void (*trace)(void *,unsigned,movePathQuery_t const *),void *data) {
+    move_coarse_scope_trace=trace; move_coarse_scope_data=data;
+}
+static void move_trace_coarse_scope(unsigned stage,movePathQuery_t const *input) {
+    if(move_coarse_scope_trace)move_coarse_scope_trace(move_coarse_scope_data,stage,input);
+}
+#else
+#define move_trace_coarse_scope(stage,input) ((void)0)
+#endif
+
+/*166c30 owns one complete synchronous scope. Admission precedes this call;
+ * every search result restores self then target before its caller can return.
+ * Publication belongs to the fine-object owner, independent of the category
+ * used by the selected query. Restoration re-reads the published rectangles. */
+static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_t const *request,
+                                    moveCoarseRequest_t *admission) {
+    move_spatial_sync();
+    move_acc_object_rectangle(input->mover,true);
+    move_trace_coarse_scope(0,input);
+    move_acc_object_rectangle(input->target,true);
+    move_trace_coarse_scope(1,input);
+    uint32_t result=wc3_acc_route(&move_acc,request,move_acc_points);
+    move_trace_coarse_scope(2,input);
+    if(admission)S_ChargeMoveCoarseRequest(admission,move_acc.work.pops);
+    move_acc_object_rectangle(input->mover,false);
+    move_trace_coarse_scope(3,input);
+    move_acc_object_rectangle(input->target,false);
+    move_trace_coarse_scope(4,input);
+    return result;
 }
 
 /* Observe changed game owners before querying; unrelated world objects never
@@ -1218,12 +1251,8 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         wc3AccRequest_t req = {{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(target.x,.5f),wc3_mul(target.y,.5f)},
             input->geometry.radius >= pathmap_cell_world_size() ? 2 : 1,BZ_WC3_UNIT_ACC_WORK};
-        move_acc_object_rectangle(input->mover,true);
-        move_acc_object_rectangle(input->target,true);
-        uint32_t result=wc3_acc_route(&move_acc,&req,move_acc_points),count=result&0x7fffffffu;
-        if(route)S_ChargeMoveCoarseRequest(&route->adaptive_admission,move_acc.work.pops);
-        move_acc_object_rectangle(input->mover,false);
-        move_acc_object_rectangle(input->target,false);
+        uint32_t result=move_build_acc_route(input,&req,route?&route->adaptive_admission:NULL),
+            count=result&0x7fffffffu;
         if (!count) return false;
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
         point=selected.index ? (wc3FineVector_t){wc3_mul(move_acc_points[selected.index].x,2),wc3_mul(move_acc_points[selected.index].y,2)} : target;
@@ -1322,12 +1351,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         move_acc_enable_gates();
         wc3AccRequest_t req={{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)},input->geometry.radius>=pathmap_cell_world_size()?2:1,BZ_WC3_GROUP_ACC_WORK};
-        move_acc_object_rectangle(input->mover,true);
-        move_acc_object_rectangle(input->target,true);
-        uint32_t count=wc3_acc_route(&move_acc,&req,move_acc_points)&0x7fffffffu;
-        if(input->mover)S_ChargeMoveCoarseRequest(&route->group_admission,move_acc.work.pops);
-        move_acc_object_rectangle(input->mover,false);
-        move_acc_object_rectangle(input->target,false);
+        uint32_t count=move_build_acc_route(input,&req,input->mover?&route->group_admission:NULL)&0x7fffffffu;
         if (!count) return false;
         wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){move_acc_points,count-1}),false};
         vec2_t *points=realloc(route->group_points,count*sizeof(*points));

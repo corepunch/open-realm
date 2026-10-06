@@ -10724,3 +10724,14 @@ frontier at the first replacement yield; it failed2,900 assertions. Its final
 harness cleanup initially detached terrain before clearing the area tree; that
 separate cleanup crash was corrected before acceptance. No crash is used as the
 reload-fidelity proof. Logs: `/GitHub/wc3-analysis/runtime/payoff129/`.
+
+
+## Coarse exclusion consumes published object geometry
+
+Payoff130 fixes flying-target filtering and repeated display-position geometry
+conversion in coarse requests. The shared scope restores self then target before
+returning to either group or member routing. Complete original scope/edit
+reports reconstruct unchanged; engine regressions cover published rectangles,
+alias/null boundaries and exact/partial/pre-acquire-denial exits. See
+[published rectangle contract and evidence](retail-pathfinding-exclusions.md).
+The broader MAP-04.1/02 tasks remain open.
