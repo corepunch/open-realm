@@ -59,11 +59,13 @@ static uint32_t TimerIntegerNext(uint32_t from) {
     word=__builtin_ctzll(words);return word*64+__builtin_ctzll(level.timer_integer_bits[word]);
 }
 void G_RebuildTimerQueue(void) {
-    level.timer_heap_count=0;level.timer_integer_top=0;
+    level.timer_heap_count=0;level.timer_integer_top=0;level.timer_release_head=0;
     memset(level.timer_integer_bits,0,sizeof(level.timer_integer_bits));
     FOR_LOOP(i,level.num_timers)level.timers[i].scalar_heap_index=-1;
     FOR_LOOP(i,level.num_timers) {
         gtimer_t *timer=level.timers+i;
+        timer->destroy_next=0;
+        if(timer->destroy_pending){timer->destroy_next=level.timer_release_head;level.timer_release_head=i+1;}
         if(timer->running && !timer->paused) {
             if(timer->scalar_timing)TimerHeapInsert(timer);else TimerIntegerPut(timer,true);
         }
@@ -157,7 +159,7 @@ gtimer_t *G_AllocJassTimer(void) {
     gtimer_t *timer = &level.timers[level.num_timers++];
     memset(timer, 0, sizeof(*timer)); timer->scalar_heap_index=-1;
     if(level.num_timers==1) {
-        level.timer_clock_valid=false;level.timer_integer_top=0;level.timer_heap_count=0;
+        level.timer_clock_valid=false;level.timer_integer_top=0;level.timer_heap_count=0;level.timer_release_head=0;
         memset(level.timer_integer_bits,0,sizeof(level.timer_integer_bits));
     }
     return timer;
@@ -238,7 +240,7 @@ void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t c
     if (!timer) return;
     TimerHeapRemove(timer);
     timer->generation++;
-    timer->scalar_timing=false;
+    timer->scalar_timing=false;timer->scalar_resume=false;
     timer->scalar_timeout=timeout/1000.0f;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout; timer->updated = level.time;
     timer->periodic = periodic; timer->paused = false; timer->running = true;
@@ -274,7 +276,7 @@ void G_TimerResumeAt(gtimer_t *timer,wc3Clock_t const *clock) {
     if(!timer->scalar_timing){G_TimerResume(timer);return;}
     if(timer->running && !timer->paused)return;
     TimerHeapRemove(timer);timer->generation++;
-    TimerPrepare(timer,timer->scalar_paused_remaining,clock);
+    TimerPrepare(timer,timer->scalar_paused_remaining,clock);timer->scalar_resume=true;
 }
 
 void G_TimerPause(gtimer_t *timer) {
@@ -291,12 +293,29 @@ void G_TimerResume(gtimer_t *timer) {
     timer->updated = level.time; timer->paused = false;TimerIntegerPut(timer,true);
 }
 
+/* DestroyTimer withdraws public lookup immediately. Original0557b0 queues the
+ * agent release on the separate simulation clock; current scalar catch-up still
+ * owns its receiver until that clock drains after the timer quantum. */
+void G_TimerRequestDestroy(gtimer_t *timer) {
+    if(!timer || timer->destroyed)return;
+    timer->destroyed=true;
+    if(!timer->scalar_timing || !level.scheduled_frame){G_TimerDestroy(timer);return;}
+    timer->destroy_pending=true;timer->destroy_next=level.timer_release_head;
+    level.timer_release_head=(uint32_t)(timer-level.timers)+1;
+}
+static void TimerReleasePending(void) {
+    while(level.timer_release_head) {
+        gtimer_t *timer=level.timers+level.timer_release_head-1;
+        level.timer_release_head=timer->destroy_next;timer->destroy_next=0;
+        if(timer->destroy_pending)G_TimerDestroy(timer);
+    }
+}
 void G_TimerDestroy(gtimer_t *timer) {
     if (!timer) return;
     TimerHeapRemove(timer);TimerIntegerPut(timer,false);
     timer->generation++;
     timer->running = false;
-    timer->paused = true;
+    timer->paused = true;timer->destroyed=true;timer->destroy_pending=false;
     /* Destroy releases the callback as well as cancelling its generation.
      * Save/load serializes every allocated timer slot, including retired ones. */
     timer->handler = NULL;
@@ -347,7 +366,7 @@ void G_UpdateTimerDialogs(void) {
 static void TimerFireScalar(gtimer_t *timer) {
     wc3Clock_t due=timer->scalar_deadline;
     uint32_t generation=timer->generation;
-    bool periodic=timer->periodic;
+    bool periodic=timer->periodic,resume=timer->scalar_resume;
     if(timer->scalar_segmented) {
         if(--timer->scalar_remaining_segments) {
             timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);TimerHeapInsert(timer);return;
@@ -358,6 +377,7 @@ static void TimerFireScalar(gtimer_t *timer) {
             timer->scalar_sequence=++level.timer_sequence;TimerHeapInsert(timer);return;
         }
     }
+    timer->scalar_resume=false;
     timer->scalar_fired_clock=due;
     if(!periodic)timer->running=false;
     else if(timer->scalar_segments) {
@@ -368,26 +388,33 @@ static void TimerFireScalar(gtimer_t *timer) {
         timer->scalar_deadline=due;timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);
         TimerHeapInsert(timer);
     }
-    if(timer->handler) {
-        jasscoroutine_t *co=jass_startcoroutine(level.vm,&MAKE(jassContext_t,
-            .func=timer->handler,.timer=timer,.timer_generation=generation,.timer_pending=true,
-            .timer_clock=due,.hasTimerClock=true));
-        jass_resume(level.vm,co);
-    }
+    /* ScriptTimer240350 dispatches expiry conditions and actions before its
+     * direct callback. Both read the original due clock, even after one-shot cancel. */
     jass_settimercontext(timer);
     FOR_EACH_EVENT(event)
         if(event->type==EVENT_GAME_TIMER_EXPIRED && event->timer==timer)
             jass_calltriggerwithtimer(level.vm,event->trigger,timer);
     jass_settimercontext(NULL);jass_runnewevents(level.vm);
+    if(timer->handler) {
+        jasscoroutine_t *co=jass_startcoroutine(level.vm,&MAKE(jassContext_t,
+            .func=timer->handler,.timer=timer,.timer_generation=timer->generation,
+            .timer_clock=due,.hasTimerClock=true));
+        jass_resume(level.vm,co);
+    }
+    /* Resume's80272 event then2403f0 starts the CURRENT authored timeout and
+     * handler, even when the first resumed callback pauses or restarts itself. */
+    if(resume && timer->handler) {
+        G_TimerStartScalarAt(timer,timer->scalar_timeout,timer->periodic,timer->handler,&due);return;
+    }
     if(generation!=timer->generation || timer->paused || !periodic || timer->scalar_segments)return;
     timer->scalar_deadline=due;timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);
     TimerHeapInsert(timer);
 }
-static void TimerDrain(float limit,bool exclusive) {
+static void TimerDrain(float limit,bool before_owner) {
     while(level.timer_heap_count) {
         gtimer_t *timer=level.timers+level.timer_heap[0];
         float due=timer->scalar_deadline.time;
-        if(due>limit || (exclusive && due==limit))break;
+        if(due>limit || (before_owner && due==limit && timer->scalar_sequence>level.pathing_owner_sequence))break;
         TimerHeapRemove(timer);TimerFireScalar(timer);
     }
 }
@@ -405,7 +432,8 @@ static void RunScalarTimers(wc3Clock_t const *before) {
         }
     }
     level.timer_clock=target;
-    TimerDrain(target.time,before!=NULL);
+    TimerDrain(before ? before->time : target.time,before!=NULL);
+    if(!before)TimerReleasePending();
 }
 /* Integer C producers keep their existing host-millisecond observation boundary. */
 static void RunIntegerTimers(void) {

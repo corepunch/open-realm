@@ -117,7 +117,15 @@ function install(module) {
             onEnter(args){this.row=null;if(!timerInputsActive)return;this.out=args[0];const t=this.context.ecx;const configClock=base.add(0xd3c82c).readPointer().add(0x40).readPointer();const request=t.add(0x30).readPointer();const control={flags:t.add(0x34).readU32(),segments:t.add(0x38).readU16(),remainingSegments:t.add(0x3a).readU16(),residual:t.add(0x3c).readU32(),request:request.isNull()?null:ints(request.add(4),6).map(v=>v>>>0)};this.row={name,timer:t.toString(),timerClock:ints(configClock.add(0x40),4).map(v=>v>>>0),control,stored:[t.add(0x48).readU32(),t.add(0x50).readU32()],request:t.add(0x30).readPointer().toString(),clockMethods:ints(t.add(0x24).readPointer(),8).map(v=>(v-base.toUInt32())>>>0),...timerClock()};},
             onLeave(){if(this.row)emit('timer-scalar-getter',{...this.row,word:this.out.readU32()});}
         });
-        hook(0x249ca0,{onEnter(args){this.row=timerInputsActive?{timer:this.context.ecx.toString(),timeout:args[0].readU32(),periodic:args[1].toUInt32(),...timerClock()}:null;},onLeave(){if(this.row)emit('timer-start',this.row);}});
+        const ownedTimerControls=new Set();
+        hook(0x249ca0,{onEnter(args){this.row=null;if(!timerInputsActive)return;const timer=this.context.ecx;ownedTimerControls.add(timer.add(0x24).toString());this.row={timer:timer.toString(),timeout:args[0].readU32(),periodic:args[1].toUInt32(),rootMethod:timer.readPointer().add(12).readPointer().sub(base).toUInt32(),...timerClock()};},onLeave(){if(this.row)emit('timer-start',this.row);}});
+        for(const [name,rva]of [['pause',0x240420],['resume',0x245ac0]])hook(rva,{onEnter(){this.timer=this.context.ecx;this.observe=timerInputsActive&&ownedTimerControls.has(this.timer.add(0x24).toString());if(this.observe)emit('timer-control-begin',{name,timer:this.timer.toString(),...timerClock()});},onLeave(){if(this.observe)emit('timer-control-end',{name,timer:this.timer.toString(),stored:ints(this.timer.add(0x48),3).map(v=>v>>>0),...timerClock()});}});
+        hook(0x0606c0,{onEnter(){this.control=this.context.ecx;this.observe=timerInputsActive&&ownedTimerControls.has(this.control.toString());if(this.observe)emit('timer-cancel',{control:this.control.toString(),flags:this.control.add(16).readU32(),...timerClock()});}});
+        const retiredTimers=new Map();
+        hook(0x0557b0,{onEnter(){this.timer=this.context.ecx;this.observe=timerInputsActive&&ownedTimerControls.has(this.timer.add(0x24).toString());if(this.observe){retiredTimers.set(ints(this.timer.add(12),2).join(','),this.timer.toString());emit('timer-destroy-request',{timer:this.timer.toString(),...timerClock()});}}});
+        hook(0x15e0e0,{onEnter(){this.wrapper=this.context.ecx;this.timer=retiredTimers.get(ints(this.wrapper.add(20),2).join(','));},onLeave(){if(this.timer){const request=this.wrapper.add(32).readPointer(),clock=request.add(12).readPointer();emit('timer-release-queued',{timer:this.timer,words:ints(request.add(4),7).map(v=>v>>>0),timerClock:ints(clock.add(64),3).map(v=>v>>>0),...timerClock()});}}});
+        hook(0x04c2c0,{onEnter(){this.timer=retiredTimers.get(ints(this.context.ecx,2).join(','));if(this.timer)emit('timer-release-commit',{timer:this.timer,...timerClock()});}});
+        hook(0x0542d0,{onEnter(){this.request=this.context.ecx;this.observe=timerInputsActive&&ownedTimerControls.has(this.request.add(24).readPointer().toString());if(this.observe){const clock=this.request.add(12).readPointer();this.row={control:this.request.add(24).readPointer().toString(),request:this.request.toString(),words:ints(this.request.add(4),7).map(v=>v>>>0),timerClock:ints(clock.add(0x40),4).map(v=>v>>>0),...timerClock()};emit('timer-dispatch-begin',this.row);}},onLeave(){if(this.observe)emit('timer-dispatch-end',{...this.row,after:ints(this.request.add(4),7).map(v=>v>>>0)});}});
     }
     if (config.motionEvents) {
         for (const rva of [0x6b9f70,0x6baaa0,0x6bb050,0x6bb980]) hook(rva, {onEnter() {
@@ -1452,7 +1460,7 @@ function install(module) {
     hook(0x053630,{
         onEnter(args){
             this.clock=this.context.ecx;this.request=args[0];
-            this.observe=pairScenario && [0x3dcccccc,0x3dcccccd,0x3cf5c28e,0x3cf5c28f,0x3cf5c290].includes(this.request.add(8).readU32());
+            this.observe=(pairScenario || timerInputsActive) && [0x3dcccccc,0x3dcccccd,0x3cf5c28e,0x3cf5c28f,0x3cf5c290].includes(this.request.add(8).readU32());
             if(!this.observe)return;
             const owner=base.add(0xd53a48).readPointer();
             this.row={request:ints(this.request,7).map(v=>v>>>0),timerClock:ints(this.clock.add(0x40),4).map(v=>v>>>0),primary:ints(owner.add(0x54),4).map(v=>v>>>0),counter:owner.add(0x538).readU32()};

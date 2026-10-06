@@ -6401,6 +6401,35 @@ TEST(wc3_save, timer_callback_restart_and_unconsumed_elapsed_round_trip) {
     level.scheduled_frame=false;remove(file);
 }
 
+/* Original240350 finishes the current direct call after expiry-trigger mutation;
+ * public retirement and deferred storage cleanup are independently saved. */
+TEST(wc3_save, timer_expiry_condition_pause_and_pending_public_retirement) {
+    cstring_t file="/tmp/wc3-timer118-retirement.bin";
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=0;level.scheduled_frame=false;
+    T_ASSERT(run_test_jass(
+        "globals\ntimer directTimer=null\ntimer retiredTimer=null\ninteger calls=0\nendglobals\n"
+        "function condition takes nothing returns boolean\ncall PauseTimer(GetExpiredTimer())\nreturn true\nendfunction\n"
+        "function direct takes nothing returns nothing\nset calls=calls+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "set directTimer=CreateTimer()\ncall TriggerAddCondition(t,Condition(function condition))\n"
+        "call TriggerRegisterTimerExpireEvent(t,directTimer)\ncall TimerStart(directTimer,0.01,false,function direct)\n"
+        "set retiredTimer=CreateTimer()\ncall TimerStart(retiredTimer,10.0,true,function direct)\nendfunction\n"
+        "function retire takes nothing returns nothing\ncall DestroyTimer(retiredTimer)\n"
+        "call BJassAssert(TimerGetTimeout(retiredTimer)==0.0,\"retired public timeout lookup\")\n"
+        "call TimerStart(retiredTimer,0.0,true,function direct)\nendfunction\n"
+        "function verify takes nothing returns nothing\ncall BJassAssert(calls==1,\"condition pause lost the current direct callback\")\n"
+        "call BJassAssert(TimerGetRemaining(retiredTimer)==0.0,\"retired timer restored as public live\")\nendfunction\n"));
+    level.scheduled_frame=true;jass_callbyname(level.vm,"retire",true);jass_runevents(level.vm);
+    T_ASSERT(level.timers[1].destroyed && level.timers[1].destroy_pending && level.timers[1].running);
+    T_ASSERT(WriteGame(file));G_TimerDestroy(level.timers+1);T_ASSERT(ReadGame(file));
+    level.scheduled_frame=true; /* Runtime frame ownership is deliberately rebuilt, not saved. */
+    T_ASSERT(level.timers[1].destroyed && level.timers[1].destroy_pending && level.timers[1].running);
+    FOR_LOOP(i,4){G_RunTimers();wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);}
+    T_ASSERT(!level.timers[1].running && !level.timers[1].destroy_pending);T_EQ(level.timer_release_head,0u);
+    jass_callbyname(level.vm,"verify",true);jass_runevents(level.vm);T_ASSERT(!jass_rterror_pending(level.vm));
+    level.scheduled_frame=false;remove(file);
+}
+
 TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
     T_ASSERT(run_test_jass(
         "globals\n"

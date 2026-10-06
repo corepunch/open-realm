@@ -1133,7 +1133,8 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    if (!level.pathing_owner_clock_valid) {
+    bool register_owner=!level.pathing_owner_clock_valid;
+    if (register_owner) {
         level.pathing_owner_deadline=level.pathing_clock;
         if (!level.pathing_clock.time && !level.pathing_phase)
             wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
@@ -1147,11 +1148,13 @@ static void G_RunFrame(void) {
     level.time = level.pathing_msec;
     level.scheduled_frame = true;
     G_StartScripts();
+    /* Native initial map timers precede the path-owner registration. Later
+     * restarts receive new serials; equal deadlines use that same ordering. */
+    if(register_owner)level.pathing_owner_sequence=++level.timer_sequence;
     /* Timer actions and the owner update precede the next primary advance.
      * The game clock is private; the engine still sends its ordinary snapshots. */
     while (end_time - level.pathing_msec >= 5) {
-        /* Dispatch earlier scalar script deadlines before the owner; preserve
-         * the existing owner-first policy for equal deadlines. */
+        /* Merge scalar map requests with the owner by deadline/registration serial. */
         if (level.pathing_due) {
             G_RunTimersBeforePathOwner(&level.pathing_owner_deadline);
             G_RunEvents();jass_runevents(level.vm);G_DrainRegionEvents();

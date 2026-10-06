@@ -411,16 +411,21 @@ This is distinct from `PauseUnit`, `PauseCompAI`, and timer pause state. `PauseT
 
 ## Timers
 
-A timer handle needs timeout, accumulated elapsed time, start time, periodic and
-paused flags, and a handler. Timer time uses deterministic server game time, not
-wall-clock time. Pausing freezes elapsed time; resuming preserves it; restarting
-replaces the previous schedule. During expiry, `GetExpiredTimer` resolves from
-the active JASS context and nested callbacks restore the previous value.
+Public timers retain authored timeout separately from effective counted requests
+and frozen paused remainder. Their scalar simulation clock is deterministic;
+inside an expiry callback it is temporarily borrowed from the due deadline.
+Nested callbacks restore the previous timer context. Pause freezes the getter
+remainder; Resume schedules that remainder, then its first expiry starts the
+current authored timeout/callback again. It does not simply resume a host
+millisecond stopwatch.
 
-One scheduler should drive both timer handlers and timer-expire trigger events.
-Periodic timers reschedule from their intended expiry to avoid frame-time drift.
-Destroying a timer cancels pending work and invalidates event references without
-leaving a scheduler pointer to freed JASS handle storage.
+Expiry conditions/actions precede the direct timer handler. Current direct
+execution survives a pause from the condition; queued C timer work retains its
+generation cancellation checks. Public DestroyTimer immediately invalidates
+lookup, while scalar catch-up retains the receiver until deferred primary-clock
+release after the timer quantum. Shared deadlines follow unsigned registration
+serials, including the path owner's insertion order. See
+[verified timer mutation and movement](../../docs/games/warcraft-3/retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).
 
 Timer dialogs are now implemented for the ordinary campaign-countdown path. `CreateTimerDialog` allocates a stable fixed-slot handle associated with an existing timer; `DestroyTimerDialog` removes only presentation state and leaves that timer running. `TimerDialogSetTitle`, title/time RGBA setters, `TimerDialogDisplay`, and `IsTimerDialogDisplayed` drive the stock `TimerDialog.fdf` HUD through a dedicated layout layer. Values render as zero-padded `MM:SS` and refresh only when the visible whole second or dialog presentation state changes. Local visibility follows the existing `currentplayer` convention. Timer-dialog handles and presentation state survive save/load through stable slot IDs. See [Timer Dialogs And Mission Countdowns](../../docs/games/warcraft-3/timer-dialogs.md).
 

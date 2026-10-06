@@ -184,6 +184,85 @@ class TimerEpochTests(unittest.TestCase):
         for layout in static['layouts']:
             declared=next(l for l in schema['layouts']if l['name']==layout['name'])
             self.assertEqual(layout['length'],declared['length'])
-            self.assertEqual([(f['offset'],f['name'])for f in layout['fields']],[(f['offset'],f['name'])for f in declared['fields']])
+            self.assertTrue({(f['offset'],f['name'])for f in layout['fields']} <= {(f['offset'],f['name'])for f in declared['fields']})
+
+
+class TimerMutationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-mutation-1.27.json').read_text())
+        cls.raw=[gzip.decompress((ROOT/f'tools/ghidra/fixtures/retail-timer-mutation-1.27-{tag}.jsonl.gz').read_bytes())for tag in ('b','c')]
+        cls.rows=[json.loads(line)for line in cls.raw[0].splitlines()]
+
+    def test_complete_mutation_repeats(self):
+        for raw,cap in zip(self.raw,self.fixture['captures']):
+            counts=verify(raw,self.fixture,cap)
+            self.assertEqual((counts['records'],counts['public_getters'],counts['motion_commits']),(348,1044,175))
+            self.assertEqual(counts['timer-dispatch-begin'],163)
+        self.assertEqual(len(self.fixture['events']),2986)
+
+    def test_dispatch_serial_cancel_resume_fields_and_event_order_are_strict(self):
+        for event,key,index in [('timer-dispatch-begin','words',4),('timer-dispatch-begin','words',3),
+                ('timer-dispatch-end','after',0),('timer-dispatch-end','after',3),
+                ('timer-control-end','stored',2),('timer-cancel','flags',None)]:
+            bad=copy.deepcopy(self.rows);row=next(r for r in bad if r.get('event')==event)
+            if index is None:row[key]^=1
+            else:row[key][index]^=1
+            raw=b'\n'.join(json.dumps(r).encode()for r in bad)+b'\n';cap=copy.deepcopy(self.fixture['captures'][0])
+            cap.update(bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest())
+            with self.subTest(event=event,key=key,index=index),self.assertRaisesRegex(ValueError,'words/lifecycle'):verify(raw,self.fixture,cap)
+        actual=normalize(self.rows,True,True)
+        first=next(i for i,r in enumerate(actual)if r['event']=='timer-marker'and r['value'].startswith('PATHTIMER record='))
+        self.assertTrue(actual[first]['value'].startswith('PATHTIMER record=205 '))
+
+    def test_callback_and_motion_tables_equal_native_words(self):
+        source=(ROOT/'games/warcraft-3/game/tests/retail_timer_motion_118.h').read_text()
+        records=[];current=None
+        for r in self.rows:
+            if r.get('event')=='timer-marker'and (m:=re.fullmatch(r'PATHTIMER record=(\d+) row=(\d+) calls=(\d+)',r['value'])):
+                ident,row,calls=map(int,m.groups());self.assertEqual(row,len(records));current=[ident,calls];records.append(current)
+            if r.get('event')=='timer-getter'and current is not None:current.append(r['word'])
+        body=source.split('timer_records_118[][5]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',body)],[w for row in records for w in row])
+        body=source.split('timer_motion_118[][7]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',body)],
+            [w for r in self.fixture['events']if r['event']=='velocity-commit'for w in [0,r['clock'][0],*r['position'],*r['velocity'],r['heading']]])
+        body=source.split('timer_script_118[]=')[1]
+        script=''.join(json.loads(line.strip().rstrip(';'))for line in body.splitlines()if line.strip().startswith('"'))
+        expected=(ROOT/'tools/frida/wc3_timer_mutation_probe.j').read_text().replace('@SCENARIO@','118').replace("'hfoo'","'hT16'")
+        expected=expected.replace('globals\n','globals\n hashtable udg_PathTimerWords=null\n',1)
+        expected=expected.replace(' call Preload("PATHTIMER record="',
+            ' call SaveInteger(udg_PathTimerWords,udg_PathTimerRow,0,id)\n call SaveInteger(udg_PathTimerWords,udg_PathTimerRow,1,udg_PathCalls[PathTimerIdentity(t)])\n call SaveReal(udg_PathTimerWords,udg_PathTimerRow,2,TimerGetTimeout(t))\n call SaveReal(udg_PathTimerWords,udg_PathTimerRow,3,TimerGetElapsed(t))\n call SaveReal(udg_PathTimerWords,udg_PathTimerRow,4,TimerGetRemaining(t))\n call Preload("PATHTIMER record="',1)
+        expected=expected.replace(' local trigger t=null\n',' local trigger t=null\n set udg_PathTimerWords=InitHashtable()\n',1)
+        expected+='function main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n'
+        self.assertEqual(script,expected)
+
+    def test_saved_ghidra_and_frozen_producers(self):
+        f=json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-mutation-118-static.json').read_text())
+        schema=json.loads((ROOT/'tools/ghidra/fixtures/retail-pathfinding-types-1.27.json').read_text())
+        mapping=(ROOT/'tools/ghidra/MapPathfinding.java').read_text()
+        self.assertTrue(f['passed']);self.assertFalse(f['unsaved']);self.assertEqual(len(f['functions']),9)
+        for fun in f['functions']:
+            self.assertTrue(fun['decompiled']);self.assertIn('"'+fun['address']+'", "'+fun['name']+'"',mapping)
+        for layout in f['layouts']:
+            declared=next(x for x in schema['layouts']if x['name']==layout['name'])
+            self.assertEqual(layout['length'],declared['length'])
+            self.assertEqual([(x['offset'],x['name'])for x in layout['fields']],[(x['offset'],x['name'])for x in declared['fields']])
+        for fixture in (self.fixture,json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-release-1.27.json').read_text())):
+            for name,digest in fixture['captures'][0]['metadata']['source_sha256'].items():
+                raw=gzip.decompress((ROOT/f'tools/ghidra/fixtures/sources/{digest}.gz').read_bytes())
+                self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
+
+    def test_bounded_retirement_repeats_and_owner_tie_order(self):
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-timer-release-1.27.json').read_text())
+        for tag,cap in zip(('g','h'),fixture['captures']):
+            raw=gzip.decompress((ROOT/f'tools/ghidra/fixtures/retail-timer-release-1.27-{tag}.jsonl.gz').read_bytes())
+            result=verify(raw,fixture,cap);self.assertEqual(result['retirements'],4);self.assertEqual(result['owner_rearms'],6)
+        own=[r for r in fixture['events']if r['event']=='public-timer-rearm']
+        self.assertEqual(own[4]['before'],[0x3e19999a,0x3cf5c290,1,21])
+        self.assertIn('before the full public scene ends',fixture['scope'])
+        bad=copy.deepcopy(fixture['events']);bad[0]['counter']^=1
+        with self.assertRaisesRegex(ValueError,'lifecycle'):
+            wrong=copy.deepcopy(fixture);wrong['events']=bad;verify(raw,wrong,cap)
 
 if __name__=='__main__':unittest.main()

@@ -1248,3 +1248,19 @@ impossible segment counts and running requests outside the adjacent epoch
 domains before queue reconstruction. Five actual public getter-driven Move
 continuations cross segmentation, pause/resume and the300-second wrap. See
 [counted timer evidence](retail-pathfinding-engine.md#counted-timer-requests-use-their-own-scalar-clock).
+
+### Callback mutation and deferred public timer release (Save114)
+
+Save114 adds each scalar timer's resume phase and logical destroyed/pending-release
+flags, plus the path owner's registration serial in the shared timer sequence.
+The authored follow-up after a resumed callback and exact deadline ties therefore
+survive restoration. JASS snapshot9 remains unchanged. Save113 is rejected.
+
+Pending-release links and the list head are derived, like heap indexes; loading
+reconstructs them from flags without resurrecting a destroyed public handle.
+The existing scheduled-frame runtime flag is intentionally not serialized.
+The regular frame owner restores that execution context before draining timers;
+a direct test harness must do the same. Five public callback-mutation Move
+continuations and the independent condition-pause/pending-retirement test cover
+these observation boundaries. See
+[callback mutation evidence](retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).

@@ -217,7 +217,7 @@ uint32_t TriggerRegisterTimerEvent(jass_t *j) {
 }
 uint32_t TriggerRegisterTimerExpireEvent(jass_t *j) {
     trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
-    gtimer_t *timer = jass_checkhandle(j, 2, "timer");
+    gtimer_t *timer = TimerPublicHandle(j,2);
     event_t *evt;
     if (!whichTrigger || !timer) return jass_pushnullhandle(j, "event");
     evt = G_MakeEvent(EVENT_GAME_TIMER_EXPIRED); evt->trigger = whichTrigger; evt->timer = timer;

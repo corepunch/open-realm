@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format113 persists counted scalar timer requests, ordered queue identities and callback clocks. */
-static uint32_t const save_version = 113;
+/* Format114 also persists resume phases and deferred timer-handle retirement. */
+static uint32_t const save_version = 114;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -330,6 +330,10 @@ static field_t const timer_fields[] = {
     F(gtimer_s, scalar_remaining_segments, F_INT),
     F(gtimer_s, scalar_sequence, F_INT),
     F(gtimer_s, scalar_segmented, F_INT),
+    F(gtimer_s, scalar_resume, F_INT),
+    F(gtimer_s, destroyed, F_INT),
+    F(gtimer_s, destroy_pending, F_INT),
+    F(gtimer_s, destroy_next, F_IGNORE, 0, FIELD_RUNTIME),
     F(gtimer_s, scalar_fired_clock.time, F_FLOAT),
     F(gtimer_s, scalar_fired_clock.epoch, F_INT),
     F(gtimer_s, scalar_fired_clock.span, F_FLOAT),
@@ -508,6 +512,7 @@ static field_t const level_fields[] = {
     F(level_locals, move_coarse_budgets, F_STRUCT, MAX_PLAYERS*3, move_coarse_budget_fields),
     F(level_locals, move_coarse_sequence, F_INT, 2),
     F(level_locals, timer_sequence, F_INT),
+    F(level_locals, pathing_owner_sequence, F_INT),
     F(level_locals, timer_clock_valid, F_INT),
     F(level_locals, timer_clock.time, F_FLOAT),
     F(level_locals, timer_clock.epoch, F_INT),
@@ -515,6 +520,7 @@ static field_t const level_fields[] = {
     F(level_locals, timer_source_clock.time, F_FLOAT),
     F(level_locals, timer_source_clock.epoch, F_INT),
     F(level_locals, timer_source_clock.span, F_FLOAT),
+    F(level_locals, timer_release_head, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, timer_heap, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, timer_heap_count, F_IGNORE, 0, FIELD_RUNTIME),
     F(level_locals, timer_integer_bits, F_IGNORE, 0, FIELD_RUNTIME),

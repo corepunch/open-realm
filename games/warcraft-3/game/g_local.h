@@ -1281,7 +1281,9 @@ struct gtimer_s {
     bool scalar_timing;
     float scalar_period, scalar_residual, scalar_paused_remaining;
     uint32_t scalar_segments, scalar_remaining_segments, scalar_sequence;
-    bool scalar_segmented;
+    bool scalar_segmented, scalar_resume;
+    bool destroyed, destroy_pending;
+    uint32_t destroy_next; /* derived pending-release link, slot plus one */
     wc3Clock_t scalar_fired_clock;
     int32_t scalar_heap_index; /* derived, rebuilt after load */
     bool periodic, paused, running;
@@ -2437,6 +2439,7 @@ struct level_locals {
     uint32_t num_triggers;
     gtimer_t timers[MAX_TIMERS];
     uint32_t num_timers;
+    uint32_t timer_release_head, pathing_owner_sequence;
     uint32_t timer_sequence, timer_heap_count;
     uint32_t timer_heap[MAX_TIMERS];
     uint64_t timer_integer_bits[(MAX_TIMERS+63)/64], timer_integer_top;
@@ -2916,6 +2919,7 @@ void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, struct jass_
 void G_TimerStartScalar(gtimer_t *timer, float timeout, bool periodic, struct jass_function const *handler);
 void G_TimerPause(gtimer_t *timer);
 void G_TimerResume(gtimer_t *timer);
+void G_TimerRequestDestroy(gtimer_t *);
 void G_TimerDestroy(gtimer_t *timer);
 bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
 uint32_t G_TimerRemaining(gtimer_t const *timer);

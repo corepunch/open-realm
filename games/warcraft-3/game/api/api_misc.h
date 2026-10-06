@@ -396,13 +396,17 @@ uint32_t CreateTimer(jass_t *j) {
     if (!timer) { jass_rterror(j, "CreateTimer: timer registry is full"); return 0; }
     return jass_pushlighthandle(j, timer, "timer");
 }
+static gtimer_t *TimerPublicHandle(jass_t *j,int index) {
+    gtimer_t *timer=jass_checkhandle(j,index,"timer");
+    return timer && !timer->destroyed ? timer : NULL;
+}
 uint32_t DestroyTimer(jass_t *j) {
-    gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
-    G_TimerDestroy(whichTimer);
+    gtimer_t *whichTimer = TimerPublicHandle(j,1);
+    G_TimerRequestDestroy(whichTimer);
     return 0;
 }
 uint32_t TimerStart(jass_t *j) {
-    gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
+    gtimer_t *whichTimer = TimerPublicHandle(j,1);
     float timeout = jass_checknumber(j, 2);
     bool periodic = jass_checkboolean(j, 3);
     /* Warcraft accepts null to start/reset a timer without an expiration callback. */
@@ -412,30 +416,31 @@ uint32_t TimerStart(jass_t *j) {
     return 0;
 }
 uint32_t TimerGetElapsed(jass_t *j) {
-    gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
+    gtimer_t *whichTimer = TimerPublicHandle(j,1);
     wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
     return jass_pushnumber(j, G_TimerElapsedScalar(whichTimer, &clock));
 }
 uint32_t TimerGetRemaining(jass_t *j) {
-    gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
+    gtimer_t *whichTimer = TimerPublicHandle(j,1);
     wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
     return jass_pushnumber(j, G_TimerRemainingScalar(whichTimer, &clock));
 }
 uint32_t TimerGetTimeout(jass_t *j) {
-    gtimer_t *whichTimer = jass_checkhandle(j, 1, "timer");
+    gtimer_t *whichTimer = TimerPublicHandle(j,1);
     /* Original233d50 reads the authored timeout, not its scheduling period. */
     return jass_pushnumber(j, whichTimer ? whichTimer->scalar_timeout : 0.0f);
 }
 uint32_t PauseTimer(jass_t *j) {
     wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
-    G_TimerPauseAt(jass_checkhandle(j, 1, "timer"), &clock); return 0;
+    G_TimerPauseAt(TimerPublicHandle(j,1), &clock); return 0;
 }
 uint32_t ResumeTimer(jass_t *j) {
     wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
-    G_TimerResumeAt(jass_checkhandle(j, 1, "timer"), &clock); return 0;
+    G_TimerResumeAt(TimerPublicHandle(j,1), &clock); return 0;
 }
 uint32_t GetExpiredTimer(jass_t *j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->timer, "timer");
+    gtimer_t *timer=jass_getcontext(j)->timer;
+    return jass_pushlighthandle(j,timer && !timer->destroyed ? timer : NULL,"timer");
 }
 uint32_t CreateForce(jass_t *j) {
     API_ALLOC(uint32_t, force);
@@ -1731,7 +1736,7 @@ uint32_t CreateTrackable(jass_t *j) {
     return jass_pushnullhandle(j, "trackable");
 }
 uint32_t CreateTimerDialog(jass_t *j) {
-    gtimer_t *timer = jass_checkhandle(j, 1, "timer");
+    gtimer_t *timer = TimerPublicHandle(j,1);
     timerdialog_t *dialog = G_AllocTimerDialog(timer);
     if (!dialog) {
         jass_rterror(j, "CreateTimerDialog: timer-dialog registry is full");

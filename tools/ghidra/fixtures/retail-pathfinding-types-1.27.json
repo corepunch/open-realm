@@ -3545,6 +3545,24 @@
       "length": 84,
       "fields": [
         {
+          "offset": 0,
+          "name": "root_vtable",
+          "type": "ptr:WC3ScriptTimerRootTablePrefix",
+          "evidence": "Native118249ca0 read rootvtable; c clock dispatcher,10 trigger broadcast and5c deferred agent destroy verified by assembly and original data xrefs."
+        },
+        {
+          "offset": 12,
+          "name": "agent_index",
+          "type": "u32",
+          "evidence": "0557b0 ECX timer loads wrapper registry id+C before054530 canonical resolution."
+        },
+        {
+          "offset": 16,
+          "name": "agent_generation",
+          "type": "u32",
+          "evidence": "0557b0 loads wrapper registry generation+10 intoEDX; native118 queue/commit observers use this canonical identity."
+        },
+        {
           "offset": 36,
           "name": "event_clock",
           "type": "WC3EventClockControlPrefix",
@@ -3553,7 +3571,7 @@
         {
           "offset": 64,
           "name": "callback_holder",
-          "type": "ptr:void",
+          "type": "ptr:WC3ScriptTimerCallbackPrefix",
           "evidence": "249ca0 installs handler through this holder before publishing timeout."
         },
         {
@@ -3603,6 +3621,42 @@
           "name": "count",
           "type": "u32",
           "evidence": "04f830 parent insert/04f1a0 child pop; timer clock embeds this container at+4. Preallocated external backing drives whole original208 entries."
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerCallbackPrefix",
+      "length": 40,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "handler_function_id",
+          "type": "u32",
+          "evidence": "2403f0 reads current callback holder+24; zero folds the resume follow-up, nonzero is passed to249ca0. Prefix only, not complete object size."
+        }
+      ]
+    },
+    {
+      "name": "WC3ScriptTimerRootTablePrefix",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 12,
+          "name": "clock_event_method",
+          "type": "ptr:void",
+          "evidence": "Native118249ca0 observer reads root vtablec=2402d0; dispatch actual80204/80272 packet."
+        },
+        {
+          "offset": 16,
+          "name": "broadcast_method",
+          "type": "ptr:void",
+          "evidence": "240350 calls root vtable10=071da0 before direct callback."
+        },
+        {
+          "offset": 92,
+          "name": "request_destroy_method",
+          "type": "ptr:void",
+          "evidence": "Registered native1fd1d0 tail root vtable5c=0557b0; native118 retirement witnesses resolve original agent release."
         }
       ]
     }
@@ -11065,6 +11119,81 @@
         }
       ],
       "convention": "__fastcall"
+    },
+    {
+      "address": "6f0542d0",
+      "name": "SimClock_DispatchTimerRequest",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f2402d0",
+      "name": "ScriptTimer_DispatchClockEvent",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:WC3ScriptTimerScalarPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:u32",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f240350",
+      "name": "ScriptTimer_RunExpiryCallbacks",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:WC3ScriptTimerScalarPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:u32",
+          "storage": 4
+        }
+      ],
+      "convention": "__thiscall"
+    },
+    {
+      "address": "6f2403f0",
+      "name": "ScriptTimer_RestartAuthoredAfterResume",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "timer",
+          "type": "ptr:WC3ScriptTimerScalarPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "convention": "__fastcall"
+    },
+    {
+      "address": "6f1fd1d0",
+      "name": "JassTimer_RequestDestroy",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "handle",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "convention": "__cdecl"
     }
   ],
   "globals": [

@@ -1841,3 +1841,18 @@ rebasing compose with two full public getter-driven Move captures across the
 300-second epoch. Engine normal-frame/Save113 continuations verify all getter
 and movement words. NUM-02.9.2/02.11 close; shared-deadline callback mutation
 remains NUM-02.10. Earlier getter/capture scopes remain recorded independently.
+
+Payoff118 adds `oracle-timer-dispatcher`, `live-timer-mutation-261006` and
+`live-timer-release-261006`. The original dispatcher oracle executes11 controlled
+cases/164 callbacks/7 canceled requests without code substitution. Two complete
+mutation streams repeat2,986 normalized events each, including all348 callback
+records and175 movement commits. Two additional bounded25-second release windows
+repeat18 release/owner events each; observer completion does not imply full
+producer completion for these windows. Their separate scopes are enforced by
+fixture versions3/4 and strict provenance/lifecycle mutation tests.
+
+Inventory is348 contracts:121 original-code oracles,121 archives and106 live
+contracts. Fresh getter/boundary/dispatcher/mutation/release reports pass. Saved
+Ghidra readback and content-addressed observer/map sources accompany the engine's
+full movement/save regressions. NUM-02.9/02.10 close; see
+[callback order, catch-up and retirement](retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).

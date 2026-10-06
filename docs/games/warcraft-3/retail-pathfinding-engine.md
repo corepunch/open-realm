@@ -9801,3 +9801,71 @@ readback has `unsaved=false` in `retail-timer-epoch-117-static.json`; function
 names, comments, xrefs and layouts are reproducible through MapPathfinding.java
 and MapPathfindingTypes.java. Frozen raw captures, sources and scenario-derived
 engine literals are pinned by corpus checks and mutation regressions.
+
+## Timer callback mutations preserve heap order and deferred release
+
+Payoff118 closes NUM-02.10 and the encompassing NUM-02.9 timer producer.
+The original0522e0 dispatcher enters0542d0, which invokes the request receiver
+before rearming the same uncanceled periodic request through053630. Its
+registration serial survives ordinary periodic rearm. Cancellation, explicit
+restart and resumed authored follow-up have distinct request lifetimes.
+
+ScriptTimer240350 broadcasts expiry conditions/actions before the direct handler.
+Pausing from an expiry condition does not suppress that current direct call.
+Resume's80272 event enters2403f0 afterward: it starts the CURRENT authored timeout,
+periodicity and callback, even if the first resumed callback paused or restarted
+itself. Segmented requests retain that resume phase until their actual expiry.
+The engine executes this control flow instead of approximating it with elapsed
+milliseconds or making periodicity snapshots decide the follow-up callback.
+Queued C producers still reject actions from canceled generations.
+
+JassTimer1fd1d0 invokes the agent's destroy virtual5c (0557b0). Public handle
+lookup is withdrawn immediately; the receiver survives until its separate
+primary-clock release request commits through04c2c0. This permits outstanding
+zero-period scalar catch-up in the current timer quantum, with GetExpiredTimer
+and public getters already returning null/zero. Deferred release is drained
+after the full scalar quantum, including before-owner and after-owner work;
+internal lifecycle destruction still cancels storage immediately. The engine
+uses an intrusive pending list, O(number released), rather than rescanning all
+allocated timer slots.
+
+Equal raw deadlines use the unsigned registration sequence shared by public
+timers and the path owner. Initial map timers precede owner registration; later
+restarts can follow it. At the producer's exact.15 deadline (`3e19999a`), its
+Stop/repoint callback precedes movement. Always forcing the owner first changed
+four movement commits despite otherwise identical timers. The indexed heap
+retains O(log n) admission/cancellation and O(1) next-deadline lookup.
+
+The unmodified original-code oracle executes the whole dispatch/rearm/cancel
+graph for11 controlled cases:164 callbacks and7 canceled requests, including
+zero, negative, subquantum, periodic/one-shot and shared-deadline mutation.
+Receiver inputs and backing storage are explicit controls; no executed routine
+is replaced. Authored JASS effects are independently covered by two complete
+read-only native118 scenes. Their2,986 normalized events agree:348 callback
+records,1,044 public getters,675 scalar getter calls and175 actual movement
+commits per scene. The ordinary JASS producer restarts, pauses, resumes and
+destroys timers while also issuing real Move/Stop orders and changing speed
+from public getter results.
+
+Two additional25-second read-only observer windows repeat18 release/owner
+events, including four release queues/commits and six owner rearms each. Their
+observer footer is complete; their full producer lifetime is deliberately not
+claimed. The separate135-second scenes provide the completed producer proof.
+Frozen raw streams, exact observer/map sources, identity joins and original
+request/clock words are pinned in the timer-mutation/release fixtures.
+
+The engine test failed305 assertions before these changes. It now matches all
+348 exported callback/getter rows and175 motion records; saves at5,95,145,255
+and505 ms replay856 exact suffix commits. Classic and TFT each pass52,094
+assertions. A separate test pauses from an expiry condition and saves a timer
+after public retirement but before storage release. The earlier116/117 getter,
+shared-pair, periodic spawn and region-callback movement regressions also pass.
+Save114 stores resume phase, logical retirement flags and owner serial; pending
+links/heap indexes are rebuilt. JASS snapshot9 is unchanged.
+
+Ghidra saves the five new dispatcher/callback/destroy mappings, verified
+prototypes, callback-holder/root-vtable layouts, comments and xrefs through
+MapPathfinding.java and MapPathfindingTypes.java. The frozen nine-function
+readback is `retail-timer-mutation-118-static.json`, with `unsaved=false`.
+This closes the timer scheduling/mutation scope, not the remaining overall
+retail pathfinding or frame-budget gates.
