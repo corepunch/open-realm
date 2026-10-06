@@ -251,6 +251,8 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     bool attack_button = false;
 
     reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
     unit = ancient_test_unit(true);
     unit->ancient_root->ability = TEST_ARO2;
     unit->data.UnitWeapons = &weapons;
@@ -271,15 +273,35 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     count = G_GetCommandButtons(unit, buttons, 12);
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
     T_ASSERT(attack_button);
+    T_EQ(unit->attack2.type, ATK_NORMAL); /* Rooted ranged weapon. */
 
     unit->ancient_root->mode = ANCIENT_ROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
     unit->ancient_root->mode = ANCIENT_UPROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
 
+    unit->ancient_root->mode = ANCIENT_UPROOTED;
+    unit->s.flags &= ~EF_BUILDING;
+    unit->aiflags &= ~AI_IMMOBILE;
+    unit->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    unit->movetype = MOVETYPE_STEP;
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    T_EQ(unit->attack1.type, ATK_NORMAL); /* Shared uprooted melee weapon. */
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+
     /* Map-start rooted Protectors can be queried before the A_UPDATE hook has
      * allocated ancient_root runtime state. Their authored Aro2 rooted attack
      * mask must still govern server validation and the command card. */
+    unit->ancient_root->mode = ANCIENT_ROOTED;
+    unit->s.flags |= EF_BUILDING;
+    unit->aiflags |= AI_IMMOBILE;
+    unit->runtime.flags |= UNIT_BALANCE_BUILDING;
     G_FreeAncientRoot(unit);
     unit->data.UnitAbilities = &protector_abilities;
     T_ASSERT(S_AncientIsRooted(unit));
@@ -291,6 +313,57 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     attack_button = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
     T_ASSERT(attack_button);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_when_rooted) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *target;
+    gameCommandButton_t buttons[12];
+    uint8_t count;
+    bool attack_button;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    unit = ancient_test_unit(true);
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = unit->attack2.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 0);
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(!S_AttackCanTarget(unit, target));
+    T_ASSERT(!S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    attack_button = false;
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(!attack_button);
+
+    /* Damage-triggered retaliation follows the weapon profile even though
+     * players cannot issue an explicit rooted Attack order. */
+    unit->attack1.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->attack1.type = ATK_NORMAL;
+    target->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target->data.UnitWeapons = &weapons;
+    T_Damage(unit, target, 1);
+    T_ASSERT(unit->goalentity == target);
+    T_EQ(unit->currentmove->proc, CAbilityAttack);
+
+    unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
+    T_ASSERT(S_AncientIsRooted(unit));
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(!S_AttackCanTarget(unit, target));
 
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);

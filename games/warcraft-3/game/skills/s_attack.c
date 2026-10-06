@@ -22,6 +22,7 @@ void attack_melee_cooldown(edict_t *ent);
 void attack_ranged(edict_t *ent);
 void attack_ranged_cooldown(edict_t *ent);
 void order_attack(edict_t *self, edict_t *target);
+static void order_attack_internal(edict_t *self, edict_t *target, bool retaliation);
 
 static void ai_melee_cooldown(edict_t *ent);
 static void ai_ranged_cooldown(edict_t *ent);
@@ -171,15 +172,41 @@ void M_GetEntityMatrix(entityState_t const *entity, mat4_t *matrix) {
 }
 
 static bool can_attack(edict_t const *ent) {
+    uint32_t mask;
     if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
-    if ((!S_UnitAttackSlotEnabled(ent, 0) || ent->attack1.type == ATK_NONE) &&
-        (!S_UnitAttackSlotEnabled(ent, 1) || ent->attack2.type == ATK_NONE))
+    mask = S_AncientHasRootAbility(ent) ? (ent->data.UnitWeapons ? ent->data.UnitWeapons->attacksEnabled : 0) : 0;
+    if (S_AncientHasRootAbility(ent) && ent->ancient_root &&
+        (ent->ancient_root->mode == ANCIENT_ROOTING || ent->ancient_root->mode == ANCIENT_UPROOTING)) return false;
+    if (!S_AncientHasRootAbility(ent)) {
+        if (S_UnitAttackSlotEnabled(ent, 0)) mask |= 1u;
+        if (S_UnitAttackSlotEnabled(ent, 1)) mask |= 2u;
+    }
+    if (((mask & 1u) == 0 || ent->attack1.type == ATK_NONE) &&
+        ((mask & 2u) == 0 || ent->attack2.type == ATK_NONE))
         return false;
     if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
         return true;
     return false;
+}
+
+static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target) {
+    uint32_t flag;
+    UnitWeapons_t const *weapons;
+    if (!attacker || !S_AncientHasRootAbility(attacker) || !attacker->data.UnitWeapons ||
+        (attacker->ancient_root && (attacker->ancient_root->mode == ANCIENT_ROOTING ||
+                                    attacker->ancient_root->mode == ANCIENT_UPROOTING)))
+        return S_AttackCanTarget(attacker, target);
+    weapons = attacker->data.UnitWeapons;
+    if (!target || !target->inuse || attacker == target || M_IsDead((edict_t *)target) ||
+        S_UnitIsCycloned(target) || S_UnitIsHiddenFromPlayer(target, attacker->s.player) ||
+        attacker->s.player == target->s.player) return false;
+    flag = G_TargetFlagForType(G_UnitTargetType(target));
+    return flag && ((attacker->attack1.type != ATK_NONE && (weapons->attacksEnabled & 1u) &&
+                     (attacker->attack1.targetsAllowed & flag)) ||
+                    (attacker->attack2.type != ATK_NONE && (weapons->attacksEnabled & 2u) &&
+                     (attacker->attack2.targetsAllowed & flag)));
 }
 
 /* Weapon target masks are authoritative for ordinary unit targets as well as
@@ -365,7 +392,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
             S_UnitAbilityEvent(target, A_AUTO_COMBAT_START);
-            order_attack(target, attacker);
+            order_attack_internal(target, attacker, true);
         }
     } else if (target->pain) {
         target->pain(target);
@@ -801,9 +828,9 @@ void attack_walk(edict_t *self) {
 }
 
 /* Set the attack target and start walking toward attack range. */
-void order_attack(edict_t *self, edict_t *target) {
+static void order_attack_internal(edict_t *self, edict_t *target, bool retaliation) {
     if (!self || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
-        !S_AttackCanTarget(self, target)) {
+        !(retaliation ? attack_can_retaliate(self, target) : S_AttackCanTarget(self, target))) {
         return;
     }
     /* Beginning an attack is incompatible with Shadow Meld. This path is used
@@ -816,6 +843,10 @@ void order_attack(edict_t *self, edict_t *target) {
     self->goalentity = target;
     self->attack_target_spawn_time = target->spawn_time;
     attack_walk(self);
+}
+
+void order_attack(edict_t *self, edict_t *target) {
+    order_attack_internal(self, target, false);
 }
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */

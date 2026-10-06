@@ -43,7 +43,8 @@ static uint32_t ancient_root_ability(edict_t const *unit) {
 
 bool S_AncientIsRooted(edict_t const *unit) {
     if (!unit || !root_code(ancient_root_ability(unit))) return false;
-    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED)
+    if (!unit->ancient_root || unit->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED ||
+        unit->ancient_root->mode == ANCIENT_ROOTING || unit->ancient_root->mode == ANCIENT_UPROOTING)
         return G_UnitIsStructure(unit) && (unit->aiflags & AI_IMMOBILE);
     return unit->ancient_root->mode == ANCIENT_ROOTED;
 }
