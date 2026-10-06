@@ -1344,58 +1344,34 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
  * move any remaining occupants directly to a legal exit while retaining
  * their current orders. */
 static void G_TeleportBuildingOccupants(edict_t *building, edict_t *excluded_unit) {
-    edict_t * *units;
-    vec2_t *positions;
-    uint32_t count = 0;
-
     if (!building || !globals.num_edicts) return;
-    units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
-    positions = gi.MemAlloc(sizeof(*positions) * globals.num_edicts);
-    if (!units || !positions) {
-        fprintf(stderr, "WC3: unable to allocate completed-building displacement buffers\n");
-        if (positions) gi.MemFree(positions);
-        if (units) gi.MemFree(units);
-        return;
-    }
-    FILTER_EDICTS(ent, ent != building && ent != excluded_unit && ent->inuse &&
-                  (ent->svflags & SVF_MONSTER) &&
-                  !(ent->svflags & SVF_DEADMONSTER) && !M_IsDead(ent) &&
-                  ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f &&
-                  CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = g_edicts + i;
+        if (ent == building || ent == excluded_unit || !ent->inuse ||
+            !(ent->svflags & SVF_MONSTER) || (ent->svflags & SVF_DEADMONSTER) || M_IsDead(ent) ||
+            ent->movetype == MOVETYPE_NONE || ent->collision <= 0.0f ||
+            CM_DistanceToPathingFootprint(building, &ent->s.origin2) >= ent->collision)
+            continue;
         float angle;
-        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
-            fprintf(stderr, "WC3: unable to find exit for unit %ld inside completed building %ld\n",
+        vec2_t position;
+        if (!SP_FindUnitExitPosition(building, ent, &position, &angle)) {
+            fprintf(stderr, "WC3: unable to find exit for unit %ld inside construction %ld\n",
                     (long)(ent - g_edicts), (long)(building - g_edicts));
             continue;
         }
-        bool overlaps = false;
-        FOR_LOOP(i, count) {
-            if (Vector2_distance(&positions[i], &positions[count]) < units[i]->collision + ent->collision) {
-                overlaps = true;
-                break;
-            }
-        }
-        if (overlaps) {
-            fprintf(stderr, "WC3: exit for unit %ld overlaps another displaced unit at completed building %ld\n",
-                    (long)(ent - g_edicts), (long)(building - g_edicts));
-            continue;
-        }
-        units[count++] = ent;
+        /* Move each occupant before selecting the next exit. The exit search
+         * sees this unit as a dynamic blocker, so a crowd cannot reserve the
+         * same legal point and strand all but the first unit inside. */
+        vec2_t old_position = ent->s.origin2;
+        move_cancel_displacement(ent);
+        move_reset_progress(ent);
+        ent->s.origin2 = position;
+        ent->s.origin.x = position.x;
+        ent->s.origin.y = position.y;
+        M_CheckGround(ent);
+        gi.LinkEntity(ent);
+        G_UnitPositionChanged(ent, &old_position);
     }
-    FOR_LOOP(i, count) {
-        edict_t *unit = units[i];
-        vec2_t old_position = unit->s.origin2;
-        move_cancel_displacement(unit);
-        move_reset_progress(unit);
-        unit->s.origin2 = positions[i];
-        unit->s.origin.x = positions[i].x;
-        unit->s.origin.y = positions[i].y;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-        G_UnitPositionChanged(unit, &old_position);
-    }
-    gi.MemFree(positions);
-    gi.MemFree(units);
 }
 
 static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, uint32_t building_id,
