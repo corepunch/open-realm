@@ -94,7 +94,10 @@ static void move_spatial_sync(void) {
     }
 }
 
+void G_SyncMoveSpatial(void) {move_spatial_sync();}
+
 void G_ClearMoveSpatial(void) {
+    S_ClearMoveProximity();
     memset(move_spatial,0,sizeof(move_spatial)); move_spatial_serial=0;
     memset(move_spatial_links,0,sizeof(move_spatial_links));
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
@@ -103,13 +106,18 @@ void G_ClearMoveSpatial(void) {
     if(move_spatial_cells)memset(move_spatial_cells,0,(size_t)move_spatial_width*move_spatial_height*sizeof(*move_spatial_cells));
 }
 
+static void move_remove_fine_spatial(edict_t const *ent) {
+    uint32_t index=ent-g_edicts;
+    move_spatial_clean(index);
+    move_spatial_unlink(index);
+    memset(move_spatial+index,0,sizeof(*move_spatial));
+    move_spatial_geometry[index].valid=false;
+}
+
 void G_RemoveMoveSpatialObject(edict_t const *ent) {
     if (ent) {
-        uint32_t index=ent-g_edicts;
-        move_spatial_clean(index);
-        move_spatial_unlink(index);
-        memset(move_spatial+index,0,sizeof(*move_spatial));
-        move_spatial_geometry[index].valid=false;
+        S_RemoveMoveProximity(ent);
+        move_remove_fine_spatial(ent);
     }
 }
 static wc3FineSearch_t move_fine;
@@ -320,6 +328,7 @@ static vec2_t move_world_from_grid(float x, float y) {
 
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
+    S_FreeMoveProximity();
     CM_FinishPathJobs();
     move_grid_geometry.valid = false;
     free(move_acc_storage); move_acc_storage = NULL; move_acc_markers = NULL;
@@ -659,11 +668,12 @@ void G_PublishMoveSpatialObject(edict_t const *ent) {
     move_spatial_visits++;
 #endif
     if (!ent || !pathmap.width || !pathmap.height) return;
+    S_PublishMoveProximity(ent);
     move_spatial_clean(ent-g_edicts);
     if (!ent->inuse || !move_has_spatial_record(ent)) {
         if(move_spatial_geometry[ent-g_edicts].valid ||
             move_spatial[ent-g_edicts].box.max.x!=move_spatial[ent-g_edicts].box.min.x)
-            G_RemoveMoveSpatialObject(ent);
+            move_remove_fine_spatial(ent);
         return;
     }
     move_spatial_prepare();

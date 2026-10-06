@@ -10,7 +10,7 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **363 entries**: **61** distinct original-code oracle
+The inventory now has **364 entries**: **62** distinct original-code oracle
 scripts plus **67** declared variants, **121** archived JSONL audits and **114**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
@@ -1043,7 +1043,7 @@ checked. Auxiliary getter call counts outside simulation movement are not a
 determinism claim. Accepted source trees and traces remain frozen externally.
 
 
-Full debug/release RoC/TFT passes2403 tests and1336346 assertions per edition.
+Full debug/release RoC/TFT passes2403 tests and1336446 assertions per edition.
 The required full release repository suite and357 pathfinding Python checks pass.
 Fresh `runtime/captain-approach-strict-final-261003/corpus-results.json` passes38
 selected contracts with135 matching final source fingerprints.
@@ -1974,3 +1974,9 @@ Four full live captures and two observer-free controls retain39 births and
 574/272 public markers, including positive-speed zero-query movement. The
 full research freeze is reconstructed byte-identically; numerical support
 fixtures remain MAP-02.2. See [authored profiles](retail-pathfinding-profiles.md).
+
+Payoff132 adds `oracle-proximity`: two complete native/live separation replays,
+all9 normalized T clusters and3,055 engine fixture visits/2,439 individual
+contributions, with3,543 observer-free markers. `oracle-spatial-engine` also
+compares1,440 complete queries with the production active proximity index.
+See [ordered proximity composition](retail-pathfinding-proximity.md).

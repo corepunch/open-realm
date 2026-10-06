@@ -1,4 +1,24 @@
 #include "games/warcraft-3/common/wc3_pathing_spatial.h"
+#include "games/warcraft-3/common/wc3_pathing_proximity.h"
+
+static wc3ProximityMap_t proximity_map;
+void pathing_proximity_clear(void) {
+    assert(wc3_proximity_init(&proximity_map,8,8,3));
+}
+int pathing_proximity_update(unsigned object,int const rectangle[4]) {
+    wc3FineBox_t box={{rectangle[1],rectangle[0]},{rectangle[3],rectangle[2]}};
+    return wc3_proximity_update(&proximity_map,object,box,box.min.x<box.max.x && box.min.y<box.max.y);
+}
+typedef struct {unsigned *output,count;} proximityOutput_t;
+static void proximity_output(void *data,uint32_t owner) {
+    proximityOutput_t *out=data;assert(out->count<3);out->output[out->count++]=owner;
+}
+unsigned pathing_proximity_query(int const rectangle[4],unsigned output[3]) {
+    proximityOutput_t out={output,0};
+    wc3_proximity_query(&proximity_map,(wc3FineBox_t){{rectangle[1],rectangle[0]},{rectangle[3],rectangle[2]}},
+        UINT32_MAX,proximity_output,&out);
+    return out.count;
+}
 
 static wc3SpatialActive_t spatial_objects[3];
 static uint64_t spatial_serial;

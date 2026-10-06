@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 118, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 119, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -33,6 +33,10 @@ after physical groups and unit routes have loaded. Invalid rank, class, policy,
 count, countdown or work rejects restoration; failed restoration clears all
 coarse queues before releasing groups. Version108 and older layouts are rejected.
 See [coarse/fine contention](retail-pathfinding-engine.md#coarse-and-fine-contention-retain-independent-player-fifos).
+
+Version119 also stores independent logical proximity rectangles. Both indexes
+rebuild by prepending objects in saved order, preserving retained geometry and
+using the retail load-time cell ordering. Older versions are rejected.
 
 Version118 replaces serialized fine-cell publication ranks with logical rectangles.
 Retail `SpatialObject_Load` (`6f14d000`) re-emits ordinary memberships through

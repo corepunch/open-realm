@@ -29,7 +29,7 @@ TEST(wc3_repulsion_policy, live_matrix_checks_eligibility_before_displacement) {
         UnitBalance_t balance[2] = {{0}}; UnitData_t data[2] = {{0}}; edict_t *units[2];
         FOR_LOOP(i, 2) {
             typeof(retail_repulsion_policy[0].units[0]) const *input = &retail_repulsion_policy[row].units[i];
-            balance[i] = (UnitBalance_t){.repulse=input->enabled, .repulseParam=input->selector,
+            balance[i] = (UnitBalance_t){.speed=270,.repulse=input->enabled, .repulseParam=input->selector,
                 .repulseGroup=input->group, .repulsePrio=input->rank};
             data[i].moveTypeName = input->type;
             units[i] = policy_unit(balance+i, data+i, input->owner, 304+i*8, 304);
@@ -55,7 +55,7 @@ TEST(wc3_repulsion_policy, live_matrix_checks_eligibility_before_displacement) {
 
 TEST(wc3_repulsion_policy, channels_retire_and_recreate_membership_before_callbacks) {
     reset_entities(); setup_test_world();
-    UnitBalance_t balance = {.repulse=1, .repulseParam=17, .repulseGroup=17, .repulsePrio=17};
+    UnitBalance_t balance = {.speed=270,.repulse=1, .repulseParam=17, .repulseGroup=17, .repulsePrio=17};
     UnitData_t data = {.moveTypeName="foot"};
     edict_t *unit = policy_unit(&balance, &data, 0, 304, 304);
     T_EQ(unit->movement.repulse.state.packed, 0x10110000u);
@@ -94,7 +94,7 @@ TEST(wc3_repulsion_policy, saved_channel_restores_disabled_membership_and_resume
 
 TEST(wc3_repulsion_policy, rebound_type_replaces_policy_and_pending_displacement) {
     reset_entities(); setup_test_world();
-    UnitBalance_t old = {.repulse=1}, replacement = {.repulse=2, .repulseParam=4, .repulseGroup=3, .repulsePrio=2};
+    UnitBalance_t old = {.speed=270,.repulse=1}, replacement = {.speed=270,.repulse=2, .repulseParam=4, .repulseGroup=3, .repulsePrio=2};
     UnitData_t data = {.moveTypeName="foot"};
     edict_t *unit = policy_unit(&old, &data, 2, 304, 304);
     unit->movement.repulse.state.vector[0] = .3f;
@@ -111,11 +111,11 @@ TEST(wc3_repulsion_policy, rebound_type_replaces_policy_and_pending_displacement
 
 TEST(wc3_repulsion_policy, authored_selector_keeps_integer_low_bits) {
     reset_entities(); setup_test_world();
-    slkTestData_t *rows = parse_slk_string("ID;PWXL;N;EBB;Y2;X5\n"
+    slkTestData_t *rows = parse_slk_string("ID;PWXL;N;EBB;Y2;X6\n"
         "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"repulse\"\n"
-        "C;Y1;X3;K\"repulseParam\"\nC;Y1;X4;K\"repulseGroup\"\nC;Y1;X5;K\"repulsePrio\"\n"
+        "C;Y1;X3;K\"repulseParam\"\nC;Y1;X4;K\"repulseGroup\"\nC;Y1;X5;K\"repulsePrio\"\nC;Y1;X6;K\"spd\"\n"
         "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K\"2\"\nC;Y2;X3;K\"16777217\"\n"
-        "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"17\"\nE\n");
+        "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"17\"\nC;Y2;X6;K\"270\"\nE\n");
     slkTestData_t *old = G_SetSLKRows("UnitBalance", rows);
     UnitData_t data = {.moveTypeName="foot"};
     edict_t *unit = policy_unit(G_UnitBalance(MAKEFOURCC('h','f','o','o')), &data, 0, 304, 304);

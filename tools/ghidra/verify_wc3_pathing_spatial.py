@@ -31,6 +31,8 @@ def main():
         engine = ctypes.CDLL(str(args.engine_library.resolve()))
         engine.pathing_spatial_update.argtypes = [ctypes.c_uint, ctypes.POINTER(ctypes.c_int)]
         engine.pathing_spatial_cell.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_uint)]
+        engine.pathing_proximity_update.argtypes = [ctypes.c_uint, ctypes.POINTER(ctypes.c_int)]
+        engine.pathing_proximity_query.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_uint)]
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
     if digest != 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236':
@@ -98,6 +100,7 @@ def main():
     for seed in range(32):
         if engine:
             engine.pathing_spatial_clear()
+            engine.pathing_proximity_clear()
         free_count = 32 if seed % 2 else 0
         write(grid + 0x28, cells)
         write(grid + 0x38, 64, 8, 8)
@@ -149,6 +152,7 @@ def main():
             run(0x6f14e770, obj, rect)
             if engine:
                 assert engine.pathing_spatial_update(selected, (ctypes.c_int * 4)(*new)) == 1
+                assert engine.pathing_proximity_update(selected, (ctypes.c_int * 4)(*new)) == 1
             bounds[selected] = new
             assert read(obj + 0x1c, 4) == [v & 0xffffffff for v in new]
             assert read(grid + 0xb0)[0] == count
@@ -194,6 +198,10 @@ def main():
                                    if covered(bounds[n]) & covered(query_bounds)}
             assert len(candidates) == len(set(candidates))
             assert set(candidates) == expected_candidates, (seed, step, candidates, expected_candidates)
+            if engine:
+                out = (ctypes.c_uint * 3)()
+                amount = engine.pathing_proximity_query((ctypes.c_int * 4)(*query_bounds), out)
+                assert list(out)[:amount] == [objects.index(obj) for obj in candidates], ('engine proximity order',seed,step)
             if step % 8 == 7:
                 # Full dirty-cell cleanup, then the same real separation query.
                 before_count = count
@@ -241,6 +249,9 @@ def main():
                 run(0x6f170c00, query, grid, query_rect)
                 after = [read(query_entries + n * 8)[0] for n in range(read(query + 0x1c)[0])]
                 assert after == candidates, ('cleanup changed candidate order', seed, step)
+                if engine:
+                    amount = engine.pathing_proximity_query((ctypes.c_int * 4)(*query_bounds), out)
+                    assert list(out)[:amount] == [objects.index(obj) for obj in after], ('engine proximity cleanup',seed,step)
                 cleanup_cases += 1
             cases += 1
     report = dict(binary_sha256=digest, scope=__doc__, passed=True,
@@ -250,6 +261,7 @@ def main():
                   removal_records=removal_records, sequences=32,
                   free_list_sequences=16, initially_empty_vector_sequences=16,
                   engine_active_chain_comparisons=cases * 64 if engine else 0,
+                  engine_proximity_queries=cases+cleanup_cases if engine else 0,
                   engine_library_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest() if engine else None)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))

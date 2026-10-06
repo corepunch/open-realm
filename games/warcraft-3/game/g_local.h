@@ -23,6 +23,7 @@
 #include "games/warcraft-3/common/wc3_pathing_yield.h"
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 #include "games/warcraft-3/common/wc3_pathing_limits.h"
+typedef struct wc3FineBox_s wc3FineBox_t;
 typedef struct wc3SpatialActive_s wc3SpatialActive_t;
 
 /* Coarse paths are distinct owners from the member's fine path. Links are
@@ -3200,6 +3201,14 @@ bool G_GetMoveAdaptiveState(uint8_t *, uint32_t);
 bool G_SetMoveAdaptiveState(uint8_t const *, uint32_t);
 void G_RebuildSavedMovePathing(void);
 void G_ClearMoveSpatial(void);
+void G_SyncMoveSpatial(void);
+void S_ClearMoveProximity(void);
+void S_FreeMoveProximity(void);
+void S_PublishMoveProximity(edict_t const *);
+void S_RemoveMoveProximity(edict_t const *);
+void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t const *));
+wc3FineBox_t const *S_GetMoveProximity(uint32_t);
+bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 void G_InitMoveSpatialLink(void);
 void G_MarkMoveSpatialObject(edict_t const *);
 void G_SetEntityHidden(edict_t *, bool);

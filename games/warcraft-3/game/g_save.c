@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format118 saves logical fine rectangles; load rebuilds cell insertion order. */
-static uint32_t const save_version = 118;
+/* Format119 saves independent fine/proximity rectangles; load prepends both. */
+static uint32_t const save_version = 119;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2223,6 +2223,30 @@ failed:
     G_ClearMoveSpatial(); return false;
 }
 
+static bool WriteMoveProximity(FILE *f) {
+    uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts)if(S_GetMoveProximity(i))count++;
+    if(!SaveBytes(f,&count,sizeof(count)))return false;
+    FOR_LOOP(i,globals.num_edicts) {
+        wc3FineBox_t const *box=S_GetMoveProximity(i);
+        if(box && (!g_edicts[i].inuse || !SaveBytes(f,&i,sizeof(i)) || !SaveBytes(f,box,sizeof(*box))))return false;
+    }
+    return true;
+}
+
+static bool ReadMoveProximity(FILE *f) {
+    S_ClearMoveProximity();
+    uint32_t count,index;
+    if(!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts)return false;
+    FOR_LOOP(i,count) {
+        wc3FineBox_t box;
+        if(!LoadBytes(f,&index,sizeof(index)) || !LoadBytes(f,&box,sizeof(box)) || !S_LoadMoveProximity(index,box)) {
+            S_ClearMoveProximity();return false;
+        }
+    }
+    return true;
+}
+
 /* Shared parameters precede groups so every restored binding can resolve.
  * Zero references remain valid until the next Move owner prepass collects them. */
 static bool WriteMoveShared(FILE *f) {
@@ -2783,6 +2807,7 @@ bool WriteGame(cstring_t filename) {
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
     if (!WriteMoveSpatial(f)) { fprintf(stderr,"WC3 SaveGame: failed at fine spatial history\n"); goto done; }
+    if (!WriteMoveProximity(f)) { fprintf(stderr,"WC3 SaveGame: failed at proximity spatial history\n"); goto done; }
     if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
     if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
@@ -2938,6 +2963,7 @@ bool ReadGame(cstring_t filename) {
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 LoadGame: invalid Way Gate identities\n"); fclose(f); return false; }
     if (!ReadMoveSpatial(f)) { fprintf(stderr,"WC3 LoadGame: failed at fine spatial history\n"); fclose(f); return false; }
+    if (!ReadMoveProximity(f)) { fprintf(stderr,"WC3 LoadGame: failed at proximity spatial history\n"); fclose(f); return false; }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
@@ -3622,8 +3648,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-115.bin",
         "/tmp/openwarcraft3-wc3-save-version-116.bin",
         "/tmp/openwarcraft3-wc3-save-version-117.bin",
+        "/tmp/openwarcraft3-wc3-save-version-118.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118 };
 
     reset_entities();
     setup_test_world();

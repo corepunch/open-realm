@@ -10745,3 +10745,16 @@ portal and formation routing retain independent coarse selection, including
 Ensnare fine grounding with class3 retained. Complete original, compiled C and
 controlled live evidence is retained; numerical support fixtures remain MAP-02.2.
 See [authored profiles](retail-pathfinding-profiles.md).
+
+### Ordered proximity composition reaches complete engine separation
+
+Payoff132 closes SEP-02.2 with an independent Move-owned proximity index:
+intersection links retain priority, entered cells prepend and queries visit
+Y/X cells with first-encounter deduplication. Complete engine updates match all
+3,055 frozen retail T visits and2,439 individual neighbor contributions across
+nine mixed policy/radius/owner/rank clusters, including rejected applications,
+fine publication, caps and cooldowns. Both full original pair/tail replays and
+3,543 observer-free markers verify. Save119 stores logical proximity rectangles
+and rebuilds both indexes in save order. Native physical storage/maintenance
+and forced stamp hazards retain SEP-03/MAP-05. See
+[ordered proximity evidence](retail-pathfinding-proximity.md).

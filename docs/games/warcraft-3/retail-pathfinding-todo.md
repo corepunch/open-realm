@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**224 done / 336 tasks; 112 remaining.**
+**225 done / 336 tasks; 111 remaining.**
+
+Payoff132 closes SEP-02.2: an independent ordered proximity index replaces
+server-area enumeration; every update and individual neighbor contribution in
+nine retail clusters matches exactly. Save119 rebuilds both logical rectangles
+in saved order. See [ordered proximity composition](retail-pathfinding-proximity.md).
+
 
 Payoff131 closes BASE-02.1: the complete authored movement-profile table now
 feeds Move query/category and independent hierarchy selection. Positive-speed
@@ -1061,7 +1067,7 @@ complete neighbor traversal, ordering and original full application remain requi
 ### SEP-02 — Separation composition
 
 - [x] **SEP-02.1** Post-arrival pair: 16 ticks, 14 attempts, ten accepted and four blocked. Evidence: [pair][pair], M `move_owner_separation_cases`; controlled profile and bounded numeric tolerance.
-- [ ] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application.
+- [x] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application. Payoff132: complete original/live replay and actual engine3,055 updates/2,439 individual contributions across nine clusters, ordered proximity membership and Save119 regressions; [evidence](retail-pathfinding-proximity.md). Research handoff: [SEP-02.2](retail-pathfinding-handoffs/SEP-02.2/HANDOFF.md).
 - [ ] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks.
 
 - [x] **SEP-02.4** Split ordered numerical pair/tail integration from02.2/03: original600 pair105 tail slices match production C exactly, including owner random overlap; port actual idle owner scheduling and pending fine endpoint application with Footman-disabled control. First overlap pending displacement/random words match through engine RunFrame. Full retail neighbor-chain composition remains02.2/03.

@@ -1995,7 +1995,10 @@ TEST(wc3_pathfinding, nearby_unit_routes_follow_live_object_eligibility) {
     idle->movement.velocity = (vec2_t){0};
     T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
     query.target = idle;
-    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    /*148e90's segment predicate does not exclude an ordinary target merely
+     * because its identity is supplied. The route owner's explicit target
+     * suppression scope is tested separately by fine expansion/route tests. */
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
     query.target = NULL;
     query.units = false;
     T_ASSERT(G_UnitMovePathLineIsPathable(&query));

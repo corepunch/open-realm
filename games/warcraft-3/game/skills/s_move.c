@@ -95,6 +95,9 @@ typedef enum {
 
 typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; } moveRepulseQuery_t;
 static moveRepulseQuery_t *repulse_query;
+#ifdef BZ_TESTS
+static void (*move_test_repulse_pair)(edict_t const *,edict_t const *,wc3RepulsePair_t const *,wc3Repulse_t const *,wc3Random_t);
+#endif
 static edict_t *trymove_self = NULL;
 static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
 static moveGroup_t const *move_deciding_group;
@@ -1529,7 +1532,14 @@ static bool move_repulse_candidate(edict_t const *other) {
         ((word >> 20) & 255) != query->category || (word >> 28) < query->rank) return false;
     wc3GridPose_t pose; unit_predicted_pose(other,&pose);
     for (unsigned i = 0; i < 2; i++) query->pair.other[i] = pose.grid[i];
+#ifdef BZ_TESTS
+    wc3Repulse_t before=query->self->movement.repulse.state;
+    wc3Random_t random_before=level.pathing_random;
+#endif
     wc3_repulse_pair(&query->self->movement.repulse.state,&query->pair);
+#ifdef BZ_TESTS
+    if(move_test_repulse_pair)move_test_repulse_pair(query->self,other,&query->pair,&before,random_before);
+#endif
     return false;
 }
 
@@ -1559,13 +1569,9 @@ static void move_repulse_update(edict_t *self) {
     wc3RepulseConfig_t config = wc3_repulse_config(state->packed);
     moveRepulseQuery_t query = {.self=self,.pair={.source={pose.grid[0],pose.grid[1]},
         .config=config,.random=&level.pathing_random},.category=(state->packed >> 20) & 255,.rank=state->packed >> 28};
-    float radius = wc3_mul(config.radius,32);
-    box2_t area = {{wc3_sub(pose.world[0],radius),wc3_sub(pose.world[1],radius)},
-                  {wc3_add(pose.world[0],radius),wc3_add(pose.world[1],radius)}};
-    edict_t *unused; repulse_query = &query;
-    /* TODO: retail proximity cell-chain ordering/stamps remain SEP-02; this engine area index
-     * visits each actor once. Single-neighbor words are exact; multi-neighbor draw/order parity is open. */
-    gi.BoxEdicts(&area,&unused,1,move_repulse_candidate); repulse_query = NULL;
+    repulse_query = &query;
+    S_QueryMoveProximity(self,pose.grid,config.radius,move_repulse_candidate);
+    repulse_query = NULL;
     wc3_repulse_tail(state,&config);
 }
 

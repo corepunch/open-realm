@@ -11,7 +11,7 @@
 #include "wc3_pathing_limits.h"
 
 typedef struct { int x, y; } wc3FinePoint_t;
-typedef struct { wc3FinePoint_t min, max; } wc3FineBox_t;
+typedef struct wc3FineBox_s { wc3FinePoint_t min, max; } wc3FineBox_t;
 typedef struct { uint32_t mask, flags; bool linked; } wc3FineObject_t;
 typedef enum { WC3_FINE_NEW, WC3_FINE_OPEN, WC3_FINE_CLOSED } wc3FineState_t;
 typedef struct {
