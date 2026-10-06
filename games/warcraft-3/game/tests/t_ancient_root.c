@@ -10,6 +10,7 @@ slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 #define TEST_AROO MAKEFOURCC('A', 'r', 'o', 'o')
+#define TEST_ARO2 MAKEFOURCC('A', 'r', 'o', '2')
 #define TEST_AHHB MAKEFOURCC('A', 'H', 'h', 'b')
 #define TEST_HBAR MAKEFOURCC('h', 'b', 'a', 'r')
 
@@ -30,17 +31,20 @@ static void ancient_capture_command_button(pfWriteType_t type, void const *value
 
 /* Distinct authored values prove the morph directions do not share a timer. */
 static char const ancient_root_tft[] =
-    "ID;PWXL;N;EBB;Y4;X10\n"
+    "ID;PWXL;N;EBB;Y5;X10\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
     "C;Y2;X1;K\"Aroo\"\nC;Y2;X2;K\"Aroo\"\nC;Y2;X3;K\"1\"\n"
     "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\n"
-    "C;Y2;X7;K\"3\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
+    "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
     "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K\"1\"\n"
     "C;Y3;X4;K\"ground\"\n"
     "C;Y4;X1;K\"AHst\"\nC;Y4;X2;K\"AHst\"\nC;Y4;X3;K\"1\"\n"
-    "C;Y4;X4;K\"structure\"\nE\n";
+    "C;Y4;X4;K\"structure\"\n"
+    "C;Y5;X1;K\"Aro2\"\nC;Y5;X2;K\"Aro2\"\nC;Y5;X3;K\"1\"\n"
+    "C;Y5;X5;K\"2.25\"\nC;Y5;X6;K\"6.75\"\n"
+    "C;Y5;X7;K\"2\"\nC;Y5;X8;K\"1\"\nC;Y5;X10;K\"1\"\nE\n";
 
 /* ROC keeps AbilityData's row-major Data11..Data34 columns. */
 static char const ancient_root_roc[] =
@@ -121,7 +125,14 @@ TEST(wc3_ancient_root, roc_and_tft_use_separate_root_and_uproot_durations) {
 }
 
 TEST(wc3_ancient_root, missing_ability_data_does_not_start_morph) {
-    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    static char const missing_aro2[] =
+        "ID;PWXL;N;EBB;Y4;X10\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
+        "C;Y2;X1;K\"Aroo\"\nC;Y2;X2;K\"Aroo\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(missing_aro2);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit;
     reset_entities(); setup_test_world(); level.time = 1000;
@@ -224,6 +235,46 @@ TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatc
     T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
     T_ASSERT(S_AttackCanTarget(unit, target));
     T_ASSERT(S_OrderAttack(unit, target));
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *target;
+    gameCommandButton_t buttons[12];
+    uint8_t count;
+    bool attack_button = false;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    unit = ancient_test_unit(true);
+    unit->ancient_root->ability = TEST_ARO2;
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = ATK_NORMAL;
+    unit->attack2.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
+    target->s.player = 1;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 2);
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 1));
+    T_ASSERT(S_AttackCanTarget(unit, target));
+    T_ASSERT(S_OrderAttack(unit, target));
+    count = G_GetCommandButtons(unit, buttons, 12);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
+    T_ASSERT(attack_button);
+
+    unit->ancient_root->mode = ANCIENT_ROOTING;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
+    unit->ancient_root->mode = ANCIENT_UPROOTING;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
 
     G_SetSLKRows("AbilityData", old_rows);
     free_slk_rows(rows);
