@@ -14,8 +14,8 @@ so the selected ability rawcode resolves to the same building for preview,
 footprint/pathing validation, spawn, and construction. `S_SpellUnitId()` reads
 the active ability rawcode's own level data. Only `AIbg` expands its stock
 Human Town Hall endpoint to the owner's race; that rule does not apply to
-`AIbl` or the other Tiny Structures. It applies only to stock `htow`/`ogre`
-endpoints, and an explicit map `UnitID` override takes precedence.
+`AIbl` or the other Tiny Structures. It applies only when the stock ability
+row resolves to `htow`, and an explicit map `UnitID` override takes precedence.
 
 The stock endpoints checked in TFT `AbilityData.slk` are:
 
