@@ -431,6 +431,13 @@ so trigger publication and snapshots remain consistent.
   charges on a carried item refreshes the selected-unit inventory layer.
 - `SetItemDropID` stores the mutable unit rawcode metadata on the item instance;
   it has no immediate inventory or world-drop side effect.
+- Retail Blizzard.j implements `UnitDropItem` and `WidgetDropItem` in script;
+  they create new items at independent random ±32 X/Y offsets. Only the unit
+  helper assigns `SetItemDropID` and calls Blizzard.j's
+  `UpdateStockAvailability`. `GetItemType` is a value-style `itemtype` enum
+  handle, so its equality with `ITEM_TYPE_*` constants must compare enum values,
+  rather than newly allocated handle pointers. A test-fixture Blizzard.j subset
+  exercises both helpers and their distinct stock/drop-ID behavior.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
 
