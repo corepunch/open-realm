@@ -896,6 +896,7 @@ typedef struct {
     uint32_t id, num_levels;
     AbilityData_t row;
     abilityLevel_t *extra_levels;
+    bool has_unit_id_override;
 } mapAbilityOverride_t;
 
 static mapUnitBalanceOverride_t *map_unit_balance_overrides;
@@ -1664,6 +1665,18 @@ static void ApplyMapAbilityMod(mapAbilityOverride_t *override, unitModification_
 
     if (!override || !mod || !mod->data) return;
 
+    /* AbilityMetaData stores UnitID as a rawcode string on ability-specific
+     * field IDs (for example Hwe1). Apply it before the numeric/data-slot
+     * cases, and remember that the authored override owns this endpoint. */
+    abilityMetaData_t const *meta = FS_SLKLookup(&ability_meta_idx, mod->modID);
+    if (meta && meta->field && !strcmp(meta->field, "UnitID")) {
+        if (UnitModificationString(mod) && (slot = MapAbilityOverrideLevel(override, mod->level))) {
+            slot->unitID = FS_SLKKey((cstring_t)mod->data);
+            override->has_unit_id_override = true;
+        }
+        return;
+    }
+
     /* Named AbilityMetaData fields first — their dataPointer is often 0 and
      * must not be mistaken for DataA. */
     switch (mod->modID) {
@@ -1941,6 +1954,10 @@ abilityLevel_t const *G_AbilityLevel(uint32_t id, uint32_t level) {
 AbilityBuffData_t const *G_AbilityBuffData(uint32_t id) { static AbilityBuffData_t zero; AbilityBuffData_t *row = FS_SLKLookup(&ability_buff_idx, id); return row ? row : &zero; }
 uint32_t G_AbilityCode(uint32_t id) { uint32_t code = G_AbilityData(id)->code; return code ? code : id; }
 uint32_t G_AbilityCodeName(cstring_t name) { return G_AbilityCode(FS_SLKKey(name)); }
+bool G_AbilityHasUnitIdOverride(uint32_t id) {
+    mapAbilityOverride_t const *override = FindMapAbilityOverride(id);
+    return override && override->has_unit_id_override;
+}
 
 /* Tooltip markup names authored AbilityData columns, so reflect through the
  * same DDX schema while gameplay continues to use typed fields directly. */

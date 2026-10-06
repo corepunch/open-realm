@@ -3508,6 +3508,7 @@ void G_ConsumeItemCharge(edict_t *item);
 void G_CompleteItemUse(edict_t *unit, edict_t *item);
 void G_RunConsumedItemFrees(void);
 cstring_t G_ItemAbilityList(edict_t const *item);
+bool G_ItemUseAbility(edict_t const *item, abilityitem_t *resolved);
 int32_t G_FindFreeInventorySlot(edict_t const *unit);
 bool G_CanPickupItem(edict_t *unit, edict_t *item);
 bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);

@@ -658,9 +658,13 @@ BZ_ITEM_PROC(AbilityItemChangeTOD) {
  * caller consume the item only after a building has been created. */
 uint32_t S_TinyStructureUnitId(edict_t const *caster, uint32_t code, uint32_t level) {
     uint32_t id = S_SpellUnitId(code, level);
-    /* The stock Tiny Great Hall is racially polymorphic.  Other abilities
-     * (including authored UnitID overrides) use their object-data unit. */
-    if (code == MAKEFOURCC('A','I','b','g') && caster && (!id || id == MAKEFOURCC('o','g','r','e'))) {
+    /* Only the stock AIbg endpoint is race-dependent. The stock AbilityData
+     * row names the Human Town Hall; expand that default (and the historic
+     * Orc-row form) by owner race. Explicit W3A UnitID overrides remain exact.
+     * AIbl and every other Tiny Structure use their authored UnitID directly. */
+    if (code == MAKEFOURCC('A','I','b','g') && caster &&
+        !G_AbilityHasUnitIdOverride(code) &&
+        (!id || id == MAKEFOURCC('h','t','o','w') || id == MAKEFOURCC('o','g','r','e'))) {
         gameClient_t const *owner = G_GetPlayerClientByNumber(caster->s.player);
         if (owner) switch (owner->ps.race) {
         case kPlayerRaceHuman: return MAKEFOURCC('h','t','o','w');

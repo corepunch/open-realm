@@ -237,6 +237,51 @@ TEST(wc3_slk, map_w3a_applies_levels_and_data_a) {
     T_ASSERT(G_AbilityData(id)->level[0].data[0].number != 123.0f);
 }
 
+TEST(wc3_slk, map_w3a_applies_ability_unit_id_and_marks_authored_override) {
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\nC;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AIbl\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K1\nC;Y2;X4;K\"hcas\"\n"
+        "C;Y3;X1;K\"AIbg\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K1\nC;Y3;X4;K\"htow\"\nE\n";
+    const char meta_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"field\"\nC;Y1;X3;K\"data\"\nC;Y1;X4;K\"useSpecific\"\n"
+        "C;Y2;X1;K\"AIbg\"\nC;Y2;X2;K\"UnitID\"\nC;Y2;X3;K-1\nC;Y2;X4;K\"AIbg\"\nE\n";
+    cstring_t custom_building = "hkee";
+    unitModification_t mod = {
+        .modID = MAKEFOURCC('A','I','b','g'), .type = mod_unitList,
+        .level = 1, .data = custom_building
+    };
+    unitData_t original = {
+        .originalUnitID = MAKEFOURCC('A','I','b','g'),
+        .numbeOfModifications = 1, .modifications = &mod
+    };
+    mapInfo_t mapinfo = { .num_originalAbilities = 1, .originalAbilities = &original };
+    slkTestData_t *abilities = parse_slk_string(ability_slk), *old_abilities;
+    slkTestData_t *metadata = parse_slk_string(meta_slk), *old_metadata;
+    edict_t *caster;
+
+    setup_test_world();
+    old_abilities = G_SetSLKRows("AbilityData", abilities);
+    old_metadata = G_SetSLKRows("AbilityMetaData", metadata);
+    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    caster->s.player = 0;
+    game.clients[0].ps.race = kPlayerRaceOrc;
+
+    G_SetMapAbilityOverrides(&mapinfo);
+    T_EQ(G_AbilityLevel(MAKEFOURCC('A','I','b','g'), 1)->unitID, MAKEFOURCC('h','k','e','e'));
+    T_ASSERT(G_AbilityHasUnitIdOverride(MAKEFOURCC('A','I','b','g')));
+    T_EQ(S_TinyStructureUnitId(caster, MAKEFOURCC('A','I','b','g'), 1), MAKEFOURCC('h','k','e','e'));
+    T_EQ(S_TinyStructureUnitId(caster, MAKEFOURCC('A','I','b','l'), 1), MAKEFOURCC('h','c','a','s'));
+
+    G_SetMapAbilityOverrides(NULL);
+    T_ASSERT(!G_AbilityHasUnitIdOverride(MAKEFOURCC('A','I','b','g')));
+    G_SetSLKRows("AbilityMetaData", old_metadata);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(metadata);
+    free_slk_rows(abilities);
+}
+
 /* DotA A00Y is an original-table row whose W3A field IDs identify Chain Lightning.
  * Its level-five data uses W3A's one-based dataPointer convention. */
 TEST(wc3_slk, map_w3a_custom_rawcode_inherits_mechanics_and_authored_level) {

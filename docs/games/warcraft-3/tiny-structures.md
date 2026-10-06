@@ -1,5 +1,40 @@
 # Tiny Structures (TFT)
 
+## Item alias selection and building endpoint resolution
+
+HumanX01 drops the item rawcode `tgrh`. Its map object data changes the display
+name to **Tiny Castle**, while the retail `ItemData.slk` ability list is
+`AIbg,AIbl`. Both are aliases of the same item-build implementation. OpenRealm
+previously stopped at the first usable item ability, `AIbg`; an Orc owner then
+followed the Great Hall path and got `ogre`. Item activation now resolves
+same-implementation aliases in authored list order and uses the final alias,
+`AIbl`, whose object-data `UnitID` is `hcas`.
+
+The placement cursor and cast execution both call `S_TinyStructureUnitId()`,
+so the selected ability rawcode resolves to the same building for preview,
+footprint/pathing validation, spawn, and construction. `S_SpellUnitId()` reads
+the active ability rawcode's own level data. Only `AIbg` expands its stock
+Human Town Hall endpoint to the owner's race; that rule does not apply to
+`AIbl` or the other Tiny Structures. It applies only to stock `htow`/`ogre`
+endpoints, and an explicit map `UnitID` override takes precedence.
+
+The stock endpoints checked in TFT `AbilityData.slk` are:
+
+| Ability | Stock endpoint |
+|---|---|
+| `AIbl` Tiny Castle | `hcas` Human Castle |
+| `AIbg` Tiny Great Hall | owner-race Tier 1 hall (`htow`, `ogre`, `unpl`, `etol`) |
+| `AIbt` Tiny Scout Tower | `hwtw` Human Watch Tower |
+| `AIbb` Tiny Blacksmith | `hbla` Blacksmith |
+| `AIbf` Tiny Farm | `hhou` Farm |
+| `AIbr` Tiny Lumber Mill | `hlum` Lumber Mill |
+| `AIbs` Tiny Barracks | `hbar` Barracks |
+| `AIbh` Tiny Altar of Kings | `halt` Altar of Kings |
+
+Map ability overrides carrying an AbilityMetaData `UnitID` field now update
+the level's typed `unitID`; this also lets the race-dependent `AIbg` rule
+distinguish the stock endpoint from a map-authored endpoint.
+
 ## First-pass gameplay implementation
 
 The eight stock Build Tiny ability codes (`AIbl`, `AIbg`, `AIbt`, `AIbb`,
@@ -34,7 +69,9 @@ position authoritatively. Successful casts and cancelled targeting clear the
 cursor. Invalid clicks keep the target mode armed without spending the item.
 
 A Tiny Great Hall with an explicitly different authored UnitID is preserved;
-only the stock Great Hall mapping is expanded to other player races.
+only the stock Great Hall mapping is expanded to other player races. An
+explicit map `UnitID` override is retained even when it equals the stock Human
+endpoint.
 Displacement failure now rejects the cast before item consumption.
 
 ## Follow-up parity work / manual validation
@@ -42,8 +79,6 @@ Displacement failure now rejects the cast before item consumption.
 This is a **partial retail parity implementation**, not an assertion that
 all of the TFT presentation and targeting behaviour is complete:
 
-- Confirm the stock `AIbg` racial variant for all four owner races and
-  custom-map alias handling; the stock code uses the owner's race.
 - Manually verify green/red placement footprints, preview model, cancellation
   and re-selection in the retail campaign with actual object data.
 - Verify movement-to-cast-range and mid-cast item transfer/death handling in
@@ -53,11 +88,13 @@ all of the TFT presentation and targeting behaviour is complete:
 - Check build-on resources (e.g. unusual custom structures), blight and
   placement error messages; specialised worker-build side effects may still
   differ from item placement in custom maps.
-- Verify the in-progress model and completed mechanics in `HumanX01.w3x`:
-  Tiny Altar of Kings, Tiny Barracks, Tiny Castle, and the item-based Great
-  Hall across races. Confirm zero and positive authored durations.
-- Add dedicated headless ability/inventory/placement integration fixtures
-  once the relevant object-data fixture rows are available.
+- Verify the Tiny Castle (`tgrh` → `AIbl` → `hcas`) preview and completed
+  construction in `HumanX01.w3x`, along with zero and positive authored
+  durations.
+- Headless regressions cover item alias selection, stock endpoint resolution,
+  racial Great Hall selection, and W3A `UnitID` overrides. A full inventory to
+  placement integration fixture is still needed to assert preview/spawn
+  agreement and item-charge commitment through the live command pipeline.
 
 ## Code ownership
 
