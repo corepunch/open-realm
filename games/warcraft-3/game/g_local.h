@@ -2747,6 +2747,7 @@ bool S_AncientCanShowRootedAttackCommand(edict_t const *);
 bool S_AncientCanReceiveOrder(edict_t const *);
 bool S_AncientAbilityAvailable(edict_t const *, ability_t const *);
 uint32_t S_AncientAttackMask(edict_t const *);
+uint32_t S_AncientRetaliationAttackMask(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);

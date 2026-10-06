@@ -97,6 +97,15 @@ uint32_t S_AncientAttackMask(edict_t const *unit) {
     return (uint32_t)level->data[S_AncientIsRooted(unit) ? 0 : 1].number;
 }
 
+/* Ordinary weapons remain available for automatic counterattacks while a
+ * rooted Ancient's Root ability hides explicit Attack orders and buttons. */
+uint32_t S_AncientRetaliationAttackMask(edict_t const *unit) {
+    if (!S_AncientHasRootAbility(unit) ||
+        (unit->ancient_root && (unit->ancient_root->mode == ANCIENT_ROOTING ||
+                                unit->ancient_root->mode == ANCIENT_UPROOTING))) return 0;
+    return unit->data.UnitWeapons ? unit->data.UnitWeapons->attacksEnabled : 0;
+}
+
 /* ---- Charm (ANch): transfer target ownership to caster -------------------- */
 
 static bool charm_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
