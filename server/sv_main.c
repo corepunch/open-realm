@@ -147,14 +147,8 @@ static void SV_ReadPackets(void) {
     while ((r = NET_GetLoopPacket(NS_SERVER, &from, &net_message)) != 0) {
         SV_ProcessPacket(&from, &net_message, r);
     }
-    if (sv.state == ss_dead) {
-        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-            SV_ProcessPacket(&from, &net_message, r);
-        }
-    } else {
-        while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
-            SV_ProcessPacket(&from, &net_message, r);
-        }
+    while ((r = NET_GetPacket(NS_SERVER, &from, &net_message)) != 0) {
+        SV_ProcessPacket(&from, &net_message, r);
     }
 }
 

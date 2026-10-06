@@ -384,6 +384,53 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     free_slk_rows(rows);
 }
 
+/* An uprooted Protector only has Aro2 DataB's melee slot; an air attacker
+ * must not start a counterattack that attack_profile cannot carry out. */
+TEST(wc3_ancient_root, uprooted_protector_does_not_counterattack_with_rooted_weapon) {
+    static UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .damageDice = 1 }, .attack2 = { .damageDice = 1 } };
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old_rows = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *flyer, *footman;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    unit = ancient_test_unit(false);
+    unit->ancient_root->ability = TEST_ARO2;
+    unit->data.UnitWeapons = &weapons;
+    unit->attack1.type = unit->attack2.type = ATK_NORMAL;
+    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_AIR;
+    unit->attack2.range = 256.0f;
+    unit->attack2.weapon = WPN_MISSILE;
+    flyer = alloc_test_unit(MAKEFOURCC('h','g','r','y'), 96.0f, 64.0f);
+    flyer->s.player = 1; flyer->svflags |= SVF_MONSTER; flyer->targtype = TARG_AIR;
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32.0f, 64.0f);
+    footman->s.player = 1; footman->svflags |= SVF_MONSTER; footman->targtype = TARG_GROUND;
+
+    T_EQ(S_AncientAttackMask(unit), 1);
+    T_EQ(S_AncientRetaliationAttackMask(unit), 1);
+    T_Damage(unit, flyer, 1);
+    T_ASSERT(unit->goalentity != flyer);
+    T_ASSERT(!unit->currentmove || unit->currentmove->proc != CAbilityAttack);
+    T_Damage(unit, footman, 1);
+    T_ASSERT(unit->goalentity == footman);
+    T_EQ(unit->currentmove->proc, CAbilityAttack);
+
+    /* Walking to the root site keeps the uprooted form and its weapons; only
+     * the morph itself suppresses counterattacks. */
+    unit->ancient_root->mode = ANCIENT_ROOTING;
+    unit->ancient_root->approaching = true;
+    T_ASSERT(S_UnitAttackSlotEnabled(unit, 0));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 1);
+    unit->ancient_root->approaching = false;
+    T_ASSERT(!S_UnitAttackSlotEnabled(unit, 0));
+    T_EQ(S_AncientRetaliationAttackMask(unit), 0);
+
+    G_SetSLKRows("AbilityData", old_rows);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);

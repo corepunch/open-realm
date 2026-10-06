@@ -480,6 +480,10 @@ void SV_InitGame(void) {
         ge->Init();
     }
 
+    /* Q2 never reads a dead server's queue, so a local client's farewell can outlive SV_Shutdown.
+     * Q2 consumes it before the next handshake allocates a slot; our local client is admitted
+     * directly into slot 0, so drop the dead session's loopback datagrams at the boundary. */
+    NET_ClearLoopPackets(NS_SERVER);
     svs.initialized = true;
     svs.num_client_entities = ge->max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP;
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);

@@ -200,7 +200,7 @@ BZ_ABILITY_PROC(CAbilityItemHealAoe);
 BZ_ABILITY_PROC(CAbilityItemGold);
 BZ_ABILITY_PROC(CAbilityItemSpeed);
 BZ_ABILITY_PROC(CAbilityItemSpeedAoe);
-bool S_TryUseSupportedPowerup(edict_t *unit, edict_t *item);
+abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item);
 bool S_ItemSpeedActive(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityItemChangeTOD);
 BZ_ABILITY_PROC(CAbilitySoulTrap);

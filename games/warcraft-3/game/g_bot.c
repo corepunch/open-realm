@@ -1873,27 +1873,15 @@ static bool G_BotBuyBestShopItem(player_t *player, edict_t *hero) {
     if (!client || G_FindFreeInventorySlot(hero) < 0) return false;
 
     FILTER_EDICTS(shop, shop->inuse && G_CanUseItemShop(client, shop) && G_BotHeroNearShop(hero, shop)) {
-        cstring_t items = G_GetShopItemList(shop);
-        if (!items || G_FindShopPatron(client, shop) != hero) continue;
-        PARSE_LIST(items, item_name, parse_segment) {
-            uint32_t item_id;
-            ItemData_t const *data;
+        if (G_FindShopPatron(client, shop) != hero) continue;
+        FOR_LOOP(i, G_UpdateShopItemStock(shop)) {
+            uint32_t item_id = shop->stock->items[i].id;
+            ItemData_t const *data = G_ItemData(item_id);
             float distance;
-            bool stocked = false;
-            if (strlen(item_name) != 4) continue;
-            memcpy(&item_id, item_name, sizeof(item_id));
-            data = G_ItemData(item_id);
-            if (!data || !data->file || !G_ShopSellsItem(shop, item_id) ||
+            if (shop->stock->items[i].current <= 0 || !data || !data->file ||
                 !G_ShopItemRequirementsSatisfied(client, item_id, NULL, 0)) continue;
             if (client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < (uint32_t)MAX(0, data->goldcost) ||
                 client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] < (uint32_t)MAX(0, data->lumbercost)) continue;
-            FOR_LOOP(stock, shop->stock->item_count) {
-                if (shop->stock->items[stock].id == item_id && shop->stock->items[stock].current > 0) {
-                    stocked = true;
-                    break;
-                }
-            }
-            if (!stocked) continue;
             distance = Vector2_distance(&hero->s.origin2, &shop->s.origin2);
             if (!best_shop || data->prio > best_priority ||
                 (data->prio == best_priority && distance < best_distance) ||

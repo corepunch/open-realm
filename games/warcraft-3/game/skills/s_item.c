@@ -11,9 +11,6 @@
 #define ID_ITEM_LEVEL_GAIN     MAKEFOURCC('A', 'I', 'l', 'm')
 #define ID_ITEM_FIGURINE       MAKEFOURCC('A', 'I', 'f', 's')
 #define ID_ITEM_DEFENSE_AOE    MAKEFOURCC('A', 'I', 'd', 'a')
-#define ID_ITEM_SPEED          MAKEFOURCC('A', 'I', 's', 'p')
-#define ID_ITEM_SPEED_AOE      MAKEFOURCC('A', 'I', 's', 'a')
-#define ID_RUNE_SPEED_AOE      MAKEFOURCC('A', 'P', 's', 'a')
 #define ID_ITEM_CHANGE_TIME    MAKEFOURCC('A', 'I', 'c', 't')
 #define ID_SOUL_TRAP           MAKEFOURCC('A', 'I', 's', 'o')
 #define ID_SOUL_POSSESSION     MAKEFOURCC('A', 's', 'o', 'u')
@@ -468,48 +465,31 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     return true;
 }
 
-/* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
- * The authored ability supplies duration, area, target mask and BuffID.  WC3
- * treats the active speed status as maximum movement speed rather than as a
- * normal multiplicative haste bonus. */
-static edict_t *item_speed_caster(edict_t *ent, abilityCall_t const *call) {
+/* Item-use recipient: a client's selection, the acquiring unit, or the item carrier. */
+static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
     if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
     return NULL;
 }
 
+/* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
+ * The authored ability supplies duration, area, target mask and BuffID.  WC3
+ * treats the active speed status as maximum movement speed rather than as a
+ * normal multiplicative haste bonus.  Like Area Healing, a use with valid data
+ * succeeds even when no unit qualifies. */
 static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
     abilityLevel_t const *row = G_AbilityLevel(code, 1);
     cstring_t buff = row ? row->buffID : NULL;
-    float area = row ? row->area : 0.0f;
-    uint32_t affected = 0;
 
-    if (!caster || !row || !buff || strlen(buff) < 4) return false;
-    if (!area_effect) area = 0.0f;
-
-#define ITEM_SPEED_APPLY(t) do { \
-    float const duration = S_SpellDuration(code, 1, G_UnitIsHero((t))); \
-    if (duration > 0.0f) { \
-        unit_addtimedstatus((t), buff, 1, duration); \
-        heroabilitystatus_t *status = unit_findstatus((t), FS_SLKKey(buff)); \
-        if (status) status->data = code; \
-        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, (t), NULL, true); \
-        affected++; \
-    } \
-} while (0)
-
-    if (!area_effect) {
-        if (S_SpellIsAliveTarget(caster) && S_SpellAllowsAreaTarget(code, caster, caster)) ITEM_SPEED_APPLY(caster);
-    } else {
-        FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
-                     S_SpellAllowsAreaTarget(code, caster, target) &&
-                     Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
-            ITEM_SPEED_APPLY(target);
-        }
+    if (!caster || !buff || strlen(buff) < 4) return false;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsAreaTarget(code, caster, target) &&
+                  (area_effect ? Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area : target == caster)) {
+        float const duration = S_SpellHeroDuration(code, 1, target);
+        heroabilitystatus_t *status = duration > 0.0f ? S_SpellApplyTimedTargetStatus(target, code, 1, buff, duration) : NULL;
+        if (status) status->data = code;
     }
-#undef ITEM_SPEED_APPLY
-    return affected != 0;
+    return true;
 }
 
 /* Item Area Healing (AIha): use the acquiring unit as the AoE origin, including
@@ -523,7 +503,7 @@ BZ_ABILITY_PROC(CAbilityItemHealAoe) {
     uint32_t code;
 
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    caster = item_speed_caster(ent, call);
+    caster = item_use_caster(ent, call);
     code = call->item->code;
     row = G_AbilityLevel(code, 1);
     if (!caster || !row) return false;
@@ -553,7 +533,7 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     uint32_t balance, credited;
 
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    caster = item_speed_caster(ent, call);
+    caster = item_use_caster(ent, call);
     if (!caster || caster->s.player >= MAX_PLAYERS) return false;
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
@@ -568,44 +548,35 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
 
 BZ_ABILITY_PROC(CAbilityItemSpeed) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    return item_speed_apply(item_speed_caster(ent, call), call->item->code, false);
+    return item_speed_apply(item_use_caster(ent, call), call->item->code, false);
 }
 
 BZ_ABILITY_PROC(CAbilityItemSpeedAoe) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
-    return item_speed_apply(item_speed_caster(ent, call), call->item->code, true);
+    return item_speed_apply(item_use_caster(ent, call), call->item->code, true);
 }
 
 bool S_ItemSpeedActive(edict_t const *unit) {
     if (!unit) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
-        if (!status->level) continue;
-        if (status->data == ID_ITEM_SPEED || status->data == ID_ITEM_SPEED_AOE || status->data == ID_RUNE_SPEED_AOE)
-            return true;
+        ability_t const *ability = status->level && status->data ? S_AbilityItem(status->data).ability : NULL;
+        if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
     }
     return false;
 }
 
-bool S_TryUseSupportedPowerup(edict_t *unit, edict_t *item) {
-    cstring_t abilities;
-    if (!unit || !G_IsItem(item) || !item->data.ItemData || !item->data.ItemData->powerup ||
-        !item->data.ItemData->usable || !G_InventoryCanUseItems(unit)) return false;
-    abilities = G_ItemAbilityList(item);
-    if (!abilities) return false;
-
+/* Quake's itemlist decides what a touch picks up; here the AB_POWERUP row
+ * flag decides which item abilities are consumed on pickup. */
+abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item) {
+    cstring_t abilities = unit && G_IsItem(item) && item->data.ItemData && item->data.ItemData->powerup &&
+        item->data.ItemData->usable && G_InventoryCanUseItems(unit) ? G_ItemAbilityList(item) : NULL;
+    if (!abilities) return MAKE(abilityitem_t, 0);
     PARSE_LIST(abilities, ability_name, parse_segment) {
-        ability_t const *ability = FindAbilityForCommand(ability_name);
-        abilityitem_t ability_item;
-        abilityCall_t call;
-        if (!ability || (ability->proc != CAbilityItemSpeed && ability->proc != CAbilityItemSpeedAoe &&
-                         ability->proc != CAbilityItemGold && ability->proc != CAbilityItemHealAoe)) continue;
-        ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
-        call = MAKE(abilityCall_t, .item = &ability_item, .source_item = item,
-                   .source_item_spawn_time = item->spawn_time);
-        return S_AbilityMessage(unit, A_ITEM_USE, &call) != 0;
+        abilityitem_t const powerup = S_AbilityItem(FS_SLKKey(ability_name));
+        if (powerup.ability && powerup.ability->flags & AB_POWERUP) return powerup;
     }
-    return false;
+    return MAKE(abilityitem_t, 0);
 }
 
 /* Scroll of Protection / item defense AOE (AIda). Warcraft data carries the

@@ -699,6 +699,7 @@ typedef enum {
 #define AB_STATUS_EVENTS (1u << 11) // bit 11; active statuses from this ability accept generic status policy events
 #define AB_ENGINE_EVENTS (1u << 12) // bit 12; engine-wide lifecycle/order notifications reach this ability
 #define AB_QUEUEABLE    (1u << 13) // bit 13; the command button accepts the generic Shift queue modifier
+#define AB_POWERUP      (1u << 14) // bit 14; item ability consumed on pickup without an inventory slot
 #define AB_SEPARATE_OFF (1u << 16) // bit 16; preserves the existing explicit off-button policy; used in ability flags
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -2749,6 +2750,7 @@ bool S_AncientCanReceiveOrder(edict_t const *);
 bool S_AncientAbilityAvailable(edict_t const *, ability_t const *);
 uint32_t S_AncientAttackMask(edict_t const *);
 uint32_t S_AncientRetaliationAttackMask(edict_t const *);
+bool S_AncientIsMorphing(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
 bool G_UnitHasBuildMenu(edict_t const *);
@@ -3466,7 +3468,7 @@ uint32_t G_ItemTypeFromClass(cstring_t cls);
 // g_stock.c / neutral shops
 bool G_IsItemShop(edict_t const *shop);
 bool G_IsUnitShop(edict_t const *shop);
-cstring_t G_GetShopItemList(edict_t const *shop);
+uint32_t G_UpdateShopItemStock(edict_t *shop);
 bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id, string_t reason, uint32_t reason_size);
 bool G_CanUseItemShop(gameClient_t *client, edict_t const *shop);
 bool G_CanUseUnitShop(gameClient_t *client, edict_t const *shop);

@@ -706,6 +706,89 @@ TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, speed_powerup_without_valid_recipient_is_consumed) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"organic\"\nE\n";
+    static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *item;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    picker->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    picker->targtype = TARG_MECHANICAL;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+
+    T_ASSERT(G_PickupItem(picker, item));
+    T_NULL(unit_findstatus(picker, MAKEFOURCC('B','s','p','x')));
+    T_ASSERT(item->item->pending_use_removal);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) T_NULL(picker->inventory[slot]);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, custom_speed_powerup_rawcode_gets_movement_cap) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"A0sp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"6\"\nC;Y2;X5;K\"6\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\nE\n";
+    static ItemData_t speed_data = { .abilList = "A0sp", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+    game.constants.maxUnitSpeed = 431.0f;
+
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(unit, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) T_EQ(status->data, MAKEFOURCC('A','0','s','p'));
+    T_ASSERT(S_ItemSpeedActive(unit));
+    T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, full_inventory_order_pickup_accepts_only_powerups) {
+    static ItemData_t speed_data = { .abilList = "APsa", .powerup = true, .usable = true, .perishable = true };
+    edict_t *unit, *rune, *ordinary;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('p','r','s','p'), ITEM_PICKUP_RANGE + 100, 0);
+    rune->data.ItemData = &speed_data;
+    ordinary = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), ITEM_PICKUP_RANGE + 100, 0);
+
+    T_ASSERT(!G_OrderPickupItem(unit, ordinary));
+    T_ASSERT(G_OrderPickupItem(unit, rune));
+    T_ASSERT(unit->goalentity == rune);
+}
+
 TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
     edict_t *player = &g_edicts[0];
     gameClient_t *client = player->client;

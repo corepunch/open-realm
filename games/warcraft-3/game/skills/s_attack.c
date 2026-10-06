@@ -56,10 +56,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     if (S_AncientHasRootAbility(attacker)) {
         /* Root/Unroot transitions must not retain an attack order from the
          * previous form. Stable forms use their authored AbilityData masks. */
-        if (attacker->ancient_root &&
-            (attacker->ancient_root->mode == ANCIENT_ROOTING ||
-             attacker->ancient_root->mode == ANCIENT_UPROOTING) &&
-            !(attacker->ancient_root->mode == ANCIENT_ROOTING && attacker->ancient_root->approaching)) return false;
+        if (S_AncientIsMorphing(attacker)) return false;
         enabled = S_AncientAttackMask(attacker);
     }
     return (enabled & (1u << slot)) != 0;
@@ -179,63 +176,51 @@ void M_GetEntityMatrix(entityState_t const *entity, mat4_t *matrix) {
     Matrix4_scale(matrix, &(vec3_t){entity->scale, entity->scale, entity->scale});
 }
 
-static bool can_attack(edict_t const *ent) {
-    uint32_t mask;
-    if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
-    if (!S_HumanCanAttack(ent)) return false;
-    if (!S_CargoAttacksEnabled(ent)) return false;
-    if (S_AncientHasRootAbility(ent)) {
-        mask = S_AncientRetaliationAttackMask(ent);
-    } else {
-        mask = 0;
-        if (S_UnitAttackSlotEnabled(ent, 0)) mask |= 1u;
-        if (S_UnitAttackSlotEnabled(ent, 1)) mask |= 2u;
-    }
-    if (((mask & 1u) == 0 || ent->attack1.type == ATK_NONE) &&
-        ((mask & 2u) == 0 || ent->attack2.type == ATK_NONE))
-        return false;
-    if (!ent->currentmove || ent->currentmove->proc != CAbilityAttack)
-        return true;
-    return false;
+static uint32_t attack_order_mask(edict_t const *ent) {
+    return (S_UnitAttackSlotEnabled(ent, 0) ? 1u : 0) | (S_UnitAttackSlotEnabled(ent, 1) ? 2u : 0);
 }
 
-static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target) {
-    uint32_t flag;
-    if (!attacker || !S_AncientHasRootAbility(attacker) || !attacker->data.UnitWeapons ||
-        (attacker->ancient_root && (attacker->ancient_root->mode == ANCIENT_ROOTING ||
-                                    attacker->ancient_root->mode == ANCIENT_UPROOTING)))
-        return S_AttackCanTarget(attacker, target);
-    if (!target || !target->inuse || attacker == target || M_IsDead((edict_t *)target) ||
-        S_UnitIsCycloned(target) || S_UnitIsHiddenFromPlayer(target, attacker->s.player) ||
-        attacker->s.player == target->s.player) return false;
-    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
-    flag = G_TargetFlagForType(G_UnitTargetType(target));
-    return flag && ((attacker->attack1.type != ATK_NONE && (S_AncientRetaliationAttackMask(attacker) & 1u) &&
-                     (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && (S_AncientRetaliationAttackMask(attacker) & 2u) &&
-                     (attacker->attack2.targetsAllowed & flag)));
+/* Counterattacks use the same slots as orders, except that Root keeps a
+ * rooted Ancient's weapons for retaliation while hiding its Attack order. */
+static uint32_t attack_retaliation_mask(edict_t const *ent) {
+    return S_AncientHasRootAbility(ent) ? S_AncientRetaliationAttackMask(ent) : attack_order_mask(ent);
+}
+
+static bool attack_mask_has_weapon(edict_t const *ent, uint32_t mask) {
+    return ((mask & 1u) && ent->attack1.type != ATK_NONE) || ((mask & 2u) && ent->attack2.type != ATK_NONE);
+}
+
+static bool can_attack(edict_t const *ent) {
+    if (S_UnitIsCycloned(ent) || S_UnitIsEntanglingRooted(ent) || G_BuildingIsUnsummoning(ent)) return false;
+    if (!S_HumanCanAttack(ent) || !S_CargoAttacksEnabled(ent)) return false;
+    if (!attack_mask_has_weapon(ent, attack_retaliation_mask(ent))) return false;
+    return !ent->currentmove || ent->currentmove->proc != CAbilityAttack;
 }
 
 /* Weapon target masks are authoritative for ordinary unit targets as well as
  * destructables.  UnitData.targetType supplies the target category while
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
-bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
+static bool attack_can_target_mask(edict_t const *attacker, edict_t const *target, uint32_t mask) {
     uint32_t flag;
-
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
-        ((!S_UnitAttackSlotEnabled(attacker, 0) || attacker->attack1.type == ATK_NONE) &&
-         (!S_UnitAttackSlotEnabled(attacker, 1) || attacker->attack2.type == ATK_NONE)) || S_UnitIsCycloned(target)) {
-        return false;
-    }
+        !attack_mask_has_weapon(attacker, mask) || S_UnitIsCycloned(target)) return false;
     if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
-    if (target->destructable) {
-        return G_DestructableCanBeAttackedBy(attacker, target);
-    }
+    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     if (M_IsDead((edict_t *)target)) return false;
-
     flag = G_TargetFlagForType(G_UnitTargetType(target));
-    return flag && ((attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
+    return flag && (((mask & 1u) && attacker->attack1.type != ATK_NONE && (attacker->attack1.targetsAllowed & flag)) ||
+                    ((mask & 2u) && attacker->attack2.type != ATK_NONE && (attacker->attack2.targetsAllowed & flag)));
+}
+
+bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
+    return attack_can_target_mask(attacker, target, attacker ? attack_order_mask(attacker) : 0);
+}
+
+/* Unlike an explicit Attack order, a counterattack never targets the
+ * attacker's own units (e.g. after Charm changes the damage source owner). */
+static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target) {
+    return attacker && target && attacker->s.player != target->s.player &&
+        attack_can_target_mask(attacker, target, attack_retaliation_mask(attacker));
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
@@ -286,8 +271,7 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
     /* Existing attack orders are combat orders, unlike the explicit Attack
      * command which may deliberately target an allied unit.  Alliance changes
      * must therefore end an automatic/cinematic attack before its next hit. */
-    if ((S_AttackCanTarget(attacker, target) ||
-         (S_AncientIsRooted(attacker) && attack_can_retaliate(attacker, (edict_t *)target))) && !allied &&
+    if ((S_AttackCanTarget(attacker, target) || attack_can_retaliate(attacker, target)) && !allied &&
         attacker->attack_target_spawn_time == target->spawn_time) {
         return false;
     }
