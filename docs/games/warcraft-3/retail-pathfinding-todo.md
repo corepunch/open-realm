@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**225 done / 336 tasks; 111 remaining.**
+**227 done / 336 tasks; 109 remaining.**
+
+Payoff133 closes SEP-02.3 and SEP-04.1: complete shared-RNG overlap owner
+passes match every contribution, endpoint and occupied rectangle; cached
+intrusive link slots make owner retirement constant-time. See
+[complete overlap integration](retail-pathfinding-overlap.md).
 
 Payoff132 closes SEP-02.2: an independent ordered proximity index replaces
 server-area enumeration; every update and individual neighbor contribution in
@@ -1068,7 +1073,7 @@ complete neighbor traversal, ordering and original full application remain requi
 
 - [x] **SEP-02.1** Post-arrival pair: 16 ticks, 14 attempts, ten accepted and four blocked. Evidence: [pair][pair], M `move_owner_separation_cases`; controlled profile and bounded numeric tolerance.
 - [x] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application. Payoff132: complete original/live replay and actual engine3,055 updates/2,439 individual contributions across nine clusters, ordered proximity membership and Save119 regressions; [evidence](retail-pathfinding-proximity.md). Research handoff: [SEP-02.2](retail-pathfinding-handoffs/SEP-02.2/HANDOFF.md).
-- [ ] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks.
+- [x] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks. Research handoff: [SEP-02.3](retail-pathfinding-handoffs/SEP-02.3/HANDOFF.md). Payoff133: complete production owner passes, unchanged full overlap fixtures, individual shared RNG/pair/admission/occupancy checks; [engine payoff](retail-pathfinding-overlap.md).
 
 - [x] **SEP-02.4** Split ordered numerical pair/tail integration from02.2/03: original600 pair105 tail slices match production C exactly, including owner random overlap; port actual idle owner scheduling and pending fine endpoint application with Footman-disabled control. First overlap pending displacement/random words match through engine RunFrame. Full retail neighbor-chain composition remains02.2/03.
 - [x] **SEP-02.5** Persist repulsion vectors/cooldown/policy and relocated membership/parity; verify actual idle overlap continuation after Save66, public owner transfer, pause and deferred removal. Evidence: [72 engine assertions and Save66](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units). Multi-neighbor query stamps/order remainSEP-03.
@@ -1081,7 +1086,7 @@ complete neighbor traversal, ordering and original full application remain requi
 
 ### SEP-04 — Retail separation witnesses
 
-- [ ] **SEP-04.1** Replay one live exact-overlap case with recorded seed and neighbors; match contributions, cooldown and trajectory.
+- [x] **SEP-04.1** Replay one live exact-overlap case with recorded seed and neighbors; match contributions, cooldown and trajectory. Research handoff: [SEP-04.1](retail-pathfinding-handoffs/SEP-04.1/HANDOFF.md). Payoff133: complete production owner passes, unchanged full overlap fixtures, individual shared RNG/pair/admission/occupancy checks; [engine payoff](retail-pathfinding-overlap.md).
 - [ ] **SEP-04.2** Capture a mixed-owner/radius/rank crowd with a blocked endpoint; explain displacement differences against the composed model.
 - [ ] **SEP-04.3** Run disabled-repulse ground controls beside enabled cases; assert retry/Stop outcomes without classifying path blocking as repulsion.
 

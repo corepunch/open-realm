@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "129 executable original oracle contracts,121 archive audits and114 strict live contracts;364 total entries.",
+  "scope": "130 executable original oracle contracts,121 archive audits and114 strict live contracts;365 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35985,6 +35985,75 @@
       ],
       "scope": "Complete repeated live separation pair/tail replay, nine normalized T clusters and every engine fixture input/update/individual contribution. Actual engine production enumeration/admission/cooldown is verified separately by in-engine tests.",
       "exclusions": "Native lazy record allocation/counters and forced stamp repair; isolated endpoint execution; unrelated full-map trajectories and exact-overlap scene engine integration."
+    },
+    {
+      "id": "oracle-overlap",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_overlap.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "overlap-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "status": {
+          "equal": "verified"
+        },
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 3055
+        },
+        "neighbor_contributions": {
+          "equal": 4321
+        },
+        "control_markers": {
+          "equal": 3543
+        },
+        "live_captures": {
+          "equal": 2
+        },
+        "overlap_visits": {
+          "equal": 2546
+        },
+        "overlap_pairs": {
+          "equal": 1882
+        },
+        "shared_draws": {
+          "equal": 1476
+        },
+        "overlap_groups": {
+          "equal": 9
+        },
+        "owner_passes": {
+          "equal": 268
+        },
+        "corner_visits": {
+          "equal": 268
+        },
+        "final_owner": {
+          "equal": [
+            3711717831,
+            2080948460
+          ]
+        }
+      },
+      "evidence": [
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Both complete original pair/tail replays, all nine phase-O overlap groups and global owner draws, every authored C input/visit/pair. Actual engine owner passes independently verify scheduler order, endpoint admission, cooldown and occupancy.",
+      "exclusions": "Production of initial map-start seed/parity; isolated original endpoint execution; native storage maintenance; unrelated complete-map trajectories."
     }
   ],
   "fixtures": [
@@ -36883,7 +36952,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "ff4044d9c4d185d37dda1fae2296a7be1e7cd05750eecb00d93698c9f950b82f"
+      "sha256": "04f4d194e9d54250a91e0167bf74b41dcdf14d4cb0df707e57415b7c6730cdaa"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37739,7 +37808,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "60ecbb831e999127b362e73d25d933a7985cd4395f516b56617ae1645d6ea02b"
+      "sha256": "41b74d87c047ef43a182c59ef574b4c7c101c99ca100906f27392c416f7f705e"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -37963,7 +38032,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_proximity.py",
-      "sha256": "0382d867d07f544dda226680dcdebba1c562b6def104e397af87d870d15e129e"
+      "sha256": "838234cf60da8a15c7c978aadcd90a36082c9f08d48d785b697cc6e9f0015e4e"
     },
     {
       "path": "tools/ghidra/fixtures/research/SEP-02.2-expected.json.gz",
@@ -37984,6 +38053,42 @@
     {
       "path": "tools/frida/research/sep_research_expected.py",
       "sha256": "1c3291aeaa253cf6cb9264bd12a04e62d5bf8089ae23c6e7191e901914e8afe6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_repulsion_overlap.c",
+      "sha256": "8bd574ea821153ff553b8a933a5488c81be7c814c62647aee314d842afd376fa"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_repulsion_overlap.h",
+      "sha256": "ab67a9c041152d221be0b77d8a6ee80a605e369ae1ebab49a180bca0b861ba9d"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_overlap.py",
+      "sha256": "fd7fe189c2700a769e740855d99c41fdca2fa1b8423d9373a4810017d901f2b4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-overlap-ghidra-1.27.json",
+      "sha256": "f582ab862395cba59a547009b95b7c318ad84b068d07046993f3ee70acc4f294"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-02.3-expected.json.gz",
+      "sha256": "d301d9b0a0a2d62892b76688ab6c311e2a61134fd3f378c74e1f274a96803919"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-04.1-expected.json",
+      "sha256": "436190f8d21bec3f9c0e4e9c82bab3fa734feebfc49e667515d8fcd794b0fd6a"
+    },
+    {
+      "path": "tools/frida/research/SEP-02.3_draw_stream.py",
+      "sha256": "d4da096e9d3c6ae52375b3315eaf7a3a2b6a1b54c5fd28e713a1432de83bea66"
+    },
+    {
+      "path": "tests/test_wc3_pathing_overlap.py",
+      "sha256": "afc91404d5b51db01bc82db10d924366ec5e7c2283f3600d82b38424d7a7acc8"
+    },
+    {
+      "path": "tools/frida/research/repulsion_retirement.py",
+      "sha256": "6345fc9555d78abecd442b2af62d8c687d3ebd62b92ce68da47eea902622bc2a"
     }
   ]
 }

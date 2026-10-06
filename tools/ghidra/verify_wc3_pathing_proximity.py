@@ -81,7 +81,7 @@ def check_fixture(expected,root):
     return len(rows)
 
 
-def verify(binary):
+def verify(binary,extra=None):
     sys.path.insert(0,str(HERE/'research'))
     sys.path.insert(0,str(HERE.parent/'frida/research'))
     from sep_research_oracle import Oracle
@@ -96,7 +96,7 @@ def verify(binary):
     with tempfile.TemporaryDirectory() as directory:
         root=Path(directory);bundle=restore_inputs(root)
         captures=[Capture(root/f'triad-observe-{i}',root/'map.json') for i in (1,2)]
-        sequences=[];stats=[]
+        sequences=[];stats=[];verified_rows=[]
         for i,cap in enumerate(captures):
             validate_capture(cap)
             rows,counts=module.replay(cap,oracle)
@@ -106,7 +106,7 @@ def verify(binary):
             if rows!=old['rows'] or dict(counts)!=old['stats']:raise ValueError('complete original replay differs')
             groups=[[norm(row) for row in rows if row['i'] in group['units']] for group in expected['groups']]
             if groups!=[g['sequence'] for g in expected['groups']]:raise ValueError('full normalized sequence differs')
-            sequences.append(groups);stats.append(dict(counts))
+            sequences.append(groups);stats.append(dict(counts));verified_rows.append(rows)
         if sequences[0]!=sequences[1]:raise ValueError('repeated word sequence differs')
         control=preload_rows((root/'triad-control-1/preload.txt').read_text())
         if len(control)!=3543 or any(cap.preload!=control for cap in captures):raise ValueError('observer-free control differs')
@@ -114,9 +114,10 @@ def verify(binary):
         if provenance['mode']!='control' or provenance['observer_sha256'] is not None or not provenance['preload_complete']:
             raise ValueError('invalid observer-free provenance')
         visits=check_fixture(expected,root)
+        additional=extra(root,captures,verified_rows) if extra else {}
         return dict(status='verified',differences=[],binary_sha256=oracle.sha,cases=visits,
             live_updates=5601,live_bodies=stats[0]['body'],neighbor_contributions=stats[0]['pairs'],
-            live_captures=2,control_markers=len(control),input_files=len(bundle['files']),groups=len(expected['groups']))
+            live_captures=2,control_markers=len(control),input_files=len(bundle['files']),groups=len(expected['groups']),**additional)
 
 
 def main():

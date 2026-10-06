@@ -10758,3 +10758,14 @@ fine publication, caps and cooldowns. Both full original pair/tail replays and
 and rebuilds both indexes in save order. Native physical storage/maintenance
 and forced stamp hazards retain SEP-03/MAP-05. See
 [ordered proximity evidence](retail-pathfinding-proximity.md).
+
+
+## Complete overlap owner passes and constant-time retirement
+
+Payoff133 closes SEP-02.3/SEP-04.1 using the completed retail handoffs. All20
+units run through the actual owner scheduler:2,546 visits,1,882 neighbor calls
+and1,476 shared RNG draws match both complete captures. Derived incoming-link
+slots replace quadratic owner-list retirement without changing order or saved
+state. A1,024-unit pause batch drops from524,800 owner visits to1,024, independently
+measured with Frida. See [complete overlap integration](retail-pathfinding-overlap.md)
+for blocked controls, endpoint/occupancy coverage, load validation and evidence limits.

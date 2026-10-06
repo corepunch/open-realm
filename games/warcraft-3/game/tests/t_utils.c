@@ -97,6 +97,7 @@ void reset_entities(void) {
     }
     G_PoolsReset();
     G_ClearEdictStorage(cap);
+    level.repulse_head=NULL;level.repulse_phase=0;
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;

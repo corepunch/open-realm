@@ -10,7 +10,7 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **364 entries**: **62** distinct original-code oracle
+The inventory now has **365 entries**: **63** distinct original-code oracle
 scripts plus **67** declared variants, **121** archived JSONL audits and **114**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
@@ -1980,3 +1980,11 @@ all9 normalized T clusters and3,055 engine fixture visits/2,439 individual
 contributions, with3,543 observer-free markers. `oracle-spatial-engine` also
 compares1,440 complete queries with the production active proximity index.
 See [ordered proximity composition](retail-pathfinding-proximity.md).
+
+
+Payoff133 adds `oracle-overlap`: both complete original replays, all nine phase-O
+groups and the entire shared draw stream, plus every engine fixture visit/pair.
+The complete engine owner-pass regression verifies admission, cooldown and
+occupancy rather than relying on isolated pair results. Recorded seed/parity
+inputs do not certify map-start seed production. See
+[complete overlap integration](retail-pathfinding-overlap.md).

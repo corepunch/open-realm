@@ -3183,6 +3183,7 @@ unsigned S_MoveSchedulingClass(edict_t const *);
 void S_InitMoveProjectile(edict_t *);
 void S_ClearMoveCoarseRequests(void);
 bool S_RestoreMoveCoarseRequests(void);
+bool S_RestoreMoveRepulsors(void);
 bool S_ValidateMoveCoarseRequests(void);
 bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec2_t *dest);
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route);

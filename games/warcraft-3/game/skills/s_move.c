@@ -97,6 +97,8 @@ typedef struct { edict_t *self; wc3RepulsePair_t pair; uint32_t category, rank; 
 static moveRepulseQuery_t *repulse_query;
 #ifdef BZ_TESTS
 static void (*move_test_repulse_pair)(edict_t const *,edict_t const *,wc3RepulsePair_t const *,wc3Repulse_t const *,wc3Random_t);
+static void (*move_test_repulse_endpoint)(edict_t const *,float const [2],bool,bool);
+static uint64_t move_test_repulse_unlink_visits;
 #endif
 static edict_t *trymove_self = NULL;
 static void unit_predicted_pose(edict_t const *, wc3GridPose_t *);
@@ -1461,11 +1463,64 @@ static void unit_commit_current_pose(edict_t *self) {
     }
 }
 
+/* Derived intrusive-link slots keep the serialized owner order and make
+ * retirement O(1). Neither process pointers nor this cache enter saves. */
+static edict_t **move_repulse_links[MAX_ENTITIES];
+static edict_t *move_repulse_link_base,*move_repulse_link_head;
+static bool move_repulse_links_valid;
+
+static void move_repulse_clear_links(void) {
+    memset(move_repulse_links,0,sizeof(move_repulse_links));
+    move_repulse_link_base=move_repulse_link_head=NULL;move_repulse_links_valid=false;
+}
+
+bool S_RestoreMoveRepulsors(void) {
+    move_repulse_clear_links();
+    edict_t **link=&level.repulse_head;
+    while(*link) {
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        uintptr_t delta=(uintptr_t)*link-(uintptr_t)g_edicts;
+        uint32_t index=delta/sizeof(*g_edicts);
+        if(!g_edicts || delta%sizeof(*g_edicts) || delta/sizeof(*g_edicts)>=globals.num_edicts ||
+            move_repulse_links[index] || !(*link)->inuse || !(*link)->movement.repulse.active)goto failed;
+        move_repulse_links[index]=link;link=&(*link)->movement.repulse.next;
+    }
+    FOR_LOOP(i,globals.num_edicts) {
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        if(g_edicts[i].movement.repulse.active && (!g_edicts[i].inuse || !move_repulse_links[i]))goto failed;
+    }
+    move_repulse_link_base=g_edicts;move_repulse_link_head=level.repulse_head;move_repulse_links_valid=true;return true;
+failed:
+    move_repulse_clear_links();return false;
+}
+
+static void move_repulse_prepare_links(void) {
+    if(move_repulse_links_valid && move_repulse_link_base==g_edicts && move_repulse_link_head==level.repulse_head)return;
+    if(!level.repulse_head) {
+        /* An empty runtime list needs no whole-edict discovery. Load uses the
+         * full validator separately, including orphan active records. */
+        move_repulse_clear_links();move_repulse_link_base=g_edicts;move_repulse_links_valid=true;return;
+    }
+    if(!S_RestoreMoveRepulsors())gi.error("Move repulsors: invalid owner membership");
+}
+
 /* Membership survives idle/attack orders and is removed before freeing or rebinding an actor. */
 static void move_repulse_unlink(edict_t *self) {
-    edict_t **link = &level.repulse_head;
-    while (*link && *link != self) link = &(*link)->movement.repulse.next;
-    if (*link) *link = self->movement.repulse.next;
+    if(self->movement.repulse.active) {
+        move_repulse_prepare_links();
+        uint32_t index=self-g_edicts;edict_t **link=move_repulse_links[index];
+        assert(link && *link==self);
+#ifdef BZ_TESTS
+        move_test_repulse_unlink_visits++;
+#endif
+        *link=self->movement.repulse.next;
+        if(*link)move_repulse_links[*link-g_edicts]=link;
+        move_repulse_links[index]=NULL;move_repulse_link_head=level.repulse_head;
+    }
     memset(&self->movement.repulse,0,sizeof(self->movement.repulse));
 }
 
@@ -1475,10 +1530,14 @@ static void move_repulse_init(edict_t *self) {
     UnitBalance_t const *balance = self->data.UnitBalance;
     if (!balance || !balance->repulse || M_UnitMoveDisabled(self) || self->paused ||
         S_SpellIsChanneling(self)) return;
+    move_repulse_prepare_links();
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);
     self->movement.repulse.state.packed = wc3_repulse_policy(0,balance->repulseParam,category,balance->repulsePrio);
     self->movement.repulse.active = true;
-    self->movement.repulse.next = level.repulse_head; level.repulse_head = self;
+    self->movement.repulse.next = level.repulse_head;
+    if(level.repulse_head)move_repulse_links[level.repulse_head-g_edicts]=&self->movement.repulse.next;
+    level.repulse_head=self;move_repulse_links[self-g_edicts]=&level.repulse_head;
+    move_repulse_link_head=level.repulse_head;
     /* Mechanical Critter's flag60 bit0 producer and counted work suppression
      * remain in SEP-01.2; merely adding Amec must not force category15. */
 }
@@ -1557,7 +1616,11 @@ static void move_repulse_update(edict_t *self) {
     vec2_t point = {next.world[0],next.world[1]}, old = self->s.origin2;
     movePathQuery_t endpoint = {{&point,NULL,self->collision,M_UnitStaticPathingFlags(self)},self,NULL,true};
     float sq = wc3_add(wc3_mul(state->vector[0],state->vector[0]),wc3_mul(state->vector[1],state->vector[1]));
-    if (sq != 0 && G_UnitMovePathFinePointIsPathable(&endpoint,next.grid)) {
+    bool admitted=sq != 0 && G_UnitMovePathFinePointIsPathable(&endpoint,next.grid);
+#ifdef BZ_TESTS
+    if(move_test_repulse_endpoint)move_test_repulse_endpoint(self,next.grid,sq != 0,admitted);
+#endif
+    if (admitted) {
         /* Original05c820 subtracts the predicted position before15f7b0 adds the delta back. */
         for (unsigned i = 0; i < 2; i++) {
             next.grid[i] = wc3_add(pose.grid[i],wc3_sub(next.grid[i],pose.grid[i]));
@@ -4745,6 +4808,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     case A_TIMERS_RESET:
         if(ent)return 0;
+        move_repulse_clear_links();
         move_timer_members=(entitySet_t){0};return true;
     case A_TIMERS_REBUILD:
         if(ent)return 0;

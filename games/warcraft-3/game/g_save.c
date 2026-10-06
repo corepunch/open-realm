@@ -2961,6 +2961,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!S_RestoreMoveRepulsors()) { fprintf(stderr,"WC3 LoadGame: invalid repulsor owner links\n"); fclose(f); return false; }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 LoadGame: invalid Way Gate identities\n"); fclose(f); return false; }
     if (!ReadMoveSpatial(f)) { fprintf(stderr,"WC3 LoadGame: failed at fine spatial history\n"); fclose(f); return false; }
     if (!ReadMoveProximity(f)) { fprintf(stderr,"WC3 LoadGame: failed at proximity spatial history\n"); fclose(f); return false; }
