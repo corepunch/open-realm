@@ -502,7 +502,8 @@ void SCR_LayoutDrawBackdrop2(uiFrame_t const *frame, rect_t const *screen, uiBac
         .insets.bottom = bd->BackgroundInsets[2],
         .insets.left   = bd->BackgroundInsets[3],
         .flags = (bd->TileBackground ? DRAW_TILE     : 0)
-               | (bd->Mirrored       ? DRAW_MIRRORED : 0)));
+               | (bd->Mirrored       ? DRAW_MIRRORED : 0)
+               | (bd->BlendAll       ? DRAW_BLEND_ALL : 0)));
 }
 
 void SCR_LayoutDrawBackdrop(uiFrame_t const *frame, rect_t const *screen) {

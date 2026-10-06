@@ -117,7 +117,9 @@ void R_DrawBackdrop(drawBackdrop_t const *db) {
         R_AddQuad(vertices + num_vertices, &background, &bg_uv, db->bg.color, 0);
         num_vertices += 6;
 
-        R_DrawImageBatch(db->bg.texture, SHADER_UI, BLEND_MODE_BLEND,
+        /* FDF only opts into background texture alpha with BackdropBlendAll. */
+        R_DrawImageBatch(db->bg.texture, SHADER_UI,
+                         (db->flags & DRAW_BLEND_ALL) ? BLEND_MODE_BLEND : BLEND_MODE_NONE,
                          0, 0, false, NULL, vertices, num_vertices,
                          (db->flags & DRAW_TILE) && (fabsf(bg_uv.w) > 1 || bg_uv.h > 1));
     }

@@ -158,9 +158,12 @@ void R_DrawImageBatch(texture_t const *texture,
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * num_vertices, vertices, GL_DYNAMIC_DRAW);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_BLEND);
-    
-    R_SetBlending(alphamode);
+    if (alphamode == BLEND_MODE_NONE) {
+        R_Call(glDisable, GL_BLEND);
+    } else {
+        R_Call(glEnable, GL_BLEND);
+        R_SetBlending(alphamode);
+    }
     R_BindTexture(texture, 0);
     
 //    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -175,7 +178,6 @@ void R_DrawImageBatch(texture_t const *texture,
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
     if (hasClip) {
         R_SetUIClipScissor(clip);
     }
@@ -186,6 +188,9 @@ void R_DrawImageBatch(texture_t const *texture,
         R_ResetUIScissor();
     }
 
+    if (alphamode == BLEND_MODE_NONE) {
+        R_Call(glEnable, GL_BLEND);
+    }
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
