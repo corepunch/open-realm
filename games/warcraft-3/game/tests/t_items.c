@@ -531,6 +531,102 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     T_NOT_NULL(extra->area.prev);
 }
 
+TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIgo\"\nC;Y2;X2;K\"AIgo\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"237\"\nE\n";
+    static ItemData_t gold_data = { .abilList = "AIgo", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit;
+    edict_t *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (!owner) {
+        G_SetSLKRows("AbilityData", old);
+        free_slk_rows(rows);
+        return;
+    }
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('p','g','o','l'), 32, 0);
+    item->data.ItemData = &gold_data;
+
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_STREQ(G_ItemAbilityList(item), "AIgo");
+    T_EQ(FindAbilityForCommand("AIgo")->proc, CAbilityItemGold);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','I','g','o'), 1, 1), 237.0f, 0.01f);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 337);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"targs1\"\n"
+        "C;Y2;X1;K\"AIsp\"\nC;Y2;X2;K\"AIsp\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"4.25\"\nC;Y2;X5;K\"9.5\"\nC;Y2;X6;K\"Bspx\"\nC;Y2;X7;K\"hero,ground\"\n"
+        "E\n";
+    static ItemData_t speed_data = { .abilList = "AIsp", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit;
+    edict_t *item;
+    heroabilitystatus_t *status;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    item = make_item_test_world_item(MAKEFOURCC('p','s','p','d'), 32, 0);
+    item->data.ItemData = &speed_data;
+    game.constants.maxUnitSpeed = 431.0f;
+
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_ASSERT(G_InventoryCanUseItems(unit));
+    T_STREQ(G_ItemAbilityList(item), "AIsp");
+    T_EQ(FindAbilityForCommand("AIsp")->proc, CAbilityItemSpeed);
+    T_ASSERT(G_PickupItem(unit, item));
+    status = unit_findstatus(unit, MAKEFOURCC('B','s','p','x'));
+    T_NOT_NULL(status);
+    if (status) {
+        T_EQ(status->duration_ms, 9500);
+        T_EQ(status->data, MAKEFOURCC('A','I','s','p'));
+        T_ASSERT(S_ItemSpeedActive(unit));
+        T_FEQ(unit_movedistance(unit), 10.0f * 431.0f / (float)FRAMETIME, 0.01f);
+        level.time = status->timestamp;
+        unit_updatestatuses(unit);
+        T_ASSERT(!S_ItemSpeedActive(unit));
+    }
+    T_ASSERT(item->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
     edict_t *player = &g_edicts[0];
     gameClient_t *client = player->client;
