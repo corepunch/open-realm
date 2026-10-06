@@ -71,8 +71,9 @@ event pathways. It must not use a map-specific event or client UI hook.
 JASS native calls, a choice event, correct `GetClickedButton` /
 `GetClickedDialog` / `GetTriggerPlayer` context, registration selection, and
 duplicate click rejection. It also verifies player-number identity when a
-client slot differs from its Warcraft player number, and checks that repeated
-dialog serialization reclaims temporary FDF frames. The disabled-label
+client slot differs from its Warcraft player number, verifies clear hides the
+matching client's window, and checks that repeated serialization reclaims
+temporary FDF frames. The disabled-label
 serialization path and save-version rejection have focused regressions.
-`make test` passed with 46,711 assertions after the audit fixes. Retail visual
+`make test` passed with 46,715 assertions after the audit fixes. Retail visual
 alignment and campaign integration still require user-side game verification.
