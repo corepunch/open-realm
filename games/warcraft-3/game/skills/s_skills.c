@@ -323,7 +323,9 @@ static ability_t abilitylist[] = {
     // TODO: AIfe a_button  /* Item Capture The Flag */
     { "AIha", CAbilityItemHealAoe, AB_ITEM | AB_POWERUP },  /* Item Area Healing / Healing Runes */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
-    // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
+    { "AImr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Item Area Mana Regain */
+    { "APmr", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Mana */
+    { "APmg", CAbilityItemManaAoe, AB_ITEM | AB_POWERUP }, /* Rune of Greater Mana */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */
     // TODO: AIra a_item_restore_aoe  /* Item Area Heal/Mana Regain */
     // TODO: AIta a_item_town_portal  /* Item Area Detection */
