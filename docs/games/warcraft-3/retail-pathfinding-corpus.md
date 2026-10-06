@@ -1941,3 +1941,27 @@ self-rehashed altered captures and verify saved Ghidra readbacks. Inventory:
 446 pinned inputs. The isolated insertion oracle supplies decoded fields; its
 executable scope does not include retail stream decoding or SEP-03 maintenance.
 See [spatial save/load integration](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order).
+
+
+### Map lifetime contract (Payoff129)
+
+`oracle-map-lifetime` executes nine original spatial/owner release cases and
+reconstructs the complete unchanged MAP-06.1 report from10 retained raw capture
+and marker files. Eight completed RestartGame cycles and one ChangeLevel retire
+movers/regions before maps; link backing and maintenance disappear. The changed
+map repeats46 first-movement commits; every completed restart retains at least43
+matching commits before teardown. Final wall-clock teardown differences remain
+in the report. The ninth restart begins without a recorded mover trajectory.
+Observer-free controls match219 markers.
+
+Engine LoadMap now retires old movement owners before replacing terrain or typed
+rows. The corresponding actual-MPQ regression compares exact public movement
+across eight restarts, a changed-size map, unused actor slots and alternating
+worker/inline frontiers. This is lifecycle fidelity evidence, not a performance
+acceptance or a claim of complete pathfinding parity. Five mapper functions are
+saved/read back in Ghidra; the external registry is explicitly excluded from the
+isolated owner's allocation count. See [engine integration](retail-pathfinding-engine.md#map-replacement-retires-movement-owners-before-world-data).
+
+Inventory is361 entries (126 original-oracle contracts,121 archive audits,
+114 live contracts),455 pinned inputs. No new live scene was run; the portable
+bundle preserves the handoff's complete captures and control markers.

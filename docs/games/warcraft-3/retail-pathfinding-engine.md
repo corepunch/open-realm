@@ -7451,7 +7451,7 @@ behavior or a fallback that claims retail parity.
 
 | State/operation | Transition, result and owner | Evidence and remaining limits |
 | --- | --- | --- |
-| Fine-map construction | Setup replaces terrain/storage, initializes all four padded adaptive maps and advances map lifetime. Generated main/bulk objects are followed by a full publication; later edits have no such global refresh. Padding starts zero; full update includes the clipped upper edge | [File-backed construction](#file-backed-maps-retain-native-hierarchy-allocation), MAP-01/02; active unload/reload allocator graph remains MAP-06.1 |
+| Fine-map construction | Setup replaces terrain/storage, initializes all four padded adaptive maps and advances map lifetime. Generated main/bulk objects are followed by a full publication; later edits have no such global refresh. Padding starts zero; full update includes the clipped upper edge | [File-backed construction](#file-backed-maps-retain-native-hierarchy-allocation), MAP-01/02; ordered active unload/reload retires old movement owners before world replacement (Payoff129) |
 | Terrain write | Accepted in-bounds edit changes requested fine flags synchronously; outside is rejected. Fine occupancy history and unrelated flags survive. Legacy fields become stale; retained adaptive publication and routes survive | [Public terrain natives](#terrain-pathing-natives-reach-the-engine), Payoff83 above; complete terrain producer inventory MAP-03.3 |
 | Static footprint change | New fine masks are visible before the next query. Changed old/new footprint rectangles publish base and three parents, preserving other regions; independent overlap/death texture survives | [Widget lifecycle](#blocker-removal-owns-static-route-invalidation), [authored footprints](#authored-widget-creation-preserves-snapped-pose-and-rotation), Payoff83; wider eligibility table remains FOOT-03 |
 | Ordinary moving pose | Commit elapsed old velocity/fine pose and clock, then publish linked occupancy history. Predicted presentation samples do not publish occupancy or alter hierarchy | [Fine insertion history](#overlapping-targets-retain-fine-cell-insertion-history), NUM-02.3/FINE-01.6; allocator/stamp storage remains MAP-05/06 |
@@ -10646,3 +10646,81 @@ LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests \
 /GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_spatial_save.py \
   --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --report /tmp/spatial-save-fresh.json
 ```
+
+## Map replacement retires movement owners before world data
+
+Payoff129 integrates [MAP-06.1](retail-pathfinding-handoffs/MAP-06.1/HANDOFF.md).
+The complete retained read-only captures contain eight finished `RestartGame(false)`
+cycles and one `ChangeLevel`, plus the ninth restart beginning. Every flow retires
+all movers and158 region objects before map/owner destruction. Release compacts
+100 proximity records and7,076 fine records to zero, frees link backing and cancels
+maintenance requests. New loads construct fresh maps, storage, routes and script
+state. Reused heap addresses do not imply retained state.
+
+The first mover repeats at least43 exact position/velocity commits in every
+completed restart. The second ChangeLevel map matches46 first-movement commits
+and continues111 commits to arrival. Five restart cycles have differing final
+teardown commits: partial integration depends on the wall-clock point where the
+restart interrupts the frame. These differences remain in the unchanged frozen
+report; they are excluded from the first-movement equality claim. Observer-free
+controls match219 JASS markers across both ChangeLevel maps and the last restart
+cycle. Menu-driven restart remains outside this evidence; the two JASS natives
+produced these transitions. No new live run is claimed.
+
+The previous engine path replaced map storage and reloaded typed unit rows before
+`G_SpawnEntities` retired old level roots. It then reset `globals.num_edicts`
+without freeing the old actors' dynamically owned movement curves or clearing
+unreused actor slots. Clearing a typed pool does not release Move-owned curves.
+
+`G_LoadMap` now calls game-owned `G_ReleaseLevel` before invoking the world loader.
+It finishes borrowed-geometry jobs, closes script/AI roots, retires registries,
+groups, fine/coarse queues, fine memberships and repulsors, frees every old actor
+route, resets pooled/deferred state, and clears the edict arena while retaining
+client-slot identities. It then drops generic routing frontiers, fields and map
+geometry caches before zeroing level state. `G_SpawnEntities` only initializes the
+new map. The release performs one bulk clear; it does not visit the entire map
+once per retiring actor. No retail allocation sizes, addresses or wall-clock
+teardown timings become gameplay constants.
+
+`wc3_map_lifetime` loads real, source-controlled small MPQs through the production
+`globals.LoadMap` entry. It observes the first loader yield before the old terrain
+or unit rows are freed, requires all old route pointers/actor slots to be retired,
+and compares public Move poses, scalar velocities, route cursors, wait/repulsion
+state, owner clock and shared RNG across eight restarts. A different-sized map
+loads twice against its own control. Twelve additional actors occupy slots absent
+from the next map's script. A queued static frontier remains pending at reload;
+worker and inline execution alternate. These are engine lifecycle regressions;
+the separate retail captures establish the native reload producer contract.
+
+`verify_wc3_pathing_map_lifetime.py` also executes nine original-code spatial-map
+and owner release cases using original constructors, insertion/update, retirement,
+map release and owner destructor. All objects retire first; links/cells reach
+zero, maintenance requests cancel, and owner allocations disappear. The isolated
+harness's external registry vector retains its own allocation; it is explicitly
+accounted separately and does not claim a whole-process teardown. The portable
+capture bundle reconstructs the full unchanged MAP-06.1 report and observer
+controls. Five Ghidra function names/comments have been saved and read back,
+with matching reproducible mapper rows. Native search-system allocation graphs
+and UI menu dispatch are not executed by this isolated release oracle.
+
+```sh
+python3 games/warcraft-3/tests/fixtures/make_pathing_reload_maps.py
+make BUILD=release -j6 test-assets openwarcraft3-tests openwarcraft3
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests \
+  -data build/tests +dedicated 1 +test 'wc3_map_lifetime.*'
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_map_lifetime.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --report /tmp/map-lifetime-fresh.json
+```
+
+
+Focused Classic/TFT each pass213 distinct tests /435,603 assertions, including
+57,847 assertions in the actual reload regression. Spawn stage/versioned-defaults,
+active save/load, script loading, both worker modes, route removal and pending
+fine/coarse queue regressions pass. Thirty Python checks and the fresh strict
+`oracle-map-lifetime` report verify from the isolated staged tree. Full-repository
+validation remains on the authorized batch cadence. The pre-fix real loader
+observed the old VM, active actors, all three route allocations and a queued
+frontier at the first replacement yield; it failed2,900 assertions. Its final
+harness cleanup initially detached terrain before clearing the area tree; that
+separate cleanup crash was corrected before acceptance. No crash is used as the
+reload-fidelity proof. Logs: `/GitHub/wc3-analysis/runtime/payoff129/`.

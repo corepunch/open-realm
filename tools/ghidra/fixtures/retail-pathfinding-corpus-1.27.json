@@ -35750,6 +35750,61 @@
         "Two unrelated loaded movers and failed JASS/-loadfile attempts do not certify resumed movement.",
         "Proximity query/stamp/maintenance contracts remain SEP-02/03."
       ]
+    },
+    {
+      "id": "oracle-map-lifetime",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_map_lifetime.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "map-lifetime-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "original_cases": {
+          "equal": 9
+        },
+        "captured_files": {
+          "equal": 10
+        },
+        "restart_cycles": {
+          "equal": 8
+        },
+        "releases": {
+          "equal": 9
+        },
+        "control_markers": {
+          "equal": 219
+        },
+        "changelevel_equal_prefix": {
+          "equal": 46
+        },
+        "frozen_sha256": {
+          "equal": "974810fd91377a9839bb923e397e0e0255c92d67782cbc971a6bb9c41a2dc98f"
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "L"
+      ],
+      "scope": "Nine original spatial/owner constructor-retire-release-destructor cases; complete unchanged MAP-06.1 report from10 retained raw capture/marker files, eight restarts and one ChangeLevel,219 observer-free control markers. No new live run.",
+      "exclusions": [
+        "Isolated oracle constructs one spatial map; full search-system loading is established by the retained read-only native captures.",
+        "Final wall-clock teardown commits differ and remain in the frozen report.",
+        "UI menu-driven restart and external registry destruction are outside the isolated fixture."
+      ]
     }
   ],
   "fixtures": [
@@ -36648,7 +36703,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "007e83c0dd18fb8d53a85b29d3b87ef89c7ec6f7c5ffe260bdcb8776102bd90f"
+      "sha256": "db8a43daa385ef436c2085df020aa928f0369b494c04c9db6b74f719cdb257f9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37537,6 +37592,42 @@
     {
       "path": "games/warcraft-3/game/tests/t_spatial_load.c",
       "sha256": "eb8ce44194fd826c40c3e6f75a7552627aaa330e9299f800fd2e525a366948a9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/MAP-06.1-expected.json",
+      "sha256": "974810fd91377a9839bb923e397e0e0255c92d67782cbc971a6bb9c41a2dc98f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map-lifetime-inputs-1.27.json.gz",
+      "sha256": "9a93e3fbee64aa2e20eda35eafe526e75226e3203007dfb59f426e28a75b0443"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map-lifetime-release-1.27.json",
+      "sha256": "afa739a93c820d5bc6716a809094ba504b56e2ec90eedaf853fea09b31b02c62"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-map-lifetime-ghidra-1.27.json",
+      "sha256": "ab13793125e2d1c4c753c79b64bd41ed7f155336769d4891f60e5f8e3f7fd70e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_map_lifetime.py",
+      "sha256": "0bd38d4b736680a204586a543afe0d41e95d0e55e9a554d8ecd2f64aae787efa"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_map_lifetime.c",
+      "sha256": "c53b38b6f7181ab1d234235c5d982ac5f08efe6f54cf4bebaa0de01f749b0351"
+    },
+    {
+      "path": "games/warcraft-3/tests/fixtures/make_pathing_reload_maps.py",
+      "sha256": "51eb673a0a486c2afbf312d7adaa0b587f31639640f038a9d50228c43d46ec6f"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Maps/Test/PathingReload.w3m",
+      "sha256": "9a2b5c51b99ef4b3eaf9ba9f9f5a193411093d22007a492c8522793d7084764b"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Maps/Test/PathingChangeLevel.w3m",
+      "sha256": "9d64e2dc1d4436049abbacccc3551f259ecaa1266f80a06bf860ae5ba6a94fed"
     }
   ]
 }

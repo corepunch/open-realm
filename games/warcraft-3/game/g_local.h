@@ -2809,6 +2809,7 @@ void SP_CallSpawn(edict_t *);
 void G_BindEntityData(edict_t *);
 void G_ResetUnitResources(void);
 void G_BindEntityRuntime(edict_t *);
+void G_ReleaseLevel(void);
 void G_SpawnEntities(void);
 void G_InitLockedMapRandom(void);
 #ifdef BZ_TESTS

@@ -255,6 +255,7 @@ void G_UpdateTimeOfDay(void) {
 }
 
 static bool G_LoadMap(cstring_t mapFilename) {
+    G_ReleaseLevel();
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         G_SetMapUnitOverrides(NULL);
         G_SetMapAbilityOverrides(NULL);
@@ -265,11 +266,10 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
-    G_ResetDeferredFrees();
     gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
-    /* Old edicts can retain pointers into typed rows, so clear the world and
-     * HUD before swapping the map-selected object-data overlay. */
+    /* Level release retired old row owners. Reset presentation before
+     * installing the map-selected object-data overlay. */
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
     /* Resolve presentation from the active map data set before publishing the

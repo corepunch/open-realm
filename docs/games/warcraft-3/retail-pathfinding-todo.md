@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**222 done / 336 tasks; 114 remaining.**
+**223 done / 336 tasks; 113 remaining.**
+
+Payoff129 closes MAP-06.1: map replacement retires old routes, queues, spatial
+owners and worker frontiers before freeing world data or unit rows. Actual MPQ
+reloads compare exact public movement across eight restarts and a changed-size
+level; the complete retail restart/ChangeLevel report and observer controls
+reconstruct unchanged. See [ordered map release](retail-pathfinding-engine.md#map-replacement-retires-movement-owners-before-world-data).
 
 Payoff128 closes MAP-06.2: load rebuilds active fine membership in save order,
 with exact retail UI-load suffix evidence and actual engine ordering/active-route
@@ -207,7 +213,7 @@ Individual spikes and mass-movement scaling remain unresolved; see the
 See [random consumers](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement)
 and [scaling priorities](performance.md#october-4-literature-shortlist-exact-retail-simulation-at-scale).
 
-Current priority: close all 132 remaining pathfinding leaves. Complete coherent
+Current priority: close all 113 remaining pathfinding leaves. Complete coherent
 chunks with Ghidra and Frida evidence, integrate each verified behavior into the
 engine, add production-path regressions, update the evidence and counts, and
 commit each completed chunk. Avoid further task splits except when necessary.
@@ -507,7 +513,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 ### MAP-06 — Map lifetime
 
-- [ ] **MAP-06.1** Destroy and reload a map with a live mover; record which routes, grids and handles are cleared or rebuilt and assert first subsequent movement.
+- [x] **MAP-06.1** Destroy and reload a map with a live mover; record which routes, grids and handles are cleared or rebuilt and assert first subsequent movement. Payoff129: complete retail eight-restart/ChangeLevel report,219 observer-free markers and nine original retire/release/destructor cases. Production LoadMap now retires live routes, queues, memberships and borrowed-geometry jobs before replacing world/rows; actual MPQ tests compare public movement across eight restarts and a changed-size level. [Evidence](retail-pathfinding-engine.md#map-replacement-retires-movement-owners-before-world-data). Research handoff: [MAP-06.1](retail-pathfinding-handoffs/MAP-06.1/HANDOFF.md).
 - [x] **MAP-06.2** Save/load during an active route; determine retained versus rebuilt path state and compare resumed movement with the uninterrupted control. Payoff128: complete retail UI-load four-mover suffixes (308 exact commits), rebuilt chains in save order, 24 original insertion cases, Save118 logical rectangles and actual engine target/blocker order, clipped geometry and four-route saved continuations. [Evidence](retail-pathfinding-engine.md#spatial-load-rebuilds-membership-in-save-order). Proximity query/stamp/maintenance contracts remain SEP-02/03.
 
 ## FOOT — Footprints and query policy

@@ -854,14 +854,10 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->name = clent->client->jass.name;
 }
 
-void G_SpawnEntities(void) {
-    mapInfo_t const *mapinfo = CM_GetMapInfo();
-    doodad_t const *entities = CM_GetDoodads();
-    uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
-    int32_t difficulty = 1;
-    cstring_t map_path = gi.CvarString("map", "");
-
-    /* Map replacement must release script roots before level pointers are cleared. */
+/* Release level owners while their map, metadata and actor addresses are
+ * still valid. G_LoadMap calls this before replacing either world or rows. */
+void G_ReleaseLevel(void) {
+    CM_FinishPathJobs();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearSaveRegistries();
@@ -878,12 +874,34 @@ void G_SpawnEntities(void) {
     G_ResetSelectionIndex();
     G_ResetSpawnCache();
     S_ResetWaygateCache();
-    memset(&level, 0, sizeof(level));
     G_ResetWaypointCache();
     G_ResetMoveRegionEvents();
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     G_ResetHeroPassiveCaches();
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
+    G_ResetDeferredFrees();
+    G_PoolsReset();
+    if(world.map)gi.ClearWorld();
+    G_ClearEdictStorage(globals.max_edicts);
+    globals.num_edicts=game.max_clients;
+    FOR_LOOP(i,game.max_clients) {
+        g_edicts[i].s.number=i;
+        g_edicts[i].client=game.clients+i;
+    }
+    /* Generic fields/frontiers borrow this level too. Drop them before the
+     * world loader can replace dimensions, terrain or object-data storage. */
+    CM_SetupPathMap(0,0,NULL);
+    memset(&level,0,sizeof(level));
+}
+
+void G_SpawnEntities(void) {
+    mapInfo_t const *mapinfo = CM_GetMapInfo();
+    doodad_t const *entities = CM_GetDoodads();
+    uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
+    int32_t difficulty = 1;
+    cstring_t map_path = gi.CvarString("map", "");
+
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
@@ -929,7 +947,6 @@ void G_SpawnEntities(void) {
         G_SetCameraBounds(mapinfo->cameraBounds.bounds);
     G_WeatherInitMap();
 
-    G_PoolsReset();
     globals.num_edicts = game.max_clients;
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
