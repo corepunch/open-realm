@@ -130,22 +130,36 @@ Tests cover sub-cell rectangles, blocked intersecting cells, and live occupancy 
 
 ### Movement-class static pathing
 
-WC3 derives static routing policy from authored `movetp` rather than reducing every non-flyer to ground movement:
+WC3 compiles authored `movetp` into its shared immutable runtime definition.
+`M_UnitStaticPathingFlags()` reads the selected independent pathing lane:
 
-| WC3 movement | Shared routing policy | Static cell is blocked when |
+| WC3 movement | Static mask | Static cell is blocked when |
 |---|---|---|
-| `foot`, `horse`, `hover` | `CM_PATHING_UNWALKABLE` | `nowalk` |
-| `fly` | `CM_PATHING_UNFLYABLE` | `nofly` |
-| `float` | `CM_PATHING_UNSWIMMABLE` | `nowater` |
-| `amph` | `CM_PATHING_REQUIRE_ALL \| CM_PATHING_UNWALKABLE \| CM_PATHING_UNSWIMMABLE` | both `nowalk` and `nowater` |
+| `foot`, `horse`, `hover` | `CM_PATHING_UNWALKABLE` (`0x02`) | `nowalk` |
+| `fly` | `CM_PATHING_UNFLYABLE` (`0x04`) | `nofly` |
+| `float` | `CM_PATHING_UNFLOATABLE` (`0x40`) | `nowater` |
+| `amph` | `CM_PATHING_UNAMPHIBIOUS` (`0x80`) | `noamph` |
 
-`M_UnitStaticPathingFlags()` owns that WC3 mapping. The resulting policy is carried through destination correction, direct/swept line tests, bounded A*, closest-reachable fallback, resumable flow fields, trained-unit exit placement, formation slots, Way Gate/ability movement helpers, and pathing-aware scripted repositioning. The generic `CM_*Walkable*` entry points intentionally remain UNWALKABLE wrappers so SC2 and existing ground callers do not change semantics; games that need another movement class use the mask-aware `CM_*Pathable*Flags` forms. Flow-cache identity includes the full pathing policy as well as adjusted target cell and collision radius, so fields for ground, air, sea, and amphibious movers cannot be reused across incompatible policies.
+The router applies raw byte/mask intersection. During initial WPM loading it
+derives the amphibious bit from combined walking/floating blockage; subsequent
+terrain edits retain all four lanes independently. Bit80 is a cell lane, not an
+all-bits query modifier. Destination correction, sampled segments, fine and
+adaptive searches, formation slots and pathing-aware scripted repositioning
+consume the selected mask. Shared field/cache identity includes that mask and
+the collision footprint. Generic walkability entry points retain their ground
+mask for SC2 and other callers.
 
-The shared router exposes generic pathing channels and a generic `CM_PATHING_REQUIRE_ALL` query modifier; it does not define a Warcraft amphibious unit type. WC3 uses the modifier to express the Warsmash rule that an amphibious unit may traverse a cell when either walking or swimming is legal.
+Baked widget footprints use category `0xc2`; dynamic unit occupancy uses `0xca`.
+These object categories are separate from each mover's query mask. Authored
+flight blockers remain distinct from ground footprints. Precise unit collision
+and unstuck placement retain air versus non-air layers: a floating unit does
+not ignore a ground unit. The approximate upstream ground/sea collision split
+and require-all interpretation were rejected during integration because they
+contradict the recorded native contracts.
 
-Static entity footprints preserve the relevant Warcraft pathing channels when they are baked. A blocked/red pathing-texture pixel contributes both UNWALKABLE and UNSWIMMABLE, while the green channel contributes UNFLYABLE. `LoadTGA` stores source BGRA bytes in `COLOR32`, so the authored red/green channels are read through the loader's existing component layout. A walkable bridge deck clears the land-pathing block over its crossing lane without clearing the underlying water-pathing channel, so ground/amphibious movers can use the deck without turning it into a naval surface. A tall model does not automatically block flight; only authored UNFLYABLE pathing does.
-
-Dynamic command-time obstacles use requester-aware WC3 collision domains rather than the static amph predicate directly. Ground movers overlap ground blockers, `float` overlaps sea blockers, `fly` overlaps air blockers, and `amph` overlaps both ground and sea blockers. For an amphibious request, a blocker in either overlapping domain stamps both selected static channels into the temporary query map, so `CM_PATHING_REQUIRE_ALL` rejects that occupied space. Precise move-time validation uses the same ground/sea/air domain contract. See [Naval Movement And Water Pathing](naval-movement.md) for the naval-specific contract.
+See [authored masks and occupancy evidence](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries)
+and [naval movement](naval-movement.md) for support-height policy, water-query
+summed-area acceleration and remaining retail producer gaps.
 
 ### Harvest Worker Routing
 
@@ -355,12 +369,12 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 
 - cache separation by collision radius;
 - cache separation between incompatible movement policies, including ground/UNWALKABLE and flying/UNFLYABLE fields;
-- WPM UNWALKABLE, UNFLYABLE, and UNSWIMMABLE point/line queries;
-- blocked/red static path-texture pixels rejecting both ground and `float` movement while green-channel pixels contribute UNFLYABLE;
-- `float` static routing through swimmable cells and around unswimmable land;
-- `amph` static routing accepting cells that are walkable or swimmable and rejecting cells that are neither;
-- requester-aware dynamic blockers for ground, sea, air, and amphibious movers;
-- `SetUnitPosition`/unstuck collision uses the same domains, so `float` ignores ground units and avoids sea units;
+- independent WPM ground, flight, floating and amphibious point/line queries;
+- category `0xc2` widget footprints rejecting ground, floating and amphibious queries while authored flight blockers remain separate;
+- `float` static routing through water and around connected land blockers;
+- initial amphibious WPM derivation and independent subsequent lane edits;
+- category `0xca` dynamic occupancy across the four query lanes;
+- `SetUnitPosition`/unstuck retaining shared non-air collision between floating and ground units, with a separate flying control;
 - flyer move validation accepting UNWALKABLE-only cells and rejecting UNFLYABLE cells;
 - resumable cache misses serialize without losing a later destination;
 - collision-radius-aware line walkability;
