@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **213 done / 336 tasks; 123 remaining.**
 
+Payoff121 implements the verified siege-roster and disabled-weapon approach
+range producers within GROUP-03.4.6.2.1.2, including retained physical ranges
+and Save115. Two retail repeats agree on seven admissions and twenty roster
+queries. The parent stays open for its remaining public producers. See
+[siege captain ranges](retail-pathfinding-engine.md#captain-approach-ranges-retain-the-siege-roster-snapshot).
+
 Payoff120 closes GROUP-03.4.6.2.2.2.2.2: deferred RemoveUnit withdraws the
 logical roster, Stop/retarget retain it, and fresh refill uses new shared owners.
 Three complete repeated scenes match14,981 engine commits and615 shared
@@ -893,7 +899,7 @@ Private captain range (GROUP-03.4.6.2.1) is split into a verified ground recruit
 increment and the remaining broader producer policies:
 
 - [x] **GROUP-03.4.6.2.1.1** Recover and port ordinary ground recruits' authored private captain approach range independently of collision radius. [Payoff62](retail-pathfinding-engine.md#private-captain-approach-range-is-independent-of-collision) observes original9d86f0/4985c0 and70/600/300 runtime constants in two full mixed13 repeats. Footman maximum90 yields124 authored world units, then physical31/63 gives4.84375/5.84375 fine cells. Engine3471 exact pre-batch/activation commits and17368 saved suffix commits replace the incorrect five-radius shortcut; map-local weapon overrides preserve the actual input. Full mixed engine parity remains open at9.03s.
-- [ ] **GROUP-03.4.6.2.1.2** Verify the private captain range's wider public producers: no attack class versus disabled weapons, Hero minimum, BTLF and native unit5c.40000000, ranged-roster6c.20 bonus, attack-slot suppression and target-adjusted range. Assert creation/replacement and retained physical range across weapon changes and saves. Static body and constants alone do not certify these game lifecycles.
+- [ ] **GROUP-03.4.6.2.1.2** Verify the private captain range's wider public producers: no attack class versus disabled weapons, Hero minimum, BTLF and native unit5c.40000000, siege-roster6c.20 bonus, attack-slot suppression and target-adjusted range. Assert creation/replacement and retained physical range across weapon changes and saves. Static body and constants alone do not certify these game lifecycles. [Payoff121](retail-pathfinding-engine.md#captain-approach-ranges-retain-the-siege-roster-snapshot) verifies strict siege599/600/601, normal/instant delivery controls, disabled siege contribution, seven physical admission ranges, last-siege withdrawal and fresh admission without bonus; engine saves retain the flag and physical ranges across weapon writes. Hero/BTLF/native5c, suppression-counter and retained-target adjustment producers remain open.
 
 Shared owner publication (GROUP-03.4.6.2.2) is split into the first engine phase
 and the wider mixed cancellation/reclamation control:

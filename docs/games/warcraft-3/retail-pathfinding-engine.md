@@ -5996,7 +5996,7 @@ Ghidra retains named range/attack/eligibility functions, two explicit ABIs
 roles,50 layouts/311 fields,265 ABIs and53 globals with `unsaved=false`.
 `--captain-approach-events` exposes the reusable readonly Frida hooks.
 No-attack/disabled attack, Hero/summoned producers, native40000000 policy,
-ranged-roster bonus and target-adjusted eligibility remain03.4.6.2.1.2.
+Siege-roster bonus is verified by Payoff121 below; target-adjusted eligibility remains03.4.6.2.1.2.
 Shared publication/cached footprint and full mixed recovery/cancellation remain
 03.4.6.2.2/3.
 
@@ -10020,3 +10020,50 @@ MapPathfinding.java records the threshold, separate prepared/private ranges and
 fresh admission clocks. The fixture retains the explicit exclusions: captain
 recreation/default-town relocation, rosters above thirteen, AI VM restoration,
 and whole-pathfinder fidelity. See [strict corpus](retail-pathfinding-corpus.md).
+
+## Captain approach ranges retain the siege roster snapshot
+
+Payoff121 corrects a stale Ghidra interpretation of9d72f0: Attack f4/f8 are
+**damage types**, with3 meaning siege. Delivery types are dc/e0; missile2,
+normal1 and instant4 are observed separately. The strict threshold is600.
+Authored siege599/600/601 with acquisition1000 yields0/0/1. The original
+Footman acquisition500 limits the effective range, so it cannot witness the
+upper boundary without that authored acquisition change.
+The older public captain journey fixtures inherit `hRTE`, whose minimal archive
+has no weapon row and yields acquisition0. They now author Footman's acquisition500
+explicitly; keeping that missing input would incorrectly clamp their range90 to0.
+
+Two complete read-only public producer captures agree on seven range creations
+and twenty roster predicate calls. Initial world ranges are429.3999938964844,
+430,630.5999755859375,690,270 and690. The disabled siege700 member still sets
+the captain6c.20 flag, but its enabled attack maximum iszero:70 plus the retained
+200 bonus yields270. It has an Attack object; the unarmed300 fallback does not
+apply. Removing both qualifying siege recruits clears the roster flag; a fresh
+normal/instant700 recruit receives490. Its physical arrival range is521/32.
+Address reuse in the seventh birth is tracked by canonical identity, not by
+assuming a mover pointer names one lifetime.
+
+Attack owns the effective-range and siege predicates. Move snapshots the roster
+flag on attach/detach and consults it when creating a private approach. Existing
+physical ranges retain their values after weapon writes or roster changes.
+The new flag is persisted inSave115, independently of the current weapon
+profiles. Focused engine checks cover all seven physical ranges, weapon edits,
+three round trips, last-siege removal and malformed saved flag rejection.
+AI VM restoration is excluded; post-load fresh admission exercises the existing
+Move-owned prepared producer with the retained logical actor.
+
+The literal fixture is`retail-captain-ranges-1.27.json`; both original streams
+are compressed content-addressed repository inputs. Five saved Ghidra function
+readbacks include the two new explicit ABIs, field layout and caller references.
+`MapPathfinding.java` corrects the former missile label and records the narrower
+verified scope. The strict live corpus contract compares complete range producer
+records, not the full movement journeys. GROUP-03.4.6.2.1.2 remains open for
+Hero/BTLF/native unit5c.40000000, suppression counters and target-adjusted ranges.
+
+Focused validation: both Classic and TFT pass `wc3_movement.public_captain_*`
+(22 tests,2,606,482 assertions each), `wc3_movement.public_ai_*` (five tests)
+and `wc3_save.rejects_prior_save_versions` (including114). All182 captain Python
+checks,19 corpus checks, eight metadata checks and16 timer checks pass. The
+strict fresh corpus entry`live-captain-ranges-261006` verifies both original
+captures; Ghidra readback matches the saved program with no unsaved changes.
+The full repository suite follows the authorized batch cadence.

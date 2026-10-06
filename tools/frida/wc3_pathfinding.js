@@ -319,6 +319,15 @@ function install(module) {
         });
     }
     if (config.captainApproachEvents) {
+        hook(0x9d72f0, {
+            onEnter() {
+                this.attack=this.context.ecx;
+                this.row={attack:this.attack.toString(),attackTypes:ints(this.attack.add(0xf4),2),weaponTypes:ints(this.attack.add(0xdc),2),
+                    ranges:[this.attack.add(0x258).readU32(),this.attack.add(0x260).readU32()],
+                    threshold:base.add(0xd3c7e8).readU32(),flags:this.attack.add(0x20).readU32()};
+            },
+            onLeave(result) { emit('captain-long-range-slot',{...this.row,result:result.toUInt32()}); }
+        });
         hook(0x9d86f0, {
             onEnter(args) {
                 this.unit=args[1]; this.output=args[0];

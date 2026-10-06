@@ -1979,6 +1979,7 @@ struct edict_s {
         uint32_t captain_actor_members; /* Actual logical roster count controls range and all-entered admission. */
         uint32_t captain_actor_type; /* Move-owned virtual category2 actor: captain selector1/2, otherwise0. */
         bool captain_actor_owned; /* Logical captain ownership persists independently of its process-owned AI VM. */
+        bool captain_actor_siege; /* Native captain6c.20, refreshed only by logical roster mutations. */
         bool type_rebind_pending; /* Retained point head waits for the next type-rebind task pass. */
         wc3Clock_t type_rebind_deadline;
         uint32_t pause_order_id; /* Point head beneath the scripted pause order. */
@@ -3792,6 +3793,8 @@ void order_attack(edict_t *, edict_t *);
 bool S_OrderAttack(edict_t *self, edict_t *target);
 bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target);
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
+bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker);
+bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);

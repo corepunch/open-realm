@@ -1067,8 +1067,11 @@ static void move_remove_captain_roster_member(edict_t *self) {
     self->movement.captain_home.entered=false;
     S_TrackMoveTimers(self);
     if (actor->movement.captain_actor_members) actor->movement.captain_actor_members--;
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor &&
-        ent->movement.captain_home.member_index>index) ent->movement.captain_home.member_index--;
+    actor->movement.captain_actor_siege=false;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+        if (ent->movement.captain_home.member_index>index) ent->movement.captain_home.member_index--;
+        if (S_UnitHasLongRangeSiegeAttack(ent)) actor->movement.captain_actor_siege=true;
+    }
 }
 
 void S_ReleaseCaptainHomeActor(edict_t *actor) {
@@ -1126,6 +1129,8 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
     }
     FILTER_EDICTS(ent,ent->inuse) {
         if (ent->movement.captain_actor_owned && !ent->movement.captain_actor_type) return false;
+        if (*(uint8_t *)&ent->movement.captain_actor_siege>1 ||
+            (ent->movement.captain_actor_siege && !ent->movement.captain_actor_type)) return false;
         edict_t *actor=ent->movement.captain_home.actor;
         edict_t *roster=ent->movement.captain_home.roster_actor;
         if (*(uint8_t *)&ent->movement.captain_home.active>1 ||
@@ -3790,6 +3795,9 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
     if (!G_IssueUnitPointOrder(self,"move",&captain->home,false,self->s.player,0)) return false;
     uint32_t members=ARRAY_COUNT(captain->units);
     captain->home_actor->movement.captain_actor_members=members;
+    captain->home_actor->movement.captain_actor_siege=false;
+    FOR_EACH_ARRAY(edict_t *, member,captain->units)
+        if (S_UnitHasLongRangeSiegeAttack(*member)) captain->home_actor->movement.captain_actor_siege=true;
     if (members>13) {
         /* TODO GROUP-03.4: rosters beyond the verified13-member boundary
          * require complete original captures before extending admission. */
@@ -3900,17 +3908,15 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
          * wrapper05a5c0 subsequently adds both physical radii and divides32.
          * A virtual captain has zero radius. The physical member stores this
          * result, including across save/load and later weapon changes.
-         * TODO GROUP-03.4.6.2.1: ranged-roster flag20 and target-adjusted attack
+         * TODO GROUP-03.4.6.2.1: target-adjusted attack
          * range eligibility and native unit5c.40000000 need their own original
          * public producer captures. */
         float attack_range=0;
-        if (S_UnitAttackSlotEnabled(unit,0)) attack_range=MAX(attack_range,S_AttackProfileRead(unit, 0)->range);
-        if (S_UnitAttackSlotEnabled(unit,1)) attack_range=MAX(attack_range,S_AttackProfileRead(unit, 1)->range);
-        if (attack_range>200)
-            fprintf(stderr,"WC3 Move: ranged captain approach policy unresolved unit=%.4s range=%.9g\n",GetClassName(unit->class_id),attack_range);
-        float world=unit->data.UnitWeapons && unit->data.UnitWeapons->attacksEnabled ?
+        bool armed=S_UnitAttackApproachRange(unit,&attack_range);
+        float world=armed ?
             wc3_add(wc3_mul(attack_range,wc3_float(0x3f19999a)),70) : 300;
         if (G_UnitIsHero(unit)) world=MAX(world,600);
+        if (target->movement.captain_actor_siege) world=wc3_add(world,200);
         if (unit_findstatus(unit,MAKEFOURCC('B','T','L','F'))) world=0;
         return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,unit->collision)),32));
     }

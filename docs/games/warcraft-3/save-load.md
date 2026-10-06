@@ -1264,3 +1264,13 @@ a direct test harness must do the same. Five public callback-mutation Move
 continuations and the independent condition-pause/pending-retirement test cover
 these observation boundaries. See
 [callback mutation evidence](retail-pathfinding-engine.md#timer-callback-mutations-preserve-heap-order-and-deferred-release).
+
+### Captain siege roster range snapshot (Save115)
+
+Save115 adds`movement.captain_actor_siege`, the roster-derived retail captain6c.20
+flag. It is refreshed at logical attach/detach, rather than reconstructed from
+current weapons after loading. Physical approach ranges remain separately saved
+in their Move member records. A malformed Boolean or a siege flag on a noncaptain
+actor is rejected. Focused creation/weapon-edit/withdrawal round trips and the
+prior114 format rejection test cover this change. See
+[captain range evidence](retail-pathfinding-engine.md#captain-approach-ranges-retain-the-siege-roster-snapshot).

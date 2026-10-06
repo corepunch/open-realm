@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **345 entries**: **53** distinct original-code oracle
-scripts plus **67** declared variants, **121** archived JSONL audits and **104**
+The inventory now has **353 entries**: **54** distinct original-code oracle
+scripts plus **67** declared variants, **121** archived JSONL audits and **111**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1890,3 +1890,12 @@ scalar C and exact primary-clock sequencing. Captain recreation, default-town
 relocation, rosters above thirteen and AI VM restoration remain outside this
 contract; earlier Stop-only certificates retain their historical narrower scope.
 See [withdrawal and refill](retail-pathfinding-engine.md#final-captain-binding-cancellation-withdrawal-and-refill).
+
+Payoff121 adds`live-captain-ranges-261006`: two complete public range producer
+streams, seven approach admissions and twenty roster predicates. It verifies
+strict siege thresholds, disabled weapons and fresh admission after removal;
+full movement, Hero/BTLF/suppression/target adjustments remain excluded. The
+inventory has353 entries(121 oracle contracts,121 archive audits,111 live
+contracts), with316 pinned files. The verifier audits canonical identities across
+mover address reuse. Both raw streams and producer source generations are
+preserved as compressed content-addressed inputs.

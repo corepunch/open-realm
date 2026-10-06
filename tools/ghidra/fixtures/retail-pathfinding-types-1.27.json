@@ -797,6 +797,12 @@
           "evidence": "48eb10/48e8a0 identity traversal and restart after removal"
         },
         {
+          "offset": 488,
+          "name": "attack_ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
           "offset": 492,
           "name": "move_ability",
           "type": "ptr:WC3MoveSpeedPrefix",
@@ -3693,6 +3699,78 @@
           "name": "id",
           "type": "u32",
           "evidence": "Complete423d20/5ef450/424e80 event selector; native119 event snapshots."
+        }
+      ]
+    },
+    {
+      "name": "WC3AttackRangePrefix",
+      "length": 720,
+      "fields": [
+        {
+          "offset": 32,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 220,
+          "name": "weapon0",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 224,
+          "name": "weapon1",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 244,
+          "name": "damage0",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 248,
+          "name": "damage1",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 536,
+          "name": "target_mask0",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 540,
+          "name": "target_mask1",
+          "type": "u32",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 600,
+          "name": "range0",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 608,
+          "name": "range1",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 700,
+          "name": "target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 716,
+          "name": "adjusted_range",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
         }
       ]
     }
@@ -8617,7 +8695,7 @@
       "parameters": [
         {
           "name": "attack",
-          "type": "ptr:void",
+          "type": "ptr:WC3AttackRangePrefix",
           "storage": "ECX"
         },
         {
@@ -11470,6 +11548,44 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f9d72f0",
+      "name": "Attack_HasLongRangeSiegeSlot",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+    },
+    {
+      "address": "6f4984a0",
+      "name": "Attack_GetEffectiveSlotRange",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "slot",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
     }
   ],
   "globals": [
@@ -11844,6 +11960,12 @@
       "name": "Timer_SegmentQuantum",
       "type": "WC3PathScalar",
       "evidence": "Original registered002170 tail Math_FromInteger120 produces42f00000;0602a0 partitions timeout by this quantum, not clock span300."
+    },
+    {
+      "address": "6fd3c7e8",
+      "name": "CaptainAI_SiegeRangeThreshold600",
+      "type": "WC3PathScalar",
+      "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
     }
   ]
 }

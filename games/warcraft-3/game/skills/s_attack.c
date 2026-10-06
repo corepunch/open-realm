@@ -65,6 +65,33 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     return (enabled & (1u << slot)) != 0;
 }
 
+/* Original9d72f0 tests attack damage type, not delivery style or slot admission.
+ * Disabled siege weapons still contribute to the captain's retained flag.
+ * The authored acquisition radius bounds the effective weapon range. */
+bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker) {
+    if (!attacker) return false;
+    FOR_LOOP(slot,2) {
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        if (profile->type==ATK_SIEGE && MIN(profile->range,attacker->runtime.acquisition_range)>600) return true;
+    }
+    return false;
+}
+
+/* An existing profile with no enabled slots yields zero, not an absent Attack
+ * object. Move uses that distinction for the private captain approach. */
+bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum) {
+    bool present=attacker && attacker->data.UnitWeapons && attacker->data.UnitWeapons->attacksEnabled;
+    *maximum=0;
+    if (!attacker) return false;
+    FOR_LOOP(slot,2) {
+        unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
+        present|=profile->type!=ATK_NONE;
+        if (S_UnitAttackSlotEnabled(attacker,slot))
+            *maximum=MAX(*maximum,MIN(profile->range,attacker->runtime.acquisition_range));
+    }
+    return present;
+}
+
 /* Attack slots expose immutable defaults or the unit's owned override. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {

@@ -13078,22 +13078,25 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     reset_entities();setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
-    float weapon_range=90; uint32_t weapons=1;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
-    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods};
     float peer_radius=32,peer_turn=.5f,peer_weapon_range=100;
     unitModification_t peer_mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&peer_radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&peer_turn},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&peer_weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
     unitData_t types[2]={custom,{.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','P'),
-        .numbeOfModifications=5,.modifications=peer_mods}};
+        .numbeOfModifications=6,.modifications=peer_mods}};
     mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
@@ -14561,13 +14564,15 @@ static void public_captain_pool_journey(unsigned mode) {
     G_BotStop(0); reset_entities(); setup_test_world();
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
-    float weapon_range=90; uint32_t weapons=1;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
-    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods};
     mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
     mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
@@ -14673,21 +14678,24 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
-    float weapon_range=90; uint32_t weapons=1;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
     float large_radius=63;
     unitModification_t large_mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
     unitData_t types[]={
-        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods},
-        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=4,.modifications=large_mods}};
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=5,.modifications=large_mods}};
     mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
@@ -14986,6 +14994,93 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
 }
 
+/* Public AddAssault snapshots the roster property at each attach. */
+TEST(wc3_movement, public_captain_siege_roster_ranges) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    float radius=31,speed=270,acquire=1000,ranges[]={599,600,601,700,700,700};
+    uint32_t masks[]={1,1,1,1,0,1};
+    char *weapons[]={"missile","missile","missile","normal","missile","instant"};
+    unitModification_t mods[6][7]; unitData_t types[6];
+    FOR_LOOP(i,6) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data=weapons[i]};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=masks+i};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data=i==3 || i==5 ? "normal" : "siege"};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','C','R','0'+i),.numbeOfModifications=7,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=6,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300}; level.time=level.pathing_msec=0;
+    level.pathing_phase=0; level.pathing_due=false;
+    char script[3000]; int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\nendglobals\nfunction main takes nothing returns nothing\n");
+    FOR_LOOP(i,6)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'hCR%u',%d,%d,90)\n",i,i,-1936+(i%3)*96,-976-(i/3)*96);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call StartCampaignAI(Player(0),\"test_captain_ranges.ai\")\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    G_BotRunFrame();
+    edict_t *units[6]={0};
+    FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,6)if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    /* Original captures pin both sides of the threshold and disabled siege contribution. */
+    float expected[]={460.4f/32.f,461.f/32.f,661.6f/32.f,721.f/32.f,301.f/32.f,721.f/32.f};
+    FOR_LOOP(i,6) {
+        T_NOT_NULL(units[i]);moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
+    }
+    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));
+    G_BotStop(0);T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    FOR_LOOP(i,6) {
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
+    }
+    edict_t *actor=units[0]->movement.captain_home.roster_actor;
+    T_NOT_NULL(actor);T_ASSERT(actor->movement.captain_actor_siege);
+    /* Existing physical ranges and the roster snapshot do not follow weapon writes. */
+    S_AttackProfileWrite(units[2],0)->range=90;
+    T_ASSERT(actor->movement.captain_actor_siege);
+    T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
+    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));
+    G_BotStop(0);T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    T_ASSERT(actor->movement.captain_actor_siege);
+    T_EQ(S_AttackProfileRead(units[2],0)->range,90);
+    T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
+    G_FreeEdict(units[2]);T_ASSERT(actor->movement.captain_actor_siege); /* Disabled siege still counts. */
+    G_FreeEdict(units[4]);T_ASSERT(!actor->movement.captain_actor_siege);
+    edict_t *fresh=unit_create(0,types[5].newUnitID,&(vec2_t){-1744,-1168},90);
+    T_NOT_NULL(fresh);
+    /* The AI VM is intentionally not restored. Reuse the verified Move-owned
+     * prepared admission with the retained logical owner and encounter order. */
+    edict_t *roster[]={fresh,units[5],units[3],units[1],units[0]};
+    botCaptain_t captain={.home={-1936,-144},.home_set=true,.home_actor=actor,
+        .units=roster,.units_count=5,.created={0,0,300}};
+    T_ASSERT(S_IssueCaptainHomeMove(fresh,&captain));
+    moveGroup_t const *fresh_group=move_find_group(fresh->movement.group_id);
+    T_NOT_NULL(fresh_group);
+    if(fresh_group)T_EQ(wc3_float_bits(fresh_group->members[0].arrival_range),0x41824000u);
+    T_ASSERT(!actor->movement.captain_actor_siege);
+    T_ASSERT(WriteGame("/tmp/wc3-captain-ranges.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-ranges.bin"));
+    T_ASSERT(!actor->movement.captain_actor_siege);
+    *(uint8_t *)&actor->movement.captain_actor_siege=2;
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame("/tmp/wc3-captain-ranges-invalid.bin"));
+    actor->movement.captain_actor_siege=false;
+    remove("/tmp/wc3-captain-ranges-invalid.bin");
+    remove("/tmp/wc3-captain-ranges.bin");
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+}
+
 /* Retail120: deferred RemoveUnit withdraws the logical roster before slot reuse. */
 static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*motion)[7],unsigned motion_count,
     uint32_t const (*footprints)[4],unsigned footprint_count) {
@@ -14995,21 +15090,24 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
-    float weapon_range=90; uint32_t weapons=1;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
     unitModification_t mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
     float large_radius=63;
     unitModification_t large_mods[]={
         {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
         {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
-        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
     unitData_t types[]={
-        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods},
-        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=4,.modifications=large_mods}};
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=5,.modifications=large_mods}};
     mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=types};
     mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
     static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
