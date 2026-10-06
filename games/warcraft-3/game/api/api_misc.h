@@ -1070,14 +1070,16 @@ uint32_t DialogAddButton(jass_t *j) {
     jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
     cstring_t text = jass_checkstring(j, 2);
     int32_t hotkey = jass_checkinteger(j, 3);
-    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, hotkey, false, false), "button");
+    jassDialogButtonOptions_t options = { .hotkey = hotkey };
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, &options), "button");
 }
 uint32_t DialogAddQuitButton(jass_t *j) {
     jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
     bool score = jass_checkboolean(j, 2);
     cstring_t text = jass_checkstring(j, 3);
     int32_t hotkey = jass_checkinteger(j, 4);
-    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, hotkey, true, score), "button");
+    jassDialogButtonOptions_t options = { .hotkey = hotkey, .quit = true, .score_screen = score };
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, &options), "button");
 }
 uint32_t DialogDisplay(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");

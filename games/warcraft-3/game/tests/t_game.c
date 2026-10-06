@@ -2200,6 +2200,22 @@ TEST(wc3_game, hud_simple_button_serializes_button_state) {
     UI_ClearTemplates();
 }
 
+TEST(wc3_game, hud_disabled_button_label_uses_authored_disabled_color) {
+    uint8_t typedata[128];
+    char textbuf[128];
+    uiFrame_t out;
+    frameDef_t button = { .Type = FT_GLUETEXTBUTTON, .disabled = true };
+    frameDef_t label = { .Type = FT_TEXT, .Parent = &button, .Text = "Disabled choice" };
+
+    label.Font.Color = COLOR32_WHITE;
+    label.Font.DisabledColor = (color32_t){ .r = 170, .g = 170, .b = 170, .a = 255 };
+    T_ASSERT(UI_BuildFrameForWrite(&label, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+    T_EQ(out.color.r, label.Font.DisabledColor.r);
+    T_EQ(out.color.g, label.Font.DisabledColor.g);
+    T_EQ(out.color.b, label.Font.DisabledColor.b);
+    T_EQ(out.color.a, label.Font.DisabledColor.a);
+}
+
 static PATHSTR hud_test_images[MAX_IMAGES];
 static cstring_t hud_test_get_configstring(uint32_t index) {
     if (index >= CS_IMAGES && index < CS_IMAGES + MAX_IMAGES)

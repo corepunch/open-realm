@@ -2402,8 +2402,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-62.bin",
         "/tmp/openwarcraft3-wc3-save-version-63.bin",
         "/tmp/openwarcraft3-wc3-save-version-64.bin",
+        "/tmp/openwarcraft3-wc3-save-version-65.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65 };
 
     reset_entities();
     setup_test_world();
