@@ -1343,7 +1343,7 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
  * after the placement-time exit walk.  Once the footprint becomes solid,
  * move any remaining occupants directly to a legal exit while retaining
  * their current orders. */
-static void G_TeleportCompletedBuildingOccupants(edict_t *building, edict_t *hidden_construction_worker) {
+static void G_TeleportBuildingOccupants(edict_t *building, edict_t *excluded_unit) {
     edict_t * *units;
     vec2_t *positions;
     uint32_t count = 0;
@@ -1357,7 +1357,7 @@ static void G_TeleportCompletedBuildingOccupants(edict_t *building, edict_t *hid
         if (units) gi.MemFree(units);
         return;
     }
-    FILTER_EDICTS(ent, ent != building && ent != hidden_construction_worker && ent->inuse &&
+    FILTER_EDICTS(ent, ent != building && ent != excluded_unit && ent->inuse &&
                   (ent->svflags & SVF_MONSTER) &&
                   !(ent->svflags & SVF_DEADMONSTER) && !M_IsDead(ent) &&
                   ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f &&
@@ -1573,7 +1573,8 @@ static bool G_ConstructionHasClassification(edict_t const *unit, cstring_t wante
     return false;
 }
 
-static bool G_StartConstruction(edict_t *building, constructionType_t type, bool paused) {
+static bool G_StartConstruction(edict_t *builder, edict_t *building, constructionType_t type, bool paused,
+                                bool worker_inside) {
     edictStat_s *hp;
 
     if (!building || !G_UnitIsStructure(building)) return false;
@@ -1605,6 +1606,7 @@ static bool G_StartConstruction(edict_t *building, constructionType_t type, bool
      * real construction footprint becomes a route obstacle before the worker
      * begins Repair/build work. */
     CM_BakeStaticObstacles();
+    G_TeleportBuildingOccupants(building, worker_inside ? builder : NULL);
 
     G_UpdateConstructionAnimation(building);
     return true;
@@ -1630,26 +1632,26 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
 }
 
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_HUMAN, true, false)) return false;
     building->construction->primary_builder = builder;
     return true;
 }
 
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_ORC, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_UNDEAD, false, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction->worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
-    if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
         building->construction->consumes_worker = true;
@@ -1662,14 +1664,14 @@ bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
 
 /* Entangle Gold Mine creates a Night Elf building without consuming/owning a
  * Wisp. It still uses the same authoritative autonomous construction clock. */
-bool G_StartNightElfOverlayConstruction(edict_t *building) {
-    return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
+bool G_StartNightElfOverlayConstruction(edict_t *builder, edict_t *building) {
+    return G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, false);
 }
 
 /* Tiny Structures do not attach or consume a builder.  Their timer and
  * construction state belong to the spawned building itself. */
-bool G_StartTinyConstruction(edict_t *building, float duration_seconds) {
-    if (!G_StartConstruction(building, CONSTRUCTION_TINY, false)) return false;
+bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration_seconds) {
+    if (!G_StartConstruction(builder, building, CONSTRUCTION_TINY, false, false)) return false;
     building->construction->duration_ms = MAX(0.0f, duration_seconds) * 1000.0f;
     building->build = building;
     /* G_StartConstruction initially uses normal UnitBalance buildTime.
@@ -1883,7 +1885,7 @@ void G_CompleteConstruction(edict_t *building) {
 	 * complete. */
     CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
-    G_TeleportCompletedBuildingOccupants(building, hidden_construction_worker);
+    G_TeleportBuildingOccupants(building, hidden_construction_worker);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);

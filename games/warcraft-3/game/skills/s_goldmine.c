@@ -1322,7 +1322,7 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
     if (!entangled) return false;
     bound = S_MineOverlayBind(entangled, target);
-    started = bound && (instant || G_StartNightElfOverlayConstruction(entangled));
+    started = bound && (instant || G_StartNightElfOverlayConstruction(caster, entangled));
     if (!started) {
         S_MineOverlayRelease(entangled);
         G_FreeEdict(entangled);
