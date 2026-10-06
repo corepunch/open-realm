@@ -24,7 +24,7 @@ void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 static char shader_src[16384];
 static rect_t backdrop_uv, backdrop_rect;
 static bool backdrop_repeat;
-static uint32_t backdrop_calls;
+static uint32_t backdrop_calls, backdrop_opaque_calls;
 static size2_t backdrop_size = {256, 64};
 
 /* Capture the real shader source submission without requiring a window in the unit suite. */
@@ -2883,13 +2883,30 @@ static void test_backdrop_batch(texture_t const *tex, SHADERTYPE shader, BLEND_M
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat; backdrop_calls++;
 }
+static void test_backdrop_opaque(drawImageBatchParams_t const *params) {
+    T_NOT_NULL(params); T_EQ(params->vertexCount, 6);
+    backdrop_repeat = params->repeat; backdrop_opaque_calls++;
+}
 #define R_GetTextureSize test_backdrop_size
 #define R_AddQuad test_backdrop_quad
 #define R_DrawImageBatch test_backdrop_batch
+#define R_DrawImageBatchOpaque test_backdrop_opaque
 #include "renderer/r_backdrop.c"
 #undef R_GetTextureSize
 #undef R_AddQuad
 #undef R_DrawImageBatch
+#undef R_DrawImageBatchOpaque
+
+TEST(renderer_backdrop, alpha_blend_flag_only_selects_opaque_background_path) {
+    drawBackdrop_t draw = { .screen = {0, 0, .2f, .1f}, .bg.texture = (texture_t const *)1 };
+    backdrop_calls = backdrop_opaque_calls = 0;
+
+    R_DrawBackdrop(&draw);
+    T_EQ(backdrop_calls, 0); T_EQ(backdrop_opaque_calls, 1);
+    draw.flags = DRAW_BLEND_ALL;
+    R_DrawBackdrop(&draw);
+    T_EQ(backdrop_calls, 1); T_EQ(backdrop_opaque_calls, 1);
+}
 
 TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
     drawBackdrop_t draw = { .screen = {0, 0, .512f, .032f}, .bg.texture = (texture_t const *)1 };
