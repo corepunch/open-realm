@@ -242,7 +242,7 @@ The following are deliberately outside this implementation slice:
 - Earthquake `Oeq4`/`Final Area` semantics, the retail meaning of `UberSplatData.BlendMode=1`, `BOea`'s contribution, and overlapping-Earthquake stacking remain unverified;
 - generic buff `TargetArt`/`Targetattach` creation and lifetime binding remain unimplemented, including the authored `BOeq` overhead model;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
-- automatic `powerup` acquisition/use outside the implemented Speed family (`AIsp`/`AIsa`/`APsa`);
+- automatic `powerup` acquisition/use outside the implemented Speed (`AIsp`/`AIsa`/`APsa`) and Gold (`AIgo`) families;
 - spell cast-point/backswing timing changes;
 - a fully generalized missile-art/arc object separate from existing projectile simulation.
 - save/load rebinding for independent effect-edict animation callbacks and persistent effect ownership.

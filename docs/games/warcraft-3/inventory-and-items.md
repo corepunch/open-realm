@@ -425,7 +425,7 @@ permission. Detach/removal always reverses an effect that was already applied,
 even if `CanUseItems` changed while the item was carried, so permission changes
 cannot leak a permanent stat bonus.
 
-Automatic acquisition/use is implemented for the supported Speed powerup family (`AIsp`/`AIsa`/`APsa`): these items bypass inventory capacity, apply their authored timed speed effect, publish pickup/use events, and are consumed without occupying a slot. Other powerup ability families remain on the normal inventory path until their gameplay handlers are implemented. Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`
+Automatic acquisition/use is implemented for the supported Speed (`AIsp`/`AIsa`/`APsa`) and Gold (`AIgo`) powerups: these items bypass inventory capacity, execute against the actual picking unit, publish pickup/use events, and are consumed without occupying a slot. Speed uses authored timed effects; Gold uses the authored `DataA` gold grant (not upkeep-taxed harvesting income). Other powerup ability families remain on the normal inventory path until their gameplay handlers are implemented. Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`
 item cooldowns and disabled icons, held-item cursor art, slot swapping, and
 allied-unit giving. Soul Trap implements the stock target/capture/reveal/release
 flow; unusual custom `AIso` targets and their subsystem-specific behavior still

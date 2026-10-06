@@ -512,6 +512,30 @@ static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
     return affected != 0;
 }
 
+/* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
+ * executes on its actual picker rather than on a local client's selection.
+ * Resource pickups grant their full amount and do not pass through the
+ * worker-harvesting upkeep tax calculation. */
+BZ_ABILITY_PROC(CAbilityItemGold) {
+    edict_t *caster;
+    gameClient_t *owner;
+    float amount;
+    uint32_t balance, credited;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_speed_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!owner) return false;
+    amount = S_SpellData(call->item->code, 1, 1); /* DataA / Gold Given */
+    if (!(amount > 0.0f)) return false;
+    balance = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    credited = (uint32_t)MIN((double)amount, (double)(USHRT_MAX - balance));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)(balance + credited);
+    if (credited) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_GOLD, (int32_t)credited);
+    return true;
+}
+
 BZ_ABILITY_PROC(CAbilityItemSpeed) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     return item_speed_apply(item_speed_caster(ent, call), call->item->code, false);
@@ -533,7 +557,7 @@ bool S_ItemSpeedActive(edict_t const *unit) {
     return false;
 }
 
-bool S_TryUseSpeedPowerup(edict_t *unit, edict_t *item) {
+bool S_TryUseSupportedPowerup(edict_t *unit, edict_t *item) {
     cstring_t abilities;
     if (!unit || !G_IsItem(item) || !item->data.ItemData || !item->data.ItemData->powerup ||
         !item->data.ItemData->usable || !G_InventoryCanUseItems(unit)) return false;
@@ -544,7 +568,8 @@ bool S_TryUseSpeedPowerup(edict_t *unit, edict_t *item) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         abilityitem_t ability_item;
         abilityCall_t call;
-        if (!ability || (ability->proc != CAbilityItemSpeed && ability->proc != CAbilityItemSpeedAoe)) continue;
+        if (!ability || (ability->proc != CAbilityItemSpeed && ability->proc != CAbilityItemSpeedAoe &&
+                         ability->proc != CAbilityItemGold)) continue;
         ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
         call = MAKE(abilityCall_t, .item = &ability_item, .source_item = item,
                    .source_item_spawn_time = item->spawn_time);
