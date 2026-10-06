@@ -608,6 +608,63 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     T_ASSERT(!(ai->flags & BOT_DEFEND_PLAYER));
 }
 
+TEST(wc3_bot, hero_item_policy_buys_makeitems_shop_merchandise) {
+    static UnitAbilities_t shop_abilities = { .abilList = "Apit", .heroAbilList = "" };
+    static UnitAbilities_t inventory_abilities = { .abilList = "AInv", .heroAbilList = "" };
+    static UnitBalance_t hero_balance = { .agility = 1 };
+    player_t *player;
+    edict_t *clent, *hero, *shop;
+    bot_t *bot;
+
+    reset_entities(); setup_test_world();
+    player = &game.clients[0].ps;
+    clent = &g_edicts[0];
+    clent->inuse = true;
+    clent->client = game.clients;
+    clent->client->connected = true;
+    player->number = 0;
+    player->race = kPlayerRaceNightElf;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero->s.player = 0;
+    hero->health.value = hero->health.max_value = 1000;
+    hero->svflags |= SVF_MONSTER;
+    hero->data.UnitAbilities = &inventory_abilities;
+    hero->data.UnitBalance = &hero_balance;
+    shop = alloc_test_unit(MAKEFOURCC('e','d','e','n'), 32, 0);
+    shop->data.UnitAbilities = &shop_abilities;
+    shop->s.player = PLAYER_NEUTRAL_PASSIVE;
+    shop->collision = 32;
+    shop->spawn_time = G_Time();
+    if (!shop->stock) shop->stock = G_AllocStock();
+    T_NOT_NULL(shop->stock);
+    shop->stock->item_slots = 11;
+    gi.LinkEntity(shop);
+    T_STREQ(shop->data.UnitProfile->makeItems, "moon,plcl,phea");
+
+    level.time = 3000;
+    bot = G_BotState(0);
+    memset(bot, 0, sizeof(*bot));
+    bot->flags = BOT_HEROES_BUY_ITEMS;
+    T_ASSERT(G_BotUnitAlive(hero));
+    T_ASSERT(G_UnitIsHero(hero));
+    T_ASSERT(!unit_affectingcombat(hero));
+    T_EQ(G_FindFreeInventorySlot(hero), 0);
+    T_ASSERT(G_CanUseItemShop(clent->client, shop));
+    T_EQ(G_FindShopPatron(clent->client, shop), hero);
+    T_ASSERT(G_ShopSellsItem(shop, MAKEFOURCC('m','o','o','n')));
+    T_EQ(shop->stock->items[0].id, MAKEFOURCC('m','o','o','n'));
+    T_ASSERT(shop->stock->items[0].current > 0);
+    G_BotUpdateHeroItems(player);
+    T_EQ(bot->item_policy_last_scan, G_Time());
+    T_EQ(bot->hero_buy_last_scan, G_Time());
+    T_NOT_NULL(hero->inventory[0]);
+    if (hero->inventory[0])
+        T_ASSERT(hero->inventory[0]->class_id == MAKEFOURCC('m','o','o','n') ||
+                 hero->inventory[0]->class_id == MAKEFOURCC('p','l','c','l'));
+}
+
 TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     static umove_t lumber_move = { "attack", NULL, NULL, CAbilityHarvest };
     static umove_t gold_move = { "attack", NULL, NULL, CAbilityGoldMine };
