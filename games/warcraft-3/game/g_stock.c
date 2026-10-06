@@ -70,7 +70,11 @@ static cstring_t G_ShopRequirementName(gameClient_t const *client, uint32_t requ
             return GetClassName(alternative_id);
         }
     }
-    name = FindConfigValue(GetClassName(requirement_id), "Name");
+    {
+        UnitProfile_t const *profile = G_UnitProfile(requirement_id);
+        name = profile && profile->name ? G_LevelString(profile->name) : NULL;
+    }
+    if (!name || !*name) name = FindConfigValue(GetClassName(requirement_id), "Name");
     return name && *name ? name : GetClassName(requirement_id);
 }
 
@@ -93,7 +97,10 @@ bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id,
         }
         memcpy(&requirement_id, requirement, sizeof(requirement_id));
         satisfied = G_PlayerRequirementCount(client, requirement_id) > 0;
-        alternatives = FindConfigValue(GetClassName(requirement_id), "DependencyOr");
+        {
+            UnitProfile_t const *profile = G_UnitProfile(requirement_id);
+            alternatives = profile ? profile->dependencyOr : NULL;
+        }
         if (!satisfied && alternatives && *alternatives) {
             char alternative[64];
             for (uint32_t j = 0; G_CsvToken(alternatives, j, alternative, sizeof(alternative)); j++) {
@@ -101,7 +108,8 @@ bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id,
                 if (strlen(alternative) != 4) {
                     fprintf(stderr, "WC3 shop: invalid DependencyOr entry '%s' for requirement %.4s\n",
                             alternative, (cstring_t)&requirement_id);
-                    continue;
+                    if (reason && reason_size) snprintf(reason, reason_size, "Invalid item requirement data.");
+                    return false;
                 }
                 memcpy(&alternative_id, alternative, sizeof(alternative_id));
                 if (G_PlayerRequirementCount(client, alternative_id) > 0) {
