@@ -713,6 +713,8 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (uint16_t)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    /* Neutral Hostile awards creep bounty by default; maps may override via SetPlayerState. */
+    ps->stats[PLAYERSTATE_GIVES_BOUNTY] = (playernum == PLAYER_NEUTRAL_AGGRESSIVE);
     ps->vieworigin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
     {
         gameCamera_t cam;

@@ -87,7 +87,9 @@ The event source is the entity that owns the current transaction. Normal worker 
 This patch does **not** use floating text as a reason to redesign incomplete gameplay systems:
 
 - Wisp harvesting uses persistent periodic direct income, attached TargetArt at the authored DataC height, and the authored looped harvest sound on the same effect lifecycle.
-- Gold/lumber bounty semantics and their distinct Warsmash `Bounty` / `LumberBounty` styles remain separate work.
+- Unit-kill bounty is implemented independently from worker mining. The victim's owner's `PLAYERSTATE_GIVES_BOUNTY` enables authored UnitBalance gold/lumber dice payouts, credited to the killing unit's owner. The death lifecycle guard prevents a second reward; illusions, friendly kills, self-kills and unattributed deaths do not grant bounty.
+- Bounty labels use independent authored `BountyText*` / `LumberBountyText*` settings, anchor at the defeated unit, and are unicast to the recipient rather than broadcast. A successful gold payout additionally spawns the GoldCredit model using an owner-only effect. Missing Warcraft models do not invalidate gameplay credits.
+- Bounty currently uses the existing `G_ApplyResourceIncome()` policy, including upkeep; exact retail upkeep rounding and Transmute `DataD` interactions still require verification. Display is the actually credited, resource-capped amount. The normal `GoldText*`/`LumberText*` mining paths are unaffected.
 - JASS `texttag` natives store simulation state (see [multiboard-and-texttag.md](multiboard-and-texttag.md)). `TE_FLOATING_TEXT` remains the one-shot resource-gain primitive; live texttag handles are not yet published through that path.
 - The resource label does not modify harvesting orders, carry state, camera, fog, selection, or HUD resource accounting.
 

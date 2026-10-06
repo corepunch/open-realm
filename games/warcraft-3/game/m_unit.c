@@ -347,6 +347,72 @@ void G_ReviveCorpseAsSummon(edict_t *ent, float life_fraction) {
     revive_corpse_state(ent, life_fraction, true);
 }
 
+/* Roll each authored bounty die independently using the game-side RNG.
+ * Invalid dice/sides do not replace the fixed base portion. */
+static int32_t G_RollBounty(int32_t base, int32_t dice, int32_t sides) {
+    int64_t amount = MAX(0, base);
+    if (dice > 0 && sides > 0) {
+        /* Cap pathological custom-map values without signed overflow or unbounded work. */
+        dice = MIN(dice, 1024);
+        FOR_LOOP(i, (uint32_t)dice) {
+            amount += 1 + rand() % sides;
+            if (amount >= INT32_MAX / 100) return INT32_MAX / 100;
+        }
+    }
+    return (int32_t)MIN(amount, INT32_MAX / 100);
+}
+
+/* Exposed for combat regression coverage. The real death hook calls this
+ * once, guarded by unit_die()'s SVF_DEADMONSTER early exit. */
+void G_AwardKillBounty(edict_t *victim, edict_t *killer) {
+    UnitBalance_t const *bal;
+    gameClient_t *victim_owner, *recipient;
+    uint32_t killer_player;
+    int32_t gold, lumber;
+
+    if (!victim || !killer || killer == victim || !victim->data.UnitBalance ||
+        killer->s.player >= MAX_PLAYERS || victim->s.player >= MAX_PLAYERS ||
+        killer->s.player == victim->s.player ||
+        (victim->aiflags & AI_ILLUSION)) return;
+    if (G_PlayerTreatsPlayerAsAlly(killer->s.player, victim->s.player)) return;
+
+    victim_owner = G_GetPlayerClientByNumber(victim->s.player);
+    killer_player = killer->s.player;
+    recipient = G_GetPlayerClientByNumber(killer_player);
+    if (!victim_owner || !recipient || victim_owner->ps.number != victim->s.player ||
+        recipient->ps.number != killer_player ||
+        !victim_owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY]) return;
+    bal = victim->data.UnitBalance;
+    gold = G_RollBounty(bal->goldBountyBase, bal->goldBountyDice, bal->goldBountySides);
+    lumber = G_RollBounty(bal->lumberBountyBase, bal->lumberBountyDice, bal->lumberBountySides);
+
+    if (gold > 0) {
+        int32_t net = G_ApplyResourceIncome(&recipient->ps, PLAYERSTATE_RESOURCE_GOLD, gold);
+        int32_t available = USHRT_MAX - recipient->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+        int32_t credited = MIN(MAX(0, net), available);
+        if (credited > 0) {
+            recipient->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += credited;
+            G_BountyGainEvent(victim, killer_player, PLAYERSTATE_RESOURCE_GOLD, credited);
+            /* Presentation-only coin model, visible only to the beneficiary. */
+            edict_t *effect = G_SpawnModelEffect("UI\\Feedback\\GoldCredit\\GoldCredit.mdl",
+                                                  &victim->s.origin2, NULL, NULL, true);
+            if (effect) {
+                effect->s.player = killer_player;
+                effect->svflags |= SVF_OWNER_ONLY;
+            }
+        }
+    }
+    if (lumber > 0) {
+        int32_t net = G_ApplyResourceIncome(&recipient->ps, PLAYERSTATE_RESOURCE_LUMBER, lumber);
+        int32_t available = USHRT_MAX - recipient->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+        int32_t credited = MIN(MAX(0, net), available);
+        if (credited > 0) {
+            recipient->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += credited;
+            G_BountyGainEvent(victim, killer_player, PLAYERSTATE_RESOURCE_LUMBER, credited);
+        }
+    }
+}
+
 void unit_die(edict_t *self, edict_t *attacker) {
     gameClient_t *owner;
     uint32_t selected_mask;
@@ -432,6 +498,8 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * Hero's reviving flag and refunds what this Altar charged. */
     G_CancelHeroRevives(self);
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    /* Bounty is credited to the killer owner, independently of nearby Hero XP. */
+    G_AwardKillBounty(self, attacker);
     /* Award experience to the killer's nearby heroes (enemy kills only). */
     if (attacker && attacker != self && attacker->s.player != self->s.player) {
         G_GrantKillXP(self, attacker);

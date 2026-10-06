@@ -1623,6 +1623,82 @@ TEST(wc3_combat, grant_kill_xp_building_killer_and_victim_rules) {
     Stb_IniCacheFree(&custom);
 }
 
+TEST(wc3_combat, bounty_awards_authored_fixed_gold_and_lumber_once_per_death) {
+    static UnitBalance_t const bounty = {
+        .goldBountyBase = 6, .lumberBountyBase = 4,
+        .maxHealth = 100.0f
+    };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    receiver->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+
+    unit_die(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 16);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 14);
+    unit_die(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 16);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 14);
+}
+
+TEST(wc3_combat, bounty_requires_victim_flag_and_enemy_killer) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 9, .maxHealth = 100.0f };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 0;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    G_AwardKillBounty(victim, NULL);
+    G_AwardKillBounty(victim, victim);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 109);
+    victim->aiflags |= AI_ILLUSION;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 109);
+}
+
+TEST(wc3_combat, bounty_clamps_to_resource_cap_and_uses_player_upkeep) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 10, .maxHealth = 100.0f };
+    edict_t *killer, *victim;
+    gameClient_t *receiver = game.clients, *owner = game.clients + 1;
+
+    setup_test_world();
+    killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100, 0, 0);
+    victim = make_combat_unit(MAKEFOURCC('n','k','o','b'), 100, 128, 0);
+    killer->s.player = 0; victim->s.player = 1;
+    victim->data.UnitBalance = &bounty;
+    receiver->ps.number = 0; owner->ps.number = 1;
+    owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65532;
+    receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], USHRT_MAX);
+    receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    G_AwardKillBounty(victim, killer);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 107);
+}
+
 TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
     edict_t *hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     edict_t *victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
