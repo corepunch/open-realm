@@ -1343,7 +1343,7 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
  * after the placement-time exit walk.  Once the footprint becomes solid,
  * move any remaining occupants directly to a legal exit while retaining
  * their current orders. */
-static void G_TeleportCompletedBuildingOccupants(edict_t *building) {
+static void G_TeleportCompletedBuildingOccupants(edict_t *building, edict_t *hidden_construction_worker) {
     edict_t * *units;
     vec2_t *positions;
     uint32_t count = 0;
@@ -1357,7 +1357,8 @@ static void G_TeleportCompletedBuildingOccupants(edict_t *building) {
         if (units) gi.MemFree(units);
         return;
     }
-    FILTER_EDICTS(ent, ent != building && ent->inuse && (ent->svflags & SVF_MONSTER) &&
+    FILTER_EDICTS(ent, ent != building && ent != hidden_construction_worker && ent->inuse &&
+                  (ent->svflags & SVF_MONSTER) &&
                   !(ent->svflags & SVF_DEADMONSTER) && !M_IsDead(ent) &&
                   ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f &&
                   CM_DistanceToPathingFootprint(building, &ent->s.origin2) < ent->collision) {
@@ -1847,6 +1848,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
 
 void G_CompleteConstruction(edict_t *building) {
     gameClient_t *client;
+    edict_t *hidden_construction_worker = NULL;
     bool legacy;
 
     if (!building) return;
@@ -1868,6 +1870,8 @@ void G_CompleteConstruction(edict_t *building) {
     }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
+    if (building->construction && building->construction->worker_inside)
+        hidden_construction_worker = G_ConstructionWorker(building);
     if (building->construction) G_ReleaseConstructionWorker(building, true);
     G_SetConstructionLoopSound(building, false);
     G_FreeConstruction(building);
@@ -1879,7 +1883,7 @@ void G_CompleteConstruction(edict_t *building) {
 	 * complete. */
     CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
-    G_TeleportCompletedBuildingOccupants(building);
+    G_TeleportCompletedBuildingOccupants(building, hidden_construction_worker);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);
