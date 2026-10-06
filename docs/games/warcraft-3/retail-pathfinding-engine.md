@@ -10376,3 +10376,52 @@ checks. Other aggregate engine/standalone suites pass; terminal exit is0.
 The new strict Follow entry and the original speed-modifier entry each verify
 from fresh outputs. Logs are retained in
 `/GitHub/wc3-analysis/runtime/payoff123/full-test-fixed.log`.
+
+## Target blockers return after fine-route construction
+
+Payoff125 integrates the completed [ROUTE-02.2 handoff](retail-pathfinding-handoffs/ROUTE-02.2/HANDOFF.md).
+The original selector167bf0 and next-step collector166140 suppress the requester
+only. The target remains a blocker, even though fine-route construction166e90
+temporarily suppresses both requester and target. The engine previously carried
+target exclusion into these later consumers. Twelve assertions in the new
+four-class target regression reproduced that mismatch before the fix.
+
+The game now makes target suppression an explicit query-local construction
+property. Retained-route selection, sampled segments, endpoint checks and
+next-step collection observe target occupancy. Immediate selection after an
+unretained fine build releases suppression and discards cells cached under the
+construction policy. This changes neither saved state nor network layout and
+adds no global scan or allocation to a query.
+
+Four production regressions cover the target's selected waypoint and waiting
+identity,11 capped peer compositions, successive insert/move/stop/remove edits,
+and diagonal repeated objects with terrain/null tokens. Forty peers publish in
+reverse allocation order, so the asserted first32 candidates cannot accidentally
+pass using edict order. The resolver's persistent peer20 assignments and
+requester4 wait are checked, including faster peers just beyond the cap.
+The overlapping peer fixture starts at the already-admitted stage used by the
+original oracle; public admission would correctly recover those peers out of
+the overlap before collection.
+
+The preserved complete original-code oracle reproduces72 strip/cap calls,
+14 resolver compositions,288 waypoint selections, four edit sequences,
+16 selection/collection contrasts and eight target cases. Frozen expected bytes
+have SHA256 `1433827c28e1e59c74c5cb6863aad9b09f7d78ee72bdb0738715cc96abd611f6`.
+A fresh run without observers matches all behavioral results; only its absent
+write audit differs. The48-function static closure and write audit exclude
+occupancy mutation during one selector call. Edits are therefore tested between
+successive calls, rather than injected into an impossible callback.
+
+Ghidra's eight producer/consumer annotations are saved and mirrored in
+MapPathfinding.java. The strict corpus adds the hash-pinned original contract,
+including all eight target cases. Classic and TFT each pass the four new tests
+with1,336 assertions. This closes ROUTE-02.2 at S/O/C evidence level. It does not
+claim a live retail crowd reaching32 candidates; runtime lazy-link chronology,
+non-mover static payload lifetimes and full crowd trajectories remain in the
+existing FINE/FOOT/E2E items.
+
+Both editions also pass the affected349-test movement suite with5,195,065
+assertions each. The fresh strict blocker entry verifies; all357 inventory/hash
+contracts and20 corpus regression checks pass against the staged commit tree.
+No full-suite checkpoint was repeated for this second implementation commit
+after14357757. Logs are retained in `/GitHub/wc3-analysis/runtime/payoff125/`.

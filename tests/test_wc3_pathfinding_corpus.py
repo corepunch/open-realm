@@ -24,7 +24,7 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),121)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),122)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
         self.assertEqual(sum(e['id'].startswith('live-') for e in entries),114)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
@@ -42,6 +42,17 @@ class CorpusTests(unittest.TestCase):
                               engine_exact_cases=4 if '--terrain-producer' in entry['command'] else 356,
                               cases=4 if '--terrain-producer' in entry['command'] else 356,
                               producer_classification_cases=54,producer_classification_rejected=27,producer_hierarchy_cells=2206),entry,self.target)
+
+    def test_blocker_contract_rejects_missing_target_cases_and_changed_order(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='oracle-blocker-candidates')
+        report={'binary_sha256':self.target['game_sha256']}
+        for field,rule in entry['checks'].items():
+            report[field]=rule['equal'] if 'equal' in rule else [None]*rule['length']
+        check_report(report,entry,self.target)
+        for field,value in (('expected_sha256','0'*64),('partB_cases',13),('partF',[])):
+            changed=dict(report); changed[field]=value
+            with self.assertRaises(ValueError):
+                check_report(changed,entry,self.target)
 
     def test_constructed_map_boundary_literals_match_original_words(self):
         frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-constructed-map-coordinates-1.27.json').read_text())

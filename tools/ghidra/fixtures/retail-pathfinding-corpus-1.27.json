@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "121 executable original oracle contracts,121 archive audits and113 strict live contracts;355 total entries.",
+  "scope": "122 executable original oracle contracts,121 archive audits and114 strict live contracts;357 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35522,6 +35522,56 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-blocker-candidates",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_blocker_candidates.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "blocker-candidates-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "expected_sha256": {
+          "equal": "1433827c28e1e59c74c5cb6863aad9b09f7d78ee72bdb0738715cc96abd611f6"
+        },
+        "partA_cases": {
+          "equal": 72
+        },
+        "partB_cases": {
+          "equal": 14
+        },
+        "partC_cases": {
+          "equal": 288
+        },
+        "sequences": {
+          "equal": 4
+        },
+        "partE_cases": {
+          "equal": 16
+        },
+        "partF": {
+          "length": 8
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Complete original next-step collection and resolution at the fixed 32-token cap; current-object waypoint selection, successive-call edits, moving-flag contrast and target collection. Engine production regressions cover target occupancy, cap/order/persistent waits, edits and diagonal repeated/null tokens.",
+      "exclusions": [
+        "Live retail crowd reachability of 32 retained candidates; lazy retired-link storage and non-mover static-region lifetimes remain separate tasks."
+      ]
     }
   ],
   "fixtures": [
@@ -36420,7 +36470,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e9d8040c01607d1ab05c3aabb6b19e1c137c249176743d02399e6c9e7a138681"
+      "sha256": "971e6fba55f74fe985a3f41ef785e4d1e84e5a92b543b7665293c30bb16b819b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37101,6 +37151,26 @@
     {
       "path": "tools/ghidra/fixtures/sources/7d4097220bfaa4b953bb55bb7bf88b8c4a1981306b234443c9d8fa9f798ee6bb.gz",
       "sha256": "23910ecc58065c2efd6c3e859995b10d92f52f9f427a847387388c840ff0d0d2"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_blocker_candidates.py",
+      "sha256": "dd3a2f26f711ff1971deafa6f86a127f2d2a9e452ecb077d1c0fcfe464cb02fd"
+    },
+    {
+      "path": "tools/ghidra/research/verify_route02_2_blockers.py",
+      "sha256": "f87ed0409949b5fc6c560feda4296423e2d280357b880fa2c30c584064ede8ea"
+    },
+    {
+      "path": "tools/ghidra/research/route02_2_callgraph.py",
+      "sha256": "85c0d714780d30bb626222ae6e658512c9e1905c2f04b38f827e84abad3347dc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ROUTE-02.2-expected.json",
+      "sha256": "1433827c28e1e59c74c5cb6863aad9b09f7d78ee72bdb0738715cc96abd611f6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-blocker-candidates-ghidra-1.27.json",
+      "sha256": "e151469c12d7bc9bfe82aa184f35c8e023d730cefcb09cd26630374e24b72f4a"
     }
   ]
 }

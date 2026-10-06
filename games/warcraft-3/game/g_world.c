@@ -12,7 +12,7 @@ typedef struct {
     uint8_t flags;
     movePathQuery_t const *query;
     wc3SpatialActive_t const *target_links;
-    bool has_target, endpoint;
+    bool has_target, endpoint, suppress_target;
     uint32_t level, cell_epoch;
     bool *target_hit;
     wc3FineBox_t *rejection; /* query-local placement witness, never retained */
@@ -734,7 +734,8 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
     if(query)for(uint32_t id=move_spatial_cells[(uint32_t)pos.y*move_spatial_width+pos.x];id;id=move_spatial_links[id].next) {
         unsigned index=(id-1)/16,slot=(id-1)%16;
         edict_t const *ent=g_edicts+index;
-        if(ent==query->mover || ent==query->target || !ent->inuse || !move_has_dynamic_occupancy(ent))continue;
+        if(ent==query->mover || (graph->suppress_target && ent==query->target) ||
+            !ent->inuse || !move_has_dynamic_occupancy(ent))continue;
         uint32_t mask=graph->flags;mask|=mask<<24;
         if(!wc3_fine_object_blocks((wc3FineObject_t){ent->movement.captain_actor_type?0x01000002:0x010000ca,
             S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
@@ -1090,6 +1091,7 @@ static uint8_t move_fine_edges(void const *data, wc3FinePoint_t pos) {
 #ifdef BZ_TESTS
 uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cached,bool *hit) {
     moveFineGraph_t graph=move_foot_shape(&input->geometry);move_query_objects(&graph,input,NULL);
+    graph.suppress_target=true;
     if(input->target) {
         graph.target_links=move_spatial+(input->target-g_edicts);graph.has_target=true;graph.target_hit=hit;
     }
@@ -1116,7 +1118,7 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
     for(uint32_t id=move_spatial_cells[(uint32_t)pos.y*move_spatial_width+pos.x];id;id=move_spatial_links[id].next) {
         unsigned index=(id-1)/16;
         edict_t *ent=g_edicts+index;
-        if(!ent->inuse || ent==scan->query->mover || ent==scan->query->target ||
+        if(!ent->inuse || ent==scan->query->mover ||
             !move_has_dynamic_occupancy(ent) || !((ent->movement.captain_actor_type?2:entity_dynamic_pathing_flags(ent))&mask))continue;
         uint64_t rank=move_spatial[index].ranks[(id-1)%16];
         if (!rank) continue;
@@ -1390,6 +1392,9 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
 
     moveFineGraph_t graph = move_foot_shape(params);
     move_query_objects(&graph, input, NULL);
+    /* Original166e90 suppresses self and target only around route building.
+     * Later167bf0/166140 consumers suppress self, retaining target occupancy. */
+    graph.suppress_target=true;
     bool target_hit = false;
     edict_t const *object = input->target;
     /* A suppressed target still terminates fine expansion at its region.
@@ -1427,6 +1432,8 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         *out = move_world_from_grid(curve->points[curve->index].x,curve->points[curve->index].y);
         return true;
     }
+    graph.suppress_target=false;
+    graph.cell_epoch=0; /* Cached search cells were evaluated under suppression. */
     wc3FineSegment_t query = { .start = {a.x, a.y},
         .cls = (unsigned)graph.size - 1, .cell = move_cell_ok, .data = &graph };
     uint32_t chosen = wc3_segment_waypoint(&query, (wc3FineRoute_t){move_fine_points, count - 1});

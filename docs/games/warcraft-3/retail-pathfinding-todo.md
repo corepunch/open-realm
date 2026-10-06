@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**215 done / 336 tasks; 121 remaining.**
+**216 done / 336 tasks; 120 remaining.**
+
+Payoff125 closes ROUTE-02.2: complete original-code blocker/selector evidence
+now drives four production regressions, including target occupancy, the ordered
+32-token cap and persistent peer waits. Ghidra is saved; no live crowd-cap claim
+is made. See [target blockers after construction](retail-pathfinding-engine.md#target-blockers-return-after-fine-route-construction).
 
 Payoff124 advances ORDER-01.18 without closing it: complete retail combat repeats
 match1,707 public records and33 ordered endpoint continuations each. Patrol now
@@ -687,7 +692,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 ### ROUTE-02 — Segment checks
 
 - [x] **ROUTE-02.1** Sweep static segment direction/length across four classes and ground/flight masks, including exact corner endpoints and length1 boundaries. All43,244 original sampler results/cell sequences match C at O0/O2;8,064 short segments query no cells. Original software normalizer words and123 supplied-chain waypoint selection/commit calls match. Engine direct/step/retention checks and fine waypoint selection consume the port; four first-sample strip misses are reproduced/fixed and actual wall-gap steering retains original choices. Endpoint admission and dynamic eligibility remain FOOT-04/FINE-01.2/03 and02.2. Evidence: [engine sampler and waypoints](retail-pathfinding-engine.md#retail-segment-sampling-and-waypoint-selection).
-- [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
+- [x] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice. Payoff125 integrates the [research handoff](retail-pathfinding-handoffs/ROUTE-02.2/HANDOFF.md):72 complete original strip/cap calls,14 resolver compositions,288 selector calls, four edit sequences,16 flag contrasts and eight target cases. Engine regressions check reverse-publication first32 order, persistent peer20/requester4 waits, successive edits and diagonal repeated/null tokens; target suppression now ends with fine construction. S/O/C evidence, saved Ghidra and strict corpus. Live crowd reachability and lazy-link chronology remain existing FINE/E2E items. See [engine integration](retail-pathfinding-engine.md#target-blockers-return-after-fine-route-construction).
 
 - [x] **ROUTE-02.3** Explicitly split ordinary fine-curve initial/progress consumption from the remaining route mode, buffer and yielding tasks. Port count-2 initialization,0.49-cell retention and visible-successor progress into Move; match a complete controlled original34-tick wall detour's position/velocity/heading/index words and22 saved continuation ticks. Evidence: [engine payoff20](retail-pathfinding-engine.md#retained-fine-routes-reproduce-a-complete-retail-detour), frozen trajectory and two fresh original replays. Nonzero origin, real original owner cadence, adaptive refill, dynamic yielding and pooled cleanup remain NUM-02.3/ROUTE-01.2/03..05.
 
