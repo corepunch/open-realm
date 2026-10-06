@@ -43,38 +43,25 @@ static cstring_t G_ShopRequirementName(gameClient_t const *client, uint32_t requ
     char token[64];
     cstring_t name;
 
-    if (alternatives && *alternatives) {
-        unitRace_t const player_race = G_ShopClientRace(client);
-        char first[64] = "";
+    unitRace_t const player_race = G_ShopClientRace(client);
+    if (alternatives && *alternatives && player_race != RACE_UNKNOWN) {
         for (uint32_t i = 0; G_CsvToken(alternatives, i, token, sizeof(token)); i++) {
             uint32_t alternative_id;
             UnitData_t const *data;
             UnitProfile_t const *profile;
 
             if (strlen(token) != 4) continue;
-            if (i == 0) strlcpy(first, token, sizeof(first));
             memcpy(&alternative_id, token, sizeof(alternative_id));
             data = G_UnitData(alternative_id);
-            if (player_race != RACE_UNKNOWN && WC3_RaceFromString(data ? data->race : NULL) != player_race)
-                continue;
+            if (WC3_RaceFromString(data ? data->race : NULL) != player_race) continue;
             profile = G_UnitProfile(alternative_id);
             name = profile && profile->name ? G_LevelString(profile->name) : NULL;
             if ((!name || !*name) && GetClassName(alternative_id))
                 name = FindConfigValue(GetClassName(alternative_id), "Name");
-            if (name && *name) return name;
-            if (player_race == RACE_UNKNOWN) break;
-        }
-        if (player_race == RACE_UNKNOWN && first[0]) {
-            uint32_t alternative_id;
-            memcpy(&alternative_id, first, sizeof(alternative_id));
-            return GetClassName(alternative_id);
+            return name && *name ? name : GetClassName(alternative_id);
         }
     }
-    {
-        UnitProfile_t const *profile = G_UnitProfile(requirement_id);
-        name = profile && profile->name ? G_LevelString(profile->name) : NULL;
-    }
-    if (!name || !*name) name = FindConfigValue(GetClassName(requirement_id), "Name");
+    name = FindConfigValue(GetClassName(requirement_id), "Name");
     return name && *name ? name : GetClassName(requirement_id);
 }
 
@@ -97,10 +84,7 @@ bool G_ShopItemRequirementsSatisfied(gameClient_t *client, uint32_t item_id,
         }
         memcpy(&requirement_id, requirement, sizeof(requirement_id));
         satisfied = G_PlayerRequirementCount(client, requirement_id) > 0;
-        {
-            UnitProfile_t const *profile = G_UnitProfile(requirement_id);
-            alternatives = profile ? profile->dependencyOr : NULL;
-        }
+        alternatives = FindConfigValue(GetClassName(requirement_id), "DependencyOr");
         if (!satisfied && alternatives && *alternatives) {
             char alternative[64];
             for (uint32_t j = 0; G_CsvToken(alternatives, j, alternative, sizeof(alternative)); j++) {

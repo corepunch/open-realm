@@ -90,7 +90,7 @@ A shop button click is handled before the ordinary `G_UnitCanControl()` check. T
 shop actually carries the raw object ID, then dispatches to item or unit purchase. Item purchase revalidates patron, stock, inventory
 space, gold and lumber. Unit purchase revalidates patron, stock, gold, lumber and food before spawning anything.
 
-Merchandise uses the unit profile's `Sellitems` and `Makeitems` lists, including bot shopping. Each item's `ItemFunc.txt` `Requires` list is checked when building its button, when selecting bot purchases, and again at purchase. A requirement category with `DependencyOr` is satisfied when any listed unit type is present; for example, retail `phea` requires `TWN2`, whose `DependencyOr` includes the Night Elf Tree of Ages. Moonstone and Lesser Clarity Potion have no such requirement and remain available without a Tree of Ages. Malformed requirement entries are logged and fail closed. These checks are independent from `stockStart`/`stockRegen`: unlocking a tier does not recreate or reset the shop's stock state.
+Merchandise uses the unit profile's `Sellitems` and `Makeitems` lists, including bot shopping. Each item's `ItemFunc.txt` `Requires` list is checked when building its button, when selecting bot purchases, and again at purchase. A requirement category with `DependencyOr` is satisfied when any listed unit type is present; for example, retail `phea` requires `TWN2`, whose `ItemFunc.txt` `DependencyOr` lists `hkee`, `ostr`, `etoa`, and `unp1`. Moonstone and Lesser Clarity Potion have no such requirement and remain available without a Tree of Ages. Malformed requirement entries are logged and fail closed. These checks are independent from `stockStart`/`stockRegen`: unlocking a tier does not recreate or reset the shop's stock state.
 
 A successful mercenary hire is immediate rather than a training queue. The new unit is created directly for the purchasing player
 without a Birth presentation, moved to the same deterministic legal producer-exit search used by trained units, then has food activated.
@@ -156,5 +156,5 @@ is not inserted into the shop's authored merchandise or stock.
 `games/warcraft-3/game/tests/t_bot.c` also verifies that Hero item policy buys unlocked merchandise from `Makeitems` and skips a
 higher-priority item whose `Requires` gate is unsatisfied. `games/warcraft-3/game/tests/t_game.c` additionally round-trips both item and
 unit shop stock/timer state through the save schema. The
-test fixture's `spro`, `moon`, `plcl`, `phea`, `oven`, and `nmer` rows carry explicit price/food/stock metadata; its `phea` ItemFunc row requires `TWN2`, with `TWN2.DependencyOr=etoa`, matching the retail source. The focused gameplay suite is
+test fixture's `spro`, `moon`, `plcl`, `phea`, `oven`, and `nmer` rows carry explicit price/food/stock metadata; its `phea` ItemFunc row requires `TWN2`, with the retail four-race `TWN2.DependencyOr` list in ItemFunc. The focused gameplay suite is
 `+dedicated 1 +test 'wc3_items.*'`; save changes must also run the save tests and the full suite required by `CONTRIBUTING.md`.

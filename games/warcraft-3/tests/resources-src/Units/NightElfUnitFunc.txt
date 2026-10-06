@@ -15,6 +15,3 @@ Art=TestUI\Textures\solid_white.blp
 
 [eden]
 Makeitems=moon,plcl,phea
-
-[TWN2]
-DependencyOr=etoa
