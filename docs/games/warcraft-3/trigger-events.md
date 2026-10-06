@@ -203,3 +203,12 @@ make test-wc3-engine WC3_PATTERN='wc3_api.*'
 make test-wc3-engine WC3_PATTERN='wc3_spell.*'
 make test-wc3-engine WC3_PATTERN='wc3_save.round_trip_jass_timers'
 ```
+
+## JASS interactive dialog choices
+
+`DialogDisplay` creates a player-scoped modal `svc_window` without pausing the
+simulation. A validated click publishes events targeted at the registered
+dialog and button, with the authoritative player ID and one-based clicked
+handle IDs. This response context is copied to a coroutine, so
+`GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
+See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.

@@ -49,6 +49,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 JASS native coverage, callback contracts, state ownership | [games/warcraft-3/jass-native-coverage.md](games/warcraft-3/jass-native-coverage.md) |
 | WC3 AI next-upgrade cost queries and `ShiftTownSpot` construction placement state | [docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md](docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md) |
 | WC3 event-trigger queueing, synchronous `TriggerExecute`, coroutine context | [docs/games/warcraft-3/trigger-events.md](docs/games/warcraft-3/trigger-events.md) |
+| WC3 JASS choice dialogs, modal input, event context, remaining retail gaps | [docs/games/warcraft-3/jass-dialogs.md](docs/games/warcraft-3/jass-dialogs.md) |
 | WC3 timer-dialog mission countdowns, stock FDF HUD, local visibility, save/load identity | [docs/games/warcraft-3/timer-dialogs.md](docs/games/warcraft-3/timer-dialogs.md) |
 | WC3 leaderboards, counted-objective HUDs, per-player assignment, save/load identity | [docs/games/warcraft-3/leaderboards.md](docs/games/warcraft-3/leaderboards.md) |
 | WC3 multiboard/texttag JASS registries, local display bits, presentation gaps | [docs/games/warcraft-3/multiboard-and-texttag.md](docs/games/warcraft-3/multiboard-and-texttag.md) |

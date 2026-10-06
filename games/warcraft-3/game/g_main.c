@@ -1421,6 +1421,7 @@ static void G_ClientBegin(edict_t *edict) {
     UI_WriteHoverLayout(edict);
     UI_WriteTimerDialogs(edict);
     UI_WriteLeaderboard(edict);
+    UI_JassDialogRestore(edict);
 
     G_AccumulatePlayerFood(client);
     /* Invalidate cache so the initial resource bar write always fires. */

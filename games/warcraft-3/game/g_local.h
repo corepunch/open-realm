@@ -24,6 +24,11 @@
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 1024
+#define MAX_JASS_DIALOGS 64 /* monotonic map-lifetime dialog IDs */
+#define MAX_JASS_DIALOG_BUTTONS 256
+#define MAX_JASS_DIALOG_TEXT 512
+#define MAX_JASS_DIALOG_BUTTON_TEXT 192
+#define WC3_JASS_DIALOG_WINDOW 0x4A444C47u /* JDLG */
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define BZ_STRINGIFY_INNER(value) #value
@@ -912,6 +917,23 @@ typedef struct {
     float AcquireRange;
 } unitInfo_t;
 
+typedef struct {
+    bool inuse;
+    uint32_t id; /* one-based and never recycled during the map */
+    uint32_t dialog_id;
+    int32_t hotkey;
+    bool quit;
+    bool score_screen;
+    char text[MAX_JASS_DIALOG_BUTTON_TEXT];
+} jassDialogButton_t;
+
+typedef struct {
+    bool inuse;
+    uint32_t id; /* one-based and never recycled during the map */
+    uint32_t visible_players; /* client player numbers */
+    char message[MAX_JASS_DIALOG_TEXT];
+} jassDialog_t;
+
 typedef struct gameevent_s {
     EVENTTYPE type;
     edict_t *edict;
@@ -924,6 +946,8 @@ typedef struct gameevent_s {
     vec2_t point;
     bool has_point;
     event_t *responseTo;
+    uint32_t dialog_id, button_id;
+    uint32_t dialog_player; /* one-based player index; zero means no override */
 } gameEvent_t;
 
 typedef struct {
@@ -1907,6 +1931,7 @@ struct gevent_s {
     gtimer_t *timer;
     struct jass_function const *filter;
     handle_t region;
+    uint32_t dialog_id, button_id; /* registration target, one-based */
     float range;
     uint32_t state;
     uint32_t limitop;
@@ -2199,6 +2224,9 @@ struct level_locals {
     bool script_paused;
     bool quest_paused;
     bool modal_paused;
+    jassDialog_t dialogs[MAX_JASS_DIALOGS];
+    jassDialogButton_t dialog_buttons[MAX_JASS_DIALOG_BUTTONS];
+    uint32_t dialog_count, dialog_button_count;
     timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
     box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
@@ -2986,6 +3014,20 @@ void UI_ClearLayer(edict_t *, uint32_t);
 void UI_ShowGameResult(edict_t *, uint32_t);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(edict_t *);
+/* JASS interactive choice dialogs: the registry and click authority live in the game. */
+jassDialog_t *G_JassDialog(handle_t);
+jassDialogButton_t *G_JassDialogButton(handle_t);
+jassDialog_t *G_JassDialogById(uint32_t);
+jassDialogButton_t *G_JassDialogButtonById(uint32_t);
+jassDialog_t *G_JassDialogCreate(void);
+jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *, cstring_t, int32_t, bool, bool);
+void G_JassDialogDestroy(jassDialog_t *);
+void G_JassDialogClear(jassDialog_t *);
+void G_JassDialogDisplay(player_t *, jassDialog_t *, bool);
+void G_JassDialogClick(edict_t *, uint32_t, uint32_t);
+void UI_JassDialogShow(edict_t *, jassDialog_t const *);
+void UI_JassDialogHide(edict_t *);
+void UI_JassDialogRestore(edict_t *);
 void UI_ShowQuests(edict_t *);
 void UI_HideQuests(edict_t *);
 void UI_ShowAllies(edict_t *);

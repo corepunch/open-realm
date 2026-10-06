@@ -572,10 +572,10 @@ uint32_t GetTriggeringTrackable(jass_t *j) {
     return jass_pushnullhandle(j, "trackable");
 }
 uint32_t GetClickedButton(jass_t *j) {
-    return jass_pushnullhandle(j, "button");
+    return jass_pushlighthandle(j, G_JassDialogButtonById(jass_getcontext(j)->dialog_button_id), "button");
 }
 uint32_t GetClickedDialog(jass_t *j) {
-    return jass_pushnullhandle(j, "dialog");
+    return jass_pushlighthandle(j, G_JassDialogById(jass_getcontext(j)->dialog_id), "dialog");
 }
 uint32_t GetLevelingUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -1046,35 +1046,44 @@ uint32_t SetDefaultDifficulty(jass_t *j) {
     return 0;
 }
 uint32_t DialogCreate(jass_t *j) {
-    return jass_pushnullhandle(j, "dialog");
+    return jass_pushlighthandle(j, G_JassDialogCreate(), "dialog");
 }
 uint32_t DialogDestroy(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    G_JassDialogDestroy(G_JassDialog(jass_checkhandle(j, 1, "dialog")));
     return 0;
 }
 uint32_t DialogSetAsync(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    /* Compatibility extension. Standard dialogs remain authoritative. */
     return 0;
 }
 uint32_t DialogClear(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    G_JassDialogClear(G_JassDialog(jass_checkhandle(j, 1, "dialog")));
     return 0;
 }
 uint32_t DialogSetMessage(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
-    //cstring_t messageText = jass_checkstring(j, 2);
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    cstring_t message = jass_checkstring(j, 2);
+    if (dialog) snprintf(dialog->message, sizeof(dialog->message), "%s", message ? G_LevelString(message) : "");
     return 0;
 }
 uint32_t DialogAddButton(jass_t *j) {
-    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
-    //cstring_t buttonText = jass_checkstring(j, 2);
-    //int32_t hotkey = jass_checkinteger(j, 3);
-    return jass_pushnullhandle(j, "button");
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    cstring_t text = jass_checkstring(j, 2);
+    int32_t hotkey = jass_checkinteger(j, 3);
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, hotkey, false, false), "button");
+}
+uint32_t DialogAddQuitButton(jass_t *j) {
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 1, "dialog"));
+    bool score = jass_checkboolean(j, 2);
+    cstring_t text = jass_checkstring(j, 3);
+    int32_t hotkey = jass_checkinteger(j, 4);
+    return jass_pushlighthandle(j, G_JassDialogAddButton(dialog, text, hotkey, true, score), "button");
 }
 uint32_t DialogDisplay(jass_t *j) {
-    //player_t *whichPlayer = jass_checkhandle(j, 1, "player");
-    //handle_t whichDialog = jass_checkhandle(j, 2, "dialog");
-    //bool flag = jass_checkboolean(j, 3);
+    player_t *player = jass_checkhandle(j, 1, "player");
+    jassDialog_t *dialog = G_JassDialog(jass_checkhandle(j, 2, "dialog"));
+    bool visible = jass_checkboolean(j, 3);
+    G_JassDialogDisplay(player, dialog, visible);
     return 0;
 }
 uint32_t InitGameCache(jass_t *j) {
