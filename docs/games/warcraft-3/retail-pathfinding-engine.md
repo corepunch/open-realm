@@ -9317,3 +9317,66 @@ boundary audit. The Python verifiers include changed-source, missing-boundary,
 nonmoving-input, membership, point, pose, offset and truncation negatives.
 This is a focused chunk, not the full repository checkpoint. No saved or
 networked layout changes are required.
+
+
+### Fixed-tick formation mutation and regroup preserve cached state
+
+Payoff112 uses the public producer `wc3_formation_refresh_probe.j` on a flat
+64×64 fine-grid map with a wall at x16/y0..23. Six Footmen have ranks0/1/2
+and radius31. At script tick10 (100-ms timer) they Move to1728/512; tick20
+adds Chaos `AF03`, resizing the first member to63 and rank3; tick30 removes
+member1; tick50 gives the surviving collection a new point1536/1792. Two
+completed read-only Frida captures repeat the full sequence and all34 layout
+offset words. The certificate, full compressed streams, frozen sources and
+saved Ghidra readback are `tools/ghidra/fixtures/retail-formation-refresh-1.27*`.
+
+| Observation | Original owner counter | Effect |
+|---|---:|---|
+| First route |1058| Six-member layout; coarse count10/index7 |
+| Size change at tick20 |1092| Same mover receives a private one-member owner; old physical group retains five members and its cached offsets/destinations/coarse route |
+| Removal at tick30 |1125| Old group retains four members; no layout rebuild |
+| New goal at tick50 |1191| New five-member physical owner, coarse count5/index2, fresh layout |
+| Regroup advance |1456| Age265, completion0; index2→0, counter reset and a second five-member layout |
+
+The last row is **not a timeout witness**: one arrived member plus nearby
+remaining members yields status0. Timing is simulation state, not Frida wall
+milliseconds. Native owner visits occur every30ms; the recorded clock words
+are retained in the certificate. The first mover's morph route is distinct
+from the surviving collection's unchanged route. Removing a member does not
+recenter those survivors immediately. A fresh point order is a new producer;
+it is not an in-place edit of the existing physical owner.
+
+`16d660 PathGroup_InitializeMemberOffsets` clears flags28 and initializes
+only offsets c/10 during creation, before mover resolution. It must not be
+confused with `16d6a0 PathGroup_ResetMemberRoutes`: regroup reset clears each
+member's fine/adaptive buffers and retry/delay, plus member flags, while
+retaining offsets and destinations until `16d990` computes the next layout.
+`16d8e0 PathGroup_SetHeadingFromPointDelta` sets10000 even for zero displacement,
+but preserves the old heading in that case. These helpers and their xrefs
+are saved in Ghidra and reproduced by `MapPathfinding.java`.
+
+The complete original-x86 oracle exports648 `16c4f0` boundary cases,48 refresh
+cases,1792 regroup-status cases and32 held member decisions with both prior
+arrival-bit states. No original instructions are replaced. Timeout limits
+are99 for ordinary groups,198 for policy100 after the initial stage and396
+for policy100 with20000. The comparison is **strictly greater**; the counter
+increments only on a failed regroup with an arrived member. Starting at0,
+a continually eligible wait advances on visit101/200/398, respectively
+(3.03/6.00/11.94 simulation seconds at30ms per visit). This is not an absolute
+wall-clock deadline, and lack of arrived members does not accumulate this wait.
+
+The engine had two concrete decision bugs: arrival10000 accumulated even
+when a cached destination ceased to be reached, and held-member early arrival
+left queued fine/coarse work linked. Move now replaces the bit per decision
+and unlinks held requests on both turn and arrival. Nine failing assertions
+reproduced premature coarse advancement, stale queue heads and the resulting
+wait-state change before the fix. Production regressions exercise public
+axis displacement, pending queues and all648 native regroup boundaries. The
+same public mutation script tests cached layout/route retention, new-owner
+retargeting and save/load between removal and retargeting.
+
+This closes FORM-04.1's fixed-tick point-goal, membership and size mutation
+contract. It does not establish every moving-widget target refresh producer,
+route failure or portal transition; those remain in TARGET/GROUP and FORM-04.2.
+The bounded numerical comparisons preserve the current recorded domains;
+they do not claim complete retail pathfinding or a new performance result.

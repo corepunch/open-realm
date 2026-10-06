@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**204 done / 336 tasks; 132 remaining.**
+**205 done / 336 tasks; 131 remaining.**
+
+Payoff112 closes FORM-04.1: two complete fixed-tick size/removal/point-retarget
+producers preserve cached survivor layouts and repeat all34 fresh layout words.
+Move now replaces stale arrival state and retires pending held-arrival work;
+actual public mutation/save and648 native regroup boundary regressions pass.
+Ghidra helper ABI, names and xrefs are saved. See
+[mutation and regroup](retail-pathfinding-engine.md#fixed-tick-formation-mutation-and-regroup-preserve-cached-state).
 
 Payoff111 closes FORM-02.3: public moving-group boundaries retain the first
 12 entries, and admission now owns its destination through moving-unit stops.
@@ -938,7 +945,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 
 ### FORM-04 — Regroup triggers
 
-- [ ] **FORM-04.1** Change target, membership and member size at fixed ticks; assert which change rebuilds layout/routes and its timeout in simulation time.
+- [x] **FORM-04.1** Change target, membership and member size at fixed ticks; assert which change rebuilds layout/routes and its timeout in simulation time. **Payoff112:** repeated public ticks20 size/30 removal retain survivor cached layout/routes; point retarget50 creates a new five-member owner. One status0 coarse advance at1456 resets then lays out survivors;648 complete original timeout cases establish strict99/198/396 eligible-visit counters. Engine fixes stale arrival/pending held queues, passes public mutation/save and full boundary matrix. Saved Ghidra maps initialization versus regroup reset and exact heading helper ABI. Moving-widget target producer domains remain in TARGET/GROUP; see [contract and scope](retail-pathfinding-engine.md#fixed-tick-formation-mutation-and-regroup-preserve-cached-state).
 - [ ] **FORM-04.2** Cause route failure and a warp-marker transition; assert regroup trigger, cached-state invalidation and next layout.
 
 ### FORM-05 — Retail formation witnesses

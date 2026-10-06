@@ -1526,7 +1526,19 @@ function install(module) {
     const formationRouteState=path=>({path:path.toString(),flags:path.add(0x88).readU32(),
         fineCount:path.add(0x50).readU32(),coarseCount:path.add(0x70).readU32(),
         fineIndex:path.add(0x74).readU32(),coarseIndex:path.add(0x78).readU32()});
+    const formationRefreshState=group=>{
+        const owner=base.add(0xd53a48).readPointer();
+        return {...snapshotPairGroup(group),cooldown:group.add(0x68).readU32(),heading:group.add(0x70).readU32(),
+            clock:ints(owner.add(0x54),4).map(v=>v>>>0),counter:owner.add(0x538).readU32(),
+            route:formationRouteState(group.add(0x3c).readPointer())};
+    };
     if(config.profileEvents) {
+        for(const [rva,event] of [[0x16c4f0,'formation-regroup'],[0x16d6a0,'formation-reset'],[0x16d990,'formation-refresh']])hook(rva,{
+            onEnter(args){this.observe=formationRankScenario;if(this.observe){this.group=this.context.ecx;
+                this.row={before:formationRefreshState(this.group)};
+                if(event==='formation-refresh')this.row.point=ints(args[0],2).map(v=>v>>>0);
+            }},onLeave(){if(this.observe){bump(event);emit(event,{...this.row,after:formationRefreshState(this.group)});}}
+        });
         hook(0x16e250,{onEnter(args){this.observe=formationRankScenario;if(this.observe){
             this.group=this.context.ecx;this.member=args[0];const mover=this.member.add(0x14).readPointer();
             this.row={group:this.group.toString(),identity:ints(this.group.add(0x14),2),
@@ -2125,7 +2137,7 @@ function install(module) {
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
-            if((value.includes('label=start_formation_boundary ') || value.includes('label=start_formation_blocked ') || value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
+            if((value.includes('label=start_formation_refresh ') || value.includes('label=start_formation_boundary ') || value.includes('label=start_formation_blocked ') || value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

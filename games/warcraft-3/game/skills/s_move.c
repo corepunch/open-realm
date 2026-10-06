@@ -4167,6 +4167,9 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
         .heading=unit->s.angle,.range=member->arrival_range ? member->arrival_range : wc3_float(0x3efae148),
         .flags=member->forced_arrival ? 0x10000 : 0};
+    /* Original16a790 replaces arrival10000 from this visit's result. A cached
+     * slot may cease to be reached after SetUnitX/Y or physical displacement. */
+    member->flags&=~0x10000u;
     if (unit->paused || unit->stunned) {
         member->arrived=member->in_range=false; member->speed=0; member->heading=unit->s.angle;
         return;
@@ -4176,6 +4179,8 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     if (member->arrived) {
         member->flags|=0x10000; member->forced_arrival=false;
         member->speed=0; member->heading=old_angle;
+        /* Held16fd90 retires pending work even on its early arrival branch. */
+        if (member->flags&0x200000) move_unlink_requests(unit);
         return;
     }
     if (member->flags&0x200000) {

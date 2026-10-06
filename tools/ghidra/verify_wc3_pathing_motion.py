@@ -55,6 +55,7 @@ def main():
     parser.add_argument('--engine-library', type=Path, help='compiled wc3_pathing_engine_probe.c; compare decision/angle bits')
     parser.add_argument('--world-velocity-fixture', type=Path, help='export world-adapted original velocity/facing words including small-speed cutoffs')
     parser.add_argument('--facing-fixture', type=Path, help='export original committed facing inputs/results')
+    parser.add_argument('--formation-refresh-fixture', type=Path, help='export member arrival refresh and regroup boundaries, then stop before unrelated lifecycles')
     parser.add_argument('--formation-fixture', type=Path, help='export complete original formation inputs/offset words')
     parser.add_argument('--native-pose-fixture', type=Path, help='export retained fine-pose sequences and original world inverse')
     parser.add_argument('--clock-trajectory-fixture', type=Path, help='export original primary-clock and old-velocity trajectory')
@@ -806,8 +807,9 @@ def main():
         formation_setter_cases+=1
     # Formation-marked members use the turn/arrival-only path, no route search.
     formation_step_cases=0
+    formation_step_rows=[]
     held_path=system+0x1a000
-    for moving,facing,arrival_radius,forced in itertools.product([False,True],[0,0.5],[0.25,8],[0,0x10000]):
+    for moving,facing,arrival_radius,forced,prior_arrived in itertools.product([False,True],[0,0.5],[0.25,8],[0,0x10000],[0,0x10000]):
         actor=actors[0]
         machine.mem_write(group,bytes(0x100))
         machine.mem_write(members,bytes(0x100))
@@ -817,7 +819,7 @@ def main():
         write(group+0x38,1)
         write(members+0x14,actor)
         floats(members+0x18,12,8)
-        write(members+0x28,0x200000)
+        write(members+0x28,0x200000|prior_arrived)
         write(actor+4,owner+0x200)
         floats(actor+0x78,8,8,0.25 if moving else 0,0,2,facing)
         floats(actor+0xb0,arrival_radius,0.25,0.125,0.25)
@@ -835,6 +837,7 @@ def main():
         assert (scalar(actor+0x78),scalar(actor+0x7c))==(8,8)
         assert (scalar(actor+0x80),scalar(actor+0x84))==(0.25 if moving else 0,0)
         if arrived: assert not read(actor+0xd8)[0]&0x10000
+        formation_step_rows.append(dict(moving=moving,facing=float_bits(facing),range=float_bits(arrival_radius),forced=forced,prior=prior_arrived,flags=read(members+0x28)[0],speed=read(members+0x20)[0],heading=read(members+0x24)[0]))
         formation_step_cases+=1
     # Layout prepass groups predicted positions by authored formation rank.
     layout_buckets=system+0x1b000
@@ -1121,6 +1124,7 @@ def main():
         assert read(near_out)[0]==near
         regroup_cases+=1
     regroup_advance_cases=0
+    regroup_advance_rows=[]
     regroup_paths=[system+0x1e000,system+0x1e100]
     shared_path,shared_points=system+0x1e200,system+0x1e400
     run(0x6f0040d0,0)
@@ -1176,7 +1180,12 @@ def main():
             if advance:
                 assert abs(scalar(members+n*0x2c+0xc))<0.00001
                 assert abs(scalar(members+n*0x2c+0x10)-(1.5 if n==0 else -1.5))<0.00001
+        regroup_advance_rows.append(dict(input=[flags,counter,arrived_mask,distance,cooldown,index],output=[read(group+0x80)[0],read(group+0x5c)[0],read(group+0x60)[0],read(shared_path+0x78)[0]],member_flags=[read(members+n*0x2c+0x28)[0]for n in range(2)],paths=[read(p+0x50)+read(p+0x70,3)+read(p+0x94,2)for p in regroup_paths]))
         regroup_advance_cases+=1
+    if args.formation_refresh_fixture:
+        args.formation_refresh_fixture.write_text(json.dumps(dict(binary_sha256=digest,passed=True,member_cases=formation_step_rows,regroup_cases=regroup_advance_rows,refresh_cases=formation_refresh_cases,regroup_status_cases=regroup_cases,scope="Complete original16a790 held decisions with prior arrival bit; complete16c4f0 through reset/advance/layout, no code replacement"),separators=(',',':'))+'\n')
+        args.report.write_text(json.dumps(dict(binary_sha256=digest,passed=True,member_cases=formation_step_cases,regroup_advance_cases=regroup_advance_cases,refresh_cases=formation_refresh_cases,regroup_status_cases=regroup_cases))+'\n')
+        return
     decision_cases=0
     decision_observations=[]
     def observe_member_step(uc,address,size,data):

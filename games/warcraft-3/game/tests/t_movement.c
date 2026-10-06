@@ -15169,4 +15169,220 @@ TEST(wc3_movement, selected_point_retains_formation_toggle_policy) {
     reset_entities();setup_test_world();
 }
 
-#endif /* BZ_TESTS */
+/* Native16a790 replaces arrival10000 on every decision, including cached
+ * destinations. SetUnitX/Y displaces a mover without replacing its order. */
+TEST(wc3_movement, formation_refresh_displacement_clears_arrival_before_regroup) {
+    edict_t *unit=make_moving_unit(128,128);
+    unit->collision=8;unit->s.angle=0;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,192);
+    peer->stand=unit_stand;peer->movetype=MOVETYPE_STEP;peer->collision=8;
+    groupPointOrder_t request={.count=2,.units={{unit,unit->spawn_time},{peer,peer->spawn_time}},
+        .point=&(vec2_t){1024,1024},.order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    T_NOT_NULL(group);if(!group)return;
+    /* Keep an intermediate point and two retained coarse vertices. */
+    group->route.group_points=malloc(2*sizeof(vec2_t));
+    group->route.group_points[0]=(vec2_t){32,32};group->route.group_points[1]=(vec2_t){4,4};
+    group->route.group_count=2;group->route.group_index=1;
+    group->point=(vec2_t){4,4};group->initialized=true;group->flags=0;
+    moveGroupMember_t *member=group->members;
+    member->destination=(vec2_t){4,4};member->world_destination=(vec2_t){128,128};
+    member->flags=0x200000;
+    group->members[1].destination=(vec2_t){4,6};
+    move_group_decide(group,member);
+    T_ASSERT(member->arrived);T_ASSERT(member->flags&0x10000);
+    uint32_t order=unit->current_order_id,id=unit->movement.group_id;
+    S_SetUnitAxisPosition(unit,0,256);
+    T_EQ(unit->current_order_id,order);T_EQ(unit->movement.group_id,id);
+    member->flags|=0x40000; /* Unrelated adjusted-slot history must survive. */
+    move_group_decide(group,member);
+    T_ASSERT(!member->arrived);T_ASSERT(!(member->flags&0x10000));
+    T_ASSERT(member->flags&0x40000);T_ASSERT(member->flags&0x200000);
+    T_EQ(member->speed,0);
+    move_group_regroup(group);
+    T_EQ(group->route.group_index,1);T_EQ(group->completion_counter,0);
+    /* An ordinary cached decision also replaces a prior arrival bit. */
+    member->flags=(member->flags&~0x200000u)|0x10000;
+    unit->movement.wait_delay=2;
+    move_group_decide(group,member);
+    T_ASSERT(!member->arrived);T_ASSERT(!(member->flags&0x10000));
+    T_EQ(unit->movement.wait_delay,1);
+}
+
+TEST(wc3_movement, formation_refresh_held_arrival_retires_both_pending_queues) {
+    edict_t *unit=make_moving_unit(128,128);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    unit->collision=8;unit->s.angle=0;
+    moveGroup_t group={.count=1};
+    group.members[0]=(moveGroupMember_t){.unit=unit,.flags=0x200000,.destination={4,4}};
+    level.pathing_counter=400;
+    moveFineBudget_t *fine=level.move_fine_budgets+unit->s.player;
+    moveCoarseBudget_t *coarse=&level.move_coarse_budgets[unit->s.player][2];
+    fine->work=coarse->work=UINT32_MAX;
+    T_ASSERT(!S_AdmitMoveCoarseRequest(unit,&unit->movement.fine_route.adaptive_admission,2));
+    T_ASSERT(unit->movement.fine_route.adaptive_admission.queued);
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+    T_ASSERT(unit->movement.fine_queued);
+    move_group_decide(&group,group.members);
+    T_ASSERT(group.members[0].arrived);T_EQ(group.members[0].speed,0);
+    T_ASSERT(!unit->movement.fine_queued);
+    T_ASSERT(!unit->movement.fine_route.adaptive_admission.queued);
+    T_EQ(fine->count,0);T_EQ(coarse->count,0);T_NULL(fine->head);T_NULL(coarse->head);
+}
+
+#include "fixtures/retail_formation_regroup_112.h"
+TEST(wc3_movement, formation_refresh_regroup_boundaries_match_complete_original) {
+    FOR_LOOP(c,sizeof(formation_regroup_112)/sizeof(*formation_regroup_112)) {
+        typeof(*formation_regroup_112) const *fixture=formation_regroup_112+c;
+        edict_t *a=make_moving_unit(0,0);
+        edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),8,0);
+        a->collision=b->collision=8;b->movetype=MOVETYPE_STEP;b->stand=unit_stand;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        groupPointOrder_t request={.count=2,.units={{a,a->spawn_time},{b,b->spawn_time}},
+            .point=&(vec2_t){384,256},.order="move",.order_id=G_OrderId("move")};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_find_group(a->movement.group_id);T_NOT_NULL(group);if(!group)continue;
+        T_ASSERT(move_group_route(group));
+        free(group->route.group_points);group->route.group_points=malloc(3*sizeof(vec2_t));
+        group->route.group_points[0]=(vec2_t){12,8};group->route.group_points[1]=(vec2_t){10,8};
+        group->route.group_points[2]=(vec2_t){8,8};group->route.group_count=3;
+        group->route.group_index=fixture->input[5];group->point=(vec2_t){8,8};
+        group->flags=fixture->input[0];group->age=22;group->completion_counter=fixture->input[1];
+        group->cooldown=fixture->input[4];
+        FOR_LOOP(n,2) {
+            moveGroupMember_t *member=group->members+n;edict_t *unit=member->unit;
+            member->destination=(vec2_t){fixture->input[3],0};
+            member->flags=fixture->input[2]&(1u<<n) ? 0x10000 : 0;
+            unit->movement.fine_route.count=unit->movement.fine_route.adaptive_count=5;
+            unit->movement.fine_route.index=3;unit->movement.fine_route.adaptive_index=4;
+            unit->movement.wait_delay=17;unit->movement.retry_count=29;
+            unit->movement.path.valid=true;
+        }
+        move_group_regroup(group);
+        uint32_t actual[]={group->flags,group->age,group->completion_counter,group->route.group_index};
+        FOR_LOOP(k,4)T_EQ(actual[k],fixture->output[k]);
+        FOR_LOOP(n,2) {
+            edict_t *unit=group->members[n].unit;moveFineRoute_t *route=&unit->movement.fine_route;
+            uint32_t path[]={route->count,route->adaptive_count,route->index,route->adaptive_index,
+                unit->movement.wait_delay,unit->movement.retry_count};
+            T_EQ(group->members[n].flags,fixture->flags[n]);
+            FOR_LOOP(k,6)T_EQ(path[k],fixture->paths[n][k]);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+
+#include "fixtures/retail_formation_refresh_script_112.h"
+static struct {
+    edict_t *units[6];uint32_t old_id,stages,route_count,route_index;
+    vec2_t point,offset[6],destination[6];
+} formation_refresh_112;
+
+static void formation_refresh_marker_112(cstring_t text) {
+    if (!strstr(text,"PATHTRACE"))return;
+    if(strstr(text,"label=created ")) {
+        ggroup_t *collection=level.groups[0];T_EQ(collection->num_units,6);
+        FOR_LOOP(i,6)formation_refresh_112.units[i]=collection->units[i];
+    }
+    if(!strstr(text,"label=sample "))return;
+    unsigned tick=0;sscanf(text,"PATHTRACE tick=%u",&tick);
+    if(tick!=11 && tick!=21 && tick!=31 && tick!=51)return;
+    edict_t **units=formation_refresh_112.units;
+    if(tick==11) {
+        formation_refresh_112.old_id=units[0]->movement.group_id;
+        moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,6);T_ASSERT(group->initialized);
+        formation_refresh_112.route_count=group->route.group_count;
+        formation_refresh_112.route_index=group->route.group_index;
+        formation_refresh_112.point=group->point;
+        FOR_LOOP(i,6) {
+            T_EQ(group->members[i].unit,units[i]);
+            formation_refresh_112.offset[i]=group->members[i].offset;
+            formation_refresh_112.destination[i]=group->members[i].destination;
+        }
+    } else if(tick==21 || tick==31) {
+        moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,tick==21 ? 5 : 4);
+        T_EQ(group->route.group_count,formation_refresh_112.route_count);
+        T_EQ(group->route.group_index,formation_refresh_112.route_index);
+        T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(formation_refresh_112.point.x));
+        T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(formation_refresh_112.point.y));
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i;unsigned n=0;
+            while(n<6 && units[n]!=member->unit)n++;
+            T_ASSERT(n<6);if(n>=6)continue;T_ASSERT(n!=0 && (tick==21 || n!=1));
+            FOR_LOOP(k,2) {
+                T_EQ(wc3_float_bits(((float *)&member->offset)[k]),wc3_float_bits(((float *)(formation_refresh_112.offset+n))[k]));
+                T_EQ(wc3_float_bits(((float *)&member->destination)[k]),wc3_float_bits(((float *)(formation_refresh_112.destination+n))[k]));
+            }
+        }
+        T_EQ(units[0]->collision,63);T_EQ(units[0]->movement.formation_rank,3);
+        T_NE(units[0]->movement.group_id,formation_refresh_112.old_id);
+        T_EQ(units[0]->current_order_id,G_OrderId("move"));
+    } else {
+        moveGroup_t *group=move_find_group(units[0]->movement.group_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,5);
+        T_NE(group->id,formation_refresh_112.old_id);
+        T_EQ(group->goal.x,1536);T_EQ(group->goal.y,1792);T_ASSERT(group->initialized);
+        FOR_LOOP(i,group->count)T_EQ(group->members[i].unit->movement.group_id,group->id);
+    }
+    formation_refresh_112.stages++;
+}
+
+TEST(wc3_movement, formation_refresh_public_mutations_preserve_cached_layout_and_save) {
+    reset_entities();setup_test_world();
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radii[4]={31,31,31,63},speed=150;
+    unitModification_t mods[4][3];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radii+i};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=i==3 ? MAKEFOURCC('h','F','0','3') : MAKEFOURCC('h','F','0','0')+i,.numbeOfModifications=3,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[]={
+        {.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data="hF03"},
+        {.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""}};
+    unitData_t ability={.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=MAKEFOURCC('A','F','0','3'),.numbeOfModifications=2,.modifications=ability_mods};
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types,.num_userCreatedAbilities=1,.userCreatedAbilities=&ability};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,24)cells[y*64+16]=0xc6;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *client=g_edicts;client->inuse=true;client->client=game.clients;client->client->ps.number=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_msec=level.time=0;level.pathing_phase=0;
+    formation_refresh_112=(typeof(formation_refresh_112)){0};test_preload_marker=formation_refresh_marker_112;
+    T_ASSERT(run_test_jass(formation_refresh_script_112));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/wc3-formation-refresh112.bin";
+    while(level.time<5200) {
+        level.time+=5;globals.RunFrame();
+        if(level.time==4000) {
+            moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+            T_NOT_NULL(group);if(!group)continue;
+            T_EQ(group->count,4);vec2_t point=group->point;
+            uint32_t index=group->route.group_index,completion=group->completion_counter;
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_find_group(formation_refresh_112.old_id);T_NOT_NULL(group);if(!group)continue;
+            T_EQ(group->count,4);T_EQ(group->route.group_index,index);T_EQ(group->completion_counter,completion);
+            T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(point.x));T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(point.y));
+        }
+    }
+    T_EQ(formation_refresh_112.stages,4);T_ASSERT(!jass_rterror_pending(level.vm));
+    test_preload_marker=NULL;level.started=false;
+    reset_entities();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+#endif

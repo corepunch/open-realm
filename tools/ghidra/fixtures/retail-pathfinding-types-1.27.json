@@ -10497,6 +10497,42 @@
           "storage": "ECX"
         }
       ]
+    },
+    {
+      "address": "6f16d660",
+      "name": "PathGroup_InitializeMemberOffsets",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f16d8e0",
+      "name": "PathGroup_SetHeadingFromPointDelta",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "old_point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        },
+        {
+          "name": "new_point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 8
+        }
+      ]
     }
   ],
   "globals": [
