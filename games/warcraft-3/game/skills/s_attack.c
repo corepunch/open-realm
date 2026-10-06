@@ -69,6 +69,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
+    uint32_t retaliation = S_AncientIsRooted(attacker) ? S_AncientRetaliationAttackMask(attacker) : 0;
     if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
@@ -76,6 +77,13 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
     if (attacker && flag && attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) &&
         (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
     if (attacker && flag && attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) &&
+        (attacker->attack2.targetsAllowed & flag)) return &attacker->attack2;
+    /* Rooted Ancients may retaliate with their weapon profile even when Root's
+     * authored mask disables player-issued attacks; explicit orders are still
+     * validated by S_AttackCanTarget before this profile is selected. */
+    if (attacker && flag && retaliation && attacker->attack1.type != ATK_NONE && (retaliation & 1u) &&
+        (attacker->attack1.targetsAllowed & flag)) return &attacker->attack1;
+    if (attacker && flag && retaliation && attacker->attack2.type != ATK_NONE && (retaliation & 2u) &&
         (attacker->attack2.targetsAllowed & flag)) return &attacker->attack2;
     return attacker ? &attacker->attack1 : NULL;
 }
@@ -200,6 +208,7 @@ static bool attack_can_retaliate(edict_t const *attacker, edict_t const *target)
     if (!target || !target->inuse || attacker == target || M_IsDead((edict_t *)target) ||
         S_UnitIsCycloned(target) || S_UnitIsHiddenFromPlayer(target, attacker->s.player) ||
         attacker->s.player == target->s.player) return false;
+    if (target->destructable) return G_DestructableCanBeAttackedBy(attacker, target);
     flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && ((attacker->attack1.type != ATK_NONE && (S_AncientRetaliationAttackMask(attacker) & 1u) &&
                      (attacker->attack1.targetsAllowed & flag)) ||
@@ -277,7 +286,8 @@ static bool attack_stop_if_target_invalid(edict_t *attacker) {
     /* Existing attack orders are combat orders, unlike the explicit Attack
      * command which may deliberately target an allied unit.  Alliance changes
      * must therefore end an automatic/cinematic attack before its next hit. */
-    if (S_AttackCanTarget(attacker, target) && !allied &&
+    if ((S_AttackCanTarget(attacker, target) ||
+         (S_AncientIsRooted(attacker) && attack_can_retaliate(attacker, (edict_t *)target))) && !allied &&
         attacker->attack_target_spawn_time == target->spawn_time) {
         return false;
     }
