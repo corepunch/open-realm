@@ -132,6 +132,13 @@ void G_JassDialogClick(edict_t *ent, uint32_t dialog_id, uint32_t button_id) {
      * must be implemented separately, not guessed from a client UI callback. */
 }
 
+static void DialogStyleText(frameDef_t *frame) {
+    if (!frame) return;
+    if (!frame->Font.Index)
+        frame->Font.Index = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+    if (!frame->Font.Color.a) frame->Font.Color = COLOR32_WHITE;
+}
+
 /* Client windows accept a server-authored FDF frame tree. The ScriptDialog
  * template provides Warcraft styling when it is present in the game archives. */
 void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
@@ -146,27 +153,34 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
     snprintf(root->Name, sizeof(root->Name), "JassChoiceDialog");
     UI_SetSize(root, 0.36f, 0.28f);
     UI_CenterFrame(root);
-    message = UI_Spawn(FT_TEXT, root);
+    message = UI_FindFrameNear(root, "ScriptDialogText");
+    if (!message) message = UI_Spawn(FT_TEXT, root);
     if (!message) return;
     snprintf(message->Name, sizeof(message->Name), "JassChoiceMessage");
     UI_SetSize(message, 0.30f, 0.06f);
     UI_SetPoint(message, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.025f);
+    DialogStyleText(message);
     UI_SetText(message, "%s", dialog->message);
     FOR_LOOP(i, level.dialog_button_count) {
         jassDialogButton_t const *entry = &level.dialog_buttons[i];
         frameDef_t *button, *text;
         if (!entry->inuse || entry->dialog_id != dialog->id || n >= 12) continue;
-        source = UI_FindFrame("StandardButtonTemplate");
+        source = UI_FindFrame("ScriptDialogButton");
+        if (!source) source = UI_FindFrame("StandardButtonTemplate");
         button = source ? UI_CloneFrameTree(source, root) : UI_Spawn(FT_GLUETEXTBUTTON, root);
         if (!button) break;
         snprintf(button->Name, sizeof(button->Name), "JassChoiceButton%u", n);
         UI_SetSize(button, 0.24f, 0.027f);
         UI_SetPoint(button, FRAMEPOINT_TOP, root, FRAMEPOINT_TOP, 0, -0.10f - n * 0.032f);
-        text = UI_Spawn(FT_TEXT, button);
+        text = button->Button.NormalText.frame[0]
+            ? UI_FindFrameNear(button, button->Button.NormalText.frame)
+            : NULL;
+        if (!text) text = UI_Spawn(FT_TEXT, button);
         if (text) {
             snprintf(text->Name, sizeof(text->Name), "JassChoiceButtonText%u", n);
             UI_SetSize(text, 0.23f, 0.027f);
             UI_SetPoint(text, FRAMEPOINT_CENTER, button, FRAMEPOINT_CENTER, 0, 0);
+            DialogStyleText(text);
             UI_SetText(text, "%s", entry->text);
             snprintf(button->Button.NormalText.frame, sizeof(button->Button.NormalText.frame), "%s", text->Name);
         }
