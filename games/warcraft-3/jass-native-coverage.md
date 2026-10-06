@@ -202,7 +202,7 @@ movie unlock persistence and camera-button rows remain follow-up work. See [pre-
 `GetGameDifficulty()` state. Campaign map startup seeds both values from `wc3_campaign_difficulty`; scripts may then
 change current and default difficulty independently.
 
-Still incomplete: the generic `Dialog*` / dialog-button event natives, `DialogAddQuitButton`, actual score-screen
+The generic `Dialog*` and dialog/button event natives now have bounded registries, server-authoritative click dispatch, and local modal-window presentation. `DialogAddQuitButton` creates handles but its quit policy remains incomplete; see [JASS dialogs](../../docs/games/warcraft-3/jass-dialogs.md). Still incomplete: actual score-screen
 presentation, Reduce Difficulty/observer-on-death result policy, and result-dialog ownership of single-player modal
 pausing. The existing `PauseGame` / modal path should be reused for that work rather than adding a second pause model.
 

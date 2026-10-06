@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 65 makes delayed ability owner/target incarnation snapshots mandatory. */
-static uint32_t const save_version = 65;
+/* Version 66 adds persistent JASS choice-dialog state, button handles, and event payloads. */
+static uint32_t const save_version = 66;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -180,6 +180,8 @@ typedef enum {
     JASS_HANDLE_GROUP,
     JASS_HANDLE_TIMER,
     JASS_HANDLE_TIMERDIALOG,
+    JASS_HANDLE_DIALOG,
+    JASS_HANDLE_BUTTON,
     JASS_HANDLE_LEADERBOARD,
     JASS_HANDLE_MULTIBOARD,
     JASS_HANDLE_MULTIBOARDITEM,
@@ -204,6 +206,8 @@ static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_d
     { "group", JASS_HANDLE_GROUP },
     { "timer", JASS_HANDLE_TIMER },
     { "timerdialog", JASS_HANDLE_TIMERDIALOG },
+    { "dialog", JASS_HANDLE_DIALOG },
+    { "button", JASS_HANDLE_BUTTON },
     { "leaderboard", JASS_HANDLE_LEADERBOARD },
     { "multiboard", JASS_HANDLE_MULTIBOARD },
     { "multiboarditem", JASS_HANDLE_MULTIBOARDITEM },
@@ -212,6 +216,25 @@ static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_d
     { "weathereffect", JASS_HANDLE_WEATHER },
     { "lightning", JASS_HANDLE_LIGHTNING },
     { "region", JASS_HANDLE_REGION },
+};
+
+static field_t const jass_dialog_fields[] = {
+    TF(jassDialog_t, inuse, F_INT),
+    TF(jassDialog_t, id, F_INT),
+    TF(jassDialog_t, visible_players, F_INT),
+    TF(jassDialog_t, message, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const jass_dialog_button_fields[] = {
+    TF(jassDialogButton_t, inuse, F_INT),
+    TF(jassDialogButton_t, id, F_INT),
+    TF(jassDialogButton_t, dialog_id, F_INT),
+    TF(jassDialogButton_t, hotkey, F_INT),
+    TF(jassDialogButton_t, quit, F_INT),
+    TF(jassDialogButton_t, score_screen, F_INT),
+    TF(jassDialogButton_t, text, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -267,6 +290,8 @@ static field_t const save_event_fields[] = {
     F(gevent_s, timer, F_TIMER, 0, FIELD_NONE),
     F(gevent_s, filter, F_FUNCTION),
     F(gevent_s, region, F_REGION),
+    F(gevent_s, dialog_id, F_INT),
+    F(gevent_s, button_id, F_INT),
     F(gevent_s, range, F_FLOAT),
     F(gevent_s, state, F_INT),
     F(gevent_s, limitop, F_INT),
@@ -302,6 +327,9 @@ static field_t const save_game_event_fields[] = {
     F(gameevent_s, point, F_VECTOR),
     F(gameevent_s, has_point, F_INT),
     F(gameevent_s, responseTo, F_EVENT, 0, FIELD_NONE),
+    F(gameevent_s, dialog_id, F_INT),
+    F(gameevent_s, button_id, F_INT),
+    F(gameevent_s, dialog_player, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -486,6 +514,10 @@ static field_t const level_fields[] = {
     FC(level_locals, triggers, F_STRUCT, MAX_TRIGGERS, trigger_fields, num_triggers),
     FC(level_locals, timers, F_STRUCT, MAX_TIMERS, timer_fields, num_timers),
     F(level_locals, timer_dialogs, F_STRUCT, MAX_TIMERDIALOGS, timer_dialog_fields),
+    F(level_locals, dialog_count, F_INT),
+    F(level_locals, dialog_button_count, F_INT),
+    F(level_locals, dialogs, F_STRUCT, MAX_JASS_DIALOGS, jass_dialog_fields),
+    F(level_locals, dialog_buttons, F_STRUCT, MAX_JASS_DIALOG_BUTTONS, jass_dialog_button_fields),
     F(level_locals, leaderboards, F_STRUCT, MAX_LEADERBOARDS, leaderboard_fields),
     F(level_locals, player_leaderboards, F_INT),
     F(level_locals, multiboards, F_STRUCT, MAX_MULTIBOARDS, multiboard_fields),
@@ -1162,6 +1194,16 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
     if (domain == JASS_HANDLE_TIMER) {
         return TimerIndex(value, id);
     }
+    if (domain == JASS_HANDLE_DIALOG) {
+        jassDialog_t *dialog = G_JassDialog(value);
+        if (!dialog) return false;
+        *id = dialog->id; return true;
+    }
+    if (domain == JASS_HANDLE_BUTTON) {
+        jassDialogButton_t *button = G_JassDialogButton(value);
+        if (!button) return false;
+        *id = button->id; return true;
+    }
     if (domain == JASS_HANDLE_TIMERDIALOG) {
         timerdialog_t *dialog = value;
         if (dialog < level.timer_dialogs || dialog >= level.timer_dialogs + MAX_TIMERDIALOGS || !dialog->inuse)
@@ -1258,6 +1300,8 @@ handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
         return group && group->inuse ? group : NULL;
     }
     if (domain == JASS_HANDLE_TIMER) return id < level.num_timers ? &level.timers[id] : NULL;
+    if (domain == JASS_HANDLE_DIALOG) return G_JassDialogById(id);
+    if (domain == JASS_HANDLE_BUTTON) return G_JassDialogButtonById(id);
     if (domain == JASS_HANDLE_TIMERDIALOG)
         return id < MAX_TIMERDIALOGS && level.timer_dialogs[id].inuse ? &level.timer_dialogs[id] : NULL;
     if (domain == JASS_HANDLE_LEADERBOARD)
@@ -2209,6 +2253,8 @@ bool ReadGame(cstring_t filename) {
     FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) {
         G_MusicSyncClient(game.clients + i);
         UI_UpdateCursorPresentation(game.clients + i);
+        edict_t *player_ent = G_GetPlayerEntityByNumber(game.clients[i].ps.number);
+        if (player_ent) UI_JassDialogRestore(player_ent);
     }
     /* svc_layout layers are client presentation state and are not serialized.
      * Force the restored timer-dialog model to republish on the next frame. */

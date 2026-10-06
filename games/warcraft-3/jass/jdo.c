@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 6 // format version; persists region trigger context
+#define BZ_JASS_SNAPSHOT_VERSION 7 // format version; persists region trigger context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -31,6 +31,8 @@ typedef struct {
     edict_t *unit;
     edict_t *source;
     int32_t value;
+    uint32_t dialog_id, dialog_button_id;
+    player_t *event_player;
     vec2_t const *point;
     bool has_point;
     handle_t timer;
@@ -1088,7 +1090,7 @@ void jass_runevents(jass_t *j) {
  * ========================================================================= */
 
 static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
-    player_t *player = jass_eventplayer(params->unit);
+    player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
 
     if (params->trigger->disabled) {
         return false;
@@ -1102,6 +1104,8 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state.context.unit = params->unit;
         tmp_state.context.source = params->source;
         tmp_state.context.eventValue = params->value;
+        tmp_state.context.dialog_id = params->dialog_id;
+        tmp_state.context.dialog_button_id = params->dialog_button_id;
         tmp_state.context.point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f };
         tmp_state.context.hasPoint = params->has_point;
         tmp_state.context.playerState = player;
@@ -1186,13 +1190,15 @@ bool jass_evaluateplayerinteger(jass_t *j, jassFunc_t const *expr, player_t *pla
 static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
     jasscoroutine_t *first = NULL, *last = NULL;
     FOR_EACH_LIST(gTriggerAction_t, action, params->trigger->actions) {
-        player_t *player = jass_eventplayer(params->unit);
+        player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
         jasscoroutine_t *co = jass_startcoroutine(j, &MAKE(jassContext_t,
                                   .trigger = params->trigger,
                                   .func = action->func,
                                   .unit = params->unit,
                                   .source = params->source,
                                   .eventValue = params->value,
+                                  .dialog_id = params->dialog_id,
+                                  .dialog_button_id = params->dialog_button_id,
                                   .point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f },
                                   .hasPoint = params->has_point,
                                   .playerState = player,
@@ -1250,6 +1256,9 @@ bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *eve
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
+        .dialog_id = event->dialog_id, .dialog_button_id = event->button_id,
+        .event_player = event->dialog_player
+            ? jass_getplayerbyindex(event->dialog_player - 1) : NULL,
         .point = event->has_point ? &event->point : NULL, .has_point = event->has_point,
         .region = event->responseTo && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
             ? event->responseTo->region : NULL });
@@ -2684,6 +2693,8 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->dialog_id, sizeof(context->dialog_id)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, (void *)&context->timer_generation, sizeof(context->timer_generation)) ||
@@ -2708,6 +2719,8 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
     if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
+        !jass_snapshot_io(snapshot, &context->dialog_id, sizeof(context->dialog_id)) ||
+        !jass_snapshot_io(snapshot, &context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, &context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, &context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, &context->timer_generation, sizeof(context->timer_generation)) ||
