@@ -198,6 +198,7 @@ BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemHealAoe);
 BZ_ABILITY_PROC(CAbilityItemGold);
+BZ_ABILITY_PROC(CAbilityItemLumber);
 BZ_ABILITY_PROC(CAbilityItemSpeed);
 BZ_ABILITY_PROC(CAbilityItemSpeedAoe);
 abilityitem_t S_ItemPowerup(edict_t const *unit, edict_t const *item);
