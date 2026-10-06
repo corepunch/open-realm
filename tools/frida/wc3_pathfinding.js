@@ -1523,7 +1523,24 @@ function install(module) {
                 return {mover:mover.toString(),row:ints(p,11).map(v => v>>>0),pose:ints(mover.add(0x70),8).map(v => v>>>0),
                     moverFlags:mover.add(0xd8).readU32()};})};
     };
+    const formationRouteState=path=>({path:path.toString(),flags:path.add(0x88).readU32(),
+        fineCount:path.add(0x50).readU32(),coarseCount:path.add(0x70).readU32(),
+        fineIndex:path.add(0x74).readU32(),coarseIndex:path.add(0x78).readU32()});
     if(config.profileEvents) {
+        hook(0x16e250,{onEnter(args){this.observe=formationRankScenario;if(this.observe){
+            this.group=this.context.ecx;this.member=args[0];const mover=this.member.add(0x14).readPointer();
+            this.row={group:this.group.toString(),identity:ints(this.group.add(0x14),2),
+                member:ints(this.member,11).map(v=>v>>>0),formation:ints(this.group.add(0x54),2).map(v=>v>>>0),
+                path:formationRouteState(mover.add(0xa8).readPointer())};
+        }},onLeave(){if(this.observe){bump('formation-member-destination');emit('formation-member-destination',{
+            ...this.row,after:ints(this.member,11).map(v=>v>>>0)});}}});
+        hook(0x16ce10,{onEnter(){this.observe=formationRankScenario;if(this.observe){
+            this.group=this.context.ecx;this.path=this.group.add(0x3c).readPointer();
+            this.row={group:this.group.toString(),identity:ints(this.group.add(0x14),2),
+                before:formationRouteState(this.path),formation:ints(this.group.add(0x54),2).map(v=>v>>>0)};
+        }},onLeave(result){if(this.observe){bump('formation-group-route');emit('formation-group-route',{
+            ...this.row,after:formationRouteState(this.path),result:result.toUInt32(),
+            afterFormation:ints(this.group.add(0x54),2).map(v=>v>>>0)});}}});
         for(const [rva,mask] of [[0x16d7e0,0x20],[0x16dc50,2],[0x16dcb0,4],[0x16dc70,8],[0x16dc90,0x10]])hook(rva,{
             onEnter(args){this.observe=formationRankScenario;if(this.observe){this.request=this.context.ecx;this.row={request:this.request.toString(),identity:ints(this.request.add(0x14),2),mask,enabled:args[0].toUInt32(),before:this.request.add(0x100).readU32(),caller:this.returnAddress.sub(base).toUInt32()};}},
             onLeave(){if(this.observe){bump('formation-policy-set');emit('formation-policy-set',{...this.row,after:this.request.add(0x100).readU32()});}}
@@ -2108,7 +2125,7 @@ function install(module) {
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
-            if((value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
+            if((value.includes('label=start_formation_blocked ') || value.includes('label=start_formation_ranks ') || value.includes('label=start_formation_policy '))){formationRankScenario=true;pairScenario=true;}
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

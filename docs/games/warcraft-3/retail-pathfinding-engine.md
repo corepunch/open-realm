@@ -9160,3 +9160,84 @@ adding `--point-click-alt` for Alt. Map loading still requires the usual
 captures are `runtime/formation-policy-109-a.jsonl` through e under the local
 1.27 analysis report root. Generate the engine oracle with
 `verify_wc3_formation_policy_trace.py A B C D --header OUTPUT`.
+
+
+## Blocked formation slots adjust after classification
+
+Payoff110 closes FORM-03.2 with two completed ordinary UI Move captures on a
+flat map containing one blocked base cell at13/10. The six mixed-rank members,
+source positions, speeds and reviewed Winelib input are unchanged from109.
+The blocked cell covers only the first assigned destination; the group centre
+and the other five assigned slots remain clear. The observer reads original
+state and never invokes game functions or edits game memory.
+
+Both captures finish120 public samples and a terminal footer. Each contains195
+route-owner passes,954 scalar decisions and960 velocity/position/facing commits.
+The first route starts with no coarse points/index-1, builds two points/index0,
+and every194 later request retains that plan and the formation point. Exactly
+six member-destination adjustments occur, all within the first decision phase;
+none occurs during the cached visits. The complete streams are frozen, including
+search and task events, rather than retaining only successful first-tick rows.
+
+The native order is `16c250` classification, then each `16a790` decision's
+`16e250` refreshed-slot adjustment, then all commits. The original first
+classification holds members1/2/3/5. The blocked first slot changes from raw
+fine41d31f87/41ae8e70 to25/21 and receives40000, while the four held members
+remain200000. At the next cached visit, `169b00` sees the retained adjusted
+flag and denies classification: `16c250` installs cooldown66 and `16c150`
+decrements it after committing. The formerly held members are released.
+
+Our engine previously adjusted every slot in `move_group_route` before
+classification. That made the first visit see40000, seed the cooldown early
+and release four members one visit too soon. The new production regression
+fails six assertions before the fix. Move now retains previous member flags
+through layout/classification and adjusts a refreshed slot at its own decision
+boundary. Cached visits keep destinations, without rerunning their admission
+queries. Existing bounded layout and accelerator algorithms remain the owners
+of geometry and fallback; no fixture-specific destination is hardcoded.
+
+The exact cached replay then exposes16 low-word failures: fine route direction
+and blocker queries can borrow `sampled_pose` from a previous presentation
+sample. Native `16a790` instead passes the current owner-clock prediction from
+`05bdd0` to `16fbd0`. These queries now receive a stack-local predicted fine
+source. This preserves the committed pose/time origin and avoids converting
+through world coordinates. All360 compared layout/destination/flags/pending
+motion/committed pose words now agree across both captures' fresh and first
+cached ticks. A save after the first tick retains adjusted40000 and cooldown0;
+loading reproduces the second native tick exactly. The regression uses actual
+construction, selection Move and ability owner updates with supplied native
+absolute clocks. It does not inject native destinations, decisions or routes.
+
+The velocity observer's `requested[1]` is mover+c4, a signed heading delta,
+whereas its `heading` is the actual commit argument. `173720` computes this
+wrapped delta. The strict verifier checks all stored deltas and shared speed
+caps separately from pending member headings. All954 scalar decisions and960
+commits per capture additionally match a freshly compiled production C scalar
+probe. This arithmetic replay does not certify the entire engine journey;
+the engine comparison is explicitly bounded to the initial two owner ticks.
+The first two normalized ticks repeat after excluding absolute clock words;
+full later clock/trajectory equality is not claimed.
+
+Artifacts: `retail-formation-blocked-1.27*.jsonl.gz`, its JSON certificate,
+archived producer/observer sources and `retail-formation-blocked-ghidra-1.27.json`
+in `tools/ghidra/fixtures`. The saved Ghidra readback contains eight function
+names/comments/xrefs and36 existing path/group field mappings, with
+`unsaved=false`. `MapPathfinding.java` retains the same ordering, cache and
+current-source contracts, including the recovered wrapped-delta role.
+The strict checker rejects lost stages, changed source hashes, changed cached
+routes, early adjustment, different fallback, missing decisions, changed caps,
+heading deltas and late commits. The generated native engine header is checked
+against both validated traces.
+
+Reproduce with `make_wc3_pathfinding_map.py --scenario formation_blocked` and
+109's ordinary bounded input command, pointing at the generated blocked map.
+Raw captures are `runtime/formation-blocked-110-a.jsonl` and b under the pinned
+1.27 report root. Generate the header using
+`verify_wc3_formation_blocked_trace.py A B --header OUTPUT`.
+
+Validation: the Classic and TFT movement suites each pass331 tests and
+4,458,567 assertions; the formation Python checks pass15 tests. Production and
+test targets build, and Ghidra is saved. This is focused movement validation,
+not the full repository batch checkpoint. No save format or network layout
+changes, extra task IDs or closure of wider regroup/crowd/moving-target cases
+are claimed.

@@ -32,7 +32,7 @@ COUNTED = ('formation-policy-set','formation-authored-rank','formation-rank-set'
            'formation-rank-layout','formation-rank-buckets','motion-decision','velocity-commit')
 
 
-def first_tick(rows):
+def first_tick(rows, expected_member_flags=None):
     action = next(r for r in rows if r['event']=='player-point-action-begin')
     layout = next(r for r in rows if r['event']=='formation-rank-layout')
     begin = next(r for r in rows if r['event']=='pair-group-phase-begin' and r['phase']=='decide')
@@ -60,7 +60,8 @@ def first_tick(rows):
     policy=14 if action['flags']&16 else 0
     if (begin['flags']&14)!=policy or (end['flags']&14)!=policy or (commit['flags']&14)!=policy:
         raise ValueError('canonical policy lost at physical owner')
-    if [r[6] for r in tick] != ([0x100000]*6 if policy else [0x100000,0x200000,0x200000,0x200000,0x100000,0x200000]):
+    expected_member_flags=expected_member_flags if expected_member_flags is not None else ([0x100000]*6 if policy else [0x100000,0x200000,0x200000,0x200000,0x100000,0x200000])
+    if [r[6] for r in tick] != expected_member_flags:
         raise ValueError('mixed-rank hold classification differs')
     return {'input':[action['clock'][0],action['counter'],*action['point'],*commits[0]['clock']],
             'tick':tick,'flags':begin['flags'],'formation':begin['formation'],
@@ -75,13 +76,14 @@ def signature(result):
             'tick':[r[:7]+r[8:] for r in result['tick']]}
 
 
-def verify(rows):
+def verify(rows, source_hashes=None, scenario="formation_policy", first_tick_reader=first_tick):
+    source_hashes=SOURCE_HASHES if source_hashes is None else source_hashes
     metadata=[r for r in rows if r.get('event')=='metadata']
     footer=[r for r in rows if r.get('event')=='trace-end']
     if len(metadata)!=1 or metadata[0].get('sha256')!=HASH:
         raise ValueError('missing pinned policy metadata')
     meta=metadata[0]
-    if any(meta.get('source_sha256',{}).get(k)!=v for k,v in SOURCE_HASHES.items()):
+    if any(meta.get('source_sha256',{}).get(k)!=v for k,v in source_hashes.items()):
         raise ValueError('policy producer/observer generation differs')
     if not all(meta.get(k) for k in ('profileEvents','taskEvents','motionEvents','velocityEvents')):
         raise ValueError('policy stage observer disabled')
@@ -97,7 +99,7 @@ def verify(rows):
     if [int(re.search(r'tick=(\d+)',v)[1]) for v in markers if 'label=sample ' in v]!=list(range(1,121)):
         raise ValueError('policy producer samples missing')
     if [v.split('label=')[1].split()[0] for v in markers if 'label=sample ' not in v]!=[
-            'start_formation_policy','created','complete']:
+            'start_'+scenario,'created','complete']:
         raise ValueError('policy producer boundaries missing')
     config=meta.get('pointInput',{})
     if config.get('api')!='external Win32 SendInput' or not config.get('nativeKey') or not config.get('sampleTicks'):
@@ -115,7 +117,7 @@ def verify(rows):
         flags=8+(16 if config.get('alt') else 0)+(1 if config.get('shift') else 0)
         if a['flags']!=flags or c['alt']!=bool(config.get('alt')) or c['shift']!=bool(config.get('shift')):
             raise ValueError('input modifier differs')
-        if h['sha256']!=SOURCE_HASHES['wc3_ui_input.exe'] or 'down/up accepted' not in h['output']:
+        if h['sha256']!=source_hashes['wc3_ui_input.exe'] or 'down/up accepted' not in h['output']:
             raise ValueError('native helper did not accept input')
     policy=[r for r in rows if r['event']=='formation-policy-set']
     requests={}
@@ -134,7 +136,7 @@ def verify(rows):
             raise ValueError('canonical option sequence differs')
     if [r['rank']for r in rows if r['event']=='formation-authored-rank']!=[0,1,2,3,0,1]:
         raise ValueError('public mixed-rank creation missing')
-    result=first_tick(rows)
+    result=first_tick_reader(rows)
     return {'first_tick':result,'signature':signature(result),'policy_requests':len(requests),
             'selected_event_counts':{k:counts[k]for k in EVENTS},'queued':bool(config.get('shift'))}
 

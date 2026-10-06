@@ -14887,6 +14887,138 @@ TEST(wc3_movement, selected_formation_policy_matches_original_complete_owner_tic
     reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
 }
 
+#include "fixtures/retail_formation_blocked_110.h"
+TEST(wc3_movement, selected_blocked_formation_matches_original_fresh_and_cached_ticks) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;
+    unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(capture,2) {
+        bool alt=false;
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        uint32_t const *input=formation_blocked_inputs[capture];
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[0]),0,300};level.pathing_counter=input[1];
+        T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,128.,128.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],150.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "set i=i+1\nendloop\nendfunction\n"));
+        edict_t *units[6];uint32_t count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id>=types[0].newUnitID && unit->class_id<=types[3].newUnitID)
+            { if(count<6)units[count]=unit;count++; }
+        T_EQ(count,6);if(count!=6)continue;
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        FOR_LOOP(i,6)G_SetEntitySelectionMask(units[i],1);
+        clent->client->menu.order_alt=alt;
+        vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+        T_ASSERT(move_selectlocation(clent,&point));
+        FOR_LOOP(t,2) {
+            uint32_t const *clock=formation_blocked_clocks[capture][t];
+            uint32_t const (*tick)[19]=formation_blocked_ticks[capture][t];
+            level.pathing_clock=(wc3Clock_t){wc3_float(clock[0]),clock[1],wc3_float(clock[2])};
+            level.pathing_counter=input[1]+t+1;
+            level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            level.scheduled_think=false;
+            moveGroup_t *group=level.move_groups[0];T_EQ(group->count,6);
+            T_EQ(group->flags,0x20000u|(alt ? 14u : 0));
+            FOR_LOOP(i,6) {
+                moveGroupMember_t *m=group->members+i;edict_t *u=units[i];
+                T_ASSERT(m->unit==u);
+                uint32_t actual[]={wc3_float_bits(m->offset.x),wc3_float_bits(m->offset.y),
+                    wc3_float_bits(m->destination.x),wc3_float_bits(m->destination.y),
+                    wc3_float_bits(wc3_div(m->speed,32)),wc3_float_bits(m->heading),m->flags,
+                    wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch,
+                    wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+                    wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+                    wc3_float_bits(wc3_div(unit_effective_speed(u),32)),wc3_float_bits(u->s.angle),
+                };
+                FOR_LOOP(k,15) {T_EQ(actual[k],tick[i][k]);if(actual[k]!=tick[i][k])fprintf(stderr,"Blocked capture%u member%u word%u actual=%08x expected=%08x\n",capture,i,k,actual[k],tick[i][k]);}
+            }
+            if (!t && capture==1) {
+                cstring_t file="/tmp/wc3-formation-blocked110.bin";
+                uint32_t ids[6];FOR_LOOP(i,6)ids[i]=units[i]-g_edicts;
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                FOR_LOOP(i,6)units[i]=g_edicts+ids[i];
+                T_EQ(level.move_groups[0]->members[0].flags,0x140000u);
+                T_EQ(level.move_groups[0]->cooldown,0);
+            }
+        }
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, selected_blocked_formation_classifies_before_destination_adjustment) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;
+    unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(capture,1) {
+        bool alt=capture&1;
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        uint32_t const *input=formation_policy_inputs[capture];
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[0]),0,300};level.pathing_counter=input[1];
+        T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,128.,128.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],150.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "set i=i+1\nendloop\nendfunction\n"));
+        edict_t *units[6];uint32_t count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id>=types[0].newUnitID && unit->class_id<=types[3].newUnitID)
+            { if(count<6)units[count]=unit;count++; }
+        T_EQ(count,6);if(count!=6)continue;
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        FOR_LOOP(i,6)G_SetEntitySelectionMask(units[i],1);
+        clent->client->menu.order_alt=alt;
+        vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+        T_ASSERT(move_selectlocation(clent,&point));
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[4]),input[5],wc3_float(input[6])};
+        level.pathing_counter=input[1]+1;
+        level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        level.scheduled_think=false;
+        moveGroup_t *group=level.move_groups[0];T_EQ(group->count,6);
+        T_EQ(group->flags,0x20000u|(alt ? 14u : 0));
+        uint32_t const expected[]={0x140000,0x200000,0x200000,0x200000,0x100000,0x200000};
+        FOR_LOOP(i,6)T_EQ(group->members[i].flags,expected[i]);
+        T_EQ(group->cooldown,0);
+        T_EQ(wc3_float_bits(group->members[0].destination.x),wc3_float_bits(25.0f));
+        T_EQ(wc3_float_bits(group->members[0].destination.y),wc3_float_bits(21.0f));
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3cf5c290));
+        level.pathing_counter++;
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(group->cooldown,65);
+        FOR_LOOP(i,6)T_EQ(group->members[i].flags&0x200000u,0);
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
 /* The native point-action formation toggle installs canonical bits2/4/8.
  * The option belongs to the accepted request and its physical owner. */
 TEST(wc3_movement, selected_point_retains_formation_toggle_policy) {

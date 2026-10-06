@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**202 done / 336 tasks; 134 remaining.**
+**203 done / 336 tasks; 133 remaining.**
+
+Payoff110 closes FORM-03.2: blocked-slot adjustment now follows classification,
+and fine queries use current predicted sources. Repeated fresh/cached native
+ticks match360 engine stage words, including a saved continuation. See
+[blocked formation slots](retail-pathfinding-engine.md#blocked-formation-slots-adjust-after-classification).
 
 Payoff109 closes FORM-03.1: four actual ordinary/Alt input captures reproduce
 one complete mixed-rank formation owner tick, and all456 scalar stages match
@@ -924,7 +929,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 ### FORM-03 — Layout-to-motion chain
 
 - [x] **FORM-03.1** Compose refresh, adaptive destination query, held-member classification, all decisions and commit in one unblocked group tick; assert intermediate offsets and speeds. **Payoff109:** four actual ordinary/Alt six-member ticks match all456 native scalar stage words; engine now classifies ordinary mixed ranks and executes the held stop/turn path. See [evidence and scope](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).
-- [ ] **FORM-03.2** Repeat with one blocked offset and with cached versus fresh routes; assert held/released members and fallback destination.
+- [x] **FORM-03.2** Repeat with one blocked offset and with cached versus fresh routes; assert held/released members and fallback destination. **Payoff110:** two completed public producers retain195 route-owner passes each; first slot falls back to25/21 after classification, four first-tick held members release on the cached visit. Engine stage ordering and stack-local predicted fine queries match360 words through fresh/cached ticks and save/load. See [scope and evidence](retail-pathfinding-engine.md#blocked-formation-slots-adjust-after-classification).
 
 ### FORM-04 — Regroup triggers
 

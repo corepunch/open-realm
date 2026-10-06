@@ -2000,6 +2000,9 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
     bool fine_heading=false;
     if (policy==MOVE_AVOID_GENERIC && unit_routes_to_location(self)) {
         movePathQuery_t query=move_route_query(self,(moveRoutePoint_t){&self->goalentity->s.origin2,self->collision,policy});
+        wc3GridPose_t prediction;unit_predicted_pose(self,&prediction);
+        vec2_t source={prediction.grid[0],prediction.grid[1]};
+        if (query.units) query.fine=&source;
         moveFineRoute_t const *route=&self->movement.fine_route;
         float point[2]; float const *fine=NULL;
         if (self->movement.path.valid && route->count && route->index<route->count) {
@@ -2120,6 +2123,10 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
     if (!self || !point.point || !dir) return MOVE_ROUTE_FAILED;
     movePathQuery_t query = move_route_query(self, point);
     wc3GridPose_t before;unit_predicted_pose(self,&before);
+    /* Native16fbd0 consumes this owner's prediction, not the last sampled
+     * presentation pose. Keep the fine source alive for the whole query. */
+    vec2_t source={before.grid[0],before.grid[1]};
+    if (query.units) query.fine=&source;
     routePath_t *path = &self->movement.path;
     moveFineRoute_t *curve = &self->movement.fine_route;
     vec2_t local,fine_destination;
@@ -4102,28 +4109,8 @@ static bool move_group_route(moveGroup_t *group) {
     }
     wc3Formation_t formation={members,group->count,group->heading};
     if (!wc3_formation_layout(&formation)) gi.error("Move: invalid %u-member formation",group->count);
-    box2_t bounds=CM_GetWorldBounds();
-    FOR_LOOP(i,group->count) {
-        moveGroupMember_t *member=group->members+i;
-        vec2_t previous=member->destination;
-        member->offset=(vec2_t){members[i].offset[0],members[i].offset[1]};
-        member->destination=(vec2_t){wc3_add(point.x,member->offset.x),wc3_add(point.y,member->offset.y)};
-        member->flags&=~0x70000u;
-        if ((member->offset.x!=0 || member->offset.y!=0) &&
-            G_AdjustUnitMoveFormationDestination(member->unit,point,&member->destination)) member->flags|=0x40000;
-        member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
-        /* Native16fbd0 accepts a changed destination before advancing waits.
-         * 168b80 resets both buffers and1687e0 clears retry/delay; a pending
-         * neighbour wait must not preserve the old partial route. */
-        if (((int32_t)floorf(previous.x)>>1)!=((int32_t)floorf(member->destination.x)>>1) ||
-                ((int32_t)floorf(previous.y)>>1)!=((int32_t)floorf(member->destination.y)>>1)) {
-            edict_t *unit=member->unit; moveFineRoute_t *route=&unit->movement.fine_route;
-            route->count=route->adaptive_count=0;
-            route->index=route->adaptive_index=UINT32_MAX; route->partial=false;
-            unit->movement.retry_count=unit->movement.wait_delay=0;
-        }
-        member->unit->movement.path.valid=false;
-    }
+    FOR_LOOP(i,group->count) group->members[i].offset=
+        (vec2_t){members[i].offset[0],members[i].offset[1]};
     return true;
 }
 
@@ -4150,7 +4137,30 @@ static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_
     return result;
 }
 
+/* Native16a790 adjusts a refreshed slot after the cohort classification.
+ * Keep the previous destination/flags until this member's decision: the next
+ * owner visit observes adjusted40000 and seeds the classification cooldown. */
+static void move_group_adjust_destination(moveGroup_t *group, moveGroupMember_t *member) {
+    vec2_t previous=member->destination;
+    member->destination=(vec2_t){wc3_add(group->point.x,member->offset.x),wc3_add(group->point.y,member->offset.y)};
+    member->flags&=~0x70000u;
+    if ((member->offset.x!=0 || member->offset.y!=0) &&
+        G_AdjustUnitMoveFormationDestination(member->unit,group->point,&member->destination)) member->flags|=0x40000;
+    box2_t bounds=CM_GetWorldBounds();
+    member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
+    /* Accept destination changes before advancing a retained route wait. */
+    if (((int32_t)floorf(previous.x)>>1)!=((int32_t)floorf(member->destination.x)>>1) ||
+        ((int32_t)floorf(previous.y)>>1)!=((int32_t)floorf(member->destination.y)>>1)) {
+        edict_t *unit=member->unit;moveFineRoute_t *route=&unit->movement.fine_route;
+        route->count=route->adaptive_count=0;
+        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;
+        unit->movement.retry_count=unit->movement.wait_delay=0;
+    }
+    member->unit->movement.path.valid=false;
+}
+
 static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+    if (group->flags&0x10000) move_group_adjust_destination(group,member);
     moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     edict_t *unit=member->unit;
     wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
