@@ -1937,6 +1937,7 @@ struct edict_s {
         bool adaptive_disabled; /* Path88.200000 defaults enabled; type rebind changes policy independently of movement class. */
         edict_t *fine_prev, *fine_next; /* Move-owned ordinary fine admission FIFO. */
         bool fine_queued;
+        uint32_t formation_rank; /* Installed mover bucket rank, independent of later row edits. */
         uint32_t fine_class; /* Retain the old player row until its pending request is unlinked. */
         uint32_t fine_request_time; /* owner visits, original path+7c interval timestamp */
         uint32_t wait_delay; /* eligible ordinary path advances; original requester4/peer20 */
@@ -3134,6 +3135,7 @@ bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy)
 void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
 void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);
 void S_SetMoveCoarseTarget(moveCoarseRequest_t *, bool target);
+void S_SetMoveFormationRank(edict_t *, uint32_t);
 unsigned S_MoveSchedulingClass(edict_t const *);
 void S_InitMoveProjectile(edict_t *);
 void S_ClearMoveCoarseRequests(void);

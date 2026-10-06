@@ -5,7 +5,7 @@ let numericCase = null;
 let randomCase = null;
 let speedCase = null;
 let positionCase = null;
-let pairScenario = false;
+let pairScenario = false, formationRankScenario = false;
 let resizeScenario = false;
 const resizeTargets = new Map();
 let clockScenario = false, clockSerial = 0;
@@ -1523,6 +1523,29 @@ function install(module) {
                 return {mover:mover.toString(),row:ints(p,11).map(v => v>>>0),pose:ints(mover.add(0x70),8).map(v => v>>>0),
                     moverFlags:mover.add(0xd8).readU32()};})};
     };
+    if(config.profileEvents) {
+        hook(0x680430,{onEnter(){this.observe=formationRankScenario;if(this.observe)this.rawcode=this.context.ecx.toUInt32();},
+            onLeave(result){if(this.observe){bump('formation-authored-rank');emit('formation-authored-rank',{rawcode:this.rawcode,rank:result.toUInt32()});}}});
+        hook(0x171070,{onEnter(args){this.observe=formationRankScenario;if(this.observe){this.mover=this.context.ecx;
+            this.row={mover:this.mover.toString(),identity:ints(this.mover.add(0x14),2),input:args[0].toUInt32(),before:this.mover.add(0xd8).readU32()};}},
+            onLeave(){if(this.observe){bump('formation-rank-set');emit('formation-rank-set',{...this.row,after:this.mover.add(0xd8).readU32()});}}});
+        hook(0x16cb80,{onEnter(args){this.observe=formationRankScenario;if(this.observe){this.buckets=args[0];this.group=this.context.ecx;this.before=snapshotPairGroup(this.group);}},
+            onLeave(result){if(this.observe){const buckets=[];
+                for(let rank=0;rank<16;rank++){const p=this.buckets.add(rank*0xa4),count=p.readU32();
+                    if(count>12)throw new Error('Formation rank bucket extent differs');
+                    if(count)buckets.push({rank,count,members:ints(p.add(4),count),projected:ints(p.add(0x34),2*count).map(v=>v>>>0)});
+                }
+                bump('formation-rank-buckets');emit('formation-rank-buckets',{...this.before,heading:this.group.add(0x70).readU32(),ranks:result.toUInt32(),buckets});
+            }}});
+        hook(0x169e10,{onEnter(){this.observe=formationRankScenario;if(this.observe){this.group=this.context.ecx;
+            bump('formation-rank-center');emit('formation-rank-center',snapshotPairGroup(this.group));}}});
+        hook(0x16bb40,{onEnter(args){this.observe=formationRankScenario;if(this.observe){this.group=this.context.ecx;this.out=args[0];}},
+            onLeave(){if(this.observe){bump('formation-rank-mean');emit('formation-rank-mean',{group:this.group.toString(),mean:ints(this.out,2).map(v=>v>>>0)});}}});
+        hook(0x071340,{onEnter(args){this.observe=formationRankScenario;if(this.observe){this.angle=this.context.ecx.readU32();this.sine=this.context.edx;this.cosine=args[0];this.caller=this.returnAddress.sub(base).toUInt32();}},
+            onLeave(){if(this.observe){bump('formation-rank-trig');emit('formation-rank-trig',{angle:this.angle,caller:this.caller,sine:this.sine.readU32(),cosine:this.cosine.readU32()});}}});
+        hook(0x16a5b0,{onEnter(){this.observe=formationRankScenario;if(this.observe){this.group=this.context.ecx;this.before=snapshotPairGroup(this.group);}},
+            onLeave(){if(this.observe){bump('formation-rank-layout');emit('formation-rank-layout',{before:this.before,after:snapshotPairGroup(this.group),heading:this.group.add(0x70).readU32()});}}});
+    }
     for (const [phase,rva] of [['decide',0x16c250],['commit',0x16c570]]) hook(rva,{onEnter() {
         this.group = pairScenario ? this.context.ecx : null;
         if (this.group) emit('pair-group-phase-begin',{phase,...snapshotPairGroup(this.group)});
@@ -2076,10 +2099,12 @@ function install(module) {
         if (value.startsWith('PATHGROUPRADIUS ')) emit('group-radius-marker',{value});
         if (value.startsWith('PATHMORPH ')) emit('morph-marker',{value});
         if (value.startsWith('PATHSELECT ')) emit('selected-marker', {value});
+        if (value.startsWith('PATHRANK ')) emit('formation-rank-marker',{value});
         if (/^PATH(BUFF|CAST) /.test(value)) emit('modifier-marker',{value});
         if (value.startsWith('PATHTRACE ')) {
             if(value.includes('label=start_scheduler_mutation '))schedulerMutationScenario=true;
             if(value.includes('label=start_mover_retirement '))moverRetirementScenario=true;
+            if(value.includes('label=start_formation_ranks ')){formationRankScenario=true;pairScenario=true;}
             if (config.clockEvents && /label=start_/.test(value)) clockScenario = true;
             if (config.clockEvents && value.includes('label=complete ')) clockScenario = false;
             if (value.includes('label=start_blocker_lifecycle ') || value.includes('label=start_widget_lifecycle ') || value.includes('label=start_widget_escape ') || value.includes('label=start_widget_build_escape '))

@@ -1184,3 +1184,12 @@ logical 80-byte request and 128-byte property buffers; load rejects unterminated
 buffers, interns their text, and resolves the selected animation after rebinding
 object data. This retains per-unit edits independently of later type defaults.
 Model resource resets discard resolved selections while retaining logical text.
+
+### Installed formation rank (Save110)
+
+Save110 stores Move's installed low-nibble `formation_rank` as `F_INT`.
+Construction/type rebind install it before ability initialization; a row-pointer
+rebind or metadata edit alone must not change it. Group layout reads the
+instance value. Writers/loaders reject ranks above15; version109 is rejected
+rather than deriving a historical installed value from the current type row.
+See [mixed-rank evidence](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout).

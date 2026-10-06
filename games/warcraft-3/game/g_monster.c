@@ -682,6 +682,7 @@ static void unit_construct_visuals(unitConstruction_t *construction) {
      * the unit data, matching WC3. Buildings have no meaningful collisionSize
      * and instead block via their pathing footprint (set from pathtex below). */
     self->collision = traits->collision;
+    S_SetMoveFormationRank(self, construction->captured.UnitData->formationRank);
 //    printf("%.4s\n", &self->class_id);
     self->targtype = traits->target;
     G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_VISUALS, self, &construction->captured);

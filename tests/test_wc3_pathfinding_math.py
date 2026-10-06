@@ -651,6 +651,24 @@ class PathingMathTests(unittest.TestCase):
                     self.assertEqual(list(output), case['output'], case['input'])
                     self.assertEqual(list(inputs), case['input'])
 
+    def test_public_mixed_formation_uses_dll_parsed_spacing(self):
+        import gzip
+        fixture=ROOT/'tools/ghidra/fixtures/retail-formation-ranks-1.27.jsonl.gz'
+        rows=[json.loads(l) for l in gzip.decompress(fixture.read_bytes()).splitlines()]
+        layout=next(r for r in rows if r.get('event')=='formation-rank-layout')
+        inputs=[6,layout['heading']];expected=[1]
+        for before,after in zip(layout['before']['members'],layout['after']['members']):
+            self.assertEqual(before['pose'][4:6],[0,0])
+            radius=next(m['radius'] for r in rows if r.get('event')=='group-routing-radius' and r['group']==layout['before']['group'] for m in r['members'] if m['resolved']==before['mover'])
+            inputs+=before['pose'][2:6]+[0,0,0,0,0x41000000,radius,(before['moverFlags']>>12)&15]
+            expected+=after['row'][3:5]
+        for engine in self.engines:
+            engine.pathing_formation_retail.argtypes=[ctypes.POINTER(ctypes.c_uint32)]*2
+            source=(ctypes.c_uint32*len(inputs))(*inputs);output=(ctypes.c_uint32*len(expected))()
+            engine.pathing_formation_retail(source,output)
+            self.assertEqual(list(output),expected)
+            self.assertEqual(list(source),inputs)
+
     def test_formation_matches_original_mixed_ranks_radii_sort_ties_and_clocks(self):
         fixture = json.loads((ROOT / 'tools/ghidra/fixtures/retail-formation-layout-1.27.json').read_text())
         self.assertEqual(len(fixture['cases']), 865)

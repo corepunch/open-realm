@@ -25,7 +25,7 @@ typedef struct {
  * capacity tables, strict selection sorts, common row width, mean and rotation.
  * The original temporary bucket has twelve member slots. Larger caller
  * domains require separate proof; reject them before writing any outputs. */
-static inline bool wc3_formation_layout(wc3Formation_t *f) {
+static inline bool wc3_formation_layout_gap(wc3Formation_t *f, float rank_gap) {
     static unsigned char const capacity[2][2][13] = {
         {{0,1,2,3,2,3,3,3,3,3,4,4,4}, {0,1,2,3,2,3,3,3,3,3,3,3,3}},
         {{0,1,2,3,4,3,3,4,4,4,4,4,4}, {0,1,2,3,3,3,3,3,3,3,3,3,3}}
@@ -97,7 +97,7 @@ static inline bool wc3_formation_layout(wc3Formation_t *f) {
             start += n;
             if (start < b->count) row_x = wc3_sub(row_x, wc3_add(b->diameter, 2.5f));
         }
-        row_x = wc3_sub(row_x, 5.5f);
+        row_x = wc3_sub(row_x, rank_gap);
     }
     float mean[2] = {0};
     for (unsigned i = 0; i < f->count; i++)
@@ -112,6 +112,12 @@ static inline bool wc3_formation_layout(wc3Formation_t *f) {
         m->offset[1] = wc3_add(wc3_mul(x, sine), wc3_mul(y, cosine));
     }
     return true;
+}
+
+/* DLL initializer004180 parses "5.5" through070de0, producing40b00001.
+ * The supplied-scalar oracle separately injects exact IEEE5.5 into this global. */
+static inline bool wc3_formation_layout(wc3Formation_t *f) {
+    return wc3_formation_layout_gap(f,wc3_float(0x40b00001));
 }
 
 #endif

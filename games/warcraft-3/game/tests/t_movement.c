@@ -8567,6 +8567,7 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
         units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
         rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
         units[i]->data.UnitData = rows + i;
+        S_SetMoveFormationRank(units[i], rows[i].formationRank);
         units[i]->collision = 16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags |= SVF_MONSTER;
         units[i]->stand = unit_stand; units[i]->movetype = MOVETYPE_STEP;
         unit_stand(units[i]); gi.LinkEntity(units[i]);
@@ -14762,6 +14763,63 @@ TEST(wc3_movement, target_group_routes_use_priority_budget_and_release_old_queue
         T_EQ(ordinary->work,801);T_EQ(ordinary->count,0);
     }
     reset_entities();setup_test_world();
+}
+
+/* Retail installs mover rank during construction, not at formation lookup.
+ * Changing the bound row alone must not rewrite the already installed profile. */
+TEST(wc3_movement, mixed_formation_retains_installed_rank_until_rebind) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[128*128]={0};
+    CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{-2048,-2048},{2048,2048}});
+    int ranks[4]={0,1,2,3};float radius=31,speed=270;
+    unitModification_t mods[4][3];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0'+i),.numbeOfModifications=3,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *old=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *units[6];UnitData_t rebound;
+    FOR_LOOP(i,6) units[i]=unit_create(0,types[i%4].newUnitID,&(vec2_t){128,128+i*64},0);
+    rebound=*units[0]->data.UnitData;rebound.formationRank=3;units[0]->data.UnitData=&rebound;
+    level.pathing_clock=(wc3Clock_t){0,0,8};level.pathing_msec=level.time=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    vec2_t point={1728,512};
+    groupPointOrder_t request={.count=6,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    FOR_LOOP(i,6)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=level.move_groups[0];T_NOT_NULL(group);T_EQ(group->count,6);
+    wc3FormationMember_t members[6];
+    FOR_LOOP(i,6) {wc3GridPose_t pose;unit_predicted_pose(units[i],&pose);
+        members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},.radius=wc3_div(units[i]->collision,32),.rank=i%4};}
+    wc3Formation_t formation={members,6,group->heading};T_ASSERT(wc3_formation_layout(&formation));
+    FOR_LOOP(i,6)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->members[i].offset)[k]),wc3_float_bits(members[i].offset[k]));
+    T_EQ(units[0]->movement.formation_rank,0u);
+    G_BindEntityData(units[0]);
+    cstring_t save="/tmp/wc3-installed-formation-rank.bin";
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+    FOR_LOOP(i,6)T_EQ(units[i]->movement.formation_rank,i%4);
+    T_ASSERT(G_TransformUnitType(units[0],types[3].newUnitID));
+    T_EQ(units[0]->class_id,types[3].newUnitID);T_EQ(units[0]->movement.formation_rank,3u);
+    units[0]->movement.formation_rank=16;T_ASSERT(!WriteGame(save));
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+}
+
+#include "fixtures/retail_formation_ranks_108.h"
+TEST(wc3_movement, mixed_formation_matches_original_creation_layout) {
+    wc3FormationMember_t members[6];
+    FOR_LOOP(i,6) {
+        uint32_t const *r=formation_rank_layout[0][i];
+        members[i]=(wc3FormationMember_t){.position={wc3_float(r[0]),wc3_float(r[1])},.radius=wc3_float(r[2]),.rank=r[3]};
+    }
+    wc3Formation_t formation={members,6,wc3_float(formation_rank_heading[0])};
+    T_ASSERT(wc3_formation_layout(&formation));
+    FOR_LOOP(i,6)FOR_LOOP(k,2)T_EQ(wc3_float_bits(members[i].offset[k]),formation_rank_layout[0][i][4+k]);
 }
 
 #endif /* BZ_TESTS */

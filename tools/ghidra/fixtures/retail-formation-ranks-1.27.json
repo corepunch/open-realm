@@ -1,0 +1,42 @@
+{
+  "events": 191,
+  "digest": "78b1155867ddb6109b3568961a787e62ba30c68998718ca51b61428bf900c756",
+  "counts": {
+    "formation-authored-rank": 8,
+    "formation-rank-set": 8,
+    "formation-rank-buckets": 2,
+    "formation-rank-layout": 3,
+    "formation-rank-marker": 3,
+    "formation-rank-center": 2,
+    "formation-rank-mean": 2,
+    "formation-rank-trig": 111,
+    "group-routing-radius": 3,
+    "marker": 49
+  },
+  "authored_ranks": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    1,
+    3,
+    3
+  ],
+  "layouts": 3,
+  "mixed_buckets": 2,
+  "repeat_verified": true,
+  "capture_sha256": "9e52309b447d671801b6cb0c2fb6c450496d5d46333c992bbac630d7ca73a26d",
+  "repeat_sha256": "b068a984530ddc539087e9b8eed992f92540d39456cce87ffbba7e4e85c547f7",
+  "source_sha256": {
+    "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+    "trace_wc3_pathfinding.py": "aca4bce37b9bc9019846a6e0c9b5ade0d7d7417cb0962603bede396749186596",
+    "wc3_pathfinding.js": "aa97626a2596991a24f1faa6f457d6a7d80f1df22f0099c34a0c73d8e796f915",
+    "make_wc3_pathfinding_map.py": "d4ee17c7cde919b6a727c70f885b28c5809ba485aaffd87c15aaada3e507a1ec",
+    "map": "6db18af638ffb8e90c94910deefef9ad616397be2fd73b3bffcec7ed081ec0b7"
+  },
+  "filtered_sha256": "53cf26fc7d710f6a5b06e4e1695d8b0a70c4fad557bb1e8ee096521f7162a32e",
+  "repeat_filtered_sha256": "ad8c881d0ef711052d6c3e3ebe7c9a5a2816c3e0a70e8d1e2578a40a4ef44aaa",
+  "spacing_sha256": "00e3a356bbff7834b00112ca90fcecf505c130c6cb979f39d9d52379ab894af9",
+  "scope": "Two complete 40-sample mixed-rank public producers; all authored installations, live buckets, layout/centering/trig records repeat. First creation layout C offsets are bit exact; complete post-rebind motion is not claimed."
+}

@@ -30,6 +30,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    S_SetMoveFormationRank(ent, ent->data.UnitData->formationRank);
     /* This helper constructs allocator-only units instead of running
      * SP_SpawnUnit. Give its generic movement fixture a permissive window;
      * focused PropWindow tests set their authored/runtime value explicitly. */

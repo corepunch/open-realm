@@ -4014,6 +4014,12 @@ void S_CaptainGoHome(botCaptain_t *captain) {
     }
 }
 
+/* Native171070 installs the profile;16cb80 consumes its low rank nibble.
+ * Rebinding object-data pointers alone must not change a live mover's row. */
+void S_SetMoveFormationRank(edict_t *unit, uint32_t rank) {
+    unit->movement.formation_rank=rank&15u;
+}
+
 static bool move_group_route(moveGroup_t *group) {
     wc3GridPose_t pose;
     edict_t *source=move_group_source(group,&pose); if (!source) return false;
@@ -4041,7 +4047,7 @@ static bool move_group_route(moveGroup_t *group) {
     FOR_LOOP(i,group->count) {
         edict_t *unit=group->members[i].unit; unit_predicted_pose(unit,&pose);
         members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},
-            .radius=wc3_div(unit->collision,32),.rank=unit->movement.captain_actor_type ? 0 : unit->data.UnitData->formationRank};
+            .radius=wc3_div(unit->collision,32),.rank=unit->movement.captain_actor_type ? 0 : unit->movement.formation_rank};
     }
     wc3Formation_t formation={members,group->count,group->heading};
     if (!wc3_formation_layout(&formation)) gi.error("Move: invalid %u-member formation",group->count);
@@ -4396,7 +4402,7 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
             members[i].position[0] = wc3_grid_coordinate(units[i]->s.origin2.x, bounds.min.x, 32);
             members[i].position[1] = wc3_grid_coordinate(units[i]->s.origin2.y, bounds.min.y, 32);
             members[i].radius = wc3_div(units[i]->collision, 32);
-            members[i].rank = units[i]->data.UnitData->formationRank;
+            members[i].rank = units[i]->movement.formation_rank;
             FOR_LOOP(k, 2) mean[k] = wc3_add(mean[k], members[i].position[k]);
         }
         float const reciprocal = wc3_recip(wc3_float(wc3_from_int(num_units)));

@@ -55,12 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**200 done / 336 tasks; 136 remaining.**
+**201 done / 336 tasks; 135 remaining.**
 
-Payoff107 closes ORDER-06.5: complete repeated public death/removal evidence
-fixes synchronous movement retirement, stale routes and ordinary empty-group
-lifetime/save handling. Ghidra and its replayable mappings are saved. See
-[mover retirement](retail-pathfinding-engine.md#mover-retirement-cancels-tasks-before-releasing-storage).
+Payoff108 closes FORM-01.2: repeated public mixed-rank creation and Chaos
+prove installed mover ranks and ordered layout buckets. Move now owns/saves
+the installed rank and uses the recovered DLL-parsed spacing scalar. Ghidra
+and its replayable mappings are saved. See
+[mixed authored ranks](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout).
 
 Payoff106 closes SCHED-03.2: queued public Stop/owner/removal repeats expose and
 fix missing coarse-request cancellation at engine task transitions. Saved FIFO
@@ -903,7 +904,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 ### FORM-01 — Formation producers
 
 - [x] **FORM-01.1** The authored formation-rank setter and rank bits are mapped and tested. Evidence: [formation rank][formation-rank]; this does not close live group creation or other policy flags.
-- [ ] **FORM-01.2** Load mixed authored ranks into a newly created group; assert each member's runtime rank and selected layout bucket.
+- [x] **FORM-01.2** [Payoff108](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout): two complete public40-sample mixed-rank producers repeat191 ordered installation/bucket/layout observations. Six creation ranks0/1/2/3/0/1 produce buckets[0,4]/[1,5]/[2]/[3]; same-mover Chaos installs3 and changes the corresponding bucket, fresh rank3 separately installs3. Engine caches the installed rank before callbacks, refreshes on type rebind, consumes it in both layouts and persists/validates Save110. DLL-parsed spacing40b00001 fixes five public offset words; all twelve initial offsets match. Actual group regression first fails twelve coordinates, then passes with save/type regressions. Focused Classic/TFT90,455 assertions each, frozen repeat/source/negative checks, O0/O2 supplied/public C oracles and saved Ghidra mappings/labels accompany the change; broader refresh-to-motion and flag producers remain open.
 - [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value.
 
 ### FORM-02 — Layout geometry

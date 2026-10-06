@@ -767,3 +767,17 @@ search quota. The engine now changes queue policy before cached-route reuse and
 keeps coordinate-only point waypoints in the ordinary bucket. Ghidra persistence
 and `MapPathfinding.java` include this evidence and the previous contention
 mapping. SCHED-03.1 remains open for concrete class15 producer trajectories.
+
+### Mixed authored-rank producers and DLL-initialized spacing
+
+[Payoff108](retail-pathfinding-engine.md#mixed-authored-ranks-install-before-formation-layout)
+closes FORM-01.2 with two complete public mixed-rank producers and191 repeated
+ordered observations. Creation installs mover ranks; real Chaos changes the
+same mover from0 to3, and each group selects the corresponding ordered buckets.
+Move owns and saves the installed rank. Ghidra maps creation/virtual thunk and
+DLL scalar initializers, labels spacing globals and preserves their xrefs.
+The software-parsed5.5 default is`40b00001`: using a C literal hid five public
+offset mismatches in the older supplied-scalar harness. Production now matches
+the first public layout's twelve offset words, while the older865-case oracle
+explicitly supplies its injected scalar. The broader refresh journey and
+flag20 producers remain open; neither is inferred from this narrower proof.

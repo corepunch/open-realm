@@ -9001,3 +9001,67 @@ retirement and16 scheduler Python checks pass. Production/test targets build
 and `git diff --check` passes. This is the fifth implementation chunk since
 full checkpoint102; full validation remains on the authorized twelve-chunk
 cadence.
+
+## Mixed authored ranks install before formation layout
+
+Payoff108 closes FORM-01.2. The public `formation_ranks` map creates six
+Footman clones with authored ranks `0,1,2,3,0,1`, issues a group Move, changes
+member0 to rank3 through the actual Chaos ability, issues a second group Move,
+and separately creates a fresh rank3 unit. Two complete40-sample producers
+repeat all191 retained rank, bucket, layout, center, mean, trig and radius
+observations. The observer calls no game functions and writes no game memory.
+Frozen captures/certificate are `tools/ghidra/fixtures/retail-formation-ranks-1.27*`;
+producer/observer/controller/map-builder sources are archived by SHA256.
+
+`652620` captures the creation data block, then calls virtualCC with its
+DWORD`+4c`. The `698750` thunk delegates to `05c3f0` and `171070`, which installs
+rank bits in mover`+d8`. `16cb80` reads the low rank nibble into sixteen buckets,
+preserving group membership order. The first group's selected buckets contain
+`[0,4]`, `[1,5]`, `[2]`, `[3]`. After Chaos, the same mover identity has rank3:
+the buckets contain `[4]`, `[1,5]`, `[2]`, `[0,3]`. The freshly created final
+unit independently installs3. The absence of an explicit getter in the
+common `670950` decompile is insufficient evidence that rebind preserves rank;
+the public capture disproves that initial hypothesis.
+
+Move now owns `movement.formation_rank`, installed from the constructor's
+captured UnitData before initialization callbacks. Construction and real type
+rebind refresh it; rebinding row pointers alone does not. Both group-routing
+and selection-layout paths consume that installed field rather than looking
+up live metadata. Save110 persists it and validates the sixteen-bucket range;
+Save109 is rejected. The allocator-only unit fixture explicitly installs the
+same profile. This is a per-instance value, not a reference into mutable rows.
+
+The public layout also exposed a numerical error hidden by the older synthetic
+oracle. DLL initializers `004180`/`004190` tail-jump into software decimal parser
+`070de0` with ASCII`"5.5"` at `a91ea8`, filling `d541bc`/`d541c8` with
+`40b00001`, rather than the C literal's `40b00000`. Read-only live global evidence
+in `retail-formation-spacing-1.27.json` confirms both flag20 branches use that
+rank gap, with exact2 width and2.5 depth padding. Intermediate public rows and
+mean repeat before rotation. Using the recovered default corrects five offset
+words; all twelve first-layout offset words now match retail exactly. The
+older865-case supplied-scalar corpus explicitly injects IEEE5.5 into retail
+memory, so its C probe now supplies that environment through
+`wc3_formation_layout_gap`; production uses the DLL-initialized value.
+
+The actual engine regression failed all twelve offset coordinates when a row
+pointer changed an already installed rank. It now passes, including common
+in-place type rebind, save/load and rejection of invalid installed ranks.
+Focused Classic and TFT runs each pass15 tests /90,455 assertions, covering
+mixed groups, ranked selection/Shift, growth/shrink/removal, ground/flight
+rebind, mover retirement, save-version rejection and constructor stage/version/callback regressions. Seven Python tests cover
+frozen repeats/provenance/negative evidence and both the new public and old865
+layout corpora at `-O0`/`-O2`. `MapPathfinding.java` is applied, eight function
+comments and four global labels read back, and `game.dll` saved in Ghidra.
+
+This closes mixed-rank installation and bucket selection. Full post-rebind
+formation-to-motion equality, spacing-policy producers, larger-group layout
+and expiry remain separately tracked. No performance target is claimed here.
+
+Reproduce with `tools/frida/make_wc3_pathfinding_map.py --scenario formation_ranks`
+and `trace_wc3_pathfinding.py --profile-events --task-events --velocity-events`.
+Require the complete40-sample timeline and footer; verify both original reports
+with `verify_wc3_formation_rank_trace.py CAPTURE --repeat REPEAT --output REPORT`
+(`--header` regenerates the C witness). Raw accepted reports are
+`runtime/formation-ranks-108-d.jsonl` and `runtime/formation-ranks-108-e.jsonl`
+under the pinned1.27 evidence root. Earlier108a omitted its custom ability and
+was discarded;108b/c were diagnostic captures preceding the centering probes.

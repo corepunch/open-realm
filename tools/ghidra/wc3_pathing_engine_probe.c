@@ -150,7 +150,7 @@ void pathing_speed_cap_world(uint32_t const input[3], uint32_t output[3]) {
 
 /* Count/heading then eleven words per member: pose, velocity, old/current
  * clock words and span, radius and authored rank. Inputs remain untouched. */
-void pathing_formation(uint32_t const *input, uint32_t *output) {
+static void pathing_formation_gap(uint32_t const *input, uint32_t *output, float rank_gap) {
     wc3FormationMember_t members[WC3_FORMATION_MEMBERS] = {0};
     wc3Formation_t f = { .members = members, .count = input[0], .heading = wc3_float(input[1]) };
     if (f.count > WC3_FORMATION_MEMBERS) { output[0] = 0; return; }
@@ -163,9 +163,18 @@ void pathing_formation(uint32_t const *input, uint32_t *output) {
         wc3_integrate(members[i].position, velocity, wc3_elapsed(&current, &old));
         members[i].radius = wc3_float(row[9]); members[i].rank = row[10];
     }
-    output[0] = wc3_formation_layout(&f);
+    output[0] = wc3_formation_layout_gap(&f,rank_gap);
     for (unsigned i = 0; i < f.count; i++)
         for (unsigned k = 0; k < 2; k++) output[1 + i * 2 + k] = wc3_float_bits(members[i].offset[k]);
+}
+
+void pathing_formation(uint32_t const *input, uint32_t *output) {
+    /* Historical supplied-scalar oracle explicitly injects IEEE5.5 globals. */
+    pathing_formation_gap(input,output,5.5f);
+}
+
+void pathing_formation_retail(uint32_t const *input, uint32_t *output) {
+    pathing_formation_gap(input,output,wc3_float(0x40b00001));
 }
 
 /* Base, two attached bonuses, multiplier, authored/default profile bounds. */
