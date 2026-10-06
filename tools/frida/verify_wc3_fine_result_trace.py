@@ -9,6 +9,7 @@ import ctypes
 import hashlib
 import json
 import math
+import re
 import struct
 from pathlib import Path
 
@@ -19,6 +20,45 @@ def normalize(rows):
         if r.get('event')=='terrain-native':selected.append({k:r[k]for k in ('event','x','y','pathingType','passable')})
         elif r.get('event')=='fine-result':selected.append({k:r[k]for k in ('event','source','goal','limit','radius','result','words','work','nodes')})
     return selected
+
+
+def same_cell_motion(rows,reference=None):
+    """Four public lifetimes, including retained buffers and arrival commits.
+
+    Producer metadata/completion is checked by verify() before this supplement.
+    Addresses differ across processes; retain words and encounter order instead.
+    """
+    cases=[dict(requests=[],routes=[],arrivals=[],motion=[])for _ in range(4)]
+    case=-1
+    for r in rows:
+        if r['event']=='marker':
+            match=re.search(r'case=(\d+)',r['value'])
+            if match:case=int(match[1])
+        if not 0<=case<4:continue
+        c=cases[case];event=r['event']
+        if event=='fine-result':c['requests'].append({k:r[k]for k in ('source','goal','limit','radius','result','words','work','nodes')})
+        elif event=='route':c['routes'].append({k:r[k]for k in ('kind','footprint','result','count','points','truncated','indices','flags')})
+        elif event=='arrival-evaluation':c['arrivals'].append({k:r[k]for k in ('source','destination','heading','threshold','footprint','storedRange','storedPosition','result','inRange','angle')})
+        elif event=='velocity-commit':c['motion'].append([0,r['clock'][0],*r['after'][2:6],r['after'][7]])
+    for cls,c in enumerate(cases):
+        if len(c['requests'])!=1 or len(c['routes'])!=3 or len(c['motion'])!=7 or len(c['arrivals'])!=7:
+            raise ValueError('single-point lifetime/request count differs')
+        q=c['requests'][0]
+        if q['radius']!=.25+.5*cls or q['work'] or q['nodes'] or q['result']!=1 or q['words']!=[q['goal']]:
+            raise ValueError('single-point public setup differs')
+        if [r['kind']for r in c['routes']]!=['acc','acc','fine'] or any(r['count']!=1 or r['truncated']or r['result']!=1 for r in c['routes']):
+            raise ValueError('single-point retained route differs')
+        if c['routes'][-1]['indices']!=[0,0] or c['motion'][-1][4:6]!=[0,0]:
+            raise ValueError('single-point index/arrival differs')
+        # Initial source8.03125/9.03125 is farther than .49 from the goal.
+        source=struct.unpack('<2f',struct.pack('<2I',*q['source']))
+        goal=struct.unpack('<2f',struct.pack('<2I',*q['goal']))
+        if sum((a-b)**2 for a,b in zip(source,goal))<=.49**2:
+            raise ValueError('single-point far-source producer missing')
+    result=dict(cases=cases)
+    if reference is not None and result!=reference:
+        raise ValueError('single-point original route/motion history differs')
+    return result
 
 
 def verify(rows,fixture,capture,engine=None):
@@ -59,13 +99,20 @@ def verify(rows,fixture,capture,engine=None):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--capture',type=Path,nargs=2,required=True);p.add_argument('--fixture',type=Path,required=True);p.add_argument('--engine-library',type=Path);p.add_argument('--report',type=Path,required=True)
+    p.add_argument('--same-cell-reference',type=Path,help='compare four full public single-point lifetimes, retained routes and motion')
     a=p.parse_args();fixture=json.loads(a.fixture.read_text());engine=ctypes.CDLL(str(a.engine_library.resolve()))if a.engine_library else None
-    counts=[]
+    counts=[];same_cell=[]
     for path,capture in zip(a.capture,fixture['captures']):
         raw=path.read_bytes()
         if len(raw)!=capture['bytes'] or hashlib.sha256(raw).hexdigest()!=capture['sha256']:raise ValueError('fine-result capture hash/length differs')
-        counts.append(verify([json.loads(line)for line in raw.splitlines()if line.strip()],fixture,capture,engine))
-    a.report.write_text(json.dumps(dict(passed=True,cases=2,fine_requests_each=counts[0],engine_exact_requests=sum(counts)if engine else 0,whole_retail_pathfinder=False),indent=2)+'\n')
+        rows=[json.loads(line)for line in raw.splitlines()if line.strip()]
+        counts.append(verify(rows,fixture,capture,engine))
+        if a.same_cell_reference:
+            result=same_cell_motion(rows,json.loads(a.same_cell_reference.read_text()))
+            same_cell.append(result)
+    report=dict(passed=True,cases=2,fine_requests_each=counts[0],engine_exact_requests=sum(counts)if engine else 0,whole_retail_pathfinder=False)
+    if same_cell:report.update(same_cell_lifetimes=8,same_cell_motion_each=28)
+    a.report.write_text(json.dumps(report,indent=2)+'\n')
 
 
 if __name__=='__main__':main()

@@ -1413,7 +1413,8 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         (wc3FineVector_t){b.x,b.y},move_fine_points,BZ_WC3_FINE_NODES,&complete);
     if (input->units && input->mover) S_ChargeUnitMoveFineRequest((edict_t *)input->mover,move_fine.pops);
     if (!count || (!complete && !input->units)) return false;
-    if (count < 2 && !input->fine_target) return false;
+    /* Native166e90 publishes count1 as an admitted route. A caller that
+     * derives its fine goal here has the same route contract as a member. */
     if (curve) {
         vec2_t *points = realloc(curve->points,count*sizeof(*points));
         if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);

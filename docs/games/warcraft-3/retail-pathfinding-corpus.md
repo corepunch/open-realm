@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **340 entries**: **53** distinct original-code oracle
-scripts plus **65** declared variants, **121** archived JSONL audits and **101**
+The inventory now has **341 entries**: **53** distinct original-code oracle
+scripts plus **65** declared variants, **121** archived JSONL audits and **102**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -1811,3 +1811,12 @@ The controlled far-source one-point cache is distinguished from the public
 same-cell single-point producer. This fixes the production cache rejection
 without closing unobserved ROUTE-04.1 producer combinations. See
 [cache validity and admission](retail-pathfinding-engine.md#cached-single-fine-points-bypass-refill-admission).
+
+Payoff114 adds `live-same-cell-motion-captures-261006`, a stronger supplement
+to the same two accepted payoff113 streams. Four public one-point fine routes
+begin farther than.49 from their goal and remain cached through seven commits
+each, with no second request. The full game replay matches28 original commits
+and91 suffix commits after five saves. The fresh-route adapter also accepts
+count1 when deriving its fine destination. Numerical/header and extra-refill/
+missing-commit negatives retain this scope; the other public route-mode
+combinations remain open. See [public single-point lifetimes](retail-pathfinding-engine.md#public-single-point-lifetimes-preserve-cached-motion).

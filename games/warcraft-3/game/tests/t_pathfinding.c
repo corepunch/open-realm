@@ -1107,6 +1107,31 @@ TEST(wc3_pathfinding, cached_single_fine_point_retains_native_waypoint) {
     reset_entities(); setup_test_world();
 }
 
+/* A caller without a precomputed fine destination still receives the complete
+ * same-cell route. Pointer provenance cannot make a native count1 invalid. */
+TEST(wc3_pathfinding, fresh_single_fine_point_preserves_legacy_destination) {
+    uint8_t cells[24*24]={0};
+    vec2_t source={136,136},goal={156,156},fine={4.25f,4.25f},destination={4.875f,4.875f};
+    reset_entities();setup_test_world();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{768,768}});CM_SetupTestPathmap(24,24,cells);
+    FOR_LOOP(cls,4) FOR_LOOP(prepared,2) {
+        movePathQuery_t query={.geometry={&source,&goal,8+16*cls,CM_PATHING_UNWALKABLE},
+                              .fine=&fine,.fine_target=prepared ? &destination : NULL};
+        moveFineRoute_t route={0};vec2_t output={-1,-1};
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&output));
+        T_EQ(route.count,1);T_EQ(route.index,0);T_ASSERT(!route.partial);
+        T_EQ(wc3_float_bits(output.x),wc3_float_bits(goal.x));
+        T_EQ(wc3_float_bits(output.y),wc3_float_bits(goal.y));
+        if(route.points) {
+            T_EQ(wc3_float_bits(route.points[0].x),wc3_float_bits(destination.x));
+            T_EQ(wc3_float_bits(route.points[0].y),wc3_float_bits(destination.y));
+            T_ASSERT(G_AdvanceUnitMoveFineRoute(&query,&route,&output));
+        }
+        free(route.points);
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
     enum { WIDTH = 128, HEIGHT = 16 };
     static uint8_t open[WIDTH * HEIGHT];

@@ -9451,3 +9451,73 @@ new compressed streams against production C at O0/O2 and reject provenance,
 truncation and word-history changes. This is the first implementation chunk
 after the successful merge checkpoint; validation is focused, without a new
 full-suite or performance claim.
+
+### Public single-point lifetimes preserve cached motion
+
+Payoff114 authenticates the full public lifetime behind payoff113's cache fix.
+The first four cases of the completed scene91 Frida captures already contain
+this evidence: a single-unit point order from world257/289 to287/319, for each
+of collision radius8/24/40/56. Fine source8.03125/9.03125 and goal8.96875/9.96875
+are in the same cell, but their distance is greater than.49. Thus this is an
+active one-point route, rather than an immediately consumed endpoint.
+
+Each lifetime makes two one-point coarse requests followed by exactly one
+fine request. Fine setup emits count1/index0 with no expansion or charged
+work. Seven subsequent arrival evaluations and velocity commits complete
+the move without a second fine request. The last commit has zero velocity;
+the unit stops at the original range boundary, without snapping to the goal.
+Two completed captures repeat every route, arrival and clock/pose/velocity/
+heading word. Their full twelve-case streams remain pinned and checked;
+this supplement certifies the first four movement lifetimes only.
+
+The production constructor had an independent `count < 2 && !fine_target`
+rejection. It incorrectly made a valid route depend on whether the caller
+already supplied native destination coordinates. Sixteen assertions fail
+when production local routing derives that destination itself. Removing the
+restriction gives prepared and derived destinations the same count1 contract;
+the existing complete/partial rules, placement, admission and index selection
+still apply. Together with payoff113's cache fix, count1 now survives both
+creation and advancement.
+
+The full game regression runs the same four type profiles and periodic JASS
+producer from a zero primary clock. It reproduces28 original commits and
+continues from saves at1030,1090,9030,17030 and25030 simulation milliseconds.
+Each saved active route retains its point, count1/index0, partial flag and valid
+waypoint. The five suffixes account for91 additional commits. All time,
+position, velocity and heading words match the uninterrupted native control.
+The engine fixture ends after case3, before the separate blocked-source
+experiments; its script includes the stock positive-integer modulo calculation
+and a test `main` calling the unchanged initialization function.
+
+`retail_same_cell_motion_114.h` contains the producer and engine words;
+`retail-same-cell-motion-1.27.json` freezes the complete public route/arrival/
+motion supplement. The new corpus entry `live-same-cell-motion-captures-261006`
+checks that supplement against both existing full raw captures, plus all584
+production search results in the full scene. Strict negative checks reject
+extra refills, missing commits, changed indices, arrival inputs, movement words
+and altered producer/header literals. The compressed streams and content-
+addressed sources remain the accepted payoff113 artifacts; no capture is
+relabeled as a new run.
+
+Saved Ghidra annotations/readback cover165ae0,166e90,167ce0,167070 and168870.
+The latter's mode0 formula is `count-1` only when count equals1, otherwise
+`count-2`; mode1 uses `count-1`. Empty fine/coarse buffers therefore initialize
+to unsigned-2/-1, respectively. This corrects the old comment's overbroad
+`count > 1` shorthand. Clear-obstruction fine setup selects0 directly.
+`MapPathfinding.java` records the public cache producer and the fresh-route fix;
+`retail-same-cell-motion-1.27-static.json` reads back `unsaved=false` and xrefs.
+
+The far-source single-point producer is now certified; every other public
+cache/alternate-index combination remains ROUTE-04.1. Denied-bucket composition
+still comes from the complete original controlled oracle, rather than this
+uncrowded public scene. Queue/perimeter/yield/warp producers remain their
+existing tasks. No new TODO, saved layout or performance result is claimed.
+
+Focused validation passes90 pathfinding tests/334773 assertions per Classic/
+TFT schema, all338 movement tests in both schemas (over4.47 million assertions
+per run), and the final public save/motion regression's1280 assertions in
+both schemas. Classic's broader run preceded the additional direct restored-
+route assertions; its final focused regression includes them. The25 Python
+checks, two selected fresh corpus entries, engine boundary audit and WC3/SC2
+production plus WC3 test builds pass. This is implementation commit2 since
+the full merge checkpoint; the full repository suite is not repeated here.

@@ -12101,6 +12101,88 @@ static void record_follow_commit(edict_t *unit) {
     memcpy(trace->rows[trace->count++],words,sizeof(words));
 }
 
+#include "retail_same_cell_motion_114.h"
+TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius[]={8,24,40,56},speed=270;
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[4][2];unitData_t custom[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','F','9','1'+i),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+24]=cells[y*64+25]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(same_cell_script_114);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_same_cell114;
+    G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={1030,1090,9030,17030,25030};
+    unsigned saved[5]={0},steps=0,suffix=0;bool mismatch=false;char files[5][64];
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-same-cell114-%u.bin",times[i]);
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){
+            T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];
+            edict_t *unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent))FOR_LOOP(c,4)
+                if(ent->class_id==custom[c].newUnitID)unit=ent;
+            T_NOT_NULL(unit);
+            if(unit) {
+                moveFineRoute_t *route=&unit->movement.fine_route;
+                T_EQ(route->count,1);T_EQ(route->index,0);T_ASSERT(!route->partial);
+                T_ASSERT(unit->movement.path.valid);T_NOT_NULL(route->points);
+                if(route->points) {
+                    T_EQ(wc3_float_bits(route->points[0].x),0x410f8000u);
+                    T_EQ(wc3_float_bits(route->points[0].y),0x411f8000u);
+                }
+            }
+        }
+        while(level.time<32000 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent))FOR_LOOP(c,4)
+                if(ent->class_id==custom[c].newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<28);if(steps>=28){mismatch=true;break;}
+                uint32_t const *expected=same_cell_motion_114[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"same-cell114 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]) {
+                edict_t *unit=trace.units[0];moveFineRoute_t *route=&unit->movement.fine_route;
+                T_EQ(route->count,1);T_EQ(route->index,0);T_ASSERT(!route->partial);
+                T_NOT_NULL(route->points);
+                if(route->points) {
+                    T_EQ(wc3_float_bits(route->points[0].x),0x410f8000u);
+                    T_EQ(wc3_float_bits(route->points[0].y),0x411f8000u);
+                }
+                saved[i]=steps;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        T_EQ(steps,28);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"same-cell114 native commits=%u saved suffix=%u\n",steps,suffix);
+    if(!mismatch){T_NOT_NULL(trace.units[0]);T_EQ(trace.units[0]->current_order_id,0);}
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_same_cell114:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
 #include "retail_gate_retry.h"
 static struct { uint32_t const (*rows)[14]; unsigned count,index; bool mismatch; } gate_retry;
 

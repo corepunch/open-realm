@@ -14,7 +14,7 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/frida'))
-from verify_wc3_fine_result_trace import verify
+from verify_wc3_fine_result_trace import verify,same_cell_motion
 
 class Objects(ctypes.Structure):
     _fields_=[('cells',ctypes.POINTER(ctypes.c_uint8)),('objects',ctypes.POINTER(ctypes.c_uint32))]
@@ -26,6 +26,7 @@ class FineResultTests(unittest.TestCase):
         cls.live=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-public-results-live-1.27.json').read_text())
         cls.cache=json.loads((ROOT/'tools/ghidra/fixtures/retail-cached-fine-route-1.27.json').read_text())
         cls.cache_live=json.loads((ROOT/'tools/ghidra/fixtures/retail-cached-fine-route-1.27-live.json').read_text())
+        cls.same_cell=json.loads((ROOT/'tools/ghidra/fixtures/retail-same-cell-motion-1.27.json').read_text())
 
     def test_full_caller_routes_and_retained_same_cell_latch_at_both_optimizations(self):
         with tempfile.TemporaryDirectory(prefix='wc3-fine-results-')as tmp:
@@ -57,6 +58,32 @@ class FineResultTests(unittest.TestCase):
                     self.assertEqual(len(raw),cap['bytes'])
                     self.assertEqual(hashlib.sha256(raw).hexdigest(),cap['sha256'])
                     self.assertEqual(verify([json.loads(line)for line in raw.splitlines()],self.cache_live,cap,e),292)
+                    self.assertEqual(same_cell_motion([json.loads(line)for line in raw.splitlines()],self.same_cell),self.same_cell)
+
+    def test_single_point_public_motion_words_and_script_match_engine_fixture(self):
+        source=(ROOT/'games/warcraft-3/game/tests/retail_same_cell_motion_114.h').read_text()
+        table=source.split('same_cell_motion_114[][7]={',1)[1].split('};',1)[0]
+        self.assertEqual([int(w,16)for w in re.findall(r'0x([0-9a-f]+)u',table)],
+            [w for c in self.same_cell['cases']for row in c['motion']for w in row])
+        body=source.split('same_cell_script_114[]=',1)[1]
+        script=''.join(json.loads(line.strip())for line in body.splitlines()if line.strip().startswith('"'))
+        stock='function ModuloInteger takes integer dividend, integer divisor returns integer\nreturn dividend-(dividend/divisor)*divisor\nendfunction\n'
+        original=(ROOT/'tools/frida/wc3_fine_results_probe.j').read_text()
+        expected=original.replace('udg_PathProbeCase==12','udg_PathProbeCase==4').replace('endglobals\n','endglobals\n'+stock,1)
+        self.assertEqual(script,expected+'function main takes nothing returns nothing\ncall PathProbeInit()\nendfunction\n')
+
+    def test_single_point_lifetime_rejects_extra_refill_missing_commit_and_changed_words(self):
+        raw=gzip.decompress((ROOT/'tools/ghidra/fixtures/retail-cached-fine-route-1.27-live-b.jsonl.gz').read_bytes())
+        rows=[json.loads(line)for line in raw.splitlines()]
+        for event,key in [('route','count'),('route','indices'),('velocity-commit','after'),('arrival-evaluation','source')]:
+            bad=copy.deepcopy(rows);r=next(r for r in bad if r['event']==event)
+            if key=='count':r[key]+=1
+            else:r[key][2 if key=='after' else 0]^=1
+            with self.assertRaisesRegex(ValueError,'single-point'):same_cell_motion(bad,self.same_cell)
+        i=next(i for i,r in enumerate(rows)if r['event']=='velocity-commit')
+        with self.assertRaisesRegex(ValueError,'count differs'):same_cell_motion(rows[:i]+rows[i+1:],self.same_cell)
+        i=next(i for i,r in enumerate(rows)if r['event']=='route'and r['kind']=='fine')
+        with self.assertRaisesRegex(ValueError,'count differs'):same_cell_motion(rows[:i]+[rows[i]]+rows[i:],self.same_cell)
 
     def test_complete_cached_advance_matrix_keeps_unsigned_cache_and_gate_precedence(self):
         cases=self.cache['cases']
