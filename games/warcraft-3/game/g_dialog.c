@@ -51,16 +51,18 @@ jassDialog_t *G_JassDialogCreate(void) {
 }
 
 jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *dialog, cstring_t label,
-        int32_t hotkey, bool quit, bool score_screen) {
+        jassDialogButtonOptions_t const *options) {
     if (!G_JassDialog(dialog) || level.dialog_button_count >= MAX_JASS_DIALOG_BUTTONS) return NULL;
     jassDialogButton_t *button = &level.dialog_buttons[level.dialog_button_count++];
     memset(button, 0, sizeof(*button));
     button->inuse = true;
     button->id = level.dialog_button_count;
     button->dialog_id = dialog->id;
-    button->hotkey = hotkey;
-    button->quit = quit;
-    button->score_screen = score_screen;
+    if (options) {
+        button->hotkey = options->hotkey;
+        button->quit = options->quit;
+        button->score_screen = options->score_screen;
+    }
     snprintf(button->text, sizeof(button->text), "%s", label ? G_LevelString(label) : "");
     return button;
 }
@@ -169,7 +171,7 @@ static void DialogApplyBackdrop(frameDef_t *root) {
  * template provides Warcraft styling when it is present in the game archives. */
 void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
     frameDef_t *root, *message, *source;
-    uint32_t n = 0;
+    uint32_t n = 0, omitted = 0;
     if (!ent || !ent->client || !dialog) return;
     UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf");
     UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
@@ -191,7 +193,8 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
     FOR_LOOP(i, level.dialog_button_count) {
         jassDialogButton_t const *entry = &level.dialog_buttons[i];
         frameDef_t *button, *text;
-        if (!entry->inuse || entry->dialog_id != dialog->id || n >= 12) continue;
+        if (!entry->inuse || entry->dialog_id != dialog->id) continue;
+        if (n >= 12) { ++omitted; continue; }
         source = UI_FindFrame("ScriptDialogButton");
         if (!source) source = UI_FindFrame("StandardButtonTemplate");
         button = source ? UI_CloneFrameTree(source, root) : UI_Spawn(FT_GLUETEXTBUTTON, root);
@@ -214,6 +217,7 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
         UI_SetOnClick(button, UI_WINDOW_CLOSE_COMMAND_PREFIX "jassdialog %u %u", dialog->id, entry->id);
         ++n;
     }
+    if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is 12\n", dialog->id, omitted);
     UI_SetSize(root, 0.36f, MAX(0.17f, 0.115f + n * 0.032f));
     UI_SetCurrentClient(ent->client);
     UI_WriteWindow(ent, root, &MAKE(uiWindowDef_t, .id = WC3_JASS_DIALOG_WINDOW,

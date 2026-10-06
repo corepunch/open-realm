@@ -14,8 +14,8 @@ TEST(wc3_dialog, create_add_clear_destroy_retains_stable_handles) {
     dialog = G_JassDialogCreate();
     T_NOT_NULL(dialog);
     T_EQ(G_JassDialogById(dialog->id), dialog);
-    first = G_JassDialogAddButton(dialog, "Long Route", 0, false, false);
-    second = G_JassDialogAddButton(dialog, "Short Route", 0, false, false);
+    first = G_JassDialogAddButton(dialog, "Long Route", NULL);
+    second = G_JassDialogAddButton(dialog, "Short Route", NULL);
     T_NOT_NULL(first); T_NOT_NULL(second);
     T_NE(first, second);
     T_EQ(first->dialog_id, dialog->id);
@@ -24,7 +24,7 @@ TEST(wc3_dialog, create_add_clear_destroy_retains_stable_handles) {
     T_NULL(G_JassDialogButton(first));
     T_NULL(G_JassDialogButton(second));
     T_EQ(G_JassDialog(dialog), dialog);
-    second = G_JassDialogAddButton(dialog, "New Route", 0, false, false);
+    second = G_JassDialogAddButton(dialog, "New Route", NULL);
     T_NOT_NULL(second);
     T_NE(first, second);
     G_JassDialogDestroy(dialog);
@@ -41,7 +41,7 @@ TEST(wc3_dialog, save_round_trip_restores_dialog_handles_and_visibility) {
     dialog = G_JassDialogCreate();
     T_NOT_NULL(dialog);
     snprintf(dialog->message, sizeof(dialog->message), "Choose a route");
-    button = G_JassDialogAddButton(dialog, "Long", 0, false, false);
+    button = G_JassDialogAddButton(dialog, "Long", NULL);
     T_NOT_NULL(button);
     dialog->visible_players = 1;
     T_ASSERT(WriteGame(filename));
