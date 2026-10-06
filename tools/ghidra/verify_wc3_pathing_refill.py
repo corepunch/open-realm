@@ -32,6 +32,8 @@ def main():
     parser.add_argument('--unit-route-reference',type=Path,help='compare original default adaptive/fine maze handoffs')
     parser.add_argument('--public-results-fixture',type=Path,help='export same-cell/blocked/partial/special-target full fine caller results')
     parser.add_argument('--public-results-reference',type=Path,help='compare full fine caller results with frozen original words')
+    parser.add_argument('--cached-route-fixture',type=Path,help='export full advance over cached/exhausted fine routes, disabled gate and wait precedence')
+    parser.add_argument('--cached-route-reference',type=Path,help='compare cached/exhausted full-advance state words')
     args = parser.parse_args()
     engine=ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
     class FineInput(ctypes.Structure):
@@ -325,6 +327,52 @@ def main():
         assert read(0)[0]==0
         full_advance.append(dict(fixture=name,size_class=cls,budget=budget,acc_state=acc_state,result=result,
                                  retries=read(path+0x98)[0],fine_count=read(path+0x50)[0]))
+    cached_route_cases=[]
+    if args.cached_route_fixture or args.cached_route_reference:
+        # Cache validity is unsigned index<count, including count1. Use the
+        # complete165ae0 caller with actual context, step collector and registry.
+        # Supplied far-source states establish consumption, not a public lifetime
+        # capable of creating each state; the live producer is reported separately.
+        source=(4.25,4.75); target=(19.25,19.75); blocked=set(); budget=700
+        states=[(1,0),(2,0),(2,1),(5,0),(5,3),(5,4),
+                (0,-1),(0,0),(1,-1),(1,1),(2,-1),(2,2)]
+        for cls,(count,index),enabled,disabled,delay in itertools.product(
+                range(4),states,[False,True],[False,True],[0,1,4]):
+            setup()
+            write(system+0xac+0xc,candidates);write(system+0xac+0x18,64,0)
+            machine.mem_write(path,bytes(0x100))
+            machine.mem_write(path+0x1c,struct.pack('<4f',*target,*target))
+            write(path+0x40,route_data);write(path+0x4c,1024,count)
+            write(path+0x60,coarse);write(path+0x6c,1024,1,index,0)
+            machine.mem_write(coarse,struct.pack('<2f',target[0]/2,target[1]/2))
+            # Each cached point differs from the held goal and predicted source.
+            machine.mem_write(route_data,struct.pack('<'+'f'*10,*[v for n in range(5)for v in (15.5+n*.25,12.5+n*.125)]))
+            write(path+0x84,700|400<<16)
+            write(path+0x88,(0x200000 if enabled else 0)|(0x100000 if disabled else 0))
+            write(path+0x94,delay,0);write(path+0x9c,0x02000000);write(path+0xa8,-1,-1)
+            machine.mem_write(path+0xb4,struct.pack('<f',.25+.5*cls))
+            # Exhausted routes cannot obtain another fine request in this visit.
+            write(bucket,700|1<<16,1100,1101,0,0,0,0);write(owner,0,0)
+            machine.mem_write(output,struct.pack('<2f',*target))
+            before=read(path+0x50)[0],read(path+0x74)[0],read(path+0x94)[0]
+            result=run(0x6f165ae0,path,source_ptr,output,mover)
+            valid=0<=index<count
+            expected=0x100000 if disabled else 1 if delay else 0 if valid else 2
+            assert result==expected,(cls,count,index,enabled,disabled,delay,result)
+            assert read(path+0x94)[0]==(delay if disabled else max(0,delay-1))
+            assert (read(path+0x50)[0],read(path+0x74)[0])==before[:2]
+            wanted=read(route_data+index*8,2) if valid and not disabled and not delay else read(target_ptr,2)
+            assert read(output,2)==wanted
+            assert read(bucket+8)[0]==1101 # no search work in any row
+            cached_route_cases.append(dict(cls=cls,count=count,index=index,adaptive_enabled=enabled,
+                disabled=disabled,delay=delay,source=read(source_ptr,2),goal=read(target_ptr,2),
+                points=read(route_data,count*2),result=result,output=read(output,2),
+                after=dict(count=read(path+0x50)[0],index=read(path+0x74)[0],delay=read(path+0x94)[0],
+                           fine_work=read(bucket+8)[0],fine_waiting=read(bucket+0x10)[0])))
+        payload=dict(version=1,binary_sha256=digest,entry='6f165ae0',cases=cached_route_cases,
+            scope='Complete original advance, query context, accelerator progress, fine cache/denial and next-step collector. Synthetic preallocated24-cell open map, cached adaptive index0, denied fine bucket. All four footprint classes. Far-source cached one-point state is controlled; public production/reachability and terminal/yield/warp lifetimes are not certified.')
+        if args.cached_route_fixture:args.cached_route_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
+        if args.cached_route_reference:assert payload==json.loads(args.cached_route_reference.read_text())
     # Enabled accelerator search composed with public advance. Supplied base
     # classifications, original parent reducer, then both original searches.
     machine.mem_map(0x10400000,0x200000)
@@ -749,6 +797,7 @@ def main():
             args.adaptive_long_fixture.write_text(json.dumps(payload,separators=(',',':'))+'\n')
         report['adaptive_long_cases']=len(long_cases)
         report['adaptive_long_steps']=sum(len(c['steps']) for c in long_cases)
+    if cached_route_cases:report['cached_route_cases']=len(cached_route_cases)
     if engine:report['engine_exact_obstruction_cases']=engine_obstruction_cases
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k not in ['formation_destinations','cases','dynamic_cases','full_advance','enabled_advance','hierarchy_exclusion']},indent=2))

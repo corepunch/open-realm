@@ -1524,7 +1524,9 @@ bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute
         }
     }
 
-    if (!route->points || route->count < 2 || route->count > BZ_WC3_FINE_NODES ||
+    /* Native167ce0 validates unsigned index<count, including a one-point
+     * cache. Its distance gate, rather than length, owns endpoint consumption. */
+    if (!route->points || !route->count || route->count > BZ_WC3_FINE_NODES ||
         route->index >= route->count) return false;
     vec2_t point = route->points[route->index];
     float dx = wc3_sub(point.x,source.x), dy = wc3_sub(point.y,source.y), range = wc3_float(0x3efae148);

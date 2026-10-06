@@ -1078,6 +1078,35 @@ TEST(wc3_pathfinding, mover_detours_follow_retail_fine_routes) {
     setup_test_world();
 }
 
+/* Original165ae0/167ce0 retains any unsigned index<count. A single cached
+ * point is valid too; distance, not the buffer length, owns its consumption. */
+TEST(wc3_pathfinding, cached_single_fine_point_retains_native_waypoint) {
+    uint8_t cells[24 * 24] = {0};
+    vec2_t source = {136,152}, goal = {616,632}, fine={4.25f,4.75f}, destination={19.25f,19.75f};
+    box2_t bounds={{0,0},{768,768}};
+    unsigned const states[][2] = {{1,0},{2,0},{2,1},{5,0},{5,3},{5,4}};
+    reset_entities(); setup_test_world(); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(24,24,cells);
+    FOR_LOOP(cls,4) FOR_LOOP(n,sizeof(states)/sizeof(states[0])) {
+        vec2_t points[5];
+        FOR_LOOP(i,5) points[i] = (vec2_t){15.5f + i*.25f, 12.5f + i*.125f};
+        moveFineRoute_t route = {.points=points,.count=states[n][0],.index=states[n][1]};
+        movePathQuery_t query = {.geometry={&source,&goal,8+16*cls,CM_PATHING_UNWALKABLE},
+                                .fine=&fine,.fine_target=&destination};
+        vec2_t output={-1,-1}; uint32_t status=0xffffffff;
+        T_ASSERT(G_AdvanceUnitMoveFineRouteStatus(&query,&route,&output,&status));
+        T_EQ(status,0); T_EQ(route.count,states[n][0]); T_EQ(route.index,states[n][1]);
+        T_EQ(wc3_float_bits(output.x),wc3_float_bits(wc3_mul(points[route.index].x,32)));
+        T_EQ(wc3_float_bits(output.y),wc3_float_bits(wc3_mul(points[route.index].y,32)));
+        /* Arrival invalidates this leg for the owner's retry transition. */
+        if (route.index==0) {
+            query.fine=&points[0];
+            T_ASSERT(!G_AdvanceUnitMoveFineRouteStatus(&query,&route,&output,&status));
+            T_EQ(route.count,states[n][0]); T_EQ(route.index,0);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
 TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
     enum { WIDTH = 128, HEIGHT = 16 };
     static uint8_t open[WIDTH * HEIGHT];

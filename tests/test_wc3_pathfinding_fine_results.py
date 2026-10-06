@@ -1,6 +1,8 @@
 """Original fine caller outcomes use the production route builder at O0/O2."""
 import copy
 import ctypes
+import gzip
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -22,6 +24,8 @@ class FineResultTests(unittest.TestCase):
     def setUpClass(cls):
         cls.frozen=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-public-results-1.27.json').read_text())
         cls.live=json.loads((ROOT/'tools/ghidra/fixtures/retail-fine-public-results-live-1.27.json').read_text())
+        cls.cache=json.loads((ROOT/'tools/ghidra/fixtures/retail-cached-fine-route-1.27.json').read_text())
+        cls.cache_live=json.loads((ROOT/'tools/ghidra/fixtures/retail-cached-fine-route-1.27-live.json').read_text())
 
     def test_full_caller_routes_and_retained_same_cell_latch_at_both_optimizations(self):
         with tempfile.TemporaryDirectory(prefix='wc3-fine-results-')as tmp:
@@ -48,6 +52,37 @@ class FineResultTests(unittest.TestCase):
                     self.assertEqual(out[:6],[1,0,0,1,0,1]);self.assertEqual(out[7:],c['words'])
                 rows=[dict(event='metadata',**self.live['captures'][0]['metadata']),{'event':'marker','value':'PATHTRACE tick=960 label=complete case=12 '}]+[self.live['catalog'][i]for i in self.live['sequence']]+[{'event':'trace-end','installed':True}]
                 self.assertEqual(verify(rows,self.live,self.live['captures'][0],e),292)
+                for tag,cap in zip(('b','c'),self.cache_live['captures']):
+                    raw=gzip.decompress((ROOT/f'tools/ghidra/fixtures/retail-cached-fine-route-1.27-live-{tag}.jsonl.gz').read_bytes())
+                    self.assertEqual(len(raw),cap['bytes'])
+                    self.assertEqual(hashlib.sha256(raw).hexdigest(),cap['sha256'])
+                    self.assertEqual(verify([json.loads(line)for line in raw.splitlines()],self.cache_live,cap,e),292)
+
+    def test_complete_cached_advance_matrix_keeps_unsigned_cache_and_gate_precedence(self):
+        cases=self.cache['cases']
+        self.assertEqual(len(cases),576)
+        self.assertEqual(len({(c['cls'],c['count'],c['index'],c['adaptive_enabled'],c['disabled'],c['delay'])for c in cases}),576)
+        self.assertEqual({(c['count'],c['index'])for c in cases},
+                         {(1,0),(2,0),(2,1),(5,0),(5,3),(5,4),(0,-1),(0,0),(1,-1),(1,1),(2,-1),(2,2)})
+        for c in cases:
+            with self.subTest(cls=c['cls'],count=c['count'],index=c['index'],delay=c['delay']):
+                self.assertEqual(c['after']['fine_work'],1101)
+                self.assertEqual(c['after']['count'],c['count'])
+                self.assertEqual(c['after']['index'],c['index']&0xffffffff)
+                if c['disabled']:
+                    self.assertEqual(c['result'],0x100000)
+                    self.assertEqual(c['after']['delay'],c['delay'])
+                elif c['delay']:
+                    self.assertEqual(c['result'],1)
+                    self.assertEqual(c['after']['delay'],c['delay']-1)
+                elif 0<=c['index']<c['count']:
+                    self.assertEqual(c['result'],0)
+                    self.assertEqual(c['output'],c['points'][2*c['index']:2*c['index']+2])
+                else:self.assertEqual(c['result'],2)
+        # The public scene establishes same-cell creation, not the supplied
+        # far-source one-point lifetime. Keep these evidence domains distinct.
+        self.assertIn('controlled',self.cache['scope'])
+        self.assertIn('No far-source',self.cache_live['scope'])
 
     def test_engine_literals_preserve_original_caller_route_words(self):
         source=(ROOT/'games/warcraft-3/game/tests/retail_fine_results.h').read_text()

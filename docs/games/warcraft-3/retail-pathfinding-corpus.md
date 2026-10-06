@@ -10,8 +10,8 @@ production-engine parity. Engine comparisons are named explicitly.
 
 ## Inventory and acceptance
 
-The inventory now has **338 entries**: **53** distinct original-code oracle
-scripts plus **64** declared variants, **121** archived JSONL audits and **100**
+The inventory now has **340 entries**: **53** distinct original-code oracle
+scripts plus **65** declared variants, **121** archived JSONL audits and **101**
 stronger live contracts. Each entry supplies an argument vector, pinned inputs,
 fresh report filename, expected exit/status, report checks, evidence level,
 scope and exclusions. Repository numerical/scenario fixtures carry SHA256
@@ -20,7 +20,7 @@ outside the accepted inventory unless given their own rejection contract.
 
 | Entries | Expected status | Meaning |
 | --- | --- | --- |
-| 110 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
+| 111 original oracles/compositions/engine comparisons | `verified` / `original-model-engine-exact` / `original-engine-exact` | Assertions and explicit result checks pass within the recorded scope |
 | Four adaptive size-2 cases | `known-reference-difference`, exit1 | Retain all four original/reference differences |
 | Three deliberate controls | `counterfactual-control` | Intervention is explicit and does not certify native behavior |
 | 113 completed archives | `archive-consistent` | Generic audit passes; stronger omitted numerical/scenario requirements remain omitted |
@@ -1800,3 +1800,14 @@ all gate/search/route events remain exact; altered/missing/unknown evidence is
 rejected. Production matches the whole movement and12667 saved suffix commits.
 Inventory is338 entries,117 oracle contracts,121 archives,100 strict live contracts
 and192 repository pins. See [owner draw order and engine fixes](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement).
+
+Payoff113 adds `oracle-cached-fine-route` and
+`live-cached-fine-route-controls-261006`. The former certifies576 complete
+original165ae0 cache/exhaustion/disabled/wait controls; the latter certifies
+two completed public fine-result captures and584 exact production C searches.
+All raw streams, source generations and the saved four-function Ghidra readback
+are frozen in `retail-cached-fine-route-1.27*` and content-addressed source blobs.
+The controlled far-source one-point cache is distinguished from the public
+same-cell single-point producer. This fixes the production cache rejection
+without closing unobserved ROUTE-04.1 producer combinations. See
+[cache validity and admission](retail-pathfinding-engine.md#cached-single-fine-points-bypass-refill-admission).

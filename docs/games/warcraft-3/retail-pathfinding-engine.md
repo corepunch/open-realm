@@ -9380,3 +9380,74 @@ contract. It does not establish every moving-widget target refresh producer,
 route failure or portal transition; those remain in TARGET/GROUP and FORM-04.2.
 The bounded numerical comparisons preserve the current recorded domains;
 they do not claim complete retail pathfinding or a new performance result.
+
+### Cached single fine points bypass refill admission
+
+Payoff113 corrects the engine adapter's `count < 2` cache rejection. Native
+`167ce0 Path_GetFineWaypoint` tests unsigned `index < count`; count1/index0
+is valid. `167070 Path_CheckFineWaypointProgress` owns consumption through
+its squared-distance gate. A far cached point can therefore remain usable
+when the player's fine-search bucket cannot admit new work. Rejecting it
+unnecessarily reenters refill/admission and can stop the mover.
+
+The new regression calls production `G_AdvanceUnitMoveFineRouteStatus` with
+one/two/five-point cached routes across all four footprint classes. Twelve
+of180 assertions fail before the fix, all on count1. The adapter now uses
+nonzero count plus unsigned index validity, retains the selected point and
+lets the existing distance check retire the endpoint. This change neither
+allocates another route nor modifies admission limits or saved layouts.
+
+The complete original `165ae0 Path_Advance` oracle runs576 combinations:
+12 cache/index states × four footprint classes × enabled0/1 × disabled0/1
+× delay0/1/4. It retains a one-point adaptive route at index0 and supplies a
+fine bucket with1101 work, preventing new fine admission. The original
+context builder, blocker collector and request registry execute unchanged.
+
+| First applicable condition | Result | Delay | Output / route |
+| --- | ---: | --- | --- |
+| Disabled100000 |100000| Frozen | Held goal; cache unchanged |
+| Nonzero delay94 |1| Decrement once | Held goal; cache unchanged |
+| Unsigned fine index below count |0|0| Selected cached point; cache unchanged |
+| Empty/exhausted/negative index |2|0| Admission denied; held goal and cache unchanged |
+
+Every row leaves fine work1101 unchanged. Enabling adaptive routing does not
+invalidate an already retained adaptive point. Disabled100000 is an internal
+path gate; public `SetUnitPathing(false)` is a different operation. Empty and
+negative indices are unsigned-invalid even when their signed values appear
+below count. Alternate index initialization remains documented at168870;
+this matrix does not manufacture evidence of its public producers.
+
+Two complete new read-only Frida runs of `fine_results` reproduce292 requests
+and20 ordered terrain edits each, exactly matching the older scene91 words.
+Both include all four zero-work same-cell one-point controls, blocked sources
+and moving terrain across radius.25/.75/1.25/1.75. Production C reproduces all
+584 search results, work counts, node counts and route words. These runs
+establish **public single-point creation**, not the far-source one-point
+lifetime supplied to the oracle. ROUTE-04.1 remains open for that reachability
+and its other producer combinations; no new TODO is added. Terminal,
+queued/perimeter, yielding and warp lifetimes retain their existing tasks.
+
+Frozen original tables, complete compressed streams and the four-function
+Ghidra decompilation/comment/xref readback are
+`tools/ghidra/fixtures/retail-cached-fine-route-1.27*`. Captured source generations
+are preserved under `fixtures/sources/` by SHA256. `MapPathfinding.java` records
+the exact unsigned cache rule and full-caller gate precedence; game.dll was
+saved after mapping. The first live attempt ended after only four of12 cases
+because its loading-screen dismissal was premature; it is excluded. Complete
+runs use the same isolated Wine prefix/display with320/240-second limits and
+loading-screen continue at150/100 seconds, respectively.
+
+Reproduce the focused accepted corpus with:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary DATA/game.dll --archive /GitHub/wc3-analysis --output FRESH_DIRECTORY \
+  --only oracle-cached-fine-route --only live-cached-fine-route-controls-261006
+```
+
+Classic and TFT each pass89 pathfinding tests/334701 assertions plus the
+public retained-route lifecycle test/32 assertions. Python tests replay the
+new compressed streams against production C at O0/O2 and reject provenance,
+truncation and word-history changes. This is the first implementation chunk
+after the successful merge checkpoint; validation is focused, without a new
+full-suite or performance claim.

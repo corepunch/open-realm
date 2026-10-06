@@ -652,7 +652,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 
 ### ROUTE-04 — Route mode combinations
 
-- [ ] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance.
+- [ ] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance. **Payoff113:** complete original165ae0 verifies576 cached/exhausted/disabled/wait combinations; fix the engine's incorrect rejection of cached count1. Two complete public four-class fine-result repeats preserve292 requests each, including single-point creation. Public reachability of the supplied far-source cache states and alternate-index producer combinations remains open; see [cache validity and admission](retail-pathfinding-engine.md#cached-single-fine-points-bypass-refill-admission).
 - [ ] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state.
 
 ### ROUTE-05 — Yielding lifecycle
