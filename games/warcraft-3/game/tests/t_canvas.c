@@ -113,15 +113,19 @@ TEST(wc3_canvas, console_load_defers_widescreen_tiles_and_collects_their_frames)
 }
 
 TEST(wc3_canvas, esc_menu_background_keeps_its_skin_key_separate_from_button_art) {
-    uint32_t background, button;
+    uint32_t background, button, pushed;
     canvas_setup();
     background = UI_LoadTexture("EscMenuBackground", true);
     button = UI_LoadTexture("EscMenuButtonBackground", true);
+    pushed = UI_LoadTexture("EscMenuButtonPushedBackground", true);
 
     T_ASSERT(background >= HUD_DEFERRED_IMAGE_BASE);
     T_STREQ(UI_ImageKey(background), "EscMenuBackground");
-    T_ASSERT(button < HUD_DEFERRED_IMAGE_BASE);
+    T_ASSERT(button >= HUD_DEFERRED_IMAGE_BASE);
     T_STREQ(UI_ImageKey(button), "EscMenuButtonBackground");
+    T_ASSERT(pushed >= HUD_DEFERRED_IMAGE_BASE);
+    T_STREQ(UI_ImageKey(pushed), "EscMenuButtonPushedBackground");
+    T_ASSERT(background != button && button != pushed && background != pushed);
     canvas_teardown();
 }
 
