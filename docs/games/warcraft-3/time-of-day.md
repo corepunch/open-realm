@@ -151,13 +151,13 @@ accumulated light factor to `[0, 1]`, matching Warsmash before texture modulatio
 
 Two MDX animation details are easy to miss and materially affect the stock DNC appearance:
 
-- Warcraft animated MDX color tracks use BGR component order while static color fields are usually already RGB. GeosetAnimation
-  colors are the important exception used by the HUD clock: Warsmash swizzles both the static GeosetAnimation base color and
-  animated `KGAC` keys from BGR to RGB. OpenRealm mirrors that through `MDLX_GetGeosetAnimationStaticColor()` and
-  `MDLX_GetAnimatedColorTrackValue()`. DNC light `KLAC`/`KLBC` tracks and geoset-animation `KGAC` tracks therefore share the same
-  visible color convention, and the time-of-day indicator's authored cool-blue night glow no longer presents as warm red/orange.
-  This is a semantic float-component conversion performed before shader upload; it is deliberately separate from `PIXEL_BGRA`
-  texture byte handling, so desktop GL native BGRA support and GLES CPU BGRA-to-RGBA fallback produce the same model color.
+- Animated `KGAC` geoset-color keys use BGR components and `MDLX_GetAnimatedColorTrackValue()` converts them to RGB.
+  Static `GEOA` base colors are already RGB and `MDLX_GetGeosetAnimationStaticColor()` preserves them. Warsmash's
+  `GeosetAnimation` constructor swaps static RGB into its BGR uniform convention, then `MdxShaders` consumes
+  `u_geosetColor.bgra`, cancelling that swap. Copying only the constructor's conversion into OpenRealm swapped red
+  and blue in static campaign sky/light-beam tints. The animated HUD clock conversion stays intact.
+  DNC light `KLAC`/`KLBC` tracks continue through the existing animated-color evaluator. These float-component
+  semantics are separate from `PIXEL_BGRA` texture bytes and have no GL/GLES or host-endianness dependency.
 - For a global-sequence key track whose first authored key lies beyond the declared global-sequence duration, Warsmash treats that
   first value as a constant. This includes the zero-duration-global-sequence pattern used by DNC-style node rotations. Returning the
   default transform instead leaves a directional light pointing along the unrotated model axis. `MDLX_GetModelKeytrackValue()`

@@ -171,6 +171,49 @@ The older `wc3_campaign_mission_visibility=played` and
 launching a map is not campaign progression; authored JASS availability natives
 are authoritative.
 
+#### Comparing full retail mission columns
+
+The retail RoC references show Human's 14 rows, Undead's 11, Orc's 11, and Night Elf's 9 without scrolling,
+including opening/ending movie rows. The old ten-slot mission box truncated Human and the other longer columns;
+[PR #581](https://github.com/corepunch/open-realm/pull/581) provides sixteen mission slots while retaining ten campaign
+slots, the row pitch, and the shared column centre. This is a box-capacity issue, not an icon-position or text-size issue.
+
+For framebuffer comparison, initialize Single Player before choosing a campaign. `menu_single_player_campaign` opens
+the campaign selector; the named shortcut opens its mission list. Skip the authored entrance animation to capture the
+settled backdrop, and use a temporary profile so diagnostics do not change normal user settings:
+
+```sh
+make openwarcraft3 FFMPEG=1
+XDG_DATA_HOME=/tmp/wc3-campaign-check build/bin/openwarcraft3 -data 'data/Warcraft III' -vid_hidden 1 \
+  +vid_native 0 +vid_mode 3 +ui_skip_transitions 1 +scr_showfps 0 \
+  +menu_game +menu_single_player_campaign_human +screenshot 120 +com_frame_limit 135
+```
+
+Repeat with `undead`, `orc`, and `night_elf` in the shortcut suffix; add `-tft` to check the expansion overrides.
+Read the newly written `screenshots/shotNNNN.jpg`. A sandbox without macOS display access can exit successfully with
+`Drawable size: 0x0` and no screenshot; the command must have graphics access for framebuffer verification.
+`FFMPEG=1` requires the five pkg-config packages listed in `games/warcraft-3/game.mk`. A build without it deliberately
+omits movie rows, so its shorter column cannot establish parity with references containing those rows. For exact row
+counts, also inspect the active archive's `UI/CampaignStrings.txt`; installed 1.00 RoC data uses `TitleN`/`MissionN`
+and the legacy `OpCinematic`/`EdCinematic` schema.
+
+`make test-menu` covers both RoC/TFT selector geometry, named console commands, re-entry, and wheel scrolling.
+Run it in both movie-enabled and default builds when reviewing changes to the complete mission column. These tests
+verify layout and input contracts; framebuffer inspection covers the authored fonts, icon artwork, and backdrop.
+
+The Orc campaign sky's authored static `GEOA` RGB is approximately `(0.968628, 0.462745, 0.0588235)` on geoset 10.
+The former static-color evaluator reversed red and blue, making this orange sky blue and Night Elf's cool light beams
+warm. Static base colors now pass through as RGB; animated `KGAC` keys retain their BGR-to-RGB conversion. Warsmash's
+constructor swap is cancelled by its shader's `.bgra` read, so reproducing only the constructor was incorrect. See
+[MDX color conventions](time-of-day.md#mdx-light-track-compatibility).
+
+`renderer_model.static_geoset_colors_preserve_rgb_from_mdx` reads the stock-shaped sky record and a non-stock blue
+record through `ReadGeosetAnim` before evaluating the tint. Existing animated-color tests protect `KGAC` and DNC
+behavior. The stock and non-stock static cases both failed before the fix. The framebuffer comparison must use the
+final campaign scene to verify the archive's textured sky/beam appearance; unit tests cover the color contract.
+Bounded movie-enabled captures confirmed the orange RoC Orc sky, cool-blue RoC Night Elf beams/arrow, and the TFT
+Night Elf override after this correction. Full mission columns remain visible in those scenes.
+
 ## Verification
 
 Regression coverage verifies:

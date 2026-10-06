@@ -274,9 +274,7 @@ static vec4_t MDLX_EvaluateGeosetColor(mdxModel_t const *model,
     if (geoset->geosetAnim->flags & 0x2) {
         vec3_t geosetColor = { 1.0f, 1.0f, 1.0f };
 
-        /* Warsmash swizzles both the static GeosetAnimation base color and
-         * animated KGAC values. Keep this at the semantic VECTOR3 layer rather
-         * than the platform-specific texture BGRA upload path. */
+        /* Static GEOA is RGB; animated KGAC is BGR. Normalize before the shared RGB shader upload. */
         MDLX_GetGeosetAnimationStaticColor(geoset->geosetAnim, &geosetColor);
         if (geoset->geosetAnim->colors)
             MDLX_GetAnimatedColorTrackValue(model, geoset->geosetAnim->colors, frame, &geosetColor);
