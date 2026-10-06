@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "../common/wc3_pathing_widget.h"
 #include "skills/s_skills.h"
 
 /* Keep the native itemtype mapping in one table shared by GetItemType and the
@@ -113,6 +114,31 @@ static void G_ApplyItemStats(edict_t *unit, edict_t const *item, bool apply) {
     }
 }
 
+/* CItem vt160/164/168: independent mover category18, item query10,
+ * world radius1. Authored selectionSize is presentation geometry only. */
+static struct { float radius; uint8_t category, query; } const item_pathing = {1.f, 0x18, 0x10};
+
+uint8_t G_ItemPathingCategory(void) { return item_pathing.category; }
+
+static vec2_t G_ItemPlacementPosition(edict_t *item, vec2_t point, bool match_level) {
+    if (match_level) {
+        box2_t bounds = CM_GetWorldBounds();
+        point.x = wc3_widget_clamp_axis(point.x, bounds.min.x, bounds.max.x);
+        point.y = wc3_widget_clamp_axis(point.y, bounds.min.y, bounds.max.y);
+    }
+    vec2_t admitted = point;
+    G_FindWidgetPlacementPosition(item, &point, item_pathing.radius, item_pathing.query,
+                                  match_level, &admitted);
+    return admitted;
+}
+
+static void G_CommitItemPosition(edict_t *item, vec2_t point) {
+    item->s.origin2 = point;
+    item->s.origin.x = point.x;
+    item->s.origin.y = point.y;
+    item->s.origin.z = CM_GetHeightAtPoint(point.x, point.y);
+}
+
 void SP_SpawnItem(edict_t *self) {
     PATHSTR model_filename;
     cstring_t model;
@@ -137,6 +163,7 @@ void SP_SpawnItem(edict_t *self) {
         G_MiscVectorValue("ItemShadowSize", 1));
 #endif
     self->movetype = MOVETYPE_NONE;
+    self->collision = item_pathing.radius;
     self->targtype = TARG_ITEM;
     if (!self->item) self->item = G_AllocItem();
     assert(self->item);
@@ -144,6 +171,9 @@ void SP_SpawnItem(edict_t *self) {
     self->item->inventory_slot = -1;
     self->item->in_world = true;
     self->item->drop_id = 0;
+    /* Constructor658c10 supplies no support-level callback; public position
+     * writes6515f0 do. Do not substitute unit unstuck/recovery here. */
+    G_CommitItemPosition(self, G_ItemPlacementPosition(self, self->s.origin2, false));
     self->item->charges = (uint32_t)MAX(0, (int32_t)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 
@@ -448,6 +478,7 @@ bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool p
     item->item->carrier = unit;
     item->item->inventory_slot = (int32_t)slot;
     unit->inventory[slot] = item;
+    G_PublishMoveSpatialObject(item);
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
     if (publish_event) {
@@ -546,25 +577,18 @@ static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vec2_t const *pos
         return false;
     }
 
-    /* Warsmash finishes a point drop through setPointAndCheckUnstuck rather
-     * than assigning the requested coordinates blindly. Reuse OpenRealm's
-     * deterministic WC3 unstuck search so blocked terrain resolves to a legal
-     * nearby position while preserving the requested point as its fallback. */
-    drop_position = *position;
-    G_FindUnitUnstuckPosition(item, position, &drop_position);
+    drop_position = G_ItemPlacementPosition(item, *position, true);
 
     G_ApplyItemStats(unit, item, false);
     unit->inventory[slot] = NULL;
     item->item->carrier = NULL;
     item->item->inventory_slot = -1;
     item->item->in_world = true;
-    item->s.origin.x = drop_position.x;
-    item->s.origin.y = drop_position.y;
-    item->s.origin.z = CM_GetHeightAtPoint(drop_position.x, drop_position.y);
-    item->s.origin2 = drop_position;
+    G_CommitItemPosition(item, drop_position);
     G_SetEntityHidden(item,false);
     item->svflags &= ~SVF_NOCLIENT;
     gi.LinkEntity(item);
+    G_PublishMoveSpatialObject(item);
     G_RefreshInventoryUI(unit);
     if (play_sound) G_QueueOwnerSoundAlias(unit, "ItemDrop");
     return true;
@@ -583,6 +607,21 @@ bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position) 
     if (unit && slot < G_InventoryCapacity(unit) &&
         G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot])) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
+}
+
+/* Native213940 removes a carried item through694ce0, publishes at the
+ * carrier, then performs the requested admitted write through65a340. */
+void G_SetItemPosition(edict_t *item, vec2_t const *position) {
+    if (!G_IsItem(item) || !position) return;
+    edict_t *carrier = item->item->carrier;
+    if (carrier) {
+        int32_t slot = item->item->inventory_slot;
+        if (slot < 0 || !G_DropItemAtInternal(carrier, (uint32_t)slot, &carrier->s.origin2, false)) return;
+    }
+    if (!item->item->in_world) return;
+    G_CommitItemPosition(item, G_ItemPlacementPosition(item, *position, true));
+    gi.LinkEntity(item);
+    G_PublishMoveSpatialObject(item);
 }
 
 bool G_DropItem(edict_t *unit, uint32_t slot) {

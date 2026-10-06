@@ -296,6 +296,10 @@ native Player                   takes integer number returns player
 
 // Item inventory presentation and charge state.
 native CreateItem               takes integer itemid, real x, real y returns item
+native RemoveItem               takes item whichItem returns nothing
+native GetItemX                 takes item whichItem returns real
+native GetItemY                 takes item whichItem returns real
+native SetItemPosition          takes item whichItem, real x, real y returns nothing
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
 native SetItemDropID            takes item whichItem, integer unitId returns nothing

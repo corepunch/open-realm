@@ -2819,6 +2819,8 @@ bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vec2_t *, float *);
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
 bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
+bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, float radius,
+                                   uint8_t mask, bool match_level, vec2_t *out);
 bool G_FindUnitMoveRecoveryPosition(edict_t *, vec2_t const *, vec2_t *);
 typedef struct { vec2_t point; uint8_t mask; bool blocked; } terrainPathingEdit_t;
 bool G_GetTerrainPathingFlags(vec2_t const *point, uint8_t *flags);
@@ -3992,6 +3994,8 @@ void G_DrainPausedResultEvents(void);
 // g_items.c
 void SP_SpawnItem(edict_t *);
 bool G_IsItem(edict_t const *item);
+uint8_t G_ItemPathingCategory(void);
+void G_SetItemPosition(edict_t *item, vec2_t const *position);
 uint32_t G_InventoryCapacity(edict_t const *unit);
 bool G_InventoryCanUseItems(edict_t const *unit);
 bool G_InventoryCanGetItems(edict_t const *unit);

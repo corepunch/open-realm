@@ -428,8 +428,10 @@ shape or continuous radius contract.
 The underlying `6f1489a0` checks high cell-mask bits and follows low-24-bit
 linked object indices. Object flags, query masks, and an excluded/special object
 affect acceptance. Thus the fine search is not demonstrated to be a purely
-static-terrain search with all unit interaction deferred to steering. Exact
-object categories remain unresolved; path-owned self/target suppression is
+static-terrain search with all unit interaction deferred to steering. The
+[object-category inventory](retail-pathfinding-categories.md) now identifies
+unit/item mover categories and independent static widget regions. Raw-link
+eligibility/history remains FOOT-03.1/03.2; path-owned self/target suppression is
 verified in the [full refill corpus](retail-pathfinding-routes.md#object-occupancy-and-target-exit-through-the-full-refill).
 
 The cell predicate's executable rules are now isolated more precisely:

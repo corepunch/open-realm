@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**227 done / 336 tasks; 109 remaining.**
+**228 done / 336 tasks; 108 remaining.**
+
+Payoff134 closes BASE-02.2: the producer/category/consumer inventory now drives
+item admission and occupancy, building own-mover records and immediate
+pickup/drop publication. See [object-category integration](retail-pathfinding-categories.md).
+FOOT-03.1/03.2 retain full raw-link history and ordering work.
 
 Payoff133 closes SEP-02.3 and SEP-04.1: complete shared-RNG overlap owner
 passes match every contribution, endpoint and occupied rectangle; cached
@@ -460,7 +465,7 @@ BASE-02.1's remaining full authored producer/lane/support-surface inventory.
 ### BASE-02 — Supported input inventory
 
 - [x] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface. Payoff131: complete original parser/builder/class table and support-source inventory, immutable engine profile integration, native birth/movement and Ensnare regressions; [evidence](retail-pathfinding-profiles.md). Numerical support fixtures remain MAP-02.2. Research handoff: [BASE-02.1](retail-pathfinding-handoffs/BASE-02.1/HANDOFF.md).
-- [ ] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer.
+- [x] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer. Payoff134: original producer/payload inventory,50,112 original predicates and16 composed scenarios, repeated/control Frida evidence; engine item category18/query10/radius1, independent building fine records, native/placement/collector and immediate pickup/drop/save regressions. [Integration and limits](retail-pathfinding-categories.md). Raw-link history remains FOOT-03.1/03.2; live construction remains E2E-02.2/06.2. Research handoff: [BASE-02.2](retail-pathfinding-handoffs/BASE-02.2/HANDOFF.md).
 - [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
 - [x] **BASE-02.4** Capture stock foot/horse/hover/fly/float/amph/disabled profiles and port their terrain/object masks. Seven public CreateUnit types publish14 paired getter/mask rows; float40/amph80 now reach engine Move validation, routes and command destinations. Original WPM256-byte outputs match C, including02+40 ->80; original widgetc2 now blocks all ground lanes and releases correctly. Evidence: [authored movement masks](retail-pathfinding-engine.md#authored-movement-masks-reach-terrain-and-object-queries). Full authored parsing and support transitions remain02.1.
 - [x] **BASE-02.5** Explicitly add the missing typed UnitData map-row producer discovered by MOVE-01.4: bind original/custom movement types, turn rate and window to created units, inherit original edits, preserve stable distinct rows and free/rebind at map cleanup. Evidence: [authored speed limits reach Move](retail-pathfinding-engine.md#authored-speed-limits-reach-move), actual disabled-owner public setter regression fails before the cache port and passes afterward; public custom amph/float/fly units use their authored terrain masks. Full retail authored producer/support-surface inventory remains02.1.

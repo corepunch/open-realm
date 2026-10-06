@@ -1,0 +1,302 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f658c10",
+      "name": "CItem_CreateAuthored",
+      "comment": "Payoff134 constructor calls058cd0 with query from item virtual164=10, radius Math_RuntimeOne=1, scan policy2/integer admission and NULL support callback; later Widget_ApplyPathing(1,1,1) publishes independent fine object. Engine creates item before fine publication and retains this constructor/reposition distinction.",
+      "signature": "undefined CItem_CreateAuthored(void)"
+    },
+    {
+      "address": "6f65a340",
+      "name": "CItem_SetWorldPosition",
+      "comment": "Dispatch item virtual180 with checked placement, default support levelFFFFFFFF and no custom callback; then update support height/presentation from committed position. Payoff134 item position owner supplies query10, radius1 and inherited support-level match to shared32-ring admission; self is suppressed.",
+      "signature": "undefined CItem_SetWorldPosition(void)"
+    },
+    {
+      "address": "6f694ce0",
+      "name": "CUnit_RemoveInventoryItemAtCurrentPosition",
+      "comment": "Inventory owner unit1f8 must exist. Query carrier world point,5667d0 inventory removal; on success65a340 publishes item at carrier point. Native213940 subsequently writes requested pose. Complete inherited inventories/filled Soul state beyond ordinary carried-item regression remain separate.",
+      "signature": "undefined CUnit_RemoveInventoryItemAtCurrentPosition(void)"
+    },
+    {
+      "address": "6f213940",
+      "name": "JassItem_SetPosition",
+      "comment": "Registered SetItemPosition native at20a2a3. Resolve item1ed690; carrier identity lookup/payload2b61676c reaches694ce0 before65a340 requested-position write. Payoff134 engine native releases carried inventory at carrier pose, publishes, then admits and publishes requested pose; no UI droppable gate is added.",
+      "signature": "undefined JassItem_SetPosition(void)"
+    },
+    {
+      "address": "6f650ad0",
+      "name": "CItem_GetPathingRadius",
+      "comment": "CItem vtable168 at6fb77c10 loads Math_RuntimeOne through output pointer and returns that output; world radius exactly1, independent of ItemData selectionSize. Payoff134 sets physical collision1 and publishes category18/query10 through item-owned immutable defaults.",
+      "signature": "undefined CItem_GetPathingRadius(void)"
+    },
+    {
+      "address": "6f22e9c0",
+      "name": "PathTexture_RasterizeRotated",
+      "comment": " [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined PathTexture_RasterizeRotated(void)"
+    },
+    {
+      "address": "6f650a70",
+      "name": "WidgetRaster_RemoveRegionCell",
+      "comment": " [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined WidgetRaster_RemoveRegionCell(void)"
+    },
+    {
+      "address": "6f652b40",
+      "name": "WidgetRaster_InsertRegionCell",
+      "comment": " [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined WidgetRaster_InsertRegionCell(void)"
+    },
+    {
+      "address": "6f14dab0",
+      "name": "SpatialObject_ReleaseIfUnreferenced",
+      "comment": "Stdcall stack4 object, RET4: live (+38!=-1) returns1; dead with +3c low24==0 calls vtable+10 (14cab0->1c5490: registry slot release, then vtable+4) and returns0; dead with outstanding records returns0.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nStdcall stack4 object, RET4: live (+38!=-1) returns1; dead with +3c low24==0 calls vtable+10 (14cab0->1c5490: registry slot release, then vtable+4) and returns0; dead with outstanding records returns0. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined SpatialObject_ReleaseIfUnreferenced(void)"
+    },
+    {
+      "address": "6f63c430",
+      "name": "CAbilityLocust_ClearPathingProfile",
+      "comment": "CAbilityLocust vtable+80: unit virtual15c(0,0).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCAbilityLocust vtable+80: unit virtual15c(0,0). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CAbilityLocust_ClearPathingProfile(void)"
+    },
+    {
+      "address": "6f63c2c0",
+      "name": "CAbilityLandMine_PublishPathingProfile",
+      "comment": "CAbilityLandMine vtable+80: unit virtual15c(category8, query8).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCAbilityLandMine vtable+80: unit virtual15c(category8, query8). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CAbilityLandMine_PublishPathingProfile(void)"
+    },
+    {
+      "address": "6f5adad0",
+      "name": "CAbilityWispHarvest_ClearPathingProfile",
+      "comment": "CAbilityWispHarvest vtable+f4: unit virtual15c(0,0); 5ae930 later republishes getters.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCAbilityWispHarvest vtable+f4: unit virtual15c(0,0); 5ae930 later republishes getters. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CAbilityWispHarvest_ClearPathingProfile(void)"
+    },
+    {
+      "address": "6f59cdf0",
+      "name": "CAbilityTornadoWander_PublishPathingProfile",
+      "comment": "CAbilityTornadoWander vtable+80: unit virtual15c(category0, query4).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCAbilityTornadoWander vtable+80: unit virtual15c(category0, query4). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CAbilityTornadoWander_PublishPathingProfile(void)"
+    },
+    {
+      "address": "6f623bd0",
+      "name": "AbilityGhost_SetUnitCategory",
+      "comment": "Same body shape as AbilityBurrow_SetUnitCategory: current category 05ac60, EDX!=0 clears02 else sets02; stack flag!=0 clears08 else sets08; query virtual158; publish virtual15c. Called from CAbilityGhost/CAbilityGhostVisible vtable+f4.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nSame body shape as AbilityBurrow_SetUnitCategory: current category 05ac60, EDX!=0 clears02 else sets02; stack flag!=0 clears08 else sets08; query virtual158; publish virtual15c. Called from CAbilityGhost/CAbilityGhostVisible vtable+f4. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined AbilityGhost_SetUnitCategory(void)"
+    },
+    {
+      "address": "6f699260",
+      "name": "CUnit_PublishPathingProfileWithBit10",
+      "comment": "ThiscallECX CUnit: virtual160/164 category/query, OR both with10, virtual15c. Caller 43b7e0 (via 424220).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX CUnit: virtual160/164 category/query, OR both with10, virtual15c. Caller 43b7e0 (via 424220). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CUnit_PublishPathingProfileWithBit10(void)"
+    },
+    {
+      "address": "6f05f970",
+      "name": "CTriggerRegion_CreateSpatialObject",
+      "comment": "CTriggerRegion vtable+60: resolve owner payload, 14cf70 on owner+238 (static object, +34 zero = inactive), store at region+20. Records come from Region_SetWorldCell/Rectangle. Never eligible in any fine consumer but its links count toward the 148e90 49-link examination cap.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCTriggerRegion vtable+60: resolve owner payload, 14cf70 on owner+238 (static object, +34 zero = inactive), store at region+20. Records come from Region_SetWorldCell/Rectangle. Never eligible in any fine consumer but its links count toward the 148e90 49-link examination cap. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CTriggerRegion_CreateSpatialObject(void)"
+    },
+    {
+      "address": "6f650d00",
+      "name": "Widget_GetPathingQueryMask",
+      "comment": "Default widget vtable+164: returns 2.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nDefault widget vtable+164: returns 2. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined Widget_GetPathingQueryMask(void)"
+    },
+    {
+      "address": "6f650d10",
+      "name": "Widget_GetPathingCategory",
+      "comment": "Default widget vtable+160 (CWidget/CSelectable/CDestructable/CCaptainAI): returns 0a. Destructable vtable+16c is a no-op, so this value is not published to the destructable's mover by any found producer.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nDefault widget vtable+160 (CWidget/CSelectable/CDestructable/CCaptainAI): returns 0a. Destructable vtable+16c is a no-op, so this value is not published to the destructable's mover by any found producer. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined Widget_GetPathingCategory(void)"
+    },
+    {
+      "address": "6f657ad0",
+      "name": "CItem_GetPathingQueryMask",
+      "comment": "CItem vtable+164: returns 10; item creation 658c10 admits through UnitMover_AdmitWorldPoint with this query.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCItem vtable+164: returns 10; item creation 658c10 admits through UnitMover_AdmitWorldPoint with this query. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CItem_GetPathingQueryMask(void)"
+    },
+    {
+      "address": "6f657ae0",
+      "name": "CItem_GetPathingCategory",
+      "comment": "CItem vtable+160: returns 18 (blocks queries 10 item-placement and 08 build).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nCItem vtable+160: returns 18 (blocks queries 10 item-placement and 08 build). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CItem_GetPathingCategory(void)"
+    },
+    {
+      "address": "6f65a8a0",
+      "name": "CItem_RefreshMoverPathingProfile",
+      "comment": "CItem vtable+16c: radius vtable168 with minimum runtime1.0 ->05c2e0, category vtable160 (657ae0=18) ->UnitMoverBridge_SetCategory(item+64). No query publication. Live item fine object +34=01000018 (00000018 after RemoveItem).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff134 BASE-02.2: engine now retains item category18 fine rectangle through creation/reposition/drop/load, retires it on pickup/remove. Items block item10 and build08, not unit02/04/40/80. Collector payload60706f73 yields NULL; player ownership is absent from the consumer predicate.\nCItem vtable+16c: radius vtable168 with minimum runtime1.0 ->05c2e0, category vtable160 (657ae0=18) ->UnitMoverBridge_SetCategory(item+64). No query publication. Live item fine object +34=01000018 (00000018 after RemoveItem). [BASE-02.2]\nPayoff134 BASE-02.2: engine now retains item category18 fine rectangle through creation/reposition/drop/load, retires it on pickup/remove. Items block item10 and build08, not unit02/04/40/80. Collector payload60706f73 yields NULL; player ownership is absent from the consumer predicate.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined CItem_RefreshMoverPathingProfile(void)"
+    },
+    {
+      "address": "6f653790",
+      "name": "Widget_SetPathingCategory",
+      "comment": "Vtable+15c for CWidget/CSelectable/CItem/CDestructable/CCaptainAI (CUnit overrides with 699200): ECX widget, stack4 category, stack8 unused, RET8 -> UnitMoverBridge_SetCategory(vtable+b8 bridge).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nVtable+15c for CWidget/CSelectable/CItem/CDestructable/CCaptainAI (CUnit overrides with 699200): ECX widget, stack4 category, stack8 unused, RET8 -> UnitMoverBridge_SetCategory(vtable+b8 bridge). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined Widget_SetPathingCategory(void)"
+    },
+    {
+      "address": "6f6501a0",
+      "name": "Widget_ApplyPathing",
+      "comment": "Widget vtable+148 (CWidget/CUnit/CItem/CDestructable/CCaptainAI), ThiscallECX widget, stack4 publishProfile, stack8 keepOwnOccupancy, stackC primaryTexture, RETc. 05c660(keep==0), 05c4a0(0), 05c630(publish==0); texture 6524c0(primary: resource+cc pPathingFootprint, else +d0 pPathingFootprintAlt); new collection masks c2/10/08 (+04 if resource+64 bit0) then raster22e9c0/652b40 and gated04e0b0; publish!=0 calls vtable+16c. Callers: units/items 148(1,1,1); destructable create 148(0,1,alive), death 148(0,1,0), restore 148(0,1,1).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nWidget vtable+148 (CWidget/CUnit/CItem/CDestructable/CCaptainAI), ThiscallECX widget, stack4 publishProfile, stack8 keepOwnOccupancy, stackC primaryTexture, RETc. 05c660(keep==0), 05c4a0(0), 05c630(publish==0); texture 6524c0(primary: resource+cc pPathingFootprint, else +d0 pPathingFootprintAlt); new collection masks c2/10/08 (+04 if resource+64 bit0) then raster22e9c0/652b40 and gated04e0b0; publish!=0 calls vtable+16c. Callers: units/items 148(1,1,1); destructable create 148(0,1,alive), death 148(0,1,0), restore 148(0,1,1). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined Widget_ApplyPathing(void)"
+    },
+    {
+      "address": "6f05bd30",
+      "name": "UnitMoverBridge_ToggleSpatialExclusion",
+      "comment": "Thiscall ECX unit mover bridge (+8/+c handle), stack4 on, RET4; resolves canonical 054530 (no null check) and inc (flag!=0) / dec the canonical mover +98 spatial object +40 occupancy-exclusion (suppression) counter (asm 05bd42); returns EAX=spatial object. Re-resolves the handle at release. Same object as 170080 [ebx+98], so 69a840 -> 651590(1) -> 05ca50 05bd30(1) -> 170080 nests three increments on one object. Used by PathWorld_TestPointQuery (excluded bridge), MoverBridge_StopWithRecovery and 651590. Live MAP-04.2: 05ca50 brackets 171340 with (1)/(0), 24/24 balanced.\n   [MAP-04.2/BASE-02.2] Recovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX mover bridge, stack4 flag, RET4: inc (flag!=0) / dec mover+98 fine object +40 suppression count. Used by PathWorld_TestPointQuery (excluded bridge), MoverBridge_StopWithRecovery and 651590. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined UnitMoverBridge_ToggleSpatialExclusion(void)"
+    },
+    {
+      "address": "6f05c660",
+      "name": "UnitMoverBridge_SetFineOccupancyDisabled",
+      "comment": "ThiscallECX Unit/widget mover bridge, stack4 disable, RET4. Resolve mover (054530); nonzero clears mover+98 fine object +34 bit01000000, zero sets it; then 15fb40 republishes bounds (inactive object dispatches empty rectangle -> removal records). Live RemoveUnit leaves +34=000000ca with removal records. Callers: Widget_ApplyPathing(arg3==0), Widget_RetirePathing(1), 6da850, CaptainAI_InitializeVirtualActor(0).\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX Unit/widget mover bridge, stack4 disable, RET4. Resolve mover (054530); nonzero clears mover+98 fine object +34 bit01000000, zero sets it; then 15fb40 republishes bounds (inactive object dispatches empty rectangle -> removal records). Live RemoveUnit leaves +34=000000ca with removal records. Callers: Widget_ApplyPathing(arg3==0), Widget_RetirePathing(1), 6da850, CaptainAI_InitializeVirtualActor(0). [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined UnitMoverBridge_SetFineOccupancyDisabled(void)"
+    },
+    {
+      "address": "6f063d10",
+      "name": "WidgetList_ToggleSpatialExclusion",
+      "comment": "Thiscall ECX list (count +4, array +8), stack4 on, RET4: inc/dec +40 of every nonnull spatial object in array order. Callers 651590 and unreferenced 0599c0.\n   [MAP-04.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX collection, stack flag: inc (flag!=0) or dec +40 of every region object (suppression count; any +40&8fffffff excludes the object from 1489a0/148e90/148ad0/149170). Callers 0599c0, 651590.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX collection, stack flag: inc (flag!=0) or dec +40 of every region object (suppression count; any +40&8fffffff excludes the object from 1489a0/148e90/148ad0/149170). Callers 0599c0, 651590. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined WidgetList_ToggleSpatialExclusion(void)"
+    },
+    {
+      "address": "6f063b40",
+      "name": "RegionCollection_Retire",
+      "comment": "ThiscallECX collection, RET plain: 14dae0 every object (static: no removal records, +38=-1), null the slots, Storm403 the array when capacity>1, zero header. Core of Widget_RetirePathing. FOOT-03.2 oracle + live RemoveDestructable: dead region records stay in cells until compaction.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX collection, RET plain: 14dae0 every object (static: no removal records, +38=-1), null the slots, Storm403 the array when capacity>1, zero header. Core of Widget_RetirePathing. FOOT-03.2 oracle + live RemoveDestructable: dead region records stay in cells until compaction. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined RegionCollection_Retire(void)"
+    },
+    {
+      "address": "6f064460",
+      "name": "RegionCollection_ResizeWithCategories",
+      "comment": "ThiscallECX collection{capacity+0,count+4,objects+8}, stack4 owner agent (identity +c/+10 ->054530 payload when tag2b61676c), stack8 new count, stackC category array, RETc. Retires surplus objects via14dae0, creates missing ones with14cf70 on owner+238, then each +34=(old high byte)|01000000|(category&ffffff). Widget_ApplyPathing passes c2/10/08 (+04 when resource+64 bit0). Live LTcr: three static regions 010000c2/01000010/01000008, +40 10000000.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX collection{capacity+0,count+4,objects+8}, stack4 owner agent (identity +c/+10 ->054530 payload when tag2b61676c), stack8 new count, stackC category array, RETc. Retires surplus objects via14dae0, creates missing ones with14cf70 on owner+238, then each +34=(old high byte)|01000000|(category&ffffff). Widget_ApplyPathing passes c2/10/08 (+04 when resource+64 bit0). Live LTcr: three static regions 010000c2/01000010/01000008, +40 10000000. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined RegionCollection_ResizeWithCategories(void)"
+    },
+    {
+      "address": "6f14cf70",
+      "name": "SpatialMap_CreateStaticObject",
+      "comment": "ThiscallECX map, stack4 payload, stack8 descriptor, RET8: 14cf20 then OR +40 with10000000 (static/region object). Static objects are the only ones eligible in hierarchy predicate148e90 and SpatialObject_Retire14dae0 emits no removal records for them. Callers: 064460 widget pathing regions, 05f970 CTriggerRegion.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX map, stack4 payload, stack8 descriptor, RET8: 14cf20 then OR +40 with10000000 (static/region object). Static objects are the only ones eligible in hierarchy predicate148e90 and SpatialObject_Retire14dae0 emits no removal records for them. Callers: 064460 widget pathing regions, 05f970 CTriggerRegion. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined SpatialMap_CreateStaticObject(void)"
+    },
+    {
+      "address": "6f14cf20",
+      "name": "SpatialMap_CreateObject",
+      "comment": "ThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c ->1c53f0. Writes +2c map, +30 payload, +1c..+28=-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c ->1c53f0. Writes +2c map, +30 payload, +1c..+28=-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined SpatialMap_CreateObject(void)"
+    },
+    {
+      "address": "6f6515f0",
+      "name": "Widget_AdmitPosition",
+      "comment": "Static publicchain67f490. Temporarily suppress mover throughvtableD0, configuremask/bounds callbacks158/168, bridge058cd0 forcheckedpoint; unsuppressonreturn. Ordinarypublicsixwrites witnessed. Suppression already independently verified; fullpublicwrapperoriginalcomposition pending.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff134 item shared position admission: default Placement_MatchesSupportLevel when no caller callback; temporary self suppression through virtualD0, query virtual158 and radius168 before058cd0; restore suppression. Unlike item constructor658c10, public item reposition passes a support callback.\nStatic publicchain67f490. Temporarily suppress mover throughvtableD0, configuremask/bounds callbacks158/168, bridge058cd0 forcheckedpoint; unsuppressonreturn. Ordinarypublicsixwrites witnessed. Suppression already independently verified; fullpublicwrapperoriginalcomposition pending.\nPayoff134 item shared position admission: default Placement_MatchesSupportLevel when no caller callback; temporary self suppression through virtualD0, query virtual158 and radius168 before058cd0; restore suppression. Unlike item constructor658c10, public item reposition passes a support callback.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "signature": "undefined Widget_AdmitPosition(void)"
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3PathIdentity",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "slot",
+          "type": "/int",
+          "evidence": "054530 registry resolver"
+        },
+        {
+          "offset": 4,
+          "name": "generation",
+          "type": "/uint",
+          "evidence": "054530 registry resolver"
+        }
+      ]
+    },
+    {
+      "name": "WC3PathIntegerRectangle",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "min_y",
+          "type": "/int",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 4,
+          "name": "min_x",
+          "type": "/int",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 8,
+          "name": "max_y",
+          "type": "/int",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        },
+        {
+          "offset": 12,
+          "name": "max_x",
+          "type": "/int",
+          "evidence": "05ee40/15ba80 decoded stdcall and full15d360 original rectangle oracle"
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialPrefix",
+      "length": 68,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "/void *32",
+          "evidence": "14c1d0 original constructor"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIdentity",
+          "evidence": "14ee90 activation"
+        },
+        {
+          "offset": 28,
+          "name": "rectangle",
+          "type": "/WarcraftIII/Pathfinding127/WC3PathIntegerRectangle",
+          "evidence": "14cf20 14cf44 MOVDQU [obj+1c] initial (-1,-1,-1,-1) empty; 14e770 updates; order min_y,min_x,max_y,max_x; SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: empty -1 rectangle at14cf20;14e770 updates ordered min_y,min_x,max_y,max_x. Independent from proximity rectangle."
+        },
+        {
+          "offset": 44,
+          "name": "map",
+          "type": "/void *32",
+          "evidence": "BASE-02.2:14cf20 initializes object+2c to owning spatial map; movers own independent proximity owner234 and fine owner238 maps\nPayoff134: BASE-02.2:14cf20 owning spatial map; unit mover fine owner238 is separate from proximity owner234."
+        },
+        {
+          "offset": 48,
+          "name": "observer",
+          "type": "/void *32",
+          "evidence": "16fa00 region callback dispatch\nROUTE-02.2: payload; 1480d0 accepts only payload+10==60706375 (mover tag)\nPayoff134: BASE-02.2: payload;1480d0 returns unit mover token only for payload+10==60706375; item60706f73 and widget agents yieldNULL."
+        },
+        {
+          "offset": 52,
+          "name": "category_flags",
+          "type": "/uint",
+          "evidence": "05c7b0/05c770 mask publication\nBASE-02.2/ROUTE-02.2: bit01000000 active, low24 category bits tested against the query mask\nPayoff134: BASE-02.2:01000000 active,low24 category; unitca/fly0/unbuild08,item18,static regionsc2/10/08(+04)."
+        },
+        {
+          "offset": 56,
+          "name": "eligibility",
+          "type": "/int",
+          "evidence": "16fa00 callback eligibility\nROUTE-02.2/FOOT-03.1: per-cell visit stamp compared with map+b4 (first record per object decides); ffffffff marks a dead record\nPayoff134: FOOT-03.1: per-cell visit stamp;ffffffff retired. Metadata/removal records retain separate semantics."
+        },
+        {
+          "offset": 60,
+          "name": "outstanding_records",
+          "type": "/uint",
+          "evidence": "low24 outstanding cell records, writers increment, 14e050 14e12f DEC; high byte flags (writer unresolved, proposed SEP-03.4); SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: low24 cell records; writers increment,14e050 decrements; high byte policy unresolved."
+        },
+        {
+          "offset": 64,
+          "name": "occupancy_flags",
+          "type": "/uint",
+          "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle\nFOOT-03.1: &8fffffff nonzero suppresses (exclusion counter); 60000000 moving bits exempt in 1489a0 only when fine+d4==0; 10000000 static flag required by hierarchy 148e90\nPayoff134: BASE-02.2/FOOT-03.1:low28 suppression,10000000 static,20000000 moving,40000000 cohort,80000000 excluded. Hierarchy requiresstatic; ordinaryfine excludesmoving/group,endpointincludes."
+        }
+      ]
+    }
+  ]
+}

@@ -491,28 +491,46 @@
           "evidence": "14ee90 activation"
         },
         {
+          "offset": 28,
+          "name": "rectangle",
+          "type": "WC3PathIntegerRectangle",
+          "evidence": "14cf20 14cf44 MOVDQU [obj+1c] initial (-1,-1,-1,-1) empty; 14e770 updates; order min_y,min_x,max_y,max_x; SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: empty -1 rectangle at14cf20;14e770 updates ordered min_y,min_x,max_y,max_x. Independent from proximity rectangle."
+        },
+        {
+          "offset": 44,
+          "name": "map",
+          "type": "ptr:void",
+          "evidence": "BASE-02.2:14cf20 initializes object+2c to owning spatial map; movers own independent proximity owner234 and fine owner238 maps\nPayoff134: BASE-02.2:14cf20 owning spatial map; unit mover fine owner238 is separate from proximity owner234."
+        },
+        {
           "offset": 48,
           "name": "observer",
           "type": "ptr:void",
-          "evidence": "16fa00 region callback dispatch"
+          "evidence": "16fa00 region callback dispatch\nROUTE-02.2: payload; 1480d0 accepts only payload+10==60706375 (mover tag)\nPayoff134: BASE-02.2: payload;1480d0 returns unit mover token only for payload+10==60706375; item60706f73 and widget agents yieldNULL."
         },
         {
           "offset": 52,
           "name": "category_flags",
           "type": "u32",
-          "evidence": "05c7b0/05c770 mask publication"
+          "evidence": "05c7b0/05c770 mask publication\nBASE-02.2/ROUTE-02.2: bit01000000 active, low24 category bits tested against the query mask\nPayoff134: BASE-02.2:01000000 active,low24 category; unitca/fly0/unbuild08,item18,static regionsc2/10/08(+04)."
         },
         {
           "offset": 56,
           "name": "eligibility",
           "type": "i32",
-          "evidence": "16fa00 callback eligibility"
+          "evidence": "16fa00 callback eligibility\nROUTE-02.2/FOOT-03.1: per-cell visit stamp compared with map+b4 (first record per object decides); ffffffff marks a dead record\nPayoff134: FOOT-03.1: per-cell visit stamp;ffffffff retired. Metadata/removal records retain separate semantics."
+        },
+        {
+          "offset": 60,
+          "name": "outstanding_records",
+          "type": "u32",
+          "evidence": "low24 outstanding cell records, writers increment, 14e050 14e12f DEC; high byte flags (writer unresolved, proposed SEP-03.4); SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: low24 cell records; writers increment,14e050 decrements; high byte policy unresolved."
         },
         {
           "offset": 64,
           "name": "occupancy_flags",
           "type": "u32",
-          "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle"
+          "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle\nFOOT-03.1: &8fffffff nonzero suppresses (exclusion counter); 60000000 moving bits exempt in 1489a0 only when fine+d4==0; 10000000 static flag required by hierarchy 148e90\nPayoff134: BASE-02.2/FOOT-03.1:low28 suppression,10000000 static,20000000 moving,40000000 cohort,80000000 excluded. Hierarchy requiresstatic; ordinaryfine excludesmoving/group,endpointincludes."
         }
       ]
     },

@@ -10769,3 +10769,16 @@ slots replace quadratic owner-list retirement without changing order or saved
 state. A1,024-unit pause batch drops from524,800 owner visits to1,024, independently
 measured with Frida. See [complete overlap integration](retail-pathfinding-overlap.md)
 for blocked controls, endpoint/occupancy coverage, load validation and evidence limits.
+
+
+## Object-category inventory reaches items and building fine records
+
+Payoff134 closes BASE-02.2 with the original producer/payload/consumer table,
+fresh original eligibility and composed-region execution, repeated/control Frida
+checks and actual engine regressions. Items now own category18/query10/radius1
+fine occupancy; buildings retain their independent mover record. Item creation,
+position natives and drops use owner inputs for admission, including the carried
+native's two publications. Pickup/drop publish before queries or saves can
+observe stale membership. See [object categories](retail-pathfinding-categories.md).
+FOOT-03.1/03.2 remain open for raw-link history,49-link hierarchy admission and
+mixed static/dynamic encounter order.

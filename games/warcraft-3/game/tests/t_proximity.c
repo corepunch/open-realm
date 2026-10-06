@@ -88,7 +88,7 @@ TEST(wc3_proximity, saved_rectangles_reject_duplicate_and_inverted_records) {
     T_ASSERT(!S_LoadMoveProximity(globals.num_edicts,(wc3FineBox_t){{1,1},{2,2}}));
     reset_entities();setup_test_world();
 }
-TEST(wc3_proximity, fine_record_retirement_preserves_building_proximity) {
+TEST(wc3_proximity, building_keeps_independent_fine_and_proximity_records) {
     reset_entities();setup_test_world();uint8_t cells[64*64]={0};
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
     edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),304,304);
@@ -98,7 +98,7 @@ TEST(wc3_proximity, fine_record_retirement_preserves_building_proximity) {
     unit->s.flags|=EF_BUILDING;G_PublishMoveSpatialObject(unit);
     T_ASSERT(S_GetMoveProximity(unit-g_edicts)!=NULL);
     wc3FineBox_t fine=G_GetMoveSpatialObject(unit-g_edicts)->box;
-    T_EQ(fine.min.x,fine.max.x);
+    T_EQ(fine.min.x,9);T_EQ(fine.max.x,10);
     unit->s.flags&=~EF_BUILDING;G_PublishMoveSpatialObject(unit);
     T_ASSERT(S_GetMoveProximity(unit-g_edicts)!=NULL);
     G_RemoveMoveSpatialObject(unit);T_NULL(S_GetMoveProximity(unit-g_edicts));

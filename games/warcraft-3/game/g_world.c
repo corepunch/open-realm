@@ -156,7 +156,7 @@ static bool entity_is_live_walkable_surface(edict_t const *ent) {
 static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; return 0xc2; }
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
     /* Query masks describe the mover; occupancy describes the encountered unit. */
-    return S_UnitMoveCategory(ent);
+    return G_IsItem(ent) ? G_ItemPathingCategory() : S_UnitMoveCategory(ent);
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
@@ -645,19 +645,18 @@ static vec2_t move_object_point(edict_t const *ent) {
 }
 
 /* Authored fine publication is independent of the optional Move ability.
- * Category-zero owners retain rectangles; buildings/destructables use their
- * separately owned static footprints (BASE-02.2). */
+ * Buildings retain their own category-zero rectangle independently of static
+ * textures. Items publish their own mover category (BASE-02.2). */
 static bool move_has_spatial_record(edict_t const *ent) {
     if (ent->movement.captain_actor_type) return ent->inuse;
-    return !IS_HOLLOW(ent) && ent->data.UnitData && !G_UnitIsStructure(ent) &&
-        ent->collision>0;
+    return !IS_HOLLOW(ent) && ent->collision>0 &&
+        (ent->data.UnitData || (G_IsItem(ent) && ent->item->in_world));
 }
 
 /* Flight publishes an active fine rectangle with category zero. Spatial
  * lifetime is independent of eligibility for a ground collision query. */
 static bool move_has_dynamic_occupancy(edict_t const *ent) {
-    return move_has_spatial_record(ent) &&
-        (ent->movement.captain_actor_type || !(ent->aiflags&AI_FLYING));
+    return move_has_spatial_record(ent);
 }
 
 /* Pose commits own publication; dirty owners are synchronized before queries.
@@ -787,8 +786,8 @@ static bool move_occupancy_cell(void const *data, wc3FinePoint_t pos) {
         if(ent==query->mover || (graph->suppress_target && ent==query->target) ||
             !ent->inuse || !move_has_dynamic_occupancy(ent))continue;
         uint32_t mask=graph->flags;mask|=mask<<24;
-        if(!wc3_fine_object_blocks((wc3FineObject_t){0x01000000u|S_UnitMoveCategory(ent),
-            S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
+        if(!wc3_fine_object_blocks((wc3FineObject_t){0x01000000u|entity_dynamic_pathing_flags(ent),
+            G_IsItem(ent) ? 0 : S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
         /* Without a target observer only the boolean rejection is visible.
          * Placement can additionally reuse this entire blocking rectangle. */
         if (!graph->has_target) {
@@ -926,19 +925,38 @@ static bool placement_admit(void const *data, float const *point) {
 }
 
 /* Public placement and Stop recovery share geometry, but retain distinct attempt limits. */
-static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t *out) {
-    uint8_t flags = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
+static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t flags,
+                              uint32_t limit, bool match_level, vec2_t *out) {
     wc3FineBox_t rejection = {0};
     moveFineGraph_t graph = {.flags = flags, .endpoint = true, .rejection = &rejection};
-    float fine[2] = {point.x,point.y}; graph.level = placement_terrain_level(fine);
+    float fine[2] = {point.x,point.y};
+    if (match_level) graph.level = placement_terrain_level(fine);
     movePathQuery_t objects = {.mover = unit, .units = true};
     move_query_objects(&graph,&objects,NULL);
     wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = limit,
-        .footprint = {.cls = wc3_fine_class(unit->collision / pathmap_cell_world_size()),
-                      .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
+        .footprint = {.cls = wc3_fine_class(radius / pathmap_cell_world_size()),
+                      .cell = move_cell_ok, .data = &graph}, .admit = match_level ? placement_admit : NULL};
     float admitted[2];
     if (!wc3_fine_place_indexed(&query, admitted, &rejection)) return false;
     *out = (vec2_t){admitted[0],admitted[1]};
+    return true;
+}
+
+static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t *out) {
+    uint8_t mask = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
+    return move_place_widget(unit, point, unit->collision, mask, limit, true, out);
+}
+
+/* A widget owns its radius, query mask and support policy. Admission owns
+ * self suppression, fine geometry and the original32-ring encounter order. */
+bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, float radius,
+                                   uint8_t mask, bool match_level, vec2_t *out) {
+    *out = *requested;
+    if (!mask) return true;
+    if (!world.map || !world.map->vertices || !pathmap.width || !pathmap.height) return false;
+    vec2_t point = move_grid_from_world(requested->x, requested->y), admitted;
+    if (!move_place_widget(widget, point, radius, mask, 32, match_level, &admitted)) return false;
+    *out = move_world_from_grid(admitted.x, admitted.y);
     return true;
 }
 
@@ -1178,7 +1196,7 @@ static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
             if(at<32){ranks[at]=ranks[at-1];scan->items[at]=scan->items[at-1];}
             at--;
         }
-        if(at<32){ranks[at]=rank;scan->items[at]=ent;}
+        if(at<32){ranks[at]=rank;scan->items[at]=G_IsItem(ent)?NULL:ent;}
     }
     /* Keep the same cell order and32-token cap; newest active object first. */
     return true;
@@ -1443,9 +1461,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     /* A suppressed target still terminates fine expansion at its region.
      * Native category2 captains have radius0 but retain one fine cell. */
     if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
-        (object->movement.captain_actor_type || (!IS_HOLLOW(object) && object->data.UnitData &&
-         !G_UnitIsStructure(object) && object->collision>0 &&
-         !(object->aiflags & AI_FLYING)))) {
+        move_has_spatial_record(object)) {
         graph.target_links=move_spatial+(object-g_edicts);
         graph.has_target = true;
         graph.target_hit = &target_hit;

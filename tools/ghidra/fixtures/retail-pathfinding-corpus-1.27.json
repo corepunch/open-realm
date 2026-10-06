@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "130 executable original oracle contracts,121 archive audits and114 strict live contracts;365 total entries.",
+  "scope": "131 executable original oracle contracts,121 archive audits and114 strict live contracts;366 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -36054,6 +36054,61 @@
       ],
       "scope": "Both complete original pair/tail replays, all nine phase-O overlap groups and global owner draws, every authored C input/visit/pair. Actual engine owner passes independently verify scheduler order, endpoint admission, cooldown and occupancy.",
       "exclusions": "Production of initial map-start seed/parity; isolated original endpoint execution; native storage maintenance; unrelated complete-map trajectories."
+    },
+    {
+      "id": "oracle-object-categories",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_categories.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "object-categories-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "status": {
+          "equal": "verified"
+        },
+        "differences": {
+          "length": 0
+        },
+        "cases": {
+          "equal": 50112
+        },
+        "composed_scenarios": {
+          "equal": 16
+        },
+        "live_captures": {
+          "equal": 2
+        },
+        "live_consumer_checks": {
+          "equal": 328
+        },
+        "control_markers": {
+          "equal": 60
+        },
+        "saved_functions": {
+          "equal": 31
+        },
+        "input_files": {
+          "equal": 6
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Fresh complete original eligibility matrix and two-category producer execution; reconstruct unchanged research freezes and both complete Frida captures with observer-free public control. Engine item/building publication, admission and saves are tested independently in-engine.",
+      "exclusions": "Engine raw-link history/49-link cap and mixed static/dynamic order; full building/construction/missile lifecycles and layered bridge/outside-map item admission."
     }
   ],
   "fixtures": [
@@ -36119,7 +36174,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "0bbce39cc4645d2b497e42c1460c3a58261b9209a1bfc20d1be6471eef180dbd"
+      "sha256": "b2ce529833d9cc4d70daede11cfe7251df319a54dd54efec4e0cd767fc0f3aca"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -36952,7 +37007,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "04f4d194e9d54250a91e0167bf74b41dcdf14d4cb0df707e57415b7c6730cdaa"
+      "sha256": "524a65be14f7da59617d3af09eced513a4514892635f8d63be7d5108360d01c9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38028,7 +38083,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_proximity.c",
-      "sha256": "9f913515285fc443e6f696fb6000dc7b4503c1a3dfa8c922fd831478ae809370"
+      "sha256": "304582e96861182f68f3f7867da791c040b1e9a06de6068793cc24101e57ecdd"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_proximity.py",
@@ -38089,6 +38144,74 @@
     {
       "path": "tools/frida/research/repulsion_retirement.py",
       "sha256": "6345fc9555d78abecd442b2af62d8c687d3ebd62b92ce68da47eea902622bc2a"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_categories.py",
+      "sha256": "dafef5ae7b42fbba59db6b47a118c77ed03ec046c5e6771442a89e3368e896c7"
+    },
+    {
+      "path": "tests/test_wc3_pathing_categories.py",
+      "sha256": "0926298a977ff69edcf3f8f3a2f9ee6a715fd27f11ae0546371feda1e54d5ab7"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_object_categories.c",
+      "sha256": "59a83878344c989260efe3f9776e0c28319daba1ed0646e0a38e0e2e30ddc780"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-object-category-inputs-1.27.json.gz",
+      "sha256": "023d405d4af615d07d1bb2fdec92d0bcded7725eb0e462e3af93739bb2e1cb5a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-object-categories-ghidra-1.27.json",
+      "sha256": "318c961af2f2ab99e75858eef479a42b820c64433db39018b8ff2539c9ba60a7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/BASE-02.2-expected.json",
+      "sha256": "486b75d962cb10ad8fff948c177e698290ad95907472f19f08bcca5a47c709ae"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/FOOT-03.1-expected.json",
+      "sha256": "7bd26ec0c1ba8d1327f33fd5e18947dae8d5f843072d5afdff372deb2226ffa5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/FOOT-03.2-expected.json",
+      "sha256": "ef379cbfc9441c0b9f27d7a2a3a63cea0c550939c12561bea08102586b190df1"
+    },
+    {
+      "path": "tools/ghidra/research/foot03_rig.py",
+      "sha256": "1a333f7281d1d70672d5db6915ee513c3486498fe2a4fa5dd41f9dc5e8eaca61"
+    },
+    {
+      "path": "tools/ghidra/research/foot03_spatial_harness_copy.py",
+      "sha256": "f4905fd77e11b59467cb5d6542b5176930dde29c5a70c0e4b64857b69b098fd3"
+    },
+    {
+      "path": "tools/ghidra/research/verify_FOOT-03.1_eligibility.py",
+      "sha256": "8e258b04391ca8023d8ad793a3ae8f103c90f9f87f62ed52a666d3feddaddff1"
+    },
+    {
+      "path": "tools/ghidra/research/verify_FOOT-03.2_two_categories.py",
+      "sha256": "eb746c6db7ed5945eba4e094e0b038a2c0f863d438cc3516fecd7528c442f107"
+    },
+    {
+      "path": "tools/frida/research/foot032_analyze.py",
+      "sha256": "5011e26433168484e3c69417e203142426b261f15b4c5c308510436c0f0d8c47"
+    },
+    {
+      "path": "tools/frida/research/foot032_capture.py",
+      "sha256": "35cab3a6f07d3cf52a4d65836730ee4359d3d490a6dbb0638a7b69536a4c1385"
+    },
+    {
+      "path": "tools/frida/research/foot032_make_map.py",
+      "sha256": "b739cae00cacc73bd9d051ba0301dd8516cae9d8c410f89b7c0ad34e3a2f2992"
+    },
+    {
+      "path": "tools/frida/research/foot032_observer.js",
+      "sha256": "5199678a149642c80fcaa6015eb3839a7a27b5a8509bd1b31b6d44294c1b7236"
+    },
+    {
+      "path": "tools/frida/research/foot032_probe.j",
+      "sha256": "1fbffc44f96de8315b62d324cea6c7b17dbcf519816664000842efc900f2189e"
     }
   ]
 }
