@@ -168,7 +168,11 @@ static void wc3_acc_side(wc3AccSearch_t *search, wc3AccEdge_t edge, bool ends[2]
     if (search->size == 2) {
         int pos = edge.side & 1 ? edge.pos.y : edge.pos.x;
         bool boundary = pos == ((pos >> edge.level) << edge.level) + (1 << edge.level) - 1;
-        if (!wc3_acc_side_ok(search,edge,boundary)) return;
+        /* ACC-01.1/01.2: an interior side lies in the clear square just
+         * resolved by lookup, including every size2 cell it would test.
+         * Keep boundary/corner predicates and the ushort-alias fallback. */
+        bool clear_interior = !boundary && search->work.count <= (uint32_t)UINT16_MAX+1u;
+        if (!clear_interior && !wc3_acc_side_ok(search,edge,boundary)) return;
     }
     wc3_acc_relax(search,at,edge.parent);
     if (edge.level) ends[0] = ends[1] = true;

@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**216 done / 336 tasks; 120 remaining.**
+**220 done / 336 tasks; 116 remaining.**
+
+Payoff126 closes ACC-01.1/01.2/02.2/04.1:3,288 complete branch witnesses,
+marker-domain proofs and ordinary cost/budget evidence now have production C
+regressions. The side walker prunes proven-clear interior reads;26 explicit
+Ghidra ABIs are saved. See [adaptive witness integration](retail-pathfinding-engine.md#adaptive-branch-witnesses-justify-clear-interior-pruning).
 
 Payoff125 closes ROUTE-02.2: complete original-code blocker/selector evidence
 now drives four production regressions, including target occupancy, the ordered
@@ -572,15 +577,15 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 ### ACC-01 — Adaptive expansion
 
-- [ ] **ACC-01.1** Enumerate side/corner and level-transition branches from the adaptive expander; record exact input preconditions for each branch.
-- [ ] **ACC-01.2** Build one witness per enumerated branch across lanes/classes and special-marker cells; assert promotion/subdivision and neighbor ordering.
+- [x] **ACC-01.1** Enumerate side/corner and level-transition branches from the adaptive expander; record exact input preconditions for each branch. Payoff126 integrates289 Jccs/578 outcomes with exact preconditions:463 reachable,113 rejected by structural/context proofs and two separate caller-domain cases. Saved Ghidra names/26 explicit ABIs, portable disassembly/coverage and C route/full-node regressions support the inventory. The engine side walker prunes only proven-clear interior tests; boundary/corner and ushort-alias fallback remain. Evidence: [handoff](retail-pathfinding-handoffs/ACC-01.1/HANDOFF.md), [engine integration](retail-pathfinding-engine.md#adaptive-branch-witnesses-justify-clear-interior-pruning) and strict oracle-adaptive-witnesses.
+- [x] **ACC-01.2** Build one witness per enumerated branch across lanes/classes and special-marker cells; assert promotion/subdivision and neighbor ordering. Payoff126 integrates3,288 complete original producer requests across four lanes, both sizes and marker cells, witnessing463 reachable outcomes and276 transition/clamp targets. Production C compares every result/work/node/warp count and route word in literal and epoch modes; ten rare outcomes retain complete ordered node tables. Fresh original replay equals the full frozen report. Evidence: [handoff](retail-pathfinding-handoffs/ACC-01.2/HANDOFF.md), [engine integration](retail-pathfinding-engine.md#adaptive-branch-witnesses-justify-clear-interior-pruning) and strict oracle-adaptive-witnesses.
 
 - [x] **ACC-01.3** Split ordinary adaptive reimplementation from01.1/02: port setup, clear-parent promotion, mixed-side subdivision, base/coarse neighbor order, both stored sizes, integer distance, nearest partial route and reconstruction into engine long Move. Evidence: [adaptive long Move](retail-pathfinding-engine.md#adaptive-search-reaches-long-distance-move),712 complete original/C requests across four lanes, exact route words/counts/charged pops/created nodes; actual long detour reaches legal arrival. Branch inventory, special-marker witnesses and producer reachability remain01.1/02 and02.1/02.
 
 ### ACC-02 — Classification reachability
 
 - [x] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved. Evidence: [ordinary reachability inventory](retail-pathfinding-search.md#ordinary-classification-reachability),54 original producer witnesses from16^4 ordinary fine patterns,27 ground/flight-inconsistent tuple rejections and ordinary class3 rejection. Synthetic unrelated-lane words and explicit interventions remain controls; valid selected-lane projections, full constructor/widget/terrain maps and exclusions have identified producers. Special-marker/object domains remain02.2/FOOT-03/GATE. All54 witnesses and full reduced hierarchy match actual engine classification.
-- [ ] **ACC-02.2** For each unresolved combination, provide a producer-built witness or a documented rejection proof; retain separate IDs if further work is discovered.
+- [x] **ACC-02.2** For each unresolved combination, provide a producer-built witness or a documented rejection proof; retain separate IDs if further work is discovered. Payoff126 integrates108 child states,96 original reducer cases,54 parent tuples, marker propagation/erasure and documented producer rejection proofs. C regressions preserve mixed parents over marked clear children and original source/incoming bytes. Saved writer evidence distinguishes a heuristic candidate scan from a proof. No new TODOs are added; object eligibility and caller/alias domains retain their existing owners. Evidence: [handoff](retail-pathfinding-handoffs/ACC-02.2/HANDOFF.md), [engine integration](retail-pathfinding-engine.md#adaptive-branch-witnesses-justify-clear-interior-pruning) and strict oracle-adaptive-witnesses.
 
 ### ACC-03 — Size-2 east-boundary veto
 
@@ -590,7 +595,7 @@ Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fix
 
 ### ACC-04 — Adaptive costs
 
-- [ ] **ACC-04.1** Compare heuristic, total cost and nearest-node selection with ordinary edges under ties and budget exhaustion; explain each shortest-path difference.
+- [x] **ACC-04.1** Compare heuristic, total cost and nearest-node selection with ordinary edges under ties and budget exhaustion; explain each shortest-path difference. Payoff126 compares135,981 original integer-distance inputs,336 ordinary/transposed requests,188 successful graph-optimal costs and157 budget/nearest cases. Production C preserves all route words, goal costs, strict nearest discovery and the four asymmetric cost pairs. Differences from the base-grid optimum follow adaptive geometry/representatives; that grid is not an optimality reference. Evidence: [handoff](retail-pathfinding-handoffs/ACC-04.1/HANDOFF.md), [engine integration](retail-pathfinding-engine.md#adaptive-branch-witnesses-justify-clear-interior-pruning) and strict oracle-adaptive-witnesses.
 - [x] **ACC-04.2** Repeat with an active special edge; assert edge cost,parent chain,tie ordering and partial result without assuming optimality. [Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes) ports4608 complete unchanged native routes/distances across four lanes,two sizes,six budgets,three exits,activation/warp toggles and eight overlap states. Every route,ten-word node,charged work,partial endpoint and warp count matches production C atO0/O2. Accepted special g+1 and ordinary incoming-tag clearing retain native heap policy; distance intentionally checks the parent incoming tag. Actual group/member Move and ten Save99 continuations reproduce410 full commits and3094 saved commits. Wider branch inventory/reachability remain01/02.
 
 ### ACC-05 — Adaptive storage lifetime

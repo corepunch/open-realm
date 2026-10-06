@@ -12071,6 +12071,675 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f163ae0",
+      "name": "PathAcc_RelaxBaseNorth",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164810",
+      "name": "PathAcc_RelaxBaseSouth",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164f90",
+      "name": "PathAcc_RelaxBaseWest",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1638c0",
+      "name": "PathAcc_RelaxBaseNorthEast",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1642b0",
+      "name": "PathAcc_RelaxBaseSouthEast",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164670",
+      "name": "PathAcc_RelaxBaseSouthWest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163a40",
+      "name": "PathAcc_RelaxBaseNorthWest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1653a0",
+      "name": "PathAcc_RelaxSpecialDestination",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163970",
+      "name": "PathAcc_RelaxCoarseNorthEast",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164350",
+      "name": "PathAcc_RelaxCoarseSouthEast",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164730",
+      "name": "PathAcc_RelaxCoarseSouthWest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163a80",
+      "name": "PathAcc_RelaxCoarseNorthWest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1631e0",
+      "name": "PathAcc_Size2BaseEastStrip",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163cd0",
+      "name": "PathAcc_Size2NorthRight",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1651a0",
+      "name": "PathAcc_Size2WestDown",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163d40",
+      "name": "PathAcc_Size2BaseNorthPromotedOdd",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1653e0",
+      "name": "PathAcc_Size2BaseWestPromotedOdd",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1635b0",
+      "name": "PathAcc_Size2EastBoundary",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164e50",
+      "name": "PathAcc_Size2SouthBoundary",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "x",
+          "type": "i32",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f162730",
+      "name": "PathAcc_CloseNode",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1641d0",
+      "name": "PathAcc_UnlinkClosedNode",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f164020",
+      "name": "PathAcc_RelaxNode",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "adaptive",
+          "type": "ptr:WC3AdaptiveSearchPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "child",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "parent",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f159cd0",
+      "name": "PathOwner_GetAdaptiveMap",
+      "returns": "ptr:WC3AdaptiveMapPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "level",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f162f20",
+      "name": "PathMaps_LoadAdaptiveCells",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "map",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f163120",
+      "name": "PathMaps_SaveAdaptiveCells",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "map",
+          "type": "ptr:WC3AdaptiveMapPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f1d58e0",
+      "name": "PathAcc_IntegerSquareRoot",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "value",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
     }
   ],
   "globals": [

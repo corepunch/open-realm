@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "122 executable original oracle contracts,121 archive audits and114 strict live contracts;357 total entries.",
+  "scope": "123 executable original oracle contracts,121 archive audits and114 strict live contracts;358 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35572,6 +35572,83 @@
       "exclusions": [
         "Live retail crowd reachability of 32 retained candidates; lazy retired-link storage and non-mover static-region lifetimes remain separate tasks."
       ]
+    },
+    {
+      "id": "oracle-adaptive-witnesses",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_adaptive_witnesses.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "adaptive-witnesses-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "original_results_sha256": {
+          "equal": "2e32a93a2622b3892d0eb7984161656429da155bfed54dd9fd574969da4e8cd5"
+        },
+        "branch_outcomes": {
+          "equal": 578
+        },
+        "reachable": {
+          "equal": 463
+        },
+        "rejected": {
+          "equal": 113
+        },
+        "caller_domain": {
+          "equal": 2
+        },
+        "predicate_cases": {
+          "equal": 127792
+        },
+        "requests": {
+          "equal": 3288
+        },
+        "witnessed_outcomes": {
+          "equal": 463
+        },
+        "transitions": {
+          "equal": 276
+        },
+        "child_states": {
+          "equal": 108
+        },
+        "reducer_cases": {
+          "equal": 96
+        },
+        "object_controls": {
+          "equal": 512
+        },
+        "sqrt_samples": {
+          "equal": 135981
+        },
+        "cost_requests": {
+          "equal": 336
+        },
+        "reached": {
+          "equal": 188
+        },
+        "budget_cases": {
+          "equal": 157
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C"
+      ],
+      "scope": "Completed ACC-01.1/01.2/02.2/04.1 handoffs replayed from portable, frozen Ghidra disassembly and accepted passive coverage. Every fresh original report must equal its full frozen JSON. Production C regressions consume all3288 witness requests,336 cost requests, ten complete rare node tables,157 budget cases and96 marker reducer controls in literal and epoch identity modes.",
+      "exclusions": [
+        "Caller-domain out-of-map source behavior remains ROUTE-01.2; node aliasing beyond uint16 range remains ACC-05.1. No live or whole-trajectory parity claim; base-grid shortest path is not an optimality reference for the adaptive graph."
+      ]
     }
   ],
   "fixtures": [
@@ -35637,7 +35714,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "8b9617c7e9385603863c53d51c669c23d58bdda81404cc3b38e3d83e7d425e6c"
+      "sha256": "398eaa7884afc900a97657ef9e606bae083227b9f9e186c01df1d81697532b13"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -36470,7 +36547,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "971e6fba55f74fe985a3f41ef785e4d1e84e5a92b543b7665293c30bb16b819b"
+      "sha256": "a96251ba78cdf706cc3fd6ea0a72e34998c14a0a02b31daa7b6067a714f7d6d1"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37171,6 +37248,98 @@
     {
       "path": "tools/ghidra/fixtures/retail-blocker-candidates-ghidra-1.27.json",
       "sha256": "e151469c12d7bc9bfe82aa184f35c8e023d730cefcb09cd26630374e24b72f4a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-01.1-expected.json",
+      "sha256": "45bf241ec3ae6ee727a86fed4baf88ea272e87d3099cb0496a8a5978dc97f64b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-01.1-inputs.json.gz",
+      "sha256": "ab8b1cad11f0fc3d03f31961994577c9ed4923178f1ad72c03424df1ae333b67"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-01.2-expected.json.gz",
+      "sha256": "b6191978cf749169124194018b393047c6d437b36955d085b2c23a0dd6b5a427"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-01.2-witness-maps.json",
+      "sha256": "34eb2e24e251b2ccd6dfda7c0ea62191ee56078c1e6f6241433f43429d1400a2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-02.2-cell-writer-scan.json.gz",
+      "sha256": "4be90c5ef7d1e94bfa4e90d383da909dd8743b6af8de416955a971cdd5b3821c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-02.2-dynamic-writers.json.gz",
+      "sha256": "83817b037aee33b8e846bc4e2dab09d6dea77e13dc13c94f5dc990cfe528c665"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-02.2-expected.json",
+      "sha256": "936fca1e64b6deae13da79dcf14212cf0d603e0045f28d0d9c8d9d2562207be1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ACC-04.1-expected.json.gz",
+      "sha256": "37f85619a309a12b3b3fc6161ddb0fb9b23389eaa8ebb2f4e19bf9ea26224ac6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-adaptive-witnesses-ghidra-1.27.json",
+      "sha256": "7ed852185f30e26de49908582f88bfd63a2a36960b86a447008e6d377b7cc549"
+    },
+    {
+      "path": "tools/ghidra/generate_wc3_adaptive_witnesses.py",
+      "sha256": "5133f637f99414ae90cbd7298aef16b9240205cddb18d28d129d313b9c5175c3"
+    },
+    {
+      "path": "tools/ghidra/research/acc01_2_find_witnesses.py",
+      "sha256": "58f113555a38c604e1b35655a88fe9102171e92f1ed95c59bb3a339d0f6636f1"
+    },
+    {
+      "path": "tools/ghidra/research/acc01_coverage_wrapper.py",
+      "sha256": "12524db067a6b2a4a86996634f9de1071ba80b4018dc239cd52cd2adc7d23038"
+    },
+    {
+      "path": "tools/ghidra/research/acc02_2_cell_writer_scan.py",
+      "sha256": "233a51d8472e579d9a1d0f99d43220fb494fbb90ee23b95f78c0c50644d94465"
+    },
+    {
+      "path": "tools/ghidra/research/acc02_2_dynamic_writers.py",
+      "sha256": "9d6d63c68419cf37dbf5111516ff9268dfe7c35ab09cc3f07d816fbd874c0c55"
+    },
+    {
+      "path": "tools/ghidra/research/acc_research_harness.py",
+      "sha256": "c2915cca134d3bd04385a5412e69dee7d462d2ca8eb985a1ae9acba15df7929c"
+    },
+    {
+      "path": "tools/ghidra/research/verify_acc01_1_branches.py",
+      "sha256": "57b607770185779d7d5e04914556088e4a72de58ae6204edf158f15f63217b36"
+    },
+    {
+      "path": "tools/ghidra/research/verify_acc01_2_witnesses.py",
+      "sha256": "5ee6d92d51bc1cc2819de720517a1b58e87ac6aa4e463095889eda8ab03d1841"
+    },
+    {
+      "path": "tools/ghidra/research/verify_acc02_2_markers.py",
+      "sha256": "1c35ca43254e0b7fd23cdf5e6fdadd32b0c111b3b2bc28517f617f9917309d69"
+    },
+    {
+      "path": "tools/ghidra/research/verify_acc04_1_costs.py",
+      "sha256": "38b65304f9a47ff7a23241043dfbaa740268b99293ae584372c7660a09f8e8b5"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_adaptive_witnesses.py",
+      "sha256": "1b4dece301debc67e3bccd7e5ea73e89b27caaa4816128cb4af2f097fb60899e"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_adaptive.h",
+      "sha256": "1160d801e49f79adb3f32b52bcb18da4f35688f673f8defdb630ed5ef8d20874"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_adaptive_witnesses.h",
+      "sha256": "a86465e5a2666830d67f3c2f7ef1b5ff6d7b29b783210c491afaba32b9d517ac"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_adaptive_witnesses.c",
+      "sha256": "6c12c459f3d06c02d39d781241d4cb6e0de690bc14bc6526c5e91ba8ad9a5cbc"
     }
   ]
 }

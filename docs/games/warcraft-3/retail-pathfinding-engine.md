@@ -10425,3 +10425,85 @@ assertions each. The fresh strict blocker entry verifies; all357 inventory/hash
 contracts and20 corpus regression checks pass against the staged commit tree.
 No full-suite checkpoint was repeated for this second implementation commit
 after14357757. Logs are retained in `/GitHub/wc3-analysis/runtime/payoff125/`.
+
+## Adaptive branch witnesses justify clear-interior pruning
+
+Payoff126 integrates ACC-01.1, ACC-01.2, ACC-02.2 and ACC-04.1. The completed
+handoffs supply a complete289-jump inventory with exact preconditions,
+producer-built witnesses and marker rejection proofs. The frozen inventory
+contains463 reachable outcomes,113 unreachable outcomes and two separate
+out-of-map caller-domain outcomes. The handoff's earlier115-unreachable summary
+included those two caller cases; its actual per-outcome classifications are
+retained. ROUTE-01.2 and the ushort-alias regime remain separate.
+
+All3,288 complete original requests cover the463 reachable outcomes and276
+level-transition/clamp combinations. The engine already matched every result,
+work count, node count, warp count and route word before this optimization.
+That agreement is now enforced by production C regressions, with both literal
+index resets and the engine's epoch/descendant-alias optimization. Ten rare
+outcomes additionally compare the full ordered node tables: representatives,
+level, g/h, parent, state and source/incoming marker bytes. They protect closed
+head reopening, improved special destinations and marker-dependent corner
+subdivision without encoding particular routes into production code.
+
+The side-walker proof yields a direct engine improvement. A size2 interior
+segment has just resolved a clear adaptive square; every base cell queried by
+its interior predicate lies inside that square and is therefore clear. The
+production side walker now omits those redundant base-cell reads. Boundary
+checks, corner checks, subdivision order and end flags remain literal. Above
+the uint16 identity range it retains the complete predicate, preserving the
+existing alias behavior. Applying this shortcut to the shared predicate itself
+would also skip necessary coarse-corner occupancy checks; the shortcut is
+deliberately owned by the proven side-walker call site.
+
+Marker regressions compare96 original reducer cases with and without markers.
+They check the marker9 clear-parent chain through all hierarchy levels and its
+erasure. Clear marked children can legitimately make a mixed parent; class11
+and non-base markers have no producer. The preserved writer census and static
+candidate scan support the handoff's writer analysis; the heuristic scan alone
+is not a proof of absence. Object eligibility and the49-link producer domain
+remain FOOT-03.
+
+Cost regressions add336 ordinary/transposed requests, all188 goal costs,
+135,981 integer-distance inputs and157 budget/nearest-node cases. Equal g keeps
+the earlier parent. A partial endpoint is the strictly nearest discovered
+representative, rather than the minimum-f node. The four asymmetric cost pairs
+remain880/891,845/849,894/895 and905/920. Every observed successful route is
+optimal over its own explored adaptive graph; the eight-neighbor base grid is
+not an optimality oracle for that graph. Any-angle edges and encounter-dependent
+representatives explain the observed grid differences.
+
+The strict `oracle-adaptive-witnesses` entry replays all four original reports
+and requires equality with their full frozen JSON. Its aggregate canonical
+digest is `2e32a93a2622b3892d0eb7984161656429da155bfed54dd9fd574969da4e8cd5`.
+The59 frozen disassembly/accepted-coverage inputs make this replay independent
+of the private Ghidra cache path; relocating those input files does not change
+original execution. Research scripts remain unchanged. No live or whole-world
+trajectory claim is made by these algorithmic contracts.
+
+Ghidra has31 saved annotations and26 instruction-verified explicit ECX/stack
+prototypes. The portable schema and saved readback retain them. The same four
+C regressions run inside the game module and through the fast target:
+
+```sh
+make BUILD=release test-wc3-adaptive-witnesses
+```
+
+The new tests pass328,872 assertions before and after the optimization. Frozen
+expected words are exported by `generate_wc3_adaptive_witnesses.py`; `--check`
+rejects a stale export. The fast target avoids rebuilding the complete game
+module during pure adaptive-kernel iterations; world/owner tests still run in
+the game when those contracts change. Save and network layouts are unchanged.
+
+Focused Classic and TFT validation each passes56 tests/2,757,467 assertions:
+the new kernel matrix, existing pathfinding and Way Gate suites, and14 exact
+adaptive/gate movement tests. Five evidence/export/ABI checks pass. The complete
+fresh combined oracle equals all four frozen reports; production and test builds
+pass. This is implementation commit3 after14357757, rather than another full
+suite checkpoint. Logs are retained in `/GitHub/wc3-analysis/runtime/payoff126/`.
+
+The staged commit also passes all358 inventory/hash contracts and25 Python
+corpus/evidence checks. Four selected strict original/C entries pass: adaptive
+storage and marker producers remain exact, while the two documented size2
+reference differences retain their expected status. The fresh combined report
+passes the new strict manifest contract.
