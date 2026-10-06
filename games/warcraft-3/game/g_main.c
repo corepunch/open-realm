@@ -368,6 +368,8 @@ static void InitConstants(void) {
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
+    /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 maximum movement speed. */
+    InitMiscValueDefault("MaxUnitSpeed", &game.constants.maxUnitSpeed, 400.0f);
     InitMiscValue("DecayTime", &game.constants.decayTime);
     InitMiscValue("BoneDecayTime", &game.constants.boneDecayTime);
     InitMiscValue("DissipateTime", &game.constants.dissipateTime);

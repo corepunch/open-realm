@@ -11,6 +11,9 @@
 #define ID_ITEM_LEVEL_GAIN     MAKEFOURCC('A', 'I', 'l', 'm')
 #define ID_ITEM_FIGURINE       MAKEFOURCC('A', 'I', 'f', 's')
 #define ID_ITEM_DEFENSE_AOE    MAKEFOURCC('A', 'I', 'd', 'a')
+#define ID_ITEM_SPEED          MAKEFOURCC('A', 'I', 's', 'p')
+#define ID_ITEM_SPEED_AOE      MAKEFOURCC('A', 'I', 's', 'a')
+#define ID_RUNE_SPEED_AOE      MAKEFOURCC('A', 'P', 's', 'a')
 #define ID_ITEM_CHANGE_TIME    MAKEFOURCC('A', 'I', 'c', 't')
 #define ID_SOUL_TRAP           MAKEFOURCC('A', 'I', 's', 'o')
 #define ID_SOUL_POSSESSION     MAKEFOURCC('A', 's', 'o', 'u')
@@ -463,6 +466,91 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     G_ActivateUnitFood(summon);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
     return true;
+}
+
+/* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
+ * The authored ability supplies duration, area, target mask and BuffID.  WC3
+ * treats the active speed status as maximum movement speed rather than as a
+ * normal multiplicative haste bonus. */
+static edict_t *item_speed_caster(edict_t *ent, abilityCall_t const *call) {
+    if (ent && ent->client) return G_GetMainSelectedUnit(ent->client);
+    if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
+    if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
+    return NULL;
+}
+
+static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
+    abilityLevel_t const *row = G_AbilityLevel(code, 1);
+    cstring_t buff = row ? row->buffID : NULL;
+    float area = row ? row->area : 0.0f;
+    uint32_t affected = 0;
+
+    if (!caster || !row || !buff || strlen(buff) < 4) return false;
+    if (!area_effect) area = 0.0f;
+
+#define ITEM_SPEED_APPLY(t) do { \
+    float const duration = S_SpellDuration(code, 1, G_UnitIsHero((t))); \
+    if (duration > 0.0f) { \
+        unit_addtimedstatus((t), buff, 1, duration); \
+        heroabilitystatus_t *status = unit_findstatus((t), FS_SLKKey(buff)); \
+        if (status) status->data = code; \
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, (t), NULL, true); \
+        affected++; \
+    } \
+} while (0)
+
+    if (!area_effect) {
+        if (S_SpellIsAliveTarget(caster) && S_SpellAllowsAreaTarget(code, caster, caster)) ITEM_SPEED_APPLY(caster);
+    } else {
+        FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                     S_SpellAllowsAreaTarget(code, caster, target) &&
+                     Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+            ITEM_SPEED_APPLY(target);
+        }
+    }
+#undef ITEM_SPEED_APPLY
+    return affected != 0;
+}
+
+BZ_ABILITY_PROC(CAbilityItemSpeed) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    return item_speed_apply(item_speed_caster(ent, call), call->item->code, false);
+}
+
+BZ_ABILITY_PROC(CAbilityItemSpeedAoe) {
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    return item_speed_apply(item_speed_caster(ent, call), call->item->code, true);
+}
+
+bool S_ItemSpeedActive(edict_t const *unit) {
+    if (!unit) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        if (!status->level) continue;
+        if (status->data == ID_ITEM_SPEED || status->data == ID_ITEM_SPEED_AOE || status->data == ID_RUNE_SPEED_AOE)
+            return true;
+    }
+    return false;
+}
+
+bool S_TryUseSpeedPowerup(edict_t *unit, edict_t *item) {
+    cstring_t abilities;
+    if (!unit || !G_IsItem(item) || !item->data.ItemData || !item->data.ItemData->powerup ||
+        !item->data.ItemData->usable || !G_InventoryCanUseItems(unit)) return false;
+    abilities = G_ItemAbilityList(item);
+    if (!abilities) return false;
+
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        ability_t const *ability = FindAbilityForCommand(ability_name);
+        abilityitem_t ability_item;
+        abilityCall_t call;
+        if (!ability || (ability->proc != CAbilityItemSpeed && ability->proc != CAbilityItemSpeedAoe)) continue;
+        ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
+        call = MAKE(abilityCall_t, .item = &ability_item, .source_item = item,
+                   .source_item_spawn_time = item->spawn_time);
+        return S_AbilityMessage(unit, A_ITEM_USE, &call) != 0;
+    }
+    return false;
 }
 
 /* Scroll of Protection / item defense AOE (AIda). Warcraft data carries the

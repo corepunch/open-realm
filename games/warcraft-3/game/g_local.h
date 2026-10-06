@@ -1858,6 +1858,7 @@ struct game_locals {
     struct {
         float attackHalfAngle;
         float maxCollisionRadius;
+        float maxUnitSpeed;
         float decayTime;
         float boneDecayTime;
         float dissipateTime;

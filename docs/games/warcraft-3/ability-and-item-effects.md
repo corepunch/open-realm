@@ -149,6 +149,8 @@ inventory click
     -> charge/perishable completion
 ```
 
+Speed-family powerups are a deliberate exception to inventory-slot insertion: `AIsp`/`AIsa`/`APsa` resolve directly against the acquiring unit, use authored `Area`/`Dur`/`HeroDur`/`BuffID`/target-mask data, and retain the consumed item handle until queued pickup/use events release it. The active status drives movement to `Misc.MaxUnitSpeed` (including `war3mapMisc.txt` overrides) for its lifetime. Other unsupported powerup families are not auto-consumed.
+
 Failed uses do not publish use-item events and do not consume a charge. For example, a healing item at full health returns failure. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
 
 `G_ConsumeItemCharge` remains the ordinary charge helper. `G_CompleteItemUse` adds event-context lifetime semantics: when a successful use consumes the final charge of a perishable item, the item leaves the carrier immediately but its handle remains valid until queued use-item events and any sleeping JASS response coroutine are finished. This is required for retail-style `GetManipulatedItem()` conditions such as Orc08's Soul Gem trigger. Non-perishable items decrement to zero and remain present.
@@ -240,7 +242,7 @@ The following are deliberately outside this implementation slice:
 - Earthquake `Oeq4`/`Final Area` semantics, the retail meaning of `UberSplatData.BlendMode=1`, `BOea`'s contribution, and overlapping-Earthquake stacking remain unverified;
 - generic buff `TargetArt`/`Targetattach` creation and lifetime binding remain unimplemented, including the authored `BOeq` overhead model;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
-- automatic `powerup` acquisition/use;
+- automatic `powerup` acquisition/use outside the implemented Speed family (`AIsp`/`AIsa`/`APsa`);
 - spell cast-point/backswing timing changes;
 - a fully generalized missile-art/arc object separate from existing projectile simulation.
 - save/load rebinding for independent effect-edict animation callbacks and persistent effect ownership.
