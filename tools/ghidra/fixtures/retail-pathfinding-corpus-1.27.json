@@ -32892,6 +32892,18 @@
     {
       "path": "tools/ghidra/fixtures/retail-same-cell-motion-1.27-static.json",
       "sha256": "bffc7c8691c3ad1434ef0184eec7e91fa0d75da6458a4680856dfbbd3a99b240"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-differential-inputs-115.json",
+      "sha256": "e201e8ee1e398e92a78005cbb608e0e54ead3ed36d7b1729e43ed8e554e2f53c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-differential-baseline-115.json",
+      "sha256": "385b04748585d0e823b15ea3e2b444378c9789bac569c18033270ea36977bbfe"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-differential-adapter-115-static.json",
+      "sha256": "822fba25e486c75da8140130e06658f4b031b2afd09ecef6545793b519874d58"
     }
   ]
 }

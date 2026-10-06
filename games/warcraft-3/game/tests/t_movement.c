@@ -12101,6 +12101,30 @@ static void record_follow_commit(edict_t *unit) {
     memcpy(trace->rows[trace->count++],words,sizeof(words));
 }
 
+/* Test-only adapter: observe the committed production state, never expected rows.
+ * Actor lifetimes follow producer rawcodes, independently of edict slot reuse. */
+static FILE *same_cell_journal;
+static unsigned same_cell_journal_count,same_cell_journal_profiles;
+static void record_same_cell_commit(edict_t *unit) {
+    record_follow_commit(unit);
+    if(!same_cell_journal)return;
+    unsigned actor=(unit->class_id>>24)-'1';
+    if(actor<4 && !(same_cell_journal_profiles&(1u<<actor))) {
+        same_cell_journal_profiles|=1u<<actor;
+        fprintf(same_cell_journal,"{\"event\":\"profile\",\"actor\":[%u,0],"
+            "\"radius\":%u,\"turn\":%u,\"window\":%u}\n",actor,
+            wc3_float_bits(wc3_div(unit->collision,32)),wc3_float_bits(unit_turnspeed(unit)),
+            wc3_float_bits(unit_propwindow(unit)));
+    }
+    fprintf(same_cell_journal,"{\"event\":\"velocity-commit\",\"sequence\":%u,\"actor\":[%u,0],"
+        "\"clock\":[%u,%u,%u],\"position\":[%u,%u],\"velocity\":[%u,%u],\"heading\":%u}\n",
+        same_cell_journal_count++,actor,wc3_float_bits(unit->movement.pose_clock.time),
+        unit->movement.pose_clock.epoch,wc3_float_bits(unit->movement.pose_clock.span),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle));
+}
+
 #include "retail_same_cell_motion_114.h"
 TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
@@ -12125,13 +12149,34 @@ TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion
     if(!compiled)goto cleanup_same_cell114;
     G_FinishMovePathingInitialization();
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
-    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    char const *journal_path=getenv("WC3_PATHFINDING_TRACE");
+    same_cell_journal_count=same_cell_journal_profiles=0;
+    if(journal_path) {
+        same_cell_journal=fopen(journal_path,"w");T_NOT_NULL(same_cell_journal);
+        if(same_cell_journal)fprintf(same_cell_journal,
+            "{\"event\":\"begin\",\"scenario\":\"same-cell-four-lifetimes-114\","
+            "\"bounds\":[0,0,2048,2048],\"grid\":[64,64],\"clock\":[%u,%u,%u],"
+            "\"radii\":[8,24,40,56],\"base_speed\":%u,\"min_speed\":%u,\"max_speed\":%u}\n",
+            wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+            wc3_float_bits(level.pathing_clock.span),wc3_float_bits(speed),
+            wc3_float_bits(game.constants.minUnitSpeed),wc3_float_bits(game.constants.maxUnitSpeed));
+    }
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_same_cell_commit;
     unsigned const times[]={1030,1090,9030,17030,25030};
-    unsigned saved[5]={0},steps=0,suffix=0;bool mismatch=false;char files[5][64];
-    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-same-cell114-%u.bin",times[i]);
+    unsigned saved[5]={0},steps=0,suffix=0;bool mismatch=false;char files[5][MAX_PATH];
+    FOR_LOOP(i,5) {
+        int n=snprintf(files[i],sizeof(files[i]),"%s-%u.bin",
+            journal_path?journal_path:"/tmp/wc3-same-cell114",times[i]);
+        T_ASSERT(n>0 && n<(int)sizeof(files[i]));
+        if(n<=0 || n>=(int)sizeof(files[i])){mismatch=true;files[i][0]=0;}
+    }
     FOR_LOOP(pass,6) {
         if(mismatch)break;
         if(pass){
+            if(same_cell_journal) {
+                fprintf(same_cell_journal,"{\"event\":\"end\",\"count\":%u}\n",same_cell_journal_count);
+                T_EQ(fclose(same_cell_journal),0);same_cell_journal=NULL;
+            }
             T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];
             edict_t *unit=NULL;
             FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent))FOR_LOOP(c,4)
@@ -12178,6 +12223,8 @@ TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
     FOR_LOOP(i,5)remove(files[i]);
 cleanup_same_cell114:
+    /* A partial journal deliberately has no completion record. */
+    if(same_cell_journal){fclose(same_cell_journal);same_cell_journal=NULL;}
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;

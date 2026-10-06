@@ -55,7 +55,7 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**205 done / 336 tasks; 131 remaining.**
+**207 done / 336 tasks; 129 remaining.**
 
 Payoff112 closes FORM-04.1: two complete fixed-tick size/removal/point-retarget
 producers preserve cached survivor layouts and repeat all34 fresh layout words.
@@ -1061,8 +1061,8 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 
 ### E2E-08 — Differential adapter design
 
-- [ ] **E2E-08.1** Specify identical scenario inputs and normalized identity/state/event outputs for retail and OpenRealm adapters; encode one existing baseline report.
-- [ ] **E2E-08.2** Define exact versus presentation-only tolerance rules and failure diagnostics; validate the comparator against deliberate mutations of that encoded report.
+- [x] **E2E-08.1** Payoff115 implements identical four-lifetime movement inputs, producer-lifetime identities and ordered committed clock/pose/velocity/heading outputs; accepted Frida B/C captures and fresh actual-game Classic/TFT journals match the encoded baseline. Full task/route/RNG output expansion remains separate. See [differential adapters](retail-pathfinding-engine.md#exact-public-game-differential-adapters).
+- [x] **E2E-08.2** Payoff115 requires exact simulation words/types/cardinality/order and bounds the explicitly uncompared presentation schema. Deliberate mutations of every baseline word, clocks, input, identity, event count/order and signed zero fail with JSON-pointer/hex/event diagnostics. Fresh-output and zero-exit failed-test controls also reject. See [comparison contract](retail-pathfinding-engine.md#exact-public-game-differential-adapters).
 
 ## READY — Start the faithful replacement
 

@@ -9521,3 +9521,97 @@ route assertions; its final focused regression includes them. The25 Python
 checks, two selected fresh corpus entries, engine boundary audit and WC3/SC2
 production plus WC3 test builds pass. This is implementation commit2 since
 the full merge checkpoint; the full repository suite is not repeated here.
+
+### Exact public-game differential adapters
+
+Payoff115 closes E2E-08.1/08.2 with runnable adapters and an encoded baseline,
+using the existing accepted payoff113 Frida captures B/C. It does not relabel
+those captures as new runs or close further movement-fidelity tasks.
+`tools/wc3_pathfinding_differential.py` compares their first four same-cell
+lifetimes with a fresh journal from the actual game module's
+`public_same_cell_routes_retain_single_points_and_saved_motion` regression.
+The first exporter regression failed because the game produced no journal;
+the new test-only observer reads production state after movement commits.
+Expected fixture rows are still regression assertions, never exporter inputs.
+
+The version1 input contract is `retail-differential-inputs-115.json`. Both
+producers use world bounds0..2048, fine cells32, the64×64 ground grid, the same
+blocked columns24/25 through row47, radius8/24/40/56, requested speed150,
+turn.6 and authored propagation window60. The effective turn/window words and
+fine collision radii are independently checked against live observations and
+engine instance reads. Native WPMc6 and engine ground bit02 encode the relevant
+ground policy differently; these are declared translations, not mask equality.
+The native clones derive from hfoo and engine movement fixtures from hRTE;
+this contract specifies their movement inputs, not every unit statistic.
+
+The periodic producer creates an actor at272/304 facing90, then on tick10 of
+each80-tick lifetime sets world257/289 and issues point Move287/319. Its100-ms
+JASS timer runs over5-ms primary frames and30-ms owner updates from primary
+clock0/epoch0/span300. Comparison ends before case4 at32000ms. The native
+script continues through12 cases; the engine fixture ends after four. The
+common prefix is identical; the blocked-source suffix is outside this report.
+Existing script/header tests verify the stock modulo helper and test-entry
+transformation, rather than silently changing the producer.
+
+Reports retain all28 ordered `velocity-commit` events, including four stopped
+commits. Identity `[producer lifetime, actor ordinal]` distinguishes successive
+births even when addresses or edict slots are reused. Each event contains:
+
+| Field | Exact representation |
+| --- | --- |
+| `sequence` | Consecutive encounter ordinal; no sorting or realignment |
+| `actor` | Lifetime0..3 and ordinal0 |
+| `clock` | Binary32 time, unsigned epoch, binary32 span |
+| `position` | Two committed fine-coordinate binary32 words |
+| `velocity` | Two fine-velocity binary32 words |
+| `heading` | Binary32 radians |
+
+Native sampling is after16fe20 returns. Ghidra confirms15f7e0 first integrates
+old velocity through1603d0, then1606e0 changes velocity and may notify. The
+zero-speed branch finishes its heading assignment before the return sample.
+Engine observation uses the existing Move test callback after its committed
+state. World velocity is converted with the production software divide32,
+not host float division. Saved readback and decompilation are in
+`retail-differential-adapter-115-static.json`; `MapPathfinding.java` records the
+boundary and the independently verified three-word clocks.
+
+Simulation tolerance is zero: exact unsigned words, types, inputs, identities,
+event kind, ordering and cardinality. Signed zero and a one-bit difference
+fail. Missing or extra events fail; booleans and JSON floats are not uint32.
+No resampling, clipping, epsilon, address sorting or missing-event repair is
+permitted. Failure reports include a JSON pointer, expected/actual words in
+hexadecimal and decimal, and the event identity/ordinal. Display is capped at32
+differences while the total failure count remains exact. Presentation fields
+are limited to `wall_ms`, `swap_intervals_ms` and `image_sha256`, and are explicitly
+uncompared. Provenance can differ across platforms and builds. Neither exempt
+channel establishes visual parity; simulation fields cannot be inserted into
+presentation to extend its allowed schema. This baseline's declared output
+surface is committed motion, not full task, route, RNG or fog state.
+
+Run focused comparisons after building the test game and fixture assets:
+
+```sh
+make -j6 openwarcraft3-tests
+python3 tools/wc3_pathfinding_differential.py run --output /tmp/wc3-diff-classic-115
+python3 tools/wc3_pathfinding_differential.py run --tft --output /tmp/wc3-diff-tft-115
+```
+
+Each output directory must be new. It contains the actual engine JSONL and
+log, both normalized retail reports, the engine report and `comparison.json`.
+The command rejects nonzero engine exits, failed assertion totals even when
+the engine exits zero, missing/partial journals and mismatches. It hashes the
+binary, loaded test-game library, Move/test sources and fixture MPQs for
+provenance. Save files use the private journal path, avoiding collisions with
+other adapter runs. `retail`/`engine` subcommands normalize individual streams;
+`compare expected.json actual.json output.json` returns nonzero on differences.
+`retail-differential-baseline-115.json` encodes the accepted B report.
+
+Classic and TFT journals independently match both accepted captures:28 commits
+each, plus the existing five save continuations/91 suffix commits checked by
+the full game regression. Strict mutation tests flip every exported simulation
+word, change identities/order/input clocks, remove or add events, change
+signed zero and types, and introduce forbidden presentation fields. Negative
+runner tests reject a zero-exit failing test, incomplete journals, changed
+profiles and stale output directories. Focused differential, fine-results and
+corpus tests pass; the full repository checkpoint remains on the agreed
+roughly-dozen-chunk cadence.
