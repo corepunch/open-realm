@@ -497,7 +497,7 @@ static bool G_ItemIsSupportedPowerup(edict_t *unit, edict_t *item) {
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe ||
-                        ability->proc == CAbilityItemGold)) return true;
+                        ability->proc == CAbilityItemGold || ability->proc == CAbilityItemHealAoe)) return true;
     }
     return false;
 }

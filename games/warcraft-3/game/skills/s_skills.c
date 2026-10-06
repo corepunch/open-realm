@@ -321,7 +321,7 @@ static ability_t abilitylist[] = {
     // TODO: AIfn a_button  /* Item Capture The Flag */
     // TODO: AIfo a_button  /* Item Capture The Flag */
     // TODO: AIfe a_button  /* Item Capture The Flag */
-    // TODO: AIha a_item_heal_aoe  /* Item Area Healing */
+    { "AIha", CAbilityItemHealAoe, AB_ITEM },  /* Item Area Healing / Healing Runes */
     // TODO: AIvu a_item_invul  /* Item Temporary Invulnerability */
     // TODO: AImr a_item_mana_restore_aoe  /* Item Area Mana Regain */
     // TODO: AIre a_item_restore  /* Item Heal/Mana Regain */

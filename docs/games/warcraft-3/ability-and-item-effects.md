@@ -149,7 +149,7 @@ inventory click
     -> charge/perishable completion
 ```
 
-Speed-family powerups are a deliberate exception to inventory-slot insertion: `AIsp`/`AIsa`/`APsa` resolve directly against the acquiring unit, use authored `Area`/`Dur`/`HeroDur`/`BuffID`/target-mask data, and retain the consumed item handle until queued pickup/use events release it. The active status drives movement to `Misc.MaxUnitSpeed` (including `war3mapMisc.txt` overrides) for its lifetime. Other unsupported powerup families are not auto-consumed.
+Speed-family powerups are a deliberate exception to inventory-slot insertion: `AIsp`/`AIsa`/`APsa` resolve directly against the acquiring unit, use authored `Area`/`Dur`/`HeroDur`/`BuffID`/target-mask data, and retain the consumed item handle until queued pickup/use events release it. The active status drives movement to `Misc.MaxUnitSpeed` (including `war3mapMisc.txt` overrides) for its lifetime. `AIha` Healing Runes share that slot-free pickup/use lifecycle and apply authored immediate AoE healing to valid friendly units without requiring wounded recipients. Other unsupported powerup families are not auto-consumed.
 
 Failed uses do not publish use-item events and do not consume a charge. For example, a healing item at full health returns failure. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
 
@@ -242,7 +242,7 @@ The following are deliberately outside this implementation slice:
 - Earthquake `Oeq4`/`Final Area` semantics, the retail meaning of `UberSplatData.BlendMode=1`, `BOea`'s contribution, and overlapping-Earthquake stacking remain unverified;
 - generic buff `TargetArt`/`Targetattach` creation and lifetime binding remain unimplemented, including the authored `BOeq` overhead model;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
-- automatic `powerup` acquisition/use outside the implemented Speed (`AIsp`/`AIsa`/`APsa`) and Gold (`AIgo`) families;
+- automatic `powerup` acquisition/use outside the implemented Speed (`AIsp`/`AIsa`/`APsa`), Gold (`AIgo`), and Area Healing (`AIha`) families;
 - spell cast-point/backswing timing changes;
 - a fully generalized missile-art/arc object separate from existing projectile simulation.
 - save/load rebinding for independent effect-edict animation callbacks and persistent effect ownership.

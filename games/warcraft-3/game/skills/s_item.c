@@ -512,6 +512,36 @@ static bool item_speed_apply(edict_t *caster, uint32_t code, bool area_effect) {
     return affected != 0;
 }
 
+/* Item Area Healing (AIha): use the acquiring unit as the AoE origin, including
+ * when activated by a world powerup without an inventory slot.  All recipients
+ * use the authored ability target mask and heal independently.  Full-health
+ * recipients do not prevent a rune from being consumed. */
+BZ_ABILITY_PROC(CAbilityItemHealAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    float amount, area;
+    uint32_t code;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_speed_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row) return false;
+    amount = S_SpellData(code, 1, 1); /* DataA / Hit Points Gained */
+    area = row->area;
+    if (!(amount > 0.0f) || !(area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        if (target->health.value >= target->health.max_value) continue;
+        S_SpellHeal(target, amount);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
 /* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
  * executes on its actual picker rather than on a local client's selection.
  * Resource pickups grant their full amount and do not pass through the
@@ -569,7 +599,7 @@ bool S_TryUseSupportedPowerup(edict_t *unit, edict_t *item) {
         abilityitem_t ability_item;
         abilityCall_t call;
         if (!ability || (ability->proc != CAbilityItemSpeed && ability->proc != CAbilityItemSpeedAoe &&
-                         ability->proc != CAbilityItemGold)) continue;
+                         ability->proc != CAbilityItemGold && ability->proc != CAbilityItemHealAoe)) continue;
         ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
         call = MAKE(abilityCall_t, .item = &ability_item, .source_item = item,
                    .source_item_spawn_time = item->spawn_time);
