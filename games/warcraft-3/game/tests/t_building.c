@@ -432,6 +432,10 @@ TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_rac
         "C;Y7;X1;K\"AIbr\"\nC;Y7;X2;K\"AIbl\"\nC;Y7;X3;K1\nC;Y7;X4;K\"hlum\"\n"
         "C;Y8;X1;K\"AIbs\"\nC;Y8;X2;K\"AIbl\"\nC;Y8;X3;K1\nC;Y8;X4;K\"hbar\"\n"
         "C;Y9;X1;K\"AIbh\"\nC;Y9;X2;K\"AIbl\"\nC;Y9;X3;K1\nC;Y9;X4;K\"halt\"\nE\n";
+    const char missing_unit_id_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y2;X1;K\"AIbg\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K1\nE\n";
     uint32_t const great_hall = MAKEFOURCC('A','I','b','g');
     uint32_t const great_hall_races[] = {
         MAKEFOURCC('h','t','o','w'), MAKEFOURCC('o','g','r','e'),
@@ -453,6 +457,7 @@ TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_rac
         MAKEFOURCC('h','a','l','t')
     };
     slkTestData_t *rows, *old;
+    slkTestData_t *missing_rows, *saved_rows;
     edict_t *caster;
 
     setup_test_world();
@@ -467,6 +472,14 @@ TEST(wc3_building, tiny_structure_resolves_stock_endpoints_and_great_hall_by_rac
     }
     for (uint32_t i = 1; i < sizeof(codes) / sizeof(codes[0]); i++)
         T_EQ(S_TinyStructureUnitId(caster, codes[i], 1), structures[i]);
+
+    /* Missing authored endpoints stay unresolved; race handling must not
+     * silently invent a building type. */
+    missing_rows = parse_slk_string(missing_unit_id_slk);
+    saved_rows = G_SetSLKRows("AbilityData", missing_rows);
+    T_EQ(S_TinyStructureUnitId(caster, great_hall, 1), 0);
+    G_SetSLKRows("AbilityData", saved_rows);
+    free_slk_rows(missing_rows);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

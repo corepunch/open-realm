@@ -8,38 +8,6 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-TEST(wc3_item_lifecycle, shared_item_ability_alias_uses_last_authored_endpoint) {
-    const char slk[] =
-        "ID;PWXL;N;EBB;Y3;X3\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"UnitID1\"\n"
-        "C;Y2;X1;K\"AIbl\"\nC;Y2;X2;K\"AIbl\"\nC;Y2;X3;K\"hcas\"\n"
-        "C;Y3;X1;K\"AIbg\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K\"htow\"\nE\n";
-    ItemData_t tiny_castle_data = { .abilList = "AIbg,AIbl" };
-    ItemData_t tiny_great_hall_data = { .abilList = "AIbg" };
-    edict_t tiny_castle = { .class_id = MAKEFOURCC('t','g','r','h'), .data.ItemData = &tiny_castle_data };
-    edict_t tiny_great_hall = { .class_id = MAKEFOURCC('t','g','r','h'), .data.ItemData = &tiny_great_hall_data };
-    abilityitem_t selected;
-    slkTestData_t *rows, *old;
-    edict_t *caster;
-
-    setup_test_world();
-    rows = parse_slk_string(slk);
-    old = G_SetSLKRows("AbilityData", rows);
-    caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    caster->s.player = 0;
-    game.clients[0].ps.race = kPlayerRaceOrc;
-    T_ASSERT(G_ItemUseAbility(&tiny_castle, &selected));
-    T_EQ(selected.code, MAKEFOURCC('A','I','b','l'));
-    T_ASSERT(selected.ability && selected.ability->proc == CAbilityTinyStructure);
-    T_EQ(S_TinyStructureUnitId(caster, selected.code, 1), MAKEFOURCC('h','c','a','s'));
-    T_ASSERT(G_ItemUseAbility(&tiny_great_hall, &selected));
-    T_EQ(selected.code, MAKEFOURCC('A','I','b','g'));
-    T_ASSERT(selected.ability && selected.ability->proc == CAbilityTinyStructure);
-    T_EQ(S_TinyStructureUnitId(caster, selected.code, 1), MAKEFOURCC('o','g','r','e'));
-    G_SetSLKRows("AbilityData", old);
-    free_slk_rows(rows);
-}
-
 TEST(wc3_item_lifecycle, all_item_attack_bonus_aliases_resolve_to_one_handler) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y20;X2\n"
