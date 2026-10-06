@@ -521,6 +521,11 @@ bool UI_BuildFrameForWrite(frameDef_t const *frame,
                 out->points.y[anchor].used = 1;
             }
             out->color = frame->Font.Color;
+            if (frame->Parent && frame->Parent->disabled &&
+                (frame->Font.DisabledColor.a || frame->Font.DisabledColor.r ||
+                 frame->Font.DisabledColor.g || frame->Font.DisabledColor.b)) {
+                out->color = frame->Font.DisabledColor;
+            }
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);
