@@ -2848,6 +2848,7 @@ void G_EffectValidateTarget(edict_t *);
 
 // hud/hud_resource_text.c
 void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount);
+void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
 uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t max_buttons);
@@ -3316,6 +3317,7 @@ uint32_t G_HeroLevelForXP(uint32_t xp);
 void G_HeroApplyLevel(edict_t *, uint32_t level);
 void G_HeroSetXP(edict_t *, uint32_t xp);
 void G_GrantKillXP(edict_t *victim, edict_t *killer);
+void G_AwardKillBounty(edict_t *victim, edict_t *killer);
 bool G_ReviveHero(edict_t *, float x, float y);
 bool G_UnitIsRaisableCorpse(edict_t const *);
 bool G_UnitIsRaisableStoredCorpse(edict_t const *);

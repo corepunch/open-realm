@@ -627,3 +627,7 @@ trained-unit exit placement against static footprints, nearest compatible lumber
 blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection, carried-resource gold/lumber visual switching and zero-carry visual clearing,
 non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.
+
+## Unit-kill bounty
+
+A unit death may award gold/lumber to the killer's owner when the victim's owner has `PLAYERSTATE_GIVES_BOUNTY` enabled (Neutral Hostile defaults to enabled). `UnitBalance` provides `bountyplus`/`bountydice`/`bountysides` and their lumber counterparts; each die is rolled separately. This path is independent of Hero XP eligibility and does not reward friendly kills, self-kills, unattributed deaths or illusions. It uses existing upkeep income rates pending retail verification, clamps stored 16-bit resources, and emits recipient-local `Bounty`/`LumberBounty` labels, plus the GoldCredit effect for positive gold awards. See [resource-gain-text.md](resource-gain-text.md). Transmute's `allowBounty` field and special kill-replacement semantics still need a retail-confirmed follow-up.

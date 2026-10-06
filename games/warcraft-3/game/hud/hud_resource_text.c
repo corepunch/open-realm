@@ -41,12 +41,12 @@ static uint32_t resource_text_color_bits(color32_t color) {
            ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
 }
 
-static bool resource_text_style(uint32_t resource_state, resourceTextStyle_t *style) {
+static bool resource_text_style(uint32_t resource_state, bool bounty, resourceTextStyle_t *style) {
     if (!style) return false;
     switch (resource_state) {
         case PLAYERSTATE_RESOURCE_GOLD:
             *style = MAKE(resourceTextStyle_t,
-                .name = "Gold",
+                .name = bounty ? "Bounty" : "Gold",
                 .fallback_color = MAKE(color32_t, 255, 220, 0, 255),
                 .fallback_lifetime = 2.0f,
                 .fallback_fade_start = 1.0f,
@@ -54,7 +54,7 @@ static bool resource_text_style(uint32_t resource_state, resourceTextStyle_t *st
             return true;
         case PLAYERSTATE_RESOURCE_LUMBER:
             *style = MAKE(resourceTextStyle_t,
-                .name = "Lumber",
+                .name = bounty ? "LumberBounty" : "Lumber",
                 .fallback_color = MAKE(color32_t, 0, 200, 80, 255),
                 .fallback_lifetime = 2.0f,
                 .fallback_fade_start = 1.0f,
@@ -65,7 +65,8 @@ static bool resource_text_style(uint32_t resource_state, resourceTextStyle_t *st
     }
 }
 
-void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount) {
+static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t amount,
+                               bool bounty, int32_t recipient) {
     resourceTextStyle_t style;
     char field[64], text[32];
     vec3_t origin;
@@ -74,7 +75,7 @@ void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amoun
     uint32_t color_bits, lifetime_ms, fade_start_ms, font_size;
     int32_t font;
 
-    if (!source || amount <= 0 || !resource_text_style(resource_state, &style)) return;
+    if (!source || amount <= 0 || !resource_text_style(resource_state, bounty, &style)) return;
     if (!gi.Write || !gi.multicast || !gi.FontIndex) return;
 
     snprintf(field, sizeof(field), "%sTextColor", style.name);
@@ -110,7 +111,20 @@ void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amoun
     gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_X });
     gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_Y });
 
-    /* Current Warsmash accepts a player index for resource tags but drops it
-     * before rendering, so this parity path intentionally has no owner filter. */
-    gi.multicast(&origin, MULTICAST_ALL);
+    if (recipient >= 0) {
+        edict_t *viewer = G_GetPlayerEntityByNumber((uint32_t)recipient);
+        if (viewer && viewer->client && viewer->client->connected && gi.unicast)
+            gi.unicast(viewer);
+    } else {
+        /* Existing mining/deposit presentation remains shared. */
+        gi.multicast(&origin, MULTICAST_ALL);
+    }
+}
+
+void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount) {
+    resource_gain_text(source, resource_state, amount, false, -1);
+}
+
+void G_BountyGainEvent(edict_t *victim, uint32_t recipient, uint32_t resource_state, int32_t amount) {
+    resource_gain_text(victim, resource_state, amount, true, (int32_t)recipient);
 }
