@@ -640,6 +640,24 @@ TEST(menu_fdf, backdrop_flags_and_insets_are_parsed) {
     T_FEQ(frame->Backdrop.BackgroundInsets[3], 0.4f, 0.01f);
 }
 
+/* WC3 FDF semantics: a backdrop without BackdropBlendAll ignores texture alpha; with it the renderer blends. */
+TEST(menu_fdf, backdrop_blend_all_selects_renderer_opacity) {
+    cstring_t const names[] = { "OpaqueBD", "BlendBD" };
+    reset_ui_state();
+    parse_fdf("backdrop_opacity.fdf",
+              "Frame \"BACKDROP\" \"OpaqueBD\" { Width 0.1, Height 0.1, BackdropBackground \"EscMenuBackground\", }"
+              "Frame \"BACKDROP\" \"BlendBD\" { Width 0.1, Height 0.1, BackdropBackground \"EscMenuBackground\", BackdropBlendAll, }");
+    FOR_LOOP(i, 2) {
+        frameDef_t *frame = UI_FindFrame(names[i]);
+        if (!require_not_null(frame)) return;
+        captured_backdrop = (drawBackdrop_t){0};
+        captured_draw_calls = 0;
+        UI_DrawFrame(frame);
+        T_EQ(captured_draw_calls, 1);
+        T_EQ(captured_backdrop.flags & DRAW_BG_OPAQUE, i ? 0 : DRAW_BG_OPAQUE);
+    }
+}
+
 TEST(menu_fdf, vector_parser_accepts_f_suffixes) {
     frameDef_t *frame;
 
@@ -2710,7 +2728,7 @@ static void sp_row_icon_geometry(cstring_t box) {
             T_FEQ(captured_backdrop.screen.w, .032f, .00001f);
             T_FEQ(captured_backdrop.screen.h, .032f, .00001f);
             T_FEQ(captured_backdrop.insets.left, j == 2 ? .004f : .007f, .00001f);
-            T_EQ(captured_backdrop.flags, DRAW_TILE | DRAW_BLEND_ALL);
+            T_EQ(captured_backdrop.flags, DRAW_TILE);
         }
         button->hidden = hidden;
         button->ui_flags = flags;

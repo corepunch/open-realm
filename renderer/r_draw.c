@@ -125,7 +125,7 @@ static void R_ResetUIScissor(void) {
     R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
 }
 
-static void R_DrawImageBatchInternal(drawImageBatchParams_t const *params, bool opaque)
+void R_DrawImageBatchEx(drawImageBatchParams_t const *params)
 {
     if (!params || !params->vertices || !params->vertexCount) {
         return;
@@ -149,7 +149,7 @@ static void R_DrawImageBatchInternal(drawImageBatchParams_t const *params, bool 
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * params->vertexCount, params->vertices, GL_DYNAMIC_DRAW);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_FALSE);
-    if (opaque) {
+    if (params->opaque) {
         R_Call(glDisable, GL_BLEND);
     } else {
         R_Call(glEnable, GL_BLEND);
@@ -180,7 +180,7 @@ static void R_DrawImageBatchInternal(drawImageBatchParams_t const *params, bool 
         R_ResetUIScissor();
     }
 
-    if (opaque) {
+    if (params->opaque) {
         R_Call(glEnable, GL_BLEND);
     }
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -197,7 +197,7 @@ void R_DrawImageBatch(texture_t const *texture,
                       uint32_t num_vertices,
                       bool repeat)
 {
-    R_DrawImageBatchInternal(&(drawImageBatchParams_t){
+    R_DrawImageBatchEx(&(drawImageBatchParams_t){
         .texture = texture,
         .shader = shaderType,
         .alphamode = alphamode,
@@ -208,11 +208,7 @@ void R_DrawImageBatch(texture_t const *texture,
         .vertices = vertices,
         .vertexCount = num_vertices,
         .repeat = repeat,
-    }, false);
-}
-
-void R_DrawImageBatchOpaque(drawImageBatchParams_t const *params) {
-    R_DrawImageBatchInternal(params, true);
+    });
 }
 
 void R_DrawImageEx(drawImage_t const *drawImage) {

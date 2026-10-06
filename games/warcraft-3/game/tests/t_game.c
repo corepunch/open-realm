@@ -2008,6 +2008,21 @@ TEST(wc3_game, hud_empty_text_frame_serializes_empty_text) {
     T_STREQ(wire.text, "");
 }
 
+/* The wire bit is opt-in opaque so zero-initialized WoW/SC2 backdrops keep Q2 alpha; WC3 sets it from FDF. */
+TEST(wc3_game, hud_backdrop_without_blend_all_serializes_opaque) {
+    FRAMEDEF frame = { .Type = FT_BACKDROP };
+    uiFrame_t wire = {0};
+    uint8_t typedata[sizeof(uiBackdrop_t)] = {0};
+    char textbuf[16] = {0};
+
+    FOR_LOOP(blend, 2) {
+        frame.Backdrop.BlendAll = blend;
+        UI_ResetFrameWriteList();
+        T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
+        T_EQ(((uiBackdrop_t const *)typedata)->Opaque, !blend);
+    }
+}
+
 TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
     FRAMEDEF frame = { .Type = FT_STRING };
     uiFrame_t wire = {0};

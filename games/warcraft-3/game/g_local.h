@@ -24,8 +24,9 @@
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 1024
-#define MAX_JASS_DIALOGS 64 // dialogs; bounds stable map-lifetime handles; used by the JASS registry
-#define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds stable map-lifetime handles; used by the JASS registry
+#define MAX_JASS_DIALOGS 64 // dialogs; bounds live handles, freed slots are reused; used by the JASS registry
+#define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds live handles, freed slots are reused; used by the JASS registry
+#define JASS_DIALOG_SLOT_BITS 16 // bits; low id bits hold slot+1 (fits 256 buttons), high bits the reuse generation
 #define MAX_JASS_DIALOG_TEXT 512 // bytes; bounds retained dialog messages; used by save and UI serialization
 #define MAX_JASS_DIALOG_BUTTON_TEXT 192 // bytes; bounds retained choice labels; used by save and UI serialization
 #define MAX_JASS_DIALOG_UI_BUTTONS 12 // buttons; stock template has no scrolling container; excess choices are logged
@@ -920,7 +921,7 @@ typedef struct {
 
 typedef struct {
     bool inuse;
-    uint32_t id; /* one-based and never recycled during the map */
+    uint32_t id; /* (generation << JASS_DIALOG_SLOT_BITS) | (slot + 1); kept after release to advance on reuse */
     uint32_t dialog_id;
     int32_t hotkey;
     bool quit;
@@ -930,7 +931,7 @@ typedef struct {
 
 typedef struct {
     bool inuse;
-    uint32_t id; /* one-based and never recycled during the map */
+    uint32_t id; /* (generation << JASS_DIALOG_SLOT_BITS) | (slot + 1); kept after release to advance on reuse */
     uint32_t visible_players; /* client player numbers */
     char message[MAX_JASS_DIALOG_TEXT];
 } jassDialog_t;
@@ -2233,7 +2234,7 @@ struct level_locals {
     bool modal_paused;
     jassDialog_t dialogs[MAX_JASS_DIALOGS];
     jassDialogButton_t dialog_buttons[MAX_JASS_DIALOG_BUTTONS];
-    uint32_t dialog_count, dialog_button_count;
+    uint32_t dialog_count, dialog_button_count; /* high-water slot counts; free slots below are reused */
     timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
     box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */

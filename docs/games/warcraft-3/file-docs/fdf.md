@@ -228,6 +228,11 @@ BackdropLeftFile    "...",
 BackdropRightFile   "...",
 ```
 
+Without `BackdropBlendAll` the background ignores texture alpha. The game
+serializes that as `uiBackdrop_t.Opaque` and the client maps it to
+`DRAW_BG_OPAQUE`; zero means blended, so WoW/SC2 layouts and translucent
+frame colours keep alpha as Quake 2 `Draw_Pic` does.
+
 ### Texture Actions (SimpleFrames)
 
 ```fdf

@@ -157,7 +157,6 @@ void UI_WriteBackdropFrame(float x, float y, float w, float h, cstring_t backgro
     backdrop.BackgroundInsets[2] = 0.0025f;
     backdrop.BackgroundInsets[3] = 0.0025f;
     backdrop.TileBackground = true;
-    backdrop.BlendAll = true;
     UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
 }
@@ -225,7 +224,6 @@ void UI_WriteTooltipFrame(void) {
     tooltip.background.BackgroundInsets[2] = 0.0025f;
     tooltip.background.BackgroundInsets[3] = 0.0025f;
     tooltip.background.TileBackground = true;
-    tooltip.background.BlendAll = true;
     tooltip.text.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
     tooltip.text.textalignx = FONT_JUSTIFYLEFT;
     tooltip.text.textaligny = FONT_JUSTIFYTOP;
@@ -290,34 +288,34 @@ cstring_t UI_FormatMessageText(cstring_t text) {
 /* Widescreen console tiles are written for wide clients only (docs/architecture/ui-canvas.md).  Registering
  * their keys while ConsoleUI.fdf is parsed would put the art in CS_IMAGES for every session, so these keys
  * get a deferred handle instead and reach gi.ImageIndex the first time a wide client's console is written. */
-static cstring_t const hud_wide_chrome_keys[] = { "ConsoleTexture05", "ConsoleTexture06" };
+static cstring_t const hud_wide_chrome_keys[] = { "ConsoleTexture05", "ConsoleTexture06", NULL };
 
-bool UI_IsWideChromeKey(cstring_t key) {
-    FOR_LOOP(i, sizeof(hud_wide_chrome_keys) / sizeof(hud_wide_chrome_keys[0]))
-        if (key && !strcmp(key, hud_wide_chrome_keys[i])) return true;
+/* The stock Default skin maps EscMenuBackground and EscMenuButtonBackground to the same Human texture.
+ * Registering both by path aliases their live image slot and loses the key needed to select race art at write time. */
+static cstring_t const hud_race_chrome_keys[] = {
+    "EscMenuBackground",
+    "EscMenuButtonBackground",
+    "EscMenuButtonPushedBackground",
+    "EscMenuButtonDisabledBackground",
+    "EscMenuButtonDisabledPushedBackground",
+    "EscMenuButtonBorder",
+    "EscMenuButtonPushedBorder",
+    "EscMenuButtonDisabledBorder",
+    "EscMenuButtonDisabledPushedBorder",
+    "EscMenuButtonMouseOverHighlight",
+    NULL
+};
+
+static bool UI_KeyInTable(cstring_t key, cstring_t const *keys) {
+    for (; key && *keys; keys++)
+        if (!strcmp(key, *keys)) return true;
     return false;
 }
 
+bool UI_IsWideChromeKey(cstring_t key) { return UI_KeyInTable(key, hud_wide_chrome_keys); }
+
 static bool UI_IsDeferredImageKey(cstring_t key) {
-    /* The stock Default skin maps EscMenuBackground and EscMenuButtonBackground
-     * to the same Human texture. Registering both by path aliases their live
-     * image slot and loses the key needed to select race art at write time. */
-    static cstring_t const keys[] = {
-        "EscMenuBackground",
-        "EscMenuButtonBackground",
-        "EscMenuButtonPushedBackground",
-        "EscMenuButtonDisabledBackground",
-        "EscMenuButtonDisabledPushedBackground",
-        "EscMenuButtonBorder",
-        "EscMenuButtonPushedBorder",
-        "EscMenuButtonDisabledBorder",
-        "EscMenuButtonDisabledPushedBorder",
-        "EscMenuButtonMouseOverHighlight",
-    };
-    if (UI_IsWideChromeKey(key)) return true;
-    FOR_LOOP(i, sizeof(keys) / sizeof(keys[0]))
-        if (key && !strcmp(key, keys[i])) return true;
-    return false;
+    return UI_KeyInTable(key, hud_wide_chrome_keys) || UI_KeyInTable(key, hud_race_chrome_keys);
 }
 
 static uint32_t UI_DeferredImage(cstring_t key) {

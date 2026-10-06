@@ -2898,7 +2898,7 @@ static void CMD_UICanvas(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     ent->client->canvas = (UICANVASCLASS)value;
 }
 
-/* The client sends opaque map-lifetime IDs; the game validates ownership. */
+/* The client sends opaque generation-tagged IDs; G_JassDialogClick validates slot, generation and ownership. */
 static void CMD_JassDialogChoice(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     char *end_dialog, *end_button;
     unsigned long dialog, button;
@@ -2906,7 +2906,7 @@ static void CMD_JassDialogChoice(edict_t *ent, uint32_t argc, cstring_t argv[]) 
     dialog = strtoul(argv[1], &end_dialog, 10);
     button = strtoul(argv[2], &end_button, 10);
     if (!argv[1][0] || *end_dialog || !argv[2][0] || *end_button ||
-        dialog > MAX_JASS_DIALOGS || button > MAX_JASS_DIALOG_BUTTONS) return;
+        dialog > UINT32_MAX || button > UINT32_MAX) return;
     G_JassDialogClick(ent, (uint32_t)dialog, (uint32_t)button);
 }
 

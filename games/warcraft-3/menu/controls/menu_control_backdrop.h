@@ -37,7 +37,7 @@ static void UI_DrawBackdropWithColor(frameDef_t const *frame, rect_t const *rect
                                  .insets.left = frame->Backdrop.BackgroundInsets[BACKDROPINSET_LEFT],
                                  .flags = (frame->Backdrop.TileBackground ? DRAW_TILE : 0)
                                         | (frame->Backdrop.Mirrored ? DRAW_MIRRORED : 0)
-                                        | (frame->Backdrop.BlendAll ? DRAW_BLEND_ALL : 0)));
+                                        | (frame->Backdrop.BlendAll ? 0 : DRAW_BG_OPAQUE)));
 }
 
 static void UI_DrawBackdrop(frameDef_t const *frame, rect_t const *rect) {

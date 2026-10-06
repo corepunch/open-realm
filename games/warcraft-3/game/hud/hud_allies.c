@@ -83,7 +83,7 @@ static void AlliesDebugWireBackdrop(frameDef_t const *frame) {
             "WC3_ALLIES_UI server stage=wire backdrop=AllianceBackdrop type=%u size=(%.4f,%.4f) "
             "color=(%u,%u,%u,%u) bg=%u path=\"%s\" edge=%u path=\"%s\" "
             "cornerFlags=%d corner=%.4f bgSize=%.4f insets=(%.4f,%.4f,%.4f,%.4f) "
-            "tile=%u blend=%u mirrored=%u\n",
+            "tile=%u opaque=%u mirrored=%u\n",
             (unsigned)wire.flags.type, wire.size.width, wire.size.height,
             (unsigned)wire.color.r, (unsigned)wire.color.g,
             (unsigned)wire.color.b, (unsigned)wire.color.a,
@@ -92,7 +92,7 @@ static void AlliesDebugWireBackdrop(frameDef_t const *frame) {
             (int)bd->CornerFlags, bd->CornerSize, bd->BackgroundSize,
             bd->BackgroundInsets[0], bd->BackgroundInsets[1],
             bd->BackgroundInsets[2], bd->BackgroundInsets[3],
-            (unsigned)bd->TileBackground, (unsigned)bd->BlendAll, (unsigned)bd->Mirrored);
+            (unsigned)bd->TileBackground, (unsigned)bd->Opaque, (unsigned)bd->Mirrored);
 }
 
 static bool AlliesTargetAvailable(uint32_t viewer, uint32_t target) {

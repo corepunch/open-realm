@@ -1208,7 +1208,7 @@ typedef struct {
     RESOURCE EdgeFile;//  "EscMenuBorder",
     RESOURCE Background;
     bool TileBackground:1;
-    bool BlendAll:1;
+    bool Opaque:1; /* background ignores texture alpha; zero keeps Q2 Draw_Pic blending */
     bool Mirrored:1;
 } uiBackdrop_t;
 

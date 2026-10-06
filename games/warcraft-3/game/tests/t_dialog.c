@@ -12,6 +12,14 @@ static edict_t *dialog_unicast_target;
 static uint32_t dialog_unicast_count;
 static void dialog_test_unicast(edict_t *ent) { dialog_unicast_target = ent; ++dialog_unicast_count; }
 static int dialog_test_font(cstring_t name, uint32_t size) { (void)name; (void)size; return 1; }
+/* Count svc_window UI_WINDOW_OPEN headers for the JASS dialog window: byte, byte, long id. */
+static uint32_t dialog_open_count, dialog_write_state;
+static void dialog_test_capture_write(pfWriteType_t type, void const *data) {
+    int32_t const value = type == PF_BYTE || type == PF_LONG ? *(int32_t const *)data : -1;
+    if (dialog_write_state == 0) dialog_write_state = type == PF_BYTE && value == svc_window;
+    else if (dialog_write_state == 1) dialog_write_state = type == PF_BYTE && value == UI_WINDOW_OPEN ? 2 : 0;
+    else dialog_open_count += type == PF_LONG && value == WC3_JASS_DIALOG_WINDOW, dialog_write_state = 0;
+}
 static int dialog_test_image(cstring_t path) { return path && *path ? 1 : 0; }
 static uint32_t dialog_test_frame_count(void) {
     uint32_t count = 0;
@@ -32,13 +40,14 @@ TEST(wc3_dialog, create_add_clear_destroy_retains_stable_handles) {
     T_NE(first, second);
     T_EQ(first->dialog_id, dialog->id);
     T_STREQ(first->text, "Long Route");
+    uint32_t const first_id = first->id;
     G_JassDialogClear(dialog);
     T_NULL(G_JassDialogButton(first));
     T_NULL(G_JassDialogButton(second));
     T_EQ(G_JassDialog(dialog), dialog);
     second = G_JassDialogAddButton(dialog, "New Route", NULL);
     T_NOT_NULL(second);
-    T_NE(first, second);
+    T_NE(second->id, first_id);
     G_JassDialogDestroy(dialog);
     T_NULL(G_JassDialog(dialog));
     T_NULL(G_JassDialogButton(second));
@@ -48,6 +57,7 @@ TEST(wc3_dialog, save_round_trip_restores_dialog_handles_and_visibility) {
     cstring_t filename = "/tmp/openrealm-wc3-jass-dialog-save.bin";
     jassDialog_t *dialog;
     jassDialogButton_t *button;
+    uint32_t dialog_id, button_id;
     setup_test_world();
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     dialog = G_JassDialogCreate();
@@ -56,13 +66,13 @@ TEST(wc3_dialog, save_round_trip_restores_dialog_handles_and_visibility) {
     button = G_JassDialogAddButton(dialog, "Long", NULL);
     T_NOT_NULL(button);
     dialog->visible_players = 1;
+    dialog_id = dialog->id; button_id = button->id;
     T_ASSERT(WriteGame(filename));
     G_JassDialogClear(dialog);
-    T_NULL(G_JassDialogButtonById(1));
+    T_NULL(G_JassDialogButtonById(button_id));
     T_ASSERT(ReadGame(filename));
-    dialog = G_JassDialogById(1);
-    button = G_JassDialogButtonById(1);
-    T_NOT_NULL(dialog); T_NOT_NULL(button);
+    T_EQ(G_JassDialogById(dialog_id), dialog);
+    T_EQ(G_JassDialogButtonById(button_id), button);
     T_STREQ(dialog->message, "Choose a route");
     T_STREQ(button->text, "Long");
     T_EQ(dialog->visible_players, 1u);
@@ -86,11 +96,11 @@ TEST(wc3_dialog, jass_natives_allocate_real_dialog_and_button_handles) {
         "endfunction\n"));
     T_EQ(level.dialog_count, 1u);
     T_EQ(level.dialog_button_count, 3u);
-    T_ASSERT(G_JassDialogButtonById(3)->quit);
-    T_ASSERT(G_JassDialogButtonById(3)->score_screen);
-    G_JassDialogClear(G_JassDialogById(1));
-    G_JassDialogDestroy(G_JassDialogById(1));
-    T_NULL(G_JassDialogById(1));
+    T_ASSERT(level.dialog_buttons[2].quit);
+    T_ASSERT(level.dialog_buttons[2].score_screen);
+    G_JassDialogClear(G_JassDialog(level.dialogs));
+    G_JassDialogDestroy(G_JassDialog(level.dialogs));
+    T_NULL(G_JassDialog(level.dialogs));
 }
 
 TEST(wc3_dialog, clicking_publishes_only_matching_registrations) {
@@ -136,9 +146,9 @@ TEST(wc3_dialog, clicking_publishes_only_matching_registrations) {
         " call BJassAssert(dialogEvents == 1, \"one dialog event\")\n"
         " call BJassAssert(buttonEvents == 0, \"long-only button handler\")\n"
         "endfunction\n"));
-    dialog = G_JassDialogById(1);
-    long_button = G_JassDialogButtonById(1);
-    short_button = G_JassDialogButtonById(2);
+    dialog = G_JassDialog(level.dialogs);
+    long_button = G_JassDialogButton(level.dialog_buttons);
+    short_button = G_JassDialogButton(level.dialog_buttons + 1);
     T_NOT_NULL(dialog); T_NOT_NULL(long_button); T_NOT_NULL(short_button);
     game.clients[0].ps.number = 0;
     g_edicts[0].client = game.clients;
@@ -180,8 +190,8 @@ TEST(wc3_dialog, click_visibility_uses_player_number_not_client_slot) {
         "function verify takes nothing returns nothing\n"
         " call BJassAssert(selection == 1, \"player number is preserved\")\n"
         "endfunction\n"));
-    dialog = G_JassDialogById(1);
-    button = G_JassDialogButtonById(1);
+    dialog = G_JassDialog(level.dialogs);
+    button = G_JassDialogButton(level.dialog_buttons);
     T_NOT_NULL(dialog); T_NOT_NULL(button);
     game.clients[0].ps.number = player_number;
     g_edicts[0].client = game.clients;
@@ -258,5 +268,205 @@ TEST(wc3_dialog, repeated_display_reclaims_temporary_fdf_frames) {
     UI_ClearTemplates();
     Stb_IniCacheFree(&game.config.theme);
     game.config.theme = old_theme;
+}
+
+/* Clear/Destroy release slots: map scripts that rebuild a dialog every round must not exhaust the pools. */
+TEST(wc3_dialog, clear_and_destroy_reuse_slots) {
+    jassDialog_t *dialog;
+    setup_test_world();
+    dialog = G_JassDialogCreate();
+    T_NOT_NULL(dialog);
+    FOR_LOOP(round, 100) {
+        G_JassDialogClear(dialog);
+        FOR_LOOP(i, 3) T_NOT_NULL(G_JassDialogAddButton(dialog, "Choice", NULL));
+    }
+    FOR_LOOP(round, 100) {
+        jassDialog_t *temp = G_JassDialogCreate();
+        T_NOT_NULL(temp);
+        T_NOT_NULL(G_JassDialogAddButton(temp, "Temp", NULL));
+        G_JassDialogDestroy(temp);
+    }
+    T_NOT_NULL(G_JassDialog(dialog));
+    /* Live handles still bound the pool: exhaustion is reported and refused until a slot is released. */
+    while (level.dialog_count < MAX_JASS_DIALOGS) T_NOT_NULL(G_JassDialogCreate());
+    T_NULL(G_JassDialogCreate());
+    G_JassDialogDestroy(dialog);
+    T_EQ(G_JassDialogCreate(), dialog);
+}
+
+/* A reused slot gets a new generation: ids held by events, saves or a late client click stay invalid. */
+TEST(wc3_dialog, stale_ids_are_rejected_after_slot_reuse) {
+    jassDialog_t *dialog, *other;
+    jassDialogButton_t *button, *reused;
+    uint32_t old_dialog, old_button, n;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local dialog d = DialogCreate()\n"
+        "  call DialogAddButton(d, \"Old\", 0)\n"
+        "  call TriggerRegisterDialogEvent(t, d)\n"
+        "endfunction\n"));
+    dialog = G_JassDialog(level.dialogs);
+    button = G_JassDialogButton(level.dialog_buttons);
+    T_NOT_NULL(dialog); T_NOT_NULL(button);
+    old_dialog = dialog->id; old_button = button->id;
+    G_JassDialogClear(dialog);
+    reused = G_JassDialogAddButton(dialog, "New", NULL);
+    T_EQ(reused, button);
+    T_NE(reused->id, old_button);
+    T_NULL(G_JassDialogButtonById(old_button));
+    game.clients[0].ps.number = 0;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1;
+    n = level.events.write;
+    G_JassDialogClick(g_edicts, dialog->id, old_button);
+    T_EQ(level.events.write, n);
+    G_JassDialogDestroy(dialog);
+    other = G_JassDialogCreate();
+    T_EQ(other, dialog);
+    T_NE(other->id, old_dialog);
+    T_NULL(G_JassDialogById(old_dialog));
+    /* The registration on the destroyed dialog must not fire for its slot's new occupant. */
+    reused = G_JassDialogAddButton(other, "Fresh", NULL);
+    other->visible_players = 1;
+    G_JassDialogClick(g_edicts, other->id, reused->id);
+    T_EQ(level.events.write, n);
+}
+
+/* The client command is untrusted network input: malformed, foreign, unowned and duplicate clicks are inert. */
+TEST(wc3_dialog, jassdialog_command_rejects_bad_input) {
+    jassDialog_t *dialog, *other;
+    jassDialogButton_t *button, *foreign;
+    char dialog_arg[16], button_arg[16], foreign_arg[16];
+    uint32_t n;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  local dialog d = DialogCreate()\n"
+        "  local dialog o = DialogCreate()\n"
+        "  call DialogAddButton(d, \"Go\", 0)\n"
+        "  call DialogAddButton(o, \"Elsewhere\", 0)\n"
+        "  call TriggerRegisterDialogEvent(t, d)\n"
+        "  call TriggerRegisterDialogEvent(t, o)\n"
+        "endfunction\n"));
+    dialog = G_JassDialog(level.dialogs);
+    other = G_JassDialog(level.dialogs + 1);
+    button = G_JassDialogButton(level.dialog_buttons);
+    foreign = G_JassDialogButton(level.dialog_buttons + 1);
+    T_NOT_NULL(dialog); T_NOT_NULL(other); T_NOT_NULL(button); T_NOT_NULL(foreign);
+    snprintf(dialog_arg, sizeof(dialog_arg), "%u", dialog->id);
+    snprintf(button_arg, sizeof(button_arg), "%u", button->id);
+    snprintf(foreign_arg, sizeof(foreign_arg), "%u", foreign->id);
+    FOR_LOOP(i, 2) game.clients[i].ps.number = i, g_edicts[i].client = game.clients + i;
+    dialog->visible_players = other->visible_players = 1;
+    n = level.events.write;
+    cstring_t const bad[][4] = {
+        { "jassdialog" },
+        { "jassdialog", dialog_arg },
+        { "jassdialog", dialog_arg, button_arg, "1" },
+        { "jassdialog", "", button_arg },
+        { "jassdialog", dialog_arg, "" },
+        { "jassdialog", "abc", button_arg },
+        { "jassdialog", dialog_arg, "1x" },
+        { "jassdialog", "-1", button_arg },
+        { "jassdialog", dialog_arg, "99999999999999999999" },
+        { "jassdialog", "0", "0" },
+        { "jassdialog", "4294967295", button_arg },
+        { "jassdialog", dialog_arg, foreign_arg },
+    };
+    uint32_t const argc[] = { 1, 2, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3 };
+    FOR_LOOP(i, sizeof(argc) / sizeof(*argc)) G_ClientCommand(g_edicts, argc[i], (cstring_t *)bad[i]);
+    T_EQ(level.events.write, n);
+    T_EQ(dialog->visible_players, 1u);
+    /* Player 1 never saw the dialog. */
+    G_ClientCommand(g_edicts + 1, 3, (cstring_t[]){ "jassdialog", dialog_arg, button_arg });
+    T_EQ(level.events.write, n);
+    G_ClientCommand(g_edicts, 3, (cstring_t[]){ "jassdialog", dialog_arg, button_arg });
+    T_EQ(level.events.write, n + 1);
+    T_EQ(dialog->visible_players, 0u);
+    G_ClientCommand(g_edicts, 3, (cstring_t[]){ "jassdialog", dialog_arg, button_arg });
+    T_EQ(level.events.write, n + 1);
+}
+
+/* A dialog action that sleeps across save/load resumes with its clicked dialog, button and player. */
+TEST(wc3_dialog, click_context_survives_save_in_sleeping_action) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-dialog-sleep-save.bin";
+    jassDialog_t *dialog;
+    jassDialogButton_t *button;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " dialog route = null\n"
+        " button choice = null\n"
+        " integer resumed = 0\n"
+        "endglobals\n"
+        "function onDialog takes nothing returns nothing\n"
+        " call TriggerSleepAction(0.0)\n"
+        " if GetClickedDialog() == route and GetClickedButton() == choice and GetTriggerPlayer() == Player(0) then\n"
+        "  set resumed = 1\n"
+        " endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger t = CreateTrigger()\n"
+        " set route = DialogCreate()\n"
+        " set choice = DialogAddButton(route, \"Continue\", 0)\n"
+        " call TriggerRegisterDialogEvent(t, route)\n"
+        " call TriggerAddAction(t, function onDialog)\n"
+        "endfunction\n"
+        "function notYet takes nothing returns nothing\n"
+        " call BJassAssert(resumed == 0, \"action must still be sleeping at save time\")\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(resumed == 1, \"dialog context lost across save/load\")\n"
+        "endfunction\n"));
+    dialog = G_JassDialog(level.dialogs);
+    button = G_JassDialogButton(level.dialog_buttons);
+    T_NOT_NULL(dialog); T_NOT_NULL(button);
+    game.clients[0].ps.number = 0;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1;
+    G_JassDialogClick(g_edicts, dialog->id, button->id);
+    G_RunEvents();
+    jass_runevents(level.vm); /* action reaches TriggerSleepAction and yields */
+    jass_callbyname(level.vm, "notYet", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(ReadGame(filename));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    remove(filename);
+}
+
+/* Q2 re-sends layouts from the client's first frame: load leaves the choice to ClientBegin, which sends it once. */
+TEST(wc3_dialog, load_restores_visible_dialog_once_on_client_begin) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-dialog-restore-save.bin";
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    jassDialog_t *dialog;
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    dialog = G_JassDialogCreate();
+    T_NOT_NULL(dialog);
+    T_NOT_NULL(G_JassDialogAddButton(dialog, "Continue", NULL));
+    game.clients[0].ps.number = 0;
+    game.clients[0].connected = true;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1;
+    T_ASSERT(WriteGame(filename));
+    dialog->visible_players = 0;
+    dialog_open_count = dialog_write_state = 0;
+    gi.Write = dialog_test_capture_write;
+    gi.unicast = dialog_test_unicast;
+    T_ASSERT(ReadGame(filename));
+    T_EQ(dialog_open_count, 0u);
+    globals.ClientBegin(g_edicts);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    T_EQ(dialog_open_count, 1u);
+    T_EQ(G_JassDialog(level.dialogs)->visible_players, 1u);
+    remove(filename);
 }
 #endif

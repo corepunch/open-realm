@@ -5,6 +5,16 @@
 #include "generated/script_dialog.h"
 #include "generated/script_dialog_button.h"
 
+/* Common initial sequence of jassDialog_t and jassDialogButton_t, so one allocator serves both pools. */
+typedef struct {
+    bool inuse;
+    uint32_t id;
+} dialogSlot_t;
+
+_Static_assert(offsetof(jassDialog_t, id) == offsetof(dialogSlot_t, id), "dialog slot layout");
+_Static_assert(offsetof(jassDialogButton_t, id) == offsetof(dialogSlot_t, id), "button slot layout");
+_Static_assert(MAX_JASS_DIALOG_BUTTONS < 1u << JASS_DIALOG_SLOT_BITS, "slot index must fit below the generation");
+
 static bool dialog_fdf_warning_printed, button_fdf_warning_printed;
 
 static bool DialogIsPlayer(player_t const *player, uint32_t *number) {
@@ -17,16 +27,40 @@ static bool DialogIsPlayer(player_t const *player, uint32_t *number) {
     return false;
 }
 
+/* Slot 0 in the low bits wraps to UINT32_MAX and fails the bound; the full id must match the live generation. */
+static uint32_t DialogSlot(uint32_t id) { return (id & ((1u << JASS_DIALOG_SLOT_BITS) - 1)) - 1; }
+
 jassDialog_t *G_JassDialogById(uint32_t id) {
-    if (!id || id > level.dialog_count || id > MAX_JASS_DIALOGS) return NULL;
-    jassDialog_t *dialog = &level.dialogs[id - 1];
+    uint32_t slot = DialogSlot(id);
+    if (slot >= level.dialog_count || slot >= MAX_JASS_DIALOGS) return NULL;
+    jassDialog_t *dialog = &level.dialogs[slot];
     return dialog->inuse && dialog->id == id ? dialog : NULL;
 }
 
 jassDialogButton_t *G_JassDialogButtonById(uint32_t id) {
-    if (!id || id > level.dialog_button_count || id > MAX_JASS_DIALOG_BUTTONS) return NULL;
-    jassDialogButton_t *button = &level.dialog_buttons[id - 1];
+    uint32_t slot = DialogSlot(id);
+    if (slot >= level.dialog_button_count || slot >= MAX_JASS_DIALOG_BUTTONS) return NULL;
+    jassDialogButton_t *button = &level.dialog_buttons[slot];
     return button->inuse && button->id == id ? button : NULL;
+}
+
+/* Reuse the first free slot (append otherwise) and advance its generation, so ids of a released occupant held by
+ * registrations, events, saves or a late client click never match the new one. Previously Clear/Destroy only
+ * cleared inuse and the pools were append-only, so Clear+AddButton loops silently ran out of handles. */
+static void *DialogAllocSlot(void *base, size_t size, uint32_t *count, uint32_t max, cstring_t kind) {
+    uint32_t i = 0;
+    while (i < *count && ((dialogSlot_t *)((uint8_t *)base + i * size))->inuse) ++i;
+    if (i >= max) {
+        fprintf(stderr, "WC3 JASS dialog: all %u %s slots are in use\n", max, kind);
+        return NULL;
+    }
+    dialogSlot_t *slot = (dialogSlot_t *)((uint8_t *)base + i * size);
+    uint32_t gen = (slot->id >> JASS_DIALOG_SLOT_BITS) + 1;
+    memset(slot, 0, size);
+    slot->inuse = true;
+    slot->id = (gen << JASS_DIALOG_SLOT_BITS) | (i + 1);
+    *count = MAX(*count, i + 1);
+    return slot;
 }
 
 jassDialog_t *G_JassDialog(handle_t value) {
@@ -46,22 +80,15 @@ jassDialogButton_t *G_JassDialogButton(handle_t value) {
 }
 
 jassDialog_t *G_JassDialogCreate(void) {
-    if (level.dialog_count >= MAX_JASS_DIALOGS) return NULL;
-    jassDialog_t *dialog = &level.dialogs[level.dialog_count++];
-    memset(dialog, 0, sizeof(*dialog));
-    dialog->id = level.dialog_count;
-    dialog->inuse = true;
-    return dialog;
+    return DialogAllocSlot(level.dialogs, sizeof(*level.dialogs), &level.dialog_count, MAX_JASS_DIALOGS, "dialog");
 }
 
 /* Store optional presentation metadata without growing this native's argument list. */
 jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *dialog, cstring_t label,
         jassDialogButtonOptions_t const *options) {
-    if (!G_JassDialog(dialog) || level.dialog_button_count >= MAX_JASS_DIALOG_BUTTONS) return NULL;
-    jassDialogButton_t *button = &level.dialog_buttons[level.dialog_button_count++];
-    memset(button, 0, sizeof(*button));
-    button->inuse = true;
-    button->id = level.dialog_button_count;
+    if (!G_JassDialog(dialog)) return NULL;
+    jassDialogButton_t *button = DialogAllocSlot(level.dialog_buttons, sizeof(*level.dialog_buttons), &level.dialog_button_count, MAX_JASS_DIALOG_BUTTONS, "button");
+    if (!button) return NULL;
     button->dialog_id = dialog->id;
     if (options) {
         button->hotkey = options->hotkey;
@@ -100,22 +127,17 @@ void G_JassDialogDestroy(jassDialog_t *dialog) {
 void G_JassDialogDisplay(player_t *player, jassDialog_t *dialog, bool visible) {
     uint32_t index;
     if (!G_JassDialog(dialog) || !DialogIsPlayer(player, &index)) return;
+    edict_t *ent = G_GetPlayerEntityByNumber(index);
+    bool was_visible = dialog->visible_players & (1u << index);
     if (visible) {
         /* The client has a single authoritative choice window per player. */
         FOR_LOOP(i, level.dialog_count) if (level.dialogs[i].id != dialog->id)
             level.dialogs[i].visible_players &= ~(1u << index);
         dialog->visible_players |= 1u << index;
-    } else {
-        bool was_visible = (dialog->visible_players & (1u << index)) != 0;
-        dialog->visible_players &= ~(1u << index);
-        if (was_visible) {
-            edict_t *ent = G_GetPlayerEntityByNumber(index);
-            if (ent && ent->client) UI_JassDialogHide(ent);
-        }
-    }
-    if (visible) {
-        edict_t *ent = G_GetPlayerEntityByNumber(player->number);
         if (ent && ent->client) UI_JassDialogShow(ent, dialog);
+    } else {
+        dialog->visible_players &= ~(1u << index);
+        if (was_visible && ent && ent->client) UI_JassDialogHide(ent);
     }
 }
 
@@ -263,7 +285,7 @@ void UI_JassDialogShow(edict_t *ent, jassDialog_t const *dialog) {
         UI_SetOnClick(button, UI_WINDOW_CLOSE_COMMAND_PREFIX "jassdialog %u %u", dialog->id, entry->id);
         ++n;
     }
-    if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is 12\n", dialog->id, omitted);
+    if (omitted) fprintf(stderr, "WC3 JASS dialog %u: omitted %u button(s); UI capacity is %d\n", dialog->id, omitted, MAX_JASS_DIALOG_UI_BUTTONS);
     /* HACK: expand the template around its generated rows; stock FDF has no variable-height choice layout. */
     UI_SetSize(root, root->Width, MAX(root->Height, content_height + 0.012f));
     UI_SetCurrentClient(ent->client);

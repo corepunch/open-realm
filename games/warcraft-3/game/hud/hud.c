@@ -110,7 +110,7 @@ static uiBackdrop_t MakeBackdrop(frameDef_t const *frame) {
             frame->Backdrop.BackgroundInsets[3],
         },
         .EdgeFile = UI_LiveImage(frame->Backdrop.EdgeFile),
-        .BlendAll = frame->Backdrop.BlendAll,
+        .Opaque = !frame->Backdrop.BlendAll, /* WC3 FDF: no BackdropBlendAll means texture alpha is ignored */
         .Mirrored = frame->Backdrop.Mirrored,
     );
 }
@@ -307,7 +307,6 @@ static uiCheckBox_t MakeCheckBox(frameDef_t const *frame) {
 static uiBackdrop_t MakeScrollBarImage(uint32_t image) {
     return MAKE(uiBackdrop_t,
         .Background = image,
-        .BlendAll = true,
     );
 }
 
@@ -340,7 +339,7 @@ static uiScrollBar_t MakeScrollBar(frameDef_t const *frame) {
     if (border) result.background.EdgeFile = border;
     if (!result.background.CornerSize) result.background.CornerSize = 0.006f;
     if (!result.background.BackgroundSize) result.background.BackgroundSize = 0.006f;
-    result.background.BlendAll = true;
+    result.background.Opaque = false; /* stock slider art relies on texture alpha */
     result.background.TileBackground = true;
 
     result.decButton = MakeScrollBarImage(up);

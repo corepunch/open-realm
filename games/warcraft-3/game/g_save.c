@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 66 adds persistent JASS choice-dialog state, button handles, and event payloads. */
-static uint32_t const save_version = 66;
+/* Version 67 tags JASS dialog/button ids with a slot-reuse generation (66 stored plain one-based slots). */
+static uint32_t const save_version = 67;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2171,6 +2171,10 @@ bool ReadGame(cstring_t filename) {
                 (unsigned)header.events, (unsigned)ActiveEventCount());
         fclose(f); return false;
     }
+    if (level.dialog_count > MAX_JASS_DIALOGS || level.dialog_button_count > MAX_JASS_DIALOG_BUTTONS) {
+        fprintf(stderr, "WC3 LoadGame: dialog slot counts %u/%u exceed capacity\n", level.dialog_count, level.dialog_button_count);
+        fclose(f); return false;
+    }
     if (level.waypoints.count > MAX_WAYPOINTS ||
         (level.waypoints.count && (level.waypoints.count != MAX_WAYPOINTS || level.waypoints.cursor >= MAX_WAYPOINTS ||
         header.num_edicts < level.waypoints.count ||
@@ -2253,9 +2257,9 @@ bool ReadGame(cstring_t filename) {
     FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) {
         G_MusicSyncClient(game.clients + i);
         UI_UpdateCursorPresentation(game.clients + i);
-        edict_t *player_ent = G_GetPlayerEntityByNumber(game.clients[i].ps.number);
-        if (player_ent) UI_JassDialogRestore(player_ent);
     }
+    /* Choice dialogs are re-sent by ClientBegin on the post-load reconnect (Q2 layouts start from the client's first
+     * frame); sending here too published the window twice. */
     /* svc_layout layers are client presentation state and are not serialized.
      * Force the restored timer-dialog model to republish on the next frame. */
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
@@ -2403,8 +2407,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-63.bin",
         "/tmp/openwarcraft3-wc3-save-version-64.bin",
         "/tmp/openwarcraft3-wc3-save-version-65.bin",
+        "/tmp/openwarcraft3-wc3-save-version-66.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66 };
 
     reset_entities();
     setup_test_world();

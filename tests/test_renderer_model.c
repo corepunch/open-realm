@@ -2883,29 +2883,42 @@ static void test_backdrop_batch(texture_t const *tex, SHADERTYPE shader, BLEND_M
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat; backdrop_calls++;
 }
-static void test_backdrop_opaque(drawImageBatchParams_t const *params) {
+static void test_backdrop_batch_ex(drawImageBatchParams_t const *params) {
     T_NOT_NULL(params); T_EQ(params->vertexCount, 6);
-    backdrop_repeat = params->repeat; backdrop_opaque_calls++;
+    backdrop_repeat = params->repeat; params->opaque ? backdrop_opaque_calls++ : backdrop_calls++;
 }
 #define R_GetTextureSize test_backdrop_size
 #define R_AddQuad test_backdrop_quad
 #define R_DrawImageBatch test_backdrop_batch
-#define R_DrawImageBatchOpaque test_backdrop_opaque
+#define R_DrawImageBatchEx test_backdrop_batch_ex
 #include "renderer/r_backdrop.c"
 #undef R_GetTextureSize
 #undef R_AddQuad
 #undef R_DrawImageBatch
-#undef R_DrawImageBatchOpaque
+#undef R_DrawImageBatchEx
 
-TEST(renderer_backdrop, alpha_blend_flag_only_selects_opaque_background_path) {
-    drawBackdrop_t draw = { .screen = {0, 0, .2f, .1f}, .bg.texture = (texture_t const *)1 };
+/* Q2 Draw_Pic never drops alpha: WoW-style backdrops (only DRAW_TILE) and translucent tints must blend. */
+TEST(renderer_backdrop, default_and_translucent_backgrounds_blend) {
+    drawBackdrop_t draw = { .screen = {0, 0, .2f, .1f}, .bg.texture = (texture_t const *)1, .bg.color = COLOR32_WHITE };
     backdrop_calls = backdrop_opaque_calls = 0;
+    R_DrawBackdrop(&draw);
+    draw.flags = DRAW_TILE;
+    R_DrawBackdrop(&draw);
+    draw.flags = 0; draw.bg.color.a = 128;
+    R_DrawBackdrop(&draw);
+    T_EQ(backdrop_calls, 3); T_EQ(backdrop_opaque_calls, 0);
+    /* A translucent tint keeps blending even when the FDF frame lacks BackdropBlendAll. */
+    draw.flags = DRAW_BG_OPAQUE;
+    R_DrawBackdrop(&draw);
+    T_EQ(backdrop_calls, 4); T_EQ(backdrop_opaque_calls, 0);
+}
 
+/* WC3 FDF backdrops without BackdropBlendAll ignore texture alpha; DRAW_BG_OPAQUE is the only opt-in. */
+TEST(renderer_backdrop, fdf_opaque_flag_selects_opaque_background_path) {
+    drawBackdrop_t draw = { .screen = {0, 0, .2f, .1f}, .bg.texture = (texture_t const *)1, .bg.color = COLOR32_WHITE, .flags = DRAW_BG_OPAQUE | DRAW_TILE };
+    backdrop_calls = backdrop_opaque_calls = 0;
     R_DrawBackdrop(&draw);
     T_EQ(backdrop_calls, 0); T_EQ(backdrop_opaque_calls, 1);
-    draw.flags = DRAW_BLEND_ALL;
-    R_DrawBackdrop(&draw);
-    T_EQ(backdrop_calls, 1); T_EQ(backdrop_opaque_calls, 1);
 }
 
 TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {

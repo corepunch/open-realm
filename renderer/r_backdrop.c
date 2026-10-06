@@ -117,19 +117,16 @@ void R_DrawBackdrop(drawBackdrop_t const *db) {
         R_AddQuad(vertices + num_vertices, &background, &bg_uv, db->bg.color, 0);
         num_vertices += 6;
 
-        drawImageBatchParams_t const image = {
+        /* Opaque is opt-in (Q2 Draw_Pic keeps alpha); a translucent tint always blends. */
+        R_DrawImageBatchEx(&(drawImageBatchParams_t){
             .texture = db->bg.texture,
             .shader = SHADER_UI,
             .alphamode = BLEND_MODE_BLEND,
             .vertices = vertices,
             .vertexCount = num_vertices,
             .repeat = (db->flags & DRAW_TILE) && (fabsf(bg_uv.w) > 1 || bg_uv.h > 1),
-        };
-        if (db->flags & DRAW_BLEND_ALL)
-            R_DrawImageBatch(db->bg.texture, SHADER_UI, BLEND_MODE_BLEND,
-                             0, 0, false, NULL, vertices, num_vertices, image.repeat);
-        else
-            R_DrawImageBatchOpaque(&image);
+            .opaque = (db->flags & DRAW_BG_OPAQUE) && db->bg.color.a == 255,
+        });
     }
 
     /* --- edge/corner quads (batched into one drawcall) --- */

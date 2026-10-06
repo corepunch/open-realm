@@ -7,9 +7,12 @@ The Warcraft game module owns `DialogCreate`, `DialogDestroy`, `DialogClear`,
 
 ## Ownership and input
 
-`level.dialogs` and `level.dialog_buttons` contain bounded, map-lifetime,
-one-based handle IDs. Destroyed and cleared handles are not recycled within a
-map: a late click cannot be mistaken for a newly created button. The server
+`level.dialogs` and `level.dialog_buttons` are bounded pools (64 dialogs, 256
+buttons). `DialogClear` and `DialogDestroy` release slots for reuse, and each
+reuse advances a generation stored in the ID's high bits
+(`(generation << 16) | (slot + 1)`). A late click, a stale registration, or a
+saved ID for a released occupant never matches the slot's new occupant.
+Exhaustion is refused and logged to stderr. The server
 retains the message, labels, hotkeys, visibility, and ownership; the universal
 client receives an ordinary server-authored `svc_window` and returns
 `jassdialog <dialog-id> <button-id>`. The game validates both IDs, parentage,
@@ -35,7 +38,7 @@ registration through the normal `GAMEEVENT` pipeline. `JASSCONTEXT` stores
 both IDs and the clicking player's `playerState`, including across coroutine
 suspension. The response survives game saves via the level event serializer,
 JASS snapshots, and stable dialog/button handle indexes. The game save version
-is **66**, and the JASS snapshot version is **7**; earlier layouts are rejected.
+is **67**, and the JASS snapshot version is **7**; earlier layouts are rejected.
 
 A choice is one-shot per `DialogDisplay` call. Re-display is allowed and does not
 recreate the JASS handles. A new dialog shown to the same player replaces the
@@ -56,9 +59,9 @@ previous active choice and clears its authoritative visible bit.
   height are generated from the runtime button count. Final visual alignment,
   actual clickable rendering, and exact retail dialog layout require in-game
   verification at 640×480 and widescreen resolutions.
-* Save restores dialog identities and visibility. The load and client-begin
-  paths republish the active choice, though manual save/reconnect testing is
-  still required.
+* Save restores dialog identities and visibility. `ClientBegin` on the
+  post-load reconnect republishes the active choice once; manual
+  save/reconnect testing is still required.
 * Nested simultaneous dialogs, priority and per-button hotkey collision rules
   need further retail verification.
 
@@ -73,7 +76,10 @@ JASS native calls, a choice event, correct `GetClickedButton` /
 duplicate click rejection. It also verifies player-number identity when a
 client slot differs from its Warcraft player number, verifies clear hides the
 matching client's window, and checks that repeated serialization reclaims
-temporary FDF frames. The disabled-label
+temporary FDF frames. Further cases cover slot reuse across 100 clear/destroy
+rounds, stale-ID rejection after reuse, malformed or foreign `jassdialog`
+commands, clicked-dialog context across a save taken while the action sleeps,
+and a single republish after load. The disabled-label
 serialization path and save-version rejection have focused regressions.
 `make test` passed with 46,715 assertions after the audit fixes. Retail visual
 alignment and campaign integration still require user-side game verification.

@@ -468,9 +468,10 @@ typedef struct {
     vertex_t const *vertices;
     uint32_t vertexCount;
     bool repeat;
+    bool opaque; /* GL_BLEND off: texture alpha ignored */
 } drawImageBatchParams_t;
 void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const *clip, vertex_t const *vertices, uint32_t num_vertices, bool repeat);
-void R_DrawImageBatchOpaque(drawImageBatchParams_t const *params);
+void R_DrawImageBatchEx(drawImageBatchParams_t const *params);
 void R_DrawMinimapScene(rect_t const *screen, cstring_t map);
 bool R_TraceMinimap(float x, float y, vec2_t *outWorld);
 bool R_WorldToMinimap(vec2_t const *world, vec2_t *outScreen);

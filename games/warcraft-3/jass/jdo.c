@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 7 // format version; persists region trigger context
+#define BZ_JASS_SNAPSHOT_VERSION 7 // format version; v7 persists dialog/button event context (clicked ids)
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
