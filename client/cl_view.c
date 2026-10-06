@@ -301,6 +301,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_NOT_SELECTABLE) re.flags |= RF_NOT_SELECTABLE;
     if (ent->current.flags & EF_BUILDING) re.flags |= RF_BUILDING;
     if (ent->current.flags & EF_UNIT) re.flags |= RF_UNIT;
+    if (ent->current.flags & EF_ALLIED) re.flags |= RF_ALLIED;
     if (ent->current.flags & EF_GROUND_CONFORM) re.flags |= RF_GROUND_CONFORM;
     if (ent->current.flags & EF_GROUND_SURFACE) re.flags |= RF_GROUND_SURFACE;
     re.radius = ent->current.radius;

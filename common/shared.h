@@ -201,6 +201,7 @@ enum {
     FLAG(RF_GROUND_CONFORM, 22), /* presentation: conform entity Z to authored model ground surfaces */
     FLAG(RF_GROUND_SURFACE, 23), /* presentation: model may provide an authored walkable support surface */
     FLAG(RF_UNIT, 24),           /* gameplay unit; prioritize in broad box-selection candidate queries */
+    FLAG(RF_ALLIED, 25),         /* recipient-relative ally; prioritize after the local player's units */
 };
 
 enum {
@@ -223,6 +224,7 @@ enum {
     FLAG(EF_RESOURCE_RETURN, 14), /* resource-return destination presentation metadata */
     FLAG(EF_HOVER_MANA, 15),      /* client may expose this entity's mana on world hover */
     FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
+    FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
 };
 
 enum {

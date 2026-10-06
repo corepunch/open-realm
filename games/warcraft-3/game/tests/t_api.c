@@ -5026,8 +5026,27 @@ TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
 
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(state.flags & EF_ALLIED);
     T_ASSERT(!(state.flags & EF_HOSTILE));
     T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_marks_passive_allies_separately_from_neutrals) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    ent.health.value = 100.0f;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_ALLIED);
+    T_ASSERT(state.flags & EF_NEUTRAL);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, false);
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(!(state.flags & EF_ALLIED));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+    T_ASSERT(state.flags & EF_HOSTILE);
 }
 
 TEST(wc3_api, selection_relation_matches_enemy_neutral_and_shared_control) {

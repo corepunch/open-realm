@@ -87,14 +87,17 @@ uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const *rect, uint32_t
     };
     uint32_t count = 0;
     /* The result is a bounded candidate list, not an authoritative selection.
-     * Put gameplay units first so map props cannot fill the list before the
-     * server gets a chance to filter them. Keep other entities in the second
-     * pass for interactions such as selecting structures by themselves. */
-    FOR_LOOP(pass, 2) {
+     * Order player units, allied units, other units, then props so scenery or
+     * hostile/neutral units cannot crowd the player's force out before the
+     * server filters candidates. Props remain available for structures-only
+     * selection. */
+    FOR_LOOP(pass, 4) {
         FOR_LOOP(i, viewdef->num_entities) {
             renderEntity_t const *ent = &viewdef->entities[i];
             bool const is_unit = (ent->flags & RF_UNIT) != 0;
-            if (is_unit != (pass == 0) || !ent->number || !ent->model ||
+            uint32_t const priority = !is_unit ? 3u : ent->owner == viewdef->player ? 0u :
+                (ent->flags & RF_ALLIED) ? 1u : 2u;
+            if (priority != pass || !ent->number || !ent->model ||
                 (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {
                 continue;
             }

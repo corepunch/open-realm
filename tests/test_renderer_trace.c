@@ -12,20 +12,26 @@ bool R_TraceModel(renderEntity_t const *ent, line3_t const *line, float *distanc
     (void)ent; (void)line; (void)distance; return false;
 }
 
-TEST(renderer_view, box_candidates_prioritize_units_before_scene_props) {
+TEST(renderer_view, box_candidates_prioritize_player_and_allied_units) {
     model_t model = {0};
-    renderEntity_t entities[94] = {0};
+    renderEntity_t entities[100] = {0};
     uint32_t selected[24] = {0};
-    viewDef_t view = { .entities = entities, .num_entities = 94, .viewport = {0, 0, 1, 1} };
+    viewDef_t view = { .entities = entities, .num_entities = 100, .viewport = {0, 0, 1, 1}, .player = 7 };
     rect_t rect = { .x = 0, .y = 0, .w = 1024, .h = 768 };
 
     Matrix4_identity(&view.viewProjectionMatrix);
     FOR_LOOP(i, 70) entities[i] = (renderEntity_t){ .number = i + 1, .model = &model, .origin = {0, 0, 0} };
-    FOR_LOOP(i, 24) entities[70 + i] = (renderEntity_t){ .number = 100 + i, .model = &model,
-        .flags = RF_UNIT, .origin = {0, 0, 0} };
+    FOR_LOOP(i, 10) entities[70 + i] = (renderEntity_t){ .number = 101 + i, .model = &model,
+        .owner = 4, .flags = RF_UNIT | RF_HOSTILE, .origin = {0, 0, 0} };
+    FOR_LOOP(i, 10) entities[80 + i] = (renderEntity_t){ .number = 201 + i, .model = &model,
+        .owner = 3, .flags = RF_UNIT | RF_ALLIED | RF_NEUTRAL, .origin = {0, 0, 0} };
+    FOR_LOOP(i, 10) entities[90 + i] = (renderEntity_t){ .number = 301 + i, .model = &model,
+        .owner = 7, .flags = RF_UNIT | RF_ALLIED, .origin = {0, 0, 0} };
 
     T_EQ(R_EntitiesInRect(&view, &rect, 24, selected), 24);
-    FOR_LOOP(i, 24) T_EQ(selected[i], 100 + i);
+    FOR_LOOP(i, 10) T_EQ(selected[i], 301 + i);
+    FOR_LOOP(i, 10) T_EQ(selected[10 + i], 201 + i);
+    FOR_LOOP(i, 4) T_EQ(selected[20 + i], 101 + i);
 }
 
 /* Exact snapshot terrain can change while the rendered target stays above a narrow depression. */

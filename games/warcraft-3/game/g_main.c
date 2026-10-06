@@ -1590,7 +1590,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         !(state->flags & EF_NOT_SELECTABLE) &&
         G_FowPlayerCanHoverEntity(player, ent);
 
-    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL);
+    state->flags &= ~(EF_HOVER_HEALTH | EF_HOVER_MANA | EF_HOSTILE | EF_NEUTRAL | EF_ALLIED);
     state->name = 0;
     state->hover_value = 0;
     state->stats[ENT_CARGO] = 0;
@@ -1622,8 +1622,11 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         if (relation == SELECT_RELATION_ENEMY) {
             state->flags |= EF_HOSTILE;
-        } else if (relation == SELECT_RELATION_NEUTRAL && hoverable) {
-            state->flags |= EF_NEUTRAL;
+        } else {
+            if (G_PlayerTreatsPlayerAsAlly(player, ent->s.player))
+                state->flags |= EF_ALLIED;
+            if (relation == SELECT_RELATION_NEUTRAL && hoverable)
+                state->flags |= EF_NEUTRAL;
         }
     }
     if (hoverable) {
