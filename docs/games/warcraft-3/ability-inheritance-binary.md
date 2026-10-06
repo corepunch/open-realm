@@ -1,6 +1,6 @@
 # Ability Inheritance: Demo and TFT Binary Evidence
 
-Inspected 2026-09-12 to refine the [ability system plan](ability-inheritance-plan.md).
+Inspected 2026-09-12 to refine the [ability system plan](ability-system.md).
 This is static analysis of local binaries, not recovered source or proof of complete behavioral parity.
 Method names below describe observed operations; original method names are unavailable.
 
@@ -155,4 +155,4 @@ Do not infer table lengths merely from consecutive executable pointers: adjacent
 known slots and cross-check constructor writes/name getters. Decompiled x86 `thiscall` arguments are often wrong;
 verify ECX setup, stack arguments and virtual-call offsets in `pdf` before assigning meaning.
 
-See also: [registry extraction](demo-ability-classes.md) and [revised implementation plan](ability-inheritance-plan.md).
+See also: [registry extraction](demo-ability-classes.md) and [revised implementation plan](ability-system.md).

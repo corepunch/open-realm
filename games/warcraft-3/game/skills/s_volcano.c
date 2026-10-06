@@ -1,7 +1,5 @@
 #include "s_skills.h"
 
-#define ID_STUN_BUFF "Bstu"
-
 /* Living ground/structure units in the blast, including spell-immune (DAMAGE_TYPE_NORMAL). */
 static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == caster || !S_SpellIsAliveTarget(target)) return false;
@@ -45,7 +43,7 @@ void volcano_think(edict_t *ent) {
         if (G_UnitIsStructure(target)) dmg *= factor;
         T_Damage(target, caster, (int)dmg);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
+            S_SpellApplyStun(target, S_SpellResistantDuration(code, level, target));
     }
     FILTER_EDICTS(target, volcano_hits_destructable(ent->goalentity, target, ent->collision, &origin))
         G_DestructableApplyDamage(target, caster, volcano_wave_damage(ent, Vector2_distance(&target->s.origin2, &origin)));

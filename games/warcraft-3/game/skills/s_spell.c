@@ -1,6 +1,7 @@
 #include "s_skills.h"
 
 #include <ctype.h>
+#include <float.h>
 #include <math.h>
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
@@ -474,6 +475,44 @@ bool S_SpellAllowsStoredCorpseTarget(uint32_t code, edict_t *caster, edict_t *ta
     return spell_allows_corpse_target(code, caster, target, true);
 }
 
+/* Corpse-consuming spells may target ordinary world corpses or corpses stored
+ * in a friendly Meat Wagon. Centralize the storage-aware target rule and the
+ * corpse's effective world position; callers still own selection policy. */
+bool S_SpellCorpseTargetPosition(uint32_t code, edict_t *caster, edict_t *corpse, vec2_t *position) {
+    if (!caster || !corpse) return false;
+    if (S_CorpseCargoIsStored(corpse)) {
+        edict_t *holder = S_CargoTransportForUnit(corpse);
+        if (!holder || !holder->inuse || holder->s.player != caster->s.player ||
+            !S_SpellAllowsStoredCorpseTarget(code, caster, corpse)) return false;
+    } else if (!S_SpellAllowsCorpseTarget(code, caster, corpse)) {
+        return false;
+    }
+    return !position || S_CorpseCargoPosition(corpse, position);
+}
+
+/* Reservation prevents another corpse consumer from claiming the same edict.
+ * The status records which ability owns the reservation so release can retire
+ * only that owner's marker. */
+void S_SpellReserveCorpse(edict_t *corpse, uint32_t code, uint32_t level) {
+    if (!corpse || !code) return;
+    corpse->aiflags |= AI_CORPSE_RESERVED;
+    unit_addstatus(corpse, GetClassName(code), level);
+}
+
+void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
+    if (!corpse) return;
+    corpse->aiflags &= ~AI_CORPSE_RESERVED;
+    if (!code) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = corpse->abilstatus + i;
+        if (status->level && status->code == code) {
+            memset(status, 0, sizeof(*status));
+            G_InvalidateUnitInfoPanel(corpse);
+            return;
+        }
+    }
+}
+
 void S_SpellHeal(edict_t *target, float amount) {
     if (!target || amount <= 0) {
         return;
@@ -525,22 +564,60 @@ void S_SpellCancelChannel(edict_t *caster) {
     }
 }
 
-/* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
-edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
+/* Delayed ability helpers that retain edict pointers use channel_t as a save-safe
+ * identity carrier even when they are not gameplay channels.  Capture both
+ * pointer generations in one place so slot reuse cannot retarget a live thinker. */
+edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) {
     edict_t *ent = G_Spawn();
-    ent->owner = caster; ent->class_id = code;
-    assert(caster->channel);
+    if (!ent) return NULL;
+    ent->owner = owner; ent->class_id = code; ent->goalentity = target;
     ent->channel = G_AllocChannel();
     assert(ent->channel);
-    ent->channel->serial = caster->channel->serial;
-    ent->channel->owner_spawn_time = caster->spawn_time;
+    ent->channel->owner_spawn_time = owner ? owner->spawn_time : 0;
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
+}
+
+/* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
+edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
+    edict_t *ent;
+    assert(caster && caster->channel);
+    ent = S_SpellIdentityThinker(caster, code, NULL);
+    if (!ent) return NULL;
+    ent->channel->serial = caster->channel->serial;
+    return ent;
+}
+
+/* Unit-target channels all need the same target identity snapshot. The owning
+ * ability still decides range checks, duration, tick policy and cleanup. */
+edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target) {
+    edict_t *ent = S_SpellChannelThinker(caster, code);
+    ent->goalentity = target;
+    ent->channel->target_spawn_time = target ? target->spawn_time : 0;
+    return ent;
+}
+
+/* Resolve the owner incarnation captured in shared channel storage. True channel
+ * casts and save-safe ability helper thinkers both use this identity carrier;
+ * liveness, timing and cancellation policy remain with the owning lifecycle. */
+edict_t *S_SpellChannelOwner(edict_t const *ent) {
+    edict_t *owner;
+    if (!ent || !ent->channel || !(owner = ent->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == ent->channel->owner_spawn_time ? owner : NULL;
+}
+
+/* Resolve the unit incarnation captured by a target-channel thinker. Liveness,
+ * range, relation and completion policy remain with the owning ability. */
+edict_t *S_SpellChannelTarget(edict_t const *ent) {
+    edict_t *target;
+    if (!ent || !ent->channel || !(target = ent->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == ent->channel->target_spawn_time ? target : NULL;
 }
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
 bool S_SpellChannelActive(edict_t *ent) {
-    edict_t *caster = ent ? ent->owner : NULL;
-    if (!caster || !caster->inuse || caster->spawn_time != ent->channel->owner_spawn_time) return false;
+    edict_t *caster = S_SpellChannelOwner(ent);
+    if (!caster) return false;
     spell_run_frame(caster);
     return !M_IsDead(caster) && caster->channel && caster->channel->code == ent->class_id &&
         caster->channel->serial == ent->channel->serial;
@@ -548,9 +625,9 @@ bool S_SpellChannelActive(edict_t *ent) {
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
 void S_SpellEndChannel(edict_t *ent) {
-    edict_t *caster = ent->owner;
-    if (caster && caster->inuse && caster->spawn_time == ent->channel->owner_spawn_time &&
-        caster->channel && caster->channel->code == ent->class_id && caster->channel->serial == ent->channel->serial)
+    edict_t *caster = S_SpellChannelOwner(ent);
+    if (caster && caster->channel && caster->channel->code == ent->class_id &&
+        caster->channel->serial == ent->channel->serial)
         S_SpellCancelChannel(caster);
     G_FreeEdict(ent);
 }
@@ -688,8 +765,8 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     if (!caster || !caster->inuse) return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
-        if (thinker->channel->owner_spawn_time == caster->spawn_time &&
-            move_is_active_order_walk(caster) && caster->goalentity == spell_approach_move_goal(thinker)) {
+        if (S_SpellChannelOwner(thinker) == caster && move_is_active_order_walk(caster) &&
+            caster->goalentity == spell_approach_move_goal(thinker)) {
             caster->goalentity = NULL;
             stop_move = true;
         }
@@ -752,7 +829,7 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
  * unit or point remains authoritative while this thinker watches the ordinary
  * Move order; replacing that order cancels the pending cast. */
 void S_SpellTargetApproachThink(edict_t *thinker) {
-    edict_t *caster = thinker ? thinker->owner : NULL;
+    edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
@@ -764,21 +841,19 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     float range;
     spellTarget_t st;
 
-    if (!caster || !caster->inuse || caster->spawn_time != thinker->channel->owner_spawn_time ||
-        M_IsDead(caster) || !target || !spell ||
+    if (!caster || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (!point_target && spell->target_type != SPELL_TARGET_UNIT &&
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
         (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
-        if (caster && caster->inuse && caster->spawn_time == thinker->channel->owner_spawn_time &&
-            caster->goalentity == thinker) {
+        if (caster && caster->goalentity == thinker) {
             caster->goalentity = NULL;
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
         return;
     }
-    if (!point_target && (!target->inuse || target->spawn_time != thinker->channel->target_spawn_time)) {
+    if (!point_target && S_SpellChannelTarget(thinker) != target) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -1049,6 +1124,223 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
     return true;
+}
+
+/* Resolve the applying entity incarnation carried by a timed status.  Status
+ * procedures own expiry/damage policy; this helper only centralizes the
+ * persistent source pointer plus source_spawn_time identity contract. */
+edict_t *S_SpellStatusSource(heroabilitystatus_t const *slot) {
+    edict_t *source;
+    if (!slot || !(source = slot->source) || !source->inuse) return NULL;
+    return source->spawn_time == slot->source_spawn_time ? source : NULL;
+}
+
+/* Shared nearest-unit acquisition for ordinary unit-target autocast abilities.
+ * Ability-specific procedures still own relation and wounded-only policy; this
+ * helper centralizes authored range, target masks, nearest-target selection and
+ * the normal cast path. */
+bool S_AutocastAcquireUnit(edict_t *caster, uint32_t code, bool friendly, bool wounded, float fallback_range) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+    float range;
+
+    if (!caster || !code) return false;
+    range = S_SpellRange(code, S_SpellLevel(caster, code));
+    if (range <= 0.0f) range = fallback_range;
+    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
+        float distance;
+        if (friendly != S_SpellIsFriend(caster, target)) continue;
+        if (wounded && target->health.value >= target->health.max_value) continue;
+        if (!S_SpellAllowsTarget(code, caster, target)) continue;
+        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
+        if ((range <= 0.0f || distance <= range) && distance < best_distance) {
+            best = target;
+            best_distance = distance;
+        }
+    }
+    return best && S_CastUnitTargetSpell(caster, code, best);
+}
+
+/* Common homing spell-missile launch contract.  The ability owns payload and
+ * impact policy; this helper owns authored MissileArt, source presentation,
+ * target identity, movement, and projectile presentation lifecycle. */
+edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *target, float speed, umove_t *move) {
+    cstring_t art;
+    edict_t *missile;
+
+    if (!caster || !target || !code || !move) return NULL;
+    missile = G_Spawn();
+    if (!missile) return NULL;
+    art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
+    missile->class_id = code;
+    missile->s.origin = caster->s.origin;
+    missile->s.angle = caster->s.angle;
+    missile->s.model = art ? G_RegisterModel(art) : 0;
+    missile->s.player = caster->s.player;
+    G_InheritUnitTeamColor(missile, caster);
+    missile->goalentity = target;
+    if (!missile->channel) missile->channel = G_AllocChannel();
+    assert(missile->channel);
+    missile->channel->owner_spawn_time = caster->spawn_time;
+    missile->channel->target_spawn_time = target->spawn_time;
+    missile->owner = caster;
+    missile->velocity = MAX(0.0f, speed) / 1000.0f;
+    missile->movetype = MOVETYPE_FLYMISSILE;
+    missile->currentmove = move;
+    G_StartProjectilePresentation(missile);
+    return missile;
+}
+
+/* Commit an already-resolved spell relocation without choosing presentation.
+ * Destination search/failure policy and source/destination art remain with the
+ * owning ability; this helper owns the authoritative position/FOW/event step. */
+void S_SpellCommitRelocation(edict_t *unit, vec2_t const *position) {
+    vec2_t old_position;
+
+    if (!unit || !position) return;
+    old_position = unit->s.origin2;
+    unit->s.origin2 = *position;
+    unit->s.origin.x = position->x;
+    unit->s.origin.y = position->y;
+    if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    gi.LinkEntity(unit);
+    G_UnitPositionChanged(unit, &old_position);
+}
+
+/* Standard relocation presentation used by Mass Teleport/Way Gate: SpecialArt
+ * at both ends layered over the presentation-neutral commit primitive. */
+void S_SpellRelocateUnit(edict_t *unit, uint32_t code, vec2_t const *position) {
+    vec2_t source;
+
+    if (!unit || !position) return;
+    source = unit->s.origin2;
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &source, true);
+    S_SpellCommitRelocation(unit, position);
+    G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+}
+
+/* Resolve the original caster incarnation carried by a homing spell missile.
+ * This mirrors target-incarnation tracking so a recycled owner edict cannot be
+ * attributed an older projectile impact. */
+edict_t *S_SpellProjectileOwner(edict_t *missile) {
+    edict_t *owner;
+    if (!missile || !missile->channel || !(owner = missile->owner) || !owner->inuse) return NULL;
+    return owner->spawn_time == missile->channel->owner_spawn_time ? owner : NULL;
+}
+
+/* Resolve the original unit incarnation carried by a homing spell missile.
+ * Callers still decide whether caster death, relation changes, or other impact
+ * conditions invalidate their ability-specific effect. */
+edict_t *S_SpellProjectileTarget(edict_t *missile) {
+    edict_t *target;
+    if (!missile || !missile->channel || !(target = missile->goalentity) || !target->inuse) return NULL;
+    return target->spawn_time == missile->channel->target_spawn_time ? target : NULL;
+}
+
+/* Shared eligibility for chained/bouncing unit spells. Selection order,
+ * timing, visited-state storage, and damage/heal progression remain with the
+ * owning ability. */
+bool S_SpellBounceTargetAllowed(edict_t *caster, uint32_t code, edict_t const *from, edict_t *target,
+                                float radius, bool friendly) {
+    if (!caster || !from || !S_SpellIsAliveTarget(target)) return false;
+    if (friendly != S_SpellIsFriend(caster, target)) return false;
+    if (!S_SpellAllowsTarget(code, caster, target)) return false;
+    return radius <= 0.0f || Vector2_distance(&target->s.origin2, &from->s.origin2) <= radius;
+}
+
+/* Synchronous bounce families keep a small local visited array. Asynchronous
+ * save-safe chains may use persistent marker edicts instead. */
+bool S_SpellTargetVisited(edict_t *const *visited, uint32_t count, edict_t const *target) {
+    if (!visited || !target) return false;
+    FOR_LOOP(i, count) if (visited[i] == target) return true;
+    return false;
+}
+
+/* Common authored metadata used by status-family procedures.  Keep fallback
+ * policy in the owning ability; this only validates the primary BuffID field. */
+cstring_t S_SpellBuffId(uint32_t code, uint32_t level) {
+    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    return buff && strlen(buff) >= 4 ? buff : NULL;
+}
+
+/* Warcraft stores separate normal/hero durations.  Some status families use
+ * hero classification while crowd-control families use the broader resistant
+ * predicate; keep those two policies explicit instead of passing a mode flag. */
+float S_SpellHeroDuration(uint32_t code, uint32_t level, edict_t const *target) {
+    return S_SpellDuration(code, level, target && G_UnitIsHero(target));
+}
+
+float S_SpellResistantDuration(uint32_t code, uint32_t level, edict_t const *target) {
+    return S_SpellDuration(code, level, target && S_UnitIsResistant(target));
+}
+
+/* AbilityData BuffID fields can contain an ordered comma-separated list. Return
+ * the requested token without allocating: Warcraft rawcodes are four bytes, so
+ * callers may pass the returned pointer directly to FS_SLKKey/status helpers. */
+cstring_t S_SpellBuffToken(cstring_t list, uint32_t index) {
+    uint32_t current = 0;
+    if (!list) return NULL;
+    for (;;) {
+        if (strlen(list) < 4) return NULL;
+        if (current == index) return list;
+        list = strchr(list, ',');
+        if (!list) return NULL;
+        list++;
+        current++;
+    }
+}
+
+/* Lowest common timed-status lifecycle: apply/replace the authored status and
+ * return its authoritative slot.  Presentation and payload remain caller-owned. */
+heroabilitystatus_t *S_SpellApplyTimedStatus(edict_t *target, cstring_t buff, uint32_t level, float duration) {
+    if (!target || !buff || strlen(buff) < 4) return NULL;
+    unit_addtimedstatus(target, buff, level, duration);
+    return unit_findstatus(target, FS_SLKKey(buff));
+}
+
+/* BTLF is lifecycle ownership rather than an ordinary dispellable buff.
+ * Callers still decide whether a zero duration means permanent lifecycle state
+ * or whether no timed-life marker should be created at all. */
+heroabilitystatus_t *S_SpellApplyTimedLife(edict_t *unit, uint32_t level, float duration) {
+    return S_SpellApplyTimedStatus(unit, "BTLF", level, duration);
+}
+
+/* Ordinary target buffs add the standard authored TargetArt on top of the
+ * shared timed-status lifecycle. */
+heroabilitystatus_t *S_SpellApplyTimedTargetStatus(edict_t *target, uint32_t code, uint32_t level, cstring_t buff, float duration) {
+    heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, level, duration);
+    if (!status) return NULL;
+    G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    return status;
+}
+
+/* Warcraft's standard stun lifecycle is always Bstu at status level one.
+ * Callers own hit validation and the exact authored/resistant duration. */
+void S_SpellApplyStun(edict_t *target, float duration) {
+    (void)S_SpellApplyTimedStatus(target, "Bstu", 1, duration);
+}
+
+/* Fixed-damage point/radius family used by simple area nukes. More selective
+ * ground/cone/target-mask/status variants keep their own enumeration policy. */
+void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float radius, uint32_t damage) {
+    if (!caster || !center) return;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
+                  Vector2_distance(&target->s.origin2, center) <= radius)
+        S_SpellDamage(target, caster, damage);
+}
+
+/* Simple persistent on/off status family. Specialized toggles such as Defend
+ * keep their own wrapper so animation and expiry policy remain ability-owned. */
+void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
+    if (!unit || !code) return;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = unit->abilstatus + i;
+        if (status->level && status->code == code) {
+            memset(status, 0, sizeof(*status));
+            return;
+        }
+    }
+    unit_addstatus(unit, GetClassName(code), level);
 }
 
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {

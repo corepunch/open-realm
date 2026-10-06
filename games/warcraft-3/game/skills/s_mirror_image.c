@@ -1,7 +1,5 @@
 #include "s_skills.h"
 
-#define ID_TIMED_LIFE "BTLF"
-
 static void mirror_image_spawn(edict_t *caster, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
     float angle;
@@ -32,7 +30,7 @@ static void mirror_image_spawn(edict_t *caster, uint32_t index, uint32_t count, 
         (caster->s.effect_flags & EFX_TEAM_COLOR_MASK);
     image->s.angle = caster->s.angle;
     if (image->stand) image->stand(image);
-    if (duration > 0.0f) unit_addtimedstatus(image, ID_TIMED_LIFE, 1, duration);
+    if (duration > 0.0f) S_SpellApplyTimedLife(image, 1, duration);
 
     /* Summon triggers are how campaign scripts discover the newly-created
      * image.  The summoner is the trigger unit and GetSummonedUnit resolves

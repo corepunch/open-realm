@@ -315,16 +315,36 @@ static bool unit_is_raisable_corpse(edict_t const *ent, bool stored) {
 
 bool G_UnitIsRaisableCorpse(edict_t const *ent) { return unit_is_raisable_corpse(ent, false); }
 bool G_UnitIsRaisableStoredCorpse(edict_t const *ent) { return unit_is_raisable_corpse(ent, true); }
+int32_t G_CorpseUnitLevel(edict_t const *ent) {
+    UnitBalance_t const *balance = ent ? ent->data.UnitBalance : NULL;
+    if (!balance && ent) balance = G_UnitBalance(ent->class_id);
+    return balance ? balance->level : 0;
+}
 
-/* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
-void G_ReviveCorpse(edict_t *ent, float life_fraction) {
+/* Corpse revival keeps handle identity while retiring every death-state owner.
+ * Permanent revival restores ordinary corpse/food policy; temporary raised
+ * summons deliberately remain outside food accounting and cannot create a new
+ * raisable corpse when their timed life later ends. */
+static void revive_corpse_state(edict_t *ent, float life_fraction, bool temporary_summon) {
+    if (!ent) return;
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
-    ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY | AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
+    ent->aiflags &= ~(AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
+    if (temporary_summon) ent->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
+    else ent->aiflags &= ~(AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY);
     G_SetHealth(ent, ent->health.max_value * MAX(0.0f, MIN(1.0f, life_fraction)));
-    G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
+    if (!temporary_summon) G_ActivateUnitFood(ent);
+    unit_stand(ent); gi.LinkEntity(ent);
+}
+
+void G_ReviveCorpse(edict_t *ent, float life_fraction) {
+    revive_corpse_state(ent, life_fraction, false);
+}
+
+void G_ReviveCorpseAsSummon(edict_t *ent, float life_fraction) {
+    revive_corpse_state(ent, life_fraction, true);
 }
 
 void unit_die(edict_t *self, edict_t *attacker) {

@@ -201,6 +201,27 @@ TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) 
             "TestUI\\Models\\anim_pulse.mdx");
 }
 
+TEST(wc3_effects, owned_target_ability_effect_records_owner_and_target_generation) {
+    uint32_t const holy_light = MAKEFOURCC('A','H','h','b');
+    edict_t *owner;
+    edict_t *target;
+    edict_t *effect;
+
+    setup_test_world();
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+
+    effect = G_SpawnOwnedAbilityEffectTarget(owner, holy_light, WC3_EFFECT_TARGET, 0, target, NULL);
+
+    T_NOT_NULL(effect);
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(effect->s.flags & EF_NOT_SELECTABLE);
+}
+
 /* ==========================================================================
  * T_Damage
  * ========================================================================== */
@@ -2736,7 +2757,7 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
-        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
+        "C;Y2;X4;K\"0.10\"\nC;Y2;X5;K\"0.20\"\nC;Y2;X6;K\"1\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *source, *target;
 
@@ -2751,6 +2772,8 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     target->attack1.damagePoint = 0.2f;
     target->hero.agi = 0;
 
+    T_FEQ(S_EnduranceMoveBonus(target), 0.10f, 0.001f);
+    T_FEQ(S_EnduranceAttackBonus(target), 0.20f, 0.001f);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
 
@@ -2779,9 +2802,9 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Area1\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
-        "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
+        "C;Y2;X4;K\"0.10\"\nC;Y2;X5;K\"0.20\"\nC;Y2;X6;K\"1\"\nE\n";
     uint32_t id = MAKEFOURCC('A','O','a','e'), levels = 5;
-    float area = 900.0f, speed = 75.0f;
+    float area = 900.0f, speed = 0.75f;
     unitModification_t mods[] = {
         { .modID = MAKEFOURCC('a','l','e','v'), .type = mod_int, .data = &levels },
         { .modID = MAKEFOURCC('a','a','r','e'), .type = mod_real, .level = 5, .data = &area },

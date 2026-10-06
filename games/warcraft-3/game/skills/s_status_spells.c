@@ -7,16 +7,16 @@ static cstring_t status_buff_fallback(uint32_t code) {
 }
 
 static cstring_t status_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    return buff && strlen(buff) >= 4 ? buff : status_buff_fallback(spell->code);
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    return buff ? buff : status_buff_fallback(spell->code);
 }
 
 static void status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = status_buff(spell, level);
     if (!st.entity || !buff) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity)));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                  S_SpellResistantDuration(spell->code, level, st.entity));
 }
 
 /* ---- Cripple (Acri) -------------------------------------------------------
@@ -151,17 +151,18 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
     if (!buffs) return;
     level = MAX(1, G_UnitAbilityLevel(attacker, code));
     seen[(*count)++] = code;
-    for (uint32_t buff_index = 0; strlen(buffs) >= 4; buff_index++) {
+    for (uint32_t buff_index = 0;; buff_index++) {
+        cstring_t buff = S_SpellBuffToken(buffs, buff_index);
         heroabilitystatus_t *slot;
         uint32_t next_tick = 0;
 
+        if (!buff) break;
         if (buff_index == 0) {
-            slot = unit_findstatus(target, FS_SLKKey(buffs));
+            slot = unit_findstatus(target, FS_SLKKey(buff));
             if (slot && slot->data == code && slot->source == attacker &&
                 slot->source_spawn_time == attacker->spawn_time) next_tick = slot->next_tick;
         }
-        unit_addtimedstatus(target, buffs, level, S_SpellDuration(code, level, S_UnitIsResistant(target)));
-        slot = unit_findstatus(target, FS_SLKKey(buffs));
+        slot = S_SpellApplyTimedStatus(target, buff, level, S_SpellResistantDuration(code, level, target));
         /* Both authored buff tokens remain visible state, but only the first
          * owns the poison pulse so a Bpoi/Bpsd pair does not double DataA DPS.
          * Same-source refresh keeps its existing pulse deadline; a new source
@@ -173,9 +174,6 @@ static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint
             slot->source_spawn_time = attacker->spawn_time;
             slot->next_tick = next_tick ? next_tick : G_Time() + POISON_TICK_MS;
         }
-        buffs = strchr(buffs, ',');
-        if (!buffs) break;
-        buffs++;
     }
 }
 

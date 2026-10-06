@@ -83,6 +83,7 @@ TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);
     T_EQ(factory->owner, fix.caster); T_EQ(factory->s.player, 0);
+    T_EQ(factory->summon_ability, BZ_ANSY);
     T_FEQ(factory->s.origin2.x, point.x, .001f); T_FEQ(factory->s.origin2.y, point.y, .001f);
     T_EQ(G_UnitStatusLevel(factory, BZ_BTLF), 1);
     T_EQ(pf_count(BZ_OGRU), 0);
@@ -120,6 +121,21 @@ TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
     G_FreeEdict(factory);
     pf_tick(2000);
     T_EQ(pf_count(BZ_OGRU), 0); T_ASSERT(!thinker->inuse);
+    pf_done(fix);
+}
+
+/* Reusing the factory edict generation must not let an older producer thinker attach to it. */
+TEST(wc3_spell, pocket_factory_recycled_factory_slot_cancels_production) {
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vec2_t point = { 128, 128 };
+    edict_t *factory, *thinker;
+    T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
+    factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
+    T_NOT_NULL(factory); T_NOT_NULL(thinker);
+    factory->spawn_time++;
+    pocket_factory_think(thinker);
+    T_ASSERT(!thinker->inuse);
+    T_EQ(pf_count(BZ_OGRU), 0);
     pf_done(fix);
 }
 

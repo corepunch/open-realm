@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 64, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 65, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -30,6 +30,8 @@ Save compatibility is deliberately unsupported. Load only the current format ver
 The server's map-selection read checks both the format version and entity size before reloading a map. The state reader applies the same guards, validates the existing checksum and reference domains, and requires the current payload to end at the commit footer.
 
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
+
+Version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
 
 Version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.
 
@@ -103,6 +105,8 @@ Version 37 adds the timer callback generation/pending fields, expands the bounde
 
 Save format version 45 adds Way Gate destination/activation values and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The exact version guard rejects version 44 saves independently of the `sizeof(edict_t)` header check. See [Way Gates](way-gates.md).
 
+Ability-owned temporary summons rely on three already-persisted parts of the edict contract together: the `owner` `F_EDICT` fixup, the scalar `summon_ability` alias, and the raw timed-status record carrying `BTLF` (`timestamp`/`duration_ms`). The save regression suite covers that combined lifecycle so a loaded temporary summon keeps both provenance and its remaining timed-life state; no additional save-format field is required.
+
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`, `AI_CORPSE_RESERVED`, and `AI_CORPSE_IN_CARGO`) rides in the already-persisted `aiflags` edict field, while the existing persisted `cargo.units[]`/`cargo.count` links the Meat Wagon to the actual stored corpse edicts. Thus cargo occupancy, corpse identity, decay move/timer, and active corpse-consumer reservation survive save/load without a new format field. Graveyard `Agyd` production uses an ordinary owner-linked thinker plus `freetime`; `graveyard_think` is in the saved callback roster, so its cadence resumes without a format change. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
 
@@ -144,7 +148,7 @@ Saving is allowed only at a VM safe point. `jass_writesnapshot()` rejects a requ
 
 `games/warcraft-3/game/g_save.c` keeps the `field_t fields[]` table synchronized with `struct edict_s` in `g_local.h`. Fixed-size
 `edict_t` and `GAMECLIENT` records are still copied as one block. Embedded non-pointer state such as `abilstatus[]` (including each
-timed status's `timestamp` and `duration_ms`), `abilitycooldowns[]` (cooldown rawcode/start/end), and the inline WC3 animation-property strings (`animation_props` and
+timed status's `timestamp`, `duration_ms`, and `source_spawn_time`), `abilitycooldowns[]` (cooldown rawcode/start/end), and the inline WC3 animation-property strings (`animation_props` and
 `animation_request`) therefore round-trip with that raw record and need no `field_t` entry. The adjacent `runtime_fields[]` and
 `client_runtime_fields[]` tables describe the process-owned bytes that must be zeroed before that copy. This keeps the
 common path memcpy-shaped while making pointer exceptions declarative rather than a hand-maintained assignment list.
@@ -496,6 +500,14 @@ Channel cast serials, saved origins, and owner/target incarnation stamps are per
 The appended channel thinker callback roster and continuation tests are described in
 [ability verification](ability-verification-review.md#dispatch-and-persistence).
 
+Ability helper thinkers may also use the existing `channel_t` pool purely as a save-safe incarnation carrier.
+Reincarnation snapshots its Hero owner, Acid Bomb snapshots both caster and victim, Flare snapshots its caster, and the
+timed Metamorphosis reversion snapshots the transformed unit before using delayed callbacks. `reincarnation_think`,
+`acid_bomb_think`, and `morph_end` are appended to the C-callback roster so saves made while those effects are pending
+restore the live callback rather than failing on an unrecognized process pointer. This
+does not make those abilities channels and adds no save-schema fields: the existing `owner`/`goalentity` `F_EDICT` links
+and `channel->owner_spawn_time` / `channel->target_spawn_time` scalars carry the contract.
+
 Save format version 39 adds the launch-time attack type for basic projectiles.
 Version 38 added the launch-time artillery attack type, target masks, splash
 radii, and damage factors so in-flight shots retain their impact profile across
@@ -569,4 +581,4 @@ All format-56 variants, including the former combat/cargo extensions and extensi
 
 Attack cooldown begins at swing start, independently of animation `wait`; it continues elapsing when another order or rooted state pauses the attack callback. A target escaping before damage point cancels the pending hit but does not erase the cooldown. A committed melee hit or projectile launch starts backswing recovery, and a save/load during recovery preserves only the remaining backswing time.
 
-Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.
+Regression coverage includes prior/future version rejection, map-selection layout rejection, current combat/cargo round-trips, invalid cargo goal references, and payloads with unexpected trailing records. Shared Warcraft III ability lifecycles also have combined round trips for an ability-owned timed summon, a live homing spell projectile (owner/target generations plus movement state), corpse reservation (flag plus owning status marker), an owned attached effect (owner plus target-generation guard), and Flare's caster-bound reveal thinker (callback, point, expiry, and owner incarnation). Far Sight remains covered separately as a player-scoped reveal thinker whose saved lifecycle is intentionally independent of caster identity. The movement suite saves a Zeppelin en route and completes its unload after restoration. Run `make test-wc3-engine WC3_PATTERN='wc3_save.*'` for both ROC and TFT.

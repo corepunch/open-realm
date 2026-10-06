@@ -521,7 +521,6 @@ bool UI_BuildFrameForWrite(frameDef_t const *frame,
                 out->points.y[anchor].used = 1;
             }
             out->color = frame->Font.Color;
-            if (*frame->Text == '\0') out->text = frame->Name;
             if (buf.cursize + sizeof(data) <= buf.maxsize) {
                 memcpy(buf.data + buf.cursize, &data, sizeof(data));
                 buf.cursize += sizeof(data);

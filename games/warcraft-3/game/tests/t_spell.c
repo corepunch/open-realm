@@ -1607,6 +1607,40 @@ TEST(wc3_spell, spell_unit_id_from_slk) {
 	free_slk_rows(rows);
 }
 
+TEST(wc3_spell, simple_ability_summons_record_owner_ability_and_timed_life) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"Dur1\"\n"
+        "C;Y1;X5;K\"UnitID1\"\n"
+        "C;Y1;X6;K\"targs\"\n"
+        "C;Y2;X1;K\"A0S1\"\n"
+        "C;Y2;X2;K\"A0S1\"\n"
+        "C;Y2;X3;K\"2\"\n"
+        "C;Y2;X4;K\"7\"\n"
+        "C;Y2;X5;K\"hfoo\"\n"
+        "C;Y2;X6;K\"ground\"\n"
+        "E\n";
+    uint32_t const code = MAKEFOURCC('A','0','S','1');
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = { 128.0f, 64.0f });
+    uint32_t count = 0;
+
+    S_SummonAbilityUnits(caster, code, &target);
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster && unit->class_id == MAKEFOURCC('h','f','o','o')) {
+        T_EQ(unit->summon_ability, code);
+        T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','T','L','F')), 1);
+        count++;
+    }
+    T_EQ(count, 2);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, hero_duration_uses_herodur_col) {
 	slkTestData_t *rows = parse_slk_string(slk_spell_data);
 	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -1625,6 +1659,88 @@ TEST(wc3_spell, spell_is_channeling_detects_active) {
 	T_ASSERT(S_SpellIsChanneling(caster));
 	caster->channel->code = 0;
 	T_ASSERT(!S_SpellIsChanneling(caster));
+}
+
+TEST(wc3_spell, identity_thinker_captures_owner_and_target_incarnations) {
+    edict_t *owner = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    edict_t *thinker = S_SpellIdentityThinker(owner, MAKEFOURCC('A','l','s','h'), target);
+    uint32_t owner_spawn = owner->spawn_time, target_spawn = target->spawn_time;
+
+    T_NOT_NULL(thinker);
+    T_ASSERT(S_SpellChannelOwner(thinker) == owner);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    owner->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    owner->spawn_time = owner_spawn;
+    target->spawn_time++;
+    T_NULL(S_SpellChannelTarget(thinker));
+    target->spawn_time = target_spawn;
+    G_FreeEdict(thinker);
+}
+
+TEST(wc3_spell, channel_owner_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *thinker;
+    uint32_t spawn_time;
+
+    if (!caster->channel) caster->channel = G_AllocChannel();
+    assert(caster->channel);
+    caster->channel->serial = 6;
+    thinker = S_SpellChannelThinker(caster, MAKEFOURCC('A','H','d','r'));
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    spawn_time = caster->spawn_time;
+    caster->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    caster->spawn_time = spawn_time;
+    G_FreeEdict(thinker);
+}
+
+TEST(wc3_spell, channel_target_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    edict_t *thinker;
+    uint32_t spawn_time;
+
+    if (!caster->channel) caster->channel = G_AllocChannel();
+    assert(caster->channel);
+    caster->channel->serial = 7;
+    thinker = S_SpellChannelTargetThinker(caster, MAKEFOURCC('A','H','d','r'), target);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    spawn_time = target->spawn_time;
+    target->spawn_time++;
+    T_NULL(S_SpellChannelTarget(thinker));
+    target->spawn_time = spawn_time;
+    G_FreeEdict(thinker);
+}
+
+TEST(wc3_spell, projectile_owner_resolves_only_captured_incarnation) {
+    edict_t *caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    edict_t *missile = G_Spawn();
+    uint32_t spawn_time = caster->spawn_time;
+
+    missile->owner = caster;
+    if (!missile->channel) missile->channel = G_AllocChannel();
+    assert(missile->channel);
+    missile->channel->owner_spawn_time = caster->spawn_time;
+    T_ASSERT(S_SpellProjectileOwner(missile) == caster);
+    caster->spawn_time++;
+    T_NULL(S_SpellProjectileOwner(missile));
+    caster->spawn_time = spawn_time;
+    G_FreeEdict(missile);
+}
+
+TEST(wc3_spell, status_source_resolves_only_captured_incarnation) {
+    edict_t *source = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
+    heroabilitystatus_t slot = { 0 };
+    uint32_t spawn_time = source->spawn_time;
+
+    slot.source = source;
+    slot.source_spawn_time = source->spawn_time;
+    T_ASSERT(S_SpellStatusSource(&slot) == source);
+    source->spawn_time++;
+    T_NULL(S_SpellStatusSource(&slot));
+    source->spawn_time = spawn_time;
 }
 
 TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
@@ -3001,6 +3117,31 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+TEST(wc3_spell, divine_shield_expiry_rejects_recycled_caster_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Cost1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"BuffID1\"\n"
+        "C;Y2;X1;K\"AHds\"\nC;Y2;X2;K\"AHds\"\nC;Y2;X3;K\"0\"\n"
+        "C;Y2;X4;K\"2\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"BHds\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "AHds" };
+    slkTestData_t *rows = parse_slk_string(slk), *old;
+    edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *thinker = NULL;
+
+    old = G_SetSLKRows("AbilityData", rows); caster->data.UnitAbilities = &abilities;
+    T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHds")));
+    FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
+    T_NOT_NULL(thinker);
+    T_NOT_NULL(thinker ? thinker->channel : NULL);
+    caster->spawn_time++;
+    caster->invulnerable = true;
+    if (thinker) { level.time = thinker->spawn_time; divine_shield_think(thinker); }
+    T_ASSERT(caster->invulnerable);
+    T_ASSERT(!thinker || !thinker->inuse);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Animate Dead rejects an empty cast, prefers the higher-level corpse, and
  * consumes that corpse into non-raisable temporary summon state. */
 TEST(wc3_spell, animate_dead_prefers_higher_level_corpse_and_restores_temporary_state) {
@@ -3717,6 +3858,10 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     memset(level.events.queue, 0, sizeof(level.events.queue));
 
     T_ASSERT(unit_issueorder(caster, "blink", &point));
+    T_FEQ(caster->s.origin2.x, point.x, 0.001f);
+    T_FEQ(caster->s.origin2.y, point.y, 0.001f);
+    T_FEQ(caster->s.origin.x, point.x, 0.001f);
+    T_FEQ(caster->s.origin.y, point.y, 0.001f);
     T_EQ(G_GetIssuedOrderId(caster), 852525);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
@@ -4388,6 +4533,34 @@ TEST(wc3_spell, moon_glaive_stock_zeros_bounce_inside_attack_range) {
 	T_FEQ(nearby->health.value, 450.0f, 0.001f);
 	T_FEQ(far_away->health.value, 500.0f, 0.001f);
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, healing_ward_records_concrete_summon_ability) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"UnitID1\"\nC;Y1;X5;K\"targs\"\n"
+        "C;Y2;X1;K\"Ahwd\"\nC;Y2;X2;K\"Ahwd\"\n"
+        "C;Y2;X3;K\"7\"\nC;Y2;X4;K\"hfoo\"\nC;Y2;X5;K\"point\"\nE\n";
+    uint32_t const code = MAKEFOURCC('A','h','w','d');
+    slkTestData_t *rows, *old;
+    edict_t *caster, *ward = NULL;
+    spellTarget_t target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = { 128.0f, 64.0f });
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','f','a','r'), 0, 0);
+    caster->s.player = 0; caster->svflags |= SVF_MONSTER;
+    T_ASSERT(test_execute_code(caster, "Ahwd", target));
+    FILTER_EDICTS(unit, unit->inuse && unit->owner == caster && unit->class_id == MAKEFOURCC('h','f','o','o')) {
+        ward = unit; break;
+    }
+    T_NOT_NULL(ward);
+    if (ward) {
+        T_EQ(ward->summon_ability, code);
+        T_EQ(G_UnitStatusLevel(ward, MAKEFOURCC('B','T','L','F')), 1);
+    }
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
 TEST(wc3_spell, purge_and_lightning_shield_registration_aliases) {

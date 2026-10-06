@@ -12,8 +12,8 @@ static void entangling_roots_tick(edict_t *target, heroabilitystatus_t *slot) {
     float damage;
 
     if (!target || !slot || !slot->level || !slot->data || !slot->rank) return;
-    source = slot->source;
-    if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) return;
+    source = S_SpellStatusSource(slot);
+    if (!source) return;
     damage = MAX(0.0f, S_SpellData(slot->data, slot->rank, 1));
     while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
         /* Damage can recurse through unit_updatestatuses(); advance first. */
@@ -54,11 +54,10 @@ BZ_ABILITY_PROC(CAbilityEntanglingRoots) {
 
         if (!spell || !target) return true;
         level = S_SpellLevel(ent, spell->code);
-        buff = G_AbilityLevel(spell->code, level)->buffID;
+        buff = S_SpellBuffId(spell->code, level);
         if (!buff || strlen(buff) < 4) return true;
-        duration = S_SpellDuration(spell->code, level, G_UnitIsHero(target));
-        unit_addtimedstatus(target, buff, level, duration);
-        slot = unit_findstatus(target, FS_SLKKey(buff));
+        duration = S_SpellHeroDuration(spell->code, level, target);
+        slot = S_SpellApplyTimedStatus(target, buff, level, duration);
         if (!slot) return true;
         slot->data = spell->code;
         slot->rank = level;

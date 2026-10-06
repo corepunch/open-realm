@@ -47,5 +47,5 @@ neutral units such as sheep can still qualify for a friendly aura if their
 target type matches the authored mask. They are distinct from static scenery.
 
 See [Regeneration Auras And Fountains](regeneration-auras.md) for the other aura
-families and [Adding Warcraft III Abilities](ability-implementation-plan.md)
+families and [Adding Warcraft III Abilities](ability-implementation.md)
 for the RoC/TFT data workflow.

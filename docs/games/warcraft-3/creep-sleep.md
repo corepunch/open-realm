@@ -180,9 +180,9 @@ the sleeper and disappears on wake, and direct damage wakes it.
 
 ## See also
 
-- [Ability ownership](ability-implementation-plan.md#ability-owned-orders-and-persistent-behavior)
+- [Ability ownership](ability-implementation.md#ability-owned-orders-and-persistent-behavior)
 - [Time of Day](time-of-day.md)
-- [JASS Native Coverage](jass-native-coverage.md)
+- [JASS Native Coverage](../../../games/warcraft-3/jass-native-coverage.md)
 - [Attack and Damage](attack-damage.md)
 - [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md)
 - [Save / Load](save-load.md)

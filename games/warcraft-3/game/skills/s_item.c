@@ -327,7 +327,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     row = G_AbilityLevel(code, 1);
     buff = row ? row->buffID : NULL;
     target = G_GetMainSelectedUnit(clent->client);
-    duration = S_SpellDuration(code, 1, G_UnitIsHero(target));
+    duration = S_SpellHeroDuration(code, 1, target);
     has_status_slot = buff && strlen(buff) == 4 && unit_findstatus(target, *((uint32_t const *)buff));
 
     if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
@@ -339,9 +339,8 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
     if (!has_status_slot) return false;
 
     target->s.renderfx |= RF_HIDDEN;
-    unit_addtimedstatus(target, buff, 1, duration);
     {
-        heroabilitystatus_t *status = unit_findstatus(target, *((uint32_t const *)buff));
+        heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
         if (status) status->data = code;
         if (status) return true;
     }
@@ -476,7 +475,7 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
     uint32_t level = 1;
     float bonus = S_SpellData(code, level, 1);
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(code, level);
     uint32_t affected = 0;
 
     if (!caster || bonus <= 0.0f || area < 0.0f || !buff || strlen(buff) < 4) {
@@ -489,9 +488,8 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
      Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= area)
 
     FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
-        float duration = S_SpellDuration(code, level, G_UnitIsHero(target));
-        unit_addtimedstatus(target, buff, level, duration);
-        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+        float duration = S_SpellHeroDuration(code, level, target);
+        S_SpellApplyTimedTargetStatus(target, code, level, buff, duration);
         affected++;
     }
 #undef ITEM_DEFENSE_AOE_TARGET

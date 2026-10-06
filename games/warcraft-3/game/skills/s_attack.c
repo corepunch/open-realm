@@ -388,7 +388,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
-        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
+        S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));
     } }
     damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
     S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);
@@ -841,17 +841,7 @@ static float attack_speed_divisor(edict_t *self) {
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
-    if (S_AuraUnitActive(self)) {
-        FOR_LOOP(i, globals.num_edicts) {
-            edict_t *aura = g_edicts + i;
-            uint32_t level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
-            abilityLevel_t const *ability_level;
-            if (!S_AuraUnitActive(aura) || !level || !S_SpellIsFriend(aura, self)) continue;
-            ability_level = G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), level);
-            if (Vector2_distance(&aura->s.origin2, &self->s.origin2) <= ability_level->area)
-                total_bonus += ability_level->data[1].number * 0.01f;
-        }
-    }
+    total_bonus += S_EnduranceAttackBonus(self);
     /* Warsmash clamps total attack-speed bonus to [-90%, +400%]. OpenRealm
      * combines authored buffs/debuffs with Agility before applying the same
      * timing bounds. */

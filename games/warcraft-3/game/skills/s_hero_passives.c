@@ -8,6 +8,7 @@
 #define ID_SPIKED_BARRICADES MAKEFOURCC('A', 's', 'p', 'i')
 #define ID_PULVERIZE MAKEFOURCC('A', 'w', 'a', 'r')
 #define ID_UNHOLY_AURA MAKEFOURCC('A', 'U', 'a', 'u')
+#define ID_ENDURANCE_AURA MAKEFOURCC('A', 'O', 'a', 'e')
 #define ID_EVASION MAKEFOURCC('A', 'E', 'e', 'v')
 #define ID_VAMPIRIC_AURA MAKEFOURCC('A', 'U', 'a', 'v')
 #define ID_THORNS_AURA MAKEFOURCC('A', 'E', 'a', 'h')
@@ -32,25 +33,31 @@ typedef struct {
 
 typedef struct {
     uint32_t code, data;
+    bool enemy;
 } aura_cache_key_t;
 
-enum { HERO_AURA_CACHE_KEYS = 10 };
+enum { HERO_AURA_CACHE_KEYS = 14 };
 
 static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
     { ID_BRILLIANCE, 1 },
     { ID_DEVOTION_AURA, 1 },
     { ID_UNHOLY_AURA, 1 },
     { ID_UNHOLY_AURA, 2 },
+    { ID_ENDURANCE_AURA, 1 },
+    { ID_ENDURANCE_AURA, 2 },
     { ID_VAMPIRIC_AURA, 1 },
     { ID_TRUESHOT_AURA, 1 },
-    { ID_THORNS_AURA, 1 }
-    ,{ ID_COMMAND_AURA, 1 }
-    ,{ ID_COMMAND_AURA_NEUTRAL, 1 }
-    ,{ ID_WAR_DRUMS, 1 }
+    { ID_THORNS_AURA, 1 },
+    { ID_COMMAND_AURA, 1 },
+    { ID_COMMAND_AURA_NEUTRAL, 1 },
+    { ID_WAR_DRUMS, 1 },
+    { ID_SLOW_AURA, 1, true },
+    { ID_SLOW_AURA, 2, true }
 };
 
 typedef struct {
     edict_t *source;
+    bool active;
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
@@ -325,10 +332,23 @@ static void regen_aura_cache_update(void) {
         entry->life_orc = actor_aura_ability(entry->source, ID_REGEN_LIFE_ORC);
         entry->life_blight = actor_aura_ability(entry->source, ID_REGEN_LIFE_BLIGHT);
         entry->mana = actor_aura_ability(entry->source, ID_REGEN_MANA);
+        entry->active = S_AuraUnitActive(entry->source);
         entry->devotion = actor_aura_ability(entry->source, ID_DEVOTION_AURA);
         entry->unholy = actor_aura_ability(entry->source, ID_UNHOLY_AURA);
         FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
-            entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
+            uint32_t k;
+            if (aura_cache_keys[j].code == ID_DEVOTION_AURA)
+                entry->combat[j] = entry->devotion;
+            else if (aura_cache_keys[j].code == ID_UNHOLY_AURA)
+                entry->combat[j] = entry->unholy;
+            else {
+                for (k = 0; k < j; k++)
+                    if (aura_cache_keys[k].code == aura_cache_keys[j].code) break;
+                if (k < j)
+                    entry->combat[j] = entry->combat[k];
+                else
+                    entry->combat[j] = actor_aura_ability(entry->source, aura_cache_keys[j].code);
+            }
             if (entry->combat[j].alias) has_combat_aura = true;
         }
         if (entry->life_orc.alias || entry->life_blight.alias || entry->mana.alias ||
@@ -536,8 +556,44 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
         if (aura_cache_keys[i].code == code && aura_cache_keys[i].data == data) { slot = i; break; }
     if (slot == sizeof(aura_cache_keys) / sizeof(*aura_cache_keys) || !unit || unit->s.number >= MAX_ENTITIES)
         return 0.0f;
+    /* Slow auras are position-dependent and their range applies immediately,
+     * so share the provider snapshot but evaluate current range and target
+     * eligibility instead of caching the recipient result. */
+    if (aura_cache_keys[slot].enemy) {
+        float result = 0.0f;
+        regen_aura_cache_update();
+        FOR_LOOP(i, regen_source_count) {
+            regenAuraSource_t const *source = regen_sources + i;
+            auraAbilityRef_t const ability = source->combat[slot];
+            edict_t *aura = source->source;
+            abilityLevel_t const *row;
+            if (!ability.alias || !S_AuraUnitActive(aura) || !S_SpellIsAliveTarget(aura) ||
+                !S_SpellIsEnemy(aura, unit)) continue;
+            row = G_AbilityLevel(ability.alias, ability.level);
+            if (Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area ||
+                !aura_allows_target(aura, unit, row->targs)) continue;
+            result = MAX(result, row->data[data - 1].number);
+        }
+        return result;
+    }
+    /* Hidden/dead/invisible transitions suppress auras immediately. The numeric
+     * values keep their retail refresh cadence, but an active-state transition
+     * invalidates the recipient snapshot before it can be observed again. */
+    if (!S_AuraUnitActive(unit)) {
+        aura_cache_next_update[unit->s.number] = 0;
+        return 0.0f;
+    }
     ability_generation = G_AbilityDataGeneration();
     aura_cache_update_time();
+    regen_aura_cache_update();
+    FOR_LOOP(i, regen_source_count) {
+        regenAuraSource_t *source = regen_sources + i;
+        bool const active = S_AuraUnitActive(source->source);
+        if (active != source->active) {
+            source->active = active;
+            aura_cache_next_update[unit->s.number] = 0;
+        }
+    }
     if (level.time >= aura_cache_next_update[unit->s.number] ||
         aura_cache_generation[unit->s.number] != ability_generation) {
         memset(aura_cache[unit->s.number], 0, sizeof(aura_cache[unit->s.number]));
@@ -545,11 +601,12 @@ static float hero_aura_bonus(edict_t *unit, uint32_t code, uint32_t data) {
         FOR_LOOP(i, regen_source_count) {
             regenAuraSource_t const *source = regen_sources + i;
             edict_t *aura = source->source;
-            if (!S_AuraUnitActive(aura) || !S_SpellIsFriend(aura, unit)) continue;
+            if (!S_AuraUnitActive(aura)) continue;
             FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
                 auraAbilityRef_t const ability = source->combat[j];
                 abilityLevel_t const *row;
                 if (!ability.alias) continue;
+                if (aura_cache_keys[j].enemy ? !S_SpellIsEnemy(aura, unit) : !S_SpellIsFriend(aura, unit)) continue;
                 row = G_AbilityLevel(ability.alias, ability.level);
                 if (Vector2_distance(&aura->s.origin2, &unit->s.origin2) > row->area ||
                     !aura_allows_target(aura, unit, row->targs)) continue;
@@ -640,9 +697,8 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
         keep = NULL;
     }
     if (!keep && desired_model) {
-        edict_t *effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0, unit, NULL, false);
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, effect_code, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
-            effect->owner = unit;
             effect->summon_ability = base_code;
             overlays[unit->s.number] = effect;
         }
@@ -676,28 +732,16 @@ float S_BrillianceManaRegen(edict_t *unit) { return hero_aura_bonus(unit, ID_BRI
 float S_DevotionArmorBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_DEVOTION_AURA, 1); }
 float S_UnholyHealthRegen(edict_t *unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
 float S_UnholyMoveBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
+float S_EnduranceMoveBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_ENDURANCE_AURA, 1); }
+float S_EnduranceAttackBonus(edict_t *unit) { return hero_aura_bonus(unit, ID_ENDURANCE_AURA, 2); }
 float S_VampiricLifeSteal(edict_t *unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
 
-static float slow_aura_bonus(edict_t const *unit, uint32_t data) {
-    float result = 0.0f;
-    if (!unit) return 0.0f;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *source = g_edicts + i;
-        auraAbilityRef_t ability;
-        abilityLevel_t const *row;
-        if (!S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source) || !S_SpellIsEnemy(source, (edict_t *)unit)) continue;
-        ability = actor_aura_ability(source, ID_SLOW_AURA);
-        if (!ability.alias) continue;
-        row = G_AbilityLevel(ability.alias, ability.level);
-        if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||
-            !aura_allows_target(source, (edict_t *)unit, row->targs)) continue;
-        result = MAX(result, row->data[data - 1].number);
-    }
-    return MAX(0.0f, MIN(0.9f, result));
+float S_SlowAuraMoveReduction(edict_t const *unit) {
+    return MAX(0.0f, MIN(0.9f, hero_aura_bonus((edict_t *)unit, ID_SLOW_AURA, 1)));
 }
-
-float S_SlowAuraMoveReduction(edict_t const *unit) { return slow_aura_bonus(unit, 1); }
-float S_SlowAuraAttackReduction(edict_t const *unit) { return slow_aura_bonus(unit, 2); }
+float S_SlowAuraAttackReduction(edict_t const *unit) {
+    return MAX(0.0f, MIN(0.9f, hero_aura_bonus((edict_t *)unit, ID_SLOW_AURA, 2)));
+}
 float S_CommandAuraAttackBonus(edict_t *unit) {
     return MAX(hero_aura_bonus(unit, ID_COMMAND_AURA, 1), hero_aura_bonus(unit, ID_COMMAND_AURA_NEUTRAL, 1));
 }
@@ -722,7 +766,7 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
 }
 
 static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(code, level);
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 

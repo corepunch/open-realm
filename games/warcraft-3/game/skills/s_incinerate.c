@@ -6,10 +6,10 @@
 /* TFT stores full/outer damage in DataB/D and radii in DataC/E; Area is deliberately zero. */
 void incinerate_explode_think(edict_t *ent) {
     uint32_t code = ent->class_id, rank = ent->resources;
-    edict_t *source = ent->owner;
+    edict_t *source = S_SpellChannelOwner(ent);
     float full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
     if (G_Time() < ent->freetime) return;
-    if (source && source->inuse && source->spawn_time == ent->channel->owner_spawn_time) {
+    if (source) {
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, source, target)) {
             float dist = Vector2_distance(&target->s.origin2, &ent->s.origin2);
             float damage = dist <= full ? S_SpellData(code, rank, 2) :
@@ -29,12 +29,11 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
     if (!ability.alias) ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE);
     code = ability.alias; rank = ability.level;
     if (!code || !rank || !target || !S_SpellAllowsTarget(code, attacker, target)) return;
-    buff = G_AbilityLevel(code, rank)->buffID;
+    buff = S_SpellBuffId(code, rank);
     /* Map overrides may omit BuffID; both Incinerate variants use BNic in the TFT profiles. */
     if (!buff || strlen(buff) < 4) buff = "BNic";
     stacks = G_UnitStatusLevel(target, FS_SLKKey(buff)) + 1;
-    unit_addtimedstatus(target, buff, stacks, S_SpellDuration(code, rank, false));
-    slot = unit_findstatus(target, FS_SLKKey(buff));
+    slot = S_SpellApplyTimedStatus(target, buff, stacks, S_SpellDuration(code, rank, false));
     if (!slot) return;
     slot->data = code; slot->rank = rank;
     slot->source = attacker; slot->source_spawn_time = attacker->spawn_time;
@@ -44,13 +43,14 @@ void S_IncinerateOnHit(edict_t *attacker, edict_t *target) {
 /* Consume the mark before spawning/damaging: nested death events must not explode it twice. */
 BZ_ABILITY_PROC(CAbilityIncinerate) {
     heroabilitystatus_t *slot = call ? call->status.slot : NULL;
-    edict_t *blast;
+    edict_t *blast, *source;
     if (msg != A_STATUS_DEATH || !slot) return CAbilityPassive(ent, msg, call);
-    if (!slot->source || !slot->source->inuse || slot->source->spawn_time != slot->source_spawn_time) {
+    source = S_SpellStatusSource(slot);
+    if (!source) {
         memset(slot, 0, sizeof(*slot));
         return true;
     }
-    blast = G_Spawn(); blast->owner = slot->source;
+    blast = G_Spawn(); blast->owner = source;
     if (!blast->channel) blast->channel = G_AllocChannel();
     assert(blast->channel);
     blast->channel->owner_spawn_time = slot->source_spawn_time;

@@ -2,7 +2,7 @@
 
 This project implements Warcraft III abilities from the authoritative game data and
 observable gameplay contract. The goal is useful, testable compatibility. TFT's extracted
-class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-inheritance-plan.md)
+class hierarchy supplies behavioral evidence; the [flat C ability plan](ability-system.md)
 uses Quake 2-style flags, enums, shared processors and message procedures without runtime object inheritance.
 
 `AbilityStrings.txt` is the starting point because it states what the player is
@@ -133,6 +133,124 @@ Keep execute/validate/absorb in the ability file. Hook shared predicates
 (`S_UnitSpellImmune`, `S_SpellDamage`) only when the brief’s buff contract
 belongs on that path. Prefer branching on authored data over a second
 procedure.
+
+When several owning procedures repeat the same lower-level mechanic, move only
+that demonstrated mechanic into a shared helper and pass the policy explicitly.
+For example, ordinary unit-target autocast acquisition uses
+`S_AutocastAcquireUnit(caster, code, friendly, wounded, fallback_range)`; the
+ability procedure still decides relation, wounded-only policy and fallback
+radius, while the helper owns nearest-candidate scanning and re-enters the normal
+`S_CastUnitTargetSpell` path. Do not force special acquisition rules such as Moon
+Well thresholds or Barkskin's existing-buff exclusion through that helper. The
+same rule applies to passive and lifecycle families: Endurance Aura and hostile
+Slow Aura consume the shared aura cache instead of open-coding recipient scans;
+the cache key owns source relation while the consumer retains any genuinely
+ability-specific clamping. Endurance Aura DataA/DataB are already fractional
+real values and must not be divided by 100 again. Temporary corpse revival uses `G_ReviveCorpseAsSummon()`
+rather than repeating the ordinary corpse teardown, and corpse-ranking policy
+reads the shared `G_CorpseUnitLevel()` accessor while each ability keeps its own
+highest/lowest and tie-break selection rule. Timed-status procedures should use `S_SpellApplyTimedStatus()` for ordinary
+presentation-neutral status writes after the owner has resolved its own BuffID
+fallback and exact duration; lifecycle tokens remain deliberately separate from
+ordinary buffs. Use `S_SpellApplyTimedLife()` for the shared `BTLF` token while
+the owner decides whether zero duration means permanent lifecycle state or no
+marker at all. Direct ability-created summons should likewise use
+`S_SummonAbilityAt()` (or `S_SummonAbilityUnits()` for the simple authored family)
+so the concrete rawcode is preserved in `summon_ability`; keep secondary units
+spawned by another summon on generic `S_SummonAt()` when that immediate entity
+ownership is the intended contract. Skill procedures should not call `unit_addtimedstatus()` directly:
+even presentation-neutral special state such as Militia expiry, Wind Walk, and
+ability-owned timed toggles now uses `S_SpellApplyTimedStatus()`, while each owner
+still keeps its transform, invisibility, animation, expiry, and payload policy. This
+presentation-neutral primitive returns the authoritative status slot, so special
+abilities can attach payload without rescanning `abilstatus`; this also replaces
+manual post-apply status lookups in Avatar/Polymorph and preserves presentation-
+neutral transfer/pulse uses such as Spell Steal, Stasis Trap, and Earthquake. Ordinary target buffs
+that also use standard authored TargetArt layer `S_SpellApplyTimedTargetStatus()`
+on top. Use `S_SpellBuffId()` for the common authored
+primary-BuffID validity check while keeping ROC/TFT fallback choice local. Use
+`S_SpellHeroDuration()` or `S_SpellResistantDuration()` for the two established
+duration policies instead of repeating the predicate at every call site.
+`S_SpellBuffToken()` only parses ordered BuffID fields; the owning ability still
+decides which token is correct. `S_SpellApplyStun()` similarly owns only the
+standard `Bstu`/level-one status application; callers keep hit validation and
+duration policy. For simple area nukes whose demonstrated contract is exactly
+“damage living enemies inside this radius,” use `S_SpellDamageEnemiesInRadius()`;
+do not force ground-only, cone, target-mask, capped-damage, or status-bearing
+variants through it.
+For homing unit-target spell missiles whose launch contract is the same, use
+`S_SpawnUnitTargetSpellMissile()` for authored MissileArt, source player/team
+presentation, target-incarnation tracking, movement and projectile presentation,
+and resolve impact targets through `S_SpellProjectileTarget()`. Keep impact policy
+inside the owning ability: Death Coil still owns Undead heal/non-Undead damage
+semantics, while Thunder/Fire Bolt owns damage and stun duration. Do not extend
+this helper to artillery/fixed-point attacks or add flags for unrelated missile
+policies.
+For timed statuses that retain an applying entity, persist both `source` and
+`source_spawn_time` and resolve later reads through `S_SpellStatusSource()`.
+Disease Cloud, Entangling Roots, and Incinerate use this contract; each still
+owns its own expiry, refresh, pulse, and damage semantics. Do not dereference a
+persisted status source directly after the source edict slot may have been reused.
+For channel thinkers, resolve the captured caster incarnation through
+`S_SpellChannelOwner()` instead of repeating `owner->inuse` / `spawn_time` checks.
+Non-channel ability helpers may use the same resolver when they explicitly snapshot
+`channel->owner_spawn_time` as an identity token. Spell approaches, Chain Lightning marker/thinker ownership,
+Mass Teleport cancellation, delayed Incinerate/death-AOE helpers, Land Mine, Reincarnation, Flare, and timed
+Metamorphosis reversion use that contract. Once the token is stored, route subsequent owner-incarnation reads through
+the resolver rather than open-coding the pointer/inuse/generation test. Their timing/effect semantics remain ability-owned.
+Save-safe ability helper thinkers that already use `channel->owner_spawn_time` as
+an incarnation token use the same resolver. Non-channel delayed helpers create
+that pointer+generation contract through `S_SpellIdentityThinker()`; current
+users include Pocket Factory, Graveyard/Exhume production, Stasis Trap arming,
+Divine Shield expiry, and Lightning Shield carrier/source tracking. This is
+identity plumbing only and
+does not make spell approaches, Chain Lightning markers, delayed explosions, or
+ward arming thinkers into channel abilities. Reveal lifecycles are intentionally not unified beyond the shared FOW writer. Far Sight owns a player-scoped, caster-independent timed reveal thinker; Flare owns a caster-bound reveal thinker and resolves its captured caster incarnation through `S_SpellChannelOwner()`. Do not replace those with one generic reveal thinker unless retail-equivalent ownership and cancellation semantics are demonstrated.
+For unit-target channel thinkers,
+use `S_SpellChannelTargetThinker()` after the
+owning procedure has validated the target. It layers the common goal pointer and
+target-incarnation snapshot onto `S_SpellChannelThinker()`; later ticks/cleanup
+resolve that snapshot through `S_SpellChannelTarget()`. Non-channel approach
+thinkers may reuse `S_SpellChannelTarget()` only when they already store the same
+`goalentity` + `channel->target_spawn_time` identity pair; spell-target approaches,
+Cannibalize/corpse-cargo approaches, Unsummon thinker lookup, and Acid Bomb use that
+contract. Route later reads of the captured target generation through the resolver.
+Range rechecks, duration, pulse cadence, pause/ownership changes, cancellation side effects and
+cleanup remain ability-owned. Do not reallocate `thinker->channel` after either
+channel constructor: the constructor already owns that lifecycle storage.
+For chained/bouncing unit spells, use `S_SpellBounceTargetAllowed()` for the
+demonstrated common candidate contract (alive, authored target mask, friendly or
+enemy relation, and jump radius) and `S_SpellTargetVisited()` for small
+synchronous visited arrays. Keep selection and lifecycle in the owner: Chain
+Lightning uses persistent marker edicts because delayed jumps must survive save
+state and chooses the nearest unvisited target; Forked Lightning retains its
+candidate/random policy; Healing Wave remains synchronous and chooses its next
+friendly according to its existing scan order. Do not replace those policies
+with a callback- or flag-driven generic chain interpreter.
+For relocation abilities, resolve destination legality and fallback in the owner,
+then use `S_SpellRelocateUnit()` only for the demonstrated common commit step:
+source/destination `SpecialArt`, FOW blocker invalidation, relink, and
+`G_UnitPositionChanged()`. Mass Teleport and Way Gate intentionally keep different
+destination/search, grouping, failure, and order-cleanup policy. Gameplay-owned persistent presentation should use the owned-effect helpers where
+possible rather than open-coding effect ownership or maintaining a parallel
+registry. This applies equally to attached effects and point-space effects (such
+as Haunted Gold Mine ring slots); ability-local tags and slot metadata stay local
+rather than being pushed into the generic effect helper. Use
+`G_SpawnOwnedAbilityEffectAtPoint()` for world-space art and
+`G_SpawnOwnedAbilityEffectTarget()` for attached target/caster art; the owning
+ability still controls extra tags, offsets, and the cleanup trigger.
+Simple persistent toggles may use `S_ToggleUnitAbilityStatus()`, but toggles with
+animation, expiry, or other side effects retain their own wrappers.
+Homing spell missiles likewise resolve the captured caster and target incarnations through
+`S_SpellProjectileOwner()` / `S_SpellProjectileTarget()`, and unit-target channel thinkers
+resolve their target through `S_SpellChannelTarget()`; the owning procedure still decides
+liveness, relation, range, impact/tick policy, and cleanup. Simple
+`UnitID` + DataA count + Dur summon procedures use `S_SummonAbilityUnits()`,
+which records the concrete ability alias on every point/ring result; specialized
+point summons use `S_SummonAbilityAt()` instead of open-coding
+`summon_ability`. The owning ability still controls effects, buffs, facing,
+corpse handling, replacement and other summon policy. See
+[Ability Message Procedures](ability-procedures.md#shared-mechanic-families). The final authoritative position commit is shared through `S_SpellCommitRelocation()` so `s.origin2` and `s.origin.x/y` stay synchronized before FOW dirtiness, relinking and position-change events even when presentation differs; `S_SpellRelocateUnit()` is the standard `SpecialArt`-at-both-ends wrapper, while Blink keeps its own source/destination art.
 
 ### 6. Verify the focused pattern, then the family
 
@@ -360,8 +478,8 @@ Display text is fetched through authored ability profiles/strings and map overri
 `G_AbilityData` / `G_AbilityLevel` by the actual rawcode.
 
 Register concrete `AbilityData.alias` row IDs and `AbilityData.code` implementation IDs, plus necessary internal
-commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-inheritance-plan.md#rawcode-and-procedure-identity)
-and [data-backed registry](ability-inheritance-plan.md#data-backed-registry) for lookup and verification details.
+commands. Do not register the abstract TFT class tree. See [behavior and identity](ability-system.md#rawcode-and-procedure-identity)
+and [data-backed registry](ability-system.md#data-backed-registry) for lookup and verification details.
 
 
 The active rawcode portion of `games/warcraft-3/game/skills/s_skills.c` is generated
@@ -523,7 +641,8 @@ Corpse-fed no-target channels keep acquisition and periodic behavior in their ab
 (Cannibalize) selects the nearest authored-target-valid corpse within `DataB`, reserves it for the active
 channel, and applies `DataA` HP/second on the simulation cadence. Full health, authored `Dur`, or normal
 channel interruption ends the cast and consumes the reserved corpse. Shared corpse eligibility honors
-`UnitData.deathType`, runtime reservation/unraisable state, and the ability's Targets Allowed field. ROC and
+`UnitData.deathType`, runtime reservation/unraisable state, the ability's Targets Allowed field, and for stored
+corpses resolves the friendly holder as the effective world position. ROC and
 TFT both author `DataA=10`, `DataB=800`, and `Dur=33` for stock `Acan`; see
 [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
@@ -769,7 +888,7 @@ Each new ability needs focused tests for:
   the status through the real expire path;
 - duration, cancellation, expiry, and repeated casts where applicable — assert the
   gameplay lock ended, not only the buff or helper;
-- save/load when the ability adds persistent entity state or a thinker;
+- save/load when the ability adds persistent entity state or a thinker; for shared lifecycle helpers prefer an end-to-end round trip of the combined contract (for example projectile owner/target generations, corpse reservation flag + marker, or owned-effect owner + target generation) rather than only independent scalar field tests;
 - ROC and TFT rows when the archives differ.
 
 For Raven Form, reproduce both completion of Morph and replacement by Move before its end callback, followed by ascent,

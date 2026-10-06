@@ -19,7 +19,7 @@ static bool stasis_land_enemy(edict_t *ward, edict_t *target, float radius) {
 }
 
 static cstring_t stasis_buff(uint32_t code, uint32_t level) {
-	cstring_t buff = G_AbilityLevel(code, level)->buffID;
+	cstring_t buff = S_SpellBuffId(code, level);
 	return (buff && strlen(buff) >= 4) ? buff : ID_STASIS_BUFF;
 }
 
@@ -35,14 +35,14 @@ static void stasis_kill_ward(edict_t *ward) {
 
 /* After DataA arm delay, DataB trigger, DataC stun + peer-ward destroy; DataD/HeroDur stun. */
 void stasis_trap_think(edict_t *thinker) {
-	edict_t *ward = thinker->owner, *peers[16];
+	edict_t *ward = S_SpellChannelOwner(thinker), *peers[16];
 	uint32_t code = thinker->class_id, level = (uint32_t)thinker->wait, pn = 0;
 	float detect, area, stun;
 	cstring_t buff;
 	bool trigger = false;
 
 	/* Match Pocket Factory: only require the ward slot; fixture UnitBalance may leave HP at 0. */
-	if (!ward || !ward->inuse) { G_FreeEdict(thinker); return; }
+	if (!ward) { G_FreeEdict(thinker); return; }
 	if (G_Time() < thinker->freetime) return;
 	detect = S_SpellData(code, level, 2);
 	FILTER_EDICTS(t, stasis_land_enemy(ward, t, detect)) { trigger = true; break; }
@@ -52,7 +52,7 @@ void stasis_trap_think(edict_t *thinker) {
 	FILTER_EDICTS(t, stasis_land_enemy(ward, t, area)) {
 		if (!t->data.UnitBalance) continue;
 		stun = G_UnitIsHero(t) ? S_SpellDuration(code, level, true) : S_SpellData(code, level, 4);
-		unit_addtimedstatus(t, buff, 1, stun);
+		(void)S_SpellApplyTimedStatus(t, buff, 1, stun);
 	}
 	FILTER_EDICTS(peer, peer != ward && peer->inuse && peer->summon_ability == ID_ASTA &&
 	              Vector2_distance(&peer->s.origin2, &ward->s.origin2) <= area)
@@ -74,14 +74,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 		fprintf(stderr, "WC3 Stasis Trap: missing UnitID for %.4s\n", (cstring_t)&spell->code);
 		return;
 	}
-	ward = S_SummonAt(caster, unit_id, &st.point, life);
+	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->summon_ability = spell->code;
 	ward->s.renderfx |= RF_HIDDEN;
-	thinker = G_Spawn();
+	thinker = S_SpellIdentityThinker(ward, spell->code, NULL);
 	if (!thinker) { G_FreeEdict(ward); return; }
-	thinker->owner = ward;
-	thinker->class_id = spell->code;
 	thinker->wait = (float)level;
 	thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, arm) * 1000.0f);
 	thinker->think = stasis_trap_think;
@@ -103,9 +100,8 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 		float life;
 		if (!ent || !call || !call->target || call->target->type != SPELL_TARGET_POINT || !unit_id) return false;
 		life = S_SpellDuration(code, level, false);
-		mine = S_SummonAt(ent, unit_id, &call->target->point, life);
+		mine = S_SummonAbilityAt(ent, code, unit_id, &call->target->point, life);
 		if (!mine) return false;
-		mine->summon_ability = code;
 		return true;
 	}
 	default:
@@ -153,13 +149,13 @@ static bool land_mine_trigger_target(edict_t *mine, edict_t *target, float radiu
  * Cast Range is the proximity trigger radius. The mine kills itself through
  * the normal death path so Amnx and scripted death events still fire. */
 void land_mine_think(edict_t *thinker) {
-	edict_t *mine = thinker ? thinker->owner : NULL;
+	edict_t *mine = S_SpellChannelOwner(thinker);
 	uint32_t code, level;
 	float radius;
 	bool trigger = false;
 
 	if (!thinker || !thinker->inuse) return;
-	if (!mine || !mine->inuse || mine->spawn_time != thinker->channel->owner_spawn_time || M_IsDead(mine)) {
+	if (!mine || M_IsDead(mine)) {
 		G_FreeEdict(thinker);
 		return;
 	}
@@ -464,9 +460,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 		fprintf(stderr, "WC3 Sentry Ward: missing UnitID for %.4s\n", (cstring_t)&spell->code);
 		return;
 	}
-	ward = S_SummonAt(caster, unit_id, &st.point, life);
+	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->summon_ability = spell->code;
 	ward->s.renderfx |= RF_HIDDEN;
 	ward->wait = S_SpellRange(ID_ADT1, 1);
 	if (ward->wait <= 0.0f)

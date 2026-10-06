@@ -391,6 +391,71 @@ TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_game, unit_health_and_mana_cheats_apply_to_selected_controllable_group) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    edict_t *first, *no_mana, *third;
+    cstring_t fill_health[] = { "unit", "health" };
+    cstring_t set_health[] = { "unit", "health", "275" };
+    cstring_t clamp_health[] = { "unit", "health", "9999" };
+    cstring_t fill_mana[] = { "unit", "mana" };
+    cstring_t set_mana[] = { "unit", "mana", "125" };
+    cstring_t clamp_mana[] = { "unit", "mana", "9999" };
+
+    setup_test_world();
+    client->connected = true;
+    client->ps.number = 0;
+    gi.CvarString = give_resources_cheat_cvar;
+    first = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    no_mana = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    third = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
+    first->svflags |= SVF_MONSTER;
+    no_mana->svflags |= SVF_MONSTER;
+    third->svflags |= SVF_MONSTER;
+    first->s.player = no_mana->s.player = third->s.player = 0;
+    first->health.max_value = 600.0f;
+    no_mana->health.max_value = 200.0f;
+    third->health.max_value = 900.0f;
+    first->health.value = no_mana->health.value = third->health.value = 50.0f;
+    first->mana.max_value = 250.0f;
+    no_mana->mana.max_value = 0.0f;
+    third->mana.max_value = 100.0f;
+    first->mana.value = 50.0f;
+    no_mana->mana.value = 7.0f; /* Detect accidental writes to a unit with no mana pool. */
+    third->mana.value = 25.0f;
+    G_SelectEntity(client, first);
+    G_SelectEntity(client, no_mana);
+    G_SelectEntity(client, third);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_health);
+    T_EQ((int)first->health.value, 600);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 900);
+    G_ClientCommand(&g_edicts[0], 3, set_health);
+    T_EQ((int)first->health.value, 275);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 275);
+    G_ClientCommand(&g_edicts[0], 3, clamp_health);
+    T_EQ((int)first->health.value, 600);
+    T_EQ((int)no_mana->health.value, 200);
+    T_EQ((int)third->health.value, 900);
+
+    G_ClientCommand(&g_edicts[0], 2, fill_mana);
+    T_EQ((int)first->mana.value, 250);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+    G_ClientCommand(&g_edicts[0], 3, set_mana);
+    T_EQ((int)first->mana.value, 125);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+    G_ClientCommand(&g_edicts[0], 3, clamp_mana);
+    T_EQ((int)first->mana.value, 250);
+    T_EQ((int)no_mana->mana.value, 7);
+    T_EQ((int)third->mana.value, 100);
+
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_game, instant_build_cheat_is_per_player_and_toggleable) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t toggle[] = { "instant", "build" };
@@ -608,28 +673,41 @@ TEST(wc3_game, starting_resource_cheat_requires_permission_at_arm_and_apply) {
 TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t god[] = { "god" }, kill[] = { "kill" };
+    cstring_t health[] = { "unit", "health" }, mana[] = { "unit", "mana" };
     edict_t *unit, *clent;
     setup_test_world();
     clent = &g_edicts[0];
     gi.CvarString = give_resources_cheat_cvar;
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!clent->invulnerable);
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
     unit->s.player = 1;
     unit->svflags |= SVF_MONSTER;
     unit->die = unit_die;
+    unit->health.value = 75.0f;
+    unit->health.max_value = 100.0f;
+    unit->mana.value = 20.0f;
+    unit->mana.max_value = 50.0f;
     G_SelectEntity(clent->client, unit);
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!unit->invulnerable);
-    T_EQ(unit->health.value, unit->health.max_value);
+    T_EQ((int)unit->health.value, 75);
+    T_EQ((int)unit->mana.value, 20);
     unit->s.player = 0;
     gi.CvarString = starting_resources_cheat_cvar;
     G_ClientCommand(clent, 1, god);
     G_ClientCommand(clent, 1, kill);
+    G_ClientCommand(clent, 2, health);
+    G_ClientCommand(clent, 2, mana);
     T_ASSERT(!unit->invulnerable);
-    T_EQ(unit->health.value, unit->health.max_value);
+    T_EQ((int)unit->health.value, 75);
+    T_EQ((int)unit->mana.value, 20);
     gi.CvarString = old_cvar;
 }
 
@@ -1912,6 +1990,22 @@ TEST(wc3_game, selected_unit_portrait_invalidation_marks_selecting_client_dirty)
 
     T_ASSERT(selected_client->presentation_dirty);
     T_ASSERT(!other_client->presentation_dirty);
+}
+
+TEST(wc3_game, hud_empty_text_frame_serializes_empty_text) {
+    FRAMEDEF frame;
+    uiFrame_t wire = {0};
+    uint8_t typedata[128] = {0};
+    char textbuf[128] = {0};
+
+    UI_InitFrame(&frame, FT_STRING);
+    snprintf(frame.Name, sizeof(frame.Name), "SimpleClassValue");
+    UI_SetText(&frame, "%s", "");
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_NOT_NULL(wire.text);
+    T_STREQ(wire.text, "");
 }
 
 TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
@@ -3977,6 +4071,181 @@ SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
+
+TEST(wc3_save, ability_owned_timed_summon_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-ability-owned-timed-summon.bin";
+    edict_t *owner, *summon;
+    heroabilitystatus_t *timed_life;
+
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('H', 'a', 'm', 'g'), 0.0f, 0.0f);
+    summon = alloc_test_unit(MAKEFOURCC('h', 'w', 'a', 't'), 64.0f, 0.0f);
+    summon->owner = owner;
+    summon->summon_ability = MAKEFOURCC('A', 'H', 'w', 'e');
+    timed_life = &summon->abilstatus[2];
+    *timed_life = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B', 'T', 'L', 'F'),
+        .level = 1,
+        .timestamp = 1234,
+        .duration_ms = 45000,
+    };
+
+    T_ASSERT(WriteGame(filename));
+    summon->owner = NULL;
+    summon->summon_ability = 0;
+    memset(timed_life, 0, sizeof(*timed_life));
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(summon->owner == owner);
+    T_EQ(summon->summon_ability, MAKEFOURCC('A', 'H', 'w', 'e'));
+    T_EQ(timed_life->code, MAKEFOURCC('B', 'T', 'L', 'F'));
+    T_EQ(timed_life->level, 1);
+    T_EQ(timed_life->timestamp, 1234);
+    T_EQ(timed_life->duration_ms, 45000);
+    remove(filename);
+}
+
+TEST(wc3_save, homing_spell_projectile_round_trip_preserves_identity_contract) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-homing-spell-projectile.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'H', 't', 'b');
+    edict_t *caster, *target, *missile;
+
+    setup_test_world();
+    reset_entities();
+    caster = alloc_test_unit(MAKEFOURCC('H', 'm', 't', 'k'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128.0f, 0.0f);
+    caster->s.player = 0;
+    target->s.player = 1;
+    missile = S_SpawnUnitTargetSpellMissile(caster, ability, target, 900.0f, &holdpos_move_stand);
+
+    T_NOT_NULL(missile);
+    T_ASSERT(missile->owner == caster);
+    T_ASSERT(missile->goalentity == target);
+    T_ASSERT(missile->channel);
+    T_EQ(missile->channel->owner_spawn_time, caster->spawn_time);
+    T_EQ(missile->channel->target_spawn_time, target->spawn_time);
+    T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    T_ASSERT(WriteGame(filename));
+
+    missile->owner = NULL;
+    missile->goalentity = NULL;
+    missile->class_id = 0;
+    missile->velocity = 0.0f;
+    missile->movetype = MOVETYPE_NONE;
+    missile->currentmove = NULL;
+    missile->channel->owner_spawn_time = 0;
+    missile->channel->target_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(S_SpellProjectileOwner(missile) == caster);
+    T_ASSERT(S_SpellProjectileTarget(missile) == target);
+    T_EQ(missile->class_id, ability);
+    T_FEQ(missile->velocity, 0.9f, 0.001f);
+    T_EQ(missile->movetype, MOVETYPE_FLYMISSILE);
+    T_ASSERT(missile->currentmove == &holdpos_move_stand);
+    remove(filename);
+}
+
+TEST(wc3_save, flare_reveal_thinker_round_trip_preserves_caster_identity) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-flare-reveal-thinker.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'f', 'l', 'a');
+    edict_t *caster, *thinker;
+
+    reset_entities();
+    caster = alloc_test_unit(MAKEFOURCC('h', 'r', 'i', 'f'), 0.0f, 0.0f);
+    caster->s.player = 2;
+    thinker = G_Spawn();
+    thinker->owner = caster;
+    thinker->class_id = ability;
+    thinker->s.origin2 = (vec2_t){ 192.0f, -64.0f };
+    thinker->spawn_time = 34567;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
+    thinker->think = human_ability_think;
+
+    T_ASSERT(WriteGame(filename));
+    thinker->owner = NULL;
+    thinker->class_id = 0;
+    thinker->s.origin2 = (vec2_t){ 0 };
+    thinker->spawn_time = 0;
+    thinker->channel->owner_spawn_time = 0;
+    thinker->think = NULL;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(thinker->think == human_ability_think);
+    T_ASSERT(S_SpellChannelOwner(thinker) == caster);
+    T_EQ(thinker->class_id, ability);
+    T_FEQ(thinker->s.origin2.x, 192.0f, 0.001f);
+    T_FEQ(thinker->s.origin2.y, -64.0f, 0.001f);
+    T_EQ(thinker->spawn_time, 34567);
+    T_EQ(thinker->channel->owner_spawn_time, caster->spawn_time);
+
+    caster->spawn_time++;
+    T_NULL(S_SpellChannelOwner(thinker));
+    remove(filename);
+}
+
+TEST(wc3_save, corpse_reservation_round_trip_preserves_owner_marker) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-corpse-reservation.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'u', 'c', 'a');
+    edict_t *corpse;
+    heroabilitystatus_t *reservation;
+
+    reset_entities();
+    corpse = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    corpse->health.value = 0;
+    S_SpellReserveCorpse(corpse, ability, 2);
+
+    T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
+    T_ASSERT(unit_findstatus(corpse, ability));
+    T_ASSERT(WriteGame(filename));
+
+    corpse->aiflags &= ~AI_CORPSE_RESERVED;
+    memset(corpse->abilstatus, 0, sizeof(corpse->abilstatus));
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(corpse->aiflags & AI_CORPSE_RESERVED);
+    reservation = unit_findstatus(corpse, ability);
+    T_NOT_NULL(reservation);
+    if (reservation) T_EQ(reservation->level, 2);
+    S_SpellReleaseCorpse(corpse, ability);
+    T_ASSERT(!(corpse->aiflags & AI_CORPSE_RESERVED));
+    T_NULL(unit_findstatus(corpse, ability));
+    remove(filename);
+}
+
+TEST(wc3_save, owned_target_effect_round_trip_preserves_owner_and_target_generation) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-owned-target-effect.bin";
+    uint32_t const ability = MAKEFOURCC('A', 'H', 'h', 'b');
+    edict_t *owner, *target, *effect;
+
+    setup_test_world();
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    effect = G_SpawnOwnedAbilityEffectTarget(owner, ability, WC3_EFFECT_TARGET, 0, target, NULL);
+
+    T_NOT_NULL(effect);
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(WriteGame(filename));
+
+    effect->owner = NULL;
+    effect->goalentity = NULL;
+    effect->damage = 0;
+    effect->movetype = MOVETYPE_NONE;
+    T_ASSERT(ReadGame(filename));
+
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(effect->s.flags & EF_NOT_SELECTABLE);
+    remove(filename);
+}
 SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
 SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
@@ -4509,6 +4778,28 @@ TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
 
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction->primary_builder", construction->primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus.source", abilstatus[3].source, 0)
+
+TEST(wc3_save, status_source_incarnation_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-status-source-incarnation.bin";
+    reset_entities();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f);
+    heroabilitystatus_t *slot = &unit->abilstatus[3];
+
+    slot->code = MAKEFOURCC('B', 'E', 'e', 'r');
+    slot->level = 1;
+    slot->source = source;
+    slot->source_spawn_time = source->spawn_time;
+    T_ASSERT(WriteGame(filename));
+    slot->source = NULL;
+    slot->source_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(slot->source == source);
+    T_EQ(slot->source_spawn_time, source->spawn_time);
+    source->spawn_time++;
+    T_NULL(S_SpellStatusSource(slot));
+    remove(filename);
+}
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction->worker", construction->worker, 0)
 SAVE_PTR_FIELD_TEST(field_rally_entity_round_trip, "rally->entity", rally->entity, 0)
 SAVE_PTR_FIELD_TEST(field_revival_producer_round_trip, "revival->producer", revival->producer, 0)
@@ -4671,6 +4962,9 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     edict_t *cannibalize_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 15.0f, 0.0f);
     edict_t *land_mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 16.0f, 0.0f);
     edict_t *death_aoe = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 17.0f, 0.0f);
+    edict_t *reincarnation = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 18.0f, 0.0f);
+    edict_t *acid_bomb = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 19.0f, 0.0f);
+    edict_t *morph = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 20.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
@@ -4680,6 +4974,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     portal->think = dark_portal_think; spray->think = healing_spray_think;
     cargo_approach->think = corpse_cargo_approach_think; cannibalize_approach->think = cannibalize_approach_think;
     land_mine->think = land_mine_think; death_aoe->think = death_damage_aoe_think;
+    reincarnation->think = reincarnation_think; acid_bomb->think = acid_bomb_think;
+    morph->think = morph_end;
     can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
@@ -4697,11 +4993,26 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     assert(chain_marker->channel);
     chain_marker->owner = chain; chain_marker->channel->owner_spawn_time = chain->spawn_time;
     chain_marker->goalentity = mine; chain_marker->resources = mine->spawn_time;
+    reincarnation->owner = unit; reincarnation->class_id = MAKEFOURCC('A', 'O', 'r', 'e');
+    reincarnation->channel = G_AllocChannel(); assert(reincarnation->channel);
+    reincarnation->channel->owner_spawn_time = unit->spawn_time;
+    acid_bomb->owner = unit; acid_bomb->goalentity = mine; acid_bomb->class_id = MAKEFOURCC('A', 'N', 'a', 'b');
+    acid_bomb->channel = G_AllocChannel(); assert(acid_bomb->channel);
+    acid_bomb->channel->owner_spawn_time = unit->spawn_time;
+    acid_bomb->channel->target_spawn_time = mine->spawn_time;
+    morph->owner = unit; morph->resources = MAKEFOURCC('h', 'd', 'h', 'u');
+    morph->channel = G_AllocChannel(); assert(morph->channel);
+    morph->channel->owner_spawn_time = unit->spawn_time;
     T_ASSERT(WriteGame(filename));
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
     cargo_approach->think = cannibalize_approach->think = monster_think;
     land_mine->think = death_aoe->think = monster_think;
+    reincarnation->think = acid_bomb->think = morph->think = monster_think;
+    reincarnation->owner = acid_bomb->owner = acid_bomb->goalentity = morph->owner = NULL;
+    reincarnation->channel->owner_spawn_time = acid_bomb->channel->owner_spawn_time = 0;
+    acid_bomb->channel->target_spawn_time = morph->channel->owner_spawn_time = 0;
+    morph->resources = 0;
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
@@ -4722,6 +5033,14 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_ASSERT(cargo_approach->think == corpse_cargo_approach_think &&
              cannibalize_approach->think == cannibalize_approach_think);
     T_ASSERT(land_mine->think == land_mine_think && death_aoe->think == death_damage_aoe_think);
+    T_ASSERT(reincarnation->think == reincarnation_think && acid_bomb->think == acid_bomb_think);
+    T_ASSERT(reincarnation->owner == unit && acid_bomb->owner == unit && acid_bomb->goalentity == mine);
+    T_EQ(reincarnation->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(acid_bomb->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(acid_bomb->channel->target_spawn_time, mine->spawn_time);
+    T_ASSERT(morph->think == morph_end && morph->owner == unit);
+    T_EQ(morph->channel->owner_spawn_time, unit->spawn_time);
+    T_EQ(morph->resources, MAKEFOURCC('h', 'd', 'h', 'u'));
     T_ASSERT(can->think == cannibalize_think && pos->think == possession_two_think && lsh->think == lsh_think);
     T_ASSERT(far_sight->think == far_sight_think);
     T_EQ(far_sight->s.player, 3); T_FEQ(far_sight->s.origin2.x, 123.0f, 0.001f);
@@ -4736,6 +5055,30 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     T_EQ(chain_marker->class_id, MAKEFOURCC('C', 'L', 'v', 's')); T_ASSERT(chain_marker->svflags & SVF_NOCLIENT);
     T_ASSERT(chain_marker->owner == chain && chain_marker->goalentity == mine);
     T_EQ(chain_marker->channel->owner_spawn_time, chain->spawn_time); T_EQ(chain_marker->resources, mine->spawn_time);
+    remove(filename);
+}
+
+TEST(wc3_save, round_trip_nonchannel_identity_thinker_generations) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-identity-thinker.bin";
+    edict_t *owner, *target, *thinker;
+
+    reset_entities(); setup_test_world();
+    owner = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+    thinker = S_SpellIdentityThinker(owner, MAKEFOURCC('A','l','s','h'), target);
+    T_NOT_NULL(thinker);
+    if (!thinker) return;
+    thinker->think = lsh_think;
+    T_ASSERT(WriteGame(filename));
+    thinker->owner = thinker->goalentity = NULL;
+    thinker->channel->owner_spawn_time = thinker->channel->target_spawn_time = 0;
+    thinker->think = NULL;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(thinker->think == lsh_think);
+    T_ASSERT(S_SpellChannelOwner(thinker) == owner);
+    T_ASSERT(S_SpellChannelTarget(thinker) == target);
+    T_EQ(thinker->channel->owner_spawn_time, owner->spawn_time);
+    T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
     remove(filename);
 }
 

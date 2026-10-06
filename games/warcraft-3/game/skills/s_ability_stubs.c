@@ -52,7 +52,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
                            Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= radius)
     FILTER_EDICTS(target, WAR_STOMP_HITS(target)) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && duration > 0.0f)
-            unit_addtimedstatus(target, "Bstu", 1, duration);
+            S_SpellApplyStun(target, duration);
     }
 #undef WAR_STOMP_HITS
 }
@@ -92,20 +92,20 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
         return;
     }
-    unit_addtimedstatus(target, buff, level, S_SpellData(spell->code, level, 1));
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    S_SpellApplyTimedTargetStatus(target, spell->code, level, buff,
+                                  S_SpellData(spell->code, level, 1));
 }
 
 void divine_shield_think(edict_t *ent) {
-    edict_t *caster = ent->owner;
+    edict_t *caster = S_SpellChannelOwner(ent);
 
-    if (!caster || !caster->inuse) {
+    if (!caster) {
         G_FreeEdict(ent);
         return;
     }
@@ -120,16 +120,15 @@ void divine_shield_think(edict_t *ent) {
 BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    edict_t *thinker = G_Spawn();
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    edict_t *thinker = S_SpellIdentityThinker(caster, 0, NULL);
 
     if (!thinker) return;
-    thinker->owner = caster;
     thinker->resources = caster->invulnerable;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     caster->invulnerable = true;
     thinker->think = divine_shield_think;
-    if (buff && strlen(buff) >= 4) unit_addtimedstatus(caster, buff, level, duration);
+    if (buff && strlen(buff) >= 4) S_SpellApplyTimedStatus(caster, buff, level, duration);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
 }
 

@@ -90,6 +90,8 @@ TEST(wc3_waygate, smart_use_reads_rectangular_authored_data_and_teleports) {
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_FEQ(fix.unit->s.origin2.x, 400.0f, 0.001f);
     T_FEQ(fix.unit->s.origin2.y, 320.0f, 0.001f);
+    T_FEQ(fix.unit->s.origin.x, 400.0f, 0.001f);
+    T_FEQ(fix.unit->s.origin.y, 320.0f, 0.001f);
     assert_no_waygate_order(fix.unit);
     waygate_done(fix);
 }

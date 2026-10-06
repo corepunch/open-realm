@@ -77,7 +77,7 @@ The FDF continues to own the frame's authored anchor and height.
 
 ## Label And Buff Icons
 
-When the selected unit has a qualifying status, `WriteSimpleUnitHeader()` resolves the status rawcode through `StatusBuffCode()` and `StatusBuffField(..., "Bufftip")`. That text temporarily owns `SimpleClassValue`, matching Warsmash's `timedLifeBar()` callback.
+When the selected unit has a qualifying status, `WriteSimpleUnitHeader()` resolves the status rawcode through `StatusBuffCode()` and `StatusBuffField(..., "Bufftip")`. That text temporarily owns `SimpleClassValue`, matching Warsmash's `timedLifeBar()` callback. If the qualifying buff has no `Bufftip`, the label is intentionally empty while the progress bar remains visible; HUD serialization must preserve that empty string rather than substituting the FDF frame name.
 
 When no qualifying timer is active, the ordinary class behavior returns:
 

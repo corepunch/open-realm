@@ -78,8 +78,7 @@ static bool unsummon_target_valid(edict_t *worker, edict_t *building) {
 }
 
 static bool unsummon_thinker_target_valid(edict_t *thinker, edict_t *building) {
-    return thinker && building && building->inuse &&
-        building->spawn_time == thinker->channel->target_spawn_time &&
+    return thinker && building && S_SpellChannelTarget(thinker) == building &&
         S_SpellIsAliveTarget(building) && building->s.player == thinker->s.player &&
         G_UnitIsStructure(building);
 }
@@ -159,8 +158,7 @@ void unsummon_think(edict_t *thinker) {
     if (!thinker) return;
     if (thinker->unsummon->approaching) return;
     if (!unsummon_thinker_target_valid(thinker, building) || M_IsDead(building)) {
-        if (building && building->inuse && building->spawn_time == thinker->channel->target_spawn_time)
-            unsummon_remove_status(building);
+        if (S_SpellChannelTarget(thinker) == building) unsummon_remove_status(building);
         unsummon_end_effect(thinker);
         S_SpellEndChannel(thinker);
         return;
@@ -200,8 +198,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
     worker->unsummon->starting = false;
     unsummon_add_status(building);
     {
-        edict_t *effect = G_SpawnAbilityEffectTarget(ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL, false);
-        if (effect) effect->owner = thinker;
+        G_SpawnOwnedAbilityEffectTarget(thinker, ID_UNSUMMON_BUFF, WC3_EFFECT_TARGET, 0, building, NULL);
     }
 }
 
@@ -228,7 +225,7 @@ static void ai_unsummon_walk(edict_t *worker) {
             ent->owner == worker && ent->class_id == worker->unsummon->ability &&
             ent->channel->serial == worker->channel->serial &&
             ent->unsummon->target == building &&
-            ent->channel->target_spawn_time == building->spawn_time) {
+            S_SpellChannelTarget(ent) == building) {
             thinker = ent;
             break;
         }
@@ -259,11 +256,7 @@ static void unsummon_execute(edict_t *caster, spellTarget_t st, abilityitem_t co
         S_SpellCancelChannel(caster);
         return;
     }
-    thinker = S_SpellChannelThinker(caster, spell->code);
-    thinker->goalentity = st.entity;
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    thinker->channel->target_spawn_time = st.entity->spawn_time;
+    thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->s.player = st.entity->s.player;
     thinker->resources = level;
     thinker->think = unsummon_think;
@@ -301,9 +294,8 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         if (!thinker->unsummon->approaching) {
             continue;
         }
-        if (thinker->goalentity && thinker->goalentity->inuse &&
-            thinker->goalentity->spawn_time == thinker->channel->target_spawn_time)
-            unsummon_remove_status(thinker->goalentity);
+        edict_t *target = S_SpellChannelTarget(thinker);
+        if (target) unsummon_remove_status(target);
         thinker->unsummon->target = NULL;
         thinker->unsummon->approaching = false;
         thinker->goalentity = NULL;
