@@ -20,6 +20,18 @@ typedef struct {
     cstring_t (*configstring)(uint32_t);
 } canvasCap_t;
 static canvasCap_t cap;
+static cstring_t const canvas_esc_menu_keys[] = {
+    "EscMenuBackground",
+    "EscMenuButtonBackground",
+    "EscMenuButtonPushedBackground",
+    "EscMenuButtonDisabledBackground",
+    "EscMenuButtonDisabledPushedBackground",
+    "EscMenuButtonBorder",
+    "EscMenuButtonPushedBorder",
+    "EscMenuButtonDisabledBorder",
+    "EscMenuButtonDisabledPushedBorder",
+    "EscMenuButtonMouseOverHighlight",
+};
 
 static int canvas_image_index(cstring_t name) {
     if (!name || !*name) return 0;
@@ -112,20 +124,54 @@ TEST(wc3_canvas, console_load_defers_widescreen_tiles_and_collects_their_frames)
     canvas_teardown();
 }
 
-TEST(wc3_canvas, esc_menu_background_keeps_its_skin_key_separate_from_button_art) {
-    uint32_t background, button, pushed;
-    canvas_setup();
-    background = UI_LoadTexture("EscMenuBackground", true);
-    button = UI_LoadTexture("EscMenuButtonBackground", true);
-    pushed = UI_LoadTexture("EscMenuButtonPushedBackground", true);
+TEST(wc3_canvas, esc_menu_art_resolves_for_each_race_and_fits_deferred_table) {
+    gameClient_t client = { 0 };
+    gameClient_t *saved_client = ui_current_client;
+    char skin_text[4096];
+    size_t skin_size = 0;
+    uint32_t image[sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0])];
 
-    T_ASSERT(background >= HUD_DEFERRED_IMAGE_BASE);
-    T_STREQ(UI_ImageKey(background), "EscMenuBackground");
-    T_ASSERT(button >= HUD_DEFERRED_IMAGE_BASE);
-    T_STREQ(UI_ImageKey(button), "EscMenuButtonBackground");
-    T_ASSERT(pushed >= HUD_DEFERRED_IMAGE_BASE);
-    T_STREQ(UI_ImageKey(pushed), "EscMenuButtonPushedBackground");
-    T_ASSERT(background != button && button != pushed && background != pushed);
+    canvas_setup();
+
+    Stb_IniCacheFree(&game.config.theme);
+    memset(&game.config.theme, 0, sizeof(game.config.theme));
+    skin_size += (size_t)snprintf(skin_text + skin_size, sizeof(skin_text) - skin_size, "[NightElf]\n");
+    FOR_LOOP(i, sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0]))
+        skin_size += (size_t)snprintf(skin_text + skin_size, sizeof(skin_text) - skin_size,
+            "%s=TestUI\\Textures\\nightelf-%u.blp\n", canvas_esc_menu_keys[i], (unsigned)i);
+    skin_size += (size_t)snprintf(skin_text + skin_size, sizeof(skin_text) - skin_size, "\n[Undead]\n");
+    FOR_LOOP(i, sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0]))
+        skin_size += (size_t)snprintf(skin_text + skin_size, sizeof(skin_text) - skin_size,
+            "%s=TestUI\\Textures\\undead-%u.blp\n", canvas_esc_menu_keys[i], (unsigned)i);
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.theme, skin_text));
+
+    FOR_LOOP(i, sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0])) {
+        image[i] = UI_LoadTexture(canvas_esc_menu_keys[i], true);
+        T_ASSERT(image[i] >= HUD_DEFERRED_IMAGE_BASE);
+        T_ASSERT(image[i] < HUD_DEFERRED_IMAGE_BASE + HUD_DEFERRED_IMAGES);
+        T_STREQ(UI_ImageKey(image[i]), canvas_esc_menu_keys[i]);
+        FOR_LOOP(j, i) T_ASSERT(image[i] != image[j]);
+    }
+    /* ConsoleUI.fdf already occupies two deferred slots; all ten EscMenu keys must still fit. */
+    T_STREQ(UI_ImageKey(HUD_DEFERRED_IMAGE_BASE + 12), "");
+
+    UI_SetCurrentClient(&client);
+    client.ps.race = kPlayerRaceNightElf;
+    FOR_LOOP(i, sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0])) {
+        uint32_t live = UI_LiveImage(image[i]);
+        T_ASSERT(live > 0 && live < MAX_IMAGES);
+        T_STREQ(cap.images[live], UI_ThemeImagePath(canvas_esc_menu_keys[i]));
+        T_ASSERT(strstr(cap.images[live], "nightelf-") != NULL);
+    }
+    client.ps.race = kPlayerRaceUndead;
+    FOR_LOOP(i, sizeof(canvas_esc_menu_keys) / sizeof(canvas_esc_menu_keys[0])) {
+        uint32_t live = UI_LiveImage(image[i]);
+        T_ASSERT(live > 0 && live < MAX_IMAGES);
+        T_STREQ(cap.images[live], UI_ThemeImagePath(canvas_esc_menu_keys[i]));
+        T_ASSERT(strstr(cap.images[live], "undead-") != NULL);
+    }
+    UI_SetCurrentClient(saved_client);
+
     canvas_teardown();
 }
 
