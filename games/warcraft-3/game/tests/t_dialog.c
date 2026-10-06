@@ -137,4 +137,43 @@ TEST(wc3_dialog, clicking_publishes_only_matching_registrations) {
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
+
+TEST(wc3_dialog, click_visibility_uses_player_number_not_client_slot) {
+    jassDialog_t *dialog;
+    jassDialogButton_t *button;
+    uint32_t const player_number = 5;
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " dialog route = null\n"
+        " button choice = null\n"
+        " integer selection = 0\n"
+        "endglobals\n"
+        "function onDialog takes nothing returns nothing\n"
+        " if GetClickedDialog() == route and GetClickedButton() == choice and GetTriggerPlayer() == Player(5) then\n"
+        "  set selection = 1\n"
+        " endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        " local trigger t = CreateTrigger()\n"
+        " set route = DialogCreate()\n"
+        " set choice = DialogAddButton(route, \"Continue\", 0)\n"
+        " call TriggerRegisterDialogEvent(t, route)\n"
+        " call TriggerAddAction(t, function onDialog)\n"
+        "endfunction\n"
+        "function verify takes nothing returns nothing\n"
+        " call BJassAssert(selection == 1, \"player number is preserved\")\n"
+        "endfunction\n"));
+    dialog = G_JassDialogById(1);
+    button = G_JassDialogButtonById(1);
+    T_NOT_NULL(dialog); T_NOT_NULL(button);
+    game.clients[0].ps.number = player_number;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1u << player_number;
+    G_JassDialogClick(g_edicts, dialog->id, button->id);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verify", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
 #endif

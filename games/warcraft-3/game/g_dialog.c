@@ -4,9 +4,10 @@
 #include "hud/hud_local.h"
 
 static bool DialogIsPlayer(player_t const *player, uint32_t *number) {
-    if (!player || !game.clients) return false;
+    if (!player || !number || !game.clients) return false;
     FOR_LOOP(i, game.max_clients) if (player == &game.clients[i].ps && i < 32) {
-        *number = i;
+        if (player->number >= 32) return false;
+        *number = player->number;
         return true;
     }
     return false;
