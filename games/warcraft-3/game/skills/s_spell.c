@@ -559,6 +559,7 @@ void S_SpellCancelChannel(edict_t *caster) {
     if (!caster || !caster->channel || !caster->channel->code) return;
     code = caster->channel->code;
     caster->channel->code = 0;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
     /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
     {
         abilityitem_t item = S_AbilityItem(code);
@@ -711,6 +712,7 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
     caster->channel->serial++;
     caster->channel->code = code;
     caster->channel->origin = caster->s.origin2;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */

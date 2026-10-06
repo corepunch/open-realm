@@ -55,7 +55,11 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**220 done / 336 tasks; 116 remaining.**
+**221 done / 336 tasks; 115 remaining.**
+
+Payoff127 closes SEP-01.3: the repeated live policy matrix now drives engine
+eligibility and channel/type lifecycle regressions. Integer selector parsing
+preserves low bits without a float conversion. See [separation policy integration](retail-pathfinding-engine.md#separation-policy-refresh-follows-channel-and-type-lifecycle).
 
 Payoff126 closes ACC-01.1/01.2/02.2/04.1:3,288 complete branch witnesses,
 marker-domain proofs and ordinary cost/budget evidence now have production C
@@ -1027,7 +1031,7 @@ complete neighbor traversal, ordering and original full application remain requi
 
 - [x] **SEP-01.1** Authored Footman-disabled/Gryphon-enabled controls distinguish path blocking from opt-in repulsion. Evidence: [repulsion controls][repulsion]; mixed policy combinations remain open.
 - [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each.
-- [ ] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement.
+- [x] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement. Payoff127 integrates the repeated36-case live matrix,65,536 original packed-policy cases and valid-state inert-row controls. Production regressions check eligibility independently of selector arithmetic across foot/fly/hover/amph/horse and owners0/1/2/15, then channel/type/pause/save transitions. Move now retires/recreates repulsors at channel and type changes; repulseParam is parsed as an integer without lossy conversion. Extra flag/work producers remain SEP-01.2. See [engine integration](retail-pathfinding-engine.md#separation-policy-refresh-follows-channel-and-type-lifecycle). Research handoff: [SEP-01.3](retail-pathfinding-handoffs/SEP-01.3/HANDOFF.md).
 
 - [x] **SEP-01.4** Split the shipped settings/category prerequisites from01.2: execute the full004790 initializer with pinned CRT, record all16 rows, verify actual CUnit owner getter/category1024 cases, persist Ghidra structures/names/ABI and integrate authored selector/group/rank into Move. Evidence: [engine repulsion port](retail-pathfinding-engine.md#authored-repulsion-reaches-idle-engine-units), custom configuration1/group19/rank3 SLK regression. Runtime override/extra disable semantics remain01.2; all movement/owner policy matrix remains01.3.
 

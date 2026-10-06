@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "123 executable original oracle contracts,121 archive audits and114 strict live contracts;358 total entries.",
+  "scope": "124 executable original oracle contracts,121 archive audits and114 strict live contracts;359 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -35649,6 +35649,58 @@
       "exclusions": [
         "Caller-domain out-of-map source behavior remains ROUTE-01.2; node aliasing beyond uint16 range remains ACC-05.1. No live or whole-trajectory parity claim; base-grid shortest path is not an optimality reference for the adaptive graph."
       ]
+    },
+    {
+      "id": "oracle-repulsion-policy",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_repulsion_policy.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "repulsion-policy-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "original_sha256": {
+          "equal": "2c6a72939d48400158bbd5e82848a78a68a34382da66422d54483d0c5d5006c8"
+        },
+        "packed_word_cases": {
+          "equal": 65536
+        },
+        "inert_pairs": {
+          "equal": 24
+        },
+        "inert_tails": {
+          "equal": 8
+        },
+        "pairs": {
+          "equal": 600
+        },
+        "tails": {
+          "equal": 105
+        },
+        "producer_pairs": {
+          "equal": 24
+        },
+        "producer_sha256": {
+          "equal": "0ff5a29c4d8d1ba02a677fb61963b04ef7f14e533647cdf21d9e9342018fb18f"
+        }
+      },
+      "evidence": [
+        "S",
+        "O"
+      ],
+      "scope": "Unchanged completed SEP-01.2 policy oracle: full frozen report hash,65536 ordered setter cases,600 pair/105 tail self-checks,24 inert pairs and8 tails. Additionally replay24 identical inert geometries with recorded aligned producer RNG state for the production C matrix.",
+      "exclusions": [
+        "Research captures independently establish the36-case live matrix; this entry does not run a live scene. Mechanical Critter/counting work producers remain SEP-01.2; spatial ordering and full crowd trajectories remain SEP-02/03/04."
+      ]
     }
   ],
   "fixtures": [
@@ -36547,7 +36599,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a96251ba78cdf706cc3fd6ea0a72e34998c14a0a02b31daa7b6067a714f7d6d1"
+      "sha256": "d8607cd66107041a1e19c0a767e94c8cedbfbf7f779d4c10c4dd25dcfdd6f1a0"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37340,6 +37392,70 @@
     {
       "path": "games/warcraft-3/game/tests/t_adaptive_witnesses.c",
       "sha256": "6c12c459f3d06c02d39d781241d4cb6e0de690bc14bc6526c5e91ba8ad9a5cbc"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_repulsion_policy.py",
+      "sha256": "82819fcd956ff26cbb4e416b4a232996713e1fc2c99baeb666448cc83b6a1019"
+    },
+    {
+      "path": "tools/ghidra/research/verify_SEP-01.2_policy.py",
+      "sha256": "69a4552c1f69019bc4124c92162b32556f571f0e23c5667b73724bff28645c81"
+    },
+    {
+      "path": "tools/ghidra/research/sep_research_oracle.py",
+      "sha256": "ab7d52fb40430c686ac84d22d79775437b73f173601f02f0005ecafe231d86b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-01.2-expected.json",
+      "sha256": "2d55fff8eedabc4db5ffaeb80519158af8676b1699efe5c495a96d72986de28d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-01.3-expected.json",
+      "sha256": "65b95d67b2cfa3a890f5dd4b4bc9f758a80192fb1a4a8018eb00750cde3217e0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repulsion-inert-producers-1.27.json",
+      "sha256": "0ff5a29c4d8d1ba02a677fb61963b04ef7f14e533647cdf21d9e9342018fb18f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repulsion-policy-ghidra-1.27.json",
+      "sha256": "93e87e51241318b4c0fe64fb691771966ebf9583b4eb36c8157fdf5b558f58a0"
+    },
+    {
+      "path": "tools/ghidra/generate_wc3_repulsion_policy.py",
+      "sha256": "d24f6f4a53f9c5d3a2446832979d443651ae650428b8af087d702928613d5363"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_repulsion_policy.h",
+      "sha256": "88db24603584cd027875a7dda94459f3c92d94ea704b7b3de27848deead323d0"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_repulsion_kernel.c",
+      "sha256": "161215ef7f186ae1bc0f17de7d6703d23e24383a4b68e9513ed717c6ec89dd14"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_repulsion_policy.c",
+      "sha256": "5fd6f65094cc3986c09c374b8a6869b2de61b3ecee794cb949d29aa1706b6033"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_repulsion.h",
+      "sha256": "41fcb298d5bf0765fb9611a2b532b2afe9854623d0c203348c2147ec8678dfec"
+    },
+    {
+      "path": "games/warcraft-3/game/g_unitrow.h",
+      "sha256": "8582b37dc0bee53b9e54b5dd8cf37cf1c592b59a58d69a26f0e8b8da66de5e7c"
+    },
+    {
+      "path": "games/warcraft-3/game/g_metadata.c",
+      "sha256": "1b74a2189bce3e19767ac8fe227385ace6b7b0c097428ece4a60348b7a256ee8"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_spell.c",
+      "sha256": "56693a63d92f1963d8c6b219fb1adb6e695f308bbce93b9319b6ebd486ff7523"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_move.c",
+      "sha256": "675fb8cb7e58c179e00d40df596f5c63205faad94c49203d566ac83849cfe0fa"
     }
   ]
 }

@@ -82,7 +82,7 @@ typedef struct {
     int32_t    reptm;
     int32_t    repulse;
     int32_t    repulseGroup;
-    float   repulseParam;
+    int32_t    repulseParam;
     int32_t    repulsePrio;
     cstring_t  requirePlace;
     cstring_t  tilesets;

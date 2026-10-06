@@ -291,6 +291,7 @@ TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
 # The same pure-kernel witnesses also register in the full game tests. Build
 # them directly for adaptive-search iterations without relinking that module.
 $(eval $(call test_schema,test-wc3-adaptive-witnesses,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_adaptive_witnesses.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_adaptive_witnesses$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_adaptive_witnesses.c,-lshared -lm,))
+$(eval $(call test_schema,test-wc3-repulsion-kernel,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_repulsion_policy.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_repulsion_kernel$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_repulsion_kernel.c,-lshared -lm,))
 
 ifeq ($(UNAME_S),Darwin)
 TEST_GC_SECTIONS := -Wl,-dead_strip

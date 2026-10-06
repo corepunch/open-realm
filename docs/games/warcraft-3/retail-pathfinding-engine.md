@@ -10507,3 +10507,62 @@ corpus/evidence checks. Four selected strict original/C entries pass: adaptive
 storage and marker producers remain exact, while the two documented size2
 reference differences retain their expected status. The fresh combined report
 passes the new strict manifest contract.
+
+## Separation policy refresh follows channel and type lifecycle
+
+Payoff127 closes SEP-01.3 using the completed [policy matrix handoff](retail-pathfinding-handoffs/SEP-01.3/HANDOFF.md)
+and [producer handoff](retail-pathfinding-handoffs/SEP-01.2/HANDOFF.md). Fresh analysis of both original Frida captures
+reproduces the entire frozen 36-case matrix byte for byte. All 6,035 JASS markers match the observer-free control and
+the repeated observed run. Replaying the first capture through unchanged original instructions reproduces 2,626
+update bodies, 2,272 pair contributions, 2,626 tails and 6,851 cooldown visits without differences. This is renewed
+analysis of the preserved captures, rather than a new live launch.
+
+The engine had two missing policy producers. Channel begin/end did not notify Move, so a channeling unit retained
+its repulsor and could be displaced or push its neighbors. A type rebind also retained the previous repulsor's
+selector/category/rank and pending vector. The spell processor now publishes `A_CHANNEL_STATE_CHANGED` after changing
+its channel code, before cancellation callbacks; Move owns the inverse and replacement through the same ordered
+initialization routine used by owner changes. A refresh during a live channel or pause remains disabled. Type-changed
+dispatch replaces the policy after the new authored row is bound. No periodic entity scan is introduced.
+
+`repulseParam` is a retail integer at UnitData+228. Both SLK loading and object modification now retain that integer,
+and `wc3_repulse_policy` implements the three ordered setters directly. The old float representation rounded
+16777217 to 16777216 before selection, losing bit 0 and selecting row0 instead of row1. The regression loads the
+non-stock integer from metadata; ordinary17/1 selector, group and rank aliases remain covered. Instance/save/network
+layouts are unchanged: this is a four-byte type-data field and the new message is appended to the dispatch enum.
+
+The engine matrix isolates eligibility by giving the callback a known nonzero row0 contribution at close range.
+This checks the candidate predicate before an inert selector or a deadzone could conceal acceptance. It covers
+foot/fly/hover/amph/horse, cross air/ground pairs, owners 0/1/2/15, disabled peers, group aliases and asymmetric rank.
+The frozen aggregate reasons are not a chronological event trace; runtime channel, rebind and pause transitions
+have separate production lifecycle checks. Existing owner-change/removal/save tests cover those public producers.
+Float is absent from the live map because it has no water; the instruction-verified filter has no movement-type
+condition, but this matrix does not claim a float trajectory capture.
+
+The strict `oracle-repulsion-policy` contract requires the entire original 65,536-case setter/inert report hash,
+`2c6a72939d48400158bbd5e82848a78a68a34382da66422d54483d0c5d5006c8`, plus 24 independently frozen pair results
+with recorded valid owner state. The original inert controls supplied unaligned RNG byte offsets, which no normal
+owner seed produces. They remain unchanged in the original oracle contract; production C uses the same geometry
+and vectors with the captured 4273436052/209508436 state. This avoids silently accepting an out-of-domain table
+lookup as a gameplay requirement. Every zero-row selector 5–15 still consumes an overlap draw, stays eligible to
+its peers and zeroes its retained vector without installing cooldown.
+
+Thirteen Ghidra names/comments are saved and read back with no unsaved changes, and the corresponding mapper rows
+are committed. The original Frida map builder, observer, controller, analyzers and original-code replay scripts
+remain available beside their frozen handoffs. SEP-01.2 stays open for Mechanical Critter's flag60 bit 0 and counted
+work/suppression producers; adding Amec alone is not evidence that its special category flag was set. Spatial
+cell-chain ordering and full multi-neighbor trajectories remain their existing SEP-02/03/04 items. No TODOs split.
+
+Pure packing/inert kernel checks can run without rebuilding the entire game module:
+
+```sh
+make BUILD=release test-wc3-repulsion-kernel
+```
+
+Validation logs and fresh original/capture reports are retained in `/GitHub/wc3-analysis/runtime/payoff127/`.
+This is implementation commit 4 after full checkpoint 14357757; focused checks are used for this chunk.
+
+Focused Classic and TFT validation each passes 498 tests/563,318 assertions: the five new lifecycle/matrix tests,
+two kernel contracts, 86 metadata tests, 401 spell tests and four existing repulsion/shared-RNG movement tests.
+Production and test builds pass. The staged corpus contains 359 valid inventory/hash contracts; the fresh policy
+report passes its strict manifest checks, and 24 Python corpus/evidence checks pass. The pure kernel target
+passes 263,464 assertions without a full game rebuild.

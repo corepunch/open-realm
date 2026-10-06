@@ -1450,15 +1450,14 @@ static void move_repulse_unlink(edict_t *self) {
 static void move_repulse_init(edict_t *self) {
     if (self->movement.repulse.active) move_repulse_unlink(self);
     UnitBalance_t const *balance = self->data.UnitBalance;
-    if (!balance || !balance->repulse || M_UnitMoveDisabled(self) || self->paused) return;
-    uint32_t selector = wc3_int_bits(wc3_float_bits(balance->repulseParam)) & 255;
+    if (!balance || !balance->repulse || M_UnitMoveDisabled(self) || self->paused ||
+        S_SpellIsChanneling(self)) return;
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);
-    /* Match the selector/category/rank setters in order, including their clearing masks. */
-    uint32_t packed = ((selector << 16) & 0xf00fffffu) | (category << 20);
-    self->movement.repulse.state.packed = (packed & 0x0fffffffu) | ((uint32_t)balance->repulsePrio << 28);
+    self->movement.repulse.state.packed = wc3_repulse_policy(0,balance->repulseParam,category,balance->repulsePrio);
     self->movement.repulse.active = true;
     self->movement.repulse.next = level.repulse_head; level.repulse_head = self;
-    /* TODO: Unit+60.1's category15 override and66fc50's extra runtime-disable producers remain SEP-01.2. */
+    /* Mechanical Critter's flag60 bit0 producer and counted work suppression
+     * remain in SEP-01.2; merely adding Amec must not force category15. */
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
@@ -4676,7 +4675,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
-            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED);
+            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED,
+            A_CHANNEL_STATE_CHANGED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
             .limit = unit_effective_speed(ent) };
@@ -4707,6 +4707,9 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
+    case A_CHANNEL_STATE_CHANGED:
+        /* 48ef40/48bca0 refresh after publishing the channel-work flag. */
+        move_repulse_init(ent); return true;
     case A_UNIT_TYPE_CHANGING:
         if (ent->currentmove==&move_move_walk) {
             unit_commit_current_pose(ent);
@@ -4725,6 +4728,8 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_PRIMARY_TIMER:
         S_RunMoveTimers(); return true;
     case A_UNIT_TYPE_CHANGED:
+        /* 670d4d replaces the repulsor after binding the new authored policy. */
+        move_repulse_init(ent);
         ent->movement.adaptive_disabled=G_UnitIsStructure(ent) || (ent->aiflags&AI_FLYING);
         G_PublishMoveSpatialObject(ent);
         /* Original670950 retires the physical task and reissues the retained

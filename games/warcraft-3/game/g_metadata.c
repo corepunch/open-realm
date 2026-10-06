@@ -225,7 +225,7 @@ static slkField_t const balance_schema[] = {
     { "reptm",            offsetof(UnitBalance_t, reptm),           STB_SLK_INT   }, /* TFT */
     { "repulse",          offsetof(UnitBalance_t, repulse),         STB_SLK_INT   }, /* TFT */
     { "repulseGroup",     offsetof(UnitBalance_t, repulseGroup),    STB_SLK_INT   }, /* TFT */
-    { "repulseParam",     offsetof(UnitBalance_t, repulseParam),    STB_SLK_FLOAT }, /* TFT */
+    { "repulseParam",     offsetof(UnitBalance_t, repulseParam),    STB_SLK_INT   }, /* TFT */
     { "repulsePrio",      offsetof(UnitBalance_t, repulsePrio),     STB_SLK_INT   }, /* TFT */
     { "requirePlace",     offsetof(UnitBalance_t, requirePlace),    STB_SLK_STR   }, /* TFT */
     { "tilesets",         offsetof(UnitBalance_t, tilesets),        STB_SLK_STR   }, /* TFT */
@@ -1288,7 +1288,7 @@ unitMeta_t const UnitsMetaData[] = {
     M("urtm",UnitBalance,reptm,BZ_FIELD_U32),
     M("urpo",UnitBalance,repulse,BZ_FIELD_U32),
     M("urpg",UnitBalance,repulseGroup,BZ_FIELD_U32),
-    M("urpp",UnitBalance,repulseParam,BZ_FIELD_FLOAT),
+    M("urpp",UnitBalance,repulseParam,BZ_FIELD_U32),
     M("urpr",UnitBalance,repulsePrio,BZ_FIELD_U32),
     M("upar",UnitBalance,requirePlace,BZ_FIELD_CSTR),
     M("usid",UnitBalance,sightRadius,BZ_FIELD_FLOAT),

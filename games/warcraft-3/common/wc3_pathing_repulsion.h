@@ -32,9 +32,16 @@ static inline wc3RepulseConfig_t wc3_repulse_config(uint32_t packed) {
         wc3_float(row[3]),wc3_float(row[4])};
 }
 
-/* 695090: authentic CUnit slotEC returns its player word; flag60.1 forces nibble15. */
+/* 695090: authentic CUnit slotEC returns its player word; flag60 bit0 forces nibble15. */
 static inline uint32_t wc3_repulse_category(uint32_t player, uint32_t group, bool override) {
     return ((override ? 15 : player & 15) << 4) | (group & 15);
+}
+
+/* 1710e0 runs selector, category, then rank setters. Category overwrites
+ * selector's high nibble; every authored integer retains its low bits. */
+static inline uint32_t wc3_repulse_policy(uint32_t prior, uint32_t selector, uint32_t category, uint32_t rank) {
+    return (prior & 0xffffu) | ((selector & 15u) << 16) |
+        ((category & 255u) << 20) | ((rank & 15u) << 28);
 }
 
 /* 15fc70 resizes unconditionally; velocity cap guards belong to its callers. */

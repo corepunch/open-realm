@@ -1,0 +1,84 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved_changes": false,
+  "functions": [
+    {
+      "address": "6f05c9c0",
+      "name": "MoverBridge_ConfigureSeparation",
+      "signature": "undefined MoverBridge_ConfigureSeparation(void)",
+      "comment": "[SEP-01.2] ECX unit+164 bridge, 4 stack args (enable, selector, category, rank), RET 10. Resolves handle [ecx+8]/[ecx+c] with PathRegistry_ResolveCanonical (plain RET leaves the re-pushed args) and calls Mover_ConfigureSeparation, which consumes them. SEP-01.2"
+    },
+    {
+      "address": "6f1702f0",
+      "name": "Separate_Update",
+      "signature": "undefined Separate_Update(void)",
+      "comment": "Cooldown first; apply retained endpoint displacement; accumulate ordered outward pairs with owner RNG on tiny overlap; damp/deadzone/cap. Original shipped initializer rows,600 pair105 tail slices match C705 words. Engine owner scheduler/idle pair/Save66 ported. Public101 two-member full composition verifies830 owner visits/1361 commits; request-speed c0>0 clears source vector and installs cooldown7 after countdown, c0!=0 rejects candidate.13 overlaps and91 retries interleave one owner stream. General multi-neighbor traversal/order remains open. [SEP-01.2] SEP-01.2: selector = byte[sep+22]&15; rows 5..15 are all-zero words: no accumulation, tail zeroes the vector and never installs cooldown (original oracle + live hS05 pairs), yet the d<0.001 branch still consumes one owner draw per overlapping candidate per visit."
+    },
+    {
+      "address": "6f1710e0",
+      "name": "Mover_ConfigureSeparation",
+      "signature": "undefined Mover_ConfigureSeparation(void)",
+      "comment": "Destroy existing separation; if enabled allocate, bind mover, set selector/category/rank and register. Gameplay caller693d50 via05c9c0; serialization/destruction callers too. [SEP-01.2] SEP-01.2: setters run selector 171040, category 1710c0, rank 1711e0; original oracle 65,536 cases: word=(prior&ffff)|(sel&15)<<16|(cat&ff)<<20|(rank&15)<<28; selector high nibble is overwritten by the category setter. enable!=0 (any int) allocates; callers 05c9dc (refresh), 16eb59 (destroy, all zero), 16f82a (load: enable from stream, then sep vtable+30 restore)."
+    },
+    {
+      "address": "6f48bca0",
+      "name": "Unit_EndChannelWork",
+      "signature": "undefined Unit_EndChannelWork(void)",
+      "comment": "[SEP-01.2] Clears Unit+20 0x40000000 then JMP Unit_RefreshSeparationConfiguration. Live: ANcl clone channel end (caller 4cc7d4) re-created separation. SEP-01.2"
+    },
+    {
+      "address": "6f48ef40",
+      "name": "Unit_BeginChannelWork",
+      "signature": "undefined Unit_BeginChannelWork(void)",
+      "comment": "[SEP-01.2] Sets Unit+20 0x40000000 then JMP Unit_RefreshSeparationConfiguration; 66fc50 rejects this bit. 25 callers are slots of channel/work ability classes (Channel, Blizzard, Tranquility, Starfall, Drain, Earthquake, MassTeleport, Repair_BeginUnitWork, ...). Live: ANcl clone 'channel' order refresh caller 4eec5c disabled separation. SEP-01.2"
+    },
+    {
+      "address": "6f66fca0",
+      "name": "UnitData_GetRepulseEnabled",
+      "signature": "undefined UnitData_GetRepulseEnabled(void)",
+      "comment": "[SEP-01.2] ECX = rawcode (by value), plain RET; hashes via 6f198420 and returns UnitData record+224 (authored repulse, raw int from loader 66bf40) or 0 if absent. SEP-01.2"
+    },
+    {
+      "address": "6f693d50",
+      "name": "Unit_RefreshSeparationConfiguration",
+      "signature": "void __fastcall Unit_RefreshSeparationConfiguration(WC3UnitOrdersPrefix * unit)",
+      "comment": "Enabled66fc50; UnitBalance repulseParam selector+228, repulseGroup+22c, repulsePrio+230.695090 owner685da0 high nibble, flag60.1 override15, group low nibble. Original producer category1024 cases; engine authored nonstock policy and saved membership tested. Extra runtime disable/override producers remain open. [SEP-01.2] SEP-01.2: refresh triggers (call/jmp sites): unit init 68a4f5 (CUnit slot+1ac), type rebind 670d4d, SetPlayerOwner 698f88 (skipped if same owner), suspend events d0145/d0146 69c493/69c583 (live PauseUnit), CancelAllOrders path 67e0e3, suppression acquire/release jmp 688d96/6785c6, channel work begin/end jmp 48ef47/48bca7 (live ANcl clone). Only AL of 695130/6951a0 is stored; pushed dword upper bytes are uninitialized and ignored by setters. Flag60 is mask 0x1 (bit 0), see 695090."
+    },
+    {
+      "address": "6f695090",
+      "name": "Unit_GetSeparationCategory",
+      "signature": "uint __thiscall Unit_GetSeparationCategory(WC3UnitOrdersPrefix * unit)",
+      "comment": "ThiscallECX CUnit,RETplain,u32EAX. AuthenticvtableEC685da0 returns Unit58 player. Unit60 bit0 (test byte [unit+60],1 at 69509c) forces15; masked owner nibble shifted4 OR rawcode cache22c group&15.1024 full original cases. Bit0 writers: 57f421 or1 (CAbilityMechanicalCritter), 58dfb6 and~1 (CBuffMechanicalCritter), neither refreshes separation; live UnitAddAbility Amec did not set it (SEP-01.2)."
+    },
+    {
+      "address": "6f6950c0",
+      "name": "UnitData_GetRepulseGroup",
+      "signature": "undefined UnitData_GetRepulseGroup(void)",
+      "comment": "[SEP-01.2] ECX = rawcode (by value), plain RET; hashes via 6f198420 and returns UnitData record+22c (authored repulseGroup, raw int from loader 66bf40) or 0 if absent. SEP-01.2"
+    },
+    {
+      "address": "6f695130",
+      "name": "UnitData_GetRepulseParam",
+      "signature": "undefined UnitData_GetRepulseParam(void)",
+      "comment": "[SEP-01.2] ECX = rawcode (by value), plain RET; hashes via 6f198420 and returns UnitData record+228 (authored repulseParam, raw int from loader 66bf40) or 0 if absent. SEP-01.2"
+    },
+    {
+      "address": "6f6951a0",
+      "name": "UnitData_GetRepulsePrio",
+      "signature": "undefined UnitData_GetRepulsePrio(void)",
+      "comment": "[SEP-01.2] ECX = rawcode (by value), plain RET; hashes via 6f198420 and returns UnitData record+230 (authored repulsePrio, raw int from loader 66bf40) or 0 if absent. SEP-01.2"
+    },
+    {
+      "address": "6f69c490",
+      "name": "Unit_OnSuspendBeginEvent",
+      "signature": "undefined Unit_OnSuspendBeginEvent(void)",
+      "comment": "[SEP-01.2] CUnit event 0xd0145 (handler 690490, vtable 6fb77eb0 slot+c). Refresh first (Unit+5c 0x200000 already set by PauseUnit), then if Unit+54>0 set 5c 0x100000 and Unit_AcquireSeparationSuppression. Live PauseUnit(true). SEP-01.2"
+    },
+    {
+      "address": "6f69c580",
+      "name": "Unit_OnSuspendEndEvent",
+      "signature": "undefined Unit_OnSuspendEndEvent(void)",
+      "comment": "[SEP-01.2] CUnit event 0xd0146. Refresh first (still suppressed), then if 5c 0x100000 clear it and JMP Unit_ReleaseSeparationSuppression (second refresh re-enables). Live PauseUnit(false). SEP-01.2"
+    }
+  ]
+}

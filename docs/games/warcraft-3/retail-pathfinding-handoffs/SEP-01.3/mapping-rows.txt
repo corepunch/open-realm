@@ -1,0 +1,1 @@
+// SEP-01.3: no new MapPathfinding.java rows; facts are covered by mapping-rows-SEP-01.2.txt and the proposed docs.

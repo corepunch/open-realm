@@ -944,6 +944,7 @@ typedef enum {
     A_TIMERS_RESET,     /* Discard derived timer membership before replacing level state. */
     A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
     A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
+    A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
