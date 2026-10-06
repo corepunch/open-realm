@@ -581,6 +581,90 @@ TEST(wc3_items, gold_powerup_uses_authored_grant_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, lumber_powerup_uses_authored_grant_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIlu\"\nC;Y2;X2;K\"AIlu\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"237\"\nE\n";
+    static ItemData_t lumber_data = { .abilList = "AIlu", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (!owner) {
+        G_SetSLKRows("AbilityData", old);
+        free_slk_rows(rows);
+        return;
+    }
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+    owner->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 50;
+    FOR_LOOP(slot, G_InventoryCapacity(unit)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(unit, held, slot));
+    }
+    item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+    item->data.ItemData = &lumber_data;
+    T_ASSERT(G_CanPickupItem(unit, item));
+    T_EQ(FindAbilityForCommand("AIlu")->proc, CAbilityItemLumber);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','I','l','u'), 1, 1), 237.0f, 0.01f);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 337);
+    T_ASSERT(item->item->pending_use_removal);
+    T_EQ(item->item->charges, 0);
+    T_NULL(item->item->carrier);
+    T_EQ(item->item->inventory_slot, -1);
+    T_ASSERT(G_FindFreeInventorySlot(unit) < 0);
+
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 65500;
+    item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+    item->data.ItemData = &lumber_data;
+    T_ASSERT(G_PickupItem(unit, item));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], USHRT_MAX);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_items, lumber_powerup_negative_data_clamps_at_zero) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AIlu\"\nC;Y2;X2;K\"AIlu\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"-237\"\nE\n";
+    static ItemData_t lumber_data = { .abilList = "AIlu", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit, *item;
+    gameClient_t *owner;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
+    unit->targtype = TARG_GROUND;
+    owner = G_GetPlayerClientByNumber(0);
+    T_NOT_NULL(owner);
+    if (owner) {
+        owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+        item = make_item_test_world_item(MAKEFOURCC('p','l','u','m'), 32, 0);
+        item->data.ItemData = &lumber_data;
+        T_ASSERT(G_PickupItem(unit, item));
+        T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+        T_ASSERT(item->item->pending_use_removal);
+    }
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"

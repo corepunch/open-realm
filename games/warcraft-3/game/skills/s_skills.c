@@ -354,7 +354,7 @@ static ability_t abilitylist[] = {
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
     // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
     { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
-    // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
+    { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
     // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */
     // TODO: AIdc CAbilityItemDefenseAoe  /* Item Chain Dispel */

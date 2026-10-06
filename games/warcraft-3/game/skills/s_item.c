@@ -546,6 +546,29 @@ BZ_ABILITY_PROC(CAbilityItemGold) {
     return true;
 }
 
+/* Bundle of Lumber (AIlu): DataA is a direct resource change, not
+ * harvested income, so upkeep does not reduce it. Custom maps can author
+ * negative lumber values; clamp both ends of the player resource range. */
+BZ_ABILITY_PROC(CAbilityItemLumber) {
+    edict_t *caster;
+    gameClient_t *owner;
+    float amount;
+    uint32_t balance, result;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    if (!caster || caster->s.player >= MAX_PLAYERS) return false;
+    owner = G_GetPlayerClientByNumber(caster->s.player);
+    if (!owner) return false;
+    amount = S_SpellData(call->item->code, 1, 1); /* DataA / Lumber Given */
+    if (!(amount >= 0.0f || amount < 0.0f)) return false;
+    balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+    result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;
+    if (result > balance) G_ResourceGainEvent(caster, PLAYERSTATE_RESOURCE_LUMBER, (int32_t)(result - balance));
+    return true;
+}
+
 BZ_ABILITY_PROC(CAbilityItemSpeed) {
     if (msg != A_ITEM_USE || !call || !call->item) return false;
     return item_speed_apply(item_use_caster(ent, call), call->item->code, false);
