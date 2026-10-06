@@ -461,8 +461,23 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
+static void G_CompletePowerupUse(edict_t *unit, edict_t *item) {
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_PICKUP_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
+    G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
+    item->item->charges = 0;
+    G_RetainConsumedItemForUseEvent(item);
+}
+
 bool G_PickupItem(edict_t *unit, edict_t *item) {
-    int32_t slot = G_FindFreeInventorySlot(unit);
+    int32_t slot;
+    if (G_CanPickupItem(unit, item) && S_TryUseSpeedPowerup(unit, item)) {
+        G_QueueOwnerSoundAlias(unit, "ItemGet");
+        G_CompletePowerupUse(unit, item);
+        return true;
+    }
+    slot = G_FindFreeInventorySlot(unit);
     bool added;
 
     if (slot < 0) {
@@ -471,6 +486,19 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
     added = G_AddItemToSlot(unit, item, (uint32_t)slot);
     if (added) G_QueueOwnerSoundAlias(unit, "ItemGet");
     return added;
+}
+
+static bool G_ItemIsSupportedSpeedPowerup(edict_t *unit, edict_t *item) {
+    cstring_t abilities;
+    if (!unit || !G_IsItem(item) || !item->data.ItemData || !item->data.ItemData->powerup ||
+        !item->data.ItemData->usable || !G_InventoryCanUseItems(unit)) return false;
+    abilities = G_ItemAbilityList(item);
+    if (!abilities) return false;
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        ability_t const *ability = FindAbilityForCommand(ability_name);
+        if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
+    }
+    return false;
 }
 
 static void G_StopPickupOrder(edict_t *unit) {
@@ -491,7 +519,7 @@ static void G_PickupItemThink(edict_t *unit) {
         G_StopPickupOrder(unit);
         return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedSpeedPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         G_StopPickupOrder(unit);
         return;
@@ -522,7 +550,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedSpeedPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         return false;
     }

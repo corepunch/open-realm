@@ -314,7 +314,7 @@ static ability_t abilitylist[] = {
     /* CampaignAbilityStrings.txt */
 
     /* ItemAbilityStrings.txt */
-    // TODO: AIsp a_item_speed  /* Item Temporary Speed Bonus */
+    { "AIsp", CAbilityItemSpeed, AB_ITEM },  /* Item Temporary Speed Bonus */
     // TODO: AIdm a_bounce  /* Item Area tree/wall damage */
     // TODO: AIfl a_button  /* Item Capture The Flag */
     // TODO: AIfm a_button  /* Item Capture The Flag */
@@ -375,7 +375,7 @@ static ability_t abilitylist[] = {
     // TODO: Aspb a_bounce  /* Spell Book */
     { "AIrd", CAbilityRaiseDead, AB_SPELL },  /* Raise Dead (Item) */
     // TODO: ANsa a_bounce  /* Staff of Sanctuary */
-    // TODO: AIsa a_item_speed  /* Scroll of Haste */
+    { "AIsa", CAbilityItemSpeedAoe, AB_ITEM },  /* Scroll of Haste / Speed AOE */
     // TODO: AItb a_button  /* Dust of Appearance */
     // TODO: AIsb CAbilityItemHeal  /* Orb of Slow */
     // TODO: ANbs a_spell  /* Orb of Darkness */

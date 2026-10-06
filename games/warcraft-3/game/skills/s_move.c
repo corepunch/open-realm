@@ -238,7 +238,8 @@ static float unit_current_speed(edict_t const *self) {
     float speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
         : self->data.UnitBalance->speed;
-    speed = unit_apply_earthquake_speed(self, speed);
+    if (S_ItemSpeedActive(self)) speed = game.constants.maxUnitSpeed;
+    else speed = unit_apply_earthquake_speed(self, speed);
     if (self->movement.group_speed > 0 && self->movement.group_speed < speed && unit_is_walking(self)) {
         speed = self->movement.group_speed;
     }
@@ -1333,6 +1334,7 @@ void move_start_displacement(edict_t *self, vec2_t const *target) {
 /* Effective current move speed of a unit (runtime override, else data table). */
 static float unit_effective_speed(edict_t *ent) {
     float speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
+    if (S_ItemSpeedActive(ent)) return game.constants.maxUnitSpeed;
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
     speed *= 1.0f + S_UnholyMoveBonus(ent);
