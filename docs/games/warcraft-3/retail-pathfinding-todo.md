@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **215 done / 336 tasks; 121 remaining.**
 
+Payoff124 advances ORDER-01.18 without closing it: complete retail combat repeats
+match1,707 public records and33 ordered endpoint continuations each. Patrol now
+keeps the verified851991 active head separately from the issued851990 command.
+Ghidra saves both endpoint/task layouts and the full register/stack factory ABIs.
+The remaining engine route/task composition stays in the existing item; see
+[Patrol continuation ownership](retail-pathfinding-engine.md#patrol-uses-a-two-endpoint-public-continuation).
+
 Payoff123 closes ORDER-01.17: two complete retail repeats match1,455 public
 records each through Follow parent loss, temporary combat, nested replacement
 and target/subject reuse. Engine regressions preserve queued ownership and

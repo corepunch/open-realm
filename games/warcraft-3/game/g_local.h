@@ -745,6 +745,13 @@ struct client_s {
 #define MAX_UNIT_ORDER_QUEUE 16
 #define UNIT_ORDER_NAME_SIZE 20 // bytes; fits the 17-byte longest stock order name plus NUL; bounds queued order strings
 
+/* Retail command identities: issued Patrol becomes a two-endpoint order on
+ * activation. These are order IDs, not FourCCs or configurable unit data. */
+enum {
+    WC3_ORDER_ID_PATROL = 851990,
+    WC3_ORDER_ID_PATROL_TWO_POINTS = 851991,
+};
+
 typedef enum {
     UNIT_ORDER_TARGET_NONE,
     UNIT_ORDER_TARGET_POINT,
@@ -3821,7 +3828,7 @@ void G_SetUnitGuardPosition(edict_t *);
 void G_ClearUnitGuardPosition(edict_t *);
 void order_attackmove(edict_t *, edict_t *);
 void order_patrol(edict_t *, edict_t *);
-bool S_IssuePatrolOrder(edict_t *, edict_t *, uint32_t);
+bool S_IssuePatrolOrder(edict_t *, edict_t *);
 void order_patrol_resume(edict_t *);
 void order_follow(edict_t *, edict_t *);
 void order_follow_resume(edict_t *);

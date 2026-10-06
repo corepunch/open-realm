@@ -35294,6 +35294,234 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-patrol-lifetime-261006",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/verify_wc3_patrol_lifetime_trace.py",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-patrol-lifetime-1.27.json",
+        "--capture",
+        "{archive}/runtime/payoff124/patrol-b.jsonl",
+        "--capture",
+        "{archive}/runtime/payoff124/patrol-c.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "capture_complete": true,
+      "expected_status": "verified",
+      "expected_exit": 0,
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Patrol public head and ordered return-task producer witnesses; full engine route/task composition remains ORDER-01.18.",
+      "report": "live-patrol-lifetime-261006.json",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "records": {
+          "equal": 3414
+        }
+      },
+      "inputs": {
+        "sha256": "458dded4bb4f7eda00e4f379e150695a559f2ea97f3e0db65f91c99ca7c5d32c",
+        "bytes": 11291391,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "wc3_patrol_lifetime_probe.j": "1f2cc86c0c1014d6c8b5a880c5d02d83d84b0aa70ff4f213046e96fa4c669567",
+            "wc3_follow_lifetime_probe.j": "b99bf5a182da493e7fcf2ddc573522c51dfa644332370453df47d07998aa2465",
+            "wc3_repair_queue_probe.j": "69d5e4934e41b0b5ab7dda0fc4d5539dd79663ed9123fb78f2f96881163dc349",
+            "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+            "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+            "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+            "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+            "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+            "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+            "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+            "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+            "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+            "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+            "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+            "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+            "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+            "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+            "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+            "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+            "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+            "trace_wc3_pathfinding.py": "45489cfe5f8af7363084ad730dedd3c263bc267ec3294d69db67f23594ffd1b6",
+            "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+            "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+            "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+            "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+            "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+            "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+            "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+            "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+            "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+            "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+            "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+            "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+            "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+            "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+            "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+            "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+            "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+            "make_wc3_pathfinding_map.py": "c29281f1256f8eda09e0b8cb1930c377454f5f6463e75e84089666b165ba57ad",
+            "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+            "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+            "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+            "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+            "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+            "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+            "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+            "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+            "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+            "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+            "wc3_pathfinding_patrol_lifetime.js": "87179264a9adede1cc4f0e3471d1b385970e1c57dfe000e3a27ddb3c6e8692de",
+            "map": "80c0fef8b18630c1b27c253f6677822f8f6ea9cecde2ca700dc3c54bdef6548c"
+          },
+          "map": "Maps\\PathPatrolLifetime124b.w3m",
+          "seconds": 75.0,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "samples": 10000,
+          "watchCell": null,
+          "blockerPatchSize": 16,
+          "blockers": false,
+          "taskEvents": true,
+          "mapLoadEvents": false,
+          "widgetEvents": false,
+          "motionEvents": true,
+          "velocityEvents": true,
+          "yieldEvents": false,
+          "clockEvents": false,
+          "headingEvents": false,
+          "schedulerEvents": false,
+          "captainApproachEvents": false,
+          "captainMembershipEvents": false,
+          "profileEvents": true,
+          "gatePoolEvents": false,
+          "gateMarkerEvents": false,
+          "adaptiveStorageEvents": false,
+          "fineStorageEvents": false,
+          "fineResultEvents": false,
+          "numericEvents": false,
+          "randomEvents": false,
+          "literalTexts": [],
+          "integerTexts": [],
+          "byteEvents": false,
+          "metadataEvents": true
+        },
+        "capture": "runtime/payoff124/patrol-b.jsonl"
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "sha256": "299157abd0978e209c1da654151954ddf8646ac7fa1ee53cfbef85e63b4b9455",
+            "bytes": 5082111,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "wc3_follow_lifetime_probe.j": "b99bf5a182da493e7fcf2ddc573522c51dfa644332370453df47d07998aa2465",
+                "wc3_repair_queue_probe.j": "69d5e4934e41b0b5ab7dda0fc4d5539dd79663ed9123fb78f2f96881163dc349",
+                "wc3_repair_orders_probe.j": "3b5531e2a4ddf3c85587c30927efff62ec030e6f5e5555dd403800d257b9b6ec",
+                "wc3_metadata_busy_probe.j": "70dfe8ea8c290512c2fbd99a682f5f3564cd03d7f1a2289a2efc27af72970e25",
+                "wc3_metadata_rally_probe.j": "955901e887d25105730ca176cf604029ed7cc8c7fecf505b60d9456078ce196f",
+                "wc3_metadata_orders_probe.j": "82bf934ecc83449f6b7099acc59625a8bf47e1285b74bb575a305d6b0c801d04",
+                "wc3_timer_mutation_probe.j": "4bbbba058f61575eed27fb0d97eb79bf2b9ae0ac84666dc893f11d894c2e2242",
+                "wc3_timer_boundaries_probe.j": "6cf7f812b701744e6ac9fc6516ef2395150987ac38b220a249f61e810f4a67ef",
+                "wc3_timer_inputs_probe.j": "433e197d3466cf20e6ce080d05df03ba9584ec9a74f0c3df11030eeb2aa08069",
+                "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+                "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+                "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+                "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+                "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+                "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+                "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+                "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+                "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+                "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+                "trace_wc3_pathfinding.py": "72d9a04204703a12fffa04c7b69c563cd6336127d07b6efa92bcc7a3a3e0d3ff",
+                "wc3_pathfinding.js": "75575d4b743a401389764420f58bdd8a802f78eb03cd62f45d2107fb1333761b",
+                "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+                "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+                "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+                "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+                "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+                "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+                "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+                "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+                "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+                "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+                "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+                "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+                "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+                "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+                "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+                "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+                "make_wc3_pathfinding_map.py": "27c560bc6db6e9ad8f4de8fbdf5dc930ad2d349e2ecd6c99ed000fcd3467e0b1",
+                "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+                "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+                "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+                "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+                "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+                "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+                "wc3_captain_lifetime_probe.j": "7613e728b6ec6b1f6a31d900a20f232499068f3417ecc3df7a1f3edd795e16bb",
+                "wc3_captain_lifetime_probe.ai": "8c9e91ad25135fdbac1ed2cc5202d695afb7ca90055210a698088b32ce7b1a1f",
+                "wc3_captain_ranges_probe.j": "40eaa96f293267764186e14a43acf94c29efb8e4b4cc49823445c9d7b49c0dc7",
+                "wc3_captain_ranges_probe.ai": "e6cbe89e09524009b5a048556840771d7beed1d0fd0e6b4c8ce02c480356f520",
+                "wc3_pathfinding_follow_lifetime.js": "0ad9f89d16e8c1e8da07a1ab0e8bb9e8f2469b2aa4539b994b7cb19b9aed2440",
+                "map": "c5aa6f48ab29f02d6778db2241b4e1919d55915dbd44c1ce30754f77ec7fc3e4"
+              },
+              "map": "Maps\\PathFollowLifetime123d.w3m",
+              "seconds": 75.0,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "samples": 10000,
+              "watchCell": null,
+              "blockerPatchSize": 16,
+              "blockers": false,
+              "taskEvents": true,
+              "mapLoadEvents": false,
+              "widgetEvents": false,
+              "motionEvents": true,
+              "velocityEvents": true,
+              "yieldEvents": false,
+              "clockEvents": false,
+              "headingEvents": false,
+              "schedulerEvents": false,
+              "captainApproachEvents": false,
+              "captainMembershipEvents": false,
+              "profileEvents": true,
+              "gatePoolEvents": false,
+              "gateMarkerEvents": false,
+              "adaptiveStorageEvents": false,
+              "fineStorageEvents": false,
+              "fineResultEvents": false,
+              "numericEvents": false,
+              "randomEvents": false,
+              "literalTexts": [],
+              "integerTexts": [],
+              "byteEvents": false,
+              "metadataEvents": true
+            },
+            "capture": "runtime/payoff123/follow-e.jsonl"
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -35359,7 +35587,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "2b3345f0eae0591d33946b4e987e6889b71e21ed83d92ece1147323c39462ac2"
+      "sha256": "8b9617c7e9385603863c53d51c669c23d58bdda81404cc3b38e3d83e7d425e6c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -36180,11 +36408,11 @@
     },
     {
       "path": "tools/frida/make_wc3_pathfinding_map.py",
-      "sha256": "27c560bc6db6e9ad8f4de8fbdf5dc930ad2d349e2ecd6c99ed000fcd3467e0b1"
+      "sha256": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf"
     },
     {
       "path": "tools/frida/trace_wc3_pathfinding.py",
-      "sha256": "72d9a04204703a12fffa04c7b69c563cd6336127d07b6efa92bcc7a3a3e0d3ff"
+      "sha256": "17ec230a2c309b9234209c67b16655dc1af6e3f2e6b9c3a2db0a14ea4729a341"
     },
     {
       "path": "tools/frida/wc3_pathfinding.js",
@@ -36192,7 +36420,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8185a8e6977be44e000143d201be54a981389a945231dc2cd35dc4adac8d7ff8"
+      "sha256": "e9d8040c01607d1ab05c3aabb6b19e1c137c249176743d02399e6c9e7a138681"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -36608,7 +36836,7 @@
     },
     {
       "path": "tools/frida/wc3_ui_input.c",
-      "sha256": "7be97b59d74042506669e9f2c404c7247b7f197a76f70652e8a17605611f8711"
+      "sha256": "ce03097e86ef89434df5063ec6ca4e17752b51e62b15f4226e21e8cc59c56e19"
     },
     {
       "path": "tools/ghidra/fixtures/sources/d41fe8bff9a63499214ada67fd3f3af70f6c0f222d36b7ca7e8f6b0f8f4a1851.gz",
@@ -36645,6 +36873,234 @@
     {
       "path": "tools/ghidra/fixtures/retail-follow-lifetime-1.27-e.jsonl.gz",
       "sha256": "0c5f32dcb0a03ef27d6167c43a7d3ebbfab9ecffb802157936b893fc3f6be90f"
+    },
+    {
+      "path": "tools/frida/verify_wc3_patrol_lifetime_trace.py",
+      "sha256": "e5b4ae0703a9542daf4e316e41f417f099786c8e7e14e72bc9a2a8a1000bb874"
+    },
+    {
+      "path": "tools/frida/wc3_patrol_lifetime_probe.j",
+      "sha256": "1f2cc86c0c1014d6c8b5a880c5d02d83d84b0aa70ff4f213046e96fa4c669567"
+    },
+    {
+      "path": "tools/frida/wc3_patrol_queue_probe.j",
+      "sha256": "7c2865bd706c2db597acbef30dec2dcc88d01cf6ba6b9368477fcd9210df18bc"
+    },
+    {
+      "path": "tools/frida/wc3_pathfinding_patrol_lifetime.js",
+      "sha256": "87179264a9adede1cc4f0e3471d1b385970e1c57dfe000e3a27ddb3c6e8692de"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-patrol-lifetime-1.27.json",
+      "sha256": "fcdcc13def7b0c732203ee8a5bfea722621c222baf37cba417cd190616e98424"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-patrol-lifetime-ghidra-1.27.json",
+      "sha256": "754aba2521ad7526391406c3aa6a8ecd53346850e65020a26c554eeeeaf4f251"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-patrol-lifetime-1.27-b.jsonl.gz",
+      "sha256": "b2a799fc766974cc771f4e064b56fb56a22e378753fa284d5f819be36e6cb990"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-patrol-lifetime-1.27-c.jsonl.gz",
+      "sha256": "1f71b4996e7ceda42d75a747d9bb3986a49cf2fbf2cc6d5c3d93512017c74f46"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/010170f6035f990447147e00d7020b4366ce3b1849444e7ad5251d0fd06b1545.gz",
+      "sha256": "1afca7214d13d9d5159541e7417308f39ad6b7003883aed9705a7a94350ce97c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/0bc8e5c9724160e96d395d64ab2a8a5936f5e10973ebf2939b3fc49406e8806a.gz",
+      "sha256": "87aa5558bd2dadf7b3f9c3f6cc839a1b34225ebc32241450b7452a94413b28e6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/0d34f74c1a85bed0c823825ef2c805cb5b8332e7f94efa8ecbdb312e62cb6012.gz",
+      "sha256": "29c1e9f78530511a8ed2c274028863d2aa755bfadd7d86d5d2315d027377c7a4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/15f461270ebdc75c67372c1399f9cde10a457ba890d20649c5278123094e23f3.gz",
+      "sha256": "8969351f80320ae9283498a70ce87ab8636bccc7bd4c3aba60452d8ef879d1cd"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/1abfeb614b99bb84d64acac243b97ea5b2e4c09ac10a6ffc987e38365d2a091a.gz",
+      "sha256": "72b46c06a28987a09a39417d81991c8c889983cd70a015c8c09ce33b3bf5086f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/1e0fed527c071a0ba28d749986ca96f1947294bbfbdb6a5d4ea793601872decd.gz",
+      "sha256": "1b043971eef200ee4c5f39120647e2288adcf0f54ae81d08bb2cbda98cd54404"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/22b25fe5ed1fa999f5427d89af9daa599db56c8f0d959f795d35bc6eac8ff9a5.gz",
+      "sha256": "21418c6f431eeca1d8b5fbbcc543534577ec9bb956aadc2f2e08a0dca4b3594f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/8e960cd4103366eca2fed33cc424177e9fbc5a312691a839475172aeff9866a4.gz",
+      "sha256": "a2aea12b63fd2513c1122e7c82509774dc87807a33f8cca9f7e8621a972b9e09"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/9ff5b405cdf0d32fa1259a0ed4d3e083aec1ae8ca492b4e5af095bc2c3c6092b.gz",
+      "sha256": "85dab597cf43e10bdd874422a00c0883cc1e970a13c205078304ab9d75af21bd"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/5eeb81376d7ab415a9142b1217572cf9c0877118066de93d5ec07d7a1c2f5e81.gz",
+      "sha256": "210d5d2ac29095dd3b887139cd4ebc4a58c16a7248a6b281ccdf9965a8807881"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/642e2512c556c633b334be712d87066e191284deae5c774c71c82785108bbfa1.gz",
+      "sha256": "48974446b03d84ee97a8d7895fde948034151d0acb30307ea3bfe388d661894b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/64eeacffe0b641ce3ffb1c48424b32401817a113d5b95f52b8b01d2bdfdc21e1.gz",
+      "sha256": "75f5b3d36d3fb9b42507f1bdd80f5707d8c788cf26f95aa5255d73464aae64dc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/6a6f9a5cd01c06a3e2031a91e1543f84437d38d999cb90d6e65518bcd9cf6a95.gz",
+      "sha256": "ba038aeba96212c02ff0ee7f3702ce0063f47427fd86791d13ac26c59c739870"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/6c0321aeeae03816633fcb1a61604d65134af473e7c7215ebb887f70c0c52ff6.gz",
+      "sha256": "5371b8cfe24bed1d8e688b2a26a5d7d64e7c38ab268520c68807d60ba08d8878"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/6c5e5999f043cc843603fa090163ab4f49903c6a774293285a895eca71534fda.gz",
+      "sha256": "d1cac51743aad0f2d145036cfdee9d0023a734400bb79712737b710b2282f970"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/c29281f1256f8eda09e0b8cb1930c377454f5f6463e75e84089666b165ba57ad.gz",
+      "sha256": "b207bb8de583a2dfbcd79d7b26c14b23aee70565a7a4bd341b7421130445ba7e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/ca947758e0e490474cfe8a2f1e44bbf4cf7fb4a0531a80370cdb9b2829f733ba.gz",
+      "sha256": "d2593eaa0d5eea53cbd13dd02ddbbdb44a104bd6a2200d283edbc807f84a3394"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/d3b7c79aee5f6cd3bb0e8ccc980c633f4dbef0d4ce418b07d6e012486f33f141.gz",
+      "sha256": "474c76d4840de77eb5d61a3392557fc88507011c23b502ed60baaa91a7ca8488"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/d4ee17c7cde919b6a727c70f885b28c5809ba485aaffd87c15aaada3e507a1ec.gz",
+      "sha256": "7d933f154357adf9f22a8d4db497e0e52ab96a67e43aa4205d80be34d74e7ab0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/d78b04a30fc05b686781273d12b8129403b7149447dfc823b90fc9128e849c74.gz",
+      "sha256": "aa29339950133420a4cfe1af89652a317bdc0d02088261959a18aa5ee55648e5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/d79b6ac4807d8be379a8915ae5101fd5e9b3080827f8189d6fc7edd1dc9de053.gz",
+      "sha256": "fc93c2724154eea0682d60d8c49fe2d79d7bf25f386e2e9726a108f61252744a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/27c560bc6db6e9ad8f4de8fbdf5dc930ad2d349e2ecd6c99ed000fcd3467e0b1.gz",
+      "sha256": "de74ca2f70d06e04b602093e1b46b47b36fcbf4c67b6ce018ee4d9125624ba2d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/2aafc288bd5086b1fa73c3203de0f8812d8c9f666e5df33c8ff72f7a20419f5a.gz",
+      "sha256": "ce38cc99d1fa9465b30167c878e2b7bbb2911654d2019300a37497e5c0b80cb2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/311efb4f250dcaf68eeac00542f90d119a3b9c6ed86c38636f93a7b9dc49e7d4.gz",
+      "sha256": "54d4cc66bc4ce2fb2207ecef7baf2eb88f85a683a1d9a85f73b86463a840f6ae"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/36287c1140683f046444943124b0c4e75077f27a50a726af5eb5d1bd486a0338.gz",
+      "sha256": "805b26e022ea0993393f7f48d397b054743b8163d25742a2b83e70d507ed8f13"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/400e5189980c6a5d5589797f112eb9441bb149219ba478a78a2c4014252a84b9.gz",
+      "sha256": "39c10ef6708d7cca70c0c54ffd0e1759dcd0e0edd2eb5637242652fd1610834e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/40e3e0452f87058eff80977b2f3a096cfb0f268d2de5b04ce23a452973ac61d5.gz",
+      "sha256": "129410585a3581f5347fdeacfbed026a7fb4b17b56e54713e65d54712e380714"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/27c37491910eb3d03573c63ff2a6dad28db3d61f8af72caf6042950f74d4a0d8.gz",
+      "sha256": "2ee95f9d63b1b5904508b593cb3a0e4e6d7cac772b5b0ba4afa0ce4c6903517a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/5b9b5a9157848b99c8b284264d5369917f4c75ad6d7d79085ac079dfa0cede08.gz",
+      "sha256": "73f3ab38a6e26adee294428871b995e706475508549be88342d335560c505c44"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/a78407d4ca3aefd35b0e03fdc00c675b4f2a6cd19c5cccd09e858340368f3c84.gz",
+      "sha256": "cfb0161017b2a6429883762de3d1b074ba9ecfe359b5cdf00070fafd052aaf81"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/b98a850ebbaeda10cf883eb27b83f30caffae4af767008c2f70d1f30d7e89338.gz",
+      "sha256": "20fb02c9e5168e812678b31e1164733d9cfdf12158ae73b781b64da987974056"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/dbb7b1dfce4979b676980a177f7f554ecfe1a68d97a811436b8a150830925613.gz",
+      "sha256": "ebceeabe4be38bd05936aa6ac6987f1e04c5d4784ce9ece7dca9872971686863"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/de4e411f20291a148ac6c3df04d8d2285211bd04cf92044f110c31707fe599f1.gz",
+      "sha256": "caff454b7318809f89d9e54b496f9e409873ac36629769f8658290b0440127d6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/fa3011b7faf925350d6eb478740830744fbf63a3bcf11a4fe7668a8eef635400.gz",
+      "sha256": "689e01a8ffaddfea2e41f863d15d708e840d46bd462726cc3b8322c72bdade1c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/45489cfe5f8af7363084ad730dedd3c263bc267ec3294d69db67f23594ffd1b6.gz",
+      "sha256": "482c2122cb9836c333805dbd6ca8b481d237b9e22034787685ab8a684dbf7ee6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/484eed41999eb83eb32ebbd7aede53025083e02706ed19a47ea803923c1e6d74.gz",
+      "sha256": "c7eed3745667a05f97626390dbd2ca5fc2ea310cf9b6d9c4a92c6c62b3fdf884"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/4b6e002416b0bac9c9129685df69eee79b0ebc397a971deb14a938979a0cd3db.gz",
+      "sha256": "00f962a8f8a1016a94a81644c132a85af8da80764e512ad552386e44803b7d87"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/50d79418ad991334e7e74436a89e6cf18cc10b2c44598d8587f627fa3eb0d91e.gz",
+      "sha256": "672efdc559e40aae40aaf1e27d331caddfdd5b6ac4e32ced6a4ec283761c1a0d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/5a1a09fdc26b4663e8296a6c637e02864c38e6dc77668b231fdf720c4d540691.gz",
+      "sha256": "3cc9b656fd3aeb0b3f08f6a3f5358b03c0d3f10dae0f1b38308a09d3be7bd7e6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/aa97626a2596991a24f1faa6f457d6a7d80f1df22f0099c34a0c73d8e796f915.gz",
+      "sha256": "efd453a855a0aac8cc6baf91fe974a0755c99c9c15d0d0ef6b2a201b4bf55a58"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/aca4bce37b9bc9019846a6e0c9b5ade0d7d7417cb0962603bede396749186596.gz",
+      "sha256": "88e4b1fd73a3eeaf50a5a64d7942262d211a882429c947dbf7b39a1abbf50aff"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/b403fa54046dbf44b4e4a676cc883e9b5ffd46557ef0b79c0a95f7ed0364c66f.gz",
+      "sha256": "fc8351e65a727f6f4a0c8ce69afb72d1d45e1299a58936f4b1a7b835caaa7846"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/b6348d1953da113ec7af30212f15251fd6203bf7935d7b3a97844970d7274514.gz",
+      "sha256": "b9150c8af90da4cd4594984884a61d8933c005416a6ddf61450289d0663366d0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/b7d6050a054f9e3f245c8ad528ffa4eeebd3c0db0cea8e14e57029364b203c08.gz",
+      "sha256": "e006faa0f856edbd1bcf50edc4d98116d994e753c0923dbb02c30be164367827"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/72d9a04204703a12fffa04c7b69c563cd6336127d07b6efa92bcc7a3a3e0d3ff.gz",
+      "sha256": "37fc7cdc911b722a9c3b057c2d08e03fcd10b8c19168836013930fdc8e53cd7c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/78bc8d3a2558464f4b2eee9f6a3972e125cb04eba9ea035f40f12917e539517c.gz",
+      "sha256": "6f850ac16b6324d1610fee33c8c862599380b6c9b758956282bd26b3e848f30f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/7a457bb0cd14c8b633a5f1c06ccf8b7e0a125e7503daf1323bfce2b9c548cfb4.gz",
+      "sha256": "86001538c4c758e8d301164f03ee4ead848abf93be592eafccdedcee53948fdc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/7ae26c6f1f86a7655633fb91098720e8d89e5c393569542b746f9286a86c27a8.gz",
+      "sha256": "74b0da7fe93e4c05b3593d393b33232126d839f48edc8c76625c59493821e52a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/sources/7d4097220bfaa4b953bb55bb7bf88b8c4a1981306b234443c9d8fa9f798ee6bb.gz",
+      "sha256": "23910ecc58065c2efd6c3e859995b10d92f52f9f427a847387388c840ff0d0d2"
     }
   ]
 }

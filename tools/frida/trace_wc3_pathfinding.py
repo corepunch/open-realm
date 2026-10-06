@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--metadata-events',action='store_true',help='observe ordinary toggle admission, ability dispatch and exported JASS rows')
     parser.add_argument('--timer-events', action='store_true', help='read public timer words, scalar getters and pause/resume state')
     parser.add_argument('--task-events', action='store_true', help='observe point-task acceptance and arrival queue state')
+    parser.add_argument('--patrol-lifetime-events', action='store_true', help='read Patrol endpoint and continuation task production')
     parser.add_argument('--follow-lifetime-events', action='store_true', help='read target-loss owner states and native caller stacks')
     parser.add_argument('--motion-events', action='store_true', help='capture raw speed/heading decision bits for numerical replay')
     parser.add_argument('--yield-events', action='store_true', help='observe ordered moving-blocker decisions, actual resolved groups and blocker handles')
@@ -62,7 +63,7 @@ def main():
     parser.add_argument('--point-click-extra', action='append', type=float, nargs=3, metavar=('AT','X','Y'), help='additional owned Winelib Move click; ordered time and integer client pixels')
     parser.add_argument('--point-click-from-start', action='store_true', help='time owned Move input from the observed scenario start marker')
     parser.add_argument('--point-native-key', action='store_true', help='send Move targeting through the reviewed native Shift helper')
-    parser.add_argument('--point-order-key', choices=('move', 'repair'), default='move', help='native targeting key for the owned click')
+    parser.add_argument('--point-order-key', choices=('move', 'repair', 'patrol'), default='move', help='native targeting key for the owned click')
     parser.add_argument('--point-click-sample-ticks', action='store_true', help='interpret click times as observed integer scenario sample ticks')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -88,7 +89,7 @@ def main():
     if args.point_native_key and not args.point_input_helper:
         parser.error('--point-native-key requires the reviewed native input helper')
     if args.point_order_key != 'move' and not args.point_native_key:
-        parser.error('--point-order-key repair requires --point-native-key')
+        parser.error('--point-order-key requires --point-native-key')
     if args.point_click_from_start and not args.point_input_helper:
         parser.error('--point-click-from-start requires an owned helper click')
     point_plan = []
@@ -131,7 +132,7 @@ def main():
         config['crt'] = dict(sha256=crt_hash, timestamp=struct.unpack_from('<I', crt, cp+8)[0],
                              imageSize=struct.unpack_from('<I', crt, cp+80)[0],
                              path='Z:' + str((args.data / 'msvcr120.dll').resolve()).replace('/', '\\'))
-    source_paths = [Path(__file__).with_name('wc3_follow_lifetime_probe.j'),Path(__file__).with_name('wc3_repair_queue_probe.j'),Path(__file__).with_name('wc3_repair_orders_probe.j'),Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
+    source_paths = [Path(__file__).with_name('wc3_patrol_queue_probe.j'),Path(__file__).with_name('wc3_patrol_lifetime_probe.j'),Path(__file__).with_name('wc3_follow_lifetime_probe.j'),Path(__file__).with_name('wc3_repair_queue_probe.j'),Path(__file__).with_name('wc3_repair_orders_probe.j'),Path(__file__).with_name('wc3_metadata_busy_probe.j'),Path(__file__).with_name('wc3_metadata_rally_probe.j'),Path(__file__).with_name('wc3_metadata_orders_probe.j'), Path(__file__).with_name('wc3_timer_mutation_probe.j'), Path(__file__).with_name('wc3_timer_boundaries_probe.j'), Path(__file__).with_name('wc3_timer_inputs_probe.j'), Path(__file__).with_name('wc3_formation_refresh_probe.j'), Path(__file__).with_name('wc3_formation_boundary_probe.j'), Path(__file__).with_name('wc3_formation_blocked_probe.j'), Path(__file__).with_name('wc3_formation_policy_probe.j'), Path(__file__).with_name('wc3_formation_rank_probe.j'), Path(__file__).with_name('wc3_mover_retirement_probe.j'), Path(__file__).with_name('wc3_scheduler_mutation_probe.j'), Path(__file__).with_name('wc3_scheduler_nonunit_probe.j'), Path(__file__).with_name('wc3_scheduler_probe.j'), Path(__file__).with_name('wc3_captain_probe.ai'), Path(__file__), Path(__file__).with_name('wc3_pathfinding.js'),
                     Path(__file__).with_name('wc3_pathfinding_probe.j'), Path(__file__).with_name('wc3_blocker_lifecycle_probe.j'), Path(__file__).with_name('wc3_widget_overlap_probe.j'), Path(__file__).with_name('wc3_adaptive_passage_probe.j'), Path(__file__).with_name('wc3_target_overlap_probe.j'), Path(__file__).with_name('wc3_terrain_cache_probe.j'), Path(__file__).with_name('wc3_movement_lifecycle_probe.j'), Path(__file__).with_name('wc3_region_callbacks_probe.j'), Path(__file__).with_name('wc3_movement_bypasses_probe.j'), Path(__file__).with_name('wc3_movement_modes_probe.j'), Path(__file__).with_name('wc3_speed_modifiers_probe.j'), Path(__file__).with_name('wc3_fine_results_probe.j'), Path(__file__).with_name('wc3_waygate_capacity_probe.j'), Path(__file__).with_name('wc3_waygate_overlap_probe.j'), Path(__file__).with_name('wc3_expression_probe.j'), Path(__file__).with_name('wc3_expression_inputs.json'),
                     Path(__file__).with_name('make_wc3_pathfinding_map.py'),
                     Path(__file__).with_name('wc3_numeric_inputs.json'),
@@ -161,6 +162,9 @@ def main():
     if args.follow_lifetime_events:
         follow_extension=Path(__file__).with_name('wc3_pathfinding_follow_lifetime.js')
         provenance[follow_extension.name]=hashlib.sha256(follow_extension.read_bytes()).hexdigest()
+    if args.patrol_lifetime_events:
+        patrol_extension=Path(__file__).with_name('wc3_pathfinding_patrol_lifetime.js')
+        provenance[patrol_extension.name]=hashlib.sha256(patrol_extension.read_bytes()).hexdigest()
     captain_ai = map_path.with_suffix('.ai')
     if captain_ai.is_file():
         provenance['captain_ai'] = hashlib.sha256(captain_ai.read_bytes()).hexdigest()
@@ -219,6 +223,11 @@ def main():
                 anchor='    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);'
                 if source.count(anchor)!=1:raise RuntimeError('target-loss observer installation point differs')
                 source=source.replace(anchor,anchor+'\n    installPathFollowLifetime(base,hook);',1)
+            if args.patrol_lifetime_events:
+                source += '\n'+patrol_extension.read_text()
+                anchor='    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);'
+                if source.count(anchor)!=1:raise RuntimeError('Patrol observer installation point differs')
+                source=source.replace(anchor,anchor+'\n    installPathPatrolLifetime(base,hook);',1)
             script = session.create_script(source)
             script.on('message', message)
             script.load()
@@ -261,7 +270,7 @@ def main():
                         subprocess.run(['xdotool','mousemove','--window',windows[0],*[str(v) for v in point_plan[clicked]['pixel']],
                                         'mousedown','1','sleep','0.2','mouseup','1'], check=True, timeout=5, env=env, stdout=subprocess.DEVNULL)
                     record({'event':'player-move-click','elapsed':time.monotonic()-start,
-                            'pixel':point_plan[clicked]['pixel'],'key':'r' if args.point_order_key == 'repair' else 'm','button':1,'shift':args.point_click_shift,'alt':args.point_click_alt})
+                            'pixel':point_plan[clicked]['pixel'],'key':{'repair':'r','patrol':'p','move':'m'}[args.point_order_key],'button':1,'shift':args.point_click_shift,'alt':args.point_click_alt})
                     clicked += 1
                 time.sleep(0.1)
             record({'event': 'trace-end', **script.exports_sync.finish()})

@@ -3863,6 +3863,72 @@
           "evidence": "Payoff122 complete original Repair constructor3e9b90, retained-target interceptor4371b0, work admission409630 and inverse436e10. Public four-race Repair/Renew/Restoration order captures distinguish approach and retained work."
         }
       ]
+    },
+    {
+      "name": "WC3PatrolTaskPrefix",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "u32",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 12,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 36,
+          "name": "successor",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 48,
+          "name": "event_code",
+          "type": "u32",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 56,
+          "name": "primary_x",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 64,
+          "name": "primary_y",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 72,
+          "name": "range",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 76,
+          "name": "association",
+          "type": "ptr:void",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 84,
+          "name": "continuation_x",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        },
+        {
+          "offset": 92,
+          "name": "continuation_y",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        }
+      ]
     }
   ],
   "methods": [
@@ -4549,7 +4615,7 @@
       "address": "6f5fdff0",
       "name": "Move_CreatePatrolTasks",
       "returns": "void",
-      "convention": "__fastcall",
+      "convention": "__thiscall",
       "parameters": [
         {
           "name": "move",
@@ -11836,6 +11902,173 @@
           "name": "ability",
           "type": "ptr:WC3MoveSpeedPrefix",
           "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f690fa0",
+      "name": "OrderPoint_CreateWithContinuation",
+      "returns": "ptr:WC3PatrolEndpointsPrefix",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "command",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "continuation_x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "continuation_y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        },
+        {
+          "name": "association",
+          "type": "ptr:void",
+          "storage": 24
+        }
+      ]
+    },
+    {
+      "address": "6f692010",
+      "name": "Unit_PrependTwoPointTask",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event_code",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "continuation_x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "continuation_y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        },
+        {
+          "name": "range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 24
+        },
+        {
+          "name": "association",
+          "type": "ptr:void",
+          "storage": 28
+        }
+      ]
+    },
+    {
+      "address": "6f689d40",
+      "name": "TaskTwoPoint_SetArguments",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "task",
+          "type": "ptr:WC3PatrolTaskPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "event_code",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "continuation_x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 20
+        },
+        {
+          "name": "continuation_y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 24
+        },
+        {
+          "name": "range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 28
+        },
+        {
+          "name": "association",
+          "type": "ptr:void",
+          "storage": 32
+        }
+      ]
+    },
+    {
+      "address": "6f5fff70",
+      "name": "Move_AppendPatrolContinuation",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
         }
       ]
     }

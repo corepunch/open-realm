@@ -203,6 +203,29 @@ TEST(wc3_order_lifecycle, auto_attack_resumes_patrol_but_smart_attack_replaces_i
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
+TEST(wc3_order_lifecycle, patrol_head_differs_from_issued_command_through_combat) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(30, 1);
+    vec2_t const endpoint = {600, 0};
+    T_EQ(G_OrderId("patrol"), 851990);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &endpoint, false, 0, 0));
+    T_EQ(G_GetIssuedOrderId(unit), 851990);
+    T_EQ(unit->current_order_id, 851991);
+    edict_t *patrol = unit->movement.patrol_target;
+    order_attack(unit, enemy);
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "repair", enemy, false, 0));
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(unit->currentmove->proc == CAbilityAttack);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(unit->goalentity == patrol);
+    T_ASSERT(unit->currentmove->proc == CAbilityPatrol);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 0}, false, 0, 0));
+    T_EQ(unit->current_order_id, 851986);
+    T_NULL(unit->movement.patrol_a);
+}
+
 TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(500, 0);

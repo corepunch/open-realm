@@ -45,12 +45,14 @@ void order_patrol(edict_t *self, edict_t *b) {
     order_patrol_resume(self);
 }
 
-/* Record the admitted public command; endpoint reversals and combat resumes retain it. */
-bool S_IssuePatrolOrder(edict_t *self, edict_t *target, uint32_t order_id) {
+/* Activate the two-endpoint order; reversals and combat resumes retain it. */
+bool S_IssuePatrolOrder(edict_t *self, edict_t *target) {
     if (!self || !target) return false;
     order_patrol(self, target);
     if (self->goalentity != target || self->currentmove != &patrol_move_walk) return false;
-    self->current_order_id = order_id;
+    /* Issued-order callbacks retain WC3_ORDER_ID_PATROL. The Patrol owner
+     * publishes the active order only after both endpoints are admitted. */
+    self->current_order_id = WC3_ORDER_ID_PATROL_TWO_POINTS;
     return true;
 }
 

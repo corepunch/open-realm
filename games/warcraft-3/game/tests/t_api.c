@@ -5354,7 +5354,7 @@ TEST(wc3_api, current_order_patrol_owns_native_reversal_and_pending_activation) 
         "  unit subject = null\n"
         "endglobals\n"
         "function verifyPatrol takes nothing returns nothing\n"
-        "  call BJassAssert(GetUnitCurrentOrder(subject) == OrderId(\"patrol\"), \"persistent Patrol owns its public head\")\n"
+        "  call BJassAssert(GetUnitCurrentOrder(subject) == 851991, \"persistent Patrol owns its public head\")\n"
         "endfunction\n"
         "function verifyIdle takes nothing returns nothing\n"
         "  call BJassAssert(GetUnitCurrentOrder(subject) == 0, \"retired Patrol has no current head\")\n"
@@ -5420,7 +5420,7 @@ TEST(wc3_api, current_order_patrol_owns_native_reversal_and_pending_activation) 
     T_NULL(unit->movement.patrol_a);
     T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &(vec2_t){448, 64}, true, 0, 0));
     T_EQ(unit->order_queue.count, 1);
-    for (int frame = 0; frame < 120 && unit->current_order_id != G_OrderId("patrol"); frame++) {
+    for (int frame = 0; frame < 120 && unit->current_order_id != 851991; frame++) {
         level.time += FRAMETIME; globals.RunFrame();
     }
     T_EQ(unit->order_queue.count, 0);
@@ -5464,14 +5464,14 @@ TEST(wc3_api, current_order_patrol_ui_uses_same_pending_owner) {
     T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){448, 64}));
     T_EQ(unit->current_order_id, G_OrderId("move")); T_EQ(unit->order_queue.count, 1);
     level.started = level.scriptsConfigured = level.scriptsStarted = true;
-    for (int frame = 0; frame < 120 && unit->current_order_id != G_OrderId("patrol"); frame++) {
+    for (int frame = 0; frame < 120 && unit->current_order_id != 851991; frame++) {
         level.time += FRAMETIME; globals.RunFrame();
     }
-    T_EQ(unit->current_order_id, G_OrderId("patrol")); T_EQ(unit->order_queue.count, 0);
+    T_EQ(unit->current_order_id, 851991); T_EQ(unit->order_queue.count, 0);
     T_NOT_NULL(unit->movement.patrol_a);
     clent->client->menu.order_queued = false;
     T_ASSERT(clent->client->menu.on_location_selected(clent, &(vec2_t){512, 256}));
-    T_EQ(unit->current_order_id, G_OrderId("patrol"));
+    T_EQ(unit->current_order_id, 851991);
     T_FEQ(unit->movement.patrol_b->s.origin.x, 512, 0.001f);
     T_FEQ(unit->movement.patrol_b->s.origin.y, 256, 0.001f);
     gi.Write = write; gi.unicast = unicast;

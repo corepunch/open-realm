@@ -766,6 +766,94 @@ fingerprints unchanged at completion. Manifest SHA256:
 summary SHA256:
 `b2ad131dd8491f5f67ccc866304f8c9d42fae1e55d30ae75f1be4632c5233871`.
 
+## Patrol uses a two-endpoint public continuation
+
+**S/L plus engine regression, Payoff124:** issued Patrol is851990, while retail
+expands it into the active two-endpoint public order851991. The former remains
+the issued-order event identity. The engine previously returned851990 from
+`GetUnitCurrentOrder`; `S_IssuePatrolOrder` now owns this expansion. The named
+`WC3_ORDER_ID_PATROL` and `WC3_ORDER_ID_PATROL_TWO_POINTS` identify the issued
+command and active endpoint order. The owner accepts endpoints, not a caller's
+order ID to conditionally translate. A new
+production-order regression fails four assertions before the fix and passes
+through temporary Attack, rejected enemy Repair, enemy death and replacement
+Move. Existing native/UI Patrol regressions now assert the captured active head
+instead of equating it with `OrderId("patrol")`; their Save117 continuation passes.
+
+The7-subject fixture runs240 public timer samples. Cases cover undisturbed
+reversal, automatic actual attacks followed by KillUnit/RemoveUnit, a damage
+callback replacing Patrol with Move and removing the enemy, rejected Repair,
+Stop, subject retirement/recreation, and a terrain-blocked endpoint. Both
+complete original captures repeat all1,707 ten-word public records, digest
+`cecfb6e2e6874b57c3bd8cf379f3f74f7abd6eafba63d82a35dceb90e8f6c5ec`.
+Their33 ordered continuation transitions also repeat exactly, digest
+`131e86d1491fa9bd5476b6a2ca8dac36adcaf92fcffdc495eb5bfde38f086760`.
+Actual damage-source handles establish combat, independently of animation.
+Enemy loss preserves851991; nested Move851986 survives the old owner's unwind.
+The initially attempted dead-target Attack is an accepted retail replacement,
+so exploratory capture124a is not the rejected-order witness. Accepted captures
+124b/c use a hostile Repair rejection instead.
+
+| Original owner | Verified behavior |
+|---|---|
+| `5fdff0 Move_CreatePatrolTasks` | Read primary48/50 and alternate5c/64 from the retained public order. Prepend a point task and d0175 continuation task. |
+| `692010 Unit_PrependTwoPointTask` | ECX Unit; seven stack arguments; RET1c. Store both points in the task, then prepend it. |
+| `689d40 TaskTwoPoint_SetArguments` | ECX task; eight stack arguments; RET20. Task payload38/40 and54/5c preserve the two endpoints. |
+| `5fff70 Move_AppendPatrolContinuation` | ECX Move, stack4 event, RET4. Read the task's return point and retained outward point; create and append the successor. |
+| `690fa0 OrderPoint_CreateWithContinuation` | ECX command, EDX player; six stack arguments; RET18. Return the new two-endpoint order. |
+
+**Creation order is reversed by prepend.** The physical d016b point task runs
+before d0175; the return order is appended when that leg finishes, before the
+old public head drains. The33 actual before/after snapshots preserve the old
+head, increment public count and set the new tail. Treating static factory-call
+order as execution order incorrectly puts the return append before outward
+movement. Unit virtualec is `685da0 CUnit_GetOwnerIndex`, not an order factory.
+The true Unit vtable base is6fb77eb0;6fb77f34 is its84 entry address.
+
+Two additional genuine Shift-P input captures use the owned Winelib helper,
+without game-memory writes. A queued Patrol behind Move captures its origin at
+activation near the completed Move endpoint, not at the earlier click. A Patrol
+queued behind Patrol remains ahead of the first leg's internally appended return:
+the native continuation grows public count2→3 without replacing its head.
+Both captures repeat all3,624 exported words. These producer witnesses remain
+external `/GitHub/wc3-analysis/runtime/payoff124/patrol-queue-{a,b}.jsonl`; the
+versioned `wc3_patrol_queue_probe.j` and `--point-order-key patrol` reproduce them.
+They establish what the next engine queue integration must preserve.
+
+The saved Ghidra readback includes83 partial layouts/423 explicit ABIs, the
+96-byte `WC3PatrolTaskPrefix` and104-byte `WC3PatrolEndpointsPrefix`.
+`MapPathfinding.java` persists the recovered functions and the ordering caveat.
+The frozen lifetime verifier checks complete producer provenance, issued/active
+IDs, callback sources, endpoint swaps, append ownership and blocked recovery;
+its negative controls reject missing or altered evidence.
+
+The bounded lifetime capture uses the original Human02Interlude wrapper as the
+map-builder input:
+
+```sh
+python tools/frida/make_wc3_pathfinding_map.py --base "$WC3_SOURCE_MAP" \
+  --scenario patrol_lifetime --output "$WC3_DATA/Maps/PathPatrolLifetime.w3m"
+DISPLAY=:94 WAYLAND_DISPLAY= WINEDEBUG=-all \
+WINEPREFIX=/home/lofcz/.local/share/open-realm/wine-pathfinding-re \
+/home/lofcz/.local/share/uv/tools/frida-tools/bin/python \
+  tools/frida/trace_wc3_pathfinding.py --data "$WC3_DATA" \
+  --map 'Maps\PathPatrolLifetime.w3m' --seconds 75 --samples 10000 \
+  --profile-events --motion-events --velocity-events --task-events \
+  --metadata-events --patrol-lifetime-events --x11-display :94 \
+  --continue-at 30 --continue-after-start 3 --output /tmp/patrol-lifetime.jsonl
+```
+
+`WC3_SOURCE_MAP` must be the pinned original wrapped campaign map;
+`WC3_DATA` must contain the hash-checked1.27.1.7085 game. The capture requires the
+owned Xvfb/Frida environment described in the retail diagnostic workflow.
+
+Validation: Classic/TFT order lifecycle35 tests/527 assertions each; existing
+public Patrol native/UI2 tests/45 assertions each; production and test builds.
+The fresh strict lifetime corpus entry verifies both captures. Full route/task
+composition, precise blocked/combat movement and queued continuation save/reuse
+remain **ORDER-01.18**. This payoff closes no checkbox and claims no complete
+Patrol numerical or combat-trajectory parity.
+
 ## Current Follow and Hold ownership
 
 **S/L plus engine regression:** the `order_lifecycle` probe uses actual public
