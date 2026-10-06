@@ -722,6 +722,82 @@ TEST(wc3_items, healing_rune_uses_authored_aoe_with_full_inventory) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"APmr\"\nC;Y2;X2;K\"APmr\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"125\"\nC;Y2;X5;K\"120\"\n"
+        "C;Y2;X6;K\"friend,self,hero,nonhero,ground,air,organic\"\n"
+        "C;Y3;X1;K\"APmg\"\nC;Y3;X2;K\"APmg\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"300\"\nC;Y3;X5;K\"120\"\n"
+        "C;Y3;X6;K\"friend,self,hero,nonhero,ground,air,organic\"\nE\n";
+    static ItemData_t rune_data = { .abilList = "APmr", .powerup = true,
+                                    .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *nearby, *distant, *enemy, *mechanical, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    nearby = make_item_test_inventory_unit(50, 0);
+    distant = make_item_test_inventory_unit(150, 0);
+    enemy = make_item_test_inventory_unit(30, 0);
+    mechanical = make_item_test_inventory_unit(40, 0);
+    picker->s.player = nearby->s.player = distant->s.player = mechanical->s.player = 0;
+    enemy->s.player = 1;
+    picker->svflags |= SVF_MONSTER;
+    nearby->svflags |= SVF_MONSTER;
+    distant->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER;
+    mechanical->svflags |= SVF_MONSTER;
+    picker->targtype = nearby->targtype = distant->targtype = enemy->targtype = TARG_GROUND;
+    mechanical->targtype = TARG_MECHANICAL;
+    picker->mana.max_value = nearby->mana.max_value = distant->mana.max_value =
+        enemy->mana.max_value = mechanical->mana.max_value = 500.0f;
+    picker->mana.value = 10.0f;
+    nearby->mana.value = 450.0f;
+    distant->mana.value = enemy->mana.value = mechanical->mana.value = 10.0f;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','n'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_EQ(FindAbilityForCommand("AImr")->proc, CAbilityItemManaAoe);
+    T_EQ(FindAbilityForCommand("APmr")->proc, CAbilityItemManaAoe);
+    T_EQ(FindAbilityForCommand("APmg")->proc, CAbilityItemManaAoe);
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->mana.value, 135.0f, 0.01f);
+    T_FEQ(nearby->mana.value, 500.0f, 0.01f);
+    T_FEQ(distant->mana.value, 10.0f, 0.01f);
+    T_FEQ(enemy->mana.value, 10.0f, 0.01f);
+    T_FEQ(mechanical->mana.value, 10.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* The greater rune uses its own authored amount, not the smaller rune's. */
+    rune_data.abilList = "APmg";
+    picker->mana.value = 10.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_FEQ(picker->mana.value, 310.0f, 0.01f);
+    T_ASSERT(rune->item->pending_use_removal);
+
+    /* Full mana does not leave a supported powerup sitting on the ground. */
+    picker->mana.value = nearby->mana.value = 500.0f;
+    rune = make_item_test_world_item(MAKEFOURCC('r','m','a','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X8\n"

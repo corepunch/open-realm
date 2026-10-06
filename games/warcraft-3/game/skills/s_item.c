@@ -522,6 +522,35 @@ BZ_ABILITY_PROC(CAbilityItemHealAoe) {
     return true;
 }
 
+/* TFT Mana Runes (AImr / APmr / APmg): restore the authored DataA
+ * amount to each eligible friendly unit within the authored Area. Use the
+ * actual picker as origin; full-mana groups still consume the powerup. */
+BZ_ABILITY_PROC(CAbilityItemManaAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code;
+    float amount, area;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row) return false;
+    amount = S_SpellData(code, 1, 1); /* DataA / Mana Gained */
+    area = row->area;
+    if (!(amount > 0.0f) || !(area >= 0.0f)) return false;
+
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 S_SpellIsFriend(caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
+        if (target->mana.value >= target->mana.max_value) continue;
+        target->mana.value = MIN(target->mana.max_value, target->mana.value + amount);
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
+    }
+    return true;
+}
+
 /* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
  * executes on its actual picker rather than on a local client's selection.
  * Resource pickups grant their full amount and do not pass through the
