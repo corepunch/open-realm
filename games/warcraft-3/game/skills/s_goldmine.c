@@ -915,11 +915,10 @@ static void haunted_mine_ensure_effects(edict_t *mine) {
 
         if (haunted_ring_effect(mine, alias, i)) continue;
         haunted_mine_slot_position(mine, i, capacity, &point);
-        effect = G_SpawnAbilityEffectAtPoint(alias, WC3_EFFECT_EFFECT, 0, &point, false);
+        effect = G_SpawnOwnedAbilityEffectAtPoint(mine, alias, WC3_EFFECT_EFFECT, 0, &point);
         if (!effect) continue;
 
         angle = ((M_PI * 2.0) / (double)capacity) * (double)i + (M_PI / 2.0);
-        effect->owner = mine;
         effect->summon_ability = alias;
         effect->resources = i + 1;
         /* Entity angles are radians; the old degree conversion rotated each
@@ -1340,9 +1339,8 @@ static bool entangle_goldmine_start(edict_t *caster, edict_t *target, bool insta
     CM_BakeStaticObstacles();
     if (!instant) G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
     {
-        edict_t *effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_CASTER, 0, caster, NULL, false);
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(entangled, alias, WC3_EFFECT_CASTER, 0, caster, NULL);
         if (effect) {
-            effect->owner = entangled;
             effect->summon_ability = alias;
         }
     }

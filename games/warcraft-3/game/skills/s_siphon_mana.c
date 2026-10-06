@@ -14,11 +14,10 @@ static bool siphon_mana_validate(edict_t *caster, spellTarget_t st, abilityitem_
 
 /* Recheck both edict incarnations and the cast serial before every pulse; cancelled drains cannot revive on recast. */
 void siphon_mana_think(edict_t *ent) {
-    edict_t *caster = ent->owner, *target = ent->goalentity;
+    edict_t *caster = ent->owner, *target = S_SpellChannelTarget(ent);
     uint32_t now = G_Time(), code = ent->class_id, rank = ent->resources;
     float amount, before;
-    if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) ||
-        target->spawn_time != ent->channel->target_spawn_time || !S_SpellAllowsTarget(code, caster, target) ||
+    if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) || !S_SpellAllowsTarget(code, caster, target) ||
         !S_SpellTargetInRange(caster, target, ent->collision)) { S_SpellEndChannel(ent); return; }
     if (now < ent->freetime) return;
     if (S_SpellIsFriend(caster, target)) {
@@ -44,13 +43,10 @@ void siphon_mana_think(edict_t *ent) {
 /* A shared thinker keeps the requested rawcode and rank, so Life Drain and Siphon Mana retain different data. */
 static void siphon_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
-    edict_t *ent = S_SpellChannelThinker(caster, spell->code);
-    if (!ent->channel) ent->channel = G_AllocChannel();
-    assert(ent->channel);
-    S_SetMoveGoal(ent, &ent->goalentity, st.entity); ent->channel->target_spawn_time = st.entity->spawn_time;
+    edict_t *ent = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     ent->resources = rank; ent->velocity = S_SpellData(spell->code, rank, 3);
     ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
-    ent->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, rank, G_UnitIsHero(st.entity)) * 1000.0f);
+    ent->spawn_time = G_Time() + (uint32_t)(S_SpellHeroDuration(spell->code, rank, st.entity) * 1000.0f);
     ent->think = siphon_mana_think;
     ent->freetime = G_Time() + (uint32_t)MAX(FRAMETIME, ent->velocity * 1000.0f);
 }

@@ -1152,17 +1152,19 @@ CLIENTCOMMAND(Button) {
      * weaken G_UnitCanControl() for ordinary enemy/neutral units. Merchandise
      * commands are raw object IDs and the authoritative stock path decides
      * whether the selected shop sells an item or a non-Hero unit. */
-    if (G_CanUseItemShop(client, producer) || G_CanUseUnitShop(client, producer)) {
+    if ((G_CanUseItemShop(client, producer) || G_CanUseUnitShop(client, producer)) &&
+        strlen(classname) == 4) {
         uint32_t merchandise_id = 0;
-        if (strlen(classname) != 4) return;
         memcpy(&merchandise_id, classname, sizeof(merchandise_id));
         if (G_ShopSellsItem(producer, merchandise_id)) {
             if (G_ShopPurchaseItem(clent, producer, merchandise_id)) Get_Portrait_f(clent);
+            Get_Commands_f(clent);
+            return;
         } else if (G_ShopSellsUnit(producer, merchandise_id)) {
             G_ShopPurchaseUnit(clent, producer, merchandise_id);
+            Get_Commands_f(clent);
+            return;
         }
-        Get_Commands_f(clent);
-        return;
     }
     if (!G_UnitCanControl(client, producer)) return;
     if (!strncmp(classname, "revive:", 7)) {
@@ -1450,14 +1452,68 @@ CLIENTCOMMAND(Kill) {
     G_CheatPrintf(clent, "WC3: selected unit killed");
 }
 
-/* Parse a non-negative Hero stat amount and clamp it to the authored maximum. */
-static bool G_ParseHeroStatAmount(cstring_t text, float maximum, float *value) {
+/* Parse a non-negative current-stat amount. Callers clamp it to each unit's maximum. */
+static bool G_ParseUnitStatAmount(cstring_t text, float *value) {
     unsigned long amount;
 
     if (!value || !text || !G_DebugIsNumber(text) || text[0] == '-') return false;
     amount = strtoul(text, NULL, 10);
-    *value = MIN((float)amount, MAX(0.0f, maximum));
+    *value = (float)amount;
     return true;
+}
+
+/* Restore or set current health/mana across the selected controllable group. */
+CLIENTCOMMAND(Unit) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    float requested = 0.0f;
+    uint32_t selected_count = 0;
+    uint32_t changed_count = 0;
+    bool const health = argc >= 2 && !strcasecmp(argv[1], "health");
+
+    if (!G_CheatsEnabled()) {
+        G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
+        return;
+    }
+    if (argc < 2 || argc > 3 ||
+            (strcasecmp(argv[1], "health") && strcasecmp(argv[1], "mana"))) {
+        G_CheatPrintf(clent, "WC3: usage: unit health [amount] | unit mana [amount]");
+        return;
+    }
+    if (argc == 3 && !G_ParseUnitStatAmount(argv[2], &requested)) {
+        G_CheatPrintf(clent, "WC3: unit %s amount must be a non-negative integer",
+                health ? "health" : "mana");
+        return;
+    }
+
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
+        float maximum;
+        float value;
+
+        selected_count++;
+        if (health) {
+            maximum = MAX(0.0f, unit->health.max_value);
+            value = argc == 3 ? MIN(requested, maximum) : maximum;
+            G_SetHealth(unit, value);
+        } else {
+            maximum = unit->mana.max_value;
+            if (maximum <= 0.0f) continue;
+            value = argc == 3 ? MIN(requested, maximum) : maximum;
+            unit->mana.value = value;
+        }
+        G_InvalidateUnitInfoPanel(unit);
+        changed_count++;
+    }
+
+    if (!selected_count) {
+        G_CheatPrintf(clent, "WC3: unit cheat requires a selected controllable unit");
+        return;
+    }
+    if (!changed_count) {
+        G_CheatPrintf(clent, "WC3: selected controllable units have no mana");
+        return;
+    }
+    G_CheatPrintf(clent, "WC3: %s updated for %u selected unit(s)",
+            health ? "health" : "mana", (unsigned)changed_count);
 }
 
 /* Apply the selected controllable Hero cheat without bypassing normal state ownership. */
@@ -1548,11 +1604,11 @@ CLIENTCOMMAND(Hero) {
 
     if (!strcasecmp(argv[1], "health")) {
         value = hero->health.max_value;
-        if (argc == 3 && !G_ParseHeroStatAmount(argv[2], hero->health.max_value, &value)) {
+        if (argc == 3 && !G_ParseUnitStatAmount(argv[2], &value)) {
             G_CheatPrintf(clent, "WC3: hero health amount must be a non-negative integer");
             return;
         }
-        G_SetHealth(hero, value);
+        G_SetHealth(hero, MIN(value, MAX(0.0f, hero->health.max_value)));
         G_CheatPrintf(clent, "WC3: selected hero health set to %.0f / %.0f",
                 hero->health.value, hero->health.max_value);
         G_InvalidateUnitInfoPanel(hero);
@@ -1561,11 +1617,11 @@ CLIENTCOMMAND(Hero) {
 
     if (!strcasecmp(argv[1], "mana")) {
         value = hero->mana.max_value;
-        if (argc == 3 && !G_ParseHeroStatAmount(argv[2], hero->mana.max_value, &value)) {
+        if (argc == 3 && !G_ParseUnitStatAmount(argv[2], &value)) {
             G_CheatPrintf(clent, "WC3: hero mana amount must be a non-negative integer");
             return;
         }
-        hero->mana.value = value;
+        hero->mana.value = MIN(value, MAX(0.0f, hero->mana.max_value));
         G_CheatPrintf(clent, "WC3: selected hero mana set to %.0f / %.0f",
                 hero->mana.value, hero->mana.max_value);
         G_InvalidateUnitInfoPanel(hero);
@@ -2895,6 +2951,7 @@ clientCommand_t clientCommands[] = {
     { "give", CMD_Give },
     { "god", CMD_God },
     { "kill", CMD_Kill },
+    { "unit", CMD_Unit },
     { "hero", CMD_Hero },
     { "win", CMD_Win },
     { "lose", CMD_Lose },

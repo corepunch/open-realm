@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 109, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 112, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -153,6 +153,9 @@ The server's map-selection read checks both the format version and entity size b
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
 Version 77 adds Stop guard movement state to the entity record: `guard_position` and one `guard_state` enum (`NONE`, `IDLE`, `COMBAT`, or `RETURNING`). The exact-version guard rejects earlier saves because their entity records lack these fields.
+Upstream version 65 makes delayed ability-edict identity snapshots mandatory for owner/target-bound thinkers. Pocket Factory, Graveyard/Exhume production, Stasis Trap, Divine Shield, and Lightning Shield persist `channel->owner_spawn_time` (and Lightning Shield `target_spawn_time`) so a recycled edict slot cannot inherit an older delayed effect. Version 64 saves are rejected rather than loading those thinkers without generation guards.
+
+Upstream version 64 removes redundant Sacrifice/Polymorph `active` and destructable `initialized` fields. Their pool pointer represents ownership directly; Polymorph death releases its inverse record while keeping death presentation. Version 63 saves are rejected because those serialized pool layouts changed.
 
 Format 90 merges the retained pathfinding/AI state with the full27-pool lifecycle layout.
 It rejects both branch format89 and upstream format64: entity layouts and streams differ.
@@ -221,6 +224,8 @@ Version 36 expands the raw `GAMECLIENT` Warcraft music state with per-client ses
 Version 37 adds the timer callback generation/pending fields, expands the bounded event ring, and adds the Undead Sacrifice queue relationship. A queued Shade carries `edict_s.sacrifice` and `sacrifice.worker` is relocated through an `F_EDICT` fixup; the saved worker generation and hidden/paused restoration scalars remain in the raw edict record. This lets a save taken while an Acolyte is hidden inside a Sacrificial Pit resume the same production item and cancel/complete safely instead of retaining a process pointer. Version 36 saves are rejected by the exact-version guard because the timer schema and event ring layout changed. See [Undead Sacrifice](sacrifice.md).
 
 Save format version 45 adds Way Gate destination/activation values and explicit approach state. `movement.waygate_target` and `movement.waygate_goal` use the ordinary `F_EDICT` relocation contract, `waygate_target_spawn_time` guards the target incarnation, and the behavior continues to use the existing `currentmove` `F_MMOVE` relocation. The exact version guard rejects version 44 saves independently of the `sizeof(edict_t)` header check. See [Way Gates](way-gates.md).
+
+Ability-owned temporary summons rely on three already-persisted parts of the edict contract together: the `owner` `F_EDICT` fixup, the scalar `summon_ability` alias, and the owned sparse timed-status record carrying `BTLF` (`timestamp`/`duration_ms`). The save regression suite covers that combined lifecycle so a loaded temporary summon keeps both provenance and its remaining timed-life state; no additional save-format field is required.
 
 Corpse lifecycle (`AI_CORPSE_UNRAISABLE`, `AI_CORPSE_NO_DECAY`, `AI_CORPSE_RESERVED`, and `AI_CORPSE_IN_CARGO`) rides in the already-persisted `aiflags` edict field, while the existing persisted `cargo.units[]`/`cargo.count` links the Meat Wagon to the actual stored corpse edicts. Thus cargo occupancy, corpse identity, decay move/timer, and active corpse-consumer reservation survive save/load without a new format field. Graveyard `Agyd` production uses an ordinary owner-linked thinker plus `freetime`; `graveyard_think` is in the saved callback roster, so its cadence resumes without a format change. See [Corpse Lifecycle, Cannibalize, and Raise Dead](corpse-mechanics.md).
 
@@ -652,6 +657,14 @@ Save format version 16 adds the active WC3 environmental terrain-fog state and i
 Channel cast serials, saved origins, and owner/target incarnation stamps are persisted in version 21.
 The appended channel thinker callback roster and continuation tests are described in
 [ability verification](ability-verification-review.md#dispatch-and-persistence).
+
+Ability helper thinkers may also use the existing `channel_t` pool purely as a save-safe incarnation carrier.
+Reincarnation snapshots its Hero owner, Acid Bomb snapshots both caster and victim, Flare snapshots its caster, and the
+timed Metamorphosis reversion snapshots the transformed unit before using delayed callbacks. `reincarnation_think`,
+`acid_bomb_think`, and `morph_end` are appended to the C-callback roster so saves made while those effects are pending
+restore the live callback rather than failing on an unrecognized process pointer. This
+does not make those abilities channels and adds no save-schema fields: the existing `owner`/`goalentity` `F_EDICT` links
+and `channel->owner_spawn_time` / `channel->target_spawn_time` scalars carry the contract.
 
 Save format version 39 adds the launch-time attack type for basic projectiles.
 Version 38 added the launch-time artillery attack type, target masks, splash
@@ -1210,3 +1223,12 @@ accepted physical group's existing saved flags retain its formation policy.
 No saved queued Alt reconstruction policy is invented: retail's original
 request lifetime and later fresh requests are distinct. Save110 is rejected
 before restoring the world. See [actual UI formation policy](retail-pathfinding-engine.md#ordinary-and-alt-formation-ticks-retain-the-actual-ui-policy).
+
+### Retail Move and upstream ability lifecycle merge (version112)
+
+Format112 combines the verified Move records with upstream’s mandatory owner/target
+incarnation guards and updated optional ability pool layouts. Both parent formats
+(111 and upstream65) are rejected. Timed status source pointers remain in the
+owned sparse status pool; loading rebuilds its pointer references before resolving
+source generations. Shared channel and missile constructors publish goal changes
+through Move and retain the projectile producer’s scheduler/pose initialization.

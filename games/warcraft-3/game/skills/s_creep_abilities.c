@@ -52,12 +52,12 @@ void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     code = G_UnitAbilityLevel(attacker, ID_LIQUID_FIRE) ? ID_LIQUID_FIRE : 0;
     if (code) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        unit_addtimedstatus(target, "Bliq", level, S_SpellDuration(code, level, G_UnitIsHero(target)));
+        S_SpellApplyTimedStatus(target, "Bliq", level, S_SpellHeroDuration(code, level, target));
     }
     code = G_UnitAbilityLevel(attacker, ID_CORROSIVE_BREATH) ? ID_CORROSIVE_BREATH : 0;
     if (code) {
         level = MAX(1u, G_UnitAbilityLevel(attacker, code));
-        unit_addtimedstatus(target, "Bcor", level, S_SpellDuration(code, level, G_UnitIsHero(target)));
+        S_SpellApplyTimedStatus(target, "Bcor", level, S_SpellHeroDuration(code, level, target));
     }
 }
 
@@ -145,8 +145,8 @@ void death_damage_aoe_think(edict_t *thinker) {
 
     if (!thinker || !thinker->inuse) return;
     if (G_Time() < thinker->freetime) return;
-    source = thinker->owner;
-    if (!source || !source->inuse || source->spawn_time != thinker->channel->owner_spawn_time) source = thinker;
+    source = S_SpellChannelOwner(thinker);
+    if (!source) source = thinker;
     code = thinker->class_id;
     level = MAX(1u, (uint32_t)thinker->wait);
     death_damage_aoe_apply(source, code, level, &thinker->s.origin2);

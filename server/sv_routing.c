@@ -68,6 +68,7 @@ struct {
     uint32_t *pathheap;       /* binary min-heap of pathmap indexes */
     uint32_t *obstacle_prefix; /* summed-area table for static nowalk cells */
     uint32_t *nofly_prefix;    /* summed-area table for static nofly cells */
+    uint32_t *nowater_prefix;  /* summed-area table for static nowater cells */
     uint8_t *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
 
@@ -289,21 +290,25 @@ static void rebuild_static_obstacle_prefix(void) {
     uint32_t const stride = pathmap.width + 1;
     uint32_t const rows = pathmap.height + 1;
 
-    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.original)
+    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.nowater_prefix || !pathmap.original)
         return;
 
     memset(pathmap.obstacle_prefix, 0, stride * rows * sizeof(uint32_t));
     memset(pathmap.nofly_prefix, 0, stride * rows * sizeof(uint32_t));
+    memset(pathmap.nowater_prefix, 0, stride * rows * sizeof(uint32_t));
     FOR_LOOP(y, pathmap.height) {
-        uint32_t walk_row_sum = 0, fly_row_sum = 0;
+        uint32_t walk_row_sum = 0, fly_row_sum = 0, water_row_sum = 0;
         FOR_LOOP(x, pathmap.width) {
             pathMapCell_t const *cell = &pathmap.original[x + y * pathmap.width];
             walk_row_sum += cell->nowalk ? 1 : 0;
             fly_row_sum += cell->nofly ? 1 : 0;
+            water_row_sum += cell->nowater ? 1 : 0;
             pathmap.obstacle_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.obstacle_prefix[(x + 1) + y * stride] + walk_row_sum;
             pathmap.nofly_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.nofly_prefix[(x + 1) + y * stride] + fly_row_sum;
+            pathmap.nowater_prefix[(x + 1) + (y + 1) * stride] =
+                pathmap.nowater_prefix[(x + 1) + y * stride] + water_row_sum;
         }
     }
 }
@@ -321,6 +326,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     SAFE_DELETE(pathmap.pathheap, MemFree);
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     SAFE_DELETE(pathmap.nofly_prefix, MemFree);
+    SAFE_DELETE(pathmap.nowater_prefix, MemFree);
     SAFE_DELETE(pathmap.approach_mask, MemFree);
     SAFE_DELETE(heatmap_pending, MemFree);
     heatmap_pending_count = heatmap_pending_capacity = 0;
@@ -351,6 +357,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     pathmap.pathheap = MemAlloc(n * sizeof(uint32_t));
     pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.nofly_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
+    pathmap.nowater_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.approach_mask = MemAlloc(n);
 
     if (cells) {
@@ -927,7 +934,8 @@ static bool path_query_ok(point2_t pos, pathGridQuery_t const *query) {
     if (x0 < 0 || y0 < 0 || x1 > (int)pathmap.width || y1 > (int)pathmap.height)
         return false;
     prefix = flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix
-           : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix : NULL;
+           : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix
+           : flags == CM_PATHING_UNFLOATABLE ? pathmap.nowater_prefix : NULL;
     if (!prefix) {
         for (int py = y0; py < y1; py++)
             for (int px = x0; px < x1; px++)
@@ -1968,7 +1976,8 @@ void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Synthesize a pathmap from a raw byte array for unit tests.
- * Each byte is treated as a pathMapCell_t (bit 1 = nowalk, bit 2 = nofly).
+ * Each byte is treated as a pathMapCell_t (bit 1 = nowalk, bit 2 = nofly,
+ * bit 6 = nowater, bit 7 = amphibious).
  * The world coordinate system is set up so cell (x,y) maps to
  * world position (x * cell_size, y * cell_size). */
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells) {

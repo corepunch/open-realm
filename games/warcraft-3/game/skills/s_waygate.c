@@ -242,23 +242,16 @@ static void waygate_clear_order(edict_t *unit) {
 }
 
 static bool waygate_complete(edict_t *unit, edict_t *gate) {
-    vec2_t source, position;
+    vec2_t position;
 
     if (!unit || !gate) return false;
-    source = unit->s.origin2;
     if (!G_FindUnitUnstuckPosition(unit, &gate->waygate->destination, &position)) {
         fprintf(stderr, "WC3 Waygate: no legal destination for unit %u gate %u at (%.1f, %.1f); traversal cancelled\n",
                 unit->s.number, gate->s.number, gate->waygate->destination.x, gate->waygate->destination.y);
         waygate_cancel(unit);
         return false;
     }
-    G_SpawnAbilityEffectAtPoint(BZ_AMOV, WC3_EFFECT_SPECIAL, 0, &source, true);
-    unit->s.origin2 = position;
-    unit->s.origin.x = position.x;
-    unit->s.origin.y = position.y;
-    if (unit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
-    gi.LinkEntity(unit);
-    G_SpawnAbilityEffectAtPoint(BZ_AMOV, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
+    S_SpellRelocateUnit(unit, BZ_AMOV, &position);
     waygate_clear_order(unit);
     unit_stand(unit);
     return true;

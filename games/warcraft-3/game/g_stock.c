@@ -7,6 +7,118 @@
 
 #define SHOP_DEFAULT_ACTIVATION_RADIUS 450.0f // world units; retail custom-data interaction fallback; used when Aneu/Aall DataA is absent
 
+/* Warsmash and retail unit data treat Makeitems as merchandise alongside
+ * Sellitems. In particular, the stock Ancient of Wonders authors its list as
+ * Makeitems in NightElfUnitFunc.txt. */
+static cstring_t G_ShopItemList(edict_t const *shop) {
+    static char items[2048];
+    cstring_t sell = shop && shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
+    cstring_t make = shop && shop->data.UnitProfile ? shop->data.UnitProfile->makeItems : NULL;
+    size_t length;
+
+    if (!sell || !*sell) return make && *make ? make : NULL;
+    if (!make || !*make) return sell;
+    length = (size_t)snprintf(items, sizeof(items), "%s,%s", sell, make);
+    if (length >= sizeof(items)) {
+        fprintf(stderr, "WC3 shop: Sellitems and Makeitems list exceeds limit on unit %.4s\n",
+                shop ? (cstring_t)&shop->class_id : "????");
+        items[sizeof(items) - 1] = '\0';
+    }
+    return items;
+}
+
+static unitRace_t G_ShopClientRace(gameClient_t const *client) {
+    if (!client) return RACE_UNKNOWN;
+    switch (client->ps.race) {
+    case kPlayerRaceHuman: return RACE_HUMAN;
+    case kPlayerRaceOrc: return RACE_ORC;
+    case kPlayerRaceUndead: return RACE_UNDEAD;
+    case kPlayerRaceNightElf: return RACE_NIGHTELF;
+    default: return RACE_UNKNOWN;
+    }
+}
+
+static cstring_t G_ShopRequirementName(gameClient_t const *client, uint32_t requirement_id,
+                                       cstring_t alternatives) {
+    char token[64];
+    cstring_t name;
+
+    if (alternatives && *alternatives) {
+        unitRace_t const player_race = G_ShopClientRace(client);
+        char first[64] = "";
+        for (uint32_t i = 0; G_CsvToken(alternatives, i, token, sizeof(token)); i++) {
+            uint32_t alternative_id;
+            UnitData_t const *data;
+            UnitProfile_t const *profile;
+
+            if (strlen(token) != 4) continue;
+            if (i == 0) strlcpy(first, token, sizeof(first));
+            memcpy(&alternative_id, token, sizeof(alternative_id));
+            data = G_UnitData(alternative_id);
+            if (player_race != RACE_UNKNOWN && WC3_RaceFromString(data ? data->race : NULL) != player_race)
+                continue;
+            profile = G_UnitProfile(alternative_id);
+            name = profile && profile->name ? G_LevelString(profile->name) : NULL;
+            if ((!name || !*name) && GetClassName(alternative_id))
+                name = FindConfigValue(GetClassName(alternative_id), "Name");
+            if (name && *name) return name;
+            if (player_race == RACE_UNKNOWN) break;
+        }
+        if (player_race == RACE_UNKNOWN && first[0]) {
+            uint32_t alternative_id;
+            memcpy(&alternative_id, first, sizeof(alternative_id));
+            return GetClassName(alternative_id);
+        }
+    }
+    name = FindConfigValue(GetClassName(requirement_id), "Name");
+    return name && *name ? name : GetClassName(requirement_id);
+}
+
+static bool G_ShopItemRequirementSatisfied(gameClient_t *client, uint32_t item_id,
+                                            string_t reason, uint32_t reason_size) {
+    cstring_t requirements = FindConfigValue(GetClassName(item_id), "Requires");
+    char requirement[64];
+
+    if (!requirements || !*requirements || !strcmp(requirements, "_")) return true;
+    for (uint32_t i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
+        uint32_t requirement_id;
+        cstring_t alternatives;
+        bool satisfied;
+
+        if (strlen(requirement) != 4) {
+            fprintf(stderr, "WC3 shop: invalid item Requires entry '%s' for item %.4s\n",
+                    requirement, (cstring_t)&item_id);
+            continue;
+        }
+        memcpy(&requirement_id, requirement, sizeof(requirement_id));
+        satisfied = G_PlayerRequirementCount(client, requirement_id) > 0;
+        alternatives = FindConfigValue(GetClassName(requirement_id), "DependencyOr");
+        if (!satisfied && alternatives && *alternatives) {
+            char alternative[64];
+            for (uint32_t j = 0; G_CsvToken(alternatives, j, alternative, sizeof(alternative)); j++) {
+                uint32_t alternative_id;
+                if (strlen(alternative) != 4) {
+                    fprintf(stderr, "WC3 shop: invalid DependencyOr entry '%s' for requirement %.4s\n",
+                            alternative, (cstring_t)&requirement_id);
+                    continue;
+                }
+                memcpy(&alternative_id, alternative, sizeof(alternative_id));
+                if (G_PlayerRequirementCount(client, alternative_id) > 0) {
+                    satisfied = true;
+                    break;
+                }
+            }
+        }
+        if (satisfied) continue;
+        if (reason && reason_size) {
+            cstring_t name = G_ShopRequirementName(client, requirement_id, alternatives);
+            snprintf(reason, reason_size, "Requires %s", name);
+        }
+        return false;
+    }
+    return true;
+}
+
 static bool shop_warned_activation_fallback, shop_warned_interaction_missing;
 static bool shop_warned_pawn_rate, shop_warned_give_range;
 
@@ -78,10 +190,8 @@ void G_SetStockSlots(edict_t *unit, bool items, int32_t slots) {
 
 /* Identifies live units whose authored merchandise makes them shops. */
 bool G_IsItemShop(edict_t const *shop) {
-    cstring_t items;
-
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
-    items = shop->data.UnitProfile ? shop->data.UnitProfile->sellItems : NULL;
+    cstring_t items = G_ShopItemList(shop);
     return (items && *items) || (shop->stock && shop->stock->items_initialized && shop->stock->item_count);
 }
 
@@ -266,7 +376,7 @@ static void G_InitItemStock(edict_t *shop) {
     memset(shop->stock->items, 0, sizeof(shop->stock->items));
     if (!G_IsItemShop(shop) || !shop->stock->item_slots) return;
 
-    items = shop->data.UnitProfile->sellItems;
+    items = G_ShopItemList(shop);
     limit = MIN(shop->stock->item_slots, (uint32_t)MAX_SHOP_STOCK);
     PARSE_LIST(items, item_name, parse_segment) {
         uint32_t item_id;
@@ -614,6 +724,7 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
     FOR_LOOP(i, shop->stock->item_count) {
         char code[5] = {0};
+        char requirement_reason[128] = {0};
         gameCommandButton_t *button;
         ItemData_t const *item;
         uint32_t now;
@@ -628,7 +739,10 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
         item = G_ItemData(shop->stock->items[i].id);
         if (shop->stock->items[i].maximum > 0) button->number = (uint32_t)MAX(0, shop->stock->items[i].current);
 
-        if (!patron) {
+        if (!G_ShopItemRequirementSatisfied(client, shop->stock->items[i].id,
+                                             requirement_reason, sizeof(requirement_reason))) {
+            G_DisableShopButton(button, requirement_reason);
+        } else if (!patron) {
             G_DisableShopButton(button, "No eligible purchaser is nearby.");
         } else if (shop->stock->items[i].current <= 0) {
             G_DisableShopButton(button, "Out of stock.");
@@ -760,6 +874,13 @@ bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
     }
     item = G_ItemData(item_id);
     if (!item || !item->file) return false;
+    {
+        char reason[128] = {0};
+        if (!G_ShopItemRequirementSatisfied(client, item_id, reason, sizeof(reason))) {
+            G_ShowCommandErrorText(clent, reason);
+            return false;
+        }
+    }
     if (shop->stock->items[stock_index].current <= 0) {
         G_ShowCommandErrorKey(clent, "Outofstock", "Out of stock.");
         return false;

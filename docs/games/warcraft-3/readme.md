@@ -84,7 +84,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Warcraft III Map Format](file-formats/map.md)
 - [Warcraft III MDX Model Format](file-formats/mdx.md)
-- [SLK Spreadsheet Format](file-formats/slk.md)
+- [SLK Spreadsheet Format](../../../games/warcraft-3/file-formats/slk.md)
 - [UI Frame Definition File](file-formats/fdf.md)
 
 ### Detailed File Notes
@@ -112,6 +112,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Numerical Pathfinding Integration](retail-pathfinding-engine.md)
+- [Naval Movement And Water Pathing](naval-movement.md): `float`/`amph` routing, independent water masks, occupancy categories, and bridge semantics.
 - [Way Gates](way-gates.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Map Trigger Strings in Authored Names](trigger-strings.md)
@@ -132,18 +133,18 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Dark Portal](dark-portal.md): Archimonde point-target demon exits; DataA unitList, DataB/C min/max, not Mass Teleport.
 - [Healing Spray](healing-spray.md): channeled point heal waves; DataA/DataF heal/waves, DataD max budget.
 - [Transmute](transmute.md): kill unit for `goldCost * DataA`; DataC max creep level.
-- [Adding Warcraft III Abilities](ability-implementation-plan.md): data, procedure macros, registration, and tests.
+- [Adding Warcraft III Abilities](ability-implementation.md): data, procedure macros, registration, and tests.
 - [Creep Ability Aliases](creep-ability-aliases.md): `code=` mapping, parent-owned registry rows, not `s_creep.c`.
 - [Creep Combat Effects](creep-combat-effects.md): Disease Cloud, Pulverize, Web, Monsoon and Incinerate data contracts, lifecycle and save/load tests.
 <- [Item Orbs](item-orbs.md): `AIDB` orb DataA damage via `CAbilityAttackBonus`, `S_OrbOnHit` BuffID state.
 - [Unit Stat Modifiers](unit-stat-modifiers.md): modifier ledgers, physical/spell/direct damage paths, and implementation checklist.
-- [Poison Attacks](poison-attacks.md): `Aven`/`Apoi`/`Apo2` on-hit buff state, DPS deferred to the status tick.
+- [Poison Attacks](poison-attacks.md): `Aven`/`Apoi`/`Apo2` on-hit buff state and data-driven periodic DPS.
 - [Implemented Ability Verification Review](ability-verification-review.md): reproduced failures, lifecycle fixes, and permanent regression coverage.
 - [Campaign Map Audit](map-audit.md): bounded bulk runtime sweeps with per-map errors and retained logs.
 - [Save/Load](save-load.md): versioned game serializer, Hero walk/save/load campaign diagnostic.
 - [DotA Custom-Map Playability](dota-map-playability.md): protected-MPQ load, hashtable demand, and map-imported object data for DotA 6.83d.
 - [Ability Coverage](architecture/ability-coverage.md)
-- [Flat C Ability System: Flags and Message Procedures](ability-inheritance-plan.md)
+- [Flat C Ability System: Flags and Message Procedures](ability-system.md)
 - [Ability Inheritance: Binary Evidence](ability-inheritance-binary.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Scripted Doodad Animation](doodad-animation.md)
@@ -153,15 +154,14 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Map Renderer](architecture/map-renderer.md)
 - [Hero Ability Progression](hero-abilities.md)
 - [Arthas Hero Abilities](arthas-abilities.md)
-- [Ability Identity and Cooldown Ownership](ability-inheritance-plan.md#rawcode-and-procedure-identity)
-- [Ability Cooldowns](ability-cooldowns.md)
+- [Ability Identity and Cooldown Ownership](ability-system.md#rawcode-and-procedure-identity)
 - [Regeneration Auras And Fountains](regeneration-auras.md)
 - [Cinematics](cinematics.md)
 - [Time Of Day](time-of-day.md)
 - [Timer Dialogs And Mission Countdowns](timer-dialogs.md)
 - [Leaderboards And Counted Objective HUDs](leaderboards.md)
 - [Hero Revival](hero-revival.md)
-- [Sounds](sounds.md)
+- [Sounds](../../../games/warcraft-3/sounds.md)
 - [Music Playback](music.md)
 - [HUD Media Lifetime](hud-media.md)
 - [Campaign Loading And Asset Resolution](loading-and-assets.md)
@@ -173,4 +173,4 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.
 
-- [Ability message procedures](ability-procedure-plan.md): registry, payload/result contracts, default delegation, and lifecycle.
+- [Ability message procedures](ability-procedures.md): registry, payload/result contracts, default delegation, and lifecycle.

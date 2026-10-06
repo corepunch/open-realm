@@ -199,7 +199,7 @@ static bool militia_transform_forward(edict_t *worker) {
     militia_clear_pairing(worker);
     S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
-    if (duration > 0.0f) unit_addtimedstatus(worker, MILITIA_BUFF, 1, duration);
+    if (duration > 0.0f) (void)S_SpellApplyTimedStatus(worker, MILITIA_BUFF, 1, duration);
     unit_stand(worker);
     return true;
 }

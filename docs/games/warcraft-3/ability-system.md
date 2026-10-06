@@ -1,7 +1,7 @@
 # Flat C Ability System
 
 Status: implemented, 2026-09-12. This document records the representation and identity decisions behind the
-[ability message procedure system](ability-procedure-plan.md).
+[ability message procedure system](ability-procedures.md).
 
 OpenWarcraft3 uses a flat, Quake-style registry plus explicit procedure delegation. It does not reproduce the
 TFT C++ object layout, constructor chain, virtual table or runtime parent graph. The extracted TFT hierarchy is
@@ -105,7 +105,7 @@ commands, items, autocast, membership, levels, persistent updates and move owner
 covers save/load and the existing gameplay behavior migrated from the former representation.
 
 ```sh
-make build/lib/libgame-wc3-test.dylib
+make openwarcraft3-tests
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_spell.*'
 python3 -m unittest tests/test_check_wc3_ability_registry.py
 make test

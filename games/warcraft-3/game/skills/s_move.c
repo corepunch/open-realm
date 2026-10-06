@@ -1,5 +1,5 @@
 /*
- * s_move.c — Move ability: ground movement orders for units.
+ * s_move.c — Move ability: movement orders for units.
  *
  * When a player right-clicks on empty ground, move_selectlocation() is called
  * on the server.  It creates a waypoint entity at the target position and
@@ -800,7 +800,7 @@ float unit_movedistance(edict_t *self) {
 
 /* --- Collision-aware movement (block-and-slide) ---------------------------
  *
- * A unit only commits a step into a position that is free of walkable terrain
+ * A unit only commits a step into a position that is valid for its movement class
  * and of other units' collision circles.  When the steered heading is blocked
  * it tries progressively larger left/right deflections ("sliding"), so units
  * flow around obstacles instead of plowing through them.  Idle units are hard,
@@ -860,9 +860,9 @@ static bool filter_blockers(edict_t const *ent) {
         ent->data.DestructableData && ent->data.DestructableData->walkable) return false;
     /* Trees have collisionSize 0 (they block only via their baked footprint) so
      * they are already excluded above; buildings keep a real collision circle
-     * and ARE counted here — relying on the terrain footprint alone let units
-     * walk through buildings (coarse 32u cells, runtime-spawned statics not yet
-     * baked).  Flyers and ground units are on separate layers. */
+     * and ARE counted here — relying on the terrain footprint alone lets units
+     * leak through coarse 32u cells. Flyers and non-flyers retain separate layers;
+     * native query masks do not define a second ground/sea collision domain. */
     return unit_is_flying(ent) == unit_is_flying(trymove_self);
 }
 
@@ -2964,11 +2964,10 @@ bool move_displacement_reached(edict_t *self) {
         unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE)
         return false;
     if (M_MoveIsValid(self, &self->movement.displacement_target)) {
-        self->s.origin2 = self->movement.displacement_target;
-        self->s.origin.x = self->s.origin2.x;
-        self->s.origin.y = self->s.origin2.y;
+        /* Retire the old pose clock with the endpoint commit; a raw world write
+         * let the next heading decision integrate the old velocity past it. */
+        unit_commit_step(self, &self->movement.displacement_target);
         self->s.origin.z = CM_GetHeightAtPoint(self->s.origin2.x, self->s.origin2.y);
-        gi.LinkEntity(self);
     }
     move_cancel_displacement(self);
     return true;
@@ -3474,10 +3473,7 @@ static void ai_move_walk(edict_t *ent) {
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     bool blocked;
-    bool point_order = (ent->current_order_id == G_OrderId("move") ||
-                        ent->current_order_id == G_OrderId("smart")) &&
-        !move_displacement_active(ent) &&
-        ent->goalentity && (ent->goalentity->svflags&SVF_MOVE_WAYPOINT);
+    bool point_order;
 
     if (S_UnitIsCycloned(ent) || G_UnitStatusLevel(ent, MAKEFOURCC('B', 'E', 'e', 'r'))
         || S_PurgeIsImmobilized(ent)) {
@@ -3502,6 +3498,11 @@ static void ai_move_walk(edict_t *ent) {
         unit_moveindirection(ent);
         return;
     }
+
+    /* Completing a temporary escape can expose the ordinary point order in
+     * this same visit. Classify it after retiring displacement ownership. */
+    point_order = (ent->current_order_id == G_OrderId("move") || ent->current_order_id == G_OrderId("smart")) &&
+        ent->goalentity && (ent->goalentity->svflags & SVF_MOVE_WAYPOINT);
 
     if (point_order && !ent->movement.group_id) {
         movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,ent->collision,MOVE_AVOID_GENERIC});

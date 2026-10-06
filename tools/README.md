@@ -7,7 +7,7 @@ Warcraft III assets and game data.
 
 Dump one ability's ROC and TFT contract from the installed MPQs. First command
 when implementing a WC3 ability. See
-[Mechanical Workflow](../docs/games/warcraft-3/ability-implementation-plan.md#mechanical-workflow).
+[Mechanical Workflow](../docs/games/warcraft-3/ability-implementation.md#mechanical-workflow).
 
 ```sh
 make build/bin/ability_audit

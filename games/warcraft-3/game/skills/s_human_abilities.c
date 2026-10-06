@@ -24,8 +24,8 @@ static uint32_t const polymorph_move_types_count = sizeof(polymorph_move_types) 
 void human_ability_think(edict_t *thinker);
 
 static cstring_t human_buff(abilityitem_t const *spell, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    if (buff && strlen(buff) >= 4) return buff;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
+    if (buff) return buff;
     /* ROC omits BuffID; Aply/ACpy share the TFT token. */
     return G_AbilityCode(spell->code) == BZ_POLYMORPH ? "Bply" : NULL;
 }
@@ -40,12 +40,12 @@ static void human_remove_status(edict_t *ent, uint32_t code) {
 
 static bool defend_projectile_reaction(edict_t *projectile);
 
-static void human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+static heroabilitystatus_t *human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = human_buff(spell, level);
-    if (!st.entity || !buff) return;
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
-    heroabilitystatus_t *status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    if (!st.entity || !buff) return NULL;
+    heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+        S_SpellHeroDuration(spell->code, level, st.entity));
     if (status) {
         status->data = spell->code;
         status->source = caster;
@@ -53,17 +53,17 @@ static void human_status_execute(edict_t *caster, spellTarget_t st, abilityitem_
     }
     if (spell->ability->proc == CAbilitySlow)
         S_UnitAbilityEvent(st.entity, A_MOVE_PARAMETERS_CHANGED);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
+    return status;
 }
 
 static void human_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    float duration = S_SpellDuration(spell->code, level, G_UnitIsHero(caster));
+    float duration = S_SpellHeroDuration(spell->code, level, caster);
     (void)st;
     if (human_has_status(caster, spell->code)) {
         human_remove_status(caster, spell->code); S_HumanStatusExpired(caster, spell->code, level); return;
     }
-    unit_addtimedstatus(caster, GetClassName(spell->code), level, duration);
+    (void)S_SpellApplyTimedStatus(caster, GetClassName(spell->code), level, duration);
     if (G_AbilityCode(spell->code) == MAKEFOURCC('A','d','e','f'))
         G_AddUnitAnimationProperties(caster, "defend", true);
 }
@@ -120,8 +120,7 @@ static void avatar_execute(edict_t *caster, spellTarget_t target, abilityitem_t 
     uint32_t rank = S_SpellLevel(caster, spell->code);
     (void)target;
     if ((caster->avatar && caster->avatar->level)) return;
-    unit_addtimedstatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false));
-    if (!G_UnitStatusLevel(caster, BZ_AVATAR_BUFF)) {
+    if (!S_SpellApplyTimedStatus(caster, "BHav", rank, S_SpellDuration(spell->code, rank, false))) {
         fprintf(stderr, "WC3 Avatar: failed to allocate BHav status\n"); return;
     }
     if (!caster->avatar) caster->avatar = G_AllocAvatar();
@@ -200,7 +199,7 @@ static bool invisibility_validate(edict_t *caster, spellTarget_t st, abilityitem
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4 ||
-        S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) <= 0.0f) return false;
+        S_SpellHeroDuration(spell->code, level, st.entity) <= 0.0f) return false;
     has_slot = unit_findstatus(st.entity, *((uint32_t const *)buff)) != NULL;
     if (has_slot || !st.entity->abilstatus) return true;
     FOR_LOOP(i, G_UnitStatusSlotCount(st.entity))
@@ -217,8 +216,7 @@ static void invisibility_execute(edict_t *caster, spellTarget_t st, abilityitem_
     level = S_SpellLevel(caster, spell->code);
     buff = human_buff(spell, level);
     if (!buff || strlen(buff) != 4) return;
-    human_status_execute(caster, st, spell);
-    status = unit_findstatus(st.entity, *((uint32_t const *)buff));
+    status = human_status_execute(caster, st, spell);
     if (!status) {
         fprintf(stderr, "WC3 Invisibility: authored status %.4s missing after cast on unit %u\n",
                 buff, st.entity->s.number);
@@ -339,8 +337,7 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
     }
 
     duration = S_SpellDuration(spell->code, level, false);
-    unit_addtimedstatus(st.entity, buff, level, duration);
-    if (!G_UnitStatusLevel(st.entity, buff_code)) {
+    if (!S_SpellApplyTimedStatus(st.entity, buff, level, duration)) {
         fprintf(stderr, "WC3 Polymorph: failed to apply buff %08x to target %08x\n",
                 buff_code, st.entity->class_id);
         return;
@@ -382,25 +379,23 @@ static void polymorph_execute(edict_t *caster, spellTarget_t st, abilityitem_t c
 
 static void aerial_shackles_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
-    if (!thinker->channel) thinker->channel = G_AllocChannel();
-    assert(thinker->channel);
-    S_SetMoveGoal(thinker, &thinker->goalentity, st.entity); thinker->channel->target_spawn_time = st.entity->spawn_time;
+    edict_t *thinker = S_SpellChannelTargetThinker(caster, spell->code, st.entity);
     thinker->resources = shackles_buff(spell->code, level);
     thinker->damage = (uint32_t)S_SpellData(spell->code, level, 1); thinker->spawn_time = G_Time() +
-        (uint32_t)(S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)) * 1000.0f);
+        (uint32_t)(S_SpellHeroDuration(spell->code, level, st.entity) * 1000.0f);
     thinker->think = human_ability_think;
-    unit_addtimedstatus(st.entity, GetClassName(thinker->resources), level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
+    (void)S_SpellApplyTimedStatus(st.entity, GetClassName(thinker->resources), level,
+                                  S_SpellHeroDuration(spell->code, level, st.entity));
     human_ability_think(thinker);
 }
 
 /* A cancelled cast must release its lock without erasing a replacement cast's lock on the same victim. */
 static void shackles_end(edict_t *thinker) {
-    edict_t *target = thinker->goalentity;
+    edict_t *target = S_SpellChannelTarget(thinker);
     bool retained = false;
-    if (target && target->inuse && target->spawn_time == thinker->channel->target_spawn_time) {
-        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think && other->goalentity == target &&
-            other->resources == thinker->resources && other->channel->target_spawn_time == target->spawn_time) {
+    if (target) {
+        FILTER_EDICTS(other, other != thinker && other->think == human_ability_think &&
+            S_SpellChannelTarget(other) == target && other->resources == thinker->resources) {
             if (S_SpellChannelActive(other)) { retained = true; break; }
         }
         if (!retained) human_remove_status(target, thinker->resources);
@@ -410,19 +405,20 @@ static void shackles_end(edict_t *thinker) {
 
 void human_ability_think(edict_t *thinker) {
     uint32_t now = G_Time();
+    edict_t *target;
     if (S_AbilityItem(thinker->class_id).ability->proc == CAbilityFlare) {
-        if (now >= thinker->spawn_time || !thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
-        G_FowSetStateRadius(&(fogWrite_t){ thinker->owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
+        edict_t *owner = S_SpellChannelOwner(thinker);
+        if (now >= thinker->spawn_time || !owner) { G_FreeEdict(thinker); return; }
+        G_FowSetStateRadius(&(fogWrite_t){ owner->s.player, WC3_FOG_STATE_VISIBLE, true }, &thinker->s.origin2,
                             S_SpellNumber(thinker->class_id, ABILITY_NUMBER_AREA, 1));
         return;
     }
-    if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) ||
-        !S_SpellIsAliveTarget(thinker->goalentity) ||
-        thinker->goalentity->spawn_time != thinker->channel->target_spawn_time) {
+    target = S_SpellChannelTarget(thinker);
+    if (now >= thinker->spawn_time || !S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target)) {
         shackles_end(thinker); return;
     }
     if (!thinker->freetime || now >= thinker->freetime) {
-        S_SpellDamage(thinker->goalentity, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
+        S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = now + 1000;
     }
 }
 
@@ -443,24 +439,8 @@ static void spell_steal_execute(edict_t *caster, spellTarget_t st, abilityitem_t
     FILTER_EDICTS(unit, unit != st.entity && S_SpellIsAliveTarget(unit) && S_SpellIsFriend(caster, unit) &&
                   Vector2_distance(&unit->s.origin2, &st.entity->s.origin2) <= area) { receiver = unit; break; }
     if (!receiver) receiver = caster;
-    unit_addtimedstatus(receiver, (cstring_t)&stolen.code, stolen.level,
-                        stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
-}
-
-static bool human_autocast_acquire(edict_t *caster, uint32_t code, bool friendly, bool wounded) {
-    edict_t *best = NULL;
-    float range = S_SpellRange(code, S_SpellLevel(caster, code));
-    float best_distance = FLT_MAX;
-    if (range <= 0.0f) range = HUMAN_AUTOCAST_RADIUS;
-    FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target)) {
-        float distance;
-        if (friendly != S_SpellIsFriend(caster, target)) continue;
-        if (wounded && target->health.value >= target->health.max_value) continue;
-        if (!S_SpellAllowsTarget(code, caster, target)) continue;
-        distance = Vector2_distance(&target->s.origin2, &caster->s.origin2);
-        if (distance <= range && distance < best_distance) { best = target; best_distance = distance; }
-    }
-    return best && S_CastUnitTargetSpell(caster, code, best);
+    (void)S_SpellApplyTimedStatus(receiver, (cstring_t)&stolen.code, stolen.level,
+                                  stolen.timestamp > G_Time() ? (stolen.timestamp - G_Time()) / 1000.0f : 0.0f);
 }
 
 /* The message selects the union member: boolean toggles must never be decoded as target pointers. */
@@ -474,7 +454,7 @@ static bool human_autocast_acquire(edict_t *caster, uint32_t code, bool friendly
         case A_EXECUTE: EXECUTE(ent, target, call ? call->item : NULL); return true; \
         case A_AUTOCAST_ON: return ent && ent->autocast_code == code; \
         case A_AUTOCAST_SET: return true; \
-        case A_AUTOCAST_ACQUIRE: return human_autocast_acquire(ent, code, FRIENDLY, WOUNDED); \
+        case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, FRIENDLY, WOUNDED, 900.0f); \
         default: return CAbilitySimpleSpell(ent, msg, call); \
         } \
     }
@@ -513,6 +493,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityFlare) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     edict_t *thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
+    thinker->channel = G_AllocChannel();
+    assert(thinker->channel);
+    thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = human_ability_think; human_ability_think(thinker);
 }
@@ -560,7 +543,7 @@ BZ_ABILITY_PROC(CAbilitySlow) {
     case A_EXECUTE: human_status_execute(ent, target, call ? call->item : NULL); return true;
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
-    case A_AUTOCAST_ACQUIRE: return human_autocast_acquire(ent, code, false, false);
+    case A_AUTOCAST_ACQUIRE: return S_AutocastAcquireUnit(ent, code, false, false, 900.0f);
     case A_STATUS_POLICY:
         return UNIT_BUFF_KNOWN | UNIT_BUFF_NEGATIVE | UNIT_BUFF_MAGIC | UNIT_BUFF_AUTO_DISPEL;
     case A_STATUS_REMOVED:

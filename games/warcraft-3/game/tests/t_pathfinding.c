@@ -585,6 +585,31 @@ TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
     gi.MemFree(pathtex);
 }
 
+TEST(wc3_pathfinding, pathtex_red_channel_blocks_ground_and_float) {
+    uint8_t cells[8 * 8] = { 0 };
+    vec2_t const center = { 4.5f, 4.5f };
+    edict_t *building;
+    pathTex_t *pathtex;
+
+    setup_test_pathmap(8, 8, cells);
+    reset_entities();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), center.x, center.y);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(color32_t));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0] = (color32_t){ .b = 255, .a = 255 };
+    building->pathtex = pathtex;
+
+    CM_BakeStaticObstacles();
+
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNWALKABLE));
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&center, 0.0f, CM_PATHING_UNFLOATABLE));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     uint8_t cells[8 * 8] = { 0 };
     vec2_t target = { 4.5f, 4.5f };
@@ -601,6 +626,25 @@ TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     cells[4 * 8 + 4] = CM_PATHING_UNFLYABLE;
     setup_test_pathmap(8, 8, cells);
     T_ASSERT(!M_MoveIsValid(flyer, &target));
+}
+
+TEST(wc3_pathfinding, float_route_finds_water_detour_around_land) {
+    enum { W = 7, H = 5 };
+    uint8_t cells[W * H];
+    vec2_t const from = { 1.5f, 2.5f }, target = { 5.5f, 2.5f };
+    vec2_t waypoint = { 0 };
+    pathAccelParams_t const params = {
+        .from = &from, .target = &target, .radius = 0.0f, .blocked_flags = CM_PATHING_UNFLOATABLE
+    };
+
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells)); /* open water */
+    for (int y = 1; y <= 3; y++) cells[y * W + 3] = CM_PATHING_UNFLOATABLE; /* land island */
+    setup_test_pathmap(W, H, cells);
+
+    T_ASSERT(!CM_LineIsPathableForRadiusFlags(&from, &target, 0.0f, CM_PATHING_UNFLOATABLE));
+    T_ASSERT(CM_FindPathWaypoint(&params, &waypoint));
+    T_ASSERT(fabsf(waypoint.y - from.y) > 0.01f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&waypoint, 0.0f, CM_PATHING_UNFLOATABLE));
 }
 
 /* Original public stock profiles publish foot/horse/hover=2, float=64,

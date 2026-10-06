@@ -21,10 +21,7 @@ static void blink_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     vec2_t dest = st.point;
     CM_ClosestPathablePointForRadiusFlags(&st.point, caster->collision, M_UnitStaticPathingFlags(caster), &dest);
-    caster->s.origin2 = dest;
-    caster->s.origin.x = dest.x;
-    caster->s.origin.y = dest.y;
-    gi.LinkEntity(caster);
+    S_SpellCommitRelocation(caster, &dest);
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_AREA_EFFECT, 0, caster, NULL, true);
 }
 

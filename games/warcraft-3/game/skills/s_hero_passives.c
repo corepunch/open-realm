@@ -813,9 +813,8 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
         keep = NULL;
     }
     if (!keep && desired_model) {
-        edict_t *effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0, unit, NULL, false);
+        edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, effect_code, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
-            effect->owner = unit;
             effect->summon_ability = base_code;
             overlays[unit->s.number] = effect;
         }
@@ -906,7 +905,6 @@ static float slow_aura_bonus(edict_t const *unit, uint32_t data) {
     }
     return MAX(0.0f,MIN(0.9f,result));
 }
-
 float S_SlowAuraMoveReduction(edict_t const *unit) { return slow_aura_bonus(unit, 1); }
 float S_SlowAuraAttackReduction(edict_t const *unit) { return slow_aura_bonus(unit, 2); }
 float S_CommandAuraAttackBonus(edict_t *unit) {
@@ -933,7 +931,7 @@ int S_SearingArrowDamage(edict_t *attacker, int damage) {
 }
 
 static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
-    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(code, level);
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 

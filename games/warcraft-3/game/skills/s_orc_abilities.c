@@ -72,17 +72,14 @@ static void purge_execute(edict_t *caster, spellTarget_t st, abilityitem_t const
         if (S_StatusIsUndispellable(s)) continue;
         unit_expirestatus(st.entity, s);
     }
-    buff = G_AbilityLevel(spell->code, level)->buffID;
+    buff = S_SpellBuffId(spell->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bprg";
-    unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    FOR_LOOP(i, G_UnitStatusSlotCount(st.entity)) {
-        slot = st.entity->abilstatus + i;
-        if (slot->level && slot->code == *((uint32_t const *)buff)) { slot->data = spell->code; break; }
-    }
+    slot = S_SpellApplyTimedTargetStatus(st.entity, spell->code, level, buff,
+                                         S_SpellDuration(spell->code, level, false));
+    if (slot) slot->data = spell->code;
     if (st.entity->owner && !S_SummonIsDispelImmune(st.entity))
         S_SpellDamage(st.entity, caster, (int)MAX(1.0f, S_SpellData(spell->code, level, 3)));
     if (S_PurgeIsImmobilized(st.entity) && st.entity->stand) st.entity->stand(st.entity);
-    G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityPurge) { purge_execute(caster, st, spell); }
@@ -135,29 +132,31 @@ float S_PurgeMoveReduction(edict_t const *unit) {
  * Attribution uses the original caster for damage and resistance calculations.
  */
 void lsh_think(edict_t *thinker) {
+    edict_t *carrier = S_SpellChannelOwner(thinker);
+    edict_t *caster = S_SpellChannelTarget(thinker);
     uint32_t level;
     float area, damage;
-    if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
-    level = G_UnitStatusLevel(thinker->owner, MAKEFOURCC('B', 'l', 's', 'h'));
+    if (!carrier || !caster) { G_FreeEdict(thinker); return; }
+    level = G_UnitStatusLevel(carrier, MAKEFOURCC('B', 'l', 's', 'h'));
     if (!level || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
     if (thinker->freetime && G_Time() < thinker->freetime) return;
     area = S_SpellNumber(MAKEFOURCC('A', 'l', 's', 'h'), ABILITY_NUMBER_AREA, level);
     damage = S_SpellData(MAKEFOURCC('A', 'l', 's', 'h'), level, 1);
-    FILTER_EDICTS(target, target != thinker->owner && S_SpellIsAliveTarget(target) &&
-                  Vector2_distance(&target->s.origin2, &thinker->owner->s.origin2) <= area)
-        S_SpellDamage(target, thinker->goalentity, (int)MAX(1.0f, damage));
+    FILTER_EDICTS(target, target != carrier && S_SpellIsAliveTarget(target) &&
+                  Vector2_distance(&target->s.origin2, &carrier->s.origin2) <= area)
+        S_SpellDamage(target, caster, (int)MAX(1.0f, damage));
     thinker->freetime = G_Time() + 1000;
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float dur = S_SpellDuration(spell->code, level, false);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     edict_t *thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
-    unit_addtimedstatus(st.entity, buff, level, dur);
-    thinker = G_Spawn();
-    thinker->owner = st.entity; S_SetMoveGoal(thinker, &thinker->goalentity, caster);
+    S_SpellApplyTimedStatus(st.entity, buff, level, dur);
+    thinker = S_SpellIdentityThinker(st.entity, spell->code, caster);
+    if (!thinker) return;
     thinker->spawn_time = G_Time() + (uint32_t)(dur * 1000.0f);
     thinker->think = lsh_think; lsh_think(thinker);
 }
@@ -173,7 +172,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWard) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, S_SpellDuration(spell->code, level, false));
+    S_SummonAbilityAt(caster, spell->code, S_SpellUnitId(spell->code, level), &st.point,
+                      S_SpellDuration(spell->code, level, false));
 }
 
 /* Passive marker for the regen-life aura families (Aoar/Aabr).

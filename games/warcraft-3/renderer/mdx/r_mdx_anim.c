@@ -184,16 +184,11 @@ void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model,
     output->z = red;
 }
 
-/* GeosetAnimation is the static-color exception to the usual MDX RGB fields:
- * Warsmash swizzles its base vector just like KGAC. This semantic conversion is
- * independent of host endianness and GL/BGRA upload capabilities. */
-void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim,
-                                        vec3_t *output)
-{
+/* Static GEOA colors are already RGB. Warsmash swaps them into its BGR shader input, then swaps back in
+ * MdxShaders; copying only its first swap here turned the Orc campaign's orange sky blue. */
+void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vec3_t *output) {
     if (!geosetAnim || !output) return;
-    output->x = geosetAnim->staticColor.z;
-    output->y = geosetAnim->staticColor.y;
-    output->z = geosetAnim->staticColor.x;
+    *output = geosetAnim->staticColor;
 }
 
 static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1, uint32_t frame0, mat4_t *matrix) {

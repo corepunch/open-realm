@@ -3775,6 +3775,44 @@ TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     T_FEQ(out.y, 192.0f, 0.001f);
 }
 
+TEST(wc3_api, float_unstuck_retains_nonflyer_collision_layer) {
+    enum { CELLS = 16 };
+    static UnitData_t const foot_data = { .moveTypeName = "foot" };
+    static UnitData_t const float_data = { .moveTypeName = "float" };
+    uint8_t pathmap[CELLS * CELLS];
+    vec2_t const requested = {256.0f, 256.0f};
+    vec2_t out;
+    edict_t *blocker, *mover;
+
+    memset(pathmap, CM_PATHING_UNWALKABLE, sizeof(pathmap)); /* swimmable water */
+    reset_entities();
+    setup_test_world();
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), requested.x, requested.y);
+    mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    blocker->s.model = mover->s.model = 1;
+    blocker->collision = mover->collision = 16.0f;
+    blocker->data.UnitData = &foot_data;
+    mover->data.UnitData = &float_data;
+    gi.LinkEntity(blocker);
+
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, requested.x, 0.001f);
+    T_FEQ(out.y, requested.y - 64.0f, 0.001f);
+
+    blocker->data.UnitData = &float_data;
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, requested.x, 0.001f);
+    T_FEQ(out.y, requested.y - 64.0f, 0.001f);
+
+    blocker->aiflags |= AI_FLYING;
+    T_ASSERT(G_FindUnitUnstuckPosition(mover, &requested, &out));
+    T_FEQ(out.x, requested.x, 0.001f);
+    T_FEQ(out.y, requested.y, 0.001f);
+}
+
 TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
     vec2_t const requested = {256.0f, 256.0f};
     vec2_t out;

@@ -52,7 +52,16 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     uint32_t enabled;
     if (!attacker || slot >= 2) return false;
     enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
-    if (attacker->ancient_root && attacker->ancient_root->ability) enabled = S_AncientAttackMask(attacker);
+    if (S_AncientHasRootAbility(attacker)) {
+        /* Root/Unroot transitions must not retain an attack order from the
+         * previous form. Ancients can attack only in their stable uprooted
+         * state; the authored mask still chooses which slots that form uses. */
+        if (attacker->ancient_root && attacker->ancient_root->mode != ANCIENT_UPROOTED &&
+            attacker->ancient_root->mode != ANCIENT_ROOT_UNINITIALIZED) return false;
+        if ((!attacker->ancient_root || attacker->ancient_root->mode == ANCIENT_ROOT_UNINITIALIZED) &&
+            S_AncientIsRooted(attacker)) return false;
+        enabled = S_AncientAttackMask(attacker);
+    }
     return (enabled & (1u << slot)) != 0;
 }
 
@@ -379,7 +388,7 @@ void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
     if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
-        unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
+        S_SpellApplyStun(target, S_SpellDuration(bash.alias, bash.level, false));
     } }
     damage += (int)S_UnitStatusAbilityEvent(attacker, A_ATTACK_DAMAGE_BONUS, NULL);
     S_UnitStatusAbilityEvent(attacker, A_ATTACK_LANDED, NULL);

@@ -117,6 +117,6 @@ Existing `wc3_ability_lifecycle.resurrection_retires_death_state_and_rejects_emp
 ## See Also
 
 - [Hero Ability Progression](hero-abilities.md)
-- [Adding Warcraft III Abilities](ability-implementation-plan.md)
+- [Adding Warcraft III Abilities](ability-implementation.md)
 - [Ability Coverage](architecture/ability-coverage.md)
 - [Ability And Item Effects](ability-and-item-effects.md)

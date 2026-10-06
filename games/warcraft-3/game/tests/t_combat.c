@@ -201,6 +201,27 @@ TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) 
             "TestUI\\Models\\anim_pulse.mdx");
 }
 
+TEST(wc3_effects, owned_target_ability_effect_records_owner_and_target_generation) {
+    uint32_t const holy_light = MAKEFOURCC('A','H','h','b');
+    edict_t *owner;
+    edict_t *target;
+    edict_t *effect;
+
+    setup_test_world();
+    reset_entities();
+    owner = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 0.0f);
+
+    effect = G_SpawnOwnedAbilityEffectTarget(owner, holy_light, WC3_EFFECT_TARGET, 0, target, NULL);
+
+    T_NOT_NULL(effect);
+    T_ASSERT(effect->owner == owner);
+    T_ASSERT(effect->goalentity == target);
+    T_EQ(effect->damage, target->spawn_time);
+    T_EQ(effect->movetype, MOVETYPE_LINK);
+    T_ASSERT(effect->s.flags & EF_NOT_SELECTABLE);
+}
+
 /* ==========================================================================
  * T_Damage
  * ========================================================================== */
@@ -2913,6 +2934,8 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     S_AttackProfileWrite(target, 0)->damagePoint = 0.2f;
     target->hero.agi = 0;
 
+    T_FEQ(S_ApplyEnduranceMoveSpeed(target, 100.0f), 110.0f, 0.001f);
+    T_FEQ(S_ApplyEnduranceAttackBonus(target, 0.0f), 0.20f, 0.001f);
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f / 1.2f, 0.001f);
 

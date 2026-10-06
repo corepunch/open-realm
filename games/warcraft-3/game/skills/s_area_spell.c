@@ -298,13 +298,13 @@ static void area_damage_status_execute(edict_t *caster, spellTarget_t st, abilit
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     float duration = S_SpellDuration(spell->code, level, false);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
 
     FILTER_EDICTS(target, target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && buff && strlen(buff) >= 4 && duration > 0.0f)
-            unit_addtimedstatus(target, buff, level, duration);
+            S_SpellApplyTimedStatus(target, buff, level, duration);
     }
 }
 
@@ -318,14 +318,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityThunderClap) { area_damage_status_execute(caster, st
 BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
-    cstring_t buff = G_AbilityLevel(spell->code, rank)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, rank);
     vec2_t center = st.entity->s.origin2;
     FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &center) <= radius) {
         float damage = S_SpellData(spell->code, rank, 1);
         if (target == st.entity) damage += S_SpellData(spell->code, rank, 2);
         if (S_SpellDamage(target, caster, (int)damage) && !M_IsDead(target) && buff && strlen(buff) >= 4)
-            unit_addtimedstatus(target, buff, rank, S_SpellDuration(spell->code, rank, G_UnitIsHero(target)));
+            S_SpellApplyTimedStatus(target, buff, rank, S_SpellHeroDuration(spell->code, rank, target));
     }
 }
 

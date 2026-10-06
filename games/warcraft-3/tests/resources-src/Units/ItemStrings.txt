@@ -5,3 +5,10 @@ Description="Increases nearby friendly units' armor for a short duration."
 [ktrm]
 Tip="Urn of KelThuzad"
 Ubertip="Carries the remains of Kel'Thuzad."
+
+[phea]
+Tip="Purchase Test Potion of Healing"
+Ubertip="Tier-two shop fixture."
+[oven]
+Tip="Purchase Test Orb of Venom"
+Ubertip="Tier-three shop fixture."

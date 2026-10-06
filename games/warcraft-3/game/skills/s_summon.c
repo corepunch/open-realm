@@ -1,8 +1,5 @@
 #include "s_skills.h"
 
-#define ID_TIMED_LIFE "BTLF"
-#define ID_STUN_BUFF "Bstu"
-
 static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     vec2_t loc;
     float angle;
@@ -25,8 +22,15 @@ static edict_t *summon_unit(edict_t *caster, uint32_t unit_id, uint32_t index, u
     if (summon->stand)
         summon->stand(summon);
     if (duration > 0)
-        unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+        S_SpellApplyTimedLife(summon, 1, duration);
     G_PublishSummonEvents(caster, summon);
+    return summon;
+}
+
+static edict_t *summon_ability_unit(edict_t *caster, uint32_t code, uint32_t unit_id, uint32_t index,
+                                    uint32_t count, float duration) {
+    edict_t *summon = summon_unit(caster, unit_id, index, count, duration);
+    if (summon) summon->summon_ability = code;
     return summon;
 }
 
@@ -42,9 +46,40 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
     if (!summon) return NULL;
     summon->owner = caster; G_ActivateUnitFood(summon);
     if (summon->stand) summon->stand(summon);
-    if (duration > 0.0f) unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
+    if (duration > 0.0f) S_SpellApplyTimedLife(summon, 1, duration);
     G_PublishSummonEvents(caster, summon);
     return summon;
+}
+
+/* Ability-owned summons carry the concrete ability alias separately from the
+ * generic owner pointer. Limit/recast/ward/dispel policy can then identify the
+ * creating ability without every caller repeating this assignment. */
+edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration) {
+    edict_t *summon = S_SummonAt(caster, unit_id, loc, duration);
+    if (summon) summon->summon_ability = code;
+    return summon;
+}
+
+/* Common Object Editor summon contract used by simple campaign/requested
+ * abilities: UnitID selects the unit, DataA is count (minimum one), and Dur is
+ * timed life. Every result records the concrete ability alias; point-target
+ * variants spawn at the authored target point and other variants use the normal
+ * collision-safe ring around the caster. */
+void S_SummonAbilityUnits(edict_t *caster, uint32_t code, spellTarget_t const *target) {
+    uint32_t level, unit_id, count;
+    float duration;
+
+    if (!caster || !code) return;
+    level = S_SpellLevel(caster, code);
+    unit_id = S_SpellUnitId(code, level);
+    count = (uint32_t)MAX(1.0f, S_SpellData(code, level, 1));
+    duration = S_SpellDuration(code, level, false);
+    if (!unit_id) return;
+    if (target && target->type == SPELL_TARGET_POINT) {
+        FOR_LOOP(i, count) (void)S_SummonAbilityAt(caster, code, unit_id, &target->point, duration);
+        return;
+    }
+    FOR_LOOP(i, count) (void)summon_ability_unit(caster, code, unit_id, i, count, duration);
 }
 
 /* Some Warcraft summon abilities cap one authored unit type rather than all
@@ -92,13 +127,13 @@ static void inferno_impact(edict_t *caster, uint32_t code, uint32_t level, vec2_
     FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target))
-            unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
+            S_SpellApplyStun(target, S_SpellResistantDuration(code, level, target));
     }
     if (!unit_id) {
         fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (cstring_t)&code);
         return;
     }
-    S_SummonAt(caster, unit_id, point, life);
+    S_SummonAbilityAt(caster, code, unit_id, point, life);
 }
 
 void inferno_think(edict_t *ent) {
@@ -171,9 +206,8 @@ static void summon_execute(edict_t *caster, spellTarget_t st, abilityitem_t cons
 
     if (!caster || !unit_id || !count) return;
     FOR_LOOP(i, count) {
-        edict_t *summon = summon_unit(caster, unit_id, i, count, duration);
+        edict_t *summon = summon_ability_unit(caster, spell->code, unit_id, i, count, duration);
         if (!summon) continue;
-        summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
     }
 }
@@ -187,7 +221,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
     uint32_t count = (uint32_t)S_SpellData(spell->code, level, 1);
     float duration = S_SpellDuration(spell->code, level, false);
     float distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
+    cstring_t buff = S_SpellBuffId(spell->code, level);
     vec2_t loc = caster->s.origin2;
 
     if (!caster || !unit_id || !count) return;
@@ -197,7 +231,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
         float const angle = caster->s.angle + 2.0f * (float)M_PI * (float)i / (float)count;
         vec2_t spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
                           loc.y + sinf(angle) * MAX(32.0f, caster->collision) };
-        edict_t *summon = S_SummonAt(caster, unit_id, &spawn, duration);
+        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &spawn, duration);
         if (!summon) continue;
         if (G_FindUnitUnstuckPosition(summon, &spawn, &summon->s.origin2)) {
             summon->s.origin.x = summon->s.origin2.x;
@@ -208,7 +242,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
          * the authoritative position rather than the original spawn point. */
         summon->s.angle = caster->s.angle;
         gi.LinkEntity(summon);
-        summon->summon_ability = spell->code;
         /* Warsmash's CBuffTimedLife uses the ability's authored BuffID.
          * OpenRealm keeps BTLF as the authoritative timed-life clock (needed
          * by UnitPauseTimedLife/the timed-life bar), while this persistent
@@ -248,9 +281,8 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
-        edict_t *summon = S_SummonAt(caster, unit_id, &loc, duration);
+        edict_t *summon = S_SummonAbilityAt(caster, spell->code, unit_id, &loc, duration);
         if (!summon) continue;
-        summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, summon, NULL, true);
     }
 }

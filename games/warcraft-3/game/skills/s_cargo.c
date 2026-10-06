@@ -507,11 +507,10 @@ static void corpse_cargo_approach_cancel(edict_t *thinker) {
 
 void corpse_cargo_approach_think(edict_t *thinker) {
     edict_t *transport = thinker ? thinker->owner : NULL;
-    edict_t *corpse = thinker ? thinker->goalentity : NULL;
+    edict_t *corpse = S_SpellChannelTarget(thinker);
 
     if (!thinker || !transport || !transport->inuse || M_IsDead(transport) ||
-        !corpse || !corpse->inuse || corpse->spawn_time != thinker->channel->target_spawn_time ||
-        !corpse_cargo_target_valid(transport, corpse)) {
+        !corpse || !corpse_cargo_target_valid(transport, corpse)) {
         corpse_cargo_approach_cancel(thinker);
         return;
     }

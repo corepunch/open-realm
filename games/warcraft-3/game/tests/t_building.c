@@ -2965,9 +2965,14 @@ TEST(wc3_building, construction_displacement_starts_idle_move_and_arrives) {
         T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
         level.started = level.scriptsConfigured = level.scriptsStarted = true;
         FOR_LOOP(frame, 120) {
+            bool escaping = move_displacement_active(worker);
             level.time += FRAMETIME;
             globals.RunFrame();
-            if (!move_displacement_active(worker)) break;
+            if (escaping && !move_displacement_active(worker) && !inside)
+                T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+            /* Escape ownership can retire before the retained point order.
+             * Exercise both transitions instead of ending the simulation early. */
+            if (!move_displacement_active(worker) && !worker->current_order_id) break;
         }
         if (inside) {
             /* Original stock-mask solid-widget witness cannot leave its retained

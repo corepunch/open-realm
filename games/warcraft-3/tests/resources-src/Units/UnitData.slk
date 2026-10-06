@@ -1,11 +1,12 @@
 ID;PWXL;N;E
-B;X31;Y16;D0
+B;X32;Y17;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
 C;X29;K"canBuildOn"
 C;X30;K"turnRate"
 C;X31;K"propWin"
+C;X32;K"race"
 C;X1;Y2;K"ugol"
 C;X28;KTRUE
 C;X31;K60
@@ -58,4 +59,6 @@ C;X1;Y16;K"hRTE"
 C;X21;K"foot"
 C;X30;K0.6
 C;X31;K60
+C;X1;Y17;K"etoa"
+C;X32;K"nightelf"
 E

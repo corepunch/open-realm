@@ -14,18 +14,11 @@ static uint32_t spirit_link_nearest_insert(edict_t * *cands, float *dists, uint3
 	return n;
 }
 
-static void spirit_link_store_code(edict_t *unit, uint32_t buff, uint32_t code) {
-	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
-		if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff) {
-			unit->abilstatus[i].data = code; break;
-		}
-}
-
 /* Apply Bspl to up to DataB nearest valid units in Area of the click target.
  * The click target is kept first when valid; remaining slots go to the
  * nearest others. Equal distances keep edict order. */
 static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
-	uint32_t level, buff, maxn, n = 0, j, rest, restmax;
+	uint32_t level, maxn, n = 0, j, rest, restmax;
 	bool clicked;
 	float area, dur, dist;
 	cstring_t buffstr;
@@ -35,10 +28,9 @@ static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 	level = S_SpellLevel(caster, spell->code);
 	area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
 	maxn = (uint32_t)S_SpellData(spell->code, level, 2);
-	dur = S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity));
-	buffstr = G_AbilityLevel(spell->code, level)->buffID;
+	dur = S_SpellHeroDuration(spell->code, level, st.entity);
+	buffstr = S_SpellBuffId(spell->code, level);
 	if (!buffstr || strlen(buffstr) < 4) buffstr = "Bspl";
-	buff = *((uint32_t const *)buffstr);
 	if (!maxn) return;
 	if (maxn > SPL_MAX_CANDS) {
 		fprintf(stderr, "spirit_link: DataB %u exceeds scratch %d; clamping\n", (unsigned)maxn, SPL_MAX_CANDS);
@@ -60,9 +52,8 @@ static void spirit_link_execute(edict_t *caster, spellTarget_t st, abilityitem_t
 		}
 	if (n > maxn) n = maxn;
 	FOR_LOOP(i, n) {
-		unit_addtimedstatus(cands[i], buffstr, level, dur);
-		spirit_link_store_code(cands[i], buff, spell->code);
-		G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, cands[i], NULL, true);
+		heroabilitystatus_t *status = S_SpellApplyTimedTargetStatus(cands[i], spell->code, level, buffstr, dur);
+		if (status) status->data = spell->code;
 	}
 }
 

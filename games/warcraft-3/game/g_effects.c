@@ -466,6 +466,14 @@ void G_DestroyStatusEffectTarget(uint32_t status_id, edict_t *target) {
 }
 
 
+edict_t *G_SpawnOwnedAbilityEffectTarget(edict_t *owner, uint32_t ability_id,
+                                        wc3EffectType_t type, uint32_t index,
+                                        edict_t *target, cstring_t attach_point) {
+    edict_t *effect = G_SpawnAbilityEffectTarget(ability_id, type, index, target, attach_point, false);
+    if (effect) effect->owner = owner;
+    return effect;
+}
+
 edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id,
                                          wc3EffectType_t type, uint32_t index,
                                          vec2_t const *point) {

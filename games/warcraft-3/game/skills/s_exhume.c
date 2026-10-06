@@ -35,10 +35,10 @@ static void exhume_spawn(edict_t *wagon, uint32_t unit_id) {
 
 /* Classless producer owned by the wagon; wagon removal or missing Aexh ends it. */
 void exhume_think(edict_t *thinker) {
-	edict_t *wagon = thinker->owner;
+	edict_t *wagon = S_SpellChannelOwner(thinker);
 	uint32_t code = BZ_AEXH, level, unit_id, cap, interval_ms;
 	float interval;
-	if (!wagon || !wagon->inuse || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code)) {
+	if (!wagon || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code)) {
 		G_FreeEdict(thinker);
 		return;
 	}
@@ -61,9 +61,8 @@ static void exhume_ensure(edict_t *wagon) {
 	if (!wagon || !level || M_IsDead(wagon) || exhume_find_thinker(wagon)) return;
 	interval = S_SpellDuration(BZ_AEXH, level, false);
 	if (interval <= 0.0f) return;
-	thinker = G_Spawn();
+	thinker = S_SpellIdentityThinker(wagon, 0, NULL);
 	if (!thinker) return;
-	thinker->owner = wagon;
 	thinker->think = exhume_think;
 	thinker->freetime = G_Time() + (uint32_t)(interval * 1000.0f);
 }

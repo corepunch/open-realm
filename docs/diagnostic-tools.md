@@ -28,7 +28,7 @@ map, save, load, and compare origin/abilities/inventory. Parser tests are
 
 Poll one Warcraft III ability from the installed MPQs without parsing SLK by
 hand. This is the first command when implementing or finishing an ability.
-See [Mechanical Workflow](games/warcraft-3/ability-implementation-plan.md#mechanical-workflow).
+See [Mechanical Workflow](games/warcraft-3/ability-implementation.md#mechanical-workflow).
 
 ```sh
 make build/bin/ability_audit

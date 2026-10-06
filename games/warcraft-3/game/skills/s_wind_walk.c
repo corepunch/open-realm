@@ -60,9 +60,8 @@ static void wind_walk_execute(edict_t *unit, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(unit, spell->code);
     heroabilitystatus_t *status;
 
-    unit_addtimedstatus(unit, "BOwk", level,
-                        S_SpellDuration(spell->code, level, true));
-    status = wind_walk_status(unit);
+    status = S_SpellApplyTimedStatus(unit, "BOwk", level,
+                                     S_SpellDuration(spell->code, level, true));
     if (!status) {
         fprintf(stderr, "WC3 Wind Walk: failed to create status for unit %u\n", unit->s.number);
         return;

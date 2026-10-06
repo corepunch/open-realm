@@ -7,4 +7,11 @@ Art=TestUI\Textures\solid_white.blp
 Art=TestUI\Textures\solid_white.blp
 
 [etoa]
+Upgrade=etoe
 Art=TestUI\Textures\solid_white.blp
+
+[etoe]
+Art=TestUI\Textures\solid_white.blp
+
+[eden]
+Makeitems=moon,plcl,phea

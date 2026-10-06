@@ -815,9 +815,8 @@ static void wisp_harvest_ensure_effect(edict_t * worker, edict_t * tree) {
         G_DestroyEffect(effect);
     }
 
-    edict_t * effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_TARGET, 0, tree, NULL, false);
+    edict_t * effect = G_SpawnOwnedAbilityEffectTarget(worker, alias, WC3_EFFECT_TARGET, 0, tree, NULL);
     if (!effect) return;
-    effect->owner = worker;
     effect->summon_ability = alias;
     effect->wait = tuning.art_attachment_height;
     effect->s.origin.z += tuning.art_attachment_height;

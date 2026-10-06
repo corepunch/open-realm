@@ -23,7 +23,7 @@ bool S_StatusIsUndispellable(heroabilitystatus_t const *status) {
 /* Validate via authored targs; empty BuffID falls back to Bcyc like Aams → Bams. DataA is dispel-only. */
 BZ_ABILITY_PROC(CAbilityCyclone) {
     spellTarget_t const *target;
-    uint32_t level, buff_code;
+    uint32_t level;
     cstring_t buff;
     heroabilitystatus_t *slot;
 
@@ -35,17 +35,13 @@ BZ_ABILITY_PROC(CAbilityCyclone) {
                S_SpellAllowsTarget(call->item->code, ent, target->entity);
     if (target->type != SPELL_TARGET_UNIT || !target->entity) return false;
     level = S_SpellLevel(ent, call->item->code);
-    buff = G_AbilityLevel(call->item->code, level)->buffID;
+    buff = S_SpellBuffId(call->item->code, level);
     if (!buff || strlen(buff) < 4) buff = "Bcyc";
-    unit_addtimedstatus(target->entity, buff, level,
-                        S_SpellDuration(call->item->code, level, S_UnitIsResistant(target->entity)));
-    /* unit_addtimedstatus zeroes data on replace; store applying rawcode after add like Purge. */
-    buff_code = *((uint32_t const *)buff);
-    FOR_LOOP(i, G_UnitStatusSlotCount(target->entity)) {
-        slot = target->entity->abilstatus + i;
-        if (slot->level && slot->code == buff_code) { slot->data = call->item->code; break; }
-    }
+    slot = S_SpellApplyTimedStatus(target->entity, buff, level,
+                                    S_SpellResistantDuration(call->item->code, level, target->entity));
+    /* Timed-status replacement clears payload; restore the applying rawcode. */
+    if (slot) slot->data = call->item->code;
     S_SetMoveGoal(target->entity, &target->entity->goalentity, NULL);
-    M_SetMove(target->entity,&holdpos_move_stand);
+    M_SetMove(target->entity, &holdpos_move_stand);
     return true;
 }

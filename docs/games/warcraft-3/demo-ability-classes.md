@@ -1,7 +1,7 @@
 # Warcraft III Demo and TFT Ability Class Registries
 
 For translating the recovered behavior into C flags and explicit callbacks, see the
-[flat C ability plan](ability-inheritance-plan.md). The proposed runtime does not reproduce the parent tree.
+[flat C ability plan](ability-system.md). The proposed runtime does not reproduce the parent tree.
 The [binary behavior inspection](ability-inheritance-binary.md) records constructors, virtual slots,
 shared cast lifecycle, and the demo's absence of Holy Bolt.
 
@@ -230,7 +230,7 @@ saved references, both CLI modes, getter/direct-parent registration examples,
 the complete registered ability and helper RTTI inventories, helper descriptor
 headers, and PE address translation including rejection of a zero-filled descriptor address.
 
-See [ability implementation](ability-implementation-plan.md#disassembly-optional-evidence)
+See [ability implementation](ability-implementation.md#disassembly-optional-evidence)
 for using disassembly as version-specific behavior evidence, and
 [diagnostic tools](../../diagnostic-tools.md#warcraft-iii-demo-ability-class-extraction)
 for the tool index.

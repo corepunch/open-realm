@@ -773,11 +773,12 @@ static bool G_UnitTypeSatisfiesRequirement(uint32_t type_id, uint32_t requiremen
     return G_UnitTypeSatisfiesRequirement_r(type_id, requirement_id, visited, 0);
 }
 
-static int32_t G_PlayerRequirementCount(gameClient_t *client, uint32_t techid) {
-    int32_t count = G_GetPlayerTechResearchedLevel(client, techid);
+int32_t G_PlayerRequirementCount(gameClient_t *client, uint32_t techid) {
+    int32_t count;
     uint32_t player;
 
     if (!client || !techid) return 0;
+    count = G_GetPlayerTechResearchedLevel(client, techid);
     player = client->ps.number;
     FILTER_EDICTS(ent, ent->inuse && ent->s.player == player &&
                          !(ent->svflags & SVF_DEADMONSTER) && !ent->construction && !ent->training &&
