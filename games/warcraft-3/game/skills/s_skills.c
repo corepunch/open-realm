@@ -353,7 +353,7 @@ static ability_t abilitylist[] = {
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
     // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
     // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
-    // TODO: AIgo a_attack_mod  /* Chest of Gold */
+    { "AIgo", CAbilityItemGold, AB_ITEM },  /* Chest of Gold / Gold Coins */
     // TODO: AIlu a_item_heal_aoe  /* Bundle of Lumber */
     // TODO: AIfa a_agility_mod  /* Flare Gun */
     // TODO: AIrv a_item_heal_aoe  /* Item Reveal Entire Map */

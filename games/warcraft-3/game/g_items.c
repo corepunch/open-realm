@@ -472,7 +472,7 @@ static void G_CompletePowerupUse(edict_t *unit, edict_t *item) {
 
 bool G_PickupItem(edict_t *unit, edict_t *item) {
     int32_t slot;
-    if (G_CanPickupItem(unit, item) && S_TryUseSpeedPowerup(unit, item)) {
+    if (G_CanPickupItem(unit, item) && S_TryUseSupportedPowerup(unit, item)) {
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_CompletePowerupUse(unit, item);
         return true;
@@ -488,7 +488,7 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
     return added;
 }
 
-static bool G_ItemIsSupportedSpeedPowerup(edict_t *unit, edict_t *item) {
+static bool G_ItemIsSupportedPowerup(edict_t *unit, edict_t *item) {
     cstring_t abilities;
     if (!unit || !G_IsItem(item) || !item->data.ItemData || !item->data.ItemData->powerup ||
         !item->data.ItemData->usable || !G_InventoryCanUseItems(unit)) return false;
@@ -496,7 +496,8 @@ static bool G_ItemIsSupportedSpeedPowerup(edict_t *unit, edict_t *item) {
     if (!abilities) return false;
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
-        if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;
+        if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe ||
+                        ability->proc == CAbilityItemGold)) return true;
     }
     return false;
 }
@@ -519,7 +520,7 @@ static void G_PickupItemThink(edict_t *unit) {
         G_StopPickupOrder(unit);
         return;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedSpeedPowerup(unit, item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         G_StopPickupOrder(unit);
         return;
@@ -550,7 +551,7 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
     }
-    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedSpeedPowerup(unit, item)) {
+    if (G_FindFreeInventorySlot(unit) < 0 && !G_ItemIsSupportedPowerup(unit, item)) {
         G_ShowInventoryFull(unit);
         return false;
     }
