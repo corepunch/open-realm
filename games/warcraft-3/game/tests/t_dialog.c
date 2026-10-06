@@ -7,6 +7,16 @@
 void setup_test_world(void);
 bool run_test_jass(cstring_t script);
 
+static void dialog_test_write(pfWriteType_t type, void const *data) { (void)type; (void)data; }
+static void dialog_test_unicast(edict_t *ent) { (void)ent; }
+static int dialog_test_font(cstring_t name, uint32_t size) { (void)name; (void)size; return 1; }
+static int dialog_test_image(cstring_t path) { return path && *path ? 1 : 0; }
+static uint32_t dialog_test_frame_count(void) {
+    uint32_t count = 0;
+    FOR_LOOP(i, MAX_UI_CLASSES) if (frames[i].inuse) ++count;
+    return count;
+}
+
 TEST(wc3_dialog, create_add_clear_destroy_retains_stable_handles) {
     jassDialog_t *dialog;
     jassDialogButton_t *first, *second;
@@ -64,16 +74,20 @@ TEST(wc3_dialog, jass_natives_allocate_real_dialog_and_button_handles) {
         "  local dialog d = DialogCreate()\n"
         "  local button a\n"
         "  local button b\n"
+        "  local button q\n"
         "  call BJassAssert(d != null, \"dialog must be allocated\")\n"
         "  call DialogSetMessage(d, \"Choose route\")\n"
         "  set a = DialogAddButton(d, \"Long\", 0)\n"
         "  set b = DialogAddButton(d, \"Short\", 0)\n"
-        "  call BJassAssert(a != null and b != null and a != b, \"distinct buttons\")\n"
-        "  call DialogClear(d)\n"
-        "  call DialogDestroy(d)\n"
+        "  set q = DialogAddQuitButton(d, true, \"Quit\", 0)\n"
+        "  call BJassAssert(a != null and b != null and q != null and a != b, \"distinct buttons\")\n"
         "endfunction\n"));
     T_EQ(level.dialog_count, 1u);
-    T_EQ(level.dialog_button_count, 2u);
+    T_EQ(level.dialog_button_count, 3u);
+    T_ASSERT(G_JassDialogButtonById(3)->quit);
+    T_ASSERT(G_JassDialogButtonById(3)->score_screen);
+    G_JassDialogClear(G_JassDialogById(1));
+    G_JassDialogDestroy(G_JassDialogById(1));
     T_NULL(G_JassDialogById(1));
 }
 
@@ -175,5 +189,46 @@ TEST(wc3_dialog, click_visibility_uses_player_number_not_client_slot) {
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_dialog, repeated_display_reclaims_temporary_fdf_frames) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    int (*old_image)(cstring_t) = gi.ImageIndex;
+    stbIniCache_t old_theme = game.config.theme, theme = { 0 };
+    cstring_t theme_text = "[Default]\nEscMenuBackground=DialogBackground.blp\nEscMenuBorder=DialogBorder.blp\n";
+    jassDialog_t *dialog;
+    uint32_t baseline;
+
+    setup_test_world();
+    UI_ClearTemplates();
+    dialog = G_JassDialogCreate();
+    T_NOT_NULL(dialog);
+    snprintf(dialog->message, sizeof(dialog->message), "Choose a route");
+    T_NOT_NULL(G_JassDialogAddButton(dialog, "Continue", NULL));
+    game.clients[0].ps.number = 0;
+    g_edicts[0].client = game.clients;
+    T_ASSERT(Stb_IniCacheLoadBuffer(&theme, theme_text));
+    game.config.theme = theme;
+    gi.Write = dialog_test_write;
+    gi.unicast = dialog_test_unicast;
+    gi.FontIndex = dialog_test_font;
+    gi.ImageIndex = dialog_test_image;
+
+    UI_JassDialogShow(g_edicts, dialog);
+    baseline = dialog_test_frame_count();
+    FOR_LOOP(i, 8) {
+        UI_JassDialogShow(g_edicts, dialog);
+        T_EQ(dialog_test_frame_count(), baseline);
+    }
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.ImageIndex = old_image;
+    UI_ClearTemplates();
+    Stb_IniCacheFree(&game.config.theme);
+    game.config.theme = old_theme;
 }
 #endif

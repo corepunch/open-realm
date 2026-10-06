@@ -476,6 +476,27 @@ TEST(menu_fdf, compact_pool_preserves_capacity_and_reports_exhaustion) {
     T_ASSERT(sizeof(framePoint_t) <= sizeof(void *) + 8);
 }
 
+TEST(menu_fdf, failed_tree_clone_reclaims_partial_pool_allocations) {
+    frameDef_t *root, *child, *last = NULL, *frame;
+    uint32_t before = 0, after = 0;
+
+    reset_ui_state();
+    root = UI_Spawn(FT_FRAME, NULL);
+    child = UI_Spawn(FT_TEXT, root);
+    T_NOT_NULL(root); T_NOT_NULL(child);
+    while ((frame = UI_Spawn(FT_FRAME, NULL))) last = frame;
+    T_NOT_NULL(last);
+    UI_FreeFrameTree(last);
+    FOR_LOOP(i, MAX_UI_CLASSES) if (frames[i].inuse) ++before;
+
+    T_NULL(UI_CloneFrameTree(root, NULL));
+    FOR_LOOP(i, MAX_UI_CLASSES) if (frames[i].inuse) ++after;
+    T_EQ(after, before);
+    T_NOT_NULL(UI_Spawn(FT_FRAME, NULL));
+    T_NULL(UI_Spawn(FT_FRAME, NULL));
+    reset_ui_state();
+}
+
 TEST(menu_fdf, parse_nested_parent_child_relationship) {
     frameDef_t *root;
     frameDef_t *child;

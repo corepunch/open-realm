@@ -28,6 +28,7 @@
 #define MAX_JASS_DIALOG_BUTTONS 256 // buttons; bounds stable map-lifetime handles; used by the JASS registry
 #define MAX_JASS_DIALOG_TEXT 512 // bytes; bounds retained dialog messages; used by save and UI serialization
 #define MAX_JASS_DIALOG_BUTTON_TEXT 192 // bytes; bounds retained choice labels; used by save and UI serialization
+#define MAX_JASS_DIALOG_UI_BUTTONS 12 // buttons; stock template has no scrolling container; excess choices are logged
 #define WC3_JASS_DIALOG_WINDOW 0x4A444C47u /* JDLG */
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
