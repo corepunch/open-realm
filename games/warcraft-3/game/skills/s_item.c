@@ -694,7 +694,7 @@ BZ_ABILITY_PROC(CAbilityTinyStructure) {
         G_FreeEdict(building);
         return false;
     }
-    if (!G_StartTinyConstruction(building, S_SpellDuration(code, level, false))) {
+    if (!G_StartTinyConstruction(ent, building, S_SpellDuration(code, level, false))) {
         G_FreeEdict(building);
         return false;
     }
