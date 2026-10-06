@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**212 done / 336 tasks; 124 remaining.**
+**213 done / 336 tasks; 123 remaining.**
+
+Payoff120 closes GROUP-03.4.6.2.2.2.2.2: deferred RemoveUnit withdraws the
+logical roster, Stop/retarget retain it, and fresh refill uses new shared owners.
+Three complete repeated scenes match14,981 engine commits and615 shared
+footprints, with15 saved continuations. Move also ports the whole-roster range
+gate and resets inherited coarse admission clocks. Ghidra evidence is saved.
+See [cancellation and refill](retail-pathfinding-engine.md#final-captain-binding-cancellation-withdrawal-and-refill).
 
 Payoff119 closes ORDER-01.14: accepted public Defend/Rally cancel active Move;
 repeated, disabled, unresearched and invalid commands reject before admission.
@@ -896,7 +903,7 @@ and the wider mixed cancellation/reclamation control:
 - [x] **GROUP-03.4.6.2.2.2.1** Verify largest-recruit public Stop before/after shared admission, retained logical roster, surviving live maximum versus cached footprint, exact surviving references, generation reuse and saved continuation. Complete repeated early/late native captures authenticate retry+a4 as a fine-target record pointer. Engine matches5458/5593 complete commits,353/400 footprints and11764/12572 saved suffix commits. Full debug/release/repository suites,393 Python checks,42 fresh contracts and saved Ghidra readback pass. See [payoff66](retail-pathfinding-engine.md#largest-captain-recruit-stop-before-and-after-shared-admission).
 **GROUP-03.4.6.2.2.2.2 — Final-binding cancellation.** Public Stop and RemoveUnit/retarget with fresh parameter reuse need separate composed witnesses.
 - [x] **GROUP-03.4.6.2.2.2.2.1** Explicitly Stop all13 bound physical movers, retain empty groups until the next physical owner visit, collect their zero-reference shared owner on the following prepass, and reproduce saved pending/zero/collected states. Complete repeated native journeys match3549 commits/12 footprints. Second public StartCampaignAI reloads sources without replaying main; engine Save88 retains its creation gate. See [payoff67](retail-pathfinding-engine.md#final-captain-binding-stop-and-repeated-ai-initialization). Full debug/release/repository suites,404 Python checks,43 fresh contracts and saved Ghidra readback pass.
-- [ ] **GROUP-03.4.6.2.2.2.2.2** Compose final-binding RemoveUnit/retarget controls and fresh parameter reuse with a new generation after explicit cancellation. Verify no retired physical references, correct logical roster ownership and saved continuations. Stop and natural completion do not prove those branches; a second StartCampaignAI cannot provide reuse because the existing VM blocks entry replay.
+- [x] **GROUP-03.4.6.2.2.2.2.2** Compose final-binding RemoveUnit/retarget controls and fresh parameter reuse with a new generation after explicit cancellation. [Payoff120](retail-pathfinding-engine.md#final-captain-binding-cancellation-withdrawal-and-refill): three complete two-repeat public scenes;14,981 exact engine commits,615 footprints, signed deferred13→0 withdrawal, retained Stop/retarget rosters and four fresh shared generations. Physical bindings retire before reuse; fifteen saves include shared-target continuation and partial-removal count validation. Existing captain refill avoids entry replay and unverified captain-recreation assumptions.
 
 **GROUP-03.4.7 — Moving captain policies.** Explicitly split initial public native travel, its private retry continuation and wider home/retreat admission from03.4's moving-captain requirement.
 

@@ -781,3 +781,17 @@ offset mismatches in the older supplied-scalar harness. Production now matches
 the first public layout's twelve offset words, while the older865-case oracle
 explicitly supplies its injected scalar. The broader refresh journey and
 flag20 producers remain open; neither is inferred from this narrower proof.
+
+### Captain cancellation and subsequent shared generations
+
+[Payoff120](retail-pathfinding-engine.md#final-captain-binding-cancellation-withdrawal-and-refill)
+adds complete RemoveUnit/fresh-refill, point retarget and Stop controls, each
+repeated independently. Removal withdraws logical membership during deferred
+cleanup; Stop and retarget retain it. Old physical bindings collect before new
+shared owners publish. The actual engine matches all three full journeys and
+saved continuations. The fresh journey also implements the integer one-tenth
+missing-member regroup gate and the prepared shared-target family's ordinary
+arrival range. Public retarget preserves deterministic physical scheduling and
+clears inherited coarse admission timestamps. Saved Ghidra names, ABIs, comments
+and xrefs distinguish these producers from private captain approach and
+unverified captain recreation/default-town positioning.

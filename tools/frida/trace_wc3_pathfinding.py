@@ -147,6 +147,7 @@ def main():
         if args.point_click_from_start: config['pointInput']['fromStart'] = True
         if args.point_native_key: config['pointInput']['nativeKey'] = True
         if args.point_click_sample_ticks: config['pointInput']['sampleTicks'] = True
+    source_paths.extend([Path(__file__).with_name('wc3_captain_lifetime_probe.j'),Path(__file__).with_name('wc3_captain_lifetime_probe.ai')])
     provenance = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths}
     map_path = args.data / args.map.replace('\\', '/')
     if args.random_movement_events:

@@ -9940,3 +9940,83 @@ adds two partial prefixes and10 verified ABI declarations. Saved names,
 comments, xrefs, prototypes, return instructions and layout readback are in
 `retail-metadata-119-static.json` with `unsaved=false`. No original function
 bodies or asset files are redistributed.
+
+### Final captain binding cancellation, withdrawal and refill
+
+Payoff120 closes GROUP-03.4.6.2.2.2.2.2 with three completed forty-second
+public scenes, each repeated independently: RemoveUnit on all thirteen recruits
+at9.2s, point retarget on all thirteen, and Stop on all thirteen. The removal
+scene creates fresh recruits at9.9s and refills the existing captain at10s.
+The controls call the same recruitment sequence again, preserving their original
+recruits. This avoids the existing-VM StartCampaignAI entry guard. It also avoids
+assuming that CreateCaptains makes old recruits available again: exploratory
+recreation controls rejected those recruits even after a0.1s wait. Default-town
+positioning and captain recreation remain separate GROUP-03.4 producer gaps.
+
+| Scene | Full unit motion commits | Shared footprint observations | Shared generations |
+|---|---:|---:|---:|
+| Remove and fresh refill | 7,386 | 591 | 4 |
+| Point retarget | 4,046 | 12 | 1 |
+| Stop | 3,549 | 12 | 1 |
+
+Stop and point replacement cancel physical tasks while retaining logical
+captain membership. RemoveUnit first cancels physical movement, then withdraws
+the logical member during deferred cleanup. Original9d5610 calls9d0650 with a
+**signed integer** delta of-1, unregisters subscriptions and removes the roster
+link. The actual count drops13→0 before fresh creation; recruitment later rises
+0→13. Remembered size and formation state are independent. The engine now
+removes the captain array entry and compacts logical encounter indices before
+edict reuse. Partial removal preserves the remaining roster order. Save
+validation rejects a count inconsistent with the retained logical references.
+
+The two canceled physical batches keep the old shared owner's two references
+through counter1331. The following prepass releases the bindings; counter1332
+observes zero references and invalidates the old canonical identity. Refilling
+creates a distinct shared generation, followed by target and point generations.
+There are26 canonical unit lifetimes in the removal scene. The normalizer joins
+motion by canonical births rather than recycled mover addresses.
+
+The fresh journey exposed another missing branch in9d8eb0. An outer departure
+updates the whole roster when `member_count / 10 < member_count - inner_count`.
+At counter1457, thirteen members and only eleven inner members take9d16c0's
+shared-target branch. Its two passes preserve roster order, skip already
+captain-target heads, and prepare12+1 physical batches against one shared owner.
+Policy0 omits100; target activation yields persistent1,800, extra-refresh400 and
+target state1000. Unlike a private captain approach, these prepared requests
+carry zero authored arrival range and activate the ordinary`0x3efae148` threshold.
+The engine reuses the existing physical request implementation for both target
+and point families. When all members enter, target ownership cannot satisfy the
+point-family unchanged-order guard, even if the world goals coincide.
+
+Public retarget successors remain privately scheduled physical requests,
+visited newest first. The owning Move ability receives normal order admission;
+internal two-pass captain admission supplies its own owners. Fresh path
+activation resets **both coarse timestamps** as well as the fine timestamp.
+Previously, the old shared path's time1325 delayed the successor at1331. The
+regression first failed at9.21s on physical ordering, then9.24s on inherited
+admission throttling. The full successor motion now agrees with retail.
+
+`public_captain_lifetime_journey` checks14,981 original unit commits and615
+live/cached shared footprints through40s. Five saves per variant, including14s
+inside the new shared-target phase, replay9,160 exact suffix commits. The partial
+withdrawal regression also checks invalid-count rejection and restoration.
+Existing captain completion, largest-member Stop, final-binding Stop, GoHome
+and retry continuations remain covered. Save114's layout is unchanged; derived
+bot links are reconstructed without restoring a process-owned AI VM.
+
+`retail-captain-lifetime-1.27.json`, its literal engine header and the strict
+verifier freeze both repeats, all546 public records per scene, signed roster
+updates, owner publications and complete numerical observations. The primary
+clock has8,001 advances and1,333 owner callbacks in each stream. Footer totals
+are pinned per capture: pre-scene loader clocks and attack queries vary, and
+change-filtered replan/spatial diagnostics are not complete call inventories.
+They do not dilute the complete movement/public producer certificate.
+Content-addressed blobs preserve the actual map and observer generations,
+including the probe's earlier comment wording.
+
+Ghidra persists five new ABI declarations, eight function readbacks, names,
+comments, return instructions and direct callers, with`unsaved_changes=false`.
+MapPathfinding.java records the threshold, separate prepared/private ranges and
+fresh admission clocks. The fixture retains the explicit exclusions: captain
+recreation/default-town relocation, rosters above thirteen, AI VM restoration,
+and whole-pathfinder fidelity. See [strict corpus](retail-pathfinding-corpus.md).

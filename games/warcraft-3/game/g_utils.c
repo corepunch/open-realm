@@ -74,6 +74,7 @@ void G_FreeEdict(edict_t *ent) {
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
+    G_BotRemoveCaptainUnit(ent);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */

@@ -11385,6 +11385,91 @@
         }
       ],
       "convention": "__thiscall"
+    },
+    {
+      "address": "6f9d0650",
+      "name": "CaptainAI_UpdateRosterCountsAndRanges",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "delta",
+          "type": "i32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f9d5610",
+      "name": "CaptainAI_DetachRosterMember",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f9cf680",
+      "name": "CaptainAI_AttachRosterMember",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f9d34b0",
+      "name": "CaptainAI_HasRosterMember",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f9d16c0",
+      "name": "CaptainAI_UpdateMemberOrders",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "captain",
+          "type": "ptr:WC3CaptainAIPrefix",
+          "storage": "ECX"
+        }
+      ]
     }
   ],
   "globals": [

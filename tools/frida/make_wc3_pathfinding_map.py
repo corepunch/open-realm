@@ -146,7 +146,7 @@ def random_calls():
     return '\n'.join(lines)
 
 
-def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0, captain_peer=False, captain_peer_type="hfoo", captain_blocked_home=False, captain_pool=None, captain_third=False, captain_thirteen=False):
+def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit_y=-240.0, captain_source_y=-976.0, captain_peer=False, captain_peer_type="hfoo", captain_blocked_home=False, captain_pool=None, captain_third=False, captain_thirteen=False, captain_lifetime=None):
     if not 11 <= remove_tick < 300:
         raise ValueError('removal tick must follow the order and precede completion')
     if not all(math.isfinite(v) and -3072 <= v <= 5120 for v in (gate_y, gate_exit_y)):
@@ -163,6 +163,8 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
         raise ValueError('captain third requires an unblocked Footman pair without pool mutation')
     if (captain_peer or captain_blocked_home or captain_pool or captain_third or captain_thirteen) and scenario != 'captain_home':
         raise ValueError('captain peer requires captain_home')
+    if captain_lifetime is not None and (captain_lifetime not in ('remove','retarget','stop') or not captain_thirteen or scenario!='captain_home'):
+        raise ValueError('captain lifetime requires the ordinary thirteen-member home scene')
     if scenario == 'captain_home':
         if captain_blocked_home:
             guard='    if PATH_PROBE_SCENARIO == 16 then'
@@ -177,6 +179,18 @@ def instrument(script, probe, scenario, remove_tick=50, gate_y=-800.0, gate_exit
                 births+=f"        set udg_PathProbeCrowd[{i}]=CreateUnit(Player(0),'hfoo',{x:.1f},{y:.1f},90.0)\n"
                 births+=f'        call SetUnitMoveSpeed(udg_PathProbeCrowd[{i}],100.0)\n'
             probe=probe.replace(create,create+births+'    endif')
+            if captain_lifetime:
+                operation=('remove','retarget','stop').index(captain_lifetime)
+                probe=probe.replace('    integer udg_MorphCase=0','    hashtable udg_CaptainLifetimeTable=null\n    integer udg_MorphCase=0',1)
+                start='    set udg_PathProbeTick = udg_PathProbeTick + 1'
+                if probe.count(start)!=1:raise ValueError('captain tick producer differs')
+                probe=probe.replace(start,start+f'\n    call PathCaptainLifetimeTick({operation})',1)
+                probe=probe.replace('    local integer crowdType = \'hfoo\'',
+                    '    local integer crowdType = \'hCLG\'\n    set udg_CaptainLifetimeTable=InitHashtable()\n    call Preload("PATHMETA case=metadata_captain_120")',1)
+                probe=probe.replace('udg_PathProbeTick == 300 and PATH_PROBE_SCENARIO!=64','udg_PathProbeTick == 400 and PATH_PROBE_SCENARIO!=64',1)
+                declaration='function PathProbeTick takes nothing returns nothing'
+                if probe.count(declaration)!=1:raise ValueError('captain callback declaration differs')
+                probe=probe.replace(declaration,Path(__file__).with_name('wc3_captain_lifetime_probe.j').read_text()+'\n'+declaration,1)
         if captain_peer:
             peer_type="'hkni'" if captain_peer_type=='hkni' else 'crowdType'
             create='    set udg_PathProbeUnit = CreateUnit(Player(0), crowdType, -1936.0, -976.0, 90.0)'
@@ -345,10 +359,13 @@ def main():
     parser.add_argument('--captain-peer-type',choices=('hfoo','hkni'),default='hfoo',help='second recruit profile; requires --captain-peer')
     parser.add_argument('--captain-blocked-home',action='store_true',help='block the five-by-five authored home terrain before admission')
     parser.add_argument('--captain-thirteen',action='store_true',help='add thirteen Footmen in four-column birth order for captain 12+1 admission')
+    parser.add_argument('--captain-lifetime',choices=('remove','retarget','stop'),help='final-binding mutation and a fresh AI captain generation; requires --captain-thirteen')
     parser.add_argument('--captain-third',action='store_true',help='add a third Footman to an unblocked captain pair')
     parser.add_argument('--captain-pool',choices=('reuse','transfer','same_owner','partial'),help='single-recruit owned-pool lifecycle; requires --captain-peer')
     parser.add_argument('--captain-ai', type=Path, help='explicit captain_home AI script; default is the stationary home probe')
     args = parser.parse_args()
+    if args.captain_lifetime and (not args.captain_thirteen or args.scenario!='captain_home'):
+        parser.error('--captain-lifetime requires --captain-thirteen --scenario captain_home')
     if (args.captain_ai or args.captain_pool or args.captain_peer or args.captain_third or args.captain_thirteen or args.captain_blocked_home or args.captain_peer_type!='hfoo') and args.scenario != 'captain_home':
         parser.error('--captain-ai/--captain-peer require captain_home')
     if args.captain_peer_type!='hfoo' and not args.captain_peer:parser.error('--captain-peer-type requires --captain-peer')
@@ -358,7 +375,7 @@ def main():
         parser.error('--captain-thirteen requires an unblocked Footman roster without other variants')
     if args.captain_third and (not args.captain_peer or args.captain_peer_type!='hfoo' or args.captain_blocked_home or args.captain_pool):
         parser.error('--captain-third requires an unblocked Footman pair without pool mutation')
-    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_thirteen_probe.ai' if args.captain_thirteen else 'wc3_captain_three_probe.ai' if args.captain_third else 'wc3_captain_pool_partial_probe.ai' if args.captain_pool=='partial' else 'wc3_captain_pool_probe.ai' if args.captain_pool else 'wc3_captain_mixed_probe.ai' if args.captain_peer_type=='hkni' else 'wc3_captain_pair_probe.ai' if args.captain_peer else 'wc3_captain_probe.ai')
+    captain_ai = args.captain_ai or Path(__file__).with_name('wc3_captain_lifetime_probe.ai' if args.captain_lifetime else 'wc3_captain_thirteen_probe.ai' if args.captain_thirteen else 'wc3_captain_three_probe.ai' if args.captain_third else 'wc3_captain_pool_partial_probe.ai' if args.captain_pool=='partial' else 'wc3_captain_pool_probe.ai' if args.captain_pool else 'wc3_captain_mixed_probe.ai' if args.captain_peer_type=='hkni' else 'wc3_captain_pair_probe.ai' if args.captain_peer else 'wc3_captain_probe.ai')
     if args.scenario == 'captain_home' and not captain_ai.is_file():
         parser.error('captain AI source is missing')
     if args.base.resolve() == args.output.resolve() or args.output.exists():
@@ -405,13 +422,16 @@ def main():
                 data=resize_units(data,clones=[(b'hF91',8.),(b'hF92',24.),(b'hF93',40.),(b'hF94',56.)])
             if member == 'war3map.j':
                 source = data.decode('utf-8').replace('\r\n', '\n')
-                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer, args.captain_peer_type, args.captain_blocked_home, args.captain_pool, args.captain_third, args.captain_thirteen).encode('utf-8')
+                data = instrument(source, probe, args.scenario, args.remove_tick, args.gate_y, args.gate_exit_y, args.captain_source_y, args.captain_peer, args.captain_peer_type, args.captain_blocked_home, args.captain_pool, args.captain_third, args.captain_thirteen, args.captain_lifetime).encode('utf-8')
                 args.output.with_suffix('.j').write_bytes(data)
             if member == 'war3map.w3u' and args.scenario == 'numeric_bytes':
                 data = byte_unit_name(data)
                 args.output.with_suffix('.w3u').write_bytes(data)
             if member == 'war3map.w3u' and args.scenario == 'speed_inputs':
                 data = speed_unit_limits(data)
+                args.output.with_suffix('.w3u').write_bytes(data)
+            if member=='war3map.w3u' and args.captain_lifetime:
+                data=resize_units(data,clones=[(b'hCLG',63.0)])
                 args.output.with_suffix('.w3u').write_bytes(data)
             if member == 'war3map.w3u' and args.scenario in ('follow_target_grow','follow_target_shrink','follow_target_resize_gate','moving_radius','moving_radius_matrix','group_radius_grow','group_radius_shrink','group_radius_remove'):
                 data=resize_units(data,args.scenario=='moving_radius_matrix')
@@ -440,12 +460,14 @@ def main():
               'captain_pool': args.captain_pool,
               'captain_third': args.captain_third,
               'captain_thirteen': args.captain_thirteen,
+              'captain_lifetime': args.captain_lifetime,
               'captain_peer': args.captain_peer if args.scenario == 'captain_home' else None,
               'captain_peer_type': args.captain_peer_type if args.captain_peer else None,
               'captain_blocked_home': args.captain_blocked_home if args.scenario == 'captain_home' else None,
               'captain_source_y': args.captain_source_y if args.scenario == 'captain_home' else None,
               'captain_ai_sha256': hashlib.sha256(captain_ai.read_bytes()).hexdigest() if args.scenario == 'captain_home' else None,
               'container': 'rebuilt MPQ with original HM3W header; signature not retained'}
+    if args.captain_lifetime:result['changed_members']=['war3map.j','war3map.w3u']
     if args.scenario in ('metadata_busy','metadata_rally','metadata_orders','timer_mutation','timer_boundaries','timer_inputs','adaptive_passage','target_overlap','chained_expression','terrain_cache','movement_lifecycle','region_callbacks','movement_bypasses','movement_modes','speed_modifiers','fine_results','gate_capacity','gate_overlap','scheduler_contention','scheduler_nonunit','scheduler_mutation','mover_retirement','formation_ranks','formation_policy','formation_blocked','formation_boundary','formation_refresh'):
         result['changed_members']=['war3map.j']+passage_members+(['war3map.w3a'] if args.scenario=='movement_modes' else [])
         result['terrain_blocks']='formation detour wall x16/y0..23' if args.scenario=='formation_refresh' else 'blocked formation slot (13,10)' if args.scenario=='formation_blocked' else 'empty' if args.scenario in ('formation_ranks','formation_policy','formation_boundary','formation_refresh') else 'reduced size2 passage' if args.scenario=='adaptive_passage' else 'movement bypass wall' if args.scenario in ('movement_bypasses','movement_modes','speed_modifiers','fine_results','gate_capacity','gate_overlap','scheduler_contention','scheduler_nonunit','scheduler_mutation','mover_retirement','formation_ranks','formation_policy','formation_blocked','formation_boundary','formation_refresh') else 'empty'

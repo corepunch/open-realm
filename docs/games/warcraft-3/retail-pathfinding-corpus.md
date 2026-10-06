@@ -1872,3 +1872,21 @@ change. Ordinary native admission is the certified boundary; broader cast and
 Shift/UI timing remain separate. Rally D/E's probe-source omission is recorded
 explicitly with an independent exact map-embedding certificate. See
 [modal admission](retail-pathfinding-engine.md#modal-orders-validate-before-replacing-active-movement).
+
+Payoff120 adds `live-captain-lifetime-261006`: six completed original captures
+cover final-binding removal/fresh refill, point retarget and Stop. Each pair
+repeats all canonical motion, public records, signed roster changes and shared
+owner publications. The engine reproduces14,981 commits,615 shared footprints
+and15 save continuations, including the whole-roster shared-target phase.
+Strict mutation tests reject truncated records/motion, old identity reuse,
+unsigned withdrawal substitution and premature collection. Saved eight-function
+Ghidra readback, five ABI declarations and content-addressed actual observer/map
+sources accompany the engine fixes. Loader/change-filtered diagnostic totals
+are pinned per capture; the movement certificate remains complete.
+
+Inventory is352 contracts:121 original-code oracles,121 archives and110 live
+contracts. The fresh lifetime report passes all six streams against newly built
+scalar C and exact primary-clock sequencing. Captain recreation, default-town
+relocation, rosters above thirteen and AI VM restoration remain outside this
+contract; earlier Stop-only certificates retain their historical narrower scope.
+See [withdrawal and refill](retail-pathfinding-engine.md#final-captain-binding-cancellation-withdrawal-and-refill).

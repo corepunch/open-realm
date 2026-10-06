@@ -47,6 +47,7 @@
 #include "retail_captain_cancel_late.h"
 #include "retail_captain_cancel_early.h"
 #include "retail_captain_cancel_all.h"
+#include "retail_captain_lifetime_120.h"
 #include "retail_captain_go_home.h"
 #include "retail_captain_go_home_retry.h"
 #include "retail_captain_go_home_refill.h"
@@ -14983,6 +14984,215 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
     level.setup.map_flags=old_flags;
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+/* Retail120: deferred RemoveUnit withdraws the logical roster before slot reuse. */
+static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*motion)[7],unsigned motion_count,
+    uint32_t const (*footprints)[4],unsigned footprint_count) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    float weapon_range=90; uint32_t weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    float large_radius=63;
+    unitModification_t large_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=4,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=4,.modifications=large_mods}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    /* Placement compares W3E support levels, independently of WPM passability. */
+    static war3mapVertex_t vertices[97*65];
+    war3map_t terrain=*world.map;
+    if(true) {
+        terrain.width=97; terrain.height=65; terrain.vertices=vertices;
+        memset(vertices,0,sizeof(vertices)); offset=0;
+        FOR_LOOP(i,sizeof(captain_thirteen_terrain_levels)/sizeof(*captain_thirteen_terrain_levels))
+            FOR_LOOP(j,captain_thirteen_terrain_levels[i][0]) {
+                vertices[offset].accurate_height=0x2000;
+                vertices[offset++].level=captain_thirteen_terrain_levels[i][1];
+            }
+        T_EQ(offset,97*65); world.map=&terrain;
+    }
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[6000];
+    int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\ninteger tick=0\nboolean armed=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nlocal integer i=0\nset tick=tick+1\n"
+        "if tick==10 then\ncall StartCampaignAI(Player(0),\"test_captain_lifetime.ai\")\nendif\n"
+        "if tick==92 then\nloop\nexitwhen i==13\n%s\nset i=i+1\nendloop\nendif\n"
+        "if tick==99 and %s then\nset i=0\nloop\nexitwhen i==13\n"
+        "if i==0 then\nset roster[i]=CreateUnit(Player(0),'hBGL',-1936,-976,90)\n"
+        "else\nset roster[i]=CreateUnit(Player(0),'hBGM',-1936+I2R(i-(i/4)*4)*80,-976-I2R(i/4)*80,90)\nendif\n"
+        "call SetUnitMoveSpeed(roster[i],100)\nset i=i+1\nendloop\nendif\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",
+        operation==0 ? "call RemoveUnit(roster[i])" : operation==1 ?
+        "call IssuePointOrder(roster[i],\"move\",GetUnitX(roster[i])+128,GetUnitY(roster[i]))" :
+        "call IssueImmediateOrder(roster[i],\"stop\")",operation==0 ? "true" : "false");
+    FOR_LOOP(i,13)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'%s',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",
+        i,i ? "hBGM" : "hBGL",-1936+(i%4)*80,-976-(i/4)*80,i);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true;level.scriptsStarted=false;globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};unsigned found=0;
+    FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || unit->class_id==types[1].newUnitID))
+        if(found<13)trace.units[found++]=unit;
+    T_EQ(found,13);follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;
+    unsigned steps=0,footprint_steps=0,saved_steps[5]={0},saved_footprints[5]={0},suffix=0;
+    unsigned times[]={10150,12000,14000,20000,30000};char files[5][80];
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"/tmp/wc3-captain-lifetime-%u-%u.bin",operation,i);
+    bool mismatch=false;edict_t *old_actor=NULL;uint32_t old_generation=0;
+    FOR_LOOP(pass,6) {
+        if(pass) {
+            G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));
+            steps=saved_steps[pass-1];footprint_steps=saved_footprints[pass-1];T_NULL(level.bots[0].vm);
+        }
+        while(level.time<40050 && !mismatch) {
+            trace.count=radii_trace.count=0;level.time+=5;globals.RunFrame();
+            botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+            if(!pass && operation==0 && level.time==9900) {
+                found=0;
+                FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || unit->class_id==types[1].newUnitID))
+                    if(found<13)trace.units[found++]=unit;
+                T_EQ(found,13);
+            }
+            if(!pass && level.time==1000) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),13);
+                old_actor=captain->home_actor;T_NOT_NULL(old_actor);
+            }
+            if(!pass && level.time==9195){old_generation=level.next_move_shared_id;T_EQ(old_generation,1);}
+            if(!pass && level.time==9200 && operation==0) {
+                T_EQ(ARRAY_COUNT(captain->units),0);T_EQ(old_actor->movement.captain_actor_members,0);
+            }
+            if(!pass && level.time==9260){T_NULL(S_FindMoveShared(old_generation));T_ASSERT(S_ValidateMoveShared());}
+            if(!pass && level.time==9995) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),operation==0 ? 0 : 13);
+                T_EQ(ARRAY_COUNT(captain->units),operation==0 ? 0 : 13);
+            }
+            if(!pass && level.time==10150) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),13);T_EQ(ARRAY_COUNT(captain->units),13);
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
+            }
+            FOR_LOOP(i,trace.count) {
+                uint32_t words[7];memcpy(words,trace.rows[i],sizeof(words));
+                if(operation==0 && level.time>=9900)words[0]+=13;
+                if(motion) {
+                    T_ASSERT(steps<motion_count);
+                    if(steps>=motion_count){mismatch=true;break;}
+                    FOR_LOOP(k,7){T_EQ(words[k],motion[steps][k]);if(words[k]!=motion[steps][k])mismatch=true;}
+                    if(mismatch) {
+                        fprintf(stderr,"Captain lifetime%u commit%u at%u differs\n",operation,steps,level.time);
+                    }
+                }
+                steps++;
+                if(mismatch)break;
+            }
+            FOR_LOOP(i,radii_trace.count) {
+                if(footprints) {
+                    T_ASSERT(footprint_steps<footprint_count);
+                    if(footprint_steps>=footprint_count){mismatch=true;break;}
+                    FOR_LOOP(k,4)T_EQ(radii_trace.rows[i][k],footprints[footprint_steps][k]);
+                }
+                footprint_steps++;
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]) {
+                saved_steps[i]=steps;saved_footprints[i]=footprint_steps;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        if(motion)T_EQ(steps,motion_count);
+        if(footprints)T_EQ(footprint_steps,footprint_count);
+        T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_EQ(level.next_move_shared_id,operation==0 ? 4 : 1);T_NULL(S_FindMoveShared(1));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved_steps[pass-1];
+        if(mismatch)break;
+    }
+    fprintf(stderr,"Captain lifetime%u commits=%u footprints=%u saved suffix=%u\n",operation,steps,footprint_steps,suffix);
+    FOR_LOOP(i,5)remove(files[i]);
+    follow_commit_trace=NULL;move_test_motion_commit=NULL;group_radius_trace=NULL;move_test_group_route=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and_save) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\nunit array roster\nendglobals\n"
+        "function remove_middle takes nothing returns nothing\ncall RemoveUnit(roster[1])\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set roster[0]=CreateUnit(Player(0),'hRTE',-256,-256,90)\n"
+        "set roster[1]=CreateUnit(Player(0),'hRTE',-96,-256,90)\n"
+        "set roster[2]=CreateUnit(Player(0),'hRTE',64,-256,90)\nendfunction\n"));
+    player_t *player=G_GetPlayerByNumber(0);G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,0,256);G_BotInitAssault(player);
+    T_ASSERT(G_BotAddAssault(player,3,MAKEFOURCC('h','R','T','E')));
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    edict_t *actor=captain->home_actor,*first=captain->units[0],*last=captain->units[2];
+    T_EQ(actor->movement.captain_actor_members,3);
+    jass_callbyname(level.vm,"remove_middle",false);
+    T_EQ(ARRAY_COUNT(captain->units),3); /* Native return precedes deferred logical withdrawal. */
+    G_RunDeferredFrees();
+    T_EQ(ARRAY_COUNT(captain->units),2);T_EQ(actor->movement.captain_actor_members,2);
+    T_EQ(captain->units[0],first);T_EQ(captain->units[1],last);
+    T_EQ(first->movement.captain_home.member_index,0);T_EQ(last->movement.captain_home.member_index,1);
+    T_EQ(first->movement.captain_home.roster_actor,actor);T_EQ(last->movement.captain_home.roster_actor,actor);
+    T_ASSERT(S_ValidateCaptainHomeActors(false));T_ASSERT(S_ValidateMoveShared());
+    T_ASSERT(WriteGame("/tmp/wc3-captain-partial-retirement.bin"));
+    actor->movement.captain_actor_members=3;
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame("/tmp/wc3-captain-invalid-retirement.bin"));
+    T_ASSERT(ReadGame("/tmp/wc3-captain-partial-retirement.bin"));
+    T_EQ(actor->movement.captain_actor_members,2);T_ASSERT(S_ValidateCaptainHomeActors(false));
+    remove("/tmp/wc3-captain-partial-retirement.bin");remove("/tmp/wc3-captain-invalid-retirement.bin");
+    G_BotStop(0);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, public_captain_removal_withdraws_roster_before_slot_reuse) {
+    public_captain_lifetime_journey(0,captain_lifetime_remove_motion,
+        sizeof(captain_lifetime_remove_motion)/sizeof(*captain_lifetime_remove_motion),captain_lifetime_remove_footprints,
+        sizeof(captain_lifetime_remove_footprints)/sizeof(*captain_lifetime_remove_footprints));
+}
+
+TEST(wc3_movement, public_captain_retarget_retains_roster_and_cancels_last_shared_binding) {
+    public_captain_lifetime_journey(1,captain_lifetime_retarget_motion,
+        sizeof(captain_lifetime_retarget_motion)/sizeof(*captain_lifetime_retarget_motion),captain_lifetime_retarget_footprints,
+        sizeof(captain_lifetime_retarget_footprints)/sizeof(*captain_lifetime_retarget_footprints));
+}
+
+TEST(wc3_movement, public_captain_stop_retains_roster_and_cancels_last_shared_binding) {
+    public_captain_lifetime_journey(2,captain_lifetime_stop_motion,
+        sizeof(captain_lifetime_stop_motion)/sizeof(*captain_lifetime_stop_motion),captain_lifetime_stop_footprints,
+        sizeof(captain_lifetime_stop_footprints)/sizeof(*captain_lifetime_stop_footprints));
 }
 
 TEST(wc3_movement, public_captain_go_home_matches_original_extended_standing_follow) {

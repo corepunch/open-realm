@@ -1223,6 +1223,21 @@ static bool G_BotCaptainHasUnit(bot_t *bot, edict_t *unit) {
     return false;
 }
 
+/* Native9d5610 withdraws identity at deferred unit destruction, before reuse.
+ * Stop and point replacement leave these logical memberships untouched. */
+void G_BotRemoveCaptainUnit(edict_t *unit) {
+    FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+        botCaptain_t *captain=level.bots[p].captains+c;
+        FOR_LOOP(i,ARRAY_COUNT(captain->units)) {
+            if (captain->units[i]!=unit) continue;
+            memmove(captain->units+i,captain->units+i+1,
+                (ARRAY_COUNT(captain->units)-i-1)*sizeof(*captain->units));
+            ARRAY_COUNT(captain->units)--;
+            break;
+        }
+    }
+}
+
 /* InitAssault requests formation without resetting either captain. */
 void G_BotInitAssault(player_t *player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

@@ -867,6 +867,21 @@ class ProbeMapTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.builder.instrument(config+self.source,self.probe,'captain_home',captain_thirteen=True,**opts)
 
+    def test_captain_lifetime_uses_public_mutations_and_declares_before_use(self):
+        config='call SetPlayerController( Player(0), MAP_CONTROL_NEUTRAL )\n'
+        for operation,mode in enumerate(('remove','retarget','stop')):
+            out=self.builder.instrument(config+self.source,self.probe,'captain_home',captain_thirteen=True,captain_lifetime=mode)
+            self.assertLess(out.index('function PathCaptainLifetimeRecord'),out.index('function PathCaptainLifetimeTick'))
+            self.assertLess(out.index('function PathCaptainLifetimeTick'),out.index('function PathProbeTick'))
+            self.assertIn(f'call PathCaptainLifetimeTick({operation})',out)
+            self.assertIn("local integer crowdType = 'hCLG'",out)
+            self.assertIn('udg_PathProbeTick == 400 and PATH_PROBE_SCENARIO!=64',out)
+            self.assertIn('call RemoveUnit(udg_PathProbeCrowd[i])',out)
+            self.assertIn('call IssuePointOrder(udg_PathProbeCrowd[i],"move"',out)
+            self.assertIn('call SaveReal(udg_CaptainLifetimeTable,row,5,GetUnitY',out)
+        with self.assertRaises(ValueError):
+            self.builder.instrument(config+self.source,self.probe,'captain_home',captain_lifetime='stop')
+
     def test_gate_geometry_is_explicit_and_finite(self):
         for y in (float('nan'), float('inf'), -4000):
             with self.assertRaises(ValueError):

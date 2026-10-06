@@ -2691,6 +2691,7 @@ void G_BotRefreshPeonsRepair(player_t *);
 void G_BotUpdateIndividualFlee(player_t *);
 void G_BotUpdateHeroItems(player_t *);
 void G_BotUpdateDefendPlayer(player_t *);
+void G_BotRemoveCaptainUnit(edict_t *);
 void G_BotRemoveInjuries(player_t *);
 void G_BotRemoveSiege(player_t *);
 int32_t G_BotCaptainReadiness(player_t *, bool);

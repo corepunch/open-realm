@@ -1056,6 +1056,21 @@ static void move_release_captain_reference(edict_t *self) {
     move_free_unowned_captain_actor(actor);
 }
 
+/* Native9d5610 removes the retained member, independently of its canceled task.
+ * Compact logical encounter indices before the edict slot can be reused. */
+static void move_remove_captain_roster_member(edict_t *self) {
+    edict_t *actor=self->movement.captain_home.roster_actor;
+    if (!actor) return;
+    uint32_t index=self->movement.captain_home.member_index;
+    self->movement.captain_home.roster_actor=NULL;
+    self->movement.captain_home.outer=false;
+    self->movement.captain_home.entered=false;
+    S_TrackMoveTimers(self);
+    if (actor->movement.captain_actor_members) actor->movement.captain_actor_members--;
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor &&
+        ent->movement.captain_home.member_index>index) ent->movement.captain_home.member_index--;
+}
+
 void S_ReleaseCaptainHomeActor(edict_t *actor) {
     if (!actor) return;
     actor->movement.captain_actor_owned=false;
@@ -1099,6 +1114,7 @@ void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type
  * Rebuild only runtime captain links and reject stale physical references. */
 bool S_ValidateCaptainHomeActors(bool rebind) {
     edict_t *owners[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
+    uint32_t counts[MAX_PLAYERS][BOT_CAPTAIN_COUNT]={{0}};
     FILTER_EDICTS(actor,actor->inuse && actor->movement.captain_actor_type) {
         uint32_t type=actor->movement.captain_actor_type;
         if (type>BOT_CAPTAIN_COUNT || actor->s.player>=MAX_PLAYERS || actor->collision!=0 ||
@@ -1120,6 +1136,7 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
         if (roster && (!roster->inuse || !roster->movement.captain_actor_owned ||
             !roster->movement.captain_actor_type || roster->movement.captain_actor_type>BOT_CAPTAIN_COUNT ||
             (actor && actor!=roster))) return false;
+        if (roster) counts[roster->s.player][roster->movement.captain_actor_type-1]++;
         if (ent->movement.captain_home.active && !actor) return false;
         if (!actor) actor=roster;
         if (actor && (!actor->movement.captain_actor_members ||
@@ -1138,12 +1155,15 @@ bool S_ValidateCaptainHomeActors(bool rebind) {
                 (peer->movement.captain_home.roster_actor ? peer->movement.captain_home.roster_actor : peer->movement.captain_home.actor)==
                     (ent->movement.captain_home.roster_actor ? ent->movement.captain_home.roster_actor : ent->movement.captain_home.actor) &&
                 peer->movement.captain_home.member_index==ent->movement.captain_home.member_index) return false;
+    FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
+        if (owners[p][c] && owners[p][c]->movement.captain_actor_members!=counts[p][c]) return false;
     if (rebind) FOR_LOOP(p,MAX_PLAYERS) FOR_LOOP(c,BOT_CAPTAIN_COUNT)
         level.bots[p].captains[c].home_actor=owners[p][c];
     return true;
 }
 
 static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id);
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target);
 
 /* Native9d2ee0 with retained GoHome range500:2*r*r+5000 world squared.
  * Initializers019720/019890/001c30 provide500/5000/2; PE slots are zero. */
@@ -1160,7 +1180,7 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
     bool unchanged=members>0;
     FOR_LOOP(i,members) {
         edict_t *ent=roster[i]; moveGroup_t const *group=move_unit_group(ent);
-        if (!group || !group->shared_id || group->goal.x!=home->x || group->goal.y!=home->y)
+        if (!group || group->target || !group->shared_id || group->goal.x!=home->x || group->goal.y!=home->y)
             unchanged=false;
     }
     if (unchanged) return;
@@ -1198,6 +1218,51 @@ static void move_captain_shared_point(edict_t *actor,edict_t **roster,uint32_t m
     }
 }
 
+/* Native9d16c0 prepares only members whose current target is not this captain,
+ * then admits them in roster order through twelve-row physical requests. */
+static void move_captain_shared_target(edict_t *actor) {
+    edict_t *roster[13]={0},*selected[13];
+    uint32_t members=actor->movement.captain_actor_members,count=0;
+    if (members>sizeof(roster)/sizeof(*roster)) gi.error("Move: unsupported captain roster %u",members);
+    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+        uint32_t index=ent->movement.captain_home.member_index;
+        if (index>=members || roster[index]) gi.error("Move: invalid captain target roster %u/%u",index,members);
+        roster[index]=ent;
+    }
+    FOR_LOOP(i,members) {
+        edict_t *ent=roster[i];
+        if (!ent) gi.error("Move: missing captain target member %u/%u",i,members);
+        moveGroup_t const *group=move_unit_group(ent);
+        if (group && group->target==actor) continue;
+        selected[count++]=ent;
+    }
+    if (!count) return;
+    typeof(actor->movement.captain_home) retained[13];
+    FOR_LOOP(i,count) {
+        retained[i]=selected[i]->movement.captain_home;
+        selected[i]->movement.captain_home.actor=selected[i]->movement.captain_home.roster_actor=NULL;
+        S_TrackMoveTimers(selected[i]);
+    }
+    uint64_t shared_id=move_alloc_shared();
+    for (uint32_t first=0;first<count;first+=BZ_WC3_GROUP_ORDER_UNITS) {
+        groupPointOrder_t request={.count=MIN(count-first,BZ_WC3_GROUP_ORDER_UNITS),
+            .order="move",.order_id=G_OrderId("move"),.issuer_player=actor->s.player,
+            .point=&retained[first].home};
+        FOR_LOOP(i,request.count) {
+            request.units[i].unit=selected[first+i];
+            request.units[i].spawn=selected[first+i]->spawn_time;
+        }
+        if (!move_group_captain_order(&request,shared_id,actor))
+            gi.error("Move: captain shared target batch rejected at %u/%u",first,count);
+    }
+    FOR_LOOP(i,count) {
+        selected[i]->movement.captain_home=retained[i];
+        selected[i]->movement.captain_home.actor=actor;
+        selected[i]->movement.captain_home.active=true;
+        S_TrackMoveTimers(selected[i]);
+    }
+}
+
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
     edict_t *actor=self->movement.captain_home.roster_actor ? self->movement.captain_home.roster_actor : self->movement.captain_home.actor;
@@ -1231,6 +1296,17 @@ static void move_captain_home_update(edict_t *self) {
         bool outside=distance>=wc3_mul(outer,outer),was_outer=self->movement.captain_home.outer;
         if (logical) self->movement.captain_home.outer=!outside;
         if (outside && (!logical || was_outer) && !self->movement.captain_home.active) {
+            /* Original9d8eb0 uses the inner count, not the outer departure
+             * count: more than floor(roster/10) missing members updates the
+             * complete roster. Already following members retain their heads. */
+            uint32_t entered_count=0;
+            if (logical) FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor)
+                if (ent->movement.captain_home.entered) entered_count++;
+            if (logical && members/10<members-entered_count) {
+                move_captain_shared_target(actor);
+                level.pathing_clock=now;
+                return;
+            }
             typeof(self->movement.captain_home) retained=self->movement.captain_home;
             /* Transfer the physical reference without briefly releasing the
              * final follower of an actor whose logical captain was retired. */
@@ -2914,6 +2990,8 @@ void move_reset_progress(edict_t *self) {
     /* Original166060 activates a replacement path with fresh7c/80 admission
      * timestamps. A previous follower's throttle must not delay its group leg. */
     self->movement.fine_request_time=0;
+    self->movement.fine_route.adaptive_admission.time=0;
+    self->movement.fine_route.group_admission.time=0;
     /* Native task activation owns a fresh local path. In particular, the old
      * partial88.10000000 flag must not deny classification of the new group. */
     self->movement.fine_route.count=self->movement.fine_route.adaptive_count=0;
@@ -3906,12 +3984,17 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
 
 /* Move owns the shared request; generic order admission still handles each
  * candidate's validation, Smart rally behavior and issued-order callbacks. */
-static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
+static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
     if (!request->count) return false;
     if (request->queued) return move_queue_group_point(request);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*request->point; group->age=UINT32_MAX;
+    if (target) {
+        wc3GridPose_t pose; unit_predicted_pose(target,&pose);
+        group->goal=(vec2_t){pose.world[0],pose.world[1]};
+        group->target=target; group->target_spawn=target->spawn_time;
+    }
     /* Native89caf0 sets canonical2/4/8 from packet10;16bdb0 copies
      * them to the physical owner before its first tick. */
     group->flags=request->formation_toggle ? 14u : 0;
@@ -3920,7 +4003,9 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
         if (!shared) gi.error("Move: missing new shared parameter owner");
         if (shared->references==UINT32_MAX) gi.error("Move: shared parameter reference overflow");
         group->shared_id=shared_id; shared->references++;
-        group->flags|=0xd00; /* Captain policy100/800 and extra target-refresh400. */
+        /* Target policy0 omits100; activation enables persistent completion.
+         * Both captain families retain800 and extra target refresh400. */
+        group->flags|=target ? 0x1c01 : 0xd00;
     }
     bool any=false;
     FOR_LOOP(i,request->count) {
@@ -3930,6 +4015,9 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
         any=true;
         if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;
         moveGroupMember_t *member=group->members+group->count++;
+        /* The prepared captain packet carries zero approach range. Its Move
+         * activation installs the ordinary .49 threshold, even with a target;
+         * this differs from individually reissued captain followers. */
         *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
         unit->movement.group_id=group->id;
         unit->movement.previous_request_id=group->id;
@@ -3939,6 +4027,10 @@ static bool move_group_point_order(groupPointOrder_t const *request,uint64_t sha
     group->ticking=false;
     if (!group->count) move_release_group(group);
     return any;
+}
+
+static bool move_group_point_order(groupPointOrder_t const *request,uint64_t shared_id) {
+    return move_group_captain_order(request,shared_id,NULL);
 }
 
 /* Original16c6d0 chooses the closest predicted member, with strict ties.
@@ -3965,15 +4057,19 @@ static void move_group_seed_route(moveGroup_t *group) {
     group->point=(vec2_t){pose.grid[0],pose.grid[1]};
 }
 
-static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {
-    move_leave(actor);
-    S_IssueMoveOrder(actor,Waypoint_add(home),G_OrderId("move"));
+static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*home; group->age=UINT32_MAX;
     group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,.arrival_range=wc3_div(range,32)};
     actor->movement.group_id=group->id;
     move_group_seed_route(group); group->ticking=false;
+}
+
+static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float range) {
+    move_leave(actor);
+    S_IssueMoveOrder(actor,Waypoint_add(home),G_OrderId("move"));
+    move_start_point_group(actor,home,range);
 }
 
 /* Public9c40c0 selects the attack captain;9d2670 submits its authored home.
@@ -4561,7 +4657,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_UNIT_EVENT_MASK:
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
-            A_PRIMARY_TIMER, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
+            A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
             A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
@@ -4580,6 +4676,16 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return move_start_queued_group(ent,call->queued_order);
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order,0) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
+    case A_ORDER_ACCEPTED:
+        /* Public replacement retires the old shared binding, but the retained
+         * captain roster does not retire the unit's physical scheduling domain.
+         * Admit its successor as a private point request, newest owner first.
+         * Internal two-pass captain admission temporarily transfers roster refs
+         * and supplies its own physical request instead. */
+        if (ent->movement.captain_home.roster_actor && ent->currentmove==&move_move_walk &&
+            ent->goalentity && (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent))
+            move_start_point_group(ent,&ent->goalentity->s.origin2,0);
+        return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_UNIT_TYPE_CHANGING:
@@ -4636,9 +4742,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.follow_target=NULL;
         return true;
     case A_UNIT_REMOVE:
-        ent->movement.captain_home.roster_actor=NULL;
-        S_TrackMoveTimers(ent);
-        ent->movement.captain_home.outer=false;
+        move_remove_captain_roster_member(ent);
         move_release_captain_reference(ent);
         move_unlink_fine_request(ent);
         move_detach_group(ent);
