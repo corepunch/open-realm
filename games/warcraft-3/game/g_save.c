@@ -3431,7 +3431,14 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
             }
         }
         if (i==13) T_ASSERT(WriteMappedFields(file,move_group_fields,(uint8_t *)&raw));
-        rewind(file); T_ASSERT(!ReadMoveGroups(file));
+        rewind(file); bool loaded=ReadMoveGroups(file);
+        if (i==1) {
+            /* Empty owners await their next Move visit. The old rejection
+             * expectation left this live registry in place for the next read. */
+            T_ASSERT(loaded); T_EQ(ARRAY_COUNT(level.move_groups),1);
+            if (loaded) T_EQ(level.move_groups[0]->count,0);
+            S_ClearMoveGroups();
+        } else T_ASSERT(!loaded);
         T_NULL(level.move_groups); T_EQ(ARRAY_COUNT(level.move_groups),0); T_EQ(level.move_group_capacity,0);
         fclose(file);
     }

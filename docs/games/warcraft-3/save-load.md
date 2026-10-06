@@ -904,6 +904,14 @@ references, generation, duplicate members, nonfinite destinations/points,
 route extents/indices and truncated tails are covered in RoC/TFT. There is no
 compatibility path for version73. See [shared Move payoff](retail-pathfinding-engine.md#public-pair-movement-uses-a-shared-move-owner).
 
+An ordinary owner with zero members remains valid until its next Move visit,
+including across save/load. `wc3_save.rejects_invalid_physical_group_payloads`
+checks this as a valid control and clears the restored registry before reading
+the next malformed payload. Expecting rejection instead leaves the registry
+count live, so the next isolated read overruns its newly allocated pointer array
+and crashes during cleanup. The production lifecycle round-trip is covered by
+`wc3_movement.public_mover_retirement_cancels_pending_and_active_owners`.
+
 
 ### Pending fine searches (version75)
 
