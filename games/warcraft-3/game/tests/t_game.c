@@ -2208,6 +2208,7 @@ TEST(wc3_game, hud_disabled_button_label_uses_authored_disabled_color) {
     frameDef_t label = { .Type = FT_TEXT, .Parent = &button, .Text = "Disabled choice" };
 
     label.Font.Color = COLOR32_WHITE;
+    /* Retail disables WC3 button labels with a light gray FontDisabledColor. */
     label.Font.DisabledColor = (color32_t){ .r = 170, .g = 170, .b = 170, .a = 255 };
     T_ASSERT(UI_BuildFrameForWrite(&label, &out, typedata, sizeof(typedata), textbuf, sizeof(textbuf)));
     T_EQ(out.color.r, label.Font.DisabledColor.r);

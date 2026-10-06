@@ -8,7 +8,9 @@ void setup_test_world(void);
 bool run_test_jass(cstring_t script);
 
 static void dialog_test_write(pfWriteType_t type, void const *data) { (void)type; (void)data; }
-static void dialog_test_unicast(edict_t *ent) { (void)ent; }
+static edict_t *dialog_unicast_target;
+static uint32_t dialog_unicast_count;
+static void dialog_test_unicast(edict_t *ent) { dialog_unicast_target = ent; ++dialog_unicast_count; }
 static int dialog_test_font(cstring_t name, uint32_t size) { (void)name; (void)size; return 1; }
 static int dialog_test_image(cstring_t path) { return path && *path ? 1 : 0; }
 static uint32_t dialog_test_frame_count(void) {
@@ -189,6 +191,32 @@ TEST(wc3_dialog, click_visibility_uses_player_number_not_client_slot) {
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_dialog, clear_hides_client_by_warcraft_player_number) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    jassDialog_t *dialog;
+
+    setup_test_world();
+    dialog = G_JassDialogCreate();
+    T_NOT_NULL(dialog);
+    game.clients[0].ps.number = 5;
+    game.clients[5].ps.number = 0;
+    g_edicts[0].client = game.clients;
+    dialog->visible_players = 1u << 5;
+    dialog_unicast_target = NULL;
+    dialog_unicast_count = 0;
+    gi.Write = dialog_test_write;
+    gi.unicast = dialog_test_unicast;
+
+    G_JassDialogClear(dialog);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    T_EQ(dialog_unicast_count, 1u);
+    T_EQ(dialog_unicast_target, g_edicts);
+    T_EQ(dialog->visible_players, 0u);
 }
 
 TEST(wc3_dialog, repeated_display_reclaims_temporary_fdf_frames) {

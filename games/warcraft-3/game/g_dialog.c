@@ -74,9 +74,12 @@ jassDialogButton_t *G_JassDialogAddButton(jassDialog_t *dialog, cstring_t label,
 
 void G_JassDialogClear(jassDialog_t *dialog) {
     if (!G_JassDialog(dialog)) return;
-    FOR_LOOP(i, game.max_clients) if (i < 32 && (dialog->visible_players & (1u << i))) {
-        edict_t *ent = G_GetPlayerEntityByNumber(i);
-        if (ent && ent->client) UI_JassDialogHide(ent);
+    FOR_LOOP(i, game.max_clients) {
+        uint32_t number = game.clients[i].ps.number;
+        if (number < 32 && (dialog->visible_players & (1u << number))) {
+            edict_t *ent = G_GetPlayerEntityByNumber(number);
+            if (ent && ent->client) UI_JassDialogHide(ent);
+        }
     }
     dialog->visible_players = 0;
     FOR_LOOP(i, level.dialog_button_count) {
