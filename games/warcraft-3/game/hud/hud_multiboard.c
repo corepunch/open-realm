@@ -273,6 +273,7 @@ void UI_WriteMultiboard(edict_t *ent) {
                 if (cell->show_icon && cell->icon[0]) {
                     uiFrame_t icon = { 0 };
                     icon.flags.type = FT_TEXTURE;
+                    icon.flagsvalue |= UIFLAG_TEXTURE_OVERLAY;
                     icon.parent = root;
                     icon.tex.index = gi.ImageIndex(cell->icon);
                     UI_SetFrameRect(&icon, xx, yy + 0.001f, 0.012f, 0.012f);
