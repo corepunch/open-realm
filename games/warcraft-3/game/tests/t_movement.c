@@ -66,6 +66,7 @@
 #include "retail_outside_goal.h"
 #include "retail_captain_home.h"
 #include "retail_captain_range_far.h"
+#include "retail_attack_prevention.h"
 #include "retail_captain_pair.h"
 #include "retail_captain_mixed.h"
 #include "retail_captain_blocked.h"
@@ -15535,6 +15536,175 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
     level.setup.map_flags=old_flags;
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+/* Frozen native predicate outputs include exact special masks and mixed masks;
+ * shared counters apply to both independently authored weapon slots. */
+TEST(wc3_movement, attack_prevention_slot_matrix_matches_complete_native) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0);
+    unitAttack_t *profiles[]={S_AttackProfileWrite(unit,0),S_AttackProfileWrite(unit,1)};
+    FOR_LOOP(i,2)profiles[i]->type=ATK_NORMAL;
+    T_NULL(unit->abilstatus);
+    FOR_LOOP(row,sizeof(retail_attack_prevention_slots)/sizeof(*retail_attack_prevention_slots)) {
+        FOR_LOOP(i,2) {
+            /* Both enum domains classify1 as melee and2..8 as ranged.
+             * Their delivery ordering is immaterial to this predicate. */
+            profiles[i]->weapon=retail_attack_prevention_slots[row].weapon;
+            profiles[i]->targetsAllowed=retail_attack_prevention_slots[row].targets;
+        }
+        FOR_LOOP(mask,8) {
+            S_AttackAdjustPrevention(unit,mask,false);
+            FOR_LOOP(slot,2)T_EQ(S_UnitAttackSlotEnabled(unit,slot),retail_attack_prevention_slots[row].enabled[mask]);
+            S_AttackAdjustPrevention(unit,mask,true);
+        }
+    }
+    unitStatusStorage_t *state=(unitStatusStorage_t *)unit->abilstatus;
+    T_NOT_NULL(state);
+    FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],0);
+    FOR_LOOP(row,sizeof(retail_attack_prevention_counters)/sizeof(*retail_attack_prevention_counters)) {
+        FOR_LOOP(i,3)state->attack_prevention[i]=retail_attack_prevention_counters[row].initial;
+        S_AttackAdjustPrevention(unit,retail_attack_prevention_counters[row].mask,
+            retail_attack_prevention_counters[row].release);
+        FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],retail_attack_prevention_counters[row].words[i]);
+    }
+    int32_t signed_words[]={INT32_MIN,-1,0,1,INT32_MAX};
+    FOR_LOOP(i,5)FOR_LOOP(kind,3) {
+        profiles[0]->weapon=kind==1 ? WPN_MISSILE : WPN_NORMAL;
+        profiles[0]->targetsAllowed=kind==2 ? WC3_TARGET_FLAG_TREE : WC3_TARGET_FLAG_GROUND;
+        memset(state->attack_prevention,0,sizeof(state->attack_prevention));
+        state->attack_prevention[kind]=(uint32_t)signed_words[i];
+        T_EQ(S_UnitAttackSlotEnabled(unit,0),signed_words[i]<=0);
+    }
+    memset(state->attack_prevention,0,sizeof(state->attack_prevention));
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','a','t','k')));
+    S_AttackAdjustPrevention(unit,7,false);
+    FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],0);
+    reset_entities();setup_test_world();
+}
+
+/* Native501ae0/521550 adjust Attack-owned counters, not buff booleans.
+ * Public casts must change fresh captain admission while retaining old ranges. */
+TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    char slk[7000];char const *columns[]={"alias","code","BuffID1","BuffID","DataA1","DataA",
+        "Dur1","Dur","HeroDur1","HeroDur","Rng1","Rng","Cost1","Cost","Cool1","Cool","targs"};
+    char const *aliases[]={"APM1","APM2","APM4","APN2","APS8"};
+    char const *parents[]={"ANdh","ANdh","Acdh","ANdh","ANdh"};
+    char const *buffs[]={"BNdh","BNdh","BNdh","BNp2","BNp8"};
+    unsigned masks[]={1,2,4,2,8};
+    int length=snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y6;X17\n");
+    FOR_LOOP(i,sizeof(columns)/sizeof(*columns))length+=snprintf(slk+length,sizeof(slk)-length,
+        "C;Y1;X%u;K\"%s\"\n",i+1,columns[i]);
+    FOR_LOOP(i,sizeof(aliases)/sizeof(*aliases)) {
+        char mask[8];snprintf(mask,sizeof(mask),"%u",masks[i]);
+        char const *values[]={aliases[i],parents[i],buffs[i],buffs[i],mask,mask,
+            "600","600","600","600","9999","9999","0","0","0","0",
+            "air,ground,enemy"};
+        FOR_LOOP(j,sizeof(values)/sizeof(*values))length+=snprintf(slk+length,sizeof(slk)-length,
+            "C;Y%u;X%u;K\"%s\"\n",i+2,j+1,values[j]);
+    }
+    snprintf(slk+length,sizeof(slk)-length,"E\n");T_ASSERT(length>0 && length<sizeof(slk));
+    slkTestData_t *rows=parse_slk_string(slk),*old_rows=G_SetSLKRows("AbilityData",rows);
+    float ranges[]={90,400,200},radius=31,acquire=1000;
+    uint32_t enabled=1;char *weapons[]={"normal","missile","normal"};
+    unitModification_t mods[3][8];unitData_t types[3];
+    FOR_LOOP(i,3) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data=weapons[i]};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','g'),.type=mod_string,.data=i==2 ? "tree" : "ground"};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"};
+        mods[i][7]=(unitModification_t){.modID=MAKEFOURCC('u','t','a','r'),.type=mod_string,.data="ground"};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','P','V','0'+i),.numbeOfModifications=8,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=3,.userCreatedUnits=types};
+    info.players[0].playerType=info.players[1].playerType=kPlayerTypeHuman;
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[128*128];memset(cells,0,sizeof(cells));
+    box2_t bounds={{-2048,-2048},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=level.pathing_msec=0;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call CreateUnit(Player(1),'hPV0',-1536,-976,90)\n"
+        "call CreateUnit(Player(1),'hPV1',-1408,-976,90)\n"
+        "call CreateUnit(Player(1),'hPV2',-1280,-976,90)\nendfunction\n"));
+    edict_t *units[3]={0};FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,3)
+        if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    FOR_LOOP(i,3)T_NOT_NULL(units[i]);
+    FOR_LOOP(i,3)T_EQ(S_AttackProfileRead(units[i],0)->targetsAllowed,
+        i==2 ? WC3_TARGET_FLAG_TREE : WC3_TARGET_FLAG_GROUND);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-1536,-1104);
+    UnitAbilities_t abilities={.abilList="APM1,APM2,APM4,APN2,APS8"};
+    caster->data.UnitAbilities=&abilities;caster->svflags|=SVF_MONSTER;caster->s.player=0;
+    caster->mana.value=caster->mana.max_value=1000;
+    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=3,.created={0,0,300}};
+    S_SetCaptainHomeActor(&captain,1,BOT_CAPTAIN_ATTACK+1);
+    uint32_t baseline[]={0x409b0000,0x412a8000,0x40dd0000};
+    FOR_LOOP(i,3) {
+        T_ASSERT(S_UnitAttackSlotEnabled(units[i],0));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
+    }
+    T_EQ(G_UnitAbilityLevel(caster,FS_SLKKey("APM1")),1);
+    T_NOT_NULL(S_SpellAbilityForCode(FS_SLKKey("APM1")));
+    /* Normal melee, ranged delivery, exact special-target mask. */
+    FOR_LOOP(i,3) {
+        T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey(aliases[i]),units[i]));
+        T_NOT_NULL(unit_findstatus(units[i],FS_SLKKey("BNdh")));
+        T_ASSERT(!S_UnitAttackSlotEnabled(units[i],0));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),0x404a0000);
+    }
+    /* Recast replaces the old contribution; distinct buff objects add. */
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APN2"),units[1]));
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNdh")));
+    T_ASSERT(!S_UnitAttackSlotEnabled(units[1],0));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APS8"),units[1]));
+    T_ASSERT(S_UnitIsSilenced(units[1]));
+    caster->data.UnitAbilities=NULL;
+    T_ASSERT(WriteGame("/tmp/wc3-prevention155.bin"));T_ASSERT(ReadGame("/tmp/wc3-prevention155.bin"));
+    T_ASSERT(!S_UnitAttackSlotEnabled(units[1],0));T_ASSERT(S_UnitIsSilenced(units[1]));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),0x404a0000);
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp2")));
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp8")));
+    T_ASSERT(!S_UnitIsSilenced(units[1]));
+    captain.home_actor=units[0]->movement.captain_home.roster_actor;
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),baseline[1]);
+    caster->data.UnitAbilities=&abilities;
+    /* Replacement by an unowned slot still removes the previous owner's
+     * contribution. Dispel, death and timed expiry each invoke the inverse. */
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    unit_addtimedstatus(units[1],"BNdh",1,600);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNdh")));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    T_EQ(unit_removebuffs(units[1],false,true,true,false,false,false,true),1);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    unit_statusdeath(units[1]);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    heroabilitystatus_t *expiry=unit_findstatus(units[1],FS_SLKKey("BNdh"));
+    expiry->timestamp=G_Time()+1;level.time++;
+    unit_updatestatuses(units[1]);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    remove("/tmp/wc3-prevention155.bin");
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
 }
 
 /* Retail9d86f0: public creation/removal/timed life feed the actual captain

@@ -958,6 +958,7 @@ typedef enum {
     A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
     A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
     A_UNIT_OWNED,       /* Read-only intrinsic ownership query; no initialization or allocation. */
+    A_STATUS_REPLACE,   /* Applying owner may release its contribution before a status payload is replaced. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -1533,10 +1534,13 @@ typedef struct heroabilitystatus_s {
     uint32_t data; /* applying ability rawcode or ability-specific numeric payload */
     edict_t *source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
+    uint32_t prevention_mask; /* captured Attacks Prevented mask; zero after its inverse */
 } heroabilitystatus_t;
 
 typedef struct {
     heroabilitystatus_t slots[MAX_UNIT_STATUSES];
+    uint32_t attack_prevention[3]; /* Attack-owned signed word counters: melee, ranged, special */
+    uint32_t spell_prevention; /* Unit-owned signed word counter; independent of Attack */
 } unitStatusStorage_t;
 
 typedef struct {
@@ -2595,11 +2599,17 @@ for (uint32_t questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem
     for (__typeof__((quest)->items[0]) *property = &(quest)->items[questitem_index]; property; property = NULL) \
         if (property->inuse)
 
+typedef enum {
+    UNIT_META_SCALAR,
+    UNIT_META_WEAPON_TARGETS
+} unitMetaFormat_t;
+
 typedef struct {
     cstring_t id;
     size_t row_offset;
     size_t field_offset;
     bzFieldType_t type;
+    unitMetaFormat_t format;
 } unitMeta_t;
 
 #define UITRIGGER_T_DEFINED

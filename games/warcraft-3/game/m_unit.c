@@ -1577,6 +1577,7 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                 }
             } else {
                 /* "Replace" (default): overwrite level and timestamp. */
+                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE);
                 status->level = level;
                 status->data = 0;
                 status->source = NULL;

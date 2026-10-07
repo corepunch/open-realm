@@ -1155,7 +1155,10 @@ slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
 #endif
 
 #define M(id,table,member,kind) \
-    { id, offsetof(edict_t, data.table), offsetof(table##_t, member), kind }
+    { id, offsetof(edict_t, data.table), offsetof(table##_t, member), kind, UNIT_META_SCALAR }
+#define MT(id,member) \
+    { id, offsetof(edict_t, data.UnitWeapons), offsetof(UnitWeapons_t, member), \
+        BZ_FIELD_U32, UNIT_META_WEAPON_TARGETS }
 
 unitMeta_t const UnitsMetaData[] = {
     M("iabi",ItemData,abilList,BZ_FIELD_CSTR),
@@ -1420,8 +1423,8 @@ unitMeta_t const UnitsMetaData[] = {
     M("ua2p",UnitWeapons,attack2.areaTargets,BZ_FIELD_U32),
     M("utc1",UnitWeapons,attack1.maxTargets,BZ_FIELD_U32),
     M("utc2",UnitWeapons,attack2.maxTargets,BZ_FIELD_U32),
-    M("ua1g",UnitWeapons,attack1.targetsAllowed,BZ_FIELD_U32),
-    M("ua2g",UnitWeapons,attack2.targetsAllowed,BZ_FIELD_U32),
+    MT("ua1g",attack1.targetsAllowed),
+    MT("ua2g",attack2.targetsAllowed),
     M("uaen",UnitWeapons,attacksEnabled,BZ_FIELD_U32),
     M("ua1w",UnitWeapons,attack1.weaponType,BZ_FIELD_CSTR),
     M("ua2w",UnitWeapons,attack2.weaponType,BZ_FIELD_CSTR),
@@ -1431,6 +1434,7 @@ unitMeta_t const UnitsMetaData[] = {
 };
 
 #undef M
+#undef MT
 
 /* =========================================================================
  * Map-local object typed-row overrides.
@@ -1550,7 +1554,9 @@ static void ApplyMapObjectTypedField(void *row, size_t row_offset, unitModificat
             *(bool *)dest = *(uint8_t const *)mod->data != 0;
         break;
     case BZ_FIELD_U32:
-        if (mod->type == mod_int)
+        if (metadata->format == UNIT_META_WEAPON_TARGETS && UnitModificationString(mod))
+            *(uint32_t *)dest = ParseWeaponTargetMask((cstring_t)mod->data);
+        else if (mod->type == mod_int)
             *(uint32_t *)dest = *(uint32_t const *)mod->data;
         else if (mod->type == mod_bool || mod->type == mod_char)
             *(uint32_t *)dest = *(uint8_t const *)mod->data;

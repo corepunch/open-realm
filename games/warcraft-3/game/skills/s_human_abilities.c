@@ -472,7 +472,21 @@ BZ_SIMPLE_SPELL_PROC(AbilityMagicDefense) { human_toggle_execute(caster, st, spe
 /* Name=Spell Steal; Untip="Right-click to activate auto-casting." */
 BZ_HUMAN_AUTOCAST_SPELL(AbilitySpellSteal, true, spell_steal_execute, false, false)
 /* Name=Cloud; Ubertip="Cast on enemy buildings with ranged attacks to stop the buildings from attacking. Lasts <Aclf,Dur1> seconds." */
-BZ_VALIDATED_SPELL_PROC(AbilityCloudOfFog, cloud_validate, human_status_execute)
+BZ_ABILITY_PROC(CAbilityCloudOfFog) {
+    switch (msg) {
+    case A_VALIDATE:
+        return call && call->item && call->target && cloud_validate(ent, *call->target, call->item);
+    case A_EXECUTE:
+        if (call && call->item && call->target && call->target->entity) {
+            uint32_t rank = S_SpellLevel(ent, call->item->code);
+            S_ApplyAttackPrevention(ent, call->target->entity, call->item, human_buff(call->item, rank),
+                S_SpellHeroDuration(call->item->code, rank, call->target->entity));
+        }
+        return true;
+    default:
+        return CAbilityAttackPrevention(ent, msg, call);
+    }
+}
 /* Defend's modal selector rejects repeated directions before order admission.
  * Its virtual22c does not intercept Move: accepted stance changes cancel the
  * user chain, then retire their instantaneous head to0 (native119). */

@@ -226,7 +226,20 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
             S_AncientIsRooted(attacker)) return false;
         enabled = S_AncientAttackMask(attacker);
     }
-    return (enabled & (1u << slot)) != 0;
+    if (!(enabled & (1u << slot))) return false;
+    if (attacker->abilstatus) {
+        unitStatusStorage_t const *state = (unitStatusStorage_t const *)attacker->abilstatus;
+        unitAttack_t const *profile = S_AttackProfileRead(attacker, slot);
+        uint32_t targets = profile->targetsAllowed;
+        bool special = targets == WC3_TARGET_FLAG_NONE || targets == WC3_TARGET_FLAG_TREE ||
+            targets == WC3_TARGET_FLAG_WALL || targets == WC3_TARGET_FLAG_DEBRIS;
+        if (state->attack_prevention[0] && state->attack_prevention[0] <= INT32_MAX &&
+            profile->weapon == WPN_NORMAL && !special) return false;
+        if (state->attack_prevention[1] && state->attack_prevention[1] <= INT32_MAX &&
+            profile->weapon >= WPN_INSTANT && profile->weapon <= WPN_MLINE && !special) return false;
+        if (state->attack_prevention[2] && state->attack_prevention[2] <= INT32_MAX && special) return false;
+    }
+    return true;
 }
 
 /* Original9d72f0 tests attack damage type, not delivery style or slot admission.
@@ -993,6 +1006,24 @@ static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, 
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
 static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, CAbilityAttack };
 
+/* Native497da0: counters belong to the current Attack object; missing Attack
+ * skips both directions. Unsigned arithmetic retains the signed32 word wrap. */
+void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release) {
+    unitAttack_t const *active = NULL;
+    uint32_t active_slot = UINT32_MAX;
+    if (!unit || !(mask & 7) || !G_ActorHasAbilityCode(unit, MAKEFOURCC('A','a','t','k'))) return;
+    if (unit->currentmove == &attack_move_melee || unit->currentmove == &attack_move_ranged ||
+        unit->currentmove == &attack_move_melee_cooldown || unit->currentmove == &attack_move_ranged_cooldown) {
+        active = ACTIVE_ATTACK(unit);
+        FOR_LOOP(slot,2) if (active == S_AttackProfileRead(unit, slot)) active_slot = slot;
+    }
+    G_EnsureUnitStatusSlots(unit);
+    unitStatusStorage_t *state = (unitStatusStorage_t *)unit->abilstatus;
+    FOR_LOOP(i,3) if (mask & (1u << i)) state->attack_prevention[i] += release ? UINT32_MAX : 1;
+    if (!release && active_slot != UINT32_MAX && !S_UnitAttackSlotEnabled(unit, active_slot))
+        attack_finish_after_combat(unit, unit->goalentity, "attack_prevented");
+}
+
 void attack_walk(edict_t *self) {
     unit_setmove(self, &attack_move_walk);
 }
@@ -1396,7 +1427,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
     case A_AUTO_COMBAT_START:
         attack_cap_begin(ent);return false;
     case A_DISABLE:
-        if(ent)attack_cap_cancel(ent);
+        if(ent) {
+            attack_cap_cancel(ent);
+            if(ent->abilstatus)memset(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention,0,
+                sizeof(((unitStatusStorage_t *)ent->abilstatus)->attack_prevention));
+        }
         return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:

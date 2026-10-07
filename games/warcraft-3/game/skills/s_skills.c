@@ -70,7 +70,7 @@ static ability_t abilitylist[] = {
     { "ANbr", CAbilityBattleRoar, AB_SPELL },  /* Battle Roar */
     { "ANsb", CAbilityStormBoltCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Storm Bolt */
     { "ANcf", CAbilityBreathOfFireCampaign, AB_SPELL, SPELL_TARGET_POINT },  /* Breath of Fire */
-    { "Acdh", CAbilityDrunkenHazeCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
+    { "Acdh", CAbilityDrunkenHazeCampaign, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Drunken Haze */
     { "Acef", CAbilityStormEarthFire, AB_SPELL },  /* "Storm, Earth, And Fire" */
     { "ANhw", CAbilityHealingWaveCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Healing Wave */
     { "ANhx", CAbilityHexCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Hex */
@@ -124,7 +124,7 @@ static ability_t abilitylist[] = {
     { "Amdf", CAbilityMagicDefense, AB_SPELL | AB_TOGGLE },  /* Magic Defense */
     { "Asph", CAbilityPassive, AB_PASSIVE },  /* Sphere */
     { "Asps", CAbilitySpellSteal, AB_SPELL | AB_AUTOCAST, SPELL_TARGET_UNIT },  /* Spell Steal */
-    { "Aclf", CAbilityCloudOfFog, AB_SPELL, SPELL_TARGET_UNIT },  /* Cloud */
+    { "Aclf", CAbilityCloudOfFog, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Cloud */
     { "AHfs", CAbilityFlameStrike, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AHbn", CAbilityBanish, AB_SPELL, SPELL_TARGET_UNIT },  /* Banish */
     { "AHpx", CAbilitySummonPhoenix, AB_SPELL },  /* Phoenix */
@@ -209,8 +209,8 @@ static ability_t abilitylist[] = {
     { "ANfs", CAbilityFlameStrikeNeutral, AB_SPELL, SPELL_TARGET_POINT },  /* Flame Strike */
     { "AInv", CAbilityInventory, AB_PASSIVE },  /* Inventory */
     { "ANdb", CAbilityDrunkenBrawler, AB_PASSIVE },  /* Drunken Brawler */
-    { "ANdh", CAbilityDrunkenHaze, AB_SPELL, SPELL_TARGET_UNIT },  /* Drunken Haze */
-    { "ANsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence */
+    { "ANdh", CAbilityDrunkenHaze, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_UNIT },  /* Drunken Haze */
+    { "ANsi", CAbilitySilence, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_POINT },  /* Silence */
     { "ANba", CAbilityBlackArrow, AB_SPELL | AB_TOGGLE | AB_AUTOCAST },  /* Black Arrow */
     { "ANch", CAbilityCharm, AB_SPELL, SPELL_TARGET_UNIT },  /* Charm */
     { "ANto", CAbilityTornado, AB_SPELL | AB_CHANNEL },  /* Tornado */
@@ -627,7 +627,7 @@ static ability_t abilitylist[] = {
     { "ACs9", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep - pig) */
     { "ACsf", CAbilitySpiritWolf, AB_SPELL },  /* Feral Spirit (creep) */
     { "ACsh", CAbilityShockwave, AB_SPELL, SPELL_TARGET_POINT },  /* Shockwave (Creep) */
-    { "ACsi", CAbilitySilence, AB_SPELL, SPELL_TARGET_POINT },  /* Silence (Creep) */
+    { "ACsi", CAbilitySilence, AB_SPELL | AB_STATUS_EVENTS | AB_STATUS_POLICY, SPELL_TARGET_POINT },  /* Silence (Creep) */
     { "ACsk", CAbilityResistantSkin, AB_PASSIVE },  /* Resistant Skin (3,1 pos, creep) */
     { "ACsm", CAbilityDrain, AB_SPELL | AB_CHANNEL, SPELL_TARGET_UNIT },  /* Siphon Mana (Creep) */
     { "ACss", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike (Creep) */

@@ -11596,3 +11596,89 @@ and save suites run1750 tests with10,515,284 assertions. All37 captain/corpus
 Python checks pass, including15 captain checks, and the strict live contract
 passes in a fresh corpus output directory. This is the seventh implementation
 commit since the Payoff147 full-suite checkpoint; validation here is focused.
+
+
+## Counted attack prevention feeds captain admission (Payoff155)
+
+Retail `499790` combines authored slot-enable flags with signed-positive
+Attack counters at `224/228/22c`. Melee suppression affects weapon1;
+ranged suppression affects weapon2..8. Both exclude slots whose target mask
+is **exactly** none/tree/wall/debris (`1/40/80/100`); special suppression
+instead affects those exact masks. A mixed ground+tree mask is not special.
+`497da0` adjusts selected counts by one with32-bit wrap. A null Unit Attack
+pointer skips both application and inverse; existing buffs must not recreate
+Attack counts from their visible presence. Mask8 has a separate signed Unit
+counter at `1d0`, changed through `48f380`.
+
+The complete original slot predicates execute2759 calls, including both slots,
+authored enable flags and signed-word boundaries.80 original adjustment calls
+cover all low-three masks, both directions and signed boundaries. The latter
+oracle has current weapon=-1 and omits notification `401fa0`: it does **not**
+certify the complete attack-cancellation/queued-dispatch chain.
+
+Two completed read-only Frida captures and an observer-free control reproduce
+100 public markers. Each observed run retains290 state samples,16 Attack
+counter changes,3 spell-counter changes, and10 apply/9 removal events. Public
+recast releases the old contribution before applying the replacement; timed
+expiry reverses it. Mask8 changes spell admission independently. The custom
+ANdh clone retains its authored area, so the nearby caster also receives some
+buffs; the verifier compares the complete observed sequence rather than
+assuming every effect belongs only to the explicit target.
+
+The engine implements these counts in the existing optional status pool,
+without enlarging ordinary edicts or allocating during slot reads. Each
+applying ability captures its mask in its status and owns its inverse.
+Silence, Cloud and Drunken Haze delegate shared prevention messages to a flat
+procedure. Generic replacement notifies the previous owner before clearing
+its payload. Current Attack removal clears its counts, while Unit spell
+prevention remains independent. Save130 stores masks and counters; older
+versions are rejected.
+
+The failing-first production regression originally failed11 of48 assertions
+with valid Classic/TFT-shaped authored data. Public cast admission, actual
+JASS creation and physical captain groups now verify melee/ranged/special
+suppression, recast, overlapping buffs, independent spell prevention and
+save/load. A changed count affects fresh captain admission while existing
+physical ranges remain snapshots. Extended tests cover replacement by an
+unowned status, dispel, death and timed expiry; the frozen native table also
+checks every counter-adjustment word in the engine.
+
+This regression exposed an additional producer bug: map `ua1g/ua2g` edits
+carry string target lists, while typed UnitWeapons stores numeric masks.
+`ApplyMapObjectTypedField` silently ignored those string edits. The two
+metadata rows now select the existing target-mask parser, preserving numeric
+field access and keeping this conversion in the game module. The tree-only
+special suppression and direct profile assertions cover the actual map edit.
+The cast fixture uses air/ground/enemy targets; organic+mechanical admission
+has a separate existing predicate gap and is not certified here.
+
+Evidence and reproducers:
+
+- [Original-code oracle](../../../tools/ghidra/verify_wc3_pathing_attack_prevention.py),
+  [frozen native outputs](../../../tools/ghidra/fixtures/retail-attack-prevention-native-1.27.json).
+- [Strict live verifier](../../../tools/ghidra/research/verify_attack_prevention155_live.py),
+  [frozen live contract](../../../tools/ghidra/fixtures/retail-attack-prevention-live-1.27.json).
+- `tools/frida/research/captain_prevention155_{probe.j,make_map.py,observer.js}`;
+  raw archive `runtime/attack-prevention155` under the local report root.
+- Ghidra annotations, counter fields and explicit x86 prototypes are saved;
+  schema application reads back the installed database. The mapper retains
+  the predicate, counter, apply/remove and spell-count evidence.
+
+Rejected captures remain preserved: a JASS parameter named `code` prevented
+public script completion; retaining Frida's callback retval object instead of
+cloning its pointer caused a later invalid read. Controller exit0 alone is not
+accepted. The valid map hash is
+`febdd040c9762028bb1079f77c86024288ae24b1a2bffd185fffe5f514e45830`.
+
+GROUP-03.4.6.2.1.2 remains open for automatic temporary-unit enrollment,
+the public timed-life factory, complete departure/upgrade composition and
+wider cancellation lifetime. Public `UnitAddAbility(Aatk)` returned false in
+both retail repeats after successful removal, whereas the current engine
+owner API allows re-add. Payoff154's engine-only re-add regression therefore
+preserves a known mismatch; it is not evidence of retail public recreation.
+
+Validation: production/test builds, Classic and TFT movement/combat/unit/save/
+spell suites pass (2556 tests; 10536710 assertions).53 Python evidence/corpus checks
+pass, and both new corpus entries verify in a fresh output directory. This is
+the eighth implementation commit since the Payoff147 full-suite checkpoint;
+validation here is focused.

@@ -632,14 +632,23 @@ BZ_SIMPLE_SPELL_PROC(AbilityPoisonArrows) { toggle_status_execute(caster, st, sp
 /* Name=Silence
  * Ubertip="Stops enemy units in an area from casting spells."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
+static void silence_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+        if (buff) S_ApplyAttackPrevention(caster, target, spell, buff,
+            S_SpellHeroDuration(spell->code, level, target));
     }
+}
+
+BZ_ABILITY_PROC(CAbilitySilence) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target) silence_execute(ent, *call->target, call->item);
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
  * ties retain the stable entity-enumeration order until a stricter retail tie-break
@@ -940,7 +949,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) { target_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDrunkenHaze) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target && call->target->entity) {
+            uint32_t rank = S_SpellLevel(ent, call->item->code);
+            cstring_t buff = spell_buff(call->item, rank);
+            S_ApplyAttackPrevention(ent, call->target->entity, call->item, buff,
+                S_SpellHeroDuration(call->item->code, rank, call->target->entity));
+        }
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
+}
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
  */

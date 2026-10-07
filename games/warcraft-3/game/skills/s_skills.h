@@ -445,6 +445,10 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
 edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration);
 uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint32_t max_count);
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code);
+void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release);
+heroabilitystatus_t *S_ApplyAttackPrevention(edict_t *caster, edict_t *target,
+    abilityitem_t const *spell, cstring_t buff, float duration);
+BZ_ABILITY_PROC(CAbilityAttackPrevention);
 bool S_UnitPolymorphed(edict_t const *unit);
 void S_PolymorphRemove(edict_t *unit);
 int S_BlackArrowDamage(edict_t *attacker, int damage);

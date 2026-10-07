@@ -55,7 +55,16 @@ float S_CrippleDamageReduction(edict_t const *unit) {
 
 /* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
 bool S_UnitIsSilenced(edict_t const *unit) {
-    return unit && (S_UnitHasStatus(unit, BZ_SILENCE_BUFF) || S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF));
+    if (!unit) return false;
+    if (unit->abilstatus) {
+        unitStatusStorage_t const *state = (unitStatusStorage_t const *)unit->abilstatus;
+        if (state->spell_prevention && state->spell_prevention <= INT32_MAX) return true;
+    }
+    /* Retain unowned legacy Silence slots. Authored prevention owners use the
+     * captured mask, so a Silence with mask0 does not acquire a spell lock. */
+    heroabilitystatus_t *silence = unit_findstatus((edict_t *)unit, BZ_SILENCE_BUFF);
+    return (silence && !silence->data && S_UnitHasStatus(unit, BZ_SILENCE_BUFF)) ||
+        S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF);
 }
 
 static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

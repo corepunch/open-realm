@@ -821,6 +821,12 @@
           "evidence": "complete point-order admission and reclamation"
         },
         {
+          "offset": 464,
+          "name": "spell_prevention_count",
+          "type": "i32",
+          "evidence": "Payoff155 complete48f380 reads/writes Unit+1d0 by enable?+1:-1; public mask8 captures show independent count. Full ability-notification lifetime remains excluded."
+        },
+        {
           "offset": 476,
           "name": "ability_head",
           "type": "WC3PathIdentity",
@@ -3809,6 +3815,24 @@
           "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
         },
         {
+          "offset": 548,
+          "name": "melee_suppression_count",
+          "type": "i32",
+          "evidence": "GROUP-03.4.6.2.1.2: 497da0 inc/dec (stack8 melee); 499790 disables weapon type1 non-special slots while >0; live public Drunken Haze Nsi1=1 gives [1,0,0]; save 496e80/load 499860 serialize it."
+        },
+        {
+          "offset": 552,
+          "name": "ranged_suppression_count",
+          "type": "i32",
+          "evidence": "GROUP-03.4.6.2.1.2: 497da0 (stackc ranged); 499790 with 4996f0 disables types2..8 non-special slots; live Nsi1=2 gives [0,1,0]."
+        },
+        {
+          "offset": 556,
+          "name": "special_suppression_count",
+          "type": "i32",
+          "evidence": "GROUP-03.4.6.2.1.2: 497da0 (stack10 special); 499790 with 3ba140 disables slots whose targets218 is exactly1/40/80/100; live Nsi1=4 on a tree-only slot gives [0,0,1]."
+        },
+        {
           "offset": 600,
           "name": "range0",
           "type": "WC3PathScalar",
@@ -3819,6 +3843,12 @@
           "name": "range1",
           "type": "WC3PathScalar",
           "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+        },
+        {
+          "offset": 696,
+          "name": "damage_weapon",
+          "type": "u32",
+          "evidence": "498960 weapon index w=[this+0x2b8]\ncurrent attack slot (GROUP-03.4.6.2.1.2 proposed name current_slot, i32): GROUP-03.4.6.2.1.2: constructor 491f30 writes0; 497da0 re-tests 499790(current_slot) after increments and cancels through49d280; serialized by 496e80."
         },
         {
           "offset": 700,
@@ -12880,6 +12910,144 @@
         }
       ],
       "evidence": "Payoff148 complete original32 endpoint cases: ECX separation, stack+4 point, RET4, footprint result retained in EAX; real capture/increment/restore of mover+98 record+40 and fine+d4."
+    },
+    {
+      "address": "6f497da0",
+      "name": "Attack_AdjustSuppressionCounters",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "release",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "melee",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "ranged",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "special",
+          "type": "u32",
+          "storage": 16
+        }
+      ],
+      "evidence": "Complete body 497da0..497e1d: ESI=ECX, [ebp+8..+14] read, RET10; no EAX result consumed by callers 501b33/5215ac."
+    },
+    {
+      "address": "6f4996f0",
+      "name": "Attack_IsRangedSuppressibleSlot",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "slot",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete body: EDX=ECX, [ebp+8] slot, EAX0/1, RET4; caller 4997f5 pushes slot with ECX attack."
+    },
+    {
+      "address": "6f3ba140",
+      "name": "Attack_IsSpecialTargetSlot",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "slot",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete body: [ecx+slot*4+218], [ebp+8] slot, SETE result EAX0/1, RET4; caller 49980a."
+    },
+    {
+      "address": "6f501ae0",
+      "name": "BuffAttackPrevention_Apply",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "buff",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete body: ESI=ECX, no stack reads, plain RET; vtable slot+364 of CBuffSilence 6faf4458/CBuffCloudOfFog 6faf99b4/CBuffDrunkenHaze 6fb4ff8c."
+    },
+    {
+      "address": "6f521550",
+      "name": "BuffAttackPrevention_Remove",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "buff",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Complete body: ESI=ECX, no stack reads, plain RET; vtable slot+368 of the same three buff classes."
+    },
+    {
+      "address": "6f499790",
+      "name": "Attack_IsWeaponSlotEnabled",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "attack",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "slot",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete499790, RET4; authored flags and signed-positive counters; 2759 complete original slot calls, both independently authored slots."
+    },
+    {
+      "address": "6f48f380",
+      "name": "Unit_AdjustSpellPreventionCount",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "enable",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Complete48f380, Unit+1d0 += enable?1:-1, RET4; traverses ability_head and invokes notification virtuald0. Public bit8 traces; full notification lifecycle not certified."
     }
   ],
   "globals": [

@@ -294,7 +294,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
     if (!M_IsDead(st.entity)) S_SpellApplyStun(st.entity, S_SpellHeroDuration(spell->code, level, st.entity));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHazeCampaign) { campaign_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDrunkenHazeCampaign) { return CAbilityDrunkenHaze(ent, msg, call); }
 BZ_SIMPLE_SPELL_PROC(AbilityStormEarthFire) { S_SummonAbilityUnits(caster, spell->code, &st); }
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWaveCampaign) { campaign_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHexCampaign) { campaign_status_execute(caster, st, spell); }
