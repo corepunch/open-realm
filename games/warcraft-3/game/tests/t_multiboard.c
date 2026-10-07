@@ -139,6 +139,57 @@ static edict_t *mb_alloc_ai_barracks(gameClient_t *owner, UnitProfile_t *profile
     return barracks;
 }
 
+/* Frames in the most recent WC3_LAYER_MULTIBOARD message; UINT32_MAX when none. */
+static uint32_t mb_last_multiboard_frames(void) {
+    uint32_t frames = UINT32_MAX;
+    FOR_LOOP(i, MIN(mb_layout_count, (uint32_t)MB_MAX_LAYOUTS))
+        if (mb_layout_layers[i] == WC3_LAYER_MULTIBOARD) frames = mb_layout_frames[i];
+    return frames;
+}
+
+TEST(wc3_multiboard, team_resources_panel_follows_advanced_control) {
+    edict_t *viewer = &g_edicts[0];
+    gameClient_t *owner = &game.clients[1];
+    mbCaptureSaved_t saved;
+
+    setup_test_world();
+    G_SetClientConnected(viewer, true);
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 777;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 55;
+
+    /* Basic shared control reveals nothing: the layer is written empty. */
+    mb_grant_advanced(viewer->client, owner, false);
+    saved = mb_install_capture();
+    UI_WriteMultiboard(viewer);
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_EQ(mb_last_multiboard_frames(), 0);
+    T_ASSERT(mb_unicast_target == viewer);
+
+    /* Advanced control shows the owner's name row with gold and lumber. */
+    mb_grant_advanced(viewer->client, owner, true);
+    mb_reset_capture();
+    UI_WriteMultiboard(viewer);
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_ASSERT(mb_last_multiboard_frames() > 0);
+    T_ASSERT(mb_text_seen_on(WC3_LAYER_MULTIBOARD, "Team Resources"));
+    T_ASSERT(mb_text_seen_on(WC3_LAYER_MULTIBOARD, "777"));
+    T_ASSERT(mb_text_seen_on(WC3_LAYER_MULTIBOARD, "55"));
+
+    /* The reverse edge grants nothing to the owner's own panel. */
+    mb_reset_capture();
+    G_SetClientConnected(&g_edicts[1], true);
+    UI_WriteMultiboard(&g_edicts[1]);
+    T_EQ(mb_last_multiboard_frames(), 0);
+
+    /* Revoking advanced control clears the panel again. */
+    G_SetPlayerAlliance(&viewer->client->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    mb_reset_capture();
+    UI_WriteMultiboard(viewer);
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_EQ(mb_last_multiboard_frames(), 0);
+    mb_restore_capture(saved);
+}
+
 TEST(wc3_multiboard, run_frame_tracks_computer_ally_spending_for_team_resources) {
     edict_t *viewer = &g_edicts[0];
     gameClient_t *owner = &game.clients[1];
