@@ -119,7 +119,6 @@ BZ_ABILITY_PROC(CAbilityAbsorb);
 BZ_ABILITY_PROC(CAbilityChaos);
 BZ_ABILITY_PROC(CAbilitySpiderAttack);
 BZ_ABILITY_PROC(CAbilityWander);
-void S_WanderOnDamage(edict_t *unit, edict_t *attacker);
 bool S_WanderRecoverBlockedMove(edict_t *unit);
 BZ_ABILITY_PROC(CAbilityMagicImmunity);
 BZ_ABILITY_PROC(CAbilityEngineeringUpgrade);

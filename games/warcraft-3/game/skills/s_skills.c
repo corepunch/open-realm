@@ -892,26 +892,31 @@ static bool unit_dispatch_engine_event_abilities(edict_t *ent, abilityMsg_t msg,
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle, acquisition, and ability queries stop when an owner consumes the decision. */
-bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
+bool S_UnitAbilityEventWithCall(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload) {
     bool handled = false;
 
     if (!ent) return false;
     if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND)
-        handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
+        handled |= unit_dispatch_engine_event_abilities(ent, msg, payload);
     if (msg == A_UNIT_INIT)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, false, true, false) != 0;
+        return unit_dispatch_authored_abilities(ent, msg, payload, false, true, false) != 0;
     if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, false,
+        return unit_dispatch_authored_abilities(ent, msg, payload, false,
                                                  msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
     if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
-        return unit_dispatch_authored_abilities(ent, msg, NULL, true, false, false) != 0;
+        return unit_dispatch_authored_abilities(ent, msg, payload, true, false, false) != 0;
 
     FOR_LOOP(i, num_innate) {
-        abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
+        abilityCall_t call = payload ? *payload : MAKE(abilityCall_t, 0);
+        call.item = innate_items + i;
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
     return handled;
+}
+
+bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
+    return S_UnitAbilityEventWithCall(ent, msg, NULL);
 }
 
 void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {

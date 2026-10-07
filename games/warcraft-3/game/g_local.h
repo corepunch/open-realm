@@ -833,6 +833,7 @@ struct ability_call_s {
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
         struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
+        edict_t *attacker; /* A_DAMAGED */
         cstring_t classname;
         uint32_t level;
         bool enabled;
@@ -2785,6 +2786,7 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+bool S_UnitAbilityEventWithCall(edict_t *, abilityMsg_t, abilityCall_t const *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
 bool S_AncientHasRootAbility(edict_t const *);

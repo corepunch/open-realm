@@ -144,9 +144,13 @@ bool S_WanderRecoverBlockedMove(edict_t *unit) {
     return true;
 }
 
+static void wander_on_damage(edict_t *unit, edict_t *attacker);
+
 BZ_ABILITY_PROC(CAbilityWander) {
-    (void)call;
     switch (msg) {
+    case A_DAMAGED:
+        wander_on_damage(ent, call ? call->attacker : NULL);
+        return false;
     case A_IDLE:
         if (!wander_present(ent)) return false;
         /* Suppress normal auto-acquisition even while waiting. */
@@ -202,7 +206,7 @@ BZ_ABILITY_PROC(CAbilityWander) {
 /* A damage response belongs to Awan rather than shared combat AI. Preserve
  * every active explicit order (attack, build, cast, patrol, harvest, move),
  * not just an ordinary walking order. Only Awan-owned movement may yield. */
-void S_WanderOnDamage(edict_t *unit, edict_t *attacker) {
+static void wander_on_damage(edict_t *unit, edict_t *attacker) {
     vec2_t direction, destination;
     float length;
     if (!attacker || !attacker->inuse || attacker == unit || !wander_eligible(unit)) return;

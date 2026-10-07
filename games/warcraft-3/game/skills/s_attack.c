@@ -358,7 +358,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
-    S_UnitAbilityEvent(target, A_DAMAGED);
+    {
+        abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
+        S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
+    }
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
     G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
@@ -380,7 +383,6 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     } else {
         G_AddHealth(target, -damage);
     }
-    S_WanderOnDamage(target, attacker);
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {
