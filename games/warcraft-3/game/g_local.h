@@ -1631,6 +1631,12 @@ typedef struct {
     vec2_t origin; // position when channel started (movement cancels channel)
 } channel_t;
 
+typedef enum {
+    AURA_EFFECT_NONE,
+    AURA_EFFECT_RECIPIENT,
+    AURA_EFFECT_SOURCE
+} auraEffectRole_t;
+
 struct edict_s {
     entityState_t s;
     gameClient_t *client;
@@ -1651,6 +1657,7 @@ struct edict_s {
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
     uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
+    auraEffectRole_t aura_effect_role; /* stable source/recipient identity; independent of alias and current art */
     construction_t *construction; /* pool slot; null if this unit is not under construction */
     bool training; /* spawned in a production queue but not yet completed */
     bool training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */

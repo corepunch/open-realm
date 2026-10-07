@@ -60,17 +60,19 @@ buff art on each recipient. The owner is also a recipient when `targs` includes
 
 Each effect is a persistent `WC3_EFFECT_TARGET` owned by the unit it follows.
 Both effects store the base rawcode (`AHad` or `AUau`) in `summon_ability`,
-which save/load already keeps. The next cache rebuild tells the rune from the
-glow by model, so no new edict field is required. `regen_aura_cache_update`
-clears the slot arrays every simulation frame and classifies live edicts by
-model. Ability art that differs from the recipient model goes in the source
-slot. The owner's current alias supplies that art; once the skill is gone the
-base rawcode's `TargetArt` is used so the leftover rune still reaches the
-source slot and is destroyed. Every other matching edict stays in the recipient
-slot. Putting both into
-one slot makes the next refresh destroy one model and leak the other.
-`regen_cache_frame` is stamped before that scan, so the classification may call
-`hero_aura_presentation` without rebuilding the cache.
+and `aura_effect_role` records `AURA_EFFECT_SOURCE` or `AURA_EFFECT_RECIPIENT`
+when the edict is spawned. `regen_aura_cache_update` clears the slot arrays
+every simulation frame and rebinds each live edict by that stable role. It does
+not resolve current artwork to decide ownership. A custom alias can author a
+different rune from its base ability; after removal the alias is absent, and
+the base model cannot identify the old rune. Model-based classification put
+that rune and the recipient glow into one slot, leaving the rune untracked
+indefinitely when another provider kept the glow alive.
+
+The saved role keeps both effects distinguishable across skill removal, art
+changes, and save/load. Save format 72 serializes the role and rejects earlier
+saves, following the normal no-migration policy. There is no network change.
+See [Save/Load](save-load.md).
 
 Brilliance, Endurance, Vampiric, Thorns, and Command Aura do not use this pair
 of slots. Vampiric's extra buff `SpecialArt` is a separate contract.
@@ -111,6 +113,15 @@ stack a copy, leaving range removes the ally glow, and clearing the ability
 removes both of the caster's effects.
 `wc3_spell.devotion_aura_roc_fallback_does_not_stack_on_source` omits `BuffID`
 and expects one ability-art effect on the caster and one on the ally.
+`wc3_spell.devotion_aura_custom_art_is_removed_while_another_source_keeps_glow`
+and the matching `unholy_aura_custom_art_is_removed_while_another_source_keeps_glow`
+use custom `XHfx`/`XUfx` aliases with `ui_panel.mdx` art, distinct from both the
+base rune and buff glow. Removing one provider's skill retires its rune while
+the other provider keeps its recipient glow alive over three scheduler
+refreshes. Removing the remaining provider then clears all attached art.
+Both tests repeat the lifecycle after saving two live source/recipient pairs,
+clearing the runtime caches, and loading the save. The save suite separately
+checks the role's field descriptor and rejects version 71.
 
 ```sh
 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_spell.devotion_aura*'

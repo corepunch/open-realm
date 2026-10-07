@@ -1446,6 +1446,82 @@ TEST(wc3_spell, devotion_aura_roc_fallback_does_not_stack_on_source) {
     free_slk_rows(rows);
 }
 
+/* Count attached presentation, excluding effects already playing their death sequence. */
+static uint32_t hero_aura_art_count(edict_t *unit, uint32_t base, uint32_t model) {
+    uint32_t count = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *fx = g_edicts + i;
+        if (fx->inuse && fx->owner == unit && fx->goalentity == unit &&
+            fx->summon_ability == base && (uint32_t)fx->s.model == model) count++;
+    }
+    return count;
+}
+
+/* Removing a custom alias must retire its rune while a nearby aura keeps the recipient glow alive. */
+static void custom_hero_aura_removal(cstring_t base, cstring_t alias, cstring_t buff) {
+    static cstring_t const format =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"%s\"\nC;Y2;X2;K\"%s\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"%s\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"%s\"\nC;Y3;X2;K\"%s\"\nC;Y3;X6;K\"%s\"\nC;Y3;X7;K\"1\"\nE\n";
+    char slk[1024];
+    uint32_t const code = FS_SLKKey(base), rawcode = FS_SLKKey(alias);
+    cstring_t path = Test_TempPath("custom-hero-aura.bin");
+
+    snprintf(slk, sizeof(slk), format, alias, base, buff, base, base, buff);
+    FOR_LOOP(saved, 2) {
+        slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+        edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+        edict_t *other = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 100, 0);
+        uint32_t pattern = G_RegisterModel(G_AbilityEffectArt(rawcode, WC3_EFFECT_TARGET, 0));
+        uint32_t glow = G_RegisterModel(G_AbilityEffectArt(FS_SLKKey(buff), WC3_EFFECT_TARGET, 0));
+
+        T_ASSERT(pattern && glow && pattern != glow);
+        T_NE(pattern, (uint32_t)G_RegisterModel(G_AbilityEffectArt(code, WC3_EFFECT_TARGET, 0)));
+        level.time = level.framenum = 0;
+        source->s.player = other->s.player = 0;
+        source->targtype = other->targtype = TARG_GROUND;
+        other->svflags |= SVF_MONSTER;
+        T_ASSERT(G_ActorAddSkill(source, rawcode));
+        T_ASSERT(G_ActorAddSkill(other, rawcode));
+        source->think = other->think = monster_think;
+        G_RunEntities();
+        T_EQ(hero_aura_art_count(source, code, pattern), 1);
+        T_EQ(hero_aura_art_count(source, code, glow), 1);
+
+        if (saved) {
+            T_ASSERT(WriteGame(path));
+            G_ResetHeroPassiveCaches();
+            T_ASSERT(ReadGame(path));
+            remove(path);
+        }
+        T_ASSERT(G_ActorRemoveSkill(source, rawcode));
+        FOR_LOOP(step, 3) {
+            level.time += AURA_UPDATE_MS; level.framenum++;
+            G_RunEntities();
+            T_EQ(hero_aura_art_count(source, code, pattern), 0);
+            T_EQ(hero_aura_art_count(source, code, glow), 1);
+            T_EQ(hero_aura_art_count(other, code, pattern), 1);
+        }
+        T_ASSERT(G_ActorRemoveSkill(other, rawcode));
+        level.time += AURA_UPDATE_MS; level.framenum++;
+        G_RunEntities();
+        T_EQ(hero_aura_art_count(source, code, glow), 0);
+        T_EQ(hero_aura_art_count(other, code, pattern), 0);
+        G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+    }
+}
+
+TEST(wc3_spell, devotion_aura_custom_art_is_removed_while_another_source_keeps_glow) {
+    custom_hero_aura_removal("AHad", "XHfx", "BHad");
+}
+
+TEST(wc3_spell, unholy_aura_custom_art_is_removed_while_another_source_keeps_glow) {
+    custom_hero_aura_removal("AUau", "XUfx", "BUau");
+}
+
 TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X9\n"

@@ -21,6 +21,9 @@ TargetArt=TestUI\Models\panel_sprite.mdx
 [BHad]
 TargetArt=TestUI\Models\anim_pulse.mdx
 
+[XHfx]
+TargetArt=TestUI\Models\ui_panel.mdx
+
 [Arep]
 Art=TestUI\Textures\gather.blp
 Buttonpos=1,1

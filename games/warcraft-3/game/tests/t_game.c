@@ -4214,6 +4214,7 @@ SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_aura_effect_role_round_trip, aura_effect_role, AURA_EFFECT_SOURCE)
 SAVE_INT_FIELD_TEST(field_wander_next_time_round_trip, wander_next_time, 9100)
 SAVE_INT_FIELD_TEST(field_wander_random_state_round_trip, wander_random_state, 0x1234567)
 SAVE_INT_FIELD_TEST(field_wander_goal_generation_round_trip, wander_goal_generation, 42)

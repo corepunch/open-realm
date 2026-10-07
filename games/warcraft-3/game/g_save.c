@@ -82,7 +82,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 69 adds persistent Awan scheduling and internal-order ownership. */
 /* Version 70 persists multiboard suppression state. */
 /* Version 71 persists local Team Resources collapse state. */
-static uint32_t const save_version = 71;
+/* Version 72 persists the source/recipient role of Hero aura effects. */
+static uint32_t const save_version = 72;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -845,6 +846,7 @@ field_t edict_fields[] = {
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
+    F(edict_s, aura_effect_role, F_INT),
     F(edict_s, wander_next_time, F_INT),
     F(edict_s, wander_random_state, F_INT),
     F(edict_s, wander_goal, F_EDICT, 0, FIELD_NONE),
@@ -2389,9 +2391,11 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 }
 
 TEST(wc3_save, rejects_prior_save_versions) {
-    cstring_t filename = Test_TempPath("wc3-save-prior-format.bin");
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67 };
+    PATHSTR filename;
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71 };
 
+    /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
+    strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));

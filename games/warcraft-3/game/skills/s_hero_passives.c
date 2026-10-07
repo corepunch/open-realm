@@ -334,8 +334,6 @@ static uint32_t aura_target_model(uint32_t code) {
     return art && *art ? (uint32_t)G_RegisterModel(art) : 0;
 }
 
-static void hero_aura_rebind_effect(edict_t *effect);
-
 /* Discover aura providers once per simulation frame; target checks still run
  * per unit because range, alliances, and invulnerability are live. */
 static void regen_aura_cache_update(void) {
@@ -386,7 +384,15 @@ static void regen_aura_cache_update(void) {
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
             effect->goalentity != effect->owner) continue;
         if (effect->summon_ability == ID_DEVOTION_AURA || effect->summon_ability == ID_UNHOLY_AURA) {
-            hero_aura_rebind_effect(effect);
+            edict_t * *slots;
+            /* The current alias/art can change or disappear. Bind by the saved
+             * role so a custom caster rune cannot become an orphaned recipient. */
+            if (effect->aura_effect_role == AURA_EFFECT_SOURCE)
+                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
+            else if (effect->aura_effect_role == AURA_EFFECT_RECIPIENT)
+                slots = effect->summon_ability == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
+            else continue;
+            if (!slots[effect->owner->s.number]) slots[effect->owner->s.number] = effect;
             continue;
         }
         if (effect->summon_ability != ID_REGEN_LIFE_ORC &&
@@ -692,38 +698,6 @@ static heroAuraPresentation_t hero_aura_presentation(edict_t *unit, uint32_t bas
     return result;
 }
 
-/* Split a live Devotion/Unholy effect back into the caster rune or the recipient
- * glow. Both edicts share summon_ability, so first-wins into one slot makes the
- * next sync destroy one model and leak the other. regen_cache_frame is already
- * stamped, so the presentation lookup does not rebuild this cache. */
-static void hero_aura_rebind_effect(edict_t *effect) {
-    uint32_t const base = effect->summon_ability;
-    uint32_t const n = effect->owner->s.number;
-    edict_t * *recipient_slot = base == ID_DEVOTION_AURA ? devotion_overlays : unholy_overlays;
-    edict_t * *source_slot = base == ID_DEVOTION_AURA ? devotion_source_fx : unholy_source_fx;
-    auraAbilityRef_t own = {0};
-    heroAuraPresentation_t pres;
-    uint32_t source_model, buff_model;
-
-    FOR_LOOP(s, regen_source_count) {
-        if (regen_sources[s].source != effect->owner) continue;
-        own = regen_aura_ref(regen_sources + s, base);
-        break;
-    }
-    source_model = aura_target_model(own.alias);
-    /* After the skill is removed, own.alias is empty but the live rune still
-     * has to land in the source slot so sync can destroy it. */
-    if (!source_model) source_model = aura_target_model(base);
-    pres = hero_aura_presentation(effect->owner, base);
-    buff_model = aura_target_model(pres.buff);
-    if (!buff_model) buff_model = aura_target_model(pres.alias);
-    if (source_model && (uint32_t)effect->s.model == source_model && source_model != buff_model) {
-        if (!source_slot[n]) source_slot[n] = effect;
-    } else if (!recipient_slot[n]) {
-        recipient_slot[n] = effect;
-    }
-}
-
 static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * *overlays,
                                    heroAuraPresentation_t const *info) {
     uint32_t effect_code = info ? info->buff : 0;
@@ -747,6 +721,7 @@ static void hero_aura_sync_overlay(edict_t *unit, uint32_t base_code, edict_t * 
         edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, effect_code, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
             effect->summon_ability = base_code;
+            effect->aura_effect_role = AURA_EFFECT_RECIPIENT;
             overlays[unit->s.number] = effect;
         }
     }
@@ -776,6 +751,7 @@ static void hero_aura_sync_source(edict_t *unit, uint32_t base_code, edict_t * *
         edict_t *effect = G_SpawnOwnedAbilityEffectTarget(unit, own.alias, WC3_EFFECT_TARGET, 0, unit, NULL);
         if (effect) {
             effect->summon_ability = base_code;
+            effect->aura_effect_role = AURA_EFFECT_SOURCE;
             sources[unit->s.number] = effect;
         }
     }

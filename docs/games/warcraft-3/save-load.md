@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 69, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 72, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -32,6 +32,14 @@ The server's map-selection read checks both the format version and entity size b
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
 
 Version 71 persists local Team Resources collapse state in addition to multiboard display suppression by client slot from version 70. Older saves are rejected, following the normal no-migration policy.
+
+Version 72 adds `edict_t.aura_effect_role`, the stable source/recipient identity
+of Devotion and Unholy Aura presentation edicts. The role is serialized as
+`F_INT` beside `summon_ability`; cache rebuilds use it even after a custom aura
+alias has been removed. Version 71 and earlier saves are rejected. The custom
+aura removal tests save both live effects, clear the runtime cache, restore,
+and remove the skill while a second provider continues supplying the glow.
+See [Aura Targets And Overlays](aura-targets-and-overlays.md).
 
 Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Structures resume using their ability-authored build duration, independently of the unit's normal build time. Exact-version readers reject older layouts. `wc3_save.tiny_construction_round_trips_in_roc_and_tft_map_state` covers the `CONSTRUCTION_TINY` type, mid-progress `duration_ms`, and the building's self-linked `build` pointer in both archive variants.
 
