@@ -416,6 +416,8 @@ bool G_ActorHasSkill(edict_t const *ent, cstring_t id) {
     return actor_has_skill(ent, code);
 }
 
+static edict_t *wisp_find_nearest_tree(edict_t *worker, edict_t const *origin);
+
 static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
     edict_t *target;
 
@@ -423,6 +425,16 @@ static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
      * Wisps too. Their gold work is cargo boarding, not Ahar mining. */
     if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasSkill(self, "Awha"))
         return S_CargoOrderNearestEntangledMine(self);
+
+    /* Wisp lumber uses Awha's direct periodic harvesting state, not the
+     * worker chop-and-return loop backed by Ahrl/Ahar. */
+    if (self && resource == RETURN_RESOURCE_LUMBER && G_ActorHasSkill(self, "Awha")) {
+        if (!S_WispHarvestCanLumber(self)) return false;
+        target = wisp_find_nearest_tree(self, self);
+        if (!target) return false;
+        wisp_harvest_start(self, target);
+        return true;
+    }
 
     /* These are worker-internal immediate orders, not substitutes for giving
      * Harvest to arbitrary units. Ahrl is lumber-only while Ahar can harvest
