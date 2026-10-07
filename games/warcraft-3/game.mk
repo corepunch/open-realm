@@ -376,6 +376,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapMisc.txt war3mapMisc.txt \
 		$(TESTS_SRC_DIR)/MapOverlay/war3mapSkin.txt war3mapSkin.txt \
 		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3a war3map.w3a \
+		$(TESTS_SRC_DIR)/MapOverlay/war3map.w3b war3map.w3b \
 		$(TESTS_RES_DIR)/MapOverlay/Textures/minimap_hero.blp "Textures\\minimap_hero.blp"
 	@echo "[test-assets] packing tests.mpq"
 	@python3 tools/wc3fixturegen.py $(TESTS_RES_DIR)/TransportMap

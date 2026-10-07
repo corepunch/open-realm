@@ -471,6 +471,54 @@ TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
     gi.MemFree(bytes);
 }
 
+TEST(wc3_slk, map_archive_w3b_parse_stores_original_and_custom_destructables) {
+    handle_t archive = NULL;
+    uint32_t size = 0;
+    handle_t bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
+    uint32_t saved_orig = world.info.num_originalDestructables;
+    uint32_t saved_user = world.info.num_userCreatedDestructables;
+    unitData_t *saved_orig_ptr = world.info.originalDestructables;
+    unitData_t *saved_user_ptr = world.info.userCreatedDestructables;
+
+    T_NOT_NULL(bytes);
+    T_ASSERT(SFileOpenArchiveFromMemory(bytes, size, 0, &archive));
+    world.info.num_originalDestructables = 0;
+    world.info.num_userCreatedDestructables = 0;
+    world.info.originalDestructables = NULL;
+    world.info.userCreatedDestructables = NULL;
+
+    CM_ReadDestructables(archive);
+    T_EQ(world.info.num_originalDestructables, 1);
+    T_EQ(world.info.originalDestructables[0].originalUnitID, MAKEFOURCC('L','T','0','5'));
+    T_EQ(world.info.originalDestructables[0].numbeOfModifications, 1);
+    T_EQ(world.info.originalDestructables[0].modifications[0].modID, MAKEFOURCC('b','a','r','m'));
+    T_STREQ((cstring_t)world.info.originalDestructables[0].modifications[0].data, "Wood");
+    T_EQ(world.info.num_userCreatedDestructables, 1);
+    T_EQ(world.info.userCreatedDestructables[0].newUnitID, MAKEFOURCC('x','T','0','5'));
+    T_EQ(world.info.userCreatedDestructables[0].modifications[0].modID, MAKEFOURCC('b','h','p','s'));
+    T_EQ(*(uint32_t const *)world.info.userCreatedDestructables[0].modifications[0].data, 250);
+
+    FOR_LOOP(i, world.info.num_originalDestructables) {
+        FOR_LOOP(j, world.info.originalDestructables[i].numbeOfModifications)
+            gi.MemFree(world.info.originalDestructables[i].modifications[j].data);
+        gi.MemFree(world.info.originalDestructables[i].modifications);
+    }
+    FOR_LOOP(i, world.info.num_userCreatedDestructables) {
+        FOR_LOOP(j, world.info.userCreatedDestructables[i].numbeOfModifications)
+            gi.MemFree(world.info.userCreatedDestructables[i].modifications[j].data);
+        gi.MemFree(world.info.userCreatedDestructables[i].modifications);
+    }
+    gi.MemFree(world.info.originalDestructables);
+    gi.MemFree(world.info.userCreatedDestructables);
+    world.info.num_originalDestructables = saved_orig;
+    world.info.num_userCreatedDestructables = saved_user;
+    world.info.originalDestructables = saved_orig_ptr;
+    world.info.userCreatedDestructables = saved_user_ptr;
+
+    SFileCloseArchive(archive);
+    gi.MemFree(bytes);
+}
+
 slkTestData_t *parse_slk_string(char const *slk_text) {
     static slkField_t const schema[] = { { NULL, 0, 0 } };
     void *rows = NULL;
@@ -997,10 +1045,14 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
 }
 
 TEST(wc3_slk, map_destructable_overrides_inherit_and_normalize_armor) {
-    static cstring_t const dest_slk =
+    static cstring_t const dest_slk[] = {
         "ID;PWXL;N;E\n"
-        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"armor\"\nC;Y1;X3;K\"HP\"\n"
-        "C;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"None\"\nC;Y2;X3;K100\nE\n";
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"armor\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"name\"\n"
+        "C;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"None\"\nC;Y2;X3;K100\nC;Y2;X4;K\"ROC base\"\nE\n",
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"armor\"\nC;Y1;X3;K\"HP\"\nC;Y1;X4;K\"Name\"\n"
+        "C;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"None\"\nC;Y2;X3;K100\nC;Y2;X4;K\"TFT base\"\nE\n"
+    };
     uint32_t const base_id = MAKEFOURCC('L','T','0','5');
     uint32_t const custom_id = MAKEFOURCC('x','T','0','5');
     uint32_t health = 250;
@@ -1023,25 +1075,30 @@ TEST(wc3_slk, map_destructable_overrides_inherit_and_normalize_armor) {
         .num_originalDestructables = 1, .originalDestructables = &original,
         .num_userCreatedDestructables = 1, .userCreatedDestructables = &custom
     };
-    slkTestData_t *rows = parse_slk_string(dest_slk);
-    slkTestData_t *saved_rows = G_SetSLKRows("DestructableData", rows);
+    slkTestData_t *rows;
+    slkTestData_t *saved_rows;
     mapInfo_t const *saved_mapinfo;
 
     setup_test_world();
     saved_mapinfo = level.mapinfo;
     level.mapinfo = &mapinfo;
-    G_SetMapUnitOverrides(&mapinfo);
+    FOR_LOOP(edition, sizeof(dest_slk) / sizeof(dest_slk[0])) {
+        rows = parse_slk_string(dest_slk[edition]);
+        saved_rows = G_SetSLKRows("DestructableData", rows);
+        G_SetMapUnitOverrides(&mapinfo);
 
-    T_EQ(G_DestructableData(base_id)->armor, 3);
-    T_STREQ(G_DestructableData(base_id)->armorSoundType, "Wood");
-    T_EQ(G_DestructableData(custom_id)->armor, 5);
-    T_STREQ(G_DestructableData(custom_id)->armorSoundType, "Stone");
-    T_EQ(G_DestructableData(custom_id)->maxHealth, 250);
+        T_EQ(G_DestructableData(base_id)->armor, 3);
+        T_STREQ(G_DestructableData(base_id)->armorSoundType, "Wood");
+        T_EQ(G_DestructableData(custom_id)->armor, 5);
+        T_STREQ(G_DestructableData(custom_id)->armorSoundType, "Stone");
+        T_EQ(G_DestructableData(custom_id)->maxHealth, 250);
+        T_STREQ(G_DestructableData(custom_id)->displayName, edition ? "TFT base" : "ROC base");
 
-    G_SetMapUnitOverrides(NULL);
+        G_SetMapUnitOverrides(NULL);
+        G_SetSLKRows("DestructableData", saved_rows);
+        free_slk_rows(rows);
+    }
     level.mapinfo = saved_mapinfo;
-    G_SetSLKRows("DestructableData", saved_rows);
-    free_slk_rows(rows);
 }
 
 TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
