@@ -386,10 +386,13 @@ void G_AwardKillBounty(edict_t *victim, edict_t *killer) {
     gold = G_RollBounty(bal->goldBountyBase, bal->goldBountyDice, bal->goldBountySides);
     lumber = G_RollBounty(bal->lumberBountyBase, bal->lumberBountyDice, bal->lumberBountySides);
 
+    /* Retail upkeep only taxes gold returned from mines. A kill bounty is a
+     * direct resource change like Bundle of Gold, so credit the rolled amount
+     * in full and clamp it only to the 16-bit resource cap; it used to pass
+     * through G_ApplyResourceIncome and lose up to 60% under High Upkeep. */
     if (gold > 0) {
-        int32_t net = G_ApplyResourceIncome(&recipient->ps, PLAYERSTATE_RESOURCE_GOLD, gold);
         int32_t available = USHRT_MAX - recipient->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-        int32_t credited = MIN(MAX(0, net), available);
+        int32_t credited = MIN(gold, available);
         if (credited > 0) {
             recipient->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += credited;
             G_BountyGainEvent(victim, killer_player, PLAYERSTATE_RESOURCE_GOLD, credited);
@@ -403,9 +406,8 @@ void G_AwardKillBounty(edict_t *victim, edict_t *killer) {
         }
     }
     if (lumber > 0) {
-        int32_t net = G_ApplyResourceIncome(&recipient->ps, PLAYERSTATE_RESOURCE_LUMBER, lumber);
         int32_t available = USHRT_MAX - recipient->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
-        int32_t credited = MIN(MAX(0, net), available);
+        int32_t credited = MIN(lumber, available);
         if (credited > 0) {
             recipient->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += credited;
             G_BountyGainEvent(victim, killer_player, PLAYERSTATE_RESOURCE_LUMBER, credited);
