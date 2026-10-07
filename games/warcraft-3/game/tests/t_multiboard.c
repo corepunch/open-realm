@@ -21,6 +21,7 @@ static uint32_t mb_layout_frames[MB_MAX_LAYOUTS];
 static uint32_t mb_layout_count;
 static bool mb_layer_pending;
 static char mb_texts[MB_MAX_TEXTS][32];
+static int32_t mb_text_layers[MB_MAX_TEXTS];
 static uint32_t mb_text_count;
 static uint32_t mb_unicast_count;
 static edict_t *mb_unicast_target;
@@ -29,6 +30,7 @@ static void mb_reset_capture(void) {
     memset(mb_layout_layers, 0, sizeof(mb_layout_layers));
     memset(mb_layout_frames, 0, sizeof(mb_layout_frames));
     memset(mb_texts, 0, sizeof(mb_texts));
+    memset(mb_text_layers, 0, sizeof(mb_text_layers));
     mb_layout_count = mb_text_count = mb_unicast_count = 0;
     mb_layer_pending = false;
     mb_unicast_target = NULL;
@@ -49,15 +51,24 @@ static void mb_capture_write(pfWriteType_t type, void const *data) {
     if (type == PF_UIFRAME && data && mb_layout_count && mb_layout_count <= MB_MAX_LAYOUTS) {
         uiFrame_t const *frame = data;
         mb_layout_frames[mb_layout_count - 1]++;
-        if (frame->flags.type == FT_STRING && frame->text && mb_text_count < MB_MAX_TEXTS)
+        if (frame->flags.type == FT_STRING && frame->text && mb_text_count < MB_MAX_TEXTS) {
+            mb_text_layers[mb_text_count] = mb_layout_layers[mb_layout_count - 1];
             snprintf(mb_texts[mb_text_count++], sizeof(mb_texts[0]), "%s", frame->text);
+        }
     }
 }
 
 static void mb_capture_unicast(edict_t *ent) { mb_unicast_count++; mb_unicast_target = ent; }
 
-static bool mb_text_seen(cstring_t text) {
-    FOR_LOOP(i, mb_text_count) if (!strcmp(mb_texts[i], text)) return true;
+static uint32_t mb_layouts_on(int32_t layer) {
+    uint32_t count = 0;
+    FOR_LOOP(i, MIN(mb_layout_count, (uint32_t)MB_MAX_LAYOUTS)) if (mb_layout_layers[i] == layer) count++;
+    return count;
+}
+
+/* FT_STRING text written inside a message on `layer`. */
+static bool mb_text_seen_on(int32_t layer, cstring_t text) {
+    FOR_LOOP(i, mb_text_count) if (mb_text_layers[i] == layer && !strcmp(mb_texts[i], text)) return true;
     return false;
 }
 
@@ -104,10 +115,114 @@ TEST(wc3_multiboard, team_resources_layer_is_distinct_from_command_error_layer) 
     T_EQ(mb_layout_layers[1], WC3_LAYER_COMMAND_ERROR);
     T_NE(mb_layout_layers[0], mb_layout_layers[1]);
     T_ASSERT(mb_layout_frames[0] > 0);
-    T_ASSERT(mb_text_seen("321"));
+    T_ASSERT(mb_text_seen_on(WC3_LAYER_MULTIBOARD, "321"));
     T_NE(WC3_LAYER_MULTIBOARD, WC3_LAYER_LEADERBOARD);
     T_NE(WC3_LAYER_MULTIBOARD, WC3_LAYER_TIMERDIALOG);
     T_ASSERT(WC3_LAYER_MULTIBOARD < MAX_LAYOUT_LAYERS);
+}
+
+static bool mb_gold_text_seen(gameClient_t const *owner) {
+    char gold[32];
+    snprintf(gold, sizeof(gold), "%ld", (long)owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD]);
+    return mb_text_seen_on(WC3_LAYER_MULTIBOARD, gold);
+}
+
+/* A Barracks the AI owner can afford to train from; SP_TrainUnit charges the
+ * owner's gold directly, exactly like bot and map-script production. */
+static edict_t *mb_alloc_ai_barracks(gameClient_t *owner, UnitProfile_t *profile) {
+    edict_t *barracks = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    barracks->s.player = owner->ps.number;
+    barracks->data.UnitProfile = profile;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
+    owner->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    return barracks;
+}
+
+TEST(wc3_multiboard, run_frame_tracks_computer_ally_spending_for_team_resources) {
+    edict_t *viewer = &g_edicts[0];
+    gameClient_t *owner = &game.clients[1];
+    UnitProfile_t profile = { .trains = "hpea" };
+    edict_t *barracks;
+    mbCaptureSaved_t saved;
+    uint32_t gold_before;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_SetClientConnected(viewer, true);
+    owner->connected = false; /* computer ally: no console of its own */
+    barracks = mb_alloc_ai_barracks(owner, &profile);
+    mb_grant_advanced(viewer->client, owner, true);
+    level.started = level.scriptsStarted = true;
+
+    saved = mb_install_capture();
+    /* The alliance grant dirtied the viewer; the scheduler consumes the bit. */
+    T_ASSERT(level.multiboard_dirty_clients & 1u);
+    globals.RunFrame();
+    T_ASSERT(!(level.multiboard_dirty_clients & 1u));
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_ASSERT(mb_text_seen_on(WC3_LAYER_MULTIBOARD, "Team Resources"));
+    T_ASSERT(mb_gold_text_seen(owner));
+
+    /* A quiet frame re-sends nothing. */
+    mb_reset_capture();
+    globals.RunFrame();
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 0);
+
+    /* The computer ally spends gold without any connected resource bar. */
+    gold_before = owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    T_ASSERT(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < gold_before);
+    mb_reset_capture();
+    globals.RunFrame();
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_ASSERT(mb_gold_text_seen(owner));
+    T_ASSERT(mb_unicast_target == viewer);
+    T_ASSERT(!(level.multiboard_dirty_clients & 1u));
+    mb_restore_capture(saved);
+}
+
+TEST(wc3_multiboard, run_frame_refreshes_team_resources_in_the_spending_frame) {
+    edict_t *viewer = &g_edicts[0];
+    edict_t *owner_ent = &g_edicts[1];
+    gameClient_t *owner = owner_ent->client;
+    mbCaptureSaved_t saved;
+
+    setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_SetClientConnected(viewer, true);
+    G_SetClientConnected(owner_ent, true);
+    owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    mb_grant_advanced(viewer->client, owner, true);
+    level.started = level.scriptsStarted = true;
+
+    saved = mb_install_capture();
+    /* The first frame authors the owner's console and the ally's panel from
+     * the same resource snapshot; a quiet frame then re-sends neither. */
+    globals.RunFrame();
+    T_EQ(mb_layouts_on(LAYER_CONSOLE), 2); /* viewer and owner consoles */
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_ASSERT(mb_gold_text_seen(owner));
+    mb_reset_capture();
+    globals.RunFrame();
+    T_EQ(mb_layouts_on(LAYER_CONSOLE), 0);
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 0);
+
+    /* A map script changes the owner's gold without touching food or any
+     * resource bar.  The owner's console and the ally's panel must both
+     * follow in the same frame; the panel must not trail by a tick. */
+    mb_restore_capture(saved);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetPlayerState(Player(1), PLAYER_STATE_RESOURCE_GOLD, 850)\n"
+        "endfunction\n"));
+    T_EQ(owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 850);
+    saved = mb_install_capture();
+    globals.RunFrame();
+    T_EQ(mb_layouts_on(LAYER_CONSOLE), 1);
+    T_EQ(mb_layouts_on(WC3_LAYER_MULTIBOARD), 1);
+    T_ASSERT(mb_gold_text_seen(owner));
+    mb_restore_capture(saved);
 }
 
 TEST(wc3_api, multiboard_natives_manage_cells_display_and_minimize) {
