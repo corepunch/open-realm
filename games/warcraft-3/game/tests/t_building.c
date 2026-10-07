@@ -1408,18 +1408,18 @@ TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100000;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
-    for (uint32_t p = 0; p < ARRAY_COUNT(producers); p++) {
+    for (uint32_t p = 0; p < sizeof(producers) / sizeof(producers[0]); p++) {
         edict_t *producer = alloc_test_unit(producers[p], 0.0f, 0.0f);
         UnitProfile_t const *profile = G_UnitProfile(producers[p]);
         uint8_t count;
         producer->s.player = client->ps.number;
         T_STREQ(profile->trains, expected_trains[p]);
-        count = G_GetCommandButtons(producer, buttons, ARRAY_COUNT(buttons));
+        count = G_GetCommandButtons(producer, buttons, sizeof(buttons) / sizeof(buttons[0]));
 
         char expected[4][5] = {{0}};
         uint32_t expected_count = 0;
         cstring_t cursor = expected_trains[p];
-        while (*cursor && expected_count < ARRAY_COUNT(expected)) {
+        while (*cursor && expected_count < sizeof(expected) / sizeof(expected[0])) {
             uint32_t n = 0;
             while (*cursor && *cursor != ',' && n < 4) expected[expected_count][n++] = *cursor++;
             if (*cursor == ',') cursor++;
@@ -2972,18 +2972,45 @@ static void building_set_test_water_surface(bool present) {
 TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water) {
     enum { CELLS = 512 };
     static uint8_t pathmap[CELLS * CELLS];
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y7;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"race\"\n"
+        "C;Y2;X1;K\"nntt\"\nC;Y2;X2;K\"naga\"\n"
+        "C;Y3;X1;K\"nnfm\"\nC;Y3;X2;K\"naga\"\n"
+        "C;Y4;X1;K\"nnsg\"\nC;Y4;X2;K\"naga\"\n"
+        "C;Y5;X1;K\"nnsa\"\nC;Y5;X2;K\"naga\"\n"
+        "C;Y6;X1;K\"nntg\"\nC;Y6;X2;K\"naga\"\n"
+        "C;Y7;X1;K\"nnad\"\nC;Y7;X2;K\"naga\"\n"
+        "E\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y7;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"isbldg\"\n"
+        "C;Y2;X1;K\"nntt\"\nC;Y2;X2;K1\n"
+        "C;Y3;X1;K\"nnfm\"\nC;Y3;X2;K1\n"
+        "C;Y4;X1;K\"nnsg\"\nC;Y4;X2;K1\n"
+        "C;Y5;X1;K\"nnsa\"\nC;Y5;X2;K1\n"
+        "C;Y6;X1;K\"nntg\"\nC;Y6;X2;K1\n"
+        "C;Y7;X1;K\"nnad\"\nC;Y7;X2;K1\n"
+        "E\n";
     static uint32_t const naga_buildings[] = {
         MAKEFOURCC('n','n','t','t'), MAKEFOURCC('n','n','f','m'),
         MAKEFOURCC('n','n','s','g'), MAKEFOURCC('n','n','s','a'),
         MAKEFOURCC('n','n','t','g'), MAKEFOURCC('n','n','a','d')
     };
+    slkTestData_t *data_rows, *balance_rows;
+    slkTestData_t *old_data, *old_balance;
+    slkTestData_t *new_data, *new_balance;
     uint8_t prevented = 0, required = 0;
     vec2_t const requested = { 64.0f, 64.0f };
     edict_t *builder;
 
     setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
     builder = alloc_test_unit(MAKEFOURCC('n','m','p','e'), -128.0f, -128.0f);
-    for (uint32_t i = 0; i < ARRAY_COUNT(naga_buildings); i++) {
+    for (uint32_t i = 0; i < sizeof(naga_buildings) / sizeof(naga_buildings[0]); i++) {
         uint32_t const building = naga_buildings[i];
         G_GetBuildPlacementPathingFlags(building, &prevented, &required);
         T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
@@ -3020,13 +3047,76 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
     }
 
-    G_GetBuildPlacementPathingFlags(MAKEFOURCC('h','b','a','r'), &prevented, &required);
-    T_ASSERT(prevented & WC3_PATH_UNWALKABLE);
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_data = G_SetSLKRows("UnitData", old_data);
+    free_slk_rows(new_balance);
+    free_slk_rows(new_data);
+}
+
+TEST(wc3_building, melee_race_buildings_reject_naga_shallow_water_cells) {
+    enum { CELLS = 512 };
+    static uint8_t pathmap[CELLS * CELLS];
+    static cstring_t const data_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"race\"\n"
+        "C;Y2;X1;K\"hbar\"\nC;Y2;X2;K\"human\"\n"
+        "C;Y3;X1;K\"obar\"\nC;Y3;X2;K\"orc\"\n"
+        "C;Y4;X1;K\"usep\"\nC;Y4;X2;K\"undead\"\n"
+        "C;Y5;X1;K\"eaom\"\nC;Y5;X2;K\"nightelf\"\n"
+        "E\n";
+    static cstring_t const balance_slk =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"isbldg\"\n"
+        "C;Y2;X1;K\"hbar\"\nC;Y2;X2;K1\n"
+        "C;Y3;X1;K\"obar\"\nC;Y3;X2;K1\n"
+        "C;Y4;X1;K\"usep\"\nC;Y4;X2;K1\n"
+        "C;Y5;X1;K\"eaom\"\nC;Y5;X2;K1\n"
+        "E\n";
+    static struct {
+        uint32_t building;
+        cstring_t race;
+    } const melee_buildings[] = {
+        { MAKEFOURCC('h','b','a','r'), STR_HUMAN },
+        { MAKEFOURCC('o','b','a','r'), STR_ORC },
+        { MAKEFOURCC('u','s','e','p'), STR_UNDEAD },
+        { MAKEFOURCC('e','a','o','m'), STR_NIGHTELF }
+    };
+    slkTestData_t *data_rows, *balance_rows;
+    slkTestData_t *old_data, *old_balance;
+    slkTestData_t *new_data, *new_balance;
+    vec2_t const requested = { 64.0f, 64.0f };
+    uint8_t prevented = 0, required = 0;
+    edict_t *builder;
+
+    setup_test_world();
+    data_rows = parse_slk_string(data_slk);
+    balance_rows = parse_slk_string(balance_slk);
+    old_data = G_SetSLKRows("UnitData", data_rows);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, -128.0f);
+
     building_set_test_water_surface(true);
     memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE, sizeof(pathmap));
     setup_test_pathmap(CELLS, CELLS, pathmap);
-    T_EQ(G_EvaluateBuildPlacement(builder, MAKEFOURCC('h','b','a','r'), &requested, NULL),
-         PLACE_TERRAIN_BLOCKED);
+    for (uint32_t i = 0; i < sizeof(melee_buildings) / sizeof(melee_buildings[0]); i++) {
+        uint32_t const building = melee_buildings[i].building;
+        UnitData_t const *data = G_UnitData(building);
+
+        T_ASSERT(G_UnitIsBuilding(building));
+        T_STREQ(data->race, melee_buildings[i].race);
+        G_GetBuildPlacementPathingFlags(building, &prevented, &required);
+        T_ASSERT(prevented & WC3_PATH_UNWALKABLE);
+        T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
+        T_ASSERT(!(prevented & WC3_PATH_NAGA_SHALLOW));
+        T_EQ(required, 0);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL),
+             PLACE_TERRAIN_BLOCKED);
+    }
+
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_data = G_SetSLKRows("UnitData", old_data);
+    free_slk_rows(new_balance);
+    free_slk_rows(new_data);
 }
 
 TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {

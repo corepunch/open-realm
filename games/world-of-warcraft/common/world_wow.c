@@ -1076,6 +1076,11 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     return cm_wow_spawn_position.z;
 }
 
+float CM_GetWaterHeightAtPoint(float sx, float sy) {
+    /* This terrain backend has no separate water-surface query. */
+    return CM_GetHeightAtPoint(sx, sy);
+}
+
 vec2_t CM_GetNormalizedMapPosition(float x, float y) {
     return (vec2_t){ x, y };
 }

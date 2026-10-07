@@ -67,6 +67,11 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     return SC2_MapHeightAtPoint(sx, sy);
 }
 
+float CM_GetWaterHeightAtPoint(float sx, float sy) {
+    /* This terrain backend has no separate water-surface query. */
+    return CM_GetHeightAtPoint(sx, sy);
+}
+
 float CM_GetCameraHeightOffset(void) {
     sc2MapCamera_t camera;
 
