@@ -65,28 +65,13 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
 }
 
 void G_BlightMarkDestructable(edict_t *ent) {
-    DestructableData_t const *data;
-    PATHSTR blight_texture;
-    cstring_t dot;
-
     if (!ent || !G_IsDestructable(ent) || ent->destructable->blighted) return;
     ent->destructable->blighted = true;
     ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
     ent->vertex_color_set = true;
-    data = ent->data.DestructableData;
-    if (!data || !data->textureFile || !*data->textureFile || !strcmp(data->textureFile, "_")) return;
-    dot = strrchr(data->textureFile, '.');
-    if (dot && dot - data->textureFile >= 6 && !strncasecmp(dot - 6, "Blight", 6)) return;
-    if (!dot && strlen(data->textureFile) >= 6 && !strcasecmp(data->textureFile + strlen(data->textureFile) - 6, "Blight")) return;
-    if (dot)
-        snprintf(blight_texture, sizeof(blight_texture), "%.*sBlight%s",
-                 (int)(dot - data->textureFile), data->textureFile, dot);
-    else
-        snprintf(blight_texture, sizeof(blight_texture), "%sBlight", data->textureFile);
-    ent->s.image = gi.ImageIndex(blight_texture);
-    if (!ent->s.image)
-        fprintf(stderr, "G_BlightMarkDestructable: unresolved Blight texture '%s' for %.4s\n",
-                blight_texture, (cstring_t)&ent->class_id);
+    /* Preserve the authored replaceable texture: synthesizing a Blight
+     * filename selected missing assets such as Cliff1Blight and rendered a
+     * placeholder instead of the cliff texture with this tint. */
 }
 
 void G_BlightInitializeDestructable(edict_t *ent) {

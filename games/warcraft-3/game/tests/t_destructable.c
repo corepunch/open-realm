@@ -157,22 +157,41 @@ static edict_t *make_test_destructable(float life, float x, float y) {
     return ent;
 }
 
+static uint32_t blight_image_index_calls;
+
+static int blight_test_image_index(cstring_t path) {
+    (void)path;
+    blight_image_index_calls++;
+    return 99;
+}
+
 TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
+    static DestructableData_t const data = {
+        .textureFile = "ReplaceableTextures\\Cliff\\Cliff1.tga",
+    };
     vec2_t point = { 32.0f, 32.0f };
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
     edict_t *tree;
 
     setup_test_world();
     tree = make_test_destructable(100.0f, 32.0f, 32.0f);
+    tree->data.DestructableData = &data;
+    tree->s.image = 42;
     G_SetBlightPoint(&point, true);
     T_ASSERT(G_IsPointBlighted(&point));
     T_ASSERT(G_IsDestructable(tree));
+    blight_image_index_calls = 0;
+    gi.ImageIndex = blight_test_image_index;
     G_BlightInitializeDestructable(tree);
+    gi.ImageIndex = old_image_index;
     T_ASSERT(tree->destructable->blighted);
     T_ASSERT(tree->vertex_color_set);
     T_EQ(tree->vertex_color.r, 120);
     T_EQ(tree->vertex_color.g, 185);
     T_EQ(tree->vertex_color.b, 72);
     T_EQ(tree->vertex_color.a, 255);
+    T_EQ(tree->s.image, 42);
+    T_EQ(blight_image_index_calls, 0);
     G_SetBlightPoint(&point, false);
     T_ASSERT(tree->destructable->blighted);
 }
