@@ -41,6 +41,7 @@
 #include "retail_adaptive_producer.h"
 #include "retail_adaptive_storage.h"
 #include "retail_coarse_scopes.h"
+#include "retail_exclusion_stages.h"
 #include "retail_reconstruction.h"
 #include "retail_stale_route.h"
 #include "retail_route_consumers.h"
@@ -1696,6 +1697,117 @@ TEST(pathfinding, coarse_scope_restores_exact_partial_and_pre_acquire_denial_exi
         T_ASSERT(G_GetMoveAdaptiveState(after,size)); T_ASSERT(!memcmp(before,after,size));
         S_CancelMoveCoarseRequest(&route.group_admission);
         free(route.group_points); free(before); free(after);
+    }
+    level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+void G_TestMoveFineScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);
+unsigned G_TestMoveScopeCell(wc3FinePoint_t,uint8_t,edict_t const *);
+typedef struct {
+    retailExclusionCase_t const *expected;
+    edict_t *objects[3];
+    unsigned stages;
+} exclusionScopeTrace_t;
+
+/* Observe real request boundaries, including the still-held outer counter.
+ * Expected windows and counter words come from complete original requests. */
+static void check_fine_exclusion_stage(void *data,unsigned stage,movePathQuery_t const *query) {
+    exclusionScopeTrace_t *trace=data;
+    T_EQ(stage,trace->stages++);
+    FOR_LOOP(i,3)T_EQ(G_GetMoveSpatialObject(trace->objects[i]-g_edicts)->flags,
+        trace->expected->counters[stage][i]);
+    FOR_LOOP(y,18) FOR_LOOP(x,18)
+        T_EQ(G_TestMoveScopeCell((wc3FinePoint_t){12+x,12+y},2,query->target),
+            trace->expected->fine[stage][y*18+x]);
+}
+
+static void check_full_coarse_exclusion_stage(void *data,unsigned stage,movePathQuery_t const *query) {
+    exclusionScopeTrace_t *trace=data;
+    uint8_t masks[]={2,0x80,0x40,4}; unsigned at=0;
+    (void)query;
+    T_EQ(stage,trace->stages++);
+    FOR_LOOP(i,3)T_EQ(G_GetMoveSpatialObject(trace->objects[i]-g_edicts)->flags,trace->expected->flags[i]);
+    FOR_LOOP(lev,4) {
+        unsigned side=32u>>lev;
+        FOR_LOOP(y,side) FOR_LOOP(x,side) {
+            unsigned byte=trace->expected->coarse[stage][at++];
+            FOR_LOOP(lane,4)T_EQ(G_TestMovePathClass(masks[lane],lev,x,y),(byte>>(6-2*lane))&3);
+        }
+    }
+}
+
+/* Seed the documented original preallocated spatial fixture through the same
+ * record publishers used by live owners. Asymmetric rectangles and category06
+ * are supplied oracle inputs, not asserted public CreateUnit geometry. */
+static void setup_exclusion_scope_case(exclusionScopeTrace_t *trace,unsigned case_index) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    cells[17*64+17]=cells[18*64+19]=cells[20*64+23]=cells[40*64+40]=0xff;
+    cells[21*64+21]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}}); CM_SetupTestPathmap(64,64,cells);
+    trace->expected=retail_exclusion_cases+case_index; trace->stages=0;
+    FOR_LOOP(i,3) {
+        trace->objects[i]=make_unit_at(264+i*64,280);
+        G_PublishMoveSpatialObject(trace->objects[i]);
+    }
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3_records_clear(map);
+    wc3FineBox_t boxes[]={{{16,16},{20,20}},{{19,18},{22,23}},{{21,21},{26,25}}};
+    /* Prepend in reverse to reproduce the original raw cell encounter order. */
+    for(unsigned at=3;at>0;) {
+        unsigned i=trace->expected->order[--at],owner=trace->objects[i]-g_edicts;
+        uint32_t id=map->objects[owner]=wc3_records_create(map,owner,trace->expected->flags[i]);
+        wc3_records_object(map,id)->category=WC3_RECORD_INSERT|6;
+        wc3_records_update(map,id,boxes[i]);
+    }
+    G_TestMovePathRefresh((point2_t){0,0},(point2_t){64,64});
+}
+
+TEST(pathfinding, fine_scopes_restore_nested_counters_aliases_and_complete_native_windows) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(i,45) {
+        exclusionScopeTrace_t trace; setup_exclusion_scope_case(&trace,i);
+        vec2_t source={264,280},goal={1896,1912},fine={8.25f,8.75f},fine_goal={59.25f,59.75f},selected;
+        retailExclusionCase_t const *expected=trace.expected;
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.fine=&fine,.fine_target=&fine_goal,.units=true,
+            .mover=expected->self<0 ? NULL : trace.objects[expected->self],
+            .target=expected->target<0 ? NULL : trace.objects[expected->target]};
+        moveFineRoute_t route={0}; level.pathing_counter=old_counter+100;
+        G_TestMoveFineScopeTrace(check_fine_exclusion_stage,&trace);
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&selected));
+        G_TestMoveFineScopeTrace(NULL,NULL); T_EQ(trace.stages,6);
+        T_EQ(route.count,expected->fine_count); T_EQ(route.index,expected->fine_index);
+        for(unsigned j=0;j<MIN(route.count,expected->fine_count);j++) {
+            T_EQ(wc3_float_bits(route.points[j].x),expected->fine_words[j*2]);
+            T_EQ(wc3_float_bits(route.points[j].y),expected->fine_words[j*2+1]);
+        }
+        FOR_LOOP(j,3)T_EQ(G_GetMoveSpatialObject(trace.objects[j]-g_edicts)->flags,expected->flags[j]);
+        free(route.points);
+    }
+    level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+TEST(pathfinding, coarse_scopes_match_complete_native_overlapping_hierarchy_matrix) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(i,45) {
+        exclusionScopeTrace_t trace; setup_exclusion_scope_case(&trace,i);
+        vec2_t source={264,280},goal={1896,1912},fine={8.25f,8.75f},selected;
+        retailExclusionCase_t const *expected=trace.expected;
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.fine=&fine,.units=true,
+            .mover=expected->self<0 ? NULL : trace.objects[expected->self],
+            .target=expected->target<0 ? NULL : trace.objects[expected->target]};
+        moveFineRoute_t route={0}; level.pathing_counter=old_counter+100;
+        G_TestMoveCoarseScopeTrace(check_full_coarse_exclusion_stage,&trace);
+        T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+        G_TestMoveCoarseScopeTrace(NULL,NULL); T_EQ(trace.stages,5);
+        T_EQ(route.group_count,expected->coarse_count);
+        for(unsigned j=0;j<MIN(route.group_count,expected->coarse_count);j++) {
+            T_EQ(wc3_float_bits(route.group_points[j].x),expected->coarse_words[j*2]);
+            T_EQ(wc3_float_bits(route.group_points[j].y),expected->coarse_words[j*2+1]);
+        }
+        free(route.group_points);
     }
     level.pathing_counter=old_counter;
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();

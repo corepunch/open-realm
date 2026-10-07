@@ -14,7 +14,7 @@ typedef struct {
     uint8_t flags;
     movePathQuery_t const *query;
     edict_t const *target; /* Search observation identity, separate from current suppression. */
-    bool has_target, endpoint, suppress_target;
+    bool has_target, endpoint, suppress_target, counted_scope;
     uint32_t level, cell_epoch;
     bool *target_hit;
     wc3FineBox_t *rejection; /* query-local placement witness, never retained */
@@ -753,6 +753,14 @@ static void move_acc_object_rectangle(edict_t const *object, bool clear) {
 #ifdef BZ_TESTS
 static void (*move_coarse_scope_trace)(void *,unsigned,movePathQuery_t const *);
 static void *move_coarse_scope_data;
+static void (*move_fine_scope_trace)(void *,unsigned,movePathQuery_t const *);
+static void *move_fine_scope_data;
+void G_TestMoveFineScopeTrace(void (*trace)(void *,unsigned,movePathQuery_t const *),void *data) {
+    move_fine_scope_trace=trace; move_fine_scope_data=data;
+}
+static void move_trace_fine_scope(unsigned stage,movePathQuery_t const *input) {
+    if(move_fine_scope_trace)move_fine_scope_trace(move_fine_scope_data,stage,input);
+}
 void G_TestMoveCoarseScopeTrace(void (*trace)(void *,unsigned,movePathQuery_t const *),void *data) {
     move_coarse_scope_trace=trace; move_coarse_scope_data=data;
 }
@@ -761,6 +769,7 @@ static void move_trace_coarse_scope(unsigned stage,movePathQuery_t const *input)
 }
 #else
 #define move_trace_coarse_scope(stage,input) ((void)0)
+#define move_trace_fine_scope(stage,input) ((void)0)
 #endif
 
 /*166c30 owns one complete synchronous scope. Admission precedes this call;
@@ -789,20 +798,21 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
     (void)bounds;
     graph->query=NULL;
-    if (!query->units || !query->mover) return;
+    if (!query->units) return;
     move_spatial_sync();
     graph->query=query;
 }
 
-/* Identity is observed before self/target suppression. Suppression stays
- * query-local; callbacks and saved instance state cannot inherit this scope. */
+/* Search reads captured object counters. Other endpoint/segment callers retain
+ * their query-local self suppression; neither policy changes target chronology. */
 static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const *object) {
     moveFineGraph_t const *graph=data;
     wc3FineObject_t shape=move_cell_object(NULL,object);
     if(!(object->flags&WC3_RECORD_REGION)) {
         if(!graph->query) {shape.mask=0;return shape;}
         edict_t const *ent=g_edicts+object->owner;
-        if(ent==graph->query->mover || (graph->suppress_target && ent==graph->query->target))shape.flags|=1;
+        if(!graph->counted_scope &&
+            (ent==graph->query->mover || (graph->suppress_target && ent==graph->query->target)))shape.flags|=1;
     }
     return shape;
 }
@@ -825,6 +835,17 @@ static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     }
     return result.value;
 }
+
+#ifdef BZ_TESTS
+/* Observe the same raw predicate without introducing another self exclusion. */
+unsigned G_TestMoveScopeCell(wc3FinePoint_t pos,uint8_t mask,edict_t const *target) {
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask|mask<<24,
+        .target=target ? map->objects[target-g_edicts] : WC3_RECORD_END,.describe=move_cell_object};
+    wc3CellResult_t result=wc3_records_cell(map,pos,move_terrain_word(pos),&query);
+    return result.value | result.target_seen<<1;
+}
+#endif
 
 static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
     moveFineGraph_t const *graph = data;
@@ -1502,7 +1523,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     edict_t const *object = input->target;
     /* A suppressed target still terminates fine expansion at its region.
      * Native category2 captains have radius0 but retain one fine cell. */
-    if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
+    if (input->units && (!input->mover || !(input->mover->aiflags & AI_FLYING)) && object && object->inuse &&
         move_has_spatial_record(object)) {
         graph.has_target = true;
         graph.target = object;
@@ -1530,11 +1551,29 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         move_fine_profile.target_spawn=graph.target ? graph.target->spawn_time : 0;
         move_fine_profile.has_target=graph.has_target;
     }
+    /*166e90 captures both records before search. An alias is incremented twice,
+     * and an already-held exclusion survives the reverse-order restoration.
+     * Unlike the old boolean overlay, this also covers hierarchy participants. */
+    wc3SpatialRecords_t *spatial=S_GetMoveFineSpatial();
+    wc3RecordObject_t *self=input->units && input->mover ? wc3_records_owned(spatial,input->mover-g_edicts) : NULL;
+    wc3RecordObject_t *target_object=input->units && input->target ? wc3_records_owned(spatial,input->target-g_edicts) : NULL;
+    move_trace_fine_scope(0,input);
+    if(self)self->flags++;
+    move_trace_fine_scope(1,input);
+    if(target_object)target_object->flags++;
+    move_trace_fine_scope(2,input);
+    graph.counted_scope=true;
     move_begin_cell_query(&graph);
     bool complete;
+    move_trace_fine_scope(3,input);
     uint32_t count=wc3_fine_build_route(&move_fine,&req,(wc3FineVector_t){a.x,a.y},
         (wc3FineVector_t){b.x,b.y},move_fine_points,BZ_WC3_FINE_NODES,&complete);
     if (input->units && input->mover) S_ChargeUnitMoveFineRequest((edict_t *)input->mover,move_fine.pops);
+    if(target_object)target_object->flags--;
+    move_trace_fine_scope(4,input);
+    if(self)self->flags--;
+    move_trace_fine_scope(5,input);
+    graph.counted_scope=false;
     if (!count || (!complete && !input->units)) return false;
     /* Native166e90 publishes count1 as an admitted route. A caller that
      * derives its fine goal here has the same route contract as a member. */

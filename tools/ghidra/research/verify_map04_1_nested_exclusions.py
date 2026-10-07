@@ -51,6 +51,7 @@ def main():
     ap.add_argument('--reference', type=Path, help='compare against frozen expected JSON')
     ap.add_argument('--edit-expected', type=Path, help='write the MAP-04.2 pending-edit cases as their own frozen JSON')
     ap.add_argument('--edit-reference', type=Path, help='compare MAP-04.2 pending-edit cases against frozen JSON')
+    ap.add_argument('--engine-fixture', type=Path, help='export complete native cell/counter stages for engine tests')
     args = ap.parse_args()
     binary = args.binary.read_bytes()
     if hashlib.sha256(binary).hexdigest() != SHA:
@@ -263,7 +264,7 @@ def main():
     hooks = [m.hook_add(UC_HOOK_CODE, hook, begin=a, end=a) for a in [0x6f15d360, *RETURNS_ACC, *FINE_POINTS]]
     m.ctl_flush_tb()
 
-    coarse_cases, fine_cases, edit_cases = [], [], []
+    coarse_cases, fine_cases, edit_cases, engine_cases = [], [], [], []
     control_equal = 0
     for (self_key, target_key), (occ_name, occ), order in itertools.product(roles, occupancies.items(), link_orders):
         fixture = dict(present='ABC', link_order=order, occupancy=occ)
@@ -356,6 +357,8 @@ def main():
         assert (c['fine_result'], c['fine'], c['counters'], c['fine_index']) == (result, route, after, read(path + 0x74)[0]), 'fine control'
         control_equal += 1
         assert grids['after'] == grids['before']
+        engine_cases.append(dict(self=self_key, target=target_key, occupancy=occ_name, link_order=order,
+            fine_cells=grids, fine_counters=states, coarse_cells={s['at']: s['classes'] for s in snaps}))
         order_seen = [p['at'] for p in points]
         fine_cases.append(dict(
             self=self_key, target=target_key, occupancy=occ_name, link_order=order, result=result,
@@ -461,6 +464,9 @@ def main():
                    edit_payload_sha256=hashlib.sha256(edit_blob.encode()).hexdigest(),
                    premature_target_restorations=sum(bool(c['target_cells_restored_before_target_rebuild']) for c in coarse_cases),
                    edit_published=sum(bool(c['published_by_request']) for c in edit_cases))
+    if args.engine_fixture:
+        args.engine_fixture.write_text(json.dumps(dict(binary_sha256=SHA, cases=engine_cases),
+            sort_keys=True, separators=(',', ':'))+'\n')
     args.report.write_text(json.dumps(summary, indent=1) + '\n')
     print(json.dumps(summary, indent=1))
 

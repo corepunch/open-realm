@@ -28,6 +28,18 @@ class ExclusionEvidenceTests(unittest.TestCase):
         source=(ROOT/'games/warcraft-3/game/tests/retail_coarse_scopes.h').read_text().split('={',1)[1]
         self.assertEqual([int(v) for v in re.findall(r'\b\d+\b',source)],expected)
 
+    def test_complete_engine_stages_reproduce_native_header_and_frozen_differences(self):
+        spec=importlib.util.spec_from_file_location('export_exclusions',ROOT/'tools/ghidra/research/export_exclusion_stages.py')
+        exporter=importlib.util.module_from_spec(spec);spec.loader.exec_module(exporter)
+        raw=gzip.decompress((MODULE.FIXTURES/'retail-exclusion-stages-1.27.json.gz').read_bytes())
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),'3dd2f2d63bc77280d6c79bed0d2ce842a28ca3904ffd22eb98df0bd2aa4d75d6')
+        stages=json.loads(raw)
+        frozen=json.loads((MODULE.FIXTURES/'research/MAP-04.1-expected.json').read_text())
+        self.assertEqual(exporter.header(stages,frozen),
+            (ROOT/'games/warcraft-3/game/tests/retail_exclusion_stages.h').read_text())
+        stages['cases'][0]['fine_cells']['after_self_inc'][0][0]^=1
+        with self.assertRaises(ValueError):exporter.header(stages,frozen)
+
     def test_frozen_payloads_and_all_retained_inputs_are_unchanged(self):
         for name,digest in MODULE.FROZEN.items():
             self.assertEqual(hashlib.sha256((MODULE.FIXTURES/'research'/name).read_bytes()).hexdigest(),digest)

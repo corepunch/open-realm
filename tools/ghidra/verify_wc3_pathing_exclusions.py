@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Reproduce MAP-04 request scopes and recheck their complete retail captures.
 
-The engine regression covers published dynamic rectangles, including category
-zero flight. The larger retained oracle also covers static hierarchy objects;
-its reproduction does not certify their integration into the game adapter.
+Engine regressions consume all45 original counter/window and hierarchy stages,
+including aliases, null roles and already-held exclusions. Public scope lifetime
+and command composition are separate from the supplied spatial oracle inputs.
 """
 import argparse
 import gzip
@@ -45,13 +45,29 @@ def verify(binary):
         if hashlib.sha256((FIXTURES/'research'/name).read_bytes()).hexdigest()!=digest:
             raise ValueError('frozen payload differs: '+name)
     if hashlib.sha256(binary.read_bytes()).hexdigest()!=SHA:raise ValueError('retail binary differs')
+    mapping=(HERE/'MapPathfinding.java').read_text()
+    readback=json.loads((FIXTURES/'retail-exclusion-scope-ghidra-1.27.json').read_text())
+    if readback['unsaved_changes'] or len(readback['functions'])!=3:
+        raise ValueError('incomplete saved Ghidra evidence')
+    for row in readback['functions']:
+        if row['comment'] not in mapping:
+            raise ValueError('saved Ghidra note missing from mapper: '+row['address'])
     with tempfile.TemporaryDirectory() as directory:
         root=Path(directory);bundle=restore_inputs(root)
         oracle=root/'oracle.json'
+        stages=root/'engine-stages.json'
         run(HERE/'research/verify_map04_1_nested_exclusions.py','--binary',binary,'--report',oracle,
             '--reference',FIXTURES/'research/MAP-04.1-expected.json',
-            '--edit-reference',FIXTURES/'research/MAP-04.2-expected-oracle.json')
+            '--edit-reference',FIXTURES/'research/MAP-04.2-expected-oracle.json','--engine-fixture',stages)
         result=json.loads(oracle.read_text())
+        if stages.read_bytes()!=gzip.decompress((FIXTURES/'retail-exclusion-stages-1.27.json.gz').read_bytes()):
+            raise ValueError('complete native stage export differs')
+        header=root/'retail_exclusion_stages.h'
+        run(HERE/'research/export_exclusion_stages.py','--stages',stages,
+            '--frozen',FIXTURES/'research/MAP-04.1-expected.json','--header',header)
+        if header.read_bytes()!=(HERE.parents[1]/'games/warcraft-3/game/tests/retail_exclusion_stages.h').read_bytes():
+            raise ValueError('engine stage fixtures differ')
+        result['engine_stage_cases']=len(json.loads(stages.read_text())['cases'])
         # Decode every scope again. Comparing the complete fresh report also
         # checks instruction/function coverage, resolved calls and unwind maps.
         static=root/'fresh-static.json'

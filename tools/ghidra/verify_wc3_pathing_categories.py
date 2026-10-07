@@ -66,7 +66,7 @@ def run(script, *arguments):
 
 def cell_library(root, optimization):
     output = root / ('cell-' + optimization + '.so')
-    subprocess.run(['cc', '-' + optimization, '-shared', '-fPIC',
+    subprocess.run(['cc', '-' + optimization, '-I', str(HERE.parents[1]), '-shared', '-fPIC',
                     str(HERE / 'wc3_cell_query_probe.c'), '-o', str(output)], check=True)
     library = ctypes.CDLL(str(output))
     word = ctypes.c_uint32
@@ -134,7 +134,7 @@ def verify_region_producers(frozen, root):
     fingerprints = []
     for optimization in ('O0', 'O2'):
         output = root / ('regions-' + optimization + '.so')
-        subprocess.run(['cc', '-' + optimization, '-shared', '-fPIC',
+        subprocess.run(['cc', '-' + optimization, '-I', str(HERE.parents[1]), '-shared', '-fPIC',
                         str(HERE / 'wc3_region_query_probe.c'), '-o', str(output)], check=True)
         library = ctypes.CDLL(str(output))
         pointer = ctypes.c_void_p

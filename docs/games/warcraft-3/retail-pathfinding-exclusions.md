@@ -3,8 +3,9 @@
 Payoff130 integrates the first production correction from the
 [MAP-04.1](retail-pathfinding-handoffs/MAP-04.1/HANDOFF.md) and
 [MAP-04.2](retail-pathfinding-handoffs/MAP-04.2/HANDOFF.md) research handoffs.
-Both TODOs remain open: static-region hierarchy participation and the remaining
-reentrant recovery/group owners still need engine integration.
+Payoff146 below closes MAP-04.1 with the complete supplied spatial matrix.
+MAP-04.2 retains the remaining exit/recovery integration; group owners keep
+their separate existing scope.
 
 ## Contract and engine change
 
@@ -72,8 +73,9 @@ The large original oracle includes hierarchy-participating region objects and
 pre-existing exclusion counters. Reproducing those cases does **not** establish
 their integration into the current engine adapter. Similarly, fresh static
 inventory retains unresolved virtual calls in recovery and portal scopes.
-Those limitations keep MAP-04.1/02 open; this change closes no TODO by narrowing
-its acceptance criteria.
+Those limitations kept MAP-04.1/02 open at Payoff130. The supplied hierarchy
+and outer-counter matrix is integrated at Payoff146 below; recovery callers
+remain a separate requirement.
 
 ## Verification commands
 
@@ -103,3 +105,66 @@ scheduler. No production scheduler policy was changed to accommodate the test.
 See also the [engine integration ledger](retail-pathfinding-engine.md),
 [search contracts](retail-pathfinding-search.md) and
 [remaining research queue](retail-pathfinding-todo.md).
+
+## Complete fine and coarse scope matrix (Payoff146)
+
+`166e90` captures pooled self and target identities, increments both occupancy
+words, builds the route, then decrements target and self. Both operations run
+when the pointers alias. The engine previously overlaid a low flag in its
+per-cell adapter: it could hide ordinary records but represented neither the
+counter transition nor hierarchy-participating self/target records. Queries
+with a null self additionally discarded all ordinary target/bystander occupancy.
+
+The fine builder now holds the actual record counters across its synchronous
+search. The per-cell adapter consumes them without adding another exclusion.
+Records are address-stable pool allocations; metadata/link growth does not
+invalidate the captured pointers. Restoration runs before every post-search
+return. There are no gameplay callbacks in the closed search graph; allocation
+failure terminates rather than exposing a half-restored scope. No edict layout
+or save format changes: these counters are temporary derived search state.
+Other endpoint/segment scopes retain their existing query policy and remain
+separately covered by the broader lifecycle tasks.
+
+The original oracle now optionally exports complete fine windows rather than
+only differences. Its existing45-request and18-edit frozen payloads are
+unchanged. The compressed full-stage export has uncompressed SHA256
+`3dd2f2d63bc77280d6c79bed0d2ce842a28ca3904ffd22eb98df0bd2aa4d75d6`.
+The exporter copies original values into `retail_exclusion_stages.h` and checks
+every fine difference against the older frozen report; it does not calculate
+expected occupancy policy.
+
+Two production-entry regressions run all45 combinations: five self/target
+roles, three counter regimes and three raw cell encounter orders. Fine checks
+compare all324 cells and three counter words at six boundaries, then every
+route word and the obstruction-dependent initial index. Coarse checks compare
+all1360 classification bytes at five boundaries across all four lanes, unchanged
+counters and every resulting coarse point. Fine fails2,511 assertions before
+the fix; coarse already passes and receives the broader regression coverage.
+The complete original scope oracle, retained Frida captures/controls and
+instruction-level exit inventory also reconstruct unchanged.
+
+These fixtures deliberately supply the original asymmetric rectangles,
+category06 and held outer counters. They establish request-scope behavior,
+not additional public widget-construction reachability. The earlier actual
+public flight/pending-terrain regressions remain in the suite. This closes
+MAP-04.1's overlapping exclusion matrix; MAP-04.2's wider recovery/exit work
+remains open. Saved Ghidra readback covers166e90,1489a0 and166c30 with no unsaved
+changes and matching `MapPathfinding.java` notes.
+
+Logs and failing-first builds: `/GitHub/wc3-analysis/runtime/payoff146/`.
+Full-repository validation follows the authorized twelve-commit cadence;
+this is implementation commit11 after the Payoff135 checkpoint.
+
+Focused validation passes **1,576 test executions /24,174,590 assertions**:
+all25 pathfinding and193 save tests in debug/release Classic/TFT, both complete
+351-test release movement suites, and debug public target-reinsertion checks.
+Production/test builds emit no compiler warnings. Forty-seven distinct Python
+checks pass; the corpus inventory count is corrected from132 to134, and both
+region/cell probe builds receive the repository include root required by their
+shared vector header. The failed checks are retained in the logs.
+
+The exact staged corpus validates369 entries and642 pins; its fresh strict
+`oracle-exclusions` run passes. No new live game run was needed: original code
+was re-executed and the complete existing Frida captures/control markers were
+revalidated. Ghidra readback is retained separately from the Payoff130 snapshot
+in `retail-exclusion-scope-ghidra-1.27.json`.

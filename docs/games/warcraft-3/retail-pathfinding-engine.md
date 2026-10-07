@@ -11254,3 +11254,19 @@ and test builds are warning-free. The new `oracle-support` corpus entry passes,
 and the exact staged inventory verifies369 entries/638 pins. Full repository
 validation remains on the agreed approximately12-implementation-commit cadence;
 this is the tenth implementation chunk since the Payoff135 checkpoint.
+
+## Fine exclusions retain captured record counters
+
+Payoff146 closes MAP-04.1. The fine request now increments its captured self and
+target record counters separately and restores target before self. An alias is
+incremented twice; an outer counter remains held. This replaces a query-local
+boolean that failed to represent nesting and did not suppress hierarchy
+participants. A null self also no longer disables target and bystander queries.
+
+All45 supplied original spatial scenarios match six complete counter/fine-window
+boundaries, five full hierarchy snapshots and final fine/coarse route words.
+The new fine regression fails2,511 assertions before the change. Actual public
+rectangle/pending-edit coverage remains Payoff130; these asymmetric rectangles,
+category06 and outer counters are explicitly original oracle inputs, not a new
+claim about public construction producers. MAP-04.2 still owns exit/recovery
+composition. See [scope evidence](retail-pathfinding-exclusions.md#complete-fine-and-coarse-scope-matrix-payoff146).

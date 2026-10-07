@@ -36019,6 +36019,9 @@
         },
         "combined_sha256": {
           "equal": "94e1fd49e08eb9249d3ccc8f50ea57bd844d2f6fc0aa4c56c63f9f9c16fa3c18"
+        },
+        "engine_stage_cases": {
+          "equal": 45
         }
       },
       "evidence": [
@@ -36026,9 +36029,9 @@
         "O",
         "L"
       ],
-      "scope": "Unchanged complete MAP04 original scope/edit payloads, fresh12-site instruction inventory and all three successful raw retail scope captures; first failed observer is explicitly rejected. Engine coverage currently published dynamic rectangles and coarse restoration/denial exits.",
+      "scope": "Unchanged complete MAP04 scope/edit payloads, fresh12-site instruction inventory, all retained Frida scope captures and complete45-case native stage/header reconstruction. Separate engine regressions cover fine counters/windows/routes and every coarse hierarchy stage.",
       "exclusions": [
-        "The larger static-region/counter oracle is reproduced but its full owner behavior is not yet integrated into the game adapter.",
+        "Asymmetric rectangles, category06 and outer counters are supplied original oracle inputs; additional public construction producers are not certified by this fixture.",
         "Stop recovery and portal inventory retains unresolved virtual calls; no new live reentrancy proof.",
         "Live overlap reference uses a different heavier observer, not an observer-free marker file."
       ]
@@ -37380,7 +37383,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "41f0306a5da004fb99103a434ea4f67c9783826b402567b635e8a4cb58321fc2"
+      "sha256": "4f2c09ddadd8a367c0df3b4092a26a2f330886d708cdde0c28f10829de9feebd"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38312,7 +38315,7 @@
     },
     {
       "path": "tests/test_wc3_pathing_exclusions.py",
-      "sha256": "cb918cebcafe821a5c1820cd3ed195350768d3870604d30b94ef75925a108ad0"
+      "sha256": "f42bd2eb285b91871addbba6c7ee0d5ab5d8ea623d72e5289e3cf56663698168"
     },
     {
       "path": "tools/frida/research/map04_2_make_map.py",
@@ -38360,7 +38363,7 @@
     },
     {
       "path": "tools/ghidra/research/verify_map04_1_nested_exclusions.py",
-      "sha256": "75160050b8714270f1df08df742b97a3056cda07c85f5e021a97f34a3d69eefc"
+      "sha256": "d2eae96961acd3ab31d25d729ff3a493ba374d02dfc54bbcc303b246b7d8a0c0"
     },
     {
       "path": "tools/ghidra/research/verify_map04_2_scope_exits.py",
@@ -38368,7 +38371,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_exclusions.py",
-      "sha256": "e966969fb8e82ee023fc53f0c7cc5634c48a6a2f559733ac0e751a510d1adcfd"
+      "sha256": "446c0bace224cd7ddb99f2ee5428cee1b8257a8f58bd63ea4aa4fa2227006fa9"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_profile.h",
@@ -38520,7 +38523,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_categories.py",
-      "sha256": "d7a2a039d94a5753a684d78e5aa28b422d3b9015eb5e5f6153135c56149030af"
+      "sha256": "23f5e00739b78875ea625abc5717791c22bc7a0cc2c673e80943a4f77b70d89a"
     },
     {
       "path": "tests/test_wc3_pathing_categories.py",
@@ -38668,7 +38671,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "55cd4b00475bb845329808384531dc25b43159c60ef8393d7c986a29d8a1b85c"
+      "sha256": "c4188e3fb9214e1b2f78a36b4a27d16ae289d4db23f136e47ef378e639774e2e"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38732,7 +38735,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "d0084ad0a17d42ad8b824765494e5efef57a75649e4672eaa81a05e73d2ad0e8"
+      "sha256": "1daf1bf6a0d501b8af4842a02f5099be581167b75d187403212992c6b6ce0c05"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -39037,6 +39040,22 @@
     {
       "path": "tools/frida/research/map022_make_maps.py",
       "sha256": "4090f3b9d02832279076a19668b111d94516b44e403d0d4c8343b1a2c9428d59"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_exclusion_stages.h",
+      "sha256": "a7bf0d7410e56b5b02c59c5d8d16f9f885af9b3560dc1adc9d35928c2bbbe9c8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-exclusion-stages-1.27.json.gz",
+      "sha256": "bf77c0ce696b88cc14d70b9281293eb1ed4be0574c29b4b16cfe9e8fae82ae35"
+    },
+    {
+      "path": "tools/ghidra/research/export_exclusion_stages.py",
+      "sha256": "aa26026ebe11907dbfff6d77ffa68a92384a797b3cc003799558f055a7019b1a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-exclusion-scope-ghidra-1.27.json",
+      "sha256": "593183daa77ce0a8939523249d64d408be485ad7e5b9d2a6bd85238889471f19"
     }
   ]
 }
