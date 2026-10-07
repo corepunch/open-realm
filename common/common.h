@@ -342,6 +342,10 @@ float CL_GameLerpDegrees(float a, float b, float fraction);
 cstring_t CL_GameOrderQueueReleaseCommand(void);
 bool CL_GameBuildCursorBlocked(vec3_t const *origin);
 void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags);
+bool CL_GameBuildPathingBlocked(vec2_t const *point,
+                                uint8_t pathing,
+                                uint8_t prevented,
+                                uint8_t required);
 typedef struct {
     uint32_t anchor;
     uint32_t const *visible;

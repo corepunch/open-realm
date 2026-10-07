@@ -28,6 +28,10 @@ float CL_GameLerpDegrees(float a, float b, float fraction) { return a + (b - a) 
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return NULL; }
 bool CL_GameBuildCursorBlocked(vec3_t const *origin) { (void)origin; return false; }
 void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags) { (void)point; (void)flags; }
+bool CL_GameBuildPathingBlocked(vec2_t const *point, uint8_t pathing, uint8_t prevented, uint8_t required) {
+    (void)point;
+    return (pathing & prevented) != 0 || (pathing & required) != required;
+}
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;

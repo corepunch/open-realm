@@ -247,6 +247,33 @@ void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags) {
     else *flags &= ~WC3_PATH_BLIGHTED;
 }
 
+/* The cursor renderer asks the active game to interpret its authored placement
+ * predicates. Keep Warcraft-specific amphibious and shallow-water rules out of
+ * the universal client. */
+bool CL_GameBuildPathingBlocked(vec2_t const *point, uint8_t pathing, uint8_t prevented, uint8_t required) {
+    uint8_t const unamph = 0x80;
+    uint8_t const naga_shallow = 0x01;
+    uint8_t const unbuildable = 0x08;
+    uint8_t simple = prevented & (uint8_t)~(unamph | naga_shallow);
+    bool shallow_water = false;
+
+    if ((prevented & naga_shallow) && (pathing & unbuildable) && point &&
+        !(pathing & (CM_PATHING_UNSWIMMABLE | CM_PATHING_UNFLYABLE))) {
+        shallow_water = CM_GetWaterHeightAtPoint(point->x, point->y) >
+                        CM_GetHeightAtPoint(point->x, point->y);
+    }
+    if (shallow_water) simple &= (uint8_t)~unbuildable;
+    if ((pathing & simple) != 0) return true;
+    if ((prevented & unamph) && (pathing & CM_PATHING_UNWALKABLE) &&
+        (pathing & CM_PATHING_UNSWIMMABLE)) return true;
+
+    simple = required & (uint8_t)~unamph;
+    if ((pathing & simple) != simple) return true;
+    if ((required & unamph) &&
+        !((pathing & CM_PATHING_UNWALKABLE) && (pathing & CM_PATHING_UNSWIMMABLE))) return true;
+    return false;
+}
+
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     uint32_t count = 0;
     uint32_t class_id;
