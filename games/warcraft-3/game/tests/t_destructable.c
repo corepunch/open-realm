@@ -10,6 +10,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "retail_widget_overlap.h"
+#include "retail_bridge_terrain.h"
 #include "../../common/wc3_pathing_regions.h"
 
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
@@ -28,6 +29,7 @@ bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 unsigned G_TestStaticPathMask(unsigned x, unsigned y);
+unsigned G_TestMoveTerrainByte(unsigned x,unsigned y);
 int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y);
 
 TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
@@ -656,7 +658,68 @@ TEST(wc3_destructable, authored_overlapping_creations_snap_pose_and_rotation) {
     G_SetSLKRows("DestructableData",saved); free_slk_rows(rows);
 }
 
-TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
+/* MAP-02.2: deck support and terrain admission are independent. A bridge
+ * adds region identities; it never edits the fine cell's authored top byte. */
+TEST(wc3_destructable, bridge_keeps_all_authored_terrain_lanes) {
+    static DestructableData_t const data={.walkable=true};
+    struct {uint16_t width,height; color32_t map[64];} texture={.width=8,.height=8};
+    uint8_t cells[64*64],masks[]={2,4,0x40,0x80};
+    vec2_t point={1024,1024}; float fine[]={32,32};
+    reset_entities();setup_test_world();
+    FOR_LOOP(y,8)FOR_LOOP(x,8)
+        texture.map[y*8+x]=(color32_t){.b=(y==0||y==7)?255:0,.a=255};
+    edict_t *bridge=make_test_destructable(10,point.x,point.y);
+    bridge->data.DestructableData=&data;
+    bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t *)&texture;
+    G_RegisterGroundSurface(bridge);
+    FOR_LOOP(byte,256) {
+        memset(cells,byte,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        CM_SetupTestPathmap(64,64,cells);CM_BakeStaticObstacles();
+        T_EQ(G_TestStaticPathMask(32,32),byte);
+        FOR_LOOP(lane,4) {
+            movePathQuery_t query={.geometry={&point,&point,0,masks[lane]}};
+            T_EQ(G_UnitMovePathFinePointIsPathable(&query,fine),!(byte&masks[lane]));
+            /* Ground hierarchy reads06, including the flight restriction. */
+            T_EQ(G_TestMovePathClass(masks[lane],0,16,16),!!(byte&(lane?masks[lane]:6)));
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_destructable, file_backed_bridge_terrain_stays_independent_through_save_and_death) {
+    static DestructableData_t const data={.walkable=true};
+    struct {uint16_t width,height; color32_t map[32*18];} texture={.width=32,.height=18};
+    uint8_t cells[64*64];
+    cstring_t file="/tmp/wc3-bridge-terrain-authority.bin";
+    FOR_LOOP(y,18)FOR_LOOP(x,32)
+        texture.map[y*32+x]=(color32_t){.b=(y<2||y>=16)?255:0,.a=255};
+    FOR_LOOP(k,3) {
+        reset_entities();setup_test_world();
+        unsigned at=0;
+        FOR_LOOP(i,retail_bridge_terrain_cases[k][1]) {
+            uint16_t const *run=retail_bridge_terrain_runs[retail_bridge_terrain_cases[k][0]+i];
+            memset(cells+at,run[1],run[0]);at+=run[0];
+        }
+        T_EQ(at,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *bridge=make_test_destructable(10,1024,640);
+        bridge->data.DestructableData=&data;
+        bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t *)&texture;
+        G_RegisterGroundSurface(bridge);CM_BakeStaticObstacles();
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+        unsigned number=bridge->s.number;
+        /* The game save contains terrain and sparse regions independently. */
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        bridge=g_edicts+number;
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+        G_KillDestructable(bridge,NULL);
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_destructable, alive_walkable_bridge_preserves_blocked_terrain_until_death) {
     static DestructableData_t const bridge_data = { .walkable = true };
     uint8_t cells[8 * 8] = { 0 };
     vec2_t center = { 4.0f, 4.0f };
@@ -682,8 +745,8 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
 
     CM_BakeStaticObstacles();
-    T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
-    T_ASSERT(M_MoveIsValid(unit, &center));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+    T_ASSERT(!M_MoveIsValid(unit, &center));
 
     G_KillDestructable(bridge, NULL);
     T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
@@ -713,7 +776,7 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
 
     CM_BakeStaticObstacles();
 
-    T_ASSERT(CM_PointIsPathableForRadius(&deck, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&deck, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&left_rail, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&left_outside, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&right_outside, 0.0f));
@@ -736,7 +799,7 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
         edict_t *bridge, *goal;
         uint32_t generation;
 
-        memset(cells, 2, sizeof(cells));
+        memset(cells, 0, sizeof(cells)); /* Authored WPM permits the crossing. */
         reset_entities();
         setup_test_world();
         setup_test_pathmap(64, 64, cells);
@@ -782,7 +845,6 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     edict_t *bridge;
 
     memset(cells, 0, sizeof(cells));
-    FOR_LOOP(y, 22) FOR_LOOP(x, 64) cells[x + (21 + y) * 64] = 2;
     reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
@@ -810,8 +872,6 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         pathTexTransform_t transform;
 
         memset(cells, 0, sizeof(cells));
-        if (vertical) FOR_LOOP(y, 32) FOR_LOOP(x, 64) cells[x + (y + 16) * 64] = 2;
-        else FOR_LOOP(y, 64) FOR_LOOP(x, 32) cells[x + 16 + y * 64] = 2;
         reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
         CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
         bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
@@ -829,7 +889,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         T_EQ(transform.height, vertical ? 32 : 22);
         T_ASSERT(CM_LineIsWalkableForRadius(&from, &to, 0.0f));
         G_KillDestructable(bridge, NULL);
-        T_ASSERT(!CM_LineIsWalkableForRadius(&from, &to, 0.0f));
+        T_ASSERT(CM_LineIsWalkableForRadius(&from, &to, 0.0f)); /* WPM unchanged after retirement. */
     }
 }
 

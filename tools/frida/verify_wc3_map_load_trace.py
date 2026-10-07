@@ -1,10 +1,88 @@
 #!/usr/bin/env python3
 """Authenticate complete WPM deserialization and initial path-map hierarchies."""
 import argparse
+import base64
 import hashlib
 import json
 import struct
 from pathlib import Path
+
+
+def verify_bridge_saved(payload):
+    rows=payload.get('rows',[])
+    if payload.get('unsaved') is not False or len(rows)!=1 or \
+            (rows[0].get('address'),rows[0].get('name'))!=('6f04c860','PathMaps_Load') or \
+            not all(s in rows[0].get('comment','') for s in
+                ('Payoff139/MAP-02.2','WPM alone','deck(32,20)=1b','no live bridge clears static walking')):
+        raise ValueError('bridge terrain annotation not saved or incomplete')
+    return len(rows)
+
+
+def verify_bridge_terrain(fixture, bundle):
+    """Verify WPM authority in four completed file loads plus a JASS control.
+
+    The captured support getters and crossing markers remain available, but
+    this check does not certify our support geometry or physical trajectories.
+    """
+    import re
+    names=('observe-authored-v4-1','observe-authored-v4-2',
+           'observe-blank-v4-1','observe-deckwalk-v5-1','control-authored-v4-1')
+    captures={}
+    public={}
+    for name in names:
+        for suffix in ('.jsonl','-preload.txt'):
+            filename=name+suffix
+            raw=base64.b64decode(bundle['files'][filename],validate=True)
+            if hashlib.sha256(raw).hexdigest()!=bundle['sha256'][filename]:
+                raise ValueError('bridge capture hash differs: '+filename)
+            if suffix=='.jsonl':
+                captures[name]=[json.loads(s) for s in raw.decode().splitlines()]
+                if name!='control-authored-v4-1' and \
+                        hashlib.sha256(raw).hexdigest()!=fixture['captures'][filename]:
+                    raise ValueError('bridge frozen capture differs')
+            else:
+                public[name]=re.findall(r'call Preload\( "(MAP022 [^"\r\n]*)" \)',raw.decode())
+        rows=captures[name]
+        metadata=[r for r in rows if r.get('event')=='metadata']
+        end=[r for r in rows if r.get('event')=='trace-end']
+        preload=[r for r in rows if r.get('event')=='preload-file']
+        if len(metadata)!=1 or metadata[0].get('sha256')!=fixture['binary_sha256'] or \
+                any(r.get('event') in ('error','trace-failed') for r in rows) or \
+                len(preload)!=1 or \
+                not preload[0].get('complete') or preload[0].get('markers')!=193 or \
+                len(public[name])!=193 or 'label=complete' not in public[name][-1]:
+            raise ValueError('bridge observer/control incomplete')
+        if metadata[0]['mode']!=('control' if name.startswith('control') else 'observe'):
+            raise ValueError('bridge observer/control mode differs')
+        if name.startswith('observe'):
+            if len(end)!=1 or not end[0].get('installed'):
+                raise ValueError('bridge observer incomplete')
+            if [r['value'] for r in rows if r.get('event')=='marker']!=public[name]:
+                raise ValueError('bridge observed public markers differ')
+        elif end:
+            raise ValueError('bridge control unexpectedly installed observer')
+        if preload[0]['sha256']!=bundle['sha256'][name+'-preload.txt']:
+            raise ValueError('bridge preload provenance differs')
+    if public[names[0]]!=public[names[1]] or public[names[0]]!=public[names[4]]:
+        raise ValueError('bridge repeat/control differs')
+    cells=0
+    for name,variant in zip(names[:4],('authored','authored','blank','deckwalk'),strict=True):
+        rows=captures[name]
+        loads=[r for r in rows if r.get('event')=='map-load-complete']
+        start=[r for r in rows if r.get('event')=='cell-snapshot' and 'label=start ' in r['marker']]
+        if len(loads)!=1 or len(start)!=1 or loads[0]['filename']!='war3map.wpm':
+            raise ValueError('bridge load/publication snapshot incomplete')
+        before,after=loads[0]['snapshot'],start[0]['snapshot']
+        if (before['width'],before['height'],after['width'],after['height'])!=(64,64,64,64) or \
+                len(before['words'])!=4096 or len(after['words'])!=4096 or before['linked']:
+            raise ValueError('bridge map dimensions or initial memberships differ')
+        top=bytes(w>>24 for w in before['words'])
+        if top!=bytes(w>>24 for w in after['words']) or (variant in fixture['loader'] and
+                hashlib.sha256(top).hexdigest()!=fixture['loader'][variant]['after_load']['top_byte_sha256']):
+            raise ValueError('bridge changes authored terrain')
+        if variant=='blank' and any(top):raise ValueError('blank WPM derives terrain restrictions')
+        cells+=len(top)
+    return dict(bridge_file_loads=4,bridge_terrain_cells=cells,bridge_control_markers=193)
 
 
 def expand(runs, size):

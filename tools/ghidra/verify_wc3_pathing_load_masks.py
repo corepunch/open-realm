@@ -9,7 +9,9 @@ import ctypes
 import hashlib
 import itertools
 import json
+import gzip
 import struct
+import sys
 from pathlib import Path
 
 
@@ -24,6 +26,7 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--engine-library', type=Path, help='compare production movement bits for all256 WPM bytes')
     parser.add_argument('--write-fixture', type=Path, help='freeze the actual original single-byte WPM outputs')
+    parser.add_argument('--bridge-fixture',type=Path,help='authenticate file-backed bridge terrain authority and observer control')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -191,6 +194,15 @@ def main():
         args.write_fixture.write_text(json.dumps(dict(version=1, binary_sha256=digest,
             source_loop=['6f04caba', '6f04cb4f'], wpm_masks=wpm_words), indent=2) + '\n')
     args.report.parent.mkdir(parents=True, exist_ok=True)
+    if args.bridge_fixture:
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'frida'))
+        from verify_wc3_map_load_trace import verify_bridge_terrain,verify_bridge_saved
+        fixture=json.loads(args.bridge_fixture.read_text())
+        bundle=json.loads(gzip.decompress((Path(__file__).parent/'fixtures/retail-bridge-terrain-inputs-1.27.json.gz').read_bytes()))
+        report.update(verify_bridge_terrain(fixture,bundle))
+        saved=json.loads((Path(__file__).parent/'fixtures/retail-bridge-terrain-ghidra-1.27.json').read_text())
+        if saved['binary_sha256']!=digest:raise ValueError('bridge saved evidence binary differs')
+        report['bridge_saved_functions']=verify_bridge_saved(saved)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

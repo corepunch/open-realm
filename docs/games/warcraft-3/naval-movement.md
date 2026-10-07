@@ -28,9 +28,12 @@ semantics, fine/adaptive searches and saved routing state remain unchanged.
 
 Original widget blue coverage publishes category `0xc2`, blocking walking,
 floating and amphibious queries. In the decoded `color32_t` representation this
-coverage is `COLOR32.b`; green-source coverage retains the flight lane. A live
-walkable bridge may clear walking on its authored deck while retaining underlying
-floating pathing. Its blocked pixels retain the three ground occupancy lanes.
+coverage is `COLOR32.b`; green-source coverage retains the flight lane. A
+walkable bridge preserves the authored terrain lanes. Four completed MAP-02.2
+file loads retain every top byte after bridge creation: deep-water WPM `0a`
+still blocks walking below the deck, while `00`/`08` allows a crossing. Widget
+regions add restrictions independently. Payoff139 removes the engine's inferred
+deck override; see [evidence and remaining support gaps](retail-pathfinding-engine.md#bridges-preserve-authored-terrain-payoff139).
 
 The encountered unit's query mask is separate from its occupancy category.
 Captured Footman, horse, hover, float and amphibious units publish category

@@ -1,0 +1,12 @@
+{
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f04c860",
+      "name": "PathMaps_Load",
+      "comment": "Complete loader plus25 no-file compositions. Payoff73 observes two real filename=war3map.wpm calls through actual Storm279 file load,24-byte CDataStore wrapping and ReadU32/ReadBytes deserialization, pixel mask loop, Storm280/403 retirement and04e0b0 full hierarchy before return. Header MP3W/version0/dims384x256 and98304 native cell flags equal actual archive payload; all145848 traversal classifications repeat. Bounds copied to game6c..78; input read only. Engine full MPQ reader/direct map adapter match terrain and all hierarchy cells; generic malformed-file/image/reload domains remain existing BASE/MAP tasks.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff139/MAP-02.2: four completed file-backed LT06 map loads plus observer-free control establish that WPM alone supplies fine-cell top bytes. Authored dry40->41, shallow08->09, deep0a->1b, cliffca->db; blank WPM stays zero despite W3E water/cliffs. Creating bridge regions leaves all4096 top bytes unchanged, including deck(32,20)=1b. Authored-water Footman detours (maximum Y displacement688); saved deckwalk WPM08 and blank00 cross. Deck support782a80 is independent; no live bridge clears static walking. Engine now reads authoritative terrain directly and publishes widget restrictions separately. Air-field/deck-geometry and complete physical parity remain MAP-02.2/E2E."
+    }
+  ],
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "scope": "Payoff139 terrain authority; MAP-02.2 support geometry remains open"
+}

@@ -10826,3 +10826,55 @@ objects and all raw-cell consumers. Collection retirement emits no inverse
 links; inverse rasterization dirties cells and preserves distinct reference
 counts. Save122 retains sparse membership and cached raster inputs in owner save
 order. See [widget region evidence](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).
+
+
+## Bridges preserve authored terrain (Payoff139)
+
+MAP-02.2's completed LT06 handoff exposes a wrong engine dependency: bridge
+support was allowed to erase walking restrictions from the terrain. Four
+completed retail file loads (authored, repeat, blank, deckwalk) retain identical
+fine-cell top bytes before and after widget creation. The authored deck cell
+(32,20) remains `1b`; blank WPM remains zero despite water and cliffs in W3E.
+The repeated observed run and the observer-free JASS control have the same
+193 public markers. Original crossing witnesses detour with authored deep-water
+WPM and cross when the saved WPM permits walking. These are retained retail
+observations, not a new capture or an engine trajectory-parity claim.
+
+`move_terrain_word` now reads `pathmap.terrain` directly. Move's pooled widget
+regions remain a separate input to fine and adaptive consumers. The legacy
+baked field still ORs authored widget restrictions into the terrain baseline;
+bridge pixels cannot clear it. The inferred deck algorithm and the second
+terrain allocation/copy are removed. Static stamping uses one entity pass,
+with constant work per texture pixel rather than scans along both texture axes.
+The remaining baked-field baseline copy and hierarchy work still cost real CPU;
+this change does not establish the 4096-unit frame-budget target.
+
+The test-first 256-byte engine regression fails320 assertions before the fix,
+then passes2304. It checks the legacy point field, actual fine admission and all
+four adaptive lanes at a deck cell. A second regression replays every terrain
+byte from three unchanged retail file-load snapshots in the game-owned map,
+then checks creation, Save122/load and death:36873 assertions. Its widget texture
+is synthetic, and its inputs are decoded captured bytes; it does not pretend to
+exercise MPQ loading or validate bridge-resource decoding. Existing crossing and
+rotation tests now supply passable WPM explicitly rather than relying on the
+removed bridge override.
+
+The unchanged capture archive is
+`tools/ghidra/fixtures/retail-bridge-terrain-inputs-1.27.json.gz` (four observed
+JSONL/preload pairs and one control pair, all original file hashes retained).
+`retail_bridge_terrain.h` is tied to those load snapshots by a Python regression.
+The fresh `oracle-load-movement-masks-engine` check still executes original WPM
+and image consumer loops and compares all256 production WPM outputs. It also
+requires all16384 captured terrain cells,193 control markers and the saved
+`PathMaps_Load` Ghidra annotation; damaged captures, missing observer completion
+and a bridge-erased terrain bit are rejected.
+
+Focused debug Classic/TFT checks pass370 tests /2532987 assertions per variant,
+covering destructables, raw fine spatial queries, WC3 pathfinding, the shared
+routing suite and save/load. Production release builds successfully; focused
+release Classic/TFT checks pass347 tests /428881 assertions per variant. All37
+Python map-load/corpus checks pass, and the fresh original/C oracle reports6144
+WPM consumer cases and256 exact engine byte comparisons. No full-suite checkpoint is claimed
+for this chunk. MAP-02.2 stays **open**: deck ray geometry, air-height production,
+the amphibious refresh history and the complete supported-lane support fixtures
+must reach the engine before closure. No additional TODO is introduced.

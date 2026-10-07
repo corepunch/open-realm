@@ -56,6 +56,8 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **235 done / 336 tasks; 101 remaining.**
+Payoff139 ports MAP-02.2's terrain/bridge independence and removes inferred-deck scans plus a duplicate terrain buffer. All256 byte lanes and three captured map grids survive creation/save/death. Numerical support geometry remains open; see [bridge terrain authority](retail-pathfinding-engine.md#bridges-preserve-authored-terrain-payoff139).
+
 Payoff138 closes FOOT-03.2: actual widget footprints now publish separate pooled
 C2/10/08/04 region identities alongside ordinary movers. Retirement and inverse
 rasterization retain different link/refcount histories. All16 mixed scenarios

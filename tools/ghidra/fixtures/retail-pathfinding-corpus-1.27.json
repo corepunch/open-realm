@@ -9139,7 +9139,9 @@
         "--report",
         "{report}",
         "--engine-library",
-        "{engine}"
+        "{engine}",
+        "--bridge-fixture",
+        "tools/ghidra/fixtures/research/MAP-02.2-expected.json"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -9153,12 +9155,26 @@
         },
         "engine_queries": {
           "equal": 256
+        },
+        "bridge_file_loads": {
+          "equal": 4
+        },
+        "bridge_terrain_cells": {
+          "equal": 16384
+        },
+        "bridge_control_markers": {
+          "equal": 193
+        },
+        "bridge_saved_functions": {
+          "equal": 1
         }
       },
       "evidence": [
-        "O"
+        "S",
+        "O",
+        "L"
       ],
-      "scope": "Original decoded WPM loops plus production C movement-bit comparison for every byte; preserve authored walk/fly/float bits and derived amphibious blockage.",
+      "scope": "Original decoded WPM loops plus production C movement-bit comparison for every byte; preserve authored walk/fly/float bits and derived amphibious blockage. Payoff139 authenticates four completed LT06 file-backed captures and193 observer-free control markers; terrain top bytes survive bridge creation unchanged. Engine regressions cover all256 byte lanes and the three captured map grids across save/death. Support geometry and full movement parity remain open.",
       "exclusions": []
     },
     {
@@ -37129,7 +37145,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "11092d330b33cb58103e4a4226c7cfa65c5eb0fb2d51763ac693b371a25b220c"
+      "sha256": "8e972d551a3b322d4fea2ae08524f5d1e65c97846f63242c00eec182d0949e3c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38417,7 +38433,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "fa6cca84ec595347f59a7e41e6488c44215b32186c610cecf2930dd794a7fb53"
+      "sha256": "c281f82737be1ce5f5ce89a1c8fcf950f78cd8bd082898b8653195e6337c2751"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38437,7 +38453,7 @@
     },
     {
       "path": "server/sv_routing.c",
-      "sha256": "ab7cbff08995612583eb6ffd5e0348bb224333df3fab155e16303adf90a7a5ea"
+      "sha256": "09b414058c7d327fdcfa5ec371ae56a8b148a56567cca3bd99cda4a1c9abde88"
     },
     {
       "path": "tools/ghidra/wc3_region_query_probe.c",
@@ -38449,7 +38465,31 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_destructable.c",
-      "sha256": "ad126acbf679bb98c95a011ce32831d3f18f7ac96ff7a94b2e50f5a2ef04493e"
+      "sha256": "e685b478a6c0ac5aa0db0559f3a1cfa1ed42ccde6ba048ba8db9135e05483de6"
+    },
+    {
+      "path": "tools/frida/verify_wc3_map_load_trace.py",
+      "sha256": "a2d6af9f2b6d9af1dd25f7d0df4e0d6975293e7c3b6e0a9c163483013ae6e9d7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/MAP-02.2-expected.json",
+      "sha256": "41b43cecd57808968f2193cddb43c16f4713141745a92c167799918bd856b854"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-bridge-terrain-inputs-1.27.json.gz",
+      "sha256": "74122a58d97aa1ce3424151b474cc43b0bbd5f1d6cd2cecdfc683dff29d40660"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-bridge-terrain-ghidra-1.27.json",
+      "sha256": "52a127040274fcafdc7872e9a68ecc7fda5b3a9ea915bb9778b6d4f8fe63a597"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_bridge_terrain.h",
+      "sha256": "ffd646c7bf0844803217c1f6cff0fbc7a54e43de38fd8949c4f7f60190ff2c54"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_load_masks.py",
+      "sha256": "c12460fae165da8329c85fb3c979cfb72b35a7d4cf28241ba35c8a08d7ad5bd6"
     }
   ]
 }

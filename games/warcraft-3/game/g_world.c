@@ -38,7 +38,6 @@ static uint32_t move_spatial_width,move_spatial_height;
 static uint64_t *move_static_edges[4];
 static uint32_t move_edge_epoch=1,move_cell_epoch;
 static uint64_t *move_cell_lookup;
-static uint8_t *move_surface_terrain;
 
 static void move_invalidate_edges(void);
 typedef struct {
@@ -216,9 +215,7 @@ static void move_cell_world_dimensions(float *, float *);
 #define PATH_JOB_RUN G_RunPathJob
 #define PATH_JOB_WAIT G_WaitPathJob
 #define CM_BakeStaticObstacles move_bake_static_masks
-#define PATH_SURFACE_CELL(index) (move_surface_terrain[index]&=~2u)
 #include "server/sv_routing.c"
-#undef PATH_SURFACE_CELL
 #undef CM_BakeStaticObstacles
 #undef PATHMAP_SETUP_COMPLETE
 #undef PATH_JOB_RUN
@@ -236,8 +233,6 @@ static void move_invalidate_edges(void) {
  * delayed adaptive hierarchy. A terrain edit must invalidate fine admission. */
 static void CM_BakeStaticMasks(void) {
     if(!pathmap.terrain || !pathmap.original)return;
-    move_surface_terrain=wc3_records_memory(move_surface_terrain,(size_t)pathmap.width*pathmap.height);
-    memcpy(move_surface_terrain,pathmap.terrain,(size_t)pathmap.width*pathmap.height);
     move_bake_static_masks();
     move_invalidate_edges();
 }
@@ -245,11 +240,10 @@ static void CM_BakeStaticMasks(void) {
 static uint32_t move_terrain_word(wc3FinePoint_t pos) {
     if(!is_valid_point(pos.x,pos.y))return UINT32_MAX;
     uint32_t cell=(uint32_t)pos.y*pathmap.width+pos.x;
-    return (uint32_t)(move_surface_terrain ? move_surface_terrain[cell] : ((uint8_t const *)pathmap.terrain)[cell])<<24;
+    return (uint32_t)((uint8_t const *)pathmap.terrain)[cell]<<24;
 }
 
-/* Use the bake's predicate for lifecycle invalidation, including dead rubble
- * and live bridge decks that replace terrain rather than adding a blocker. */
+/* Footprint publication is independent of the authored terrain lanes. */
 bool G_EntityHasStaticPathing(edict_t const *ent) {
     return entity_blocks_static_pathing(ent);
 }
@@ -356,7 +350,6 @@ void G_FreeMovePathCache(void) {
     FOR_LOOP(lane,4){free(move_static_edges[lane]);move_static_edges[lane]=NULL;}
     move_edge_epoch=1;
     free(move_cell_lookup);move_cell_lookup=NULL;move_cell_epoch=0;
-    free(move_surface_terrain);move_surface_terrain=NULL;
     move_spatial_width=move_spatial_height=0;
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
 }
@@ -599,6 +592,9 @@ unsigned G_TestStaticPathMask(unsigned x, unsigned y) {
     unsigned result=0;
     FOR_LOOP(bit,8) if(!is_pathable_node_original_flags(x,y,1u<<bit)) result|=1u<<bit;
     return result;
+}
+unsigned G_TestMoveTerrainByte(unsigned x,unsigned y) {
+    return move_terrain_word((wc3FinePoint_t){x,y})>>24;
 }
 /* Compare the production cached hierarchy directly with frozen retail cells. */
 int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y) {

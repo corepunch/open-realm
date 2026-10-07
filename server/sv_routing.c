@@ -552,49 +552,12 @@ static uint32_t collision_radius_cells(float collision) {
 }
 
 
-static bool pathtex_pixel_blocks_walk(pathTex_t const *pt, int x, int y) {
-    if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)
-        return false;
-    return pt->map[x + y * pt->width].b != 0;
-}
-
 static bool pathtex_pixel_blocks_fly(pathTex_t const *pt, int x, int y) {
     if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)
         return false;
     /* LoadTGA preserves file BGRA byte order in COLOR32, so Warcraft's green
      * pathing channel is COLOR32.g (Warsmash: green > 127 => UNFLYABLE). */
     return pt->map[x + y * pt->width].g > 127;
-}
-
-/* A live bridge path texture contains clear pixels both on the authored deck
- * and in padding outside its blocked rails.  Only clear pixels enclosed by
- * blocked pathing across either texture axis are bridge support cells that may
- * replace terrain no-walk; exterior clear padding must leave terrain intact.
- * This derives the deck from the authored pathing shape rather than model
- * bounds, collision radius, alpha, or a bridge-specific hard-coded width. */
-static bool pathtex_clear_pixel_is_bridge_deck(pathTex_t const *pt, int x, int y) {
-    bool low = false, high = false;
-
-    if (!pt || pathtex_pixel_blocks_walk(pt, x, y))
-        return false;
-
-    for (int i = x - 1; i >= 0; --i) {
-        if (pathtex_pixel_blocks_walk(pt, i, y)) { low = true; break; }
-    }
-    for (int i = x + 1; i < (int)pt->width; ++i) {
-        if (pathtex_pixel_blocks_walk(pt, i, y)) { high = true; break; }
-    }
-    if (low && high)
-        return true;
-
-    low = high = false;
-    for (int i = y - 1; i >= 0; --i) {
-        if (pathtex_pixel_blocks_walk(pt, x, i)) { low = true; break; }
-    }
-    for (int i = y + 1; i < (int)pt->height; ++i) {
-        if (pathtex_pixel_blocks_walk(pt, x, i)) { high = true; break; }
-    }
-    return low && high;
 }
 
 static pathTexTransform_t pathtex_identity_transform(pathTex_t const *pt) {
@@ -628,7 +591,6 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     if (ent->pathtex) {
         pathTex_t *pt = ent->pathtex;
         pathTexTransform_t const transform = CM_GetPathTexTransform(ent);
-        bool const walkable_surface = entity_is_live_walkable_surface(ent);
         FOR_LOOP(x, pt->width) {
             FOR_LOOP(y, pt->height) {
                 point2_t const rp = pathtex_transformed_point(&MAKE(pathTexPointParams_t,
@@ -639,20 +601,9 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                     pathMapCell_t *cell = &target[px + py * pathmap.width];
                     uint8_t const blocked = pt->map[x + y * pt->width].b;
                     bool const blocks_fly = pathtex_pixel_blocks_fly(pt, (int)x, (int)y);
-                    /* A live bridge may replace terrain no-walk only on the
-                     * authored deck. Clear pixels outside the blocked rails are
-                     * texture padding and must preserve the underlying river. */
-                    if (walkable_surface) {
-                        if (blocked) path_cell_add_flags(cell, ground_flags);
-                        else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y)) {
-                            cell->nowalk = 0;
-#ifdef PATH_SURFACE_CELL
-                            PATH_SURFACE_CELL(px + py * pathmap.width);
-#endif
-                        }
-                    } else {
-                        if (blocked) path_cell_add_flags(cell, ground_flags);
-                    }
+                    /* MAP-02.2: support surfaces never clear authored WPM.
+                     * Widget pixels contribute restrictions independently. */
+                    if (blocked) path_cell_add_flags(cell, ground_flags);
                     cell->nofly |= blocks_fly;
                 }
             }
@@ -691,18 +642,17 @@ static bool entity_blocks_static_pathing(edict_t const *ent) {
 
 #ifdef WC3_DEBUG_ROUTING
 static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransform_t const *transform) {
-    uint32_t blocked = 0, deck = 0;
+    uint32_t blocked = 0;
     pathTex_t const *pt;
 
     if (!ent || !(pt = ent->pathtex)) return;
     FOR_LOOP(y, pt->height) FOR_LOOP(x, pt->width) {
         if (pt->map[x + y * pt->width].b) blocked++;
-        else if (pathtex_clear_pixel_is_bridge_deck(pt, x, y)) deck++;
     }
     fprintf(stderr, "WC3_DEBUG_ROUTING pathtex ent=%d pos=%.1f,%.1f angle=%.3f cell=%d,%d "
-        "authored=%ux%u stamped=%dx%d turn=%d blocked=%u deck=%u surface=%d\n", ent->s.number,
+        "authored=%ux%u stamped=%dx%d turn=%d blocked=%u surface=%d\n", ent->s.number,
         ent->s.origin2.x, ent->s.origin2.y, ent->s.angle, p.x, p.y, pt->width, pt->height,
-        transform->width, transform->height, transform->turn, blocked, deck, entity_is_live_walkable_surface(ent));
+        transform->width, transform->height, transform->turn, blocked, entity_is_live_walkable_surface(ent));
 }
 #endif
 
@@ -716,23 +666,11 @@ void CM_BakeStaticObstacles(void) {
     if (!pathmap.terrain || !pathmap.original)
         return;
     memcpy(pathmap.original, pathmap.terrain, cells);
-    /* Lay walkable surfaces over terrain first. Ordinary blockers are stamped
-     * afterwards so a bridge can open water without erasing an overlapping
-     * building or destructable footprint due to edict iteration order. */
+    /* OR-only publication is order independent. Bridges and other widgets
+     * share one pass; no inferred deck overwrites the terrain baseline. */
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
-        if (entity_blocks_static_pathing(ent) && entity_is_live_walkable_surface(ent)) {
-            stamp_entity_obstacle(ent, pathmap.original);
-#ifdef WC3_DEBUG_ROUTING
-            pathTexTransform_t const transform = CM_GetPathTexTransform(ent);
-            routing_debug_pathtex(ent, LocationToPathMap(&ent->s.origin2), &transform);
-#endif
-        }
-    }
-    FOR_LOOP(i, ge->num_edicts) {
-        edict_t *ent = EDICT_NUM(i);
-        if (!entity_blocks_static_pathing(ent) || entity_is_live_walkable_surface(ent))
-            continue;
+        if (!entity_blocks_static_pathing(ent)) continue;
         stamp_entity_obstacle(ent, pathmap.original);
     }
     if (pathmap.data) {
