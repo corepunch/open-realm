@@ -9088,6 +9088,158 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     T_EQ(fast->movement.group_speed,0); T_EQ(slow->movement.group_speed,0);
 }
 
+/* GROUP-03.2 lane D: being hit releases the entire physical group's cap,
+ * even while its members keep their explicit Move instead of retaliating. */
+TEST(wc3_movement, group_move_attack_notification_releases_shared_cap) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0);
+    clent->client=game.clients; clent->client->menu.order_queued=false;
+    edict_t *fast=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *slow=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,0);
+    edict_t *attacker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,0);
+    G_SetUnitPlayer(attacker,1);
+    fast->unitinfo.MoveSpeed=350; slow->unitinfo.MoveSpeed=150;
+    edict_t *units[]={fast,slow};
+    FOR_LOOP(i,2) {
+        units[i]->collision=16; units[i]->stand=unit_stand;
+        G_SetEntitySelectionMask(units[i],1<<clent->client->ps.number);
+        unit_stand(units[i]);
+    }
+    T_ASSERT(move_selectlocation(clent,&(vec2_t){800,0}));
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),150,.001f);
+    T_Damage(fast,attacker,1);
+    T_ASSERT(fast->attack_speed_cap.active);
+    T_EQ(fast->current_order_id,G_OrderId("move"));
+    vec2_t old[2]={fast->movement.velocity,slow->movement.velocity};
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=move_find_group(fast->movement.group_id);T_NOT_NULL(group);
+    T_EQ(group->cooldown,65); /* Exemption denies classification and seeds66. */
+    FOR_LOOP(i,2) {
+        moveGroupMember_t const *member=group->members+i;
+        wc3Velocity_t expected={.vel={old[i].x,old[i].y},.speed=i ? 150 : 350,
+            .heading=member->heading,.limit=i ? 150 : 350};
+        wc3_velocity_update_world(&expected);
+        T_EQ(wc3_float_bits(units[i]->movement.velocity.x),wc3_float_bits(expected.vel[0]));
+        T_EQ(wc3_float_bits(units[i]->movement.velocity.y),wc3_float_bits(expected.vel[1]));
+    }
+    reset_entities(); setup_test_world();
+}
+
+#include "retail_attack_exemption.h"
+TEST(wc3_movement, attack_speed_cap_rearm_matches_original_remaining_query) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    FOR_LOOP(i,sizeof(retail_attack_exemption)/sizeof(*retail_attack_exemption)) {
+        typeof(*retail_attack_exemption) const *row=retail_attack_exemption+i;
+        S_ResetAbilityTimers();level.timer_clock_valid=false;
+        level.pathing_clock=(wc3Clock_t){wc3_float(row->now),0,300};
+        unit->attack_speed_cap.active=row->active;
+        unit->attack_speed_cap.deadline=(wc3Clock_t){wc3_float(row->deadline),0,300};
+        unit->attack_speed_cap.sequence=17;level.timer_sequence=17;
+        S_RebuildAbilityTimers();
+        S_UnitCombatAlert(unit,source,0);
+        T_EQ(unit->attack_speed_cap.sequence,row->armed ? 18 : 17);
+        T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),row->armed ?
+            wc3_float_bits(wc3_add(wc3_float(row->now),3)) : row->deadline);
+        T_EQ(unit->attack_speed_cap.active,row->active || row->armed);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_guard_expiry_save_and_reuse) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    S_AttackProfileWrite(unit,0)->type=ATK_NORMAL;
+    S_UnitCombatAlert(unit,NULL,0);T_ASSERT(!unit->attack_speed_cap.active);
+    S_UnitCombatAlert(unit,source,2);T_ASSERT(!unit->attack_speed_cap.active);
+    unit->paused=true;S_UnitCombatAlert(unit,source,0);T_ASSERT(!unit->attack_speed_cap.active);unit->paused=false;
+    /* Zero amount still delivers the pre-transform notification; it does not
+     * publish positive damage or force a retaliation. */
+    T_Damage(unit,source,0);T_ASSERT(unit->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(3));
+    uint32_t sequence=unit->attack_speed_cap.sequence;
+    cstring_t file="/tmp/wc3-attack-speed-cap151.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
+    abilityTimerRequest_t request;T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_EQ(request.sequence,sequence);T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(3));
+    level.scheduled_frame=true;level.pathing_clock.time=2.995f;
+    level.pathing_owner_sequence=sequence-1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
+    T_ASSERT(unit->attack_speed_cap.active); /* Later equal-deadline request. */
+    level.pathing_owner_sequence=sequence+1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
+    T_ASSERT(!unit->attack_speed_cap.active);T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
+    level.scheduled_frame=false;level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){299,0,300};S_UnitCombatAlert(unit,source,0);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(302));
+    S_RebaseAbilityPrimaryTimers(300);
+    T_EQ(unit->attack_speed_cap.deadline.epoch,1);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(2));
+    uint32_t number=unit->s.number;
+    G_FreeEdict(unit);T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
+    level.time+=1001;
+    edict_t *replacement=G_Spawn();T_EQ(replacement->s.number,number);
+    T_ASSERT(!replacement->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_regroup_matches_original_exemptions) {
+    FOR_LOOP(c,(sizeof(retail_attack_group_status)/sizeof(*retail_attack_group_status))) {
+        typeof(*retail_attack_group_status) const *row=retail_attack_group_status+c;
+        edict_t *a=make_moving_unit(0,0);
+        edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),8,0);
+        a->collision=b->collision=8;b->movetype=MOVETYPE_STEP;b->stand=unit_stand;
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        groupPointOrder_t order={.count=2,.units={{a,a->spawn_time},{b,b->spawn_time}},
+            .point=&(vec2_t){384,256},.order="move",.order_id=G_OrderId("move")};
+        T_ASSERT(G_IssueGroupPointOrder(&order));
+        moveGroup_t *group=move_find_group(a->movement.group_id);T_NOT_NULL(group);
+        if(!group)continue;
+        T_ASSERT(move_group_route(group));
+        free(group->route.group_points);group->route.group_points=malloc(3*sizeof(vec2_t));
+        group->route.group_points[0]=(vec2_t){12,8};group->route.group_points[1]=(vec2_t){10,8};
+        group->route.group_points[2]=(vec2_t){8,8};group->route.group_count=3;group->route.group_index=2;
+        group->flags=row->flags;group->age=22;group->completion_counter=0;group->cooldown=row->cooldown;
+        FOR_LOOP(i,2) {
+            group->members[i].destination=(vec2_t){row->near ? 0 : 100,0};
+            group->members[i].flags=i==0 && row->arrived ? 0x10000 : 0;
+            group->members[i].unit->attack_speed_cap.active=row->exempt==i+1;
+        }
+        move_group_regroup(group);
+        T_EQ(group->route.group_index,row->status ? 2 : 0);
+        T_EQ(group->completion_counter,row->status && row->arrived ? 1 : 0);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_heap_orders_mass_arm_cancel_and_rebuild) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_sequence=UINT32_MAX-2047;
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    edict_t *units[4096];
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units))) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+        S_UnitCombatAlert(units[i],source,0);T_ASSERT(units[i]->attack_speed_cap.active);
+    }
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units)))if(!(i%3))S_UnitAbilityEvent(units[i],A_UNIT_REMOVING);
+    S_ResetAbilityTimers();S_RebuildAbilityTimers();
+    uint32_t previous=0,popped=0;abilityTimerRequest_t request;
+    while(S_NextAbilityPrimaryTimer(&request)) {
+        T_ASSERT(!popped || previous<request.sequence);previous=request.sequence;
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(3));
+        request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);popped++;
+    }
+    T_EQ(popped,4096-1366);
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units)))T_ASSERT(!units[i]->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
 /* A selection's cap follows its active members, not the speed captured at
  * submission. Retail PrepareMembers re-resolves ownership before each commit. */
 TEST(wc3_movement, group_move_refreshes_survivor_speed) {

@@ -4485,16 +4485,18 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
  * coarse point. Arrived members retain their zero velocity during this wait. */
 static void move_group_regroup(moveGroup_t *group) {
     uint32_t arrived=0,near=0;
+    bool exempt=false;
     float range=group->flags&0x100 ? 16 : 256;
     FOR_LOOP(i,group->count) {
         moveGroupMember_t const *member=group->members+i;
+        exempt|=member->unit->attack_speed_cap.active;
         if (member->flags&0x10000) { arrived++; continue; }
         wc3GridPose_t pose; unit_predicted_pose(member->unit,&pose);
         float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
         if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<range) near++;
     }
     uint32_t status=arrived ? group->count-arrived-near : group->count;
-    if (arrived && (group->cooldown || (group->flags&4))) status=0;
+    if (arrived && (group->cooldown || exempt || (group->flags&4))) status=0;
     uint32_t limit=group->flags&0x100 ? (group->flags&0x20000 ? 396 : 198) : 99;
     if (!status || group->completion_counter>limit) {
         if (G_AdvanceUnitMoveGroupDestination(&group->route)) {
@@ -4510,8 +4512,6 @@ static void move_group_regroup(moveGroup_t *group) {
             move_group_route(group); group->flags&=~0x20000u;
         }
     } else if (arrived) group->completion_counter++;
-    /* TODO GROUP-04.6: original cooldown68 and moverD8.01000000 producers are
-     * not yet retained; public ordinary groups exercise the default branch. */
 }
 
 static int move_compare_group_visits(void const *a, void const *b) {
@@ -4605,9 +4605,10 @@ static void move_run_group_updates(void) {
             if (!group->cooldown && !(group->flags&2)) {
                 /* Original169b00 denies projected classification for adjusted,
                  * forced or special members and partial member paths. The
-                 * denial owns a66-tick regroup cooldown. TODO GROUP-03.2:
-                 * mover01000000 and nonzero projected priority producers. */
+                 * denial owns a66-tick regroup cooldown. Attack owns the
+                 * independent mover01000000 exemption lifetime. */
                 FOR_LOOP(i,group->count) if ((group->members[i].flags&0xe0000) ||
+                    group->members[i].unit->attack_speed_cap.active ||
                     group->members[i].unit->movement.fine_route.partial) {group->cooldown=66;break;}
                 if (!group->cooldown) move_group_classify(group);
             }
@@ -4624,7 +4625,7 @@ static void move_run_group_updates(void) {
         float cap=FLT_MAX; bool share=!(group->flags&8);
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i;
-            if (member->flags&0x210000) share=false;
+            if ((member->flags&0x210000) || member->unit->attack_speed_cap.active) share=false;
             float speed=unit_effective_speed(member->unit);
             if (!(member->flags&0x200000) && speed<cap) cap=speed;
         }

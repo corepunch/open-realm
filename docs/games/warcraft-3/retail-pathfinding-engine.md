@@ -11365,3 +11365,26 @@ Payoff150 implements the original target-speed commit policy and retains hidden
 target sampling across save/load. See [group speed and visibility](retail-pathfinding-group-speed.md)
 for exact guards, failing-first regressions, native oracle and reused Frida evidence.
 Attack-owned shared-cap exemptions and broader target-loss policies remain open.
+
+
+## Attack cap exemption and exact primary requests (Payoff151)
+
+Attack owns its three-second exemption, pre-transform damage notification
+(including zero damage), automatic acquisition and indexed deadline heap. Move
+consumes it for shared cap, classification cooldown and regroup advancement.
+The original remaining virtual18 corrects the rearm interpretation: at least
+half a second elapsed. Save127 retains the deadline and serial; exact primary
+request merging preserves owner ordering and fire-before-rebase. An actual
+Move-cohort hit regression failed before implementation, then passes with
+exact native velocity words and retained public Move. Original84 timer states,
+72 notification-prefix states and1296 consumer calls are frozen;72 regroup
+cases run through engine advancement. Fresh read-only retail repeats and an
+observer-free control agree on89 markers and8 zero-damage notifications.
+See [the implementation and limits](retail-pathfinding-group-speed.md#attack-owned-cap-exemption-payoff151).
+GROUP-03.2 stays open for remaining producers/guards/public domains; no new
+child TODOs. Full-suite cadence remains the Payoff147 checkpoint.
+
+Focused Classic/TFT validation passes1,498 test executions/10,489,856 assertions
+across movement, combat, save, timer callbacks and Chaos lifecycle. Seven new
+Python evidence regressions and22 corpus checks pass. The staged inventory has
+374 entries/689 pins; four freshly executed original/live contracts pass.

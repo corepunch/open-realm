@@ -952,3 +952,7 @@ void pathing_adaptive_gate_threshold(uint32_t const *q,uint32_t const *words,uin
     }
     out[1]=route.index;out[4]=probe.calls;out[5]=probe.point[0];out[6]=probe.point[1];
 }
+
+uint32_t pathing_attack_exemption_rearm(uint32_t active,uint32_t deadline,uint32_t now) {
+    return wc3_attack_speed_cap_rearm(active,wc3_sub(wc3_float(deadline),wc3_float(now)));
+}

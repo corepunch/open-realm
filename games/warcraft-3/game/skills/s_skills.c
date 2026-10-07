@@ -26,7 +26,7 @@ static cstring_t const entangle_orders[] = {
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
-    { STR_CmdAttack, CAbilityAttack, AB_COMMAND },  // Attack — engine command
+    { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy
@@ -849,6 +849,28 @@ void S_RunAbilityTimers(void) {
     FOR_LOOP(i, num_timer_updates) timer_updates[i](NULL, A_PRIMARY_TIMER, NULL);
 }
 
+/* Timer owners retain their own queues. The clock merges their earliest
+ * request with script timers and the path owner by deadline, then serial. */
+bool S_NextAbilityPrimaryTimer(abilityTimerRequest_t *next) {
+    bool found=false;
+    FOR_LOOP(i,num_timer_updates) {
+        abilityTimerRequest_t candidate={0};
+        abilityCall_t call={.primary_timer=&candidate};
+        if(!timer_updates[i](NULL,A_PRIMARY_TIMER_NEXT,&call))continue;
+        candidate.proc=timer_updates[i];
+        if(!found || candidate.deadline.time<next->deadline.time ||
+            (candidate.deadline.time==next->deadline.time && candidate.sequence<next->sequence)) {
+            *next=candidate;found=true;
+        }
+    }
+    return found;
+}
+
+void S_RebaseAbilityPrimaryTimers(float span) {
+    abilityCall_t call={.clock_span=span};
+    FOR_LOOP(i,num_timer_updates)timer_updates[i](NULL,A_PRIMARY_TIMER_REBASE,&call);
+}
+
 void S_ResetAbilityTimers(void) {
     FOR_LOOP(i, num_timer_updates) timer_updates[i](NULL, A_TIMERS_RESET, NULL);
 }
@@ -1430,7 +1452,8 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     if (!ent) return false;
     if (msg == A_UNIT_TYPE_CHANGING || msg == A_UNIT_TYPE_CHANGED)
         return unit_dispatch_engine_event_abilities(ent, msg, NULL);
-    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH)
+    if (msg == A_AUTO_COMBAT_START || msg == A_AUTO_COMBAT_END || msg == A_UNIT_STAND || msg == A_DEATH ||
+        msg == A_UNIT_REMOVING || msg == A_UNIT_REMOVE)
         handled |= unit_dispatch_engine_event_abilities(ent, msg, NULL);
     if (msg == A_REQUIREMENTS_CHANGED)
         return unit_dispatch_authored_abilities(ent, msg, NULL, false, false, false) != 0;
@@ -1449,6 +1472,13 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
     return handled;
+}
+
+void S_UnitCombatAlert(edict_t *unit,edict_t *source,uint32_t flags) {
+    if(!unit)return;
+    abilityCall_t call={.combat_alert={source,flags}};
+    unit_dispatch_engine_event_abilities(unit,A_COMBAT_ALERT,&call);
+    unit_dispatch_authored_abilities(unit,A_COMBAT_ALERT,&call,false,false,false);
 }
 
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */

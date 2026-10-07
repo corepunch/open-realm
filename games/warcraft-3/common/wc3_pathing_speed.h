@@ -57,4 +57,10 @@ static inline float wc3_group_commit_speed(wc3GroupSpeed_t const *s) {
     return speed;
 }
 
+/* Attack49bc40 queries remaining (virtual18), then subtracts it from3.
+ * Repeated notifications before half a second do not replace the request. */
+static inline bool wc3_attack_speed_cap_rearm(bool active, float remaining) {
+    return !active || wc3_sub(3,remaining)>=.5f;
+}
+
 #endif

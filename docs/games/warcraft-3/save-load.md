@@ -1373,3 +1373,10 @@ Format124 and earlier are rejected without migration. See
 Version126 retains physical groups' hidden-target visit counters alongside their
 refresh countdown and cached destination. Save125 and older layouts are rejected.
 See [group speed and visibility](retail-pathfinding-group-speed.md).
+
+Version127 saves Attack's speed-cap exemption active state, absolute primary
+deadline (time/epoch/span) and unsigned request serial. Heap membership and
+positions are derived and rebuilt after restoration. An active-save regression
+checks the restored earliest request, its ordering at the path owner's equal
+deadline, removal/reuse and clock rebasing. Version126 and earlier layouts are
+rejected without migration. See [Attack exemption](retail-pathfinding-group-speed.md#attack-owned-cap-exemption-payoff151).

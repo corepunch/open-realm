@@ -15,6 +15,8 @@
  * is killed.
  */
 #include "s_skills.h"
+#include "jass/jass.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 void attack_walk(edict_t *ent);
 void attack_melee(edict_t *ent);
@@ -34,6 +36,67 @@ static void attack_set_backswing_deadline(edict_t *ent);
 static float attack_backswing_remaining(edict_t const *ent);
 static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
+
+/* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
+ * deadline. These indexes are derived; only deadline/serial/active are saved. */
+static uint32_t attack_cap_heap[MAX_ENTITIES], attack_cap_positions[MAX_ENTITIES];
+static uint32_t attack_cap_count;
+
+static bool attack_cap_less(uint32_t a,uint32_t b) {
+    typeof(g_edicts->attack_speed_cap) const *left=&g_edicts[a].attack_speed_cap,*right=&g_edicts[b].attack_speed_cap;
+    return left->deadline.time==right->deadline.time ? left->sequence<right->sequence :
+        left->deadline.time<right->deadline.time;
+}
+static void attack_cap_put(uint32_t position,uint32_t unit) {
+    attack_cap_heap[position]=unit;attack_cap_positions[unit]=position+1;
+}
+static void attack_cap_remove(edict_t *unit) {
+    uint32_t slot=unit-g_edicts,position=attack_cap_positions[slot];
+    if(!position)return;
+    attack_cap_positions[slot]=0;position--;
+    uint32_t last=attack_cap_heap[--attack_cap_count];
+    if(position==attack_cap_count)return;
+    while(position && attack_cap_less(last,attack_cap_heap[(position-1)/2])) {
+        attack_cap_put(position,attack_cap_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<attack_cap_count) {
+        uint32_t child=position*2+1;
+        if(child+1<attack_cap_count && attack_cap_less(attack_cap_heap[child+1],attack_cap_heap[child]))child++;
+        if(!attack_cap_less(attack_cap_heap[child],last))break;
+        attack_cap_put(position,attack_cap_heap[child]);position=child;
+    }
+    attack_cap_put(position,last);
+}
+static void attack_cap_insert(edict_t *unit) {
+    uint32_t slot=unit-g_edicts,position=attack_cap_count++;
+    while(position && attack_cap_less(slot,attack_cap_heap[(position-1)/2])) {
+        attack_cap_put(position,attack_cap_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    attack_cap_put(position,slot);
+}
+static bool attack_cap_present(edict_t const *unit) {
+    FOR_LOOP(i,ARRAY_COUNT(unit->abilities.removed))
+        if(unit->abilities.removed[i]==MAKEFOURCC('A','a','t','k'))return false;
+    float range;
+    return S_UnitAttackApproachRange(unit,&range);
+}
+static void attack_cap_begin(edict_t *unit) {
+    if(!unit || !unit->inuse || G_IsDeferredFree(unit) || !attack_cap_present(unit))return;
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    /* Queued deadlines are raw until the epoch drain; a new direct producer
+     * after that drain observes the already-rebased deadline. */
+    float remaining=wc3_sub(unit->attack_speed_cap.deadline.time,now.time);
+    if(!wc3_attack_speed_cap_rearm(unit->attack_speed_cap.active,remaining))return;
+    attack_cap_remove(unit);
+    unit->attack_speed_cap.active=true;
+    unit->attack_speed_cap.deadline=now;
+    unit->attack_speed_cap.deadline.time=wc3_add(now.time,3);
+    unit->attack_speed_cap.sequence=++level.timer_sequence;
+    attack_cap_insert(unit);
+}
+static void attack_cap_cancel(edict_t *unit) {
+    attack_cap_remove(unit);unit->attack_speed_cap.active=false;
+}
 
 typedef struct {
     edict_t *target;
@@ -356,6 +419,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
                    ((target->svflags & SVF_MONSTER) ||
                     (G_IsDestructable(target) && G_DestructableCanBeAttackedBy(attacker, target))) &&
                    G_PlayerInstantKill(attacker->s.player);
+    if (!G_IsDestructable(target)) S_UnitCombatAlert(target,attacker,0);
     damage = S_ManaShieldDamage(target, damage);
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
     if (damage <= 0) return;
@@ -1101,6 +1165,7 @@ static void ai_attackmove_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
         edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
+            S_UnitAbilityEvent(ent,A_AUTO_COMBAT_START);
             order_attack(ent, enemy);
             return;
         }
@@ -1168,6 +1233,50 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
 
 BZ_ABILITY_PROC(CAbilityAttack) {
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING);
+    case A_TIMERS_RESET:
+        attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));return true;
+    case A_TIMERS_REBUILD:
+        attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].attack_speed_cap.active)
+            attack_cap_insert(g_edicts+i);
+        return true;
+    case A_PRIMARY_TIMER_NEXT:
+        if(!attack_cap_count || !call || !call->primary_timer)return false;
+        *call->primary_timer=(abilityTimerRequest_t){g_edicts[attack_cap_heap[0]].attack_speed_cap.deadline,
+            g_edicts[attack_cap_heap[0]].attack_speed_cap.sequence,CAbilityAttack};return true;
+    case A_PRIMARY_TIMER_FIRE:
+        if(attack_cap_count)attack_cap_cancel(g_edicts+attack_cap_heap[0]);
+        return true;
+    case A_PRIMARY_TIMER_REBASE:
+        FOR_LOOP(i,attack_cap_count) {
+            typeof(ent->attack_speed_cap) *timer=&g_edicts[attack_cap_heap[i]].attack_speed_cap;
+            timer->deadline.time=wc3_sub(timer->deadline.time,call->clock_span);timer->deadline.epoch++;
+        }
+        return true;
+    case A_PRIMARY_TIMER:
+        /* Real frames merge exact requests in TimerDrain. Direct owner tests
+         * retain the same expiration predicate without scanning all entities. */
+        if(!level.scheduled_frame)while(attack_cap_count) {
+            edict_t *unit=g_edicts+attack_cap_heap[0];wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(unit->attack_speed_cap.deadline.time>now.time)break;
+            attack_cap_cancel(unit);
+        }
+        return true;
+    case A_COMBAT_ALERT:
+        /* Native4935e0 rejects null sources, packet bit2 and suspension before
+         * setting the bit. Retaliation eligibility is a later decision. */
+        if(ent && call && call->combat_alert.source && !(call->combat_alert.flags&2) && !ent->paused)
+            attack_cap_begin(ent);
+        return false;
+    case A_AUTO_COMBAT_START:
+        attack_cap_begin(ent);return false;
+    case A_DISABLE:
+    case A_UNIT_REMOVING:
+    case A_UNIT_REMOVE:
+        if(ent)attack_cap_cancel(ent);
+        return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;
         bool handled = CAbilityMove(ent, msg, call) != 0;

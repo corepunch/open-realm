@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "135 executable original oracle contracts;372 total entries.",
+  "scope": "136 executable original oracle contracts;374 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -36824,6 +36824,200 @@
       "exclusions": [
         "Archived delivered captures, not new instrumentation. Observer lacks elapsed prediction inputs; no inferred distance-gate or complete engine trajectory claim. Exempt Follow and other lanes remain separate evidence."
       ]
+    },
+    {
+      "id": "oracle-attack-speed-cap-exemption",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack_exemption.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-exemption-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "attack-exemption-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "timer_cases": {
+          "equal": 84
+        },
+        "notification_cases": {
+          "equal": 72
+        },
+        "consumer_cases": {
+          "equal": 1296
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Original remaining-time control,84 rearm states and72 pre-retaliation guard prefixes;1296 complete group-consumer calls with original near-threshold initializers. Engine compares84 timer policies;72 original regroup rows also run through actual group advancement.",
+      "exclusions": [
+        "Constructed inputs are not public reachability. Read-only stops at arm entry and accepted notification prefix; no emulated native scheduler or response. Other consumer calls are frozen native evidence, not1296 C comparisons."
+      ]
+    },
+    {
+      "id": "live-attack-speed-cap-exemption",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_attack_cap_live.py",
+        "--first",
+        "{archive}/runtime/attack-exemption151/observe-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/attack-exemption151/observe-2.jsonl",
+        "--control",
+        "{archive}/runtime/attack-exemption151/control-1.jsonl",
+        "--preload",
+        "{archive}/runtime/attack-exemption151/control-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-exemption-live-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/attack-exemption151/observe-1.jsonl",
+        "sha256": "54decaa140f4b6ddc5806d4e303e9c9865851887a111d4a494819e75a49c01a3",
+        "bytes": 14648,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "attack_cap151_observer.js": "860c6ccfc4348373c12cada67d2dda4d55695e82765beddd0f33c8107d84b2a5",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "0f4197675a8fe3d818459dc50d7539c880c9181dff4dd2313e3a191d8e7ba906"
+          },
+          "map": "Maps\\RS-AttackCap151-v2.w3m",
+          "seconds": 150.0,
+          "continue_at": 8.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "AC151 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/attack-exemption151/observe-2.jsonl",
+            "sha256": "92371535e117d9024643e04f92ec6c94df7554d8796bcfe701752570e5a3453d",
+            "bytes": 14784,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_cap151_observer.js": "860c6ccfc4348373c12cada67d2dda4d55695e82765beddd0f33c8107d84b2a5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "0f4197675a8fe3d818459dc50d7539c880c9181dff4dd2313e3a191d8e7ba906"
+              },
+              "map": "Maps\\RS-AttackCap151-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AC151 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/attack-exemption151/control-1.jsonl",
+            "sha256": "72f3908414f69a698c3d4b08ee0fb45102582c30432e9c96622c6b87cf8df5b0",
+            "bytes": 1210,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_cap151_observer.js": "860c6ccfc4348373c12cada67d2dda4d55695e82765beddd0f33c8107d84b2a5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "0f4197675a8fe3d818459dc50d7539c880c9181dff4dd2313e3a191d8e7ba906"
+              },
+              "map": "Maps\\RS-AttackCap151-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AC151 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-attack-exemption.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "notifications": {
+          "equal": 8
+        },
+        "arms": {
+          "equal": 3
+        },
+        "held": {
+          "equal": 5
+        },
+        "expiries": {
+          "equal": 1
+        },
+        "markers": {
+          "equal": 89
+        },
+        "repeats": {
+          "equal": 2
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Fresh read-only public zero-damage notification/rearm/expiry witness, exact deadline words, complete semantic repeat and observer-free public sample control.",
+      "exclusions": [
+        "Not complete engine trajectory parity or unobserved guards/ally alerts. Public positions are3-decimal script samples. Expiry control already cleared; hook does not observe the popped deadline."
+      ]
     }
   ],
   "fixtures": [
@@ -37722,7 +37916,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8b28e4bbf5f8922eb0cbb724683c7f076c0e2b444d51f6e02fee0d761276122c"
+      "sha256": "8cc53ced43a2a77a1521aeaeb60358b2225e4bdd218d41391ee3277b8c7f2842"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38578,7 +38772,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "f1c404ba36cf3ef89069e37a4520a091921884f8983fcc617d91657242e12f8b"
+      "sha256": "b40d7114da49649683b86a4c2a302d3231a166f296840f966a1bcdc1f977f567"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -39014,7 +39208,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "614192c8d74845ce0204cb8c74de1b22c0a3c31787c8244a6fdff3a9f07f55e4"
+      "sha256": "e057c206a2976daa6e2eff6985dd4c1b3d5c38c39abd36f0a3acdd5e1b67b2cd"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -39022,7 +39216,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "2ebaf3a4c3508ec3c45698d28e6ddf39a8e8f2703fcae5b4eed5655b2fdacef7"
+      "sha256": "02193d494dda01452eb62f8d2262455a032e914d198ba4245e42e46003fcc74a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -39126,7 +39320,7 @@
     },
     {
       "path": "tools/ghidra/wc3_pathing_engine_probe.c",
-      "sha256": "88fb703dc4d6857b689fdbf56a58da5d818d97880c76f0ba93708a98b96d9061"
+      "sha256": "5d654dfdc50da702d219d1ee79232720cecd2be325366d2bb7cd4d54d0ce349a"
     },
     {
       "path": "tools/ghidra/research/verify_route01_2_buffers.py",
@@ -39270,7 +39464,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "c5dc3e3f515b86df0d0a3940005f916e40553bbb561301c9a1b5239224e3e6fd"
+      "sha256": "b65444093c72ae7622c47360ee312cc68ca10d02c9540df26bf4fdfb519561a8"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -39474,7 +39668,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_speed.h",
-      "sha256": "6eb0fda7a492537e66d1735f0c22820936de31d99c3ecf8d1026875bb8f9aead"
+      "sha256": "dab13195dcd6fa00c43585b95b5ffa46fffcff1e8edbb6a484a9d61be74a1227"
     },
     {
       "path": "games/warcraft-3/game/g_fow.c",
@@ -39514,23 +39708,75 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "c0c7ca284e97a94dddcc5a3bcffc979805c8fbd04c8e52ef0bcc91420ba715f1"
+      "sha256": "41a586b9dc0413fdb2c469ffff3e0d525d2d7afa3bdc1db6965c4624c12ace3c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
-      "sha256": "a295def7168fcc577646f51e1911cd377733bb739a512b7217afdfa9ab7dc18c"
+      "sha256": "c588b756e8d0a4923132e7f2a4260ab0988babad9315bc698bcaf80352b9b971"
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "5dba6a9252ac1d90c7f1f5959af3b1e9681f1f730d61128838746b20164f0c6f"
+      "sha256": "7e42e093a3fdcd61beb09b8606bbf5e78daea075153a68bd1e0c88a401380e16"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "5a23dcbc8fceb1b110f823874eb8083031cf8754ecc7a19d2cd7b7ab4ce0c858"
+      "sha256": "eec6f28048108edd8230c84b4199dabce7771363292ac3fd8c7485a48e5d305b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "49f91889edc8d082b1eca1af7655636c24d591fd23fca45f4cee3d77c316e5eb"
+      "sha256": "8071fc9094949df6ac6aa6adc6a096ef53e614b697ba744a26cdbb01b43eac50"
+    },
+    {
+      "path": "games/warcraft-3/game/g_timer.c",
+      "sha256": "67bf2db191a3ec463cd9794aa9cb083a289628b424ac427cb15bfaf1db0cbd98"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_attack.c",
+      "sha256": "32f6f5d2f4840a1c0c854d0bd01df820b2e9ee1a40958673b6c430526737cb71"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_skills.c",
+      "sha256": "49f984fc3c5b3edbc4a5c70f0c20432c32f1d637486bbf1951a955a386c19ea8"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
+      "sha256": "55ea59b876b0a359e412bb507419a16cfded0b56c17cf96ebb9435efc69d894d"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack_exemption.py",
+      "sha256": "bb1418899fa76bc796a3119b8a20b461f11ccb2d0d6d5e8dedbdb64068218f7f"
+    },
+    {
+      "path": "tools/ghidra/research/verify_attack_cap_live.py",
+      "sha256": "fd1cfa3f1e2e4d1e9ebe9a11daec0d821e79669829a5226394cc9391e30cf4e7"
+    },
+    {
+      "path": "tools/frida/research/attack_cap151_probe.j",
+      "sha256": "b9b02982ea2c6e20041740b62bffe06e5fb235690fdb8161937e0d17f7ff2829"
+    },
+    {
+      "path": "tools/frida/research/attack_cap151_observer.js",
+      "sha256": "860c6ccfc4348373c12cada67d2dda4d55695e82765beddd0f33c8107d84b2a5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-exemption-1.27.json.gz",
+      "sha256": "afe406ab8e7108918c5813eca738517d624e32ed7395cd19b2d723b834b8283d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-exemption-live-1.27.json.gz",
+      "sha256": "7fc6904856e94d7a13451bd093880698cf628f4814e91db89d5c633219ef4acc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-exemption-captures-1.27.json.gz",
+      "sha256": "cbe9db7ad9ef47ed7bd23f34104fb569bd2beff4ee7adf0af6578367e00b244a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-exemption-ghidra-1.27.json",
+      "sha256": "8acf4414602d40fc5fe5db472aa7e785fd41e1245cad595bb7b487cf2a034454"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack_exemption.py",
+      "sha256": "eacf9667a2a8ca914b95854afcf4892da75209ff36a53feafedc6d458c5e55e2"
     }
   ]
 }

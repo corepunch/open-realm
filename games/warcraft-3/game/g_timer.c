@@ -417,11 +417,21 @@ static void TimerDrain(float limit,bool before_owner) {
         bool spatial=S_NextMoveSpatialMaintenance(&maintenance,&sequence) &&
             (!timer || maintenance.time<timer->scalar_deadline.time ||
                 (maintenance.time==timer->scalar_deadline.time && sequence<timer->scalar_sequence));
-        if(!spatial && !timer)break;
-        float due=spatial ? maintenance.time : timer->scalar_deadline.time;
-        uint32_t serial=spatial ? sequence : timer->scalar_sequence;
+        abilityTimerRequest_t ability;
+        bool owned=S_NextAbilityPrimaryTimer(&ability);
+        if(!spatial && !timer && !owned)break;
+        float due=spatial ? maintenance.time : timer ? timer->scalar_deadline.time : FLT_MAX;
+        uint32_t serial=spatial ? sequence : timer ? timer->scalar_sequence : UINT32_MAX;
+        if(owned && ((!spatial && !timer) || ability.deadline.time<due ||
+            (ability.deadline.time==due && ability.sequence<serial))) {
+            due=ability.deadline.time;serial=ability.sequence;
+        } else owned=false;
         if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
-        if(spatial)S_RunMoveSpatialMaintenance();
+        if(owned) {
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=ability.deadline;
+            abilityCall_t call={.primary_timer=&ability};
+            ability.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);level.timer_clock=saved;
+        } else if(spatial)S_RunMoveSpatialMaintenance();
         else {TimerHeapRemove(timer);TimerFireScalar(timer);}
     }
 }
@@ -434,6 +444,7 @@ static void RunScalarTimers(wc3Clock_t const *before) {
     if(now.epoch!=target.epoch) {
         TimerDrain(now.span,false);
         S_RebaseMoveSpatialMaintenance(now.span);
+        S_RebaseAbilityPrimaryTimers(now.span);
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;

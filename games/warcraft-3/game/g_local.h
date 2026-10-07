@@ -901,6 +901,9 @@ typedef enum {
     A_TARGET_ORDER,     /* Target-owned interaction: handle call->target_order for an order aimed at this unit. */
     A_ORDER_ACCEPTED,   /* Accepted non-queued order that may not install a new move; call->order identifies it. */
     A_PRIMARY_TIMER,    /* After a due path owner, before public timer/event callbacks. */
+    A_PRIMARY_TIMER_NEXT, /* Query an owner's earliest exact primary request. */
+    A_PRIMARY_TIMER_FIRE, /* Deliver that request at its deadline/serial boundary. */
+    A_PRIMARY_TIMER_REBASE, /* Rebase queued raw deadlines after the span drain. */
     A_UPDATE,           /* Unit frame: update persistent behavior owned by this procedure. */
     A_UNIT_TYPE_CHANGING, /* Old type is still bound; behaviors retire physical movement state. */
     A_UNIT_TYPE_CHANGED, /* New type is bound; behaviors resume retained orders with the new profile. */
@@ -912,6 +915,7 @@ typedef enum {
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_COMBAT_ALERT,     /* Source notification before damage transformations or retaliation. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVING,    /* Semantic removal before deferred memory reclamation; owners release identities. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
@@ -993,6 +997,12 @@ typedef enum {
 
 typedef intptr_t (*abilityProc_t)(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call);
 
+typedef struct {
+    wc3Clock_t deadline;
+    uint32_t sequence;
+    abilityProc_t proc;
+} abilityTimerRequest_t;
+
 typedef enum {
     ABILITY_ORDER_UNHANDLED,
     ABILITY_ORDER_REJECTED,
@@ -1023,6 +1033,9 @@ struct ability_call_s {
             UnitData_t const *unit_data;
         };
         abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
+        abilityTimerRequest_t *primary_timer; /* Exact primary request query/delivery. */
+        float clock_span; /* A_PRIMARY_TIMER_REBASE. */
+        struct { edict_t *source; uint32_t flags; } combat_alert; /* A_COMBAT_ALERT; retail packet flags. */
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
@@ -2078,6 +2091,11 @@ struct edict_s {
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
+    struct {
+        wc3Clock_t deadline;
+        uint32_t sequence;
+        bool active; /* Attack-owned shared-cap exemption, independent of current order. */
+    } attack_speed_cap;
     unitInfo_t unitinfo;
     unitAttack_t const *attack_profiles[2];
     unitAttack_t *attack_overrides[2];
@@ -3277,10 +3295,13 @@ bool G_ActivateMovePathField(uint32_t generation, float radius, uint8_t flags);
 void S_RunAbilityUpdates(edict_t *);
 void S_RunAbilityOwnerUpdates(void);
 void S_RunAbilityTimers(void);
+bool S_NextAbilityPrimaryTimer(abilityTimerRequest_t *);
+void S_RebaseAbilityPrimaryTimers(float);
 void S_ResetAbilityTimers(void);
 void S_RebuildAbilityTimers(void);
 void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+void S_UnitCombatAlert(edict_t *, edict_t *, uint32_t);
 bool S_InitFreshUnitAbilities(edict_t *);
 bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
 bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);
