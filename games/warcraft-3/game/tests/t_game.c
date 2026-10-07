@@ -110,6 +110,9 @@ static cstring_t give_resources_cheat_cvar(cstring_t name, cstring_t fallback) {
 
 static uint32_t multiselect_capture_count;
 static uint16_t multiselect_capture_flags[MAX_SELECTED_ENTITIES];
+static uint32_t multiselect_capture_columns;
+static vec2_t multiselect_capture_offset;
+static float multiselect_capture_item_width, multiselect_capture_item_height;
 static uint32_t selection_sync_count;
 static uint32_t selection_sync_entities[MAX_SELECTED_ENTITIES];
 static uint32_t selection_sync_entity_index;
@@ -169,6 +172,10 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
             uiMultiselect_t const *multi = frame->buffer.data;
             uint32_t const available = (frame->buffer.size - sizeof(uiMultiselect_t)) / sizeof(uiMultiselectItem_t);
             multiselect_capture_count = MIN((uint32_t)multi->numitems, available);
+            multiselect_capture_columns = multi->numcolumns;
+            multiselect_capture_offset = multi->offset;
+            multiselect_capture_item_width = frame->size.width;
+            multiselect_capture_item_height = frame->size.height;
             FOR_LOOP(i, multiselect_capture_count)
                 multiselect_capture_flags[i] = multi->items[i].flags;
         }
@@ -1559,6 +1566,56 @@ TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
     T_ASSERT(!(multiselect_capture_flags[0] & UI_MULTISELECT_ITEM_FOCUSED));
     T_ASSERT(!(multiselect_capture_flags[1] & UI_MULTISELECT_ITEM_FOCUSED));
     T_ASSERT(multiselect_capture_flags[2] & UI_MULTISELECT_ITEM_FOCUSED);
+}
+
+TEST(wc3_game, multiselect_payload_switches_to_compact_grid_above_twelve_units) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *selected[WC3_SELECTION_MAX];
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    FOR_LOOP(i, WC3_SELECTION_MAX) {
+        selected[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)(i * 32), 0);
+        selected[i]->svflags |= SVF_MONSTER;
+        selected[i]->s.player = 0;
+        G_SelectEntity(client, selected[i]);
+    }
+
+    /* 24 units overflow the classic 6x2 grid, so the payload must carry the
+     * 8x3 compact layout with its tighter item size and spacing. */
+    multiselect_capture_count = 0;
+    gi.Write = selection_test_write;
+    gi.unicast = selection_test_unicast;
+    UI_SendInfoPanel(player, selected, WC3_SELECTION_MAX);
+    T_EQ(multiselect_capture_count, WC3_SELECTION_MAX);
+    T_EQ(multiselect_capture_columns, 8);
+    T_FEQ(multiselect_capture_offset.x, 0.022f, 0.0001f);
+    T_FEQ(multiselect_capture_offset.y, 0.038f, 0.0001f);
+    T_FEQ(multiselect_capture_item_width, 0.019f, 0.0001f);
+    T_FEQ(multiselect_capture_item_height, 0.019f, 0.0001f);
+
+    /* 13 units is the first count that needs the compact grid. */
+    multiselect_capture_count = 0;
+    UI_SendInfoPanel(player, selected, 13);
+    T_EQ(multiselect_capture_count, 13);
+    T_EQ(multiselect_capture_columns, 8);
+
+    /* Exactly 12 keeps the classic layout the original HUD was drawn for. */
+    multiselect_capture_count = 0;
+    UI_SendInfoPanel(player, selected, 12);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    T_EQ(multiselect_capture_count, 12);
+    T_EQ(multiselect_capture_columns, 6);
+    T_FEQ(multiselect_capture_offset.x, 0.031f, 0.0001f);
+    T_FEQ(multiselect_capture_offset.y, 0.050f, 0.0001f);
+    T_FEQ(multiselect_capture_item_width, 0.025f, 0.0001f);
+    T_FEQ(multiselect_capture_item_height, 0.025f, 0.0001f);
 }
 
 TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
