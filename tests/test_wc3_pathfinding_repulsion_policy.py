@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import unittest
+import importlib.util
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -49,7 +50,37 @@ class RepulsionPolicyTests(unittest.TestCase):
         self.assertFalse(fixture['unsaved_changes'])
         self.assertEqual(len(fixture['functions']), 13)
         for function in fixture['functions']:
-            self.assertEqual((function['name'],function['comment']), rows[function['address']])
+            name, comment = rows[function['address']]
+            self.assertEqual(function['name'], name)
+            self.assertTrue(comment.startswith(function['comment']))
+
+    def test_complete_original_eligibility_retains_signed_counters_and_boolean_return(self):
+        fixture = ROOT/'tools/ghidra/fixtures/retail-separation-eligibility-1.27.json'
+        self.assertEqual(hashlib.sha256(fixture.read_bytes()).hexdigest(),
+                         '6a05aeced48ca5b16df1e889216153e7d3bf3d30aae65ef3d2546c1ef85c4f7c')
+        cases = json.loads(fixture.read_text())['cases']
+        self.assertEqual(len(cases), 432)
+        self.assertEqual({row[-1] for row in cases}, {0, 1})
+        for authored in (1, 2, -1, -2147483648, 2147483647):
+            self.assertIn([authored, 0, 0, 0, 0, 0, 1], cases)
+            self.assertIn([authored, 0, -1, 0, -1, 0, 1], cases)
+
+    def test_new_eligibility_notes_are_saved_and_mapped(self):
+        fixture = json.loads((ROOT/'tools/ghidra/fixtures/retail-repulsion-eligibility-ghidra-1.27.json').read_text())
+        source = (ROOT/'tools/ghidra/MapPathfinding.java').read_text()
+        self.assertFalse(fixture['unsaved_changes'])
+        for row in fixture['functions']:
+            self.assertIn(row['address'], source)
+            self.assertIn(row['note'], source)
+
+    def test_immobile_frida_repeats_and_observer_free_markers_are_complete(self):
+        spec = importlib.util.spec_from_file_location('immobile', ROOT/'tools/ghidra/research/verify_immobile_separation.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        result = module.verify(ROOT/'tools/ghidra/fixtures/retail-repulsion-immobile-1.27.json.gz')
+        self.assertEqual(result['immobile_markers'], 859)
+        self.assertGreater(result['immobile_visits'], 0)
+        self.assertGreater(result['immobile_pairs'], 0)
 
 
 if __name__ == '__main__':

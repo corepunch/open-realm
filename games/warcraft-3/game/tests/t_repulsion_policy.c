@@ -6,6 +6,7 @@
 edict_t *alloc_test_unit(uint32_t, float, float);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 slkTestData_t *parse_slk_string(char const *);
 void free_slk_rows(slkTestData_t *);
 
@@ -21,6 +22,44 @@ static edict_t *policy_unit(UnitBalance_t const *balance, UnitData_t const *data
     CAbilityMove(unit, A_UNIT_INIT, NULL);
     unit_stand(unit); gi.LinkEntity(unit);
     return unit;
+}
+
+/* Native66fc50 tests suppression, not whether the authored Move ability exists.
+ * A stationary repulsor remains a candidate and owns its own update state. */
+TEST(wc3_repulsion_policy, zero_authored_speed_keeps_repulsor_through_public_lifecycle) {
+    reset_entities();setup_test_world();
+    mapInfo_t const *saved=level.mapinfo;mapInfo_t info=*saved;
+    int speed=0,enabled=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_int,.data=&speed},
+        {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&enabled}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('h','S','I','0'),
+        .numbeOfModifications=2,.modifications=mods};
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&custom;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass("globals\nunit u\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set u=CreateUnit(Player(0),'hSI0',304,304,0)\nendfunction\n"
+        "function transfer takes nothing returns nothing\ncall SetUnitOwner(u,Player(1),false)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(u,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(u,false)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
+    T_NOT_NULL(unit);
+    if(unit) {
+        T_ASSERT(M_UnitMoveDisabled(unit));T_ASSERT(unit->movement.repulse.active);
+        T_EQ(level.repulse_head,unit);T_EQ(unit->movement.repulse.state.packed,0);
+        jass_callbyname(level.vm,"transfer",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(unit->movement.repulse.active);T_EQ(unit->movement.repulse.state.packed,0x01000000u);
+        jass_callbyname(level.vm,"freeze",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(!unit->movement.repulse.active);T_NULL(level.repulse_head);
+        jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(unit->movement.repulse.active);T_EQ(level.repulse_head,unit);
+        T_EQ(unit->movement.repulse.state.packed,0x01000000u);
+        unsigned number=unit->s.number;cstring_t file="/tmp/wc3-immobile-repulsor.bin";
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+        T_ASSERT(M_UnitMoveDisabled(unit));T_ASSERT(unit->movement.repulse.active);
+        T_EQ(level.repulse_head,unit);T_EQ(unit->movement.repulse.state.packed,0x01000000u);
+    }
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=saved;setup_test_world();
 }
 
 TEST(wc3_repulsion_policy, live_matrix_checks_eligibility_before_displacement) {

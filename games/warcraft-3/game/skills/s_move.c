@@ -1528,7 +1528,9 @@ static void move_repulse_unlink(edict_t *self) {
 static void move_repulse_init(edict_t *self) {
     if (self->movement.repulse.active) move_repulse_unlink(self);
     UnitBalance_t const *balance = self->data.UnitBalance;
-    if (!balance || !balance->repulse || M_UnitMoveDisabled(self) || self->paused ||
+    /* Native66fc50 is independent of the authored Move ability: zero-speed
+     * units still own separation, participate in queries and can be displaced. */
+    if (!balance || !balance->repulse || self->paused ||
         S_SpellIsChanneling(self)) return;
     move_repulse_prepare_links();
     uint32_t category = wc3_repulse_category(self->s.player,balance->repulseGroup,false);

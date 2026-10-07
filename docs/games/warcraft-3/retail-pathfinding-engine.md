@@ -11270,3 +11270,66 @@ rectangle/pending-edit coverage remains Payoff130; these asymmetric rectangles,
 category06 and outer counters are explicitly original oracle inputs, not a new
 claim about public construction producers. MAP-04.2 still owns exit/recovery
 composition. See [scope evidence](retail-pathfinding-exclusions.md#complete-fine-and-coarse-scope-matrix-payoff146).
+
+
+## Zero-speed units retain independent separation owners
+
+Payoff147 advances SEP-01.2 without closing its remaining counted-suppression and Mechanical Critter producer scope.
+Retail's complete `66fc50` predicate reads authored `repulse`, channel-work bit20.40000000, signed suppression depth198,
+suspend latch5c.100000, signed suspension depth54 and scripted pause5c.200000. It does not inspect authored movement
+speed or whether the unit has an authored Move ability. Success returns literal1 at66fc88; the handoff's description
+of returning the raw authored integer is incorrect. The unmodified predicate and original rawcode-cache lookup pass
+432 cases including negative counter words and nonboolean authored integers.
+
+The integer-authored `RS-SEP-01.2-immobile147b` map creates twelve units in six independent clusters, including
+zero-speed ground/fly repulsors, ordinary moving-capable partners, an owner-transfer/pause/resume case and a disabled
+control. Both read-only Frida captures match all859 JASS markers and normalized configuration/update sequences;
+the observer-free control matches the same859 markers. Their2552 complete visits contain532 ordered neighbor calls;
+every retained pair/tail replays exactly through the original code. These are actual public creation witnesses,
+separate from the predicate oracle's supplied unit/cache inputs. The first capture never completed and is retained
+as a failed experiment; the earlier real-tagged speed map is superseded by the integer-authored map.
+
+Move incorrectly used `M_UnitMoveDisabled` to reject repulsor creation. Remove that condition while retaining the
+existing pause/channel eligibility. The public CreateUnit→SetUnitOwner→PauseUnit→resume→save/load regression fails
+ten checks before the fix and then passes all22 checks. Both editions pass the six policy tests/189 assertions.
+No per-type exception, save-layout change or delayed state allocation is introduced. Public speed-zero units retain
+separation membership even though ordinary movement remains unavailable. Complete engine replay of the captured
+owner clocks and counted-suppression/Mechanical Critter lifetimes remains open; marker equality is retail observer
+control, not a claim that the engine matches every captured public callback deadline.
+
+Evidence: `tools/ghidra/fixtures/retail-separation-eligibility-1.27.json`,
+`retail-repulsion-immobile-1.27.json.gz` and saved `retail-repulsion-eligibility-ghidra-1.27.json`;
+`oracle-repulsion-policy` now re-executes the complete predicate and both captured arithmetic histories.
+The existing thirteen-function Ghidra snapshot remains a historical prefix; new annotations are separately saved
+and appended to `MapPathfinding.java`. Runtime captures/reports and failing/passing engine logs are under
+`/GitHub/wc3-analysis/runtime/payoff147/`.
+
+The batch checkpoint also exposed a stale near-home CaptainGoHome test. It
+counted every group allocated during recruitment, although Payoff144 correctly
+transfers the temporary point owner to a distinct Follow owner. The failure
+reproduces with the pre-Payoff147 library (sequence0→2, live owner2). The
+regression now records the recruited owner and issues two public GoHome calls;
+both must retain that owner, actor pose and roster request without allocating
+another group. No production captain behavior was changed to satisfy the test.
+
+The suppression follow-up is saved at688d90/6785c0 and mirrored in the
+mapper/readback: RTTI-backed ItemTeleport/ItemTownPortal and Channel work,
+Neutral/Orc/Naga construction and EntangleCargo all call the same counted
+producer with a unit receiver. Raw decompilations, caller/table observations
+and saved readback are retained in the runtime directory. These observations
+prepare the remaining SEP-01.2 ability integrations; they do not establish
+public lifecycle parity or justify treating suppression as pause-only.
+
+Payoff147 is the twelfth implementation commit after the Payoff135 full-suite
+checkpoint. The original `make test` invocation completed the24 unaffected
+JUnit suites (1,222 tests), but failed on the stale captain assertion and22
+Python corpus checks reading concurrently changed research type hashes.
+After correction, `make -j6 test-wc3-engine` passes both Classic and TFT:
+2,840 tests and10,985,125 assertions each. The immutable staged snapshot passes
+all764 Python tests; its one missing-build skip is resolved by the compiled
+journal module (eight tests, no skips). The final mapping changes pass the
+seven policy and22 corpus tests, and fresh `oracle-repulsion-policy` passes.
+`checkpoint-final.json` and all logs remain under the runtime directory above.
+This is a recovered full batch checkpoint, not a claim that the initially
+failed umbrella invocation exited successfully. Focused validation resumes
+for the next implementation batch. SEP-01.2 remains open;96 TODOs remain.

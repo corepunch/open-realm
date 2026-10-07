@@ -44,6 +44,12 @@ def verify(binary, report):
                   inert_tails=len(data['inert_tails']), pairs=data['harness_selfcheck']['pairs'],
                   tails=data['harness_selfcheck']['tails'], producer_pairs=len(valid['pairs']),
                   producer_sha256=hashlib.sha256(valid_path.read_bytes()).hexdigest())
+    eligibility = importlib.import_module('verify_separation_eligibility').verify(binary)
+    if eligibility != json.loads((HERE / 'fixtures/retail-separation-eligibility-1.27.json').read_text()):
+        raise ValueError('complete original separation eligibility differs from frozen evidence')
+    result['eligibility_cases'] = len(eligibility['cases'])
+    live = importlib.import_module('verify_immobile_separation')
+    result.update(live.verify(HERE / 'fixtures/retail-repulsion-immobile-1.27.json.gz', oracle))
     report.write_text(json.dumps(result, indent=2) + '\n')
     return result
 

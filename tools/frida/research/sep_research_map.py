@@ -52,6 +52,8 @@ def w3u_rows(data):
             mods.append((b'umvt', 3, fields['umvt'].encode() + b'\0'))
         if 'umvh' in fields:
             mods.append((b'umvh', 2, struct.pack('<f', fields['umvh'])))
+        if 'umvs' in fields:
+            mods.append((b'umvs', 0, struct.pack('<i', fields['umvs'])))
         out += b'hfoo' + c + struct.pack('<I', len(mods))
         for f, kind, value in mods:
             out += f + struct.pack('<I', kind) + value + c
@@ -98,6 +100,16 @@ COLLAPSE = 'call SetUnitX({0},GetUnitX({1})-8.0)\n call SetUnitY({0},GetUnitY({1
 
 
 def variant_phases(name):
+    if name == 'immobile':
+        return [([
+            pair('hSI0', 0, 'hSI0', 0),
+            pair('hSI0', 0, 'hS00', 0),
+            pair('hSI0', 0, 'hSI0', 1, actions=[(40, 'call SetUnitOwner({1},Player(0),false)'),
+                (70, 'call PauseUnit({1},true)'), (90, 'call PauseUnit({1},false)')]),
+            pair('hSF0', 0, 'hSFL', 0),
+            pair('hSF0', 0, 'hSF0', 0),
+            pair('hSD0', 0, 'hS00', 0),
+        ], 140)], []
     if name == 'policy':
         A = [pair('hS00', 0, 'hS00', 0), pair('hS00', 0, 'hS00', 1), pair('hS00', 0, 'hSD0', 0), pair('hS00', 0, 'hSG1', 0),
              pair('hSG1', 0, 'hSGH', 0), pair('hSR1', 0, 'hS00', 0), pair('hSR2', 0, 'hSR1', 0), pair('hSRH', 0, 'hSR1', 0),
@@ -210,11 +222,13 @@ endfunction
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--data', type=Path, required=True)
-    ap.add_argument('--variant', choices=('policy', 'triad', 'crowd', 'ground'), required=True)
+    ap.add_argument('--variant', choices=('policy', 'triad', 'crowd', 'ground', 'immobile'), required=True)
     ap.add_argument('--name', required=True, help='RS-<TASK>-<variant>, installed as Maps/<name>.w3m')
     ap.add_argument('--tool', type=Path, required=True, help='mpqtool binary')
     ap.add_argument('--keep', type=Path, required=True, help='directory for build artifacts (j/w3u/w3a/json)')
     a = ap.parse_args()
+    if a.variant == 'immobile':
+        UNITS.update(hSI0=dict(urpo=1, umvs=0), hSF0=dict(urpo=1, umvs=0, umvt='fly', umvh=60.0))
     if not a.name.startswith('RS-SEP-'):
         ap.error('name must be RS-SEP-...')
     base = a.data / 'Maps/PathingRE-MovementBypasses86b-261003.w3m'

@@ -35839,13 +35839,19 @@
         },
         "producer_sha256": {
           "equal": "0ff5a29c4d8d1ba02a677fb61963b04ef7f14e533647cdf21d9e9342018fb18f"
+        },
+        "eligibility_cases": {
+          "equal": 432
+        },
+        "immobile_markers": {
+          "equal": 859
         }
       },
       "evidence": [
         "S",
         "O"
       ],
-      "scope": "Unchanged completed SEP-01.2 policy oracle: full frozen report hash,65536 ordered setter cases,600 pair/105 tail self-checks,24 inert pairs and8 tails. Additionally replay24 identical inert geometries with recorded aligned producer RNG state for the production C matrix.",
+      "scope": "Unchanged completed SEP-01.2 policy oracle: full frozen report hash,65536 ordered setter cases,600 pair/105 tail self-checks,24 inert pairs and8 tails. Additionally replay24 identical inert geometries with recorded aligned producer RNG state for the production C matrix. Complete original66fc50 eligibility with432 supplied counter/flag/authored cases; public zero-speed repulsors verified separately.",
       "exclusions": [
         "Research captures independently establish the36-case live matrix; this entry does not run a live scene. Mechanical Critter/counting work producers remain SEP-01.2; spatial ordering and full crowd trajectories remain SEP-02/03/04."
       ]
@@ -37383,7 +37389,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4f2c09ddadd8a367c0df3b4092a26a2f330886d708cdde0c28f10829de9feebd"
+      "sha256": "aa86ffc74c02e94d30d4770a7b9db5a99048c744aea05ec7906eb30e95d262b8"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38179,7 +38185,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_repulsion_policy.py",
-      "sha256": "82819fcd956ff26cbb4e416b4a232996713e1fc2c99baeb666448cc83b6a1019"
+      "sha256": "1e64f16ac0c21af28a8cb2bb2aa9c963aa4f830513d35a8cc64e24e83e3b12d0"
     },
     {
       "path": "tools/ghidra/research/verify_SEP-01.2_policy.py",
@@ -38219,7 +38225,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_policy.c",
-      "sha256": "cdc5ab2e7fadcf905dc3d1d7351888175a65512fc9692e0fe0d49a68d9d38eb7"
+      "sha256": "ad097cf9c45cbff2bc45b7f8979ec01736129bf8a04aed381e285696231d0acc"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_repulsion.h",
@@ -38239,7 +38245,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "27af4cdc6e3c72318c74dd09b06957ae570a0c36027440121ffa9ea8103b72b1"
+      "sha256": "2ce8bdf35f2d9940ff807689d3208d315202ebd028d881dafc18ee4430882898"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -39056,6 +39062,30 @@
     {
       "path": "tools/ghidra/fixtures/retail-exclusion-scope-ghidra-1.27.json",
       "sha256": "593183daa77ce0a8939523249d64d408be485ad7e5b9d2a6bd85238889471f19"
+    },
+    {
+      "path": "tools/ghidra/research/verify_separation_eligibility.py",
+      "sha256": "2267619e80ae81cf458afeaf46b9d651949480ba5371cffa914b9bb25258562a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-separation-eligibility-1.27.json",
+      "sha256": "6a05aeced48ca5b16df1e889216153e7d3bf3d30aae65ef3d2546c1ef85c4f7c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repulsion-eligibility-ghidra-1.27.json",
+      "sha256": "3b0cc3738f5055a003cd146b6b617b1745e5d71150483d61bb19029ed9759cee"
+    },
+    {
+      "path": "tools/frida/research/sep_research_map.py",
+      "sha256": "ac652093f75423ad6ce9af7ce327029e8a5c8895cf5f9f73f756dfdd9561dd2d"
+    },
+    {
+      "path": "tools/ghidra/research/verify_immobile_separation.py",
+      "sha256": "11c57a1f7cce938966fee5972115ba6e6b4ed5291d03ea8b1726af000a3aacd9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-repulsion-immobile-1.27.json.gz",
+      "sha256": "4f69b74e43cad09f4b67487c31d394430919e987fa868c82550d08baf52cabca"
     }
   ]
 }
