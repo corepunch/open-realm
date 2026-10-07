@@ -199,13 +199,8 @@ static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliff
         }
     }
 
-    snprintf(buffer, sizeof(buffer), "%s\\%c_%s.blp", data->texDir, tileset, data->texFile);
-    void *testbuf = NULL;
-    if (ri.FS_ReadFile(buffer, &testbuf) >= 0) {
-        ri.FS_FreeFile(testbuf);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%s\\%s.blp", data->texDir, data->texFile);
-    }
+    /* Tileset variants come from the "<tileset>.mpq" layer (R_GameAssetCandidate), not a filename prefix. */
+    snprintf(buffer, sizeof(buffer), "%s\\%s.blp", data->texDir, data->texFile);
 
     entry = ri.MemAlloc(sizeof(*entry));
     if (!entry) {
@@ -305,6 +300,18 @@ static vertex_t R_BakeCliffVertex(war3map_t const *map, mdxGeoset_t const *geose
     return vertex;
 }
 
+/* CliffTypes.slk writes "_" for an absent tile; a real tile ID has four characters. */
+static bool R_CliffTileIsSet(uint32_t tile) {
+    return (tile & 0xff) && ((tile >> 8) & 0xff) && ((tile >> 16) & 0xff) && (tile >> 24);
+}
+
+/* Map ground-palette index of a tile ID, or -1 when the map does not use that tile. */
+static int R_CliffGroundIndex(war3map_t const *map, uint32_t tile) {
+    if (!R_CliffTileIsSet(tile)) return -1;
+    FOR_LOOP(i, map->num_grounds) if (map->grounds[i] == tile) return (int)i;
+    return -1;
+}
+
 static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
@@ -347,19 +354,23 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
         offset = Vector2_add(&offset, &shift);
     }
 
-    uint32_t const ground_key = data->groundTile ? data->groundTile : data->upperTile;
-    if (ground_key) {
+    /* CliffTypes.slk groundTile is the low side's tile and upperTile ("_" = none) the high side's; only Outland's
+     * abyss cliff (COrd: Oaby below, Osmb above) has both. Painting the abyss onto high corners turned plateau
+     * rims into solid black tiles (issue #597). */
+    bool const has_upper = R_CliffTileIsSet(data->upperTile);
+    int const low_ground = R_CliffGroundIndex(map, data->groundTile);
+    int const high_ground = has_upper ? R_CliffGroundIndex(map, data->upperTile) : low_ground;
+    if (low_ground >= 0 || high_ground >= 0) {
         vec3_t span = Vector3_sub(&pModel->mdx->bounds.box.max, &pModel->mdx->bounds.box.min);
         int sx = offset.x / TILE_SIZE, sy = offset.y / TILE_SIZE;
         int nx = is_ramp && span.y > span.x ? 2 : 1, ny = is_ramp && span.x >= span.y ? 2 : 1;
-        FOR_LOOP(gindx, map->num_grounds) {
-            if (map->grounds[gindx] != ground_key) continue;
-            /* Ramp models cover two cells: their low-side corners need the same cliff ground texture. */
-            for (int px = MAX(0, sx); px <= sx + nx && px < map->width; px++)
-                for (int py = MAX(0, sy); py <= sy + ny && py < map->height; py++)
-                    ((war3mapVertex_t *)GetWar3MapVertex(map, px, py))->ground = gindx;
-            break;
-        }
+        /* Ramp models cover two cells: their low-side corners need the same cliff ground texture. */
+        for (int px = MAX(0, sx); px <= sx + nx && px < map->width; px++)
+            for (int py = MAX(0, sy); py <= sy + ny && py < map->height; py++) {
+                war3mapVertex_t *vert = (war3mapVertex_t *)GetWar3MapVertex(map, px, py);
+                int const ground = vert->level > baselevel ? high_ground : low_ground;
+                if (ground >= 0) vert->ground = ground;
+            }
     }
 
     cliff_bake.current_group++;

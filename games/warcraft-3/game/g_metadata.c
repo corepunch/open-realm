@@ -598,6 +598,12 @@ static slkField_t const doodad_schema[] = {
 };
 #undef DOOD_VERT
 
+static slkField_t const water_schema[] = {
+    { "",       offsetof(WaterData_t, id),     STB_SLK_FOURCC },
+    { "height", offsetof(WaterData_t, height), STB_SLK_FLOAT  },
+    { NULL, 0, 0 },
+};
+
 static slkField_t const uber_schema[] = {
     { "",           offsetof(UberSplatData_t, id),         STB_SLK_FOURCC },
     { "Name",       offsetof(UberSplatData_t, Name),       STB_SLK_STR   },
@@ -856,6 +862,7 @@ static abilityMetaData_t *ability_metadata; static uint32_t ability_metadata_cou
 AbilityBuffData_t *g_AbilityBuffData; uint32_t g_AbilityBuffDataCount; static slkIndex_t ability_buff_idx;
 Doodads_t *g_Doodads; uint32_t g_DoodadsCount; static slkIndex_t doodad_idx;
 UberSplatData_t *g_UberSplatData; uint32_t g_UberSplatDataCount; static slkIndex_t uber_idx;
+static WaterData_t *water_data; static uint32_t water_data_count; static slkIndex_t water_idx;
 UnitAckSounds_t *g_UnitAckSounds; uint32_t g_UnitAckSoundsCount;
 UnitAckSounds_t *g_UnitCombatSounds; uint32_t g_UnitCombatSoundsCount;
 UnitAckSounds_t *g_UISounds; uint32_t g_UISoundsCount;
@@ -943,6 +950,7 @@ static slkStore_t slk_stores[] = {
     { "AbilityBuffData", "Units\\AbilityBuffData.slk", ability_buff_schema, sizeof(*g_AbilityBuffData), (void **)&g_AbilityBuffData, &g_AbilityBuffDataCount, &ability_buff_idx, true },
     { "Doodads", "Doodads\\Doodads.slk", doodad_schema, sizeof(*g_Doodads), (void **)&g_Doodads, &g_DoodadsCount, &doodad_idx },
     { "UberSplatData", "Splats\\UberSplatData.slk", uber_schema, sizeof(*g_UberSplatData), (void **)&g_UberSplatData, &g_UberSplatDataCount, &uber_idx },
+    { "WaterData", "TerrainArt\\Water.slk", water_schema, sizeof(*water_data), (void **)&water_data, &water_data_count, &water_idx },
     { "UnitAckSounds",    "UI\\SoundInfo\\UnitAckSounds.slk",    sound_schema, sizeof(*g_UnitAckSounds),    (void **)&g_UnitAckSounds,    &g_UnitAckSoundsCount,    NULL },
     { "UnitCombatSounds", "UI\\SoundInfo\\UnitCombatSounds.slk", sound_schema, sizeof(*g_UnitCombatSounds), (void **)&g_UnitCombatSounds, &g_UnitCombatSoundsCount, NULL },
     { "UISounds",         "UI\\SoundInfo\\UISounds.slk",         sound_schema, sizeof(*g_UISounds),         (void **)&g_UISounds,         &g_UISoundsCount,         NULL },
@@ -2061,6 +2069,7 @@ cstring_t G_AbilityDataText(cstring_t name, cstring_t column) {
     return NULL;
 }
 Doodads_t const *G_Doodad(uint32_t id) { static Doodads_t zero; Doodads_t *row = FS_SLKLookup(&doodad_idx, id); return row ? row : &zero; }
+WaterData_t const *G_WaterData(uint32_t id) { static WaterData_t zero; WaterData_t *row = FS_SLKLookup(&water_idx, id); return row ? row : &zero; }
 UberSplatData_t const *G_UberSplat(uint32_t id) { static UberSplatData_t zero; UberSplatData_t *row = FS_SLKLookup(&uber_idx, id); return row ? row : &zero; }
 UnitAckSounds_t const *G_UnitAckSound(cstring_t name) {
     static UnitAckSounds_t zero;

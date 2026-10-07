@@ -3120,6 +3120,7 @@ void G_SetMapAbilityOverrides(mapInfo_t const *);
 bool G_IsReignOfChaosMap(mapInfo_t const *);
 uint32_t G_MapGameDataSet(mapInfo_t const *);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
+void G_ApplyTilesetWaterHeight(mapInfo_t const *info);
 #ifdef BZ_TESTS
 typedef struct { cstring_t text; void *rows; uint32_t count; } slkTestData_t;
 bool G_SLKStoreOptional(cstring_t);

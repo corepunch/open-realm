@@ -275,7 +275,7 @@ int main(int argc, char **argv)
     uint32_t size_high;
     uint8_t header[128];
     int32_t dist_hi;
-    char out_path[] = "/tmp/openwarcraft3_mpq_extract.bin";
+    char out_path[64];
     struct stat st;
     uint8_t *map_buffer;
     handle_t map_file;
@@ -291,6 +291,8 @@ int main(int argc, char **argv)
     uint8_t decoded[4];
     uint32_t decoded_size;
 
+    /* Per-process name: concurrent test runs (other worktrees) must not extract over each other. */
+    snprintf(out_path, sizeof(out_path), "/tmp/openwarcraft3_mpq_extract-%ld.bin", (long)getpid());
     if (!Mpq_TestDecompressSector(adpcm_mono, sizeof(adpcm_mono), decoded, 2, &decoded_size) ||
         decoded_size != 2 || decoded[0] != 0x34 || decoded[1] != 0x12)
         fail("pure mono ADPCM sector decode failed");

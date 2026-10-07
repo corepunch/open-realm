@@ -65,6 +65,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 game save/load format, Hero walk diagnostic, `F_CFUNCTION` C callbacks, and `field_t` synchronization | [docs/games/warcraft-3/save-load.md](docs/games/warcraft-3/save-load.md) |
 | WC3 HUD texture/font indices vs names across `SV_Map` / save-load | [docs/games/warcraft-3/hud-media.md](docs/games/warcraft-3/hud-media.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
+| WC3 ground tile atlas layout, nested `<tileset>.mpq` texture layer, Water.slk water height/tint/animation | [docs/games/warcraft-3/terrain-tiles-and-water.md](docs/games/warcraft-3/terrain-tiles-and-water.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |

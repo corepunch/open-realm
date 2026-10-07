@@ -1947,7 +1947,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
     uint32_t hero_slot, item_slot;
-    cstring_t const save_path = "/tmp/openwarcraft3-point-item-approach-save.bin";
+    cstring_t const save_path = Test_TempPath("point-item-approach-save.bin");
     cstring_t far_click[] = { "point", "700", "0" };
     cstring_t replace_approach[] = { "button", "Amov" };
     cstring_t replace_click[] = { "point", "20", "0" };
@@ -2252,7 +2252,7 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
 }
 
 TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
-    cstring_t path = "/tmp/openwarcraft3-wc3-item-drop-id.bin";
+    cstring_t path = Test_TempPath("wc3-item-drop-id.bin");
     edict_t *item = NULL;
     uint32_t index;
 
@@ -2957,7 +2957,7 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
         "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X8;K\"6\"\nC;Y3;X9;K\"0\"\n"
         "C;Y3;X10;K\"1\"\nC;Y3;X11;K\"1\"\nC;Y3;X12;K\"1\"\n"
         "C;Y4;X1;K\"Asou\"\nC;Y4;X2;K\"Asou\"\nC;Y4;X7;K\"1\"\nE\n";
-    cstring_t const path = "/tmp/openwarcraft3-wc3-soul-gem-approach-save.bin";
+    cstring_t const path = Test_TempPath("wc3-soul-gem-approach-save.bin");
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     gameClient_t *client;
     edict_t *clent, *carrier, *target, *gem, *thinker;

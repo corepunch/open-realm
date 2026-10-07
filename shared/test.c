@@ -6,11 +6,81 @@
  * links libshared.  Game-side TEST() constructors call Test_Register here; the
  * engine's `+test` command calls Test_Run here.
  */
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <process.h>
+#define test_getpid() _getpid()
+#define test_mkdir(path) _mkdir(path)
+#define test_rmdir(path) _rmdir(path)
+#else
+#include <dirent.h>
+#include <unistd.h>
+#define test_getpid() getpid()
+#define test_mkdir(path) mkdir(path, 0700)
+#define test_rmdir(path) rmdir(path)
+#endif
 
 #include "test.h"
+
+#define TEST_TEMP_PATH_SIZE 512 // bytes; holds a long $TMPDIR plus the per-process directory and file name
+#define TEST_TEMP_RING 32       // paths; no test keeps more than a few alive at once
+
+static char test_temp_dir[TEST_TEMP_PATH_SIZE];
+
+/* Tests may create nested directories (e.g. a scratch home with saves/), so removal recurses. */
+static void Test_RemoveTree(const char *root) {
+#ifndef _WIN32
+    DIR *dir = opendir(root);
+    struct dirent *entry;
+    while (dir && (entry = readdir(dir))) {
+        char path[TEST_TEMP_PATH_SIZE * 2];
+        struct stat st;
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        snprintf(path, sizeof(path), "%s/%s", root, entry->d_name);
+        if (lstat(path, &st) == 0 && S_ISDIR(st.st_mode)) Test_RemoveTree(path);
+        else remove(path);
+    }
+    if (dir) closedir(dir);
+#endif
+    test_rmdir(root);
+}
+
+static void Test_RemoveTempDir(void) {
+    Test_RemoveTree(test_temp_dir);
+}
+
+static const char *Test_TempDir(void) {
+    const char *base;
+    size_t len;
+
+    if (test_temp_dir[0]) return test_temp_dir;
+#ifdef _WIN32
+    base = getenv("TEMP");
+#else
+    base = getenv("TMPDIR");
+#endif
+    if (!base || !*base) base = "/tmp";
+    len = strlen(base);
+    while (len > 1 && (base[len - 1] == '/' || base[len - 1] == '\\')) len--;
+    snprintf(test_temp_dir, sizeof(test_temp_dir), "%.*s/openwarcraft3-tests-%ld", (int)len, base, (long)test_getpid());
+    if (test_mkdir(test_temp_dir) != 0 && errno != EEXIST)
+        fprintf(stderr, "Test_TempPath: cannot create %s: %s\n", test_temp_dir, strerror(errno));
+    atexit(Test_RemoveTempDir);
+    return test_temp_dir;
+}
+
+const char *Test_TempPath(const char *name) {
+    static char ring[TEST_TEMP_RING][TEST_TEMP_PATH_SIZE];
+    static unsigned next;
+    char *path = ring[next++ % TEST_TEMP_RING];
+    snprintf(path, TEST_TEMP_PATH_SIZE, "%s/%s", Test_TempDir(), name ? name : "");
+    return path;
+}
 
 int test_asserts = 0;
 int test_failures = 0;

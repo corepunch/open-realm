@@ -78,6 +78,12 @@ Assertion failures always include `__FILE__` and `__LINE__`. Under GitHub Action
 
 `make test` also writes one JUnit XML report per `shared/test.h` suite invocation under `build/tests/junit/`. The test runner enables the same output for direct runs when `TEST_JUNIT=/path/to/report.xml` is set; `TEST_JUNIT_SUITE=name` optionally overrides the `<testsuite>` name. Reports are separate per executable/in-engine mode so parallel `TEST_JOBS` runs never share a writable XML file. Shell-only checks such as `test-jass-build` continue to report through their process exit status and console output. The `CI` workflow uploads the raw reports as the `junit-test-results` artifact. A separate `workflow_run` workflow downloads that artifact and publishes the `OpenRealm Unit Tests` GitHub Check against the tested commit. Keeping publication separate allows fork pull requests to receive a real Check without granting the untrusted test workflow a write-capable token; the privileged report workflow must not check out or execute pull-request code. The artifact upload, cross-run download, and JUnit publisher actions used by this path are pinned to immutable commit SHAs.
 
+Tests that write files (saves, progress files, scratch homes) must use `Test_TempPath("name")` from
+`shared/test.h` instead of fixed `/tmp/...` or working-directory paths. It returns
+`$TMPDIR/openwarcraft3-tests-<pid>/name` and removes that directory tree at exit, so concurrent suites (several
+worktrees, or ROC/TFT engine runs) never share a file. Results come from a 32-entry ring; copy a path into a
+buffer if a test keeps more alive. Fixed paths caused intermittent `wc3_save.rejects_prior_save_versions` failures.
+
 ### Warcraft III Save/Load
 
 Save compatibility is not a goal. Bump the save format when the serialized contract changes and reject mismatched versions or layouts; do not add migrations, frozen layouts, or compatibility extensions. Cover rejection as well as current-state round-trips.

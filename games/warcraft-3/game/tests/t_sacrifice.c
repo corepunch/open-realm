@@ -278,7 +278,7 @@ TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
 /* Save/load resumes the queued sacrifice: worker linkage survives and the
  * scheduler still completes after load. */
 TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
-    cstring_t filename = "/tmp/openwarcraft3-sacrifice-queue.bin";
+    cstring_t filename = Test_TempPath("sacrifice-queue.bin");
     sacFix_t fix;
     edict_t *result;
     UnitBalance_t result_balance;
@@ -310,7 +310,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
 
 /* Save/load preserves cancellation: the restored worker is released. */
 TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
-    cstring_t filename = "/tmp/openwarcraft3-sacrifice-cancel.bin";
+    cstring_t filename = Test_TempPath("sacrifice-cancel.bin");
     sacFix_t fix;
     edict_t *result;
     sac_setup(&fix);

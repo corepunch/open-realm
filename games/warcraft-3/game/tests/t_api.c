@@ -1307,7 +1307,8 @@ static cstring_t campaign_progress_roc_cvar(cstring_t name, cstring_t fallback) 
     return !strcmp(name, "fs_expansion") ? "0" : fallback;
 }
 
-static char campaign_progress_test_path[] = "campaign-progress-native-test.orcp";
+/* Per-process: concurrent suites in one checkout must not share the progress file or its .tmp/.bak siblings. */
+#define campaign_progress_test_path Test_TempPath("campaign-progress-native-test.orcp")
 
 static void campaign_progress_test_user_path(cstring_t rel, string_t out, uint32_t out_size) {
     (void)rel;
@@ -7113,8 +7114,8 @@ TEST(wc3_api, campaign_progress_natives_persist_stock_bj_unlocks) {
     wc3CampaignProgressKey_t mission_key;
 
     remove(campaign_progress_test_path);
-    remove("campaign-progress-native-test.orcp.tmp");
-    remove("campaign-progress-native-test.orcp.bak");
+    remove(Test_TempPath("campaign-progress-native-test.orcp.tmp"));
+    remove(Test_TempPath("campaign-progress-native-test.orcp.bak"));
     gi.UserPath = campaign_progress_test_user_path;
     gi.CvarString = campaign_progress_roc_cvar;
     level.campaign_select_on_end = false;

@@ -138,7 +138,7 @@ TEST(wc3_spell, wind_walk_delays_authored_cooldown_until_end_and_round_trips_ori
         "C;Y2;X1;K\"AOwk\"\nC;Y2;X2;K\"AOwk\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"17\"\nC;Y2;X5;K\"13\"\nC;Y2;X6;K\"2.75\"\n"
         "C;Y2;X7;K\"2.75\"\nC;Y2;X8;K\"33\"\nC;Y2;X9;K\"77\"\nE\n";
-    cstring_t save = "/tmp/openwarcraft3-wind-walk-save.bin";
+    cstring_t save = Test_TempPath("wind-walk-save.bin");
     UnitAbilities_t abilities = { .abilList = "AOwk" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *caster = make_hero(MAKEFOURCC('O','b','l','m'), 500, 200, 0, 0);
@@ -2879,7 +2879,7 @@ TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_l
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
         "C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
         "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
-    cstring_t const save_path = "/tmp/openwarcraft3-roots-visual-save.bin";
+    cstring_t const save_path = Test_TempPath("roots-visual-save.bin");
     slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
     slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff;
     edict_t *caster, *target, *effect = NULL;
@@ -3226,17 +3226,17 @@ TEST(wc3_spell, divine_shield_applies_authored_buff_for_its_duration) {
     T_ASSERT(caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 1);
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
-    T_ASSERT(WriteGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    T_ASSERT(WriteGame(Test_TempPath("divine-shield-save.bin")));
     if (!caster->channel) caster->channel = G_AllocChannel();
     assert(caster->channel);
     caster->channel->code = 0; if (thinker) thinker->think = NULL;
-    T_ASSERT(ReadGame("/tmp/openwarcraft3-divine-shield-save.bin"));
+    T_ASSERT(ReadGame(Test_TempPath("divine-shield-save.bin")));
     FILTER_EDICTS(ent, ent->owner == caster && ent->think == divine_shield_think) { thinker = ent; break; }
     T_NOT_NULL(thinker);
     if (thinker) { level.time = thinker->spawn_time; G_RunEntity(thinker); }
     unit_updatestatuses(caster);
     T_ASSERT(!caster->invulnerable); T_EQ(G_UnitStatusLevel(caster, FS_SLKKey("BHds")), 0);
-    remove("/tmp/openwarcraft3-divine-shield-save.bin");
+    remove(Test_TempPath("divine-shield-save.bin"));
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

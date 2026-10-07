@@ -508,6 +508,50 @@ static void R_W3EmitChangedTerrain(void) {
     w3_terrain_rebuild_pending = false;
 }
 
+/* Retail layers the nested "<tileset>.mpq" from War3(x).mpq between map imports and base data while a map is
+ * loaded. It supplies the tileset's ReplaceableTextures (Cliff0/Cliff1, uber splats, water frames) and a few
+ * model skins; Outland's abyss cliffs exist only there. Kept open so membership checks are hash lookups. */
+static struct {
+    handle_t archive;
+    void *data;
+    char name[8];
+} w3_tileset_archive;
+
+static void R_W3CloseTilesetArchive(void) {
+    if (w3_tileset_archive.archive) SFileCloseArchive(w3_tileset_archive.archive);
+    if (w3_tileset_archive.data) ri.FS_FreeFile(w3_tileset_archive.data);
+    memset(&w3_tileset_archive, 0, sizeof(w3_tileset_archive));
+}
+
+void R_W3OpenTilesetArchive(uint8_t tileset) {
+    int size;
+
+    R_W3CloseTilesetArchive();
+    snprintf(w3_tileset_archive.name, sizeof(w3_tileset_archive.name), "%c.mpq", tileset);
+    size = ri.FS_ReadFile(w3_tileset_archive.name, &w3_tileset_archive.data);
+    if (size <= 0 || !w3_tileset_archive.data) {
+        fprintf(stderr, "WC3 renderer: no tileset archive %s; tileset textures resolve from base data\n",
+                w3_tileset_archive.name);
+        R_W3CloseTilesetArchive();
+        return;
+    }
+    if (!SFileOpenArchiveFromMemory(w3_tileset_archive.data, (uint32_t)size, 0, &w3_tileset_archive.archive)) {
+        fprintf(stderr, "WC3 renderer: failed to open tileset archive %s\n", w3_tileset_archive.name);
+        R_W3CloseTilesetArchive();
+    }
+}
+
+bool R_GameAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size) {
+    handle_t file;
+    int written;
+
+    if (!w3_tileset_archive.archive || !asset || !*asset || !candidate || !candidate_size) return false;
+    if (!SFileOpenFileEx(w3_tileset_archive.archive, asset, SFILE_OPEN_FROM_MPQ, &file)) return false;
+    SFileCloseFile(file);
+    written = snprintf(candidate, candidate_size, "%s\\%s", w3_tileset_archive.name, asset);
+    return written > 0 && (uint32_t)written < candidate_size;
+}
+
 void _W3M_ClearMap(void) {
     texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
@@ -519,6 +563,7 @@ void _W3M_ClearMap(void) {
     R_ResetCliffCache();
     R_ResetBlightCache();
     R_FreeCameraHeightMap(&w3_camera_height);
+    R_W3CloseTilesetArchive();
     R_ShutdownFogOfWar();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     tr.texture[TEX_TERRAIN_SHADOW] = NULL;
@@ -762,7 +807,9 @@ void _W3M_RegisterMap(char const *mapFilename) {
     SFileCloseArchive(hMpq);
     ri.FS_FreeFile(mapData);
     tr.world = map;
+    R_W3OpenTilesetArchive(map->tileset);
     R_LoadBlightTexture(map->tileset);
+    R_LoadWaterStyle(map->tileset);
     R_W3SetMapTerrainOffsets(map);
     R_W3RebuildCameraHeightMap();
 
@@ -873,7 +920,10 @@ void _W3M_DrawAlphaSurfaces(void) {
     R_Call(glDepthMask, GL_FALSE);
     _W3M_SetSceneFog();
 
+    texture_t const *water_frame = R_WaterFrame(R_WaterStyle(), tr.viewDef.time);
     FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
+        FOR_EACH_LIST(maplayer_t, layer, segment->layers)
+            if (layer->type == MAPLAYERTYPE_WATER) layer->texture = water_frame;
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
     R_Call(glDepthMask, GL_TRUE);

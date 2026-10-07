@@ -75,7 +75,7 @@ static void arm_hero_audit(cstring_t map) {
 }
 
 TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
-    cstring_t path = "/tmp/openwarcraft3-wc3-hero-saveload.bin";
+    cstring_t path = Test_TempPath("wc3-hero-saveload.bin");
     edict_t *hero, *item0, *item1;
     vec3_t saved_origin;
     uint32_t saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, saved_drop_id, index;
@@ -266,7 +266,7 @@ TEST(wc3_save, hero_audit_retries_when_80_unit_dest_snaps_home) {
 }
 
 TEST(wc3_cursor, save_discards_transient_held_item) {
-    cstring_t path = "/tmp/openwarcraft3-cursor-save.bin";
+    cstring_t path = Test_TempPath("cursor-save.bin");
     reset_entities(); setup_test_world();
     edict_t *hero = make_walk_hero(0, 0);
     edict_t *item = give_item(hero, MAKEFOURCC('s','p','r','o'), 0, 1);

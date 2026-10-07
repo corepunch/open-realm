@@ -2297,7 +2297,7 @@ TEST(wc3_save, spell_approach_callback_uses_current_roster_identity) {
 
 TEST(wc3_save, disabled_player_abilities_grow_and_round_trip) {
     static char const digits[] = "0123456789";
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-disabled-abilities-save.bin";
+    cstring_t const filename = Test_TempPath("wc3-disabled-abilities-save.bin");
     enum { ABILITY_COUNT = 96 };
     gameClient_t *client;
     uint32_t abilities[ABILITY_COUNT];
@@ -2354,8 +2354,8 @@ fail:
 }
 
 TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-format.bin";
-    cstring_t old_filename = "/tmp/openwarcraft3-save-previous-combat-cargo-format.bin";
+    cstring_t filename = Test_TempPath("save-current-format.bin");
+    cstring_t old_filename = Test_TempPath("save-previous-combat-cargo-format.bin");
     saveHeader_t header;
     char map[sizeof(((saveHeader_t *)0)->map_path)];
     setup_test_world();
@@ -2376,8 +2376,8 @@ TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
 }
 
 TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-layout.bin";
-    cstring_t bad_filename = "/tmp/openwarcraft3-save-layout-mismatch.bin";
+    cstring_t filename = Test_TempPath("save-current-layout.bin");
+    cstring_t bad_filename = Test_TempPath("save-layout-mismatch.bin");
     char map[sizeof(((saveHeader_t *)0)->map_path)];
     setup_test_world();
     reset_entities();
@@ -2389,48 +2389,21 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 }
 
 TEST(wc3_save, rejects_prior_save_versions) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-prior-format.bin";
-    cstring_t old_paths[] = {
-        "/tmp/openwarcraft3-wc3-save-version-39.bin",
-        "/tmp/openwarcraft3-wc3-save-version-40.bin",
-        "/tmp/openwarcraft3-wc3-save-version-41.bin",
-        "/tmp/openwarcraft3-wc3-save-version-42.bin",
-        "/tmp/openwarcraft3-wc3-save-version-43.bin",
-        "/tmp/openwarcraft3-wc3-save-version-44.bin",
-        "/tmp/openwarcraft3-wc3-save-version-45.bin",
-        "/tmp/openwarcraft3-wc3-save-version-46.bin",
-        "/tmp/openwarcraft3-wc3-save-version-47.bin",
-        "/tmp/openwarcraft3-wc3-save-version-48.bin",
-        "/tmp/openwarcraft3-wc3-save-version-49.bin",
-        "/tmp/openwarcraft3-wc3-save-version-50.bin",
-        "/tmp/openwarcraft3-wc3-save-version-51.bin",
-        "/tmp/openwarcraft3-wc3-save-version-52.bin",
-        "/tmp/openwarcraft3-wc3-save-version-53.bin",
-        "/tmp/openwarcraft3-wc3-save-version-54.bin",
-        "/tmp/openwarcraft3-wc3-save-version-55.bin",
-        "/tmp/openwarcraft3-wc3-save-version-56.bin",
-        "/tmp/openwarcraft3-wc3-save-version-57.bin",
-        "/tmp/openwarcraft3-wc3-save-version-58.bin",
-        "/tmp/openwarcraft3-wc3-save-version-59.bin",
-        "/tmp/openwarcraft3-wc3-save-version-60.bin",
-        "/tmp/openwarcraft3-wc3-save-version-61.bin",
-        "/tmp/openwarcraft3-wc3-save-version-62.bin",
-        "/tmp/openwarcraft3-wc3-save-version-63.bin",
-        "/tmp/openwarcraft3-wc3-save-version-64.bin",
-        "/tmp/openwarcraft3-wc3-save-version-65.bin",
-        "/tmp/openwarcraft3-wc3-save-version-66.bin",
-        "/tmp/openwarcraft3-wc3-save-version-67.bin",
-    };
+    cstring_t filename = Test_TempPath("wc3-save-prior-format.bin");
     uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67 };
 
     reset_entities();
     setup_test_world();
     T_ASSERT(WriteGame(filename));
     FOR_LOOP(i, sizeof(old_versions) / sizeof(*old_versions)) {
-        T_ASSERT(write_save_fixture_header(filename, old_paths[i], old_versions[i], sizeof(edict_t)));
+        PATHSTR name;
+        cstring_t old_path;
+        snprintf(name, sizeof(name), "wc3-save-version-%u.bin", old_versions[i]);
+        old_path = Test_TempPath(name);
+        T_ASSERT(write_save_fixture_header(filename, old_path, old_versions[i], sizeof(edict_t)));
         T_NE(save_version, old_versions[i]);
-        T_ASSERT(!ReadGame(old_paths[i]));
-        remove(old_paths[i]);
+        T_ASSERT(!ReadGame(old_path));
+        remove(old_path);
     }
     remove(filename);
 }
@@ -2453,7 +2426,7 @@ TEST(wc3_save, cargo_unload_rejects_unallocated_goal_index) {
 }
 
 TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
-    cstring_t filename = "/tmp/openwarcraft3-save-foreign-cargo-goal.bin";
+    cstring_t filename = Test_TempPath("save-foreign-cargo-goal.bin");
     setup_test_world();
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -2464,7 +2437,7 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
 }
 
 TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
-    cstring_t filename = "/tmp/openwarcraft3-save-current-combat-cargo.bin";
+    cstring_t filename = Test_TempPath("save-current-combat-cargo.bin");
     setup_test_world();
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -2502,7 +2475,7 @@ TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {
 }
 
 TEST(wc3_save, rejects_unexpected_trailing_payload) {
-    cstring_t filename = "/tmp/openwarcraft3-save-extra-payload.bin";
+    cstring_t filename = Test_TempPath("save-extra-payload.bin");
     uint32_t const payload[] = { MAKEFOURCC('W','3','E','X'), 1, 0 };
     setup_test_world();
     reset_entities();
@@ -2521,7 +2494,7 @@ TEST(wc3_save, rejects_unexpected_trailing_payload) {
 }
 
 TEST(wc3_save, current_format_uses_current_entity_layout) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-current-envelope.bin";
+    cstring_t filename = Test_TempPath("wc3-save-current-envelope.bin");
     saveHeader_t header = { 0 };
     FILE *f;
 
@@ -2540,8 +2513,8 @@ TEST(wc3_save, current_format_uses_current_entity_layout) {
 }
 
 TEST(wc3_save, rejects_mismatched_entity_layout) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
-    cstring_t old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
+    cstring_t filename = Test_TempPath("wc3-save-waygate-current.bin");
+    cstring_t old_path = Test_TempPath("wc3-save-old-edict-size.bin");
 
     reset_entities();
     setup_test_world();
@@ -2556,7 +2529,7 @@ TEST(wc3_save, rejects_mismatched_entity_layout) {
 
 #ifdef BZ_TESTS
 TEST(wc3_save, all_sparse_pools_restore_records_and_entity_references) {
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-pools.bin";
+    cstring_t const filename = Test_TempPath("wc3-pools.bin");
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);

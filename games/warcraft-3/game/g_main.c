@@ -253,6 +253,18 @@ void G_UpdateTimeOfDay(void) {
     G_PublishTimeOfDayPhase();
 }
 
+/* TerrainArt\Water.slk "<tileset>Sha" height places the simulated water surface; the renderer reads the
+ * same row, so floating and flying units rest on the drawn surface (Outland's Abyss sits 1.5 tiles down). */
+void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
+    char const tileset = info ? info->mainGroundType : 0;
+    WaterData_t const *row = G_WaterData(MAKEFOURCC(tileset, 'S', 'h', 'a'));
+
+    if (!row->id)
+        fprintf(stderr, "G_LoadMap: no TerrainArt\\Water.slk row %cSha; water surface uses the raw W3E level\n",
+                tileset ? tileset : '?');
+    CM_W3SetWaterHeight(row->height);
+}
+
 static bool G_LoadMap(cstring_t mapFilename) {
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         G_SetMapUnitOverrides(NULL);
@@ -271,6 +283,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * HUD before swapping the map-selected object-data overlay. */
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
+    G_ApplyTilesetWaterHeight(CM_GetMapInfo());
     /* Resolve presentation from the active map data set before publishing the
      * gameplay media contract. */
     cstring_t marker = Stb_IniCacheFind(&game.config.theme, "Default", "TargetPointConfirm");
