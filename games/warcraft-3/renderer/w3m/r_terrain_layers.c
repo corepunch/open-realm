@@ -7,7 +7,11 @@ void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask) {
         if (((1 << layer->type) & mask) == 0)
             continue;
         R_BindTexture(layer->texture, 0);
+        tr.shader_default.state.baseColor = layer->type == MAPLAYERTYPE_WATER
+            ? tr.viewDef.waterBaseColor
+            : (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
         R_ApplyShader(&tr.shader_default);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
+    tr.shader_default.state.baseColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
 }

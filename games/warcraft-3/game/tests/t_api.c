@@ -1029,6 +1029,9 @@ static char sky_configstring_value[16];
 static uint32_t scene_fog_configstring_calls;
 static uint32_t scene_fog_configstring_index;
 static char scene_fog_configstring_value[MAX_PATHLEN];
+static uint32_t water_color_configstring_calls;
+static uint32_t water_color_configstring_index;
+static char water_color_configstring_value[MAX_PATHLEN];
 
 static int capture_dnc_model_index(cstring_t modelName) {
     (void)modelName;
@@ -1061,6 +1064,12 @@ static void capture_scene_fog_configstring(uint32_t index, cstring_t value) {
     scene_fog_configstring_calls++;
     scene_fog_configstring_index = index;
     snprintf(scene_fog_configstring_value, sizeof(scene_fog_configstring_value), "%s", value ? value : "");
+}
+
+static void capture_water_color_configstring(uint32_t index, cstring_t value) {
+    water_color_configstring_calls++;
+    water_color_configstring_index = index;
+    snprintf(water_color_configstring_value, sizeof(water_color_configstring_value), "%s", value ? value : "");
 }
 
 static void capture_pause(bool paused) { captured_pause = paused; }
@@ -2743,6 +2752,35 @@ TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
     T_STREQ(dnc_configstring_value[1], "42");
 
     gi.ModelIndex = old_model_index;
+    gi.configstring = old_configstring;
+}
+
+TEST(wc3_api, set_water_base_color_clamps_and_publishes_rgba) {
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
+    float red = 0.0f, green = 0.0f, blue = 0.0f, alpha = 0.0f;
+
+    water_color_configstring_calls = 0;
+    water_color_configstring_index = 0;
+    water_color_configstring_value[0] = '\0';
+    gi.configstring = capture_water_color_configstring;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetWaterBaseColor(-20, 64, 300, 128)\n"
+        "endfunction\n"));
+
+    T_EQ(level.water_base_color.r, 0);
+    T_EQ(level.water_base_color.g, 64);
+    T_EQ(level.water_base_color.b, 255);
+    T_EQ(level.water_base_color.a, 128);
+    T_EQ(water_color_configstring_calls, 1);
+    T_EQ(water_color_configstring_index, CS_SCENE_WATER_COLOR);
+    T_EQ(sscanf(water_color_configstring_value, "%f %f %f %f", &red, &green, &blue, &alpha), 4);
+    T_FEQ(red, 0.0f, 0.001f);
+    T_FEQ(green, 64.0f / 255.0f, 0.001f);
+    T_FEQ(blue, 1.0f, 0.001f);
+    T_FEQ(alpha, 128.0f / 255.0f, 0.001f);
+
     gi.configstring = old_configstring;
 }
 

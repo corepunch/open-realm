@@ -1536,10 +1536,12 @@ uint32_t SetTerrainFogEx(jass_t *j) {
     return 0;
 }
 uint32_t SetWaterBaseColor(jass_t *j) {
-    //int32_t red = jass_checkinteger(j, 1);
-    //int32_t green = jass_checkinteger(j, 2);
-    //int32_t blue = jass_checkinteger(j, 3);
-    //int32_t alpha = jass_checkinteger(j, 4);
+    int32_t red = jass_checkinteger(j, 1);
+    int32_t green = jass_checkinteger(j, 2);
+    int32_t blue = jass_checkinteger(j, 3);
+    int32_t alpha = jass_checkinteger(j, 4);
+
+    G_WaterBaseColorSet(red, green, blue, alpha);
     return 0;
 }
 uint32_t SetWaterDeforms(jass_t *j) {

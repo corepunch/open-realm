@@ -110,6 +110,9 @@ path, and checks both uncovered ground and a genuine low-neighbour transition. N
 
 Ground tiles that sit under water are tinted darker the deeper they are. `GetTileDepth(waterlevel, height)` returns a value in [0.05, 1] that is stored in the vertex `color` channel and multiplied with the sampled texture colour in the fragment shader. The colour channels are additionally brightened toward white proportionally to depth to simulate water scattering:
 
+The separate water-surface layer also consumes `viewDef.waterBaseColor`. WC3 `SetWaterBaseColor` publishes this runtime RGBA through the generic scene contract; `R_DrawTerrainSegment` assigns the multiplier only while drawing `MAPLAYERTYPE_WATER`, then restores neutral white so ground, cliffs and later default-shader users are unaffected. See [Water Base Color](../water-base-color.md).
+
+
 ```c
 #define WATER(INDEX) MakeColor(color[INDEX],
                                LerpNumber(color[INDEX], 1, 0.25f),

@@ -233,6 +233,8 @@ typedef struct {
     float fogStart;
     float fogEnd;
     vec3_t fogColor;
+    /* Generic runtime tint consumed by renderers that draw water surfaces. */
+    vec4_t waterBaseColor;
     /* Optional overlay drawn after the scene, inside the viewport and below
      * 2D UI. Alpha 0 disables it; a NULL texture draws the tint untextured. */
     texture_t const *blendTexture;

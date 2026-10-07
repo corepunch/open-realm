@@ -871,6 +871,7 @@ void G_SpawnEntities(cstring_t map_path) {
     level.mapinfo = mapinfo;
     G_BlightInit();
     G_EnvironmentFogInitMap();
+    G_WaterBaseColorInitMap();
     G_InitPlayerAlliances(mapinfo);
     level.setup.teams = mapinfo ? mapinfo->num_teams : 0;
     if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
