@@ -52,6 +52,39 @@ void pathing_retry_advance(uint32_t const input[8], uint32_t output[4]) {
 
 /* Four supplied hierarchy levels, exact source/goal words and ordinary size1/2 route policy. */
 static wc3AccSearch_t adaptive_probe;
+static wc3AccSearch_t adaptive_retained_probe;
+void pathing_adaptive_retained_reset(void) {
+    for (unsigned level=0; level<4; level++) free(adaptive_retained_probe.maps[level].indices);
+    wc3_acc_free(&adaptive_retained_probe);
+    memset(&adaptive_retained_probe,0,sizeof(adaptive_retained_probe));
+}
+
+/* Keep native cell identities across requests, including setup0/1. The
+ * ordinary single-call probes deliberately own fresh supplied index planes. */
+void pathing_adaptive_retained_route(uint32_t const input[8],uint8_t const *classes,uint32_t *output) {
+    static wc3FineVector_t points[BZ_WC3_ACC_ROUTE_NODES];
+    wc3AccSearch_t *search=&adaptive_retained_probe;
+    if (search->maps[0].width!=input[0] || search->maps[0].height!=input[1]) {
+        pathing_adaptive_retained_reset();
+        for (unsigned level=0; level<4; level++) {
+            uint32_t width=input[0]>>level,height=input[1]>>level;
+            search->maps[level]=(wc3AccMap_t){width,height,NULL,calloc((size_t)width*height,sizeof(int))};
+            assert(search->maps[level].indices);
+        }
+        search->reuse_indices=true;
+    }
+    uint32_t offset=0;
+    for (unsigned level=0; level<4; level++) {
+        search->maps[level].classes=classes+offset;
+        offset+=search->maps[level].width*search->maps[level].height;
+    }
+    wc3AccRequest_t req={{wc3_float(input[4]),wc3_float(input[5])},{wc3_float(input[6]),wc3_float(input[7])},1u<<input[2],input[3]};
+    uint32_t result=wc3_acc_route(search,&req,points),count=result&0x7fffffffu;
+    output[0]=!(result&0x80000000u);output[1]=search->work.pops;output[2]=search->work.count;output[3]=count;
+    for (uint32_t i=0; i<count; i++) {
+        output[4+i*2]=wc3_float_bits(points[i].x);output[5+i*2]=wc3_float_bits(points[i].y);
+    }
+}
 void pathing_adaptive_route(uint32_t const input[8], uint8_t const *classes, uint32_t *output) {
     static wc3FineVector_t points[BZ_WC3_ACC_ROUTE_NODES];
     uint32_t offset=0;

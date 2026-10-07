@@ -85,6 +85,7 @@ static int wc3_acc_find(wc3AccSearch_t *search, int level, wc3FinePoint_t pos) {
             search->source_ids=sources;search->gate_ids=gates;search->level_capacity = work->node_capacity;
         }
         uint32_t at = work->count++;
+        if (work->count > work->initialized) work->initialized = work->count;
         map->indices[cell] = wc3_acc_identity(search, at);
         work->nodes[at] = (wc3FineNode_t){.pos=pos,.parent=-1}; search->levels[at] = (uint8_t)level;
         search->source_ids[at]=search->warp && !level && search->markers ? search->markers[cell]:0;search->gate_ids[at]=0;
@@ -256,16 +257,6 @@ static void wc3_acc_coarse(wc3AccSearch_t *search, int parent) {
 /* Shared ordinary/special setup and search; -2 is the original direct setup result, -1 is a partial search. */
 static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
     wc3FineSearch_t *work = &search->work;
-    /* High bits own request lifetime; low bits retain retail's ushort node
-     * identity. Ordinary reset is O(1), including promoted-cell aliases. Only
-     * epoch wrap clears the retained planes; owners replacing them reset epoch. */
-    if (!search->reuse_indices || !search->index_epoch || search->index_epoch == 65535) {
-        for(unsigned level=0;level<4;level++) {
-            wc3AccMap_t *map=search->maps+level;
-            memset(map->indices,search->reuse_indices ? 0 : 255,sizeof(int)*map->width*map->height);
-        }
-        search->index_epoch = search->reuse_indices ? 1 : 0;
-    } else search->index_epoch++;
     work->heap_growth = BZ_WC3_ACC_HEAP_GROW;
     search->warps=0;
     work->count = work->queued = work->pops = work->reopens = work->stale = 0;
@@ -274,16 +265,38 @@ static int wc3_acc_search(wc3AccSearch_t *search, wc3AccRequest_t const *req) {
         (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->start.y)))};
     search->goal = (wc3FinePoint_t){(int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->goal.x))),
         (int)wc3_int_bits(wc3_floor_bits(wc3_float_bits(req->goal.y)))};
-    int first = -1, goal = -1;
-    if (start.x == search->goal.x && start.y == search->goal.y) return -2;
-    first = wc3_acc_find(search,0,start);
-    if (first >= 0) goal = wc3_acc_find(search,0,search->goal);
-    if (first == goal) return -2;
-    work->nearest = (uint32_t)first; work->dist2 = wc3_fine_dist2(start,search->goal);
+    bool valid = (uint32_t)start.x < search->maps[0].width && (uint32_t)start.y < search->maps[0].height;
+    int first, goal;
+    if (valid) {
+        if (start.x == search->goal.x && start.y == search->goal.y) return -2;
+        /* High bits own request lifetime; low bits retain retail's ushort node
+         * identity. Ordinary reset is O(1), including promoted-cell aliases. Only
+         * epoch wrap clears the retained planes; owners replacing them reset epoch. */
+        if (!search->reuse_indices || !search->index_epoch || search->index_epoch == 65535) {
+            for(unsigned level=0;level<4;level++) {
+                wc3AccMap_t *map=search->maps+level;
+                memset(map->indices,search->reuse_indices ? 0 : 255,sizeof(int)*map->width*map->height);
+            }
+            search->index_epoch = search->reuse_indices ? 1 : 0;
+        } else search->index_epoch++;
+        work->initialized = 0;
+        first = wc3_acc_find(search,0,start);
+        goal = first >= 0 ? wc3_acc_find(search,0,search->goal) : -1;
+        work->source_node = (uint32_t)first; work->goal_node = (uint32_t)goal;
+        work->query_initialized = first >= 0;
+        if (first == goal) return -2;
+        work->nearest = (uint32_t)first; work->dist2 = wc3_fine_dist2(start,search->goal);
+        work->work_limit = req->budget;
+    } else {
+        /* 164c30 updates lane/size/warp and coordinates before bounds, but
+         * retains the previous identities, cell epoch and work limit. */
+        if (!work->query_initialized) return -2;
+        first = (int)work->source_node; goal = (int)work->goal_node;
+    }
     work->nodes[first].h = wc3_acc_cost(start,search->goal); wc3_fine_enqueue(work,(uint32_t)first);
     int at = -1;
     while (work->queued) {
-        if (work->pops++ >= req->budget) break;
+        if (work->pops++ >= work->work_limit) break;
         wc3FineEntry_t entry = wc3_fine_pop(work);
         wc3FineNode_t *node = work->nodes + entry.node;
         if (node->gen != entry.gen) { work->stale++; continue; }

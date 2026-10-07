@@ -15,6 +15,7 @@
 #define BZ_WC3_FINE_HEAP_GROW 1024 // original147600 open table growth; includes slot0 sentinel
 #define BZ_WC3_ACC_HEAP_GROW 2048 // original14f570 adaptive open table; includes slot0 sentinel
 #define BZ_WC3_ACC_ROUTE_NODES 131072 // ushort parent chain plus one portal sentinel per node
+#define BZ_WC3_ROUTE_POINT_GROW 128 // 1657c0/166060 growth quantum of both owned route tables
 #define BZ_WC3_FINE_HASH 65536 // sparse lookup; at most half full at the native node limit
 
 #endif

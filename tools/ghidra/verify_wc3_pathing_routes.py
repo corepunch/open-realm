@@ -25,6 +25,9 @@ def main():
     parser.add_argument('--all-directions', action='store_true', help='extend fine chains to every cardinal/diagonal direction')
     parser.add_argument('--fixture', type=Path, help='freeze exact original fine coordinate words')
     parser.add_argument('--engine-library', type=Path, help='compare production fine reconstruction')
+    parser.add_argument('--outside-axis-fixture', type=Path, help='completing public outside-axis controls')
+    parser.add_argument('--buffer-fixture', type=Path, help='frozen public buffer/invalid-start controls')
+    parser.add_argument('--buffer-ghidra-evidence', type=Path, help='saved buffer/source Ghidra readback')
     parser.add_argument('--producer-fixture', type=Path, help='also run the complete ROUTE-01.1 producer corpus')
     parser.add_argument('--engine-fixture', type=Path, help='literal Move adapter regression subset')
     parser.add_argument('--ghidra-evidence', type=Path, help='saved reconstruction function annotations')
@@ -156,6 +159,37 @@ def main():
         for key in ('fine_requests', 'coarse_requests', 'engine_fine_cases', 'engine_coarse_cases', 'engine_differences',
                     'expected_equal', 'adapter_fixture_rows', 'saved_functions', 'payload_sha256'):
             report['producer_' + key] = producer[key]
+    if args.buffer_fixture:
+        buffer_report = args.report.with_name(args.report.stem + '-buffers.json')
+        command = [sys.executable, str(Path(__file__).parent / 'research' / 'verify_route01_2_buffers.py'),
+                   '--binary', str(args.binary), '--report', str(buffer_report), '--expected', str(args.buffer_fixture)]
+        if args.engine_library:
+            command += ['--engine', str(args.engine_library)]
+        subprocess.run(command, check=True)
+        buffers = json.loads(buffer_report.read_text())
+        report['buffer_scenarios'] = buffers['rows']
+        report['buffer_growth_cases'] = buffers['growth_cases']
+        report['buffer_payload_sha256'] = buffers['payload_sha256']
+        if args.engine_library:
+            report['buffer_engine_fine_builds'] = buffers['engine_fine_builds']
+            report['buffer_engine_coarse_builds'] = buffers['engine_coarse_builds']
+            report['buffer_engine_differences'] = len(buffers['engine_differences'])
+        if args.buffer_ghidra_evidence:
+            saved = json.loads(args.buffer_ghidra_evidence.read_text())
+            assert saved['binary_sha256'] == digest and not saved['unsaved_changes']
+            assert len(saved['functions']) == 12
+            assert all('Payoff141 ROUTE-01.2:' in f['comment'] for f in saved['functions'])
+            report['buffer_saved_functions'] = len(saved['functions'])
+    if args.outside_axis_fixture:
+        axis_report = args.report.with_name(args.report.stem + '-outside-axis.json')
+        command = [sys.executable, str(Path(__file__).parents[1] / 'frida' / 'research' / 'route012_summarize.py'),
+                   '--report', str(axis_report), '--expected', str(args.outside_axis_fixture)]
+        for variant in ('first', 'repeat', 'control'):
+            command += ['--' + variant, str(args.outside_axis_fixture.parent / ('retail-outside-axis-' + variant + '-1.27.jsonl.gz'))]
+        subprocess.run(command, check=True)
+        axis = json.loads(axis_report.read_text())
+        for key in ('public_outside_sources', 'completing_runs', 'observer_free_controls'):
+            report['buffer_axis_' + key] = axis[key]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{fine_cases} fine / {accelerated_cases} accelerated reconstruction cases; all pass')

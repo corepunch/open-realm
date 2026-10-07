@@ -42,6 +42,7 @@
 #include "retail_adaptive_storage.h"
 #include "retail_coarse_scopes.h"
 #include "retail_reconstruction.h"
+#include "retail_stale_route.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -3502,7 +3503,10 @@ TEST(wc3_pathfinding, reconstruction_adapters_preserve_oblique_all_class_route_w
         route.count=route.adaptive_count=0;
         movePathQuery_t query={.geometry={&from,&target,unit->collision,masks[r->lane]},
             .fine=&fine,.fine_target=&goal,.units=true,.mover=unit};
+        vec2_t *backing=r->coarse ? route.adaptive_points : route.points;
         T_ASSERT(r->coarse ? G_BuildUnitMoveFineRoute(&query,&route,&out) : G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        T_EQ(r->coarse ? route.adaptive_capacity : route.capacity,128);
+        if (backing) T_ASSERT(backing==(r->coarse ? route.adaptive_points : route.points));
         vec2_t const *points=r->coarse?route.adaptive_points:route.points;
         uint32_t count=r->coarse?route.adaptive_count:route.count;
         T_EQ(count,r->count);
@@ -3546,6 +3550,108 @@ TEST(wc3_pathfinding, retained_route_consumers_do_not_copy_whole_chains_to_scrat
     T_ASSERT(!memcmp(before[0],G_TestMoveRouteScratch(false),sizeof(before[0])));
     T_ASSERT(route.index<20);
     reset_entities();setup_test_world();
+}
+
+
+/* Original setup0 leaves the previous node identities and search parameters
+ * intact. The request still runs one pop and reconstructs its retained nearest
+ * chain, replacing only the source endpoint with the current exact words. */
+TEST(wc3_pathfinding, owned_route_growth_retains_capacity_across_shorter_refills) {
+    uint8_t cells[256*256]={0};
+    unsigned lengths[]={126,127,128,129,180,250};
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}});
+    for(unsigned x=0;x<256;x++)cells[100*256+x]=cells[104*256+x]=2;
+    CM_SetupTestPathmap(256,256,cells);
+    uint32_t counter=level.pathing_counter;
+    edict_t *unit=make_unit_at(2.25f*32,102.75f*32);
+    FOR_LOOP(cls,2) FOR_LOOP(k,6) {
+        vec2_t fine={2.25f,102.75f},goal={2.25f+lengths[k],102.75f},
+            from={fine.x*32,fine.y*32},target={goal.x*32,goal.y*32},out;
+        unit->collision=(.25f+.5f*cls)*32;
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&from,&target,unit->collision,2},.fine=&fine,.fine_target=&goal,.units=true,.mover=unit};
+        level.pathing_counter=1000+(cls*6+k)*200;level.move_fine_budgets[0].work=0;
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        T_EQ(route.count,lengths[k]+1u);
+        uint32_t capacity=lengths[k]<128 ? 128 : 256;
+        T_EQ(route.capacity,capacity);
+        vec2_t *backing=route.points;
+        goal=(vec2_t){12.25f,102.75f};target=(vec2_t){goal.x*32,goal.y*32};
+        level.pathing_counter+=100;level.move_fine_budgets[0].work=0;
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        T_EQ(route.count,11u);T_EQ(route.capacity,capacity);
+        T_ASSERT(route.points==backing);
+        T_EQ(wc3_float_bits(route.points[0].x),0x41440000u);
+        T_EQ(wc3_float_bits(route.points[0].y),0x42cd8000u);
+        free(route.points);
+    }
+    level.pathing_counter=counter;S_ClearMoveFineRequests();CM_SetupTestPathmap(0,0,NULL);
+}
+
+TEST(wc3_pathfinding, denied_fine_request_does_not_replace_retained_query_profile) {
+    uint8_t cells[64*64]={0};cells[33*64+27]=2;
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=make_unit_at(30.125f*32,33.875f*32);unit->collision=8;
+    uint32_t counter=level.pathing_counter;
+    vec2_t fine={30.125f,33.875f},goal={51.25f,42.75f},
+        from={fine.x*32,fine.y*32},target={goal.x*32,goal.y*32},out;
+    moveFineRoute_t route={0};
+    movePathQuery_t query={.geometry={&from,&target,8,2},.fine=&fine,.fine_target=&goal,.units=true,.mover=unit};
+    level.pathing_counter=1000;level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+    T_ASSERT(!G_TestMoveFineSearch()->observed_obstruction);
+    fine=(vec2_t){12.125f,15.875f};from=(vec2_t){fine.x*32,fine.y*32};
+    query.geometry.radius=56;level.pathing_counter+=100;level.move_fine_budgets[0].work=1101;
+    T_ASSERT(!G_BuildUnitMoveLocalRoute(&query,&route,&out));
+    T_ASSERT(unit->movement.fine_queued);
+    fine=(vec2_t){-3.5f,10.25f};from=(vec2_t){fine.x*32,fine.y*32};
+    level.pathing_counter+=100;level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+    T_EQ(G_TestMoveFineSearch()->pops,1);T_EQ(G_TestMoveFineSearch()->count,0);
+    T_ASSERT(!G_TestMoveFineSearch()->observed_obstruction);
+    T_EQ(route.index,0);T_EQ(route.count,22);
+    T_ASSERT(!unit->movement.fine_queued);
+    FOR_LOOP(i,route.count) {
+        T_EQ(wc3_float_bits(route.points[i].x),retail_stale_route_0[i][0]);
+        T_EQ(wc3_float_bits(route.points[i].y),retail_stale_route_0[i][1]);
+    }
+    free(route.points);level.pathing_counter=counter;
+    S_ClearMoveFineRequests();CM_SetupTestPathmap(0,0,NULL);
+}
+
+TEST(wc3_pathfinding, outside_fine_source_reconstructs_the_previous_search_chain) {
+    uint8_t cells[64*64]={0};
+    vec2_t prior_goals[]={{51.25f,42.75f},{12.25f,50.75f}};
+    uint32_t const (*expected[])[2]={retail_stale_route_0,retail_stale_route_1};
+    uint32_t counts[]={22,19};
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=make_unit_at(30.125f*32,33.875f*32);unit->collision=8;
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(k,2) {
+        vec2_t fine={30.125f,33.875f},goal=prior_goals[k],
+            from={fine.x*32,fine.y*32},target={goal.x*32,goal.y*32},out;
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&from,&target,8,2},.fine=&fine,.fine_target=&goal,.units=true,.mover=unit};
+        level.pathing_counter=1000+k*200;level.move_fine_budgets[0].work=0;
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        fine=(vec2_t){-3.5f,10.25f};goal=(vec2_t){51.25f,42.75f};
+        from=(vec2_t){fine.x*32,fine.y*32};target=(vec2_t){goal.x*32,goal.y*32};
+        level.pathing_counter+=100;level.move_fine_budgets[0].work=0;
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        T_EQ(G_TestMoveFineSearch()->pops,1);T_EQ(G_TestMoveFineSearch()->count,0);
+        T_EQ(route.count,counts[k]);T_EQ(route.index,0);T_ASSERT(route.partial);
+        if(route.count==counts[k])FOR_LOOP(i,route.count) {
+            T_EQ(wc3_float_bits(route.points[i].x),expected[k][i][0]);
+            T_EQ(wc3_float_bits(route.points[i].y),expected[k][i][1]);
+        }
+        free(route.points);
+    }
+    level.pathing_counter=old_counter;S_ClearMoveFineRequests();reset_entities();setup_test_world();
 }
 
 #endif /* BZ_TESTS */

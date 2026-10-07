@@ -102,17 +102,17 @@ static inline uint32_t wc3_fine_build_route(wc3FineSearch_t *search, wc3FineRequ
     if ((uint32_t)request->start.x<request->width && (uint32_t)request->start.y<request->height &&
         request->start.x==request->goal.x && request->start.y==request->goal.y) {
         search->count=search->queued=search->pops=search->reopens=search->stale=0;
-        wc3_fine_reset_lookup(search); wc3_fine_reserve(search,0,1);
+        wc3_fine_reserve(search,0,1);
         points[0]=goal; *complete=true; return 1;
     }
     int at=wc3_fine_search(search,request); *complete=at>=0;
     if (at<0) {
-        if (!search->count) return 0;
+        if (!search->initialized) return 0;
         at=(int)search->nearest;
-        if (at==0) {points[0]=source; return 1;}
+        if ((uint32_t)at==search->source_node) {points[0]=source; return 1;}
         goal=wc3_route_center(search->nodes[at].pos);
     }
-    wc3FineReconstruct_t route={search->nodes,search->count,at,source,goal};
+    wc3FineReconstruct_t route={search->nodes,search->initialized,at,source,goal};
     return wc3_fine_reconstruct(&route,points,capacity);
 }
 #endif

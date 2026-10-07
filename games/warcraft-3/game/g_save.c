@@ -81,9 +81,10 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format122 saves mixed ordinary/region identities in entity save order and
+/* Format123 adds derived route capacities to the instance layout. Format122 saves
+ * mixed ordinary/region identities in entity save order and
  * actual compacted sparse region membership, not an enclosing rectangle. */
-static uint32_t const save_version = 122;
+static uint32_t const save_version = 123;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -782,11 +783,13 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, adaptive_admission, F_STRUCT, 1, move_coarse_request_fields),
     TF(moveFineRoute_t, group_admission, F_STRUCT, 1, move_coarse_request_fields),
     TF(moveFineRoute_t, points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, count, F_INT),
     TF(moveFineRoute_t, index, F_INT),
     TF(moveFineRoute_t, mask, F_INT),
     TF(moveFineRoute_t, partial, F_INT),
     TF(moveFineRoute_t, adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, adaptive_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, adaptive_count, F_INT),
     TF(moveFineRoute_t, adaptive_index, F_INT),
     TF(moveFineRoute_t, adaptive_goal, F_VECTOR),
@@ -794,6 +797,7 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, adaptive_mask, F_INT),
     TF(moveFineRoute_t, adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(moveFineRoute_t, group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, group_count, F_INT),
     TF(moveFineRoute_t, group_index, F_INT),
     TF(moveFineRoute_t, group_goal, F_VECTOR),
@@ -869,11 +873,13 @@ static field_t const movement_fields[] = {
     TF(edictMovement_s, fine_request_time, F_INT),
     TF(edictMovement_s, adaptive_disabled, F_INT),
     TF(struct edictMovement_s, fine_route.points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.count, F_INT),
     TF(struct edictMovement_s, fine_route.index, F_INT),
     TF(struct edictMovement_s, fine_route.mask, F_INT),
     TF(struct edictMovement_s, fine_route.partial, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.adaptive_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.adaptive_count, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_index, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_goal, F_VECTOR),
@@ -881,6 +887,7 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.adaptive_mask, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_revision, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.group_points, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(struct edictMovement_s, fine_route.group_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.group_count, F_INT),
     TF(struct edictMovement_s, fine_route.group_index, F_INT),
     TF(struct edictMovement_s, fine_route.group_goal, F_VECTOR),
@@ -2069,9 +2076,10 @@ static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
 
 static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
     route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
+    route->capacity=route->adaptive_capacity=route->group_capacity=0;
     if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
     if (route->count) {
-        route->points = malloc(route->count*sizeof(*route->points));
+        G_ReserveMoveRouteBuffer(&route->points,&route->capacity,route->count);
         if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
             free(route->points); route->points = NULL; return false;
         }
@@ -2084,7 +2092,7 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
             !isfinite(route->adaptive_goal.x) || !isfinite(route->adaptive_goal.y) || !isfinite(route->adaptive_radius)) {
             free(route->points); route->points=NULL; return false;
         }
-        route->adaptive_points=malloc(route->adaptive_count*sizeof(*route->adaptive_points));
+        G_ReserveMoveRouteBuffer(&route->adaptive_points,&route->adaptive_capacity,route->adaptive_count);
         if (!route->adaptive_points || !LoadBytes(f,route->adaptive_points,route->adaptive_count*sizeof(*route->adaptive_points))) {
             free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
         }
@@ -2097,7 +2105,7 @@ static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
             !isfinite(route->group_goal.x) || !isfinite(route->group_goal.y) || !isfinite(route->group_radius)) {
             free(route->points); free(route->adaptive_points); route->points=route->adaptive_points=NULL; return false;
         }
-        route->group_points=malloc(route->group_count*sizeof(*route->group_points));
+        G_ReserveMoveRouteBuffer(&route->group_points,&route->group_capacity,route->group_count);
         if (!route->group_points || !LoadBytes(f,route->group_points,route->group_count*sizeof(*route->group_points))) {
             free(route->points); free(route->adaptive_points); free(route->group_points);
             route->points=route->adaptive_points=route->group_points=NULL; return false;
@@ -3297,6 +3305,25 @@ TEST(wc3_save, adaptive_route_extents_preserve_all_ushort_parent_identities) {
     T_ASSERT(restored.adaptive_points && !memcmp(points,restored.adaptive_points,BZ_WC3_ACC_ROUTE_NODES*sizeof(*points)));
     T_ASSERT(restored.group_points && !memcmp(points,restored.group_points,BZ_WC3_ACC_ROUTE_NODES*sizeof(*points)));
     free(restored.adaptive_points);free(restored.group_points);fclose(file);free(points);
+}
+
+TEST(wc3_save, route_capacities_are_rebuilt_from_logical_payloads) {
+    vec2_t points[]={{1.25f,2.75f},{3.25f,4.75f},{5.25f,6.75f},{7.25f,8.75f},{9.25f,10.75f}};
+    moveFineRoute_t written={.points=points,.count=3,.index=2,.capacity=1024,
+        .adaptive_points=points,.adaptive_count=4,.adaptive_index=3,.adaptive_capacity=2048,
+        .group_points=points,.group_count=5,.group_index=4,.group_capacity=4096},restored=written;
+    FILE *file=tmpfile();T_NOT_NULL(file);if(!file)return;
+    T_ASSERT(WriteMoveRouteBuffers(file,&written));
+    T_EQ(ftell(file),sizeof(vec2_t)*12);
+    rewind(file);T_ASSERT(ReadMoveRouteBuffers(file,&restored));
+    T_EQ(restored.capacity,128);T_EQ(restored.adaptive_capacity,128);T_EQ(restored.group_capacity,128);
+    T_ASSERT(!memcmp(points,restored.points,3*sizeof(*points)));
+    T_ASSERT(!memcmp(points,restored.adaptive_points,4*sizeof(*points)));
+    T_ASSERT(!memcmp(points,restored.group_points,5*sizeof(*points)));
+    vec2_t *backing=restored.points;
+    G_ReserveMoveRouteBuffer(&restored.points,&restored.capacity,2);
+    T_ASSERT(backing==restored.points);T_EQ(restored.capacity,128);
+    free(restored.points);free(restored.adaptive_points);free(restored.group_points);fclose(file);
 }
 
 TEST(wc3_save, rejects_invalid_fine_route_payloads) {

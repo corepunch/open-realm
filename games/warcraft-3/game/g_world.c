@@ -13,11 +13,21 @@ typedef struct {
     int size;
     uint8_t flags;
     movePathQuery_t const *query;
+    edict_t const *target; /* Search observation identity, separate from current suppression. */
     bool has_target, endpoint, suppress_target;
     uint32_t level, cell_epoch;
     bool *target_hit;
     wc3FineBox_t *rejection; /* query-local placement witness, never retained */
 } moveFineGraph_t;
+/* Setup0/1 retains query parameters; suppression still belongs to the current
+ * synchronous caller. Never retain the caller's stack-local query pointer. */
+static struct {
+    int size;
+    uint8_t flags;
+    edict_t const *target;
+    uint32_t target_spawn;
+    bool has_target;
+} move_fine_profile;
 static uint64_t move_spatial_serial;
 #ifdef BZ_TESTS
 static uint32_t move_spatial_visits;
@@ -345,6 +355,7 @@ void G_FreeMovePathCache(void) {
     move_grid_geometry.valid = false;
     free(move_acc_storage); move_acc_storage = NULL; move_acc_markers = NULL;
     wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
+    memset(&move_fine_profile,0,sizeof(move_fine_profile));
     move_acc_width = move_acc_height = 0;
     S_FreeMoveFineSpatial();
     FOR_LOOP(lane,4){free(move_static_edges[lane]);move_static_edges[lane]=NULL;}
@@ -797,7 +808,7 @@ static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
     if(!map->cells)return true;
     uint32_t target=WC3_RECORD_END,mask=graph->flags;
-    if(graph->has_target && graph->query && graph->query->target)target=map->objects[graph->query->target-g_edicts];
+    if(graph->has_target && graph->target)target=map->objects[graph->target-g_edicts];
     wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask|mask<<24,.target=target,.endpoint=graph->endpoint,
         .describe=move_fine_cell_object,.data=(void *)graph};
     wc3CellResult_t result=wc3_records_cell(map,pos,0,&query);
@@ -1173,7 +1184,7 @@ uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cache
     moveFineGraph_t graph=move_foot_shape(&input->geometry);move_query_objects(&graph,input,NULL);
     graph.suppress_target=true;
     if(input->target) {
-        graph.has_target=true;graph.target_hit=hit;
+        graph.has_target=true;graph.target=input->target;graph.target_hit=hit;
     }
     if(cached)move_begin_cell_query(&graph);
     wc3FinePoint_t point={pos.x,pos.y};
@@ -1260,6 +1271,16 @@ static void move_acc_enable_gates(void) {
     move_acc.markers=move_acc_markers;move_acc.gates=move_acc_gates;move_acc.warp=true;
 }
 
+/* Counts and indices can be erased independently of backing storage. Shorter
+ * refills do not allocate, and empty construction does not reserve capacity. */
+void G_ReserveMoveRouteBuffer(vec2_t **points,uint32_t *capacity,uint32_t count) {
+    if (count <= *capacity) return;
+    uint32_t grown = (count + BZ_WC3_ROUTE_POINT_GROW - 1) / BZ_WC3_ROUTE_POINT_GROW * BZ_WC3_ROUTE_POINT_GROW;
+    vec2_t *data = realloc(*points,(size_t)grown * sizeof(*data));
+    if (!data) gi.error("WC3 route: cannot retain %u points",grown);
+    *points=data; *capacity=grown;
+}
+
 static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out) {
     movePathQuery_t const *input = query->input;
     wc3FineVector_t source = query->source, target = query->target;
@@ -1297,8 +1318,8 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         wc3AccSelection_t selected=wc3_acc_select((wc3FineRoute_t){move_acc_points,count-1},false);
         point=selected.index ? (wc3FineVector_t){wc3_mul(move_acc_points[selected.index].x,2),wc3_mul(move_acc_points[selected.index].y,2)} : target;
         if (route) {
-            vec2_t *points=realloc(route->adaptive_points,count*sizeof(*points));
-            if (!points) gi.error("WC3 adaptive routing: cannot retain %u points",count);
+            G_ReserveMoveRouteBuffer(&route->adaptive_points,&route->adaptive_capacity,count);
+            vec2_t *points=route->adaptive_points;
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
             route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
@@ -1394,8 +1415,8 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         uint32_t count=move_build_acc_route(input,&req,input->mover?&route->group_admission:NULL)&0x7fffffffu;
         if (!count) return false;
         wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){move_acc_points,count-1}),false};
-        vec2_t *points=realloc(route->group_points,count*sizeof(*points));
-        if (!points) gi.error("WC3 group routing: cannot retain %u points",count);
+        G_ReserveMoveRouteBuffer(&route->group_points,&route->group_capacity,count);
+        vec2_t *points=route->group_points;
         route->group_points=points; route->group_count=count; route->group_index=selected.index;
         route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=move_map_revision;
         route->group_mask=mask;
@@ -1470,7 +1491,17 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     if (input->units && input->mover && !(input->mover->aiflags & AI_FLYING) && object && object->inuse &&
         move_has_spatial_record(object)) {
         graph.has_target = true;
+        graph.target = object;
         graph.target_hit = &target_hit;
+    }
+    bool initialized=(uint32_t)start.x<pathmap.width && (uint32_t)start.y<pathmap.height &&
+        (start.x!=goal.x || start.y!=goal.y);
+    if (!initialized && move_fine.query_initialized) {
+        graph.size=move_fine_profile.size; graph.flags=move_fine_profile.flags;
+        graph.target=move_fine_profile.target;
+        graph.has_target=move_fine_profile.has_target && graph.target && graph.target->inuse &&
+            graph.target->spawn_time==move_fine_profile.target_spawn;
+        graph.target_hit=graph.has_target ? &target_hit : NULL;
     }
     wc3FineRequest_t req = { .start = {start.x, start.y}, .goal = {goal.x, goal.y},
         .width = pathmap.width, .height = pathmap.height,
@@ -1479,6 +1510,12 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         .publish_node=move_publish_fine_node };
     if (input->units && input->mover && !S_AdmitUnitMoveFineRequest((edict_t *)input->mover)) return false;
     move_spatial_prepare();
+    if (initialized) {
+        move_fine_profile.size=graph.size; move_fine_profile.flags=graph.flags;
+        move_fine_profile.target=graph.target;
+        move_fine_profile.target_spawn=graph.target ? graph.target->spawn_time : 0;
+        move_fine_profile.has_target=graph.has_target;
+    }
     move_begin_cell_query(&graph);
     bool complete;
     uint32_t count=wc3_fine_build_route(&move_fine,&req,(wc3FineVector_t){a.x,a.y},
@@ -1488,8 +1525,8 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     /* Native166e90 publishes count1 as an admitted route. A caller that
      * derives its fine goal here has the same route contract as a member. */
     if (curve) {
-        vec2_t *points = realloc(curve->points,count*sizeof(*points));
-        if (!points) gi.error("WC3 fine routing: cannot retain %u route points",count);
+        G_ReserveMoveRouteBuffer(&curve->points,&curve->capacity,count);
+        vec2_t *points=curve->points;
         /* Original166e90 starts at the destination if expansion observed no
          * obstruction; seeing a blocked cell selects the next parent point. */
         curve->points = points; curve->count = count; curve->partial=move_fine_points[0].x!=b.x || move_fine_points[0].y!=b.y;

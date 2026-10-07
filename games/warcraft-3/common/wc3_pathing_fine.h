@@ -35,9 +35,12 @@ typedef struct {
     wc3FineEntry_t *heap;
     uint32_t node_capacity, heap_capacity, heap_growth;
     uint32_t hash[BZ_WC3_FINE_HASH];
+    wc3FinePoint_t *lookup_positions; /* Only needed after a setup0 retains old identities. */
     uint32_t hash_epoch;
     uint16_t search_stamp;
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
+    uint32_t initialized, source_node, goal_node, work_limit;
+    bool query_initialized;
     bool observed_obstruction;
 #if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
     /* Read-only exact queue diagnostics; absent from ordinary game builds. */
@@ -66,10 +69,12 @@ static inline void wc3_fine_reserve(wc3FineSearch_t *search, uint32_t nodes, uin
 }
 
 static inline void wc3_fine_free(wc3FineSearch_t *search) {
-    free(search->nodes); free(search->heap);
+    free(search->nodes); free(search->heap); free(search->lookup_positions);
+    search->lookup_positions = NULL;
     search->nodes = NULL; search->heap = NULL;
     search->node_capacity = search->heap_capacity = 0;
     search->count = search->queued = 0;
+    search->initialized = 0; search->query_initialized = false;
 }
 
 /* The native node limit uses 15 identity bits. Store the scratch generation
@@ -89,6 +94,19 @@ static inline void wc3_fine_reset_lookup(wc3FineSearch_t *search) {
         memset(search->hash, 0, sizeof(search->hash));
         search->hash_epoch=1;
     }
+}
+
+/* Setup0 resets the node count without expiring cell identities. New nodes
+ * can overwrite old slots, so lookup keys must then outlive node positions.
+ * Ordinary valid requests keep the compact one-array lookup. Allocate this
+ * exceptional backing only when an outside source actually reaches search. */
+static inline void wc3_fine_retain_lookup(wc3FineSearch_t *search) {
+    if (search->lookup_positions) return;
+    search->lookup_positions = malloc(sizeof(*search->lookup_positions) * BZ_WC3_FINE_HASH);
+    if (!search->lookup_positions) { fprintf(stderr,"WC3 fine search: cannot retain lookup keys\n"); abort(); }
+    for (uint32_t i=0; i<BZ_WC3_FINE_HASH; i++)
+        if ((search->hash[i] >> WC3_FINE_LOOKUP_NODE_BITS) == search->hash_epoch)
+            search->lookup_positions[i] = search->nodes[search->hash[i] & WC3_FINE_LOOKUP_NODE_MASK].pos;
 }
 
 static wc3FinePoint_t const wc3_fine_dirs[] = {
@@ -136,13 +154,16 @@ static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, w
     uint32_t slot = ((uint32_t)pos.x * 0x9e3779b1u ^ (uint32_t)pos.y * 0x85ebca6bu) & (BZ_WC3_FINE_HASH - 1);
     while ((search->hash[slot] >> WC3_FINE_LOOKUP_NODE_BITS) == search->hash_epoch) {
         uint32_t at = search->hash[slot] & WC3_FINE_LOOKUP_NODE_MASK;
-        if (search->nodes[at].pos.x == pos.x && search->nodes[at].pos.y == pos.y) return (int)at;
+        wc3FinePoint_t key = search->lookup_positions ? search->lookup_positions[slot] : search->nodes[at].pos;
+        if (key.x == pos.x && key.y == pos.y) return (int)at;
         slot = (slot + 1) & (BZ_WC3_FINE_HASH - 1);
     }
     if (search->count == BZ_WC3_FINE_NODES) return -1;
     wc3_fine_reserve(search, search->count + 1, 0);
     uint32_t at = search->count++;
+    if (search->count > search->initialized) search->initialized = search->count;
     search->hash[slot] = (search->hash_epoch << WC3_FINE_LOOKUP_NODE_BITS) | at;
+    if (search->lookup_positions) search->lookup_positions[slot] = pos;
     search->nodes[at] = (wc3FineNode_t){ .pos = pos, .parent = -1 };
     if(req->publish_node)req->publish_node(req->data,pos,search->search_stamp,(uint16_t)at);
     return (int)at;
@@ -196,18 +217,27 @@ static void wc3_fine_relax(wc3FineSearch_t *search, wc3FinePoint_t goal, wc3Fine
  * Target identity is observed during perimeter sampling, including suppressed
  * objects. Original14b760 creates neighbors, then skips relaxation on a hit. */
 static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req) {
-    wc3_fine_reset_lookup(search);
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
-    search->observed_obstruction = false;
-    if((uint32_t)req->start.x<req->width && (uint32_t)req->start.y<req->height &&
-        (req->start.x!=req->goal.x || req->start.y!=req->goal.y))search->search_stamp++;
-    search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);
-    int start = wc3_fine_node(search, req, req->start), goal = wc3_fine_node(search, req, req->goal);
-    if (start < 0 || goal < 0) return -1;
+    int start, goal;
+    if ((uint32_t)req->start.x < req->width && (uint32_t)req->start.y < req->height) {
+        wc3_fine_reset_lookup(search); search->initialized = 0;
+        search->observed_obstruction = false;
+        if (req->start.x != req->goal.x || req->start.y != req->goal.y) search->search_stamp++;
+        search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);
+        start = wc3_fine_node(search, req, req->start); goal = wc3_fine_node(search, req, req->goal);
+        search->source_node = (uint32_t)start; search->goal_node = (uint32_t)goal;
+        search->work_limit = req->budget; search->query_initialized = true;
+    } else {
+        /* 14ad50 returns0 before changing source/goal nodes, stamp, mask,
+         * footprint or work limit. 148100 still calls14aa10. */
+        if (!search->query_initialized) return -1;
+        wc3_fine_retain_lookup(search);
+        start = (int)search->source_node; goal = (int)search->goal_node;
+    }
     search->nodes[start].h = wc3_fine_heuristic(req->start, req->goal);
     wc3_fine_enqueue(search, (uint32_t)start);
     while (search->queued) {
-        if (search->pops++ >= req->budget) return -1;
+        if (search->pops++ >= search->work_limit) return -1;
 #if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
         if(search->pop_trace) {
             wc3FineEntry_t e=search->heap[1]; wc3FineNode_t const *n=search->nodes+e.node;

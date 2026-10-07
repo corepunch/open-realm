@@ -1511,3 +1511,20 @@ portion, while preserving exact word order, save layout and gate sentinels.
 The200-row adapter regression and fresh original/model/C O0/O2 comparison are
 recorded in [the engine ledger](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140).
 Growth, invalid starts and next public advance state remain ROUTE-01.2.
+
+## Initialized outside starts and retained capacity (Payoff141)
+
+Fine/adaptive setup0 falls through to search with previous node identities and
+cell metadata, rather than rejecting an initialized outside source. Reset
+clears work and semantic counts, not backing history. The fine footprint/mask/
+target and both work limits remain from the accepted request; adaptive lane,
+size and coordinates are already updated. Same-cell setup preserves history.
+Move now implements this contract and keeps requested source endpoint words.
+
+Owned fine/adaptive/group point stores retain128-point growth blocks. Erasing
+a count does not release backing; shorter refills do no realloc. Save123
+rebuilds derived capacities from validated payload lengths. The full452 fine/
+152 adaptive original/C comparisons, actual adapter regressions, live outside
+axis-setter controls and remaining public-advance work are recorded in
+[Payoff141](retail-pathfinding-engine.md#retained-search-history-and-route-capacity-payoff141).
+ROUTE-01.2 remains open; no proposed01.4 leaf has been added.

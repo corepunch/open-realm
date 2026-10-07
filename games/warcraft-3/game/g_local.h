@@ -45,18 +45,18 @@ typedef struct {
 /* Move owns the fine-coordinate chain; allocation follows route length, not the edict pool size. */
 typedef struct {
     vec2_t *points;
-    uint32_t count, index;
+    uint32_t count, index, capacity;
     uint8_t mask;
     bool partial; /* Fine route endpoint differs from the requested point, including target-perimeter success. */
     vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
-    uint32_t adaptive_count, adaptive_index;
+    uint32_t adaptive_count, adaptive_index, adaptive_capacity;
     vec2_t adaptive_goal;
     float adaptive_radius;
     uint32_t adaptive_revision;
     uint8_t adaptive_mask; /* Authored hierarchy lane is independent of the current fine query. */
     /* Singleton group plan is separate from the member's local route. */
     vec2_t *group_points;
-    uint32_t group_count, group_index;
+    uint32_t group_count, group_index, group_capacity;
     vec2_t group_goal;
     vec2_t group_request; /* Derived world-coordinate key; admitted goal remains authoritative. */
     uint32_t group_geometry; /* Process-local transform revision; cleared on save/load. */
@@ -3174,6 +3174,7 @@ vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t co
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
+void G_ReserveMoveRouteBuffer(vec2_t **points, uint32_t *capacity, uint32_t count);
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRouteStatus(movePathQuery_t const *query,moveFineRoute_t *route,vec2_t *out,uint32_t *status);
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);

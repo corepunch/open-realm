@@ -1329,3 +1329,17 @@ raster preserves its lifecycle. Stamps remain saved, maintenance restarts at the
 existing load boundary, and no process pointer or allocator slot ID is serialized.
 One linear transpose avoids per-tree full-map scans. Format121 saves are rejected.
 See [region evidence](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).
+
+## Derived Move route capacities (format123)
+
+Format123 expands the game-local route layout with fine, adaptive and group
+point capacities. Both route field tables mark capacities `F_IGNORE` runtime
+state. Payloads still contain only their validated logical point counts and
+ordered coordinate words. Load reserves128-point blocks from those counts,
+and subsequent shorter refills reuse them. Previously reserved unused points
+and process pointers are never serialized. Formats122 and earlier are
+rejected because the instance layout differs. A three-buffer payload regression
+checks rebuilt capacity, exact words and reuse alongside the ordinary full
+Save/Load movement continuations. See
+[Payoff141](retail-pathfinding-engine.md#retained-search-history-and-route-capacity-payoff141)
+for the separate retained search-history/public outside-start evidence limits.

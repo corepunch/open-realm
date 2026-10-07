@@ -10944,3 +10944,67 @@ modules build;24 Python evidence/corpus checks pass. The fresh strict route
 contract passes and all570 staged source/fixture pins agree. This is the fifth
 implementation commit since the successful Payoff135 full-suite checkpoint;
 no new full-repository suite is claimed.
+
+## Retained search history and route capacity (Payoff141)
+
+ROUTE-01.2's frozen public-advance oracle contains264 scenarios and12 fine
+growth controls. The new comparison observes every reached unchanged
+148100/162cb0 build: **452 fine and152 adaptive requests** match production C
+at O0 and O2 in result, work, semantic node count and every route word; fine
+obstruction also matches. HEAD kernels differ on82 fine and16 adaptive builds.
+These are supplied terrain/registry/bucket/storage controls, not a complete
+actual-engine public-advance or simulation-clock comparison.
+
+A source outside the map makes setup return0 after resetting work/counts,
+without replacing the prior source/goal/nearest node identities or cell epoch.
+Both build routines still search. Move now preserves that history, including
+old work limits and fine footprint/mask/target parameters. Resetting semantic
+node count does not erase the initialized backing used by reconstruction.
+The source heuristic uses the new requested integer coordinates. Same-cell
+setup preserves history too. A denied request cannot publish a new profile.
+Suppression belongs to the current caller; the retained target observation
+identity is separate, and no caller's stack pointer is retained.
+
+Two prior fine goals followed by source(-3.5,10.25) produce the original22/19
+point nearest chains with count0/work1 and the new exact source endpoint.
+The actual adapter fails six assertions before the fix and passes96 afterward.
+A separate denial/profile regression preserves the prior small footprint when
+a larger-footprint request is refused. Ordinary requests retain the compact
+hash lookup; exceptional keys are allocated only when setup0 needs identities
+whose node positions could later be overwritten.
+
+Fine, adaptive and group point stores now reserve in the original128-point
+quantum and retain capacity on shorter refills. The twelve actual engine
+growth cases fail24 capacity assertions before the change; afterward their
+127/128/129-point boundaries, retained128/256 capacities and shorter11-point
+refills pass. The200 oblique adapter rows also check backing reuse. Capacity
+is derived: Save123 ignores it in both field tables and rebuilds it from
+validated logical payload counts. Three-buffer payload and incompatible-save
+regressions cover the changed layout. Refill does no allocation within the
+retained capacity; no new4096-unit frame-time result is claimed.
+
+Public outside-source reachability is now established: two completing Frida
+axis-setter runs and an observer-free control each record137 markers and the
+exact positions(-112,328),(2248,328),(328,-16), corresponding to fine
+(-3.5,10.25),(70.25,10.25),(10.25,-.5). The frozen
+[summary](../../../tools/ghidra/fixtures/retail-outside-axis-1.27.json) and six
+compressed trace/Preload files are checked by
+[route012_summarize.py](../../../tools/frida/research/route012_summarize.py).
+A separate exploratory Move from negativeX reaches coarse/fine setup0 but
+stops progressing after fine setup; it has no completed Preload and certifies
+neither arrival nor a whole movement trace. That interrupted capture remains
+at `/GitHub/wc3-analysis/runtime/payoff141/live-observe-first.jsonl`.
+
+Focused validation passes **660 tests /7,656,364 assertions** for each of
+Classic/TFT at debug/release, plus27 Python evidence tests. This is the sixth
+implementation commit since the successful Payoff135 full-suite checkpoint;
+the full repository suite was not repeated here.
+
+The completed evidence, focused engine checks and saved twelve-function Ghidra
+readback live under `/GitHub/wc3-analysis/runtime/payoff141`. The strict
+`oracle-routes` entry now includes these buffers, both C kernel comparisons,
+saved annotations and completing live setter controls. **ROUTE-01.2 stays
+open**: complete actual-engine public-advance state/return comparisons and
+post-load invalid-start history still need integration; cold invalid sources
+and live movement beyond the interrupted setup are not certified. No new
+TODO leaf is introduced.
