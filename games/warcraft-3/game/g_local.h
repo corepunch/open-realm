@@ -2204,7 +2204,8 @@ struct level_locals {
     hashtable_t hashtables[MAX_HASHTABLES];
     region_t regions[MAX_REGIONS];
     uint32_t num_regions;
-    /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
+    /* Transient: client slots whose WC3_LAYER_MULTIBOARD layout (custom board or
+     * Team Resources) G_UpdateMultiboards rewrites this frame. */
     uint32_t multiboard_dirty_clients;
     uint32_t multiboard_suppressed_clients; /* serialized local display suppression */
     uint32_t team_resources_collapsed_clients; /* serialized local Team Resources panel state */
