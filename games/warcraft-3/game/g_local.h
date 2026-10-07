@@ -24,7 +24,8 @@
 #include "games/warcraft-3/common/wc3_pathing_repulsion.h"
 #include "games/warcraft-3/common/wc3_pathing_limits.h"
 typedef struct wc3FineBox_s wc3FineBox_t;
-typedef struct wc3SpatialActive_s wc3SpatialActive_t;
+typedef struct wc3RecordObject_s wc3RecordObject_t;
+typedef struct wc3SpatialRecords_s wc3SpatialRecords_t;
 
 /* Coarse paths are distinct owners from the member's fine path. Links are
  * process-local; queue sequence and admission time are authoritative. */
@@ -3214,6 +3215,7 @@ wc3FineBox_t const *S_GetMoveProximity(uint32_t);
 bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);
 void S_RunMoveSpatialMaintenance(void);
+void S_ResetMoveSpatialMaintenance(void);
 void S_RebaseMoveSpatialMaintenance(float);
 void S_CompactMoveProximity(void);
 uint32_t S_GetMoveProximityQuery(void);
@@ -3226,8 +3228,15 @@ void G_SetEntityHidden(edict_t *, bool);
 void G_PublishMoveSpatialObject(edict_t const *);
 void G_RemoveMoveSpatialObject(edict_t const *);
 uint64_t G_GetMoveSpatialSerial(void);
-wc3SpatialActive_t const *G_GetMoveSpatialObject(uint32_t);
-bool G_LoadMoveSpatialObject(uint32_t, wc3SpatialActive_t const *);
+uint16_t G_GetMoveFineSearchStamp(void);
+void G_SetMoveFineSearchStamp(uint16_t);
+wc3RecordObject_t const *G_GetMoveSpatialObject(uint32_t);
+bool G_LoadMoveSpatialObject(uint32_t, wc3FineBox_t const *);
+wc3SpatialRecords_t *S_GetMoveFineSpatial(void);
+void S_PrepareMoveFineSpatial(void);
+void S_ClearMoveFineSpatial(void);
+void S_FreeMoveFineSpatial(void);
+void S_CompactMoveFineSpatial(void);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);

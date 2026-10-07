@@ -3,7 +3,39 @@
 #include "../../common/wc3_pathing_coordinates.h"
 
 static wc3ProximityMap_t move_proximity;
-static struct {wc3Clock_t deadline;uint32_t sequence;bool active;} move_proximity_request;
+static wc3SpatialRecords_t move_fine_spatial;
+typedef struct {wc3Clock_t deadline;uint32_t sequence;bool active;} moveSpatialRequest_t;
+static moveSpatialRequest_t move_proximity_request,move_fine_request;
+
+static void move_proximity_prepare(void);
+
+static void move_spatial_request(moveSpatialRequest_t *request) {
+    if(request->active)return;
+    request->deadline=G_TimerQueryClock(NULL);
+    request->deadline.time=wc3_add(request->deadline.time,wc3_div(1,10));
+    request->sequence=++level.timer_sequence;request->active=true;
+}
+
+wc3SpatialRecords_t *S_GetMoveFineSpatial(void) {return &move_fine_spatial;}
+
+void S_PrepareMoveFineSpatial(void) {
+    move_proximity_prepare();
+    if(!move_fine_spatial.cells || move_fine_spatial.width!=pathmap.width || move_fine_spatial.height!=pathmap.height) {
+        if(!wc3_records_init(&move_fine_spatial,pathmap.width,pathmap.height,MAX_ENTITIES))
+            gi.error("Move fine occupancy: invalid %ux%u map",pathmap.width,pathmap.height);
+        wc3_records_occupancy(&move_fine_spatial);move_fine_request.active=false;
+    }
+    move_spatial_request(&move_fine_request);
+}
+void S_ClearMoveFineSpatial(void) {
+    wc3_records_clear(&move_fine_spatial);move_fine_request.active=false;
+}
+void S_FreeMoveFineSpatial(void) {
+    wc3_records_free(&move_fine_spatial);move_fine_request.active=false;
+}
+void S_CompactMoveFineSpatial(void) {
+    if(move_fine_spatial.cells)wc3_records_compact(&move_fine_spatial,true);
+}
 typedef struct { vec2_t world,fine,published;float radius;bool valid,pose_valid; } moveProximityGeometry_t;
 static moveProximityGeometry_t move_proximity_geometry[MAX_ENTITIES];
 
@@ -27,12 +59,7 @@ static void move_proximity_prepare(void) {
         memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
         move_proximity_request.active=false;
     }
-    if(!move_proximity_request.active) {
-        move_proximity_request.deadline=G_TimerQueryClock(NULL);
-        move_proximity_request.deadline.time=wc3_add(move_proximity_request.deadline.time,wc3_div(1,10));
-        move_proximity_request.sequence=++level.timer_sequence;
-        move_proximity_request.active=true;
-    }
+    move_spatial_request(&move_proximity_request);
     /* A map geometry change resets both grids through G_ClearMoveSpatial;
      * only initialization may reach here. Do not scan/re-publish other units. */
 }
@@ -100,18 +127,37 @@ bool S_LoadMoveProximity(uint32_t index,wc3FineBox_t box) {
 /* One recurring request per map, merged with the ordinary scalar timer heap.
  * Repeats add the retail software 1/10 word to the previous deadline; neither
  * record counts nor wall time select cleanup. Load registers a fresh request. */
+static moveSpatialRequest_t *move_next_spatial_request(void) {
+    if(!move_proximity_request.active)return move_fine_request.active ? &move_fine_request : NULL;
+    if(!move_fine_request.active)return &move_proximity_request;
+    int32_t epochs=(int32_t)(move_proximity_request.deadline.epoch-move_fine_request.deadline.epoch);
+    int order=epochs ? (epochs<0 ? -1 : 1) : move_proximity_request.deadline.time<move_fine_request.deadline.time ? -1 :
+        move_proximity_request.deadline.time>move_fine_request.deadline.time ? 1 : 0;
+    return order<0 || (!order && move_proximity_request.sequence<move_fine_request.sequence) ?
+        &move_proximity_request : &move_fine_request;
+}
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *deadline,uint32_t *sequence) {
-    if(!move_proximity_request.active)return false;
-    *deadline=move_proximity_request.deadline;*sequence=move_proximity_request.sequence;return true;
+    moveSpatialRequest_t *request=move_next_spatial_request();
+    if(!request)return false;
+    *deadline=request->deadline;*sequence=request->sequence;return true;
 }
 void S_RunMoveSpatialMaintenance(void) {
-    wc3_records_compact(&move_proximity,false);
-    move_proximity_request.deadline.time=wc3_add(move_proximity_request.deadline.time,wc3_div(1,10));
+    moveSpatialRequest_t *request=move_next_spatial_request();
+    if(!request)return;
+    wc3_records_compact(request==&move_proximity_request ? &move_proximity : &move_fine_spatial,false);
+    request->deadline.time=wc3_add(request->deadline.time,wc3_div(1,10));
+}
+void S_ResetMoveSpatialMaintenance(void) {
+    move_proximity_request.active=move_fine_request.active=false;
+    if(move_proximity.cells)move_spatial_request(&move_proximity_request);
+    if(move_fine_spatial.cells)move_spatial_request(&move_fine_request);
 }
 void S_RebaseMoveSpatialMaintenance(float span) {
-    if(!move_proximity_request.active)return;
-    move_proximity_request.deadline.time=wc3_sub(move_proximity_request.deadline.time,span);
-    move_proximity_request.deadline.epoch++;
+    moveSpatialRequest_t *requests[]={&move_proximity_request,&move_fine_request};
+    FOR_LOOP(i,2)if(requests[i]->active) {
+        requests[i]->deadline.time=wc3_sub(requests[i]->deadline.time,span);
+        requests[i]->deadline.epoch++;
+    }
 }
 void S_CompactMoveProximity(void) {
     if(move_proximity.cells)wc3_records_compact(&move_proximity,true);

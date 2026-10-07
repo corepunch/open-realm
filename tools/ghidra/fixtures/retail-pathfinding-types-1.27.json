@@ -1237,8 +1237,8 @@
         {
           "offset": 28,
           "name": "map",
-          "type": "ptr:WC3PathMapHeader",
-          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre."
+          "type": "ptr:WC3SpatialMapPrefix",
+          "evidence": "Original14ad50/147af0/14a4c0/14a980 and complete1068-pop core/repeat/fractional consumer. Header offsets and pointer payloads observed directly; budget700 charges701 and preserves admitted-but-unpopped goal partial centre.\nPayoff136:147af0/1489a0/14d890 access derived raw link table+78/map stamp+b4, proving the fine map is the188-byte spatial subclass; shared base remains108 bytes."
         },
         {
           "offset": 32,

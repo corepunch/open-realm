@@ -1,17 +1,17 @@
 # Retail spatial records and engine storage
 
-Payoff135 integrates raw spatial storage into the engine proximity map and
-closes MAP-05.1. The fine map still uses its active membership index: SEP-03.1,
-SEP-03.2, SEP-03.3 and FOOT-03.1/03.2 stay open until their actual fine producers
-and consumers use complete record history. A passing storage core is not a claim
-of complete retail pathfinding or the IceCrown performance target.
+Payoff135 closes MAP-05.1 with the shared raw record core and proximity owner
+integration. Payoff136 moves the actual engine fine map onto the same core and
+closes SEP-03.1/03.2/03.3 and MAP-05.3. Static region producers and the full
+consumer matrix remain FOOT-03.1/03.2. These closures do not certify complete
+retail pathfinding or the IceCrown frame/creation performance targets.
 
 ## Representation and data flow
 
 `wc3_pathing_records.h` owns eight-byte `{kind_and_next,payload}` records. The
 low24 bits select the next slot, with `ffffff` as the end marker. Kinds0/1/2
 are removal, insertion and fine-search metadata. Ordinary payloads refer to
-stable pooled identities; metadata payloads remain uninterpreted words.
+stable pooled identities; metadata payloads pack the request stamp in the low16 bits and node index in the high16 bits.
 
 Objects occupy address-stable blocks of64. The engine stores logical identity
 indices instead of native pointers and uses36-byte mutable objects instead of
@@ -70,8 +70,8 @@ Save120 performs full proximity compaction, then saves the map stamp and each
 logical owner rectangle/object stamp. Load inserts rectangles in save order and
 registers a fresh maintenance request. It reconstructs allocation slots and
 free lists; no process pointers are serialized. Previous formats, including119,
-are rejected. Fine map stamps and region-cell serialization are still separate
-integration work.
+are rejected. Payoff136 extends stamp persistence to the fine map in Save121;
+region-cell serialization remains FOOT-03 work.
 
 ## Evidence and regressions
 
@@ -128,3 +128,76 @@ API expectations, the added reload-map catalog entries and saved-comment
 readback fixtures; these were corrected against existing verified contracts.
 The host SDL compatibility-library crash is avoided with the documented native
 SDL2 test environment, without skipping client input tests.
+
+## Payoff136 fine-map integration
+
+The actual fine map, owned by Move in `s_move_spatial.c`, now uses the same
+pooled records as proximity. `g_world.c` publishes logical rectangles and adapts
+world queries. The former144-byte per-owner rank array and sixteen intrusive
+link slots are removed. Cell order comes directly from the retained chain;
+step-blocker collection no longer sorts candidate ranks.
+
+A4×4 footprint moving by one cell keeps twelve intersection memberships and
+emits four removals/four insertions. Update work is proportional to changed
+strips. Retirement retains the old identity until compaction releases its last
+reference, so records cannot accidentally observe a reused edict. A raw-head
+bitmap includes metadata and dead records, not only active objects.
+
+Neighbor expansion calls `148d00`'s clockwise perimeter once:8/12/16/20 cells for
+classes0–3, then applies the original neighbor masks. It visits the whole
+perimeter even after rejection. The old eight entering-strip queries repeated
+cells and stopped individual strips early, changing stamps and target identity
+observations. Dynamic verdict caching is removed because a repeated predicate
+must still advance the map/object stamps; terrain-only empty neighborhoods retain
+their cache. No measured total-server or IceCrown speedup is claimed here.
+
+Actual fine node creation now publishes kind2 metadata. A metadata head is
+overwritten; an ordinary/removal head receives a new metadata record. Request
+stamps advance at the original nontrivial setup boundary, includingFFFF/0/1/2.
+The existing sparse request lookup retains within-request node identity. The
+historical65536-request metadata alias case remains excluded, as in MAP-05.2;
+this is not a new complete-alias guarantee.
+
+Fine and proximity maintenance remain independent recurring software1/10
+requests, merged with JASS timers by deadline and registration serial. Proximity
+runs first at equal deadlines. Load registers fresh requests in that order.
+Metadata/removal counts never trigger early compaction. The engine reproduces
+MAP-05.3's2100-record case:2000 metadata plus ordinary insertions/removals become
+36 live memberships and2064 free slots at the fine deadline. Labelled high-bit
+repair retains object stamps, including the native unlink-alias hazard.
+
+Save121 fully compacts both maps, retains independent map/object stamps and the
+fine16-bit request generation, and reconstructs logical ordinary rectangles in
+save order. It rejects earlier versions. It does not serialize process pointers,
+retained raw link identities or the old movement-era ranks.
+
+The supplied MAP-05.3 and SEP-03.3 reproducers run unchanged against the
+hash-matched original DLL and match their frozen reports. All28 allocation sites
+use Storm; allocation failure terminates, rather than exposing a recoverable
+partial update. The engine likewise aborts on failed spatial allocation. A
+labelled allocator substitution forces failure after eight cells of a16-cell
+publication and asserts process termination before any partial-return path.
+Original36-cell growth/pregrown controls retain complete membership; an actual
+engine publication also crosses131072 links mid-update without losing a cell.
+The labelled24-bit sentinel exhaustion and forcedNULL/zero-growth substitutions
+remain diagnostics, not evidence of naturally reachable retail behavior.
+
+Ghidra now has15 saved function annotations and an exact readback in
+`retail-fine-records-ghidra-1.27.json`. `WC3FineSearchPrefix.map` points to the
+188-byte spatial subclass; its shared base stays108 bytes. MapPathfinding and
+MapPathfindingTypes reproduce that refinement without enlarging the base.
+
+Validation: eight new engine regressions pass401 assertions in Classic and TFT;
+focused routing90/334773, save191/27483, and spatial-load4/317515 pass. The
+Classic movement suite passes349 tests/5186690 assertions. Raw original/C storage
+checks compare all chains/indices/free slots/dirty cells/stamps/references;
+complete AB/BA Frida controls remain362 equal public markers. Full validation
+was completed at Payoff135 and stays on the agreed batched cadence. The release
+smoke benchmark reports0.52 ms per100-ms simulation frame for12 movers plus4000
+scenery, compared with0.50 ms at that checkpoint; this is not a controlled
+speedup claim or a4096-unit/real-map acceptance measurement.
+
+FOOT-03.1/03.2 still require actual raw static region producers, the49-record
+hierarchy limit, layered terrain/region predicates and their full mixed-category
+consumer regressions. This fine ordinary-owner replacement is their prerequisite,
+not a substitute for those integrations.

@@ -28,6 +28,7 @@ typedef struct {
     uint8_t (*edges)(void const *data, wc3FinePoint_t pos);
     void const *data;
     bool *target_hit; /* Occupancy observer, consumed after neighbor creation. */
+    void (*publish_node)(void const *,wc3FinePoint_t,uint16_t,uint16_t);
 } wc3FineRequest_t;
 typedef struct {
     wc3FineNode_t *nodes;
@@ -35,6 +36,7 @@ typedef struct {
     uint32_t node_capacity, heap_capacity, heap_growth;
     uint32_t hash[BZ_WC3_FINE_HASH];
     uint32_t hash_epoch;
+    uint16_t search_stamp;
     uint32_t count, queued, pops, reopens, stale, nearest, dist2;
     bool observed_obstruction;
 #if defined(BZ_TESTS) || defined(BZ_WC3_FINE_TRACE)
@@ -142,6 +144,7 @@ static int wc3_fine_node(wc3FineSearch_t *search, wc3FineRequest_t const *req, w
     uint32_t at = search->count++;
     search->hash[slot] = (search->hash_epoch << WC3_FINE_LOOKUP_NODE_BITS) | at;
     search->nodes[at] = (wc3FineNode_t){ .pos = pos, .parent = -1 };
+    if(req->publish_node)req->publish_node(req->data,pos,search->search_stamp,(uint16_t)at);
     return (int)at;
 }
 
@@ -196,6 +199,8 @@ static int wc3_fine_search(wc3FineSearch_t *search, wc3FineRequest_t const *req)
     wc3_fine_reset_lookup(search);
     search->count = search->queued = search->pops = search->reopens = search->stale = 0;
     search->observed_obstruction = false;
+    if((uint32_t)req->start.x<req->width && (uint32_t)req->start.y<req->height &&
+        (req->start.x!=req->goal.x || req->start.y!=req->goal.y))search->search_stamp++;
     search->nearest = 0; search->dist2 = wc3_fine_dist2(req->start, req->goal);
     int start = wc3_fine_node(search, req, req->start), goal = wc3_fine_node(search, req, req->goal);
     if (start < 0 || goal < 0) return -1;

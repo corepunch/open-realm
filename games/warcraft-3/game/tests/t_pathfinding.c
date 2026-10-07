@@ -28,6 +28,7 @@
 #include <string.h>
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 #include "../common/wc3_pathing_masks.h"
 #include "retail_map_load.h"
 #include "retail_constructed_maps.h"
@@ -1578,7 +1579,7 @@ TEST(pathfinding, coarse_exclusion_rebuilds_published_target_rectangle_including
         target->collision=32;
         if(mode&1)target->aiflags|=AI_FLYING;
         G_PublishMoveSpatialObject(unit); G_PublishMoveSpatialObject(target);
-        wc3SpatialActive_t before=*G_GetMoveSpatialObject(target-g_edicts);
+        wc3RecordObject_t before=*G_GetMoveSpatialObject(target-g_edicts);
         T_EQ(before.box.min.x,30); T_EQ(before.box.min.y,31);
         T_EQ(before.box.max.x,33); T_EQ(before.box.max.y,34);
         /* A display sample is not a fine-object publication. The exclusion
@@ -1604,7 +1605,7 @@ TEST(pathfinding, coarse_exclusion_rebuilds_published_target_rectangle_including
         /* Uncovered fine edits remain unpublished; querying is not a full
          * hierarchy rebuild, nor does it move the target's cell links. */
         T_EQ(G_TestMovePathClass(2,0,20,20),0);
-        T_ASSERT(!memcmp(&before,G_GetMoveSpatialObject(target-g_edicts),sizeof(before)));
+        T_ASSERT(!memcmp(&before.box,&G_GetMoveSpatialObject(target-g_edicts)->box,sizeof(before.box)));
         free(route.group_points);
     }
     level.pathing_counter=old_counter;
@@ -2243,7 +2244,7 @@ TEST(wc3_pathfinding, spatial_unlink_visits_only_active_footprint_cells) {
     edict_t *unit = make_unit_at(128,128);
     unit->collision = 16;
     G_PublishMoveSpatialObject(unit);
-    wc3SpatialActive_t const *object = G_GetMoveSpatialObject(unit->s.number);
+    wc3RecordObject_t const *object = G_GetMoveSpatialObject(unit->s.number);
     uint32_t cells = (object->box.max.x-object->box.min.x)*(object->box.max.y-object->box.min.y);
     T_ASSERT(cells > 0 && cells < 16);
     G_TestMoveSpatialLinkVisits(true);

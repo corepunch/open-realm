@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 #include "retail_repulsion_overlap.h"
 extern void reset_entities(void),setup_test_world(void);
 extern edict_t *alloc_test_unit(uint32_t,float,float);

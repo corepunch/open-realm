@@ -34,6 +34,13 @@ public class MapPathfindingTypes extends GhidraScript {
         if (existing.getLength() != desired.getLength()) return false;
         if (existing instanceof Pointer && desired instanceof Pointer) {
             DataType old = ((Pointer)existing).getDataType(), next = ((Pointer)desired).getDataType();
+            //147af0/1489a0 access the derived spatial map, beyond the shared
+            //108-byte header. This named refinement retains that entire base.
+            if(old != null && next instanceof Structure && old.getCategoryPath().equals(CATEGORY) &&
+                old.getName().equals("WC3PathMapHeader") && next.getName().equals("WC3SpatialMapPrefix")) {
+                DataTypeComponent base=((Structure)next).getComponentAt(0);
+                if(base != null && base.getOffset()==0 && base.getDataType().isEquivalent(old))return true;
+            }
             // The referenced canonical layout is preflighted separately. Refining its
             // undefined bytes must not invalidate every unchanged pointer to that layout.
             // An opaque pointer can be refined to a newly proven canonical

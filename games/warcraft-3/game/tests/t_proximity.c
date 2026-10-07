@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 #include "../../common/wc3_pathing_proximity.h"
 extern void reset_entities(void),setup_test_world(void);
 extern edict_t *alloc_test_unit(uint32_t,float,float);
@@ -245,6 +246,11 @@ TEST(wc3_proximity, scalar_maintenance_deadlines_and_owner_boundary) {
         T_ASSERT(S_NextMoveSpatialMaintenance(&next,&serial));T_EQ(wc3_float_bits(next.time),words[i]);
         level.pathing_owner_sequence=sequence;G_RunTimersBeforePathOwner(&deadline);
         T_EQ(S_TestMoveProximityLinks(),0);
+        /* Fine cleanup is independently queued at the same deadline, after
+         * proximity. An owner at the first serial must not run the second. */
+        T_ASSERT(S_NextMoveSpatialMaintenance(&next,&serial));
+        T_EQ(wc3_float_bits(next.time),words[i]);T_EQ(serial,sequence+1);
+        level.pathing_owner_sequence=serial;G_RunTimersBeforePathOwner(&next);
         T_ASSERT(S_NextMoveSpatialMaintenance(&deadline,&serial));T_EQ(serial,sequence);
     }
     /* The same request survives a primary-clock epoch rebase. */

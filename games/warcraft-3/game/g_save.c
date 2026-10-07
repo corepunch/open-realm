@@ -1,5 +1,5 @@
 #include "g_local.h"
-#include "../common/wc3_pathing_spatial.h"
+#include "../common/wc3_pathing_records.h"
 #include <stdint.h>
 #ifdef BZ_TESTS
 #include "shared/test.h"
@@ -79,8 +79,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format120 retains proximity map/object stamps, rebuilding compact links. */
-static uint32_t const save_version = 120;
+/* Format121 retains both fine and proximity map/object stamps. */
+static uint32_t const save_version = 121;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2190,37 +2190,38 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
 /* Original14d000 rebuilds ordinary memberships by prepending objects in load
  * order. Save logical rectangles, not movement-era per-cell publication ranks. */
 static bool WriteMoveSpatial(FILE *f) {
-    uint64_t serial=G_GetMoveSpatialSerial();
-    if (serial==UINT64_MAX) return false;
-    uint32_t count=0;
+    S_CompactMoveFineSpatial();
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    uint32_t count=0,search_stamp=G_GetMoveFineSearchStamp();
+    FOR_LOOP(i,globals.num_edicts)if(G_GetMoveSpatialObject(i))count++;
+    if(!SaveBytes(f,&map->query,sizeof(map->query)) || !SaveBytes(f,&search_stamp,sizeof(search_stamp)) ||
+        !SaveBytes(f,&count,sizeof(count)))return false;
     FOR_LOOP(i,globals.num_edicts) {
-        wc3SpatialActive_t const *object=G_GetMoveSpatialObject(i);
-        if (!wc3_spatial_valid(object,serial)) return false;
-        if (object->box.min.x<object->box.max.x && object->box.min.y<object->box.max.y) count++;
-    }
-    if (!SaveBytes(f,&count,sizeof(count))) return false;
-    FOR_LOOP(i,globals.num_edicts) {
-        wc3SpatialActive_t const *object=G_GetMoveSpatialObject(i);
-        if (object->box.min.x==object->box.max.x || object->box.min.y==object->box.max.y) continue;
-        if (!g_edicts[i].inuse || !SaveBytes(f,&i,sizeof(i)) || !SaveBytes(f,&object->box,sizeof(object->box))) return false;
+        wc3RecordObject_t const *object=G_GetMoveSpatialObject(i);
+        if(!object)continue;
+        if(!g_edicts[i].inuse || object->stamp==UINT32_MAX || !SaveBytes(f,&i,sizeof(i)) ||
+            !SaveBytes(f,&object->box,sizeof(object->box)) || !SaveBytes(f,&object->stamp,sizeof(object->stamp)))return false;
     }
     return true;
 }
 
 static bool ReadMoveSpatial(FILE *f) {
-    uint32_t count,index;
+    uint32_t query,search_stamp,count,index,stamp;
     bool seen[MAX_ENTITIES]={0};
     G_ClearMoveSpatial();
-    if (!LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts) return false;
+    if(!LoadBytes(f,&query,sizeof(query)) || !LoadBytes(f,&search_stamp,sizeof(search_stamp)) || search_stamp>UINT16_MAX ||
+        !LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts)return false;
     FOR_LOOP(i,count) {
-        wc3SpatialActive_t object={0};
-        if (!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] ||
-            !LoadBytes(f,&object.box,sizeof(object.box)) || !G_LoadMoveSpatialObject(index,&object)) goto failed;
-        seen[index]=true;
+        wc3FineBox_t box;
+        if(!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] ||
+            !LoadBytes(f,&box,sizeof(box)) || !LoadBytes(f,&stamp,sizeof(stamp)) || stamp==UINT32_MAX ||
+            !G_LoadMoveSpatialObject(index,&box))goto failed;
+        wc3_records_owned(S_GetMoveFineSpatial(),index)->stamp=stamp;seen[index]=true;
     }
+    S_GetMoveFineSpatial()->query=query;G_SetMoveFineSearchStamp(search_stamp);
     return true;
 failed:
-    G_ClearMoveSpatial(); return false;
+    G_ClearMoveSpatial();return false;
 }
 
 static bool WriteMoveProximity(FILE *f) {
@@ -2251,6 +2252,7 @@ static bool ReadMoveProximity(FILE *f) {
         S_SetMoveProximityStamp(index,stamp);
     }
     S_SetMoveProximityQuery(query);
+    S_ResetMoveSpatialMaintenance();
     return true;
 }
 
@@ -3274,20 +3276,22 @@ TEST(wc3_save, fine_spatial_rectangles_reject_invalid_records) {
         if(c==3)box.max.y=box.min.y-1;
         if(c==4)box.max.x=box.min.x+5;
         if(c==5){box.min.x=INT32_MIN;box.max.x=INT32_MAX;}
+        uint32_t stamp=7,query=11,search_stamp=4;T_ASSERT(SaveBytes(file,&query,sizeof(query)));
+        T_ASSERT(SaveBytes(file,&search_stamp,sizeof(search_stamp)));
         T_ASSERT(SaveBytes(file,&count,sizeof(count)));
         T_ASSERT(SaveBytes(file,&index,sizeof(index)));
-        if(c!=8)T_ASSERT(SaveBytes(file,&box,sizeof(box)));
-        if(c==6){T_ASSERT(SaveBytes(file,&index,sizeof(index)));T_ASSERT(SaveBytes(file,&box,sizeof(box)));}
+        if(c!=8){T_ASSERT(SaveBytes(file,&box,sizeof(box)));T_ASSERT(SaveBytes(file,&stamp,sizeof(stamp)));}
+        if(c==6){T_ASSERT(SaveBytes(file,&index,sizeof(index)));T_ASSERT(SaveBytes(file,&box,sizeof(box)));T_ASSERT(SaveBytes(file,&stamp,sizeof(stamp)));}
         rewind(file);T_ASSERT(!ReadMoveSpatial(file));
         T_EQ(G_GetMoveSpatialSerial(),0);
         fclose(file);
     }
-    T_ASSERT(G_LoadMoveSpatialObject(unit->s.number,&(wc3SpatialActive_t){.box=good}));
+    T_ASSERT(G_LoadMoveSpatialObject(unit->s.number,&good));
     FILE *file=tmpfile();T_NOT_NULL(file);
-    if(file){T_ASSERT(WriteMoveSpatial(file));T_EQ(ftell(file),sizeof(uint32_t)*2+sizeof(good));
+    if(file){T_ASSERT(WriteMoveSpatial(file));T_EQ(ftell(file),sizeof(uint32_t)*5+sizeof(good));
         G_ClearMoveSpatial();rewind(file);T_ASSERT(ReadMoveSpatial(file));
         T_EQ(G_GetMoveSpatialSerial(),1);
-        T_EQ(G_GetMoveSpatialObject(unit->s.number)->ranks[0],1);fclose(file);}
+        T_EQ(G_GetMoveSpatialObject(unit->s.number)->stamp,1);fclose(file);}
     reset_entities();setup_test_world();
 }
 
@@ -3658,8 +3662,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-117.bin",
         "/tmp/openwarcraft3-wc3-save-version-118.bin",
         "/tmp/openwarcraft3-wc3-save-version-119.bin",
+        "/tmp/openwarcraft3-wc3-save-version-120.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120 };
 
     reset_entities();
     setup_test_world();

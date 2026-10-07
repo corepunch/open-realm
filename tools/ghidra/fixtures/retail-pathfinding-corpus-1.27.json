@@ -36151,6 +36151,24 @@
         },
         "saved_functions": {
           "equal": 14
+        },
+        "fine_saved_functions": {
+          "equal": 15
+        },
+        "allocation_sites": {
+          "equal": 28
+        },
+        "metadata_before": {
+          "equal": 2100
+        },
+        "metadata_after": {
+          "equal": 36
+        },
+        "allocation_expected_equal": {
+          "equal": true
+        },
+        "growth_expected_equal": {
+          "equal": true
         }
       },
       "evidence": [
@@ -36159,9 +36177,9 @@
         "C",
         "L"
       ],
-      "scope": "Production raw-record map versus original constructors/mutations/queries/compaction: exact full chains, all free slots, stamps/reference counts,131072-link growth/reuse and64-object pools. Complete AB/BA Frida controls and saved Ghidra layouts. Actual engine proximity/timer/save paths tested independently.",
+      "scope": "Production raw-record map versus original constructors/mutations/queries/compaction: exact full chains, all free slots, stamps/reference counts,131072-link growth/reuse and64-object pools. Complete AB/BA Frida controls and saved Ghidra layouts. Actual engine proximity/timer/save paths tested independently. Payoff136 actual fine publication/retirement, metadata, per-cell stamps, independent timer and Save121 adapters integrated; fresh original allocation census and growth/cleanup research reports exactly reproduce frozen expectations.",
       "exclusions": [
-        "Fine raw producers/region/metadata consumers and49-link cap remain open.",
+        "Static region producers/consumers and49-link hierarchy cap remain FOOT03; historical65536-request metadata aliases remain excluded.",
         "Forced wrap cases are labelled; no natural seven-hour capture.",
         "Live growing beyond the first1MiB link block is not established.",
         "Native invalid ownership across map release is a diagnostic, not a supported engine API."
@@ -36231,7 +36249,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "ee92eecb2265fb957949873780929c3b4bdfa54297378a91ad4e615a14a2d643"
+      "sha256": "624196f2563cb4386ea5eb70f905f092982913924ab6425104444063f3c3a1d2"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -37064,7 +37082,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "b402fa562fc9b9897ffffc8b446967d9b4d68d13af746a0c3a9ba0bfade936cf"
+      "sha256": "9cda31c7faada5bb65cd4d65388f81a45287a67ff94bcd35f4c21d3eafa0c58f"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37944,7 +37962,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-spatial-save-ghidra-1.27.json",
-      "sha256": "320921d25869ca32dae3d6f49608e97147b5722e2bea07e28e5b3ab257c08f1c"
+      "sha256": "e901c83af7a3a4c932d77273bd5aae4f06b241325939baa770896aca4a730002"
     },
     {
       "path": "tools/frida/research/sep03_map06_expected.py",
@@ -37952,7 +37970,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spatial_load.c",
-      "sha256": "eb8ce44194fd826c40c3e6f75a7552627aaa330e9299f800fd2e525a366948a9"
+      "sha256": "f6678690279c92924c17f7ec315622fdeee25497aef68df6be0eb037677c0f34"
     },
     {
       "path": "tools/ghidra/fixtures/research/MAP-06.1-expected.json",
@@ -38128,7 +38146,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "788f71318b0e3d010ddb46a3ef4e2e9d439912dba96d065837a9f2a21c873b63"
+      "sha256": "f42fc3cfc60c8d56d4a3de54de2eeeb22b006277f48863c237542a380035a534"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -38136,11 +38154,11 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_triad.c",
-      "sha256": "4d3176077bf27d7af69f71563a6e4bf962e950b625c767fa88f83291f2fe5c70"
+      "sha256": "2ebc6f86b3ad564344f60f9715f8f236d2cb3a5798323ff68cfb8da0bc65a323"
     },
     {
       "path": "games/warcraft-3/game/tests/t_proximity.c",
-      "sha256": "b832ffecca8b3e0192122200b2934e8e223f9d6cb362f2a6c74f90b70138e464"
+      "sha256": "ab203a5a06f711fdc407bb585759654f6f8e807b01645c9838edb179d79ead66"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_proximity.py",
@@ -38168,7 +38186,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_overlap.c",
-      "sha256": "8bd574ea821153ff553b8a933a5488c81be7c814c62647aee314d842afd376fa"
+      "sha256": "db8ef9e4b3580ffec06eef372b9d8569aca9bee75dbd78b4f2bc591ec96e2b17"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_overlap.h",
@@ -38212,7 +38230,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_object_categories.c",
-      "sha256": "59a83878344c989260efe3f9776e0c28319daba1ed0646e0a38e0e2e30ddc780"
+      "sha256": "7ef762b973f3a75a1dfdcb81f434a709c9404dc5410150fb89d6c6c1bbf1ce5c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-object-category-inputs-1.27.json.gz",
@@ -38280,7 +38298,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_records.h",
-      "sha256": "568d089ea25b6f40c74bd0ecc1b5841e53aae1d1445a087fd2532463be2e00b3"
+      "sha256": "cdbd3184da48dea9882cef04a602ef1c9aed17aa6704520d75f1d564bba9379f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-spatial-storage-inputs-1.27.json.gz",
@@ -38316,7 +38334,23 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_records.py",
-      "sha256": "ca2c5ecaa080b7c6b6b6c4f54c5caf0ad0d9ef8a5d41a2bf97e5c765acc53ffa"
+      "sha256": "37af5dc3e8bd432e9dc15184e02a553e8f6ed5c1c0fed5020b8a97ce959998ae"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-fine-records-ghidra-1.27.json",
+      "sha256": "51675bc7c647ba01c34501f8aa8d8634cb1ad9eb0a10dc82717778d25c17ed00"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/MAP-05.3-expected.json",
+      "sha256": "e9e5bc03f5c21a65211f566d878a82802d1265ec0d4db8db75fe7e8aa3508b88"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-03.3-expected.json",
+      "sha256": "890ecea517eae5618616874f38d7227f4d46977c13a5fbd60b3b06cecd653185"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_fine_spatial.c",
+      "sha256": "30873e65a1e441bad0cfe5758ec0aed88988841a9f20c2eb8d84f1f8a5b35c3f"
     }
   ]
 }

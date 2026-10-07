@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**229 done / 336 tasks; 107 remaining.**
+**233 done / 336 tasks; 103 remaining.**
+
+Payoff136 closes SEP-03.1/03.2/03.3 and MAP-05.3. Both engine spatial maps now
+use stable pooled raw records; fine search publishes metadata and observes cells
+in native clockwise order. Independent maintenance and Save121 preserve stamps.
+Static region producers/consumer caps remain FOOT-03.1/03.2. See
+[fine-map integration](retail-pathfinding-storage.md#payoff136-fine-map-integration).
 
 Payoff135 closes MAP-05.1 with exact raw-record growth/reclamation/reuse in the
 engine proximity map, pooled identities, scalar maintenance and Save120 stamps.
@@ -543,7 +549,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 - [x] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents. Evidence: [engine raw-record storage](retail-pathfinding-storage.md), complete original/C chain and free-list equality across131072 links, frozen36-cell reuse indices,64-object stable pools, actual proximity publication and Save120. Native stale-owner release hazard is preserved as an invalid-ownership control; fine raw-record producers retain SEP-03/FOOT-03.
 - [x] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map. Evidence: [fine map stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state), one pre-call seed then original14ad50 increments FFFF/0/1/2 across unchanged fine metadata. All four complete requests and every final node/work/route equal fresh maps and engine C; actual engine storage is reused in both class orders. Spatial/adaptive stamps and allocation capacity retain their existing IDs.
-- [ ] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links.
+- [x] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links. Payoff136: fresh census of all28 original allocation sites and frozen failure/cleanup reports; no recoverable retail failure. Engine real search metadata and2100-record deadline cleanup, fatal mid-update allocation regression and Save121 fine stamps. Unreachable24-bit exhaustion remains explicitly excluded; [integration](retail-pathfinding-storage.md#payoff136-fine-map-integration).
 
 ### MAP-06 — Map lifetime
 
@@ -1091,9 +1097,9 @@ complete neighbor traversal, ordering and original full application remain requi
 
 ### SEP-03 — Spatial records
 
-- [ ] **SEP-03.1** Insert/remove movers in two orders; assert cell chain order, metadata/dead records and cleanup threshold/sampling cadence.
-- [ ] **SEP-03.2** Cross query stamp wrap/repair and a fresh block allocation; assert candidate order and block reclamation after removal.
-- [ ] **SEP-03.3** Force spatial allocation failure/growth during an update; assert no partial membership and the original movement outcome.
+- [x] **SEP-03.1** Insert/remove movers in two orders; assert cell chain order, metadata/dead records and cleanup threshold/sampling cadence. Payoff136: both actual fine/proximity maps retain newest-first pooled records, delta-strip updates, removals/dead identities and real fine metadata; independent ordered software1/10 maintenance, exact2100-to36 cleanup, saved stamps and engine load/order regressions. [Integration](retail-pathfinding-storage.md#payoff136-fine-map-integration).
+- [x] **SEP-03.2** Cross query stamp wrap/repair and a fresh block allocation; assert candidate order and block reclamation after removal. Payoff136: original full stamp/pool/storage differential and repeated controlled AB/BA captures; engine65-object block/address/LIFO checks, retained owner-slot identities and labelled high-bit unlink alias. Both maps use the shared exact core; [limits](retail-pathfinding-storage.md#payoff136-fine-map-integration).
+- [x] **SEP-03.3** Force spatial allocation failure/growth during an update; assert no partial membership and the original movement outcome. Payoff136: fresh original36-cell growth/pregrow controls match frozen results, actual fine publication crosses131072 links mid-update with every entered cell retained, and injected engine growth allocation failure terminates before returning partial membership. NULL-return/zero-growth interventions remain labelled. [Evidence](retail-pathfinding-storage.md#payoff136-fine-map-integration).
 
 ### SEP-04 — Retail separation witnesses
 

@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 
 extern void reset_entities(void);
 extern void setup_test_world(void);
@@ -54,7 +55,7 @@ TEST(wc3_spatial_load, loaded_blocker_chain_uses_save_order) {
 }
 
 /* The original fine query observes target identity only before its first
- * foreign blocker. Loading must use the rebuilt ranks for this consumer. */
+ * foreign blocker. Loading must use the rebuilt raw chain for this consumer. */
 TEST(wc3_spatial_load, target_observation_changes_with_rebuilt_cell_order) {
     spatial_load_world();
     edict_t *self=spatial_load_unit(12.5f,10.5f,8);
@@ -82,24 +83,24 @@ TEST(wc3_spatial_load, target_observation_changes_with_rebuilt_cell_order) {
 
 /* Saved rectangles may be partly outside the map. Preserve their logical
  * coordinates while clipping only cell memberships; do not admit a new pose. */
-TEST(wc3_spatial_load, clipped_rectangles_keep_pose_and_rebuild_intersection_ranks) {
+TEST(wc3_spatial_load, clipped_rectangles_keep_pose_and_rebuild_raw_membership) {
     float const radii[]={8,16,32,48};
     FOR_LOOP(cls,4) {
         spatial_load_world();
         edict_t *unit=spatial_load_unit(.25f,10.75f,radii[cls]);
         if(cls==3)unit->aiflags|=AI_FLYING;
         unit->s.origin2.x=32.25f;G_PublishMoveSpatialObject(unit);
-        wc3SpatialActive_t before=*G_GetMoveSpatialObject(unit->s.number);
+        wc3RecordObject_t before=*G_GetMoveSpatialObject(unit->s.number);
         vec2_t point=unit->s.origin2;
         cstring_t file="/tmp/wc3-spatial-load-clipped.bin";
         T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
-        wc3SpatialActive_t const *after=G_GetMoveSpatialObject(unit->s.number);
+        wc3RecordObject_t const *after=G_GetMoveSpatialObject(unit->s.number);
         T_ASSERT(!memcmp(&after->box,&before.box,sizeof(before.box)));
         T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(point.x));
         T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(point.y));
         for(int y=after->box.min.y;y<after->box.max.y;y++)
             for(int x=after->box.min.x;x<after->box.max.x;x++)
-                T_EQ(wc3_spatial_rank(after,(wc3FinePoint_t){x,y}),1);
+                T_ASSERT(wc3_records_contains(after,(wc3FinePoint_t){x,y}));
         remove(file);
     }
     reset_entities();setup_test_world();

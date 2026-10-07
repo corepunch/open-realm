@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 extern void reset_entities(void),setup_test_world(void);
 extern edict_t *alloc_test_unit(uint32_t,float,float);
 extern void CM_SetupTestPathmap(unsigned,unsigned,uint8_t const *);
@@ -130,9 +131,9 @@ TEST(wc3_object_categories, carried_reposition_publishes_both_points_in_order) {
     uint64_t before=G_GetMoveSpatialSerial();
     G_SetItemPosition(item,&(vec2_t){528,560});
     T_EQ(G_GetMoveSpatialSerial(),before+2);
-    wc3SpatialActive_t const *object=G_GetMoveSpatialObject(item-g_edicts);
+    wc3RecordObject_t const *object=G_GetMoveSpatialObject(item-g_edicts);
     T_EQ(object->box.min.x,16);T_EQ(object->box.min.y,17);
-    T_EQ(object->ranks[0],before+2);
+    T_ASSERT(wc3_records_contains(object,object->box.min));
     T_NULL(hero->inventory[0]);T_NULL(item->item->carrier);T_ASSERT(item->item->in_world);
     reset_entities();setup_test_world();
 }
@@ -160,7 +161,7 @@ TEST(wc3_object_categories, pickup_drop_and_save_preserve_item_occupancy) {
     cstring_t carried_file="/tmp/wc3-category-carried-save.bin";
     T_ASSERT(WriteGame(carried_file));T_ASSERT(ReadGame(carried_file));remove(carried_file);
     /* Inspect before any spatial query can flush a deferred publication. */
-    T_EQ(G_GetMoveSpatialObject(item-g_edicts)->box.min.x,G_GetMoveSpatialObject(item-g_edicts)->box.max.x);
+    T_NULL(G_GetMoveSpatialObject(item-g_edicts));
     T_ASSERT(category_test_endpoint(source,9.5f,9.5f,0x10));
     T_ASSERT(G_DropItemAtScripted(hero,0,&(vec2_t){304,304}));
     T_FEQ(item->s.origin2.x,304,0);T_FEQ(item->s.origin2.y,304,0);

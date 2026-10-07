@@ -50,7 +50,9 @@ class CorpusTests(unittest.TestCase):
             report[field]=rule['equal'] if 'equal' in rule else [None]*rule['length']
         check_report(report,entry,self.target)
         for field,value in [('mutation_stages',77),('queries',130),('boundary_capacity',131072),
-                            ('live_capture_count',1),('control_markers',361),('saved_functions',13)]:
+                            ('live_capture_count',1),('control_markers',361),('saved_functions',13),
+                            ('fine_saved_functions',14),('allocation_sites',27),('metadata_before',2099),
+                            ('metadata_after',35),('allocation_expected_equal',False),('growth_expected_equal',False)]:
             changed=dict(report);changed[field]=value
             with self.assertRaises(ValueError):check_report(changed,entry,self.target)
 

@@ -10796,3 +10796,14 @@ assertions per Classic/TFT mode, plus 755 Python tests. All 537 staged evidence
 hashes match; the fresh spatial-record differential and both preserved
 fine-storage oracles pass. This establishes behavioral integration, not the
 remaining IceCrown performance acceptance.
+
+## Fine maps use retained records and ordered perimeter observations
+
+Payoff136 replaces the engine's reconstructed fine-cell ranks/intrusive lists
+with stable pooled raw records. Actual publication, step blockers, target
+observations, search metadata, independent timed compaction and Save121 now
+share the original encounter/stamp rules. Movement updates only changed strips;
+neighbor expansion samples each perimeter cell once. SEP-03.1/03.2/03.3 and
+MAP-05.3 close with original DLL, preserved Frida controls, saved Ghidra and
+actual engine regressions. Static regions and the49-record hierarchy cap remain
+FOOT-03.1/03.2. See [storage contracts and validation](retail-pathfinding-storage.md#payoff136-fine-map-integration).

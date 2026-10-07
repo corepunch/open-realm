@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 120, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 121, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -42,10 +42,16 @@ compact links in save order and registers a fresh scalar maintenance request;
 retained link identities and process pointers are not saved. See
 [spatial storage](retail-pathfinding-storage.md).
 
+Version121 adds fine map/object stamps and the validated16-bit fine request
+generation. Both maps fully compact before saving; ordinary owner rectangles
+rebuild as raw records in save order. Load registers independent proximity then
+fine maintenance requests. No publication-rank array or retained raw slot identity
+is persisted. Earlier versions are rejected.
+
 Version118 replaces serialized fine-cell publication ranks with logical rectangles.
 Retail `SpatialObject_Load` (`6f14d000`) re-emits ordinary memberships through
 `SpatialMap_InsertRectangle` (`6f14d380`); it does not restore the old cell chain.
-OpenRealm now rebuilds ranks in the same object stream order through
+Version118 rebuilt derived ranks in the same object stream order through
 `G_LoadMoveSpatialObject`. Unchanged geometry links keep that rebuilt order;
 subsequent leave/reentry can change it normally. Poses, active routes, wait state,
 repulsion, scheduling and shared RNG retain their existing logical save fields.

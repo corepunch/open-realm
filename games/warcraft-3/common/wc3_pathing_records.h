@@ -15,16 +15,18 @@ enum {
     WC3_RECORD_OBJECT_BLOCK=64
 };
 typedef struct {uint32_t next,payload;} wc3SpatialRecord_t;
-typedef struct {
+typedef struct wc3RecordObject_s {
     wc3FineBox_t box;
     uint32_t owner,stamp,refs,flags,free_next;
 } wc3RecordObject_t;
-typedef struct {
+typedef struct wc3SpatialRecords_s {
     uint32_t width,height,count,capacity,free_head,free_count,records,object_count,query;
     uint32_t *cells,*dirty,*objects;
     wc3SpatialRecord_t *links;
     wc3RecordObject_t **blocks;
     uint32_t block_count,block_capacity,raw_objects,free_object,live_objects;
+    uint64_t *occupied;
+    uint32_t occupied_stride;
 } wc3SpatialRecords_t;
 
 /* Storm never returns a recoverable allocation failure. The engine likewise
@@ -41,6 +43,10 @@ static inline wc3RecordObject_t *wc3_records_owned(wc3SpatialRecords_t const *ma
     return owner<map->object_count && map->objects[owner]!=WC3_RECORD_END ?
         wc3_records_object(map,map->objects[owner]) : NULL;
 }
+static inline bool wc3_records_contains(wc3RecordObject_t const *object,wc3FinePoint_t point) {
+    return object && object->stamp!=UINT32_MAX && point.x>=object->box.min.x && point.y>=object->box.min.y &&
+        point.x<object->box.max.x && point.y<object->box.max.y;
+}
 static inline wc3FineBox_t wc3_records_clip(wc3SpatialRecords_t const *map,wc3FineBox_t box) {
     if(box.min.x<0)box.min.x=0;
     if(box.min.y<0)box.min.y=0;
@@ -50,7 +56,7 @@ static inline wc3FineBox_t wc3_records_clip(wc3SpatialRecords_t const *map,wc3Fi
 }
 static inline void wc3_records_free(wc3SpatialRecords_t *map) {
     for(uint32_t i=0;i<map->block_count;i++)free(map->blocks[i]);
-    free(map->blocks);free(map->cells);free(map->dirty);free(map->objects);free(map->links);
+    free(map->blocks);free(map->cells);free(map->dirty);free(map->objects);free(map->links);free(map->occupied);
     *map=(wc3SpatialRecords_t){0};
 }
 /* Derived capacities survive a same-map reset, but no identity/link/stamp does. */
@@ -58,6 +64,7 @@ static inline void wc3_records_clear(wc3SpatialRecords_t *map) {
     if(map->cells)for(uint32_t i=0;i<map->width*map->height;i++)map->cells[i]=WC3_RECORD_END;
     if(map->dirty)memset(map->dirty,0,((size_t)map->width*map->height+31)/32*sizeof(*map->dirty));
     if(map->objects)for(uint32_t i=0;i<map->object_count;i++)map->objects[i]=WC3_RECORD_END;
+    if(map->occupied)memset(map->occupied,0,(size_t)map->occupied_stride*map->height*sizeof(*map->occupied));
     map->count=map->free_count=map->records=map->query=map->raw_objects=map->live_objects=0;
     map->free_head=map->free_object=WC3_RECORD_END;
 }
@@ -69,6 +76,17 @@ static inline bool wc3_records_init(wc3SpatialRecords_t *map,uint32_t width,uint
     next.dirty=wc3_records_memory(NULL,((size_t)width*height+31)/32*sizeof(*next.dirty));
     if(owners)next.objects=wc3_records_memory(NULL,(size_t)owners*sizeof(*next.objects));
     wc3_records_clear(&next);wc3_records_free(map);*map=next;return true;
+}
+/* Optional derived raw-head summary. Metadata and dead records count too:
+ * skipping such a cell would erase its observable predicate/cleanup stamp. */
+static inline void wc3_records_occupancy(wc3SpatialRecords_t *map) {
+    if(map->occupied)return;
+    map->occupied_stride=(map->width+63)/64;
+    map->occupied=wc3_records_memory(NULL,(size_t)map->occupied_stride*map->height*sizeof(*map->occupied));
+    memset(map->occupied,0,(size_t)map->occupied_stride*map->height*sizeof(*map->occupied));
+    for(uint32_t cell=0;cell<map->width*map->height;cell++)
+        if((map->cells[cell]&WC3_RECORD_END)!=WC3_RECORD_END)
+            map->occupied[(cell/map->width)*map->occupied_stride+(cell%map->width)/64]|=UINT64_C(1)<<(cell%map->width%64);
 }
 static inline uint32_t wc3_records_create(wc3SpatialRecords_t *map,uint32_t owner,uint32_t flags) {
     uint32_t id;
@@ -111,6 +129,7 @@ static inline uint32_t wc3_records_prepend(wc3SpatialRecords_t *map,uint32_t cel
     }
     map->links[id]=(wc3SpatialRecord_t){kind|(map->cells[cell]&WC3_RECORD_END),payload};
     map->cells[cell]=(map->cells[cell]&~WC3_RECORD_END)|id;map->records++;
+    if(map->occupied)map->occupied[(cell/map->width)*map->occupied_stride+(cell%map->width)/64]|=UINT64_C(1)<<(cell%map->width%64);
     if(kind==WC3_RECORD_REMOVE || kind==WC3_RECORD_METADATA)map->dirty[cell/32]|=1u<<(cell%32);
     if(kind!=WC3_RECORD_METADATA)wc3_records_object(map,payload)->refs++;
     return id;
@@ -119,6 +138,15 @@ static inline void wc3_records_emit(wc3SpatialRecords_t *map,wc3FineBox_t box,ui
     box=wc3_records_clip(map,box);
     for(int y=box.min.y;y<box.max.y;y++)for(int x=box.min.x;x<box.max.x;x++)
         wc3_records_prepend(map,(uint32_t)y*map->width+x,id,kind);
+}
+/*147af0/14d890: only a metadata head can be overwritten. A buried metadata
+ * record remains retained; prepend a new one and mark the cell dirty. */
+static inline void wc3_records_node(wc3SpatialRecords_t *map,wc3FinePoint_t pos,uint16_t stamp,uint16_t node) {
+    uint32_t cell=(uint32_t)pos.y*map->width+pos.x,id=map->cells[cell]&WC3_RECORD_END;
+    uint32_t payload=stamp|((uint32_t)node<<16);
+    if(id!=WC3_RECORD_END && (map->links[id].next&~WC3_RECORD_END)==WC3_RECORD_METADATA)
+        map->links[id].payload=payload;
+    else wc3_records_prepend(map,cell,payload,WC3_RECORD_METADATA);
 }
 /*1d4ae0/14e770: highX,lowX,highY,lowY strips; row-major inside each.
  * This is not equivalent to sorting all changed cells when slot identity matters. */
@@ -165,6 +193,8 @@ static inline void wc3_records_compact_cell(wc3SpatialRecords_t *map,uint32_t ce
         if(object && wc3_records_release(map,link->payload))object->stamp=stamp;
         id=next;
     }
+    if(map->occupied && (map->cells[cell]&WC3_RECORD_END)==WC3_RECORD_END)
+        map->occupied[(cell/map->width)*map->occupied_stride+(cell%map->width)/64]&=~(UINT64_C(1)<<(cell%map->width%64));
 }
 static inline void wc3_records_compact(wc3SpatialRecords_t *map,bool all) {
     /* Native repair deliberately retains object stamps. Labelled forced-jump

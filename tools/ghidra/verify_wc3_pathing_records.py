@@ -68,6 +68,37 @@ def verify_saved_evidence(readback=None):
         assert hashlib.sha256((HERE/f'fixtures/research/{task}-expected.json').read_bytes()).hexdigest()==digest,('frozen expected',task)
     return dict(saved_functions=14,saved_layouts=len(layouts),frozen_expected_sha256=EXPECTED_SHA256)
 
+def verify_fine_saved_evidence(readback=None):
+    if readback is None:readback=json.loads((HERE/'fixtures/retail-fine-records-ghidra-1.27.json').read_text())
+    assert readback['binary_sha256']==H.SHA256 and readback['unsaved'] is False
+    assert len(readback['rows'])==15 and all('Payoff136' in row['comment'] for row in readback['rows'])
+    layouts={row['name']:row for row in readback['layouts']}
+    assert layouts['WC3PathMapHeader']['length']==108 and layouts['WC3SpatialMapPrefix']['length']==188
+    field=next(f for f in layouts['WC3FineSearchPrefix']['fields'] if f['offset']==28)
+    assert field['name']=='map' and field['datatype']=='WC3SpatialMapPrefix *32'
+    return dict(fine_saved_functions=15)
+
+
+def verify_allocation_evidence(binary):
+    results={}
+    for task,script in [('MAP-05.3','verify_MAP-05.3_allocation_failure.py'),('SEP-03.3','verify_SEP-03.3_spatial_growth_failure.py')]:
+        expected=HERE/f'fixtures/research/{task}-expected.json'
+        with tempfile.TemporaryDirectory() as directory:
+            report=Path(directory)/'report.json'
+            subprocess.run([sys.executable,str(HERE/'research'/script),'--binary',str(binary),
+                '--report',str(report),'--expected',str(expected)],check=True,stdout=subprocess.DEVNULL)
+            actual=json.loads(report.read_text());assert actual.pop('passed') is True
+            assert actual==json.loads(expected.read_text())
+            results[task]=actual
+    cleanup=results['MAP-05.3']['maintenance_reclaims_metadata']
+    assert cleanup['before']['records']==2100 and cleanup['after']['records']==36
+    assert not cleanup['metadata_records_left'] and not cleanup['dead_or_removal_records_left']
+    assert cleanup['callbacks']==1 and cleanup['free_plus_records_equals_high_water']
+    growth=results['SEP-03.3']
+    assert len(results['MAP-05.3']['allocation_census'])==28
+    return dict(allocation_sites=28,metadata_before=2100,metadata_after=36,
+        allocation_expected_equal=True,growth_expected_equal=True)
+
 class Engine:
     def __init__(self,lib,width,height):
         self.lib=lib;self.width=width;self.height=height
@@ -210,7 +241,7 @@ def run(binary,lib):
     return dict(passed=True,status='verified',differences=[],binary_sha256=H.SHA256,mutation_stages=stages,queries=queries,
                 boundary_capacity=boundary_capacity,
                 compared='all raw chains, record indices, entire free lists, dirty cells, map/object stamps and references',
-                exclusions=['Fine-grid producer integration and its metadata/region consumers remain open.',
+                exclusions=['Static region producers,49-link hierarchy cap and FOOT03 consumer matrix remain open.',
                             'Whole-owner invalid use after map release is diagnostic evidence, not an engine API.'])
 
 
@@ -218,8 +249,10 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',required=True);p.add_argument('--report',type=Path,required=True)
     args=p.parse_args()
     captures=verify_captures();evidence=verify_saved_evidence()
+    fine_evidence=verify_fine_saved_evidence();allocation=verify_allocation_evidence(args.binary)
     with tempfile.TemporaryDirectory() as directory:result=run(args.binary,library(directory))
     result.update(live_captures=captures,ghidra=evidence,live_capture_count=len(captures),
         control_markers=sum(x['control_markers'] for x in captures.values()),saved_functions=evidence['saved_functions'])
+    result.update(fine_evidence);result.update(allocation)
     args.report.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))
 if __name__=='__main__':main()

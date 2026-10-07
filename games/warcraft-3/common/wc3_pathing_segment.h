@@ -67,15 +67,31 @@ static inline bool wc3_segment_foot(wc3FineSegment_t const *query, wc3FinePoint_
     }
 }
 
-/* 14b890/14b9b0/14bae0/14bc10 admit the same entering cells as these
- * strips. Current-cell interiors remain unchecked, allowing overlap escape. */
+/*148d00 samples one clockwise perimeter, starting at its northwest corner.
+ * Every cell is observed, even after an obstruction. The four neighbor builders
+ * consume overlapping bit ranges from that word, without repeating queries.
+ * Current-cell interiors remain unchecked, allowing overlap escape. */
 static inline uint8_t wc3_fine_cell_edges(wc3FineSegment_t const *query, wc3FinePoint_t pos) {
-    uint8_t result = 0;
-    for (int i = 0; i < 8; i++) {
-        wc3FinePoint_t dir = wc3_fine_dirs[i], next = {pos.x + dir.x, pos.y + dir.y};
-        unsigned code = (dir.x < 0 ? 8u : dir.x > 0 ? 2u : 0u) | (dir.y < 0 ? 1u : dir.y > 0 ? 4u : 0u);
-        if (wc3_segment_foot(query, next, code)) result |= (uint8_t)(1u << i);
+    static uint32_t const masks[4][8] = {
+        {0x83,2,0x0e,0x80,8,0xe0,0x20,0x38},
+        {0xc07,6,0x3e,0xc00,0x30,0xf80,0x180,0x1f0},
+        {0xe00f,0x0e,0xfe,0xe000,0xe0,0xfe00,0xe00,0xfe0},
+        {0xf001f,0x1e,0x3fe,0xf0000,0x3c0,0xff800,0x7800,0x7fc0}
+    };
+    assert(query->cls < 4);
+    unsigned side=query->cls+2, offset=1+(query->cls+1)/2;
+    wc3FinePoint_t cell={pos.x-(int)offset,pos.y-(int)offset};
+    static wc3FinePoint_t const directions[]={{1,0},{0,1},{-1,0},{0,-1}};
+    uint32_t clear=0;
+    for(unsigned edge=0,bit=0;edge<4;edge++) {
+        for(unsigned i=0;i<side;i++,bit++) {
+            if(query->cell(query->data,cell))clear|=1u<<bit;
+            cell.x+=directions[edge].x;cell.y+=directions[edge].y;
+        }
     }
+    uint8_t result = 0;
+    for(unsigned i=0;i<8;i++)
+        if((clear&masks[query->cls][i])==masks[query->cls][i])result|=1u<<i;
     return result;
 }
 

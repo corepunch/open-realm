@@ -25,6 +25,7 @@
 #include <math.h>
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 #include "games/warcraft-3/common/terrain.h"
 #include "games/warcraft-3/common/wc3_pathing_segment.h"
 #include "retail_public_oblique.h"
@@ -13670,8 +13671,8 @@ static void lifecycle84_assert_state(cstring_t marker) {
         if(state[k]!=expected->state[k])fprintf(stderr,"Movement lifecycle stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
         T_EQ(state[k],expected->state[k]);
     }
-    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
-    T_EQ(wc3_spatial_rank(links,(wc3FinePoint_t){20,19})!=0,expected->occupied);
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){20,19}),expected->occupied);
 }
 
 TEST(wc3_movement, public_speed_turn_stop_and_boundary_restart_match_original_and_saved_continuations) {
@@ -13850,7 +13851,7 @@ static void region85_assert_state(cstring_t marker) {
     FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Region stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
     T_EQ(unit && !G_IsDeferredFree(unit),expected->alive);
     if(!expected->alive) {
-        if(unit)T_EQ(wc3_spatial_rank(G_GetMoveSpatialObject(unit-g_edicts),(wc3FinePoint_t){21,22}),0);
+        if(unit)T_ASSERT(!wc3_records_contains(G_GetMoveSpatialObject(unit-g_edicts),(wc3FinePoint_t){21,22}));
         return;
     }
     T_NOT_NULL(unit);if(!unit)return;
@@ -13863,8 +13864,8 @@ static void region85_assert_state(cstring_t marker) {
         if(state[k]!=expected->state[k])fprintf(stderr,"Region callback stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
         T_EQ(state[k],expected->state[k]);
     }
-    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
-    T_EQ(wc3_spatial_rank(links,(wc3FinePoint_t){21,22})!=0,expected->occupied);
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){21,22}),expected->occupied);
 }
 
 TEST(wc3_movement, region_callbacks_match_original_teleport_remove_and_saved_continuations) {
@@ -14032,8 +14033,8 @@ static void bypass86_assert_state(cstring_t marker) {
         if(state[k]!=expected->state[k])fprintf(stderr,"Movement bypass stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
         T_EQ(state[k],expected->state[k]);
     }
-    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
-    T_EQ(wc3_spatial_rank(links,(wc3FinePoint_t){24,26})!=0,expected->occupied);
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){24,26}),expected->occupied);
 }
 
 TEST(wc3_movement, pathing_pause_and_displacement_match_original_and_saved_continuations) {
@@ -14179,10 +14180,10 @@ static void mode87_assert_state(cstring_t marker) {
         T_EQ(!!(unit->aiflags&AI_FLYING),expected->category==0x01000000);
     }
     T_NOT_NULL(unit);if(!unit)return;
-    wc3SpatialActive_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
     int box[]={links->box.min.y,links->box.min.x,links->box.max.y,links->box.max.x};
     FOR_LOOP(k,4)T_EQ(box[k],expected->box[k]);
-    T_ASSERT(wc3_spatial_rank(links,links->box.min)!=0);
+    T_ASSERT(wc3_records_contains(links,links->box.min));
     /* Native Unit position stores support Z; OpenRealm snapshots add the
      * separately authored fly-height presentation offset. */
     uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z-unit->unitinfo.FlyHeight)};
