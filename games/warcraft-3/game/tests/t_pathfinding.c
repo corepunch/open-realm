@@ -41,6 +41,7 @@
 #include "retail_adaptive_producer.h"
 #include "retail_adaptive_storage.h"
 #include "retail_coarse_scopes.h"
+#include "retail_reconstruction.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -3460,6 +3461,91 @@ TEST(pathfinding, indexed_placement_matches_live_scalar_occupancy_and_publicatio
         }
     }
     reset_entities(); setup_test_world(); G_FreeMovePathCache();
+}
+
+/* Replays actual166e90/166c30 reconstruction words through Move's retained
+ * route adapters. Native fine coordinates bypass public placement, as in the
+ * original request; public order admission/cadence is a separate contract. */
+TEST(wc3_pathfinding, reconstruction_adapters_preserve_oblique_all_class_route_words) {
+    static uint8_t const masks[]={2,0x80,0x40,4};
+    uint8_t cells[64*64];
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *unit=make_unit_at(30.125f*32,33.875f*32);
+    unit->aiflags=0;
+    uint32_t old_counter=level.pathing_counter;
+    moveFineRoute_t route={0};
+    unsigned map=UINT_MAX;
+    FOR_LOOP(k,sizeof(retail_reconstruction)/sizeof(*retail_reconstruction)) {
+        retailReconstruction_t const *r=retail_reconstruction+k;
+        if(map!=r->map) {
+            map=r->map; memset(cells,0,sizeof(cells));
+            FOR_LOOP(y,64) FOR_LOOP(x,64) {
+                if(map==1 && x==40 && y>=8 && y<58 && (y<30 || y>33))cells[y*64+x]=0xc6;
+                if(map==2) {
+                    if(x>=18 && x<26 && y>=38 && y<46)cells[y*64+x]|=0x40;
+                    if(x>=36 && x<44 && y>=20 && y<28)cells[y*64+x]|=0x80;
+                    if(y==26 && x>=10 && x<30)cells[y*64+x]|=6;
+                }
+                if(map==3 && ((x>=44 && x<=56 && (y==44 || y==56)) ||
+                    (y>=44 && y<=56 && (x==44 || x==56))))cells[y*64+x]=0xc6;
+            }
+            CM_SetupTestPathmap(64,64,cells);
+        }
+        float scale=r->coarse?2:1;
+        vec2_t fine={wc3_float(r->source[0])*scale,wc3_float(r->source[1])*scale},
+            goal={wc3_float(r->goal[0])*scale,wc3_float(r->goal[1])*scale},
+            from={fine.x*32,fine.y*32},target={goal.x*32,goal.y*32},out;
+        unit->collision=(.25f+.5f*r->cls)*32;
+        level.pathing_counter=1000+k*20; level.move_fine_budgets[0].work=0;
+        level.move_coarse_budgets[0][2].work=0;
+        route.count=route.adaptive_count=0;
+        movePathQuery_t query={.geometry={&from,&target,unit->collision,masks[r->lane]},
+            .fine=&fine,.fine_target=&goal,.units=true,.mover=unit};
+        T_ASSERT(r->coarse ? G_BuildUnitMoveFineRoute(&query,&route,&out) : G_BuildUnitMoveLocalRoute(&query,&route,&out));
+        vec2_t const *points=r->coarse?route.adaptive_points:route.points;
+        uint32_t count=r->coarse?route.adaptive_count:route.count;
+        T_EQ(count,r->count);
+        if(count==r->count) FOR_LOOP(i,count) {
+            T_EQ(wc3_float_bits(points[i].x),r->points[i][0]);
+            T_EQ(wc3_float_bits(points[i].y),r->points[i][1]);
+        }
+        if(!r->coarse) { T_EQ(route.index,r->index); T_EQ(route.partial,r->partial); }
+        else T_EQ(G_TestMoveAdaptiveSearch()->size,r->cls<2?1:2);
+    }
+    free(route.points);free(route.adaptive_points);level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests();reset_entities();setup_test_world();
+}
+
+wc3FineVector_t const *G_TestMoveRouteScratch(bool accelerated);
+
+/* Advancing a retained chain must consume its owned storage without staging
+ * its entire tail. Scratch still contains a different request; it is not an
+ * input to either consumer. This catches O(route length) copies per advance. */
+TEST(wc3_pathfinding, retained_route_consumers_do_not_copy_whole_chains_to_scratch) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    vec2_t points[1024];
+    FOR_LOOP(i,1024)points[i]=(vec2_t){4.5f+(i%32),4.5f+(i/32)};
+    moveFineRoute_t route={.points=points,.count=1024,.index=20,.adaptive_points=points,
+        .adaptive_count=1024,.adaptive_index=20,.group_points=points,.group_count=1024,.group_index=20};
+    uint32_t before[2][16];
+    memcpy(before[0],G_TestMoveRouteScratch(false),sizeof(before[0]));
+    memcpy(before[1],G_TestMoveRouteScratch(true),sizeof(before[1]));
+    bool warped=true;
+    T_ASSERT(G_AdvanceUnitMoveAdaptiveDestination(NULL,&route,&warped));T_ASSERT(!warped);
+    T_ASSERT(!memcmp(before[1],G_TestMoveRouteScratch(true),sizeof(before[1])));
+    T_ASSERT(G_AdvanceUnitMoveGroupDestination(&route));
+    T_ASSERT(!memcmp(before[1],G_TestMoveRouteScratch(true),sizeof(before[1])));
+    route.adaptive_count=0;route.count=1024;route.index=20;
+    vec2_t fine=points[20],from={fine.x*32,fine.y*32},target={144,144},out;
+    movePathQuery_t query={.geometry={&from,&target,8,2},.fine=&fine};
+    T_ASSERT(G_AdvanceUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(!memcmp(before[0],G_TestMoveRouteScratch(false),sizeof(before[0])));
+    T_ASSERT(route.index<20);
+    reset_entities();setup_test_world();
 }
 
 #endif /* BZ_TESTS */

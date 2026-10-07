@@ -574,6 +574,9 @@ void G_TestMovePathRefresh(point2_t min, point2_t max) {
 wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void) {
     return &move_acc;
 }
+wc3FineVector_t const *G_TestMoveRouteScratch(bool accelerated) {
+    return accelerated ? move_acc_points : move_fine_points;
+}
 wc3FineSearch_t const *G_TestMoveFineSearch(void) {
     return &move_fine;
 }
@@ -1299,7 +1302,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
             route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
-            FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
+            memcpy(points,move_acc_points,count*sizeof(*points));
         }
     }
     if (!retained && route && query->status &&
@@ -1397,7 +1400,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=move_map_revision;
         route->group_mask=mask;
         route->adaptive_count=route->count=0;
-        FOR_LOOP(i,count) points[i]=(vec2_t){move_acc_points[i].x,move_acc_points[i].y};
+        memcpy(points,move_acc_points,count*sizeof(*points));
     }
     route->group_request = *input->geometry.target;
     route->group_geometry = geometry->revision;
@@ -1410,8 +1413,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
  * The next member update rebuilds its path to the new group destination. */
 bool G_AdvanceUnitMoveGroupDestination(moveFineRoute_t *route) {
     if (!route || !route->group_count || !route->group_index || route->group_index>=route->group_count) return false;
-    FOR_LOOP(i,route->group_count) move_acc_points[i]=(wc3FineVector_t){route->group_points[i].x,route->group_points[i].y};
-    wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){move_acc_points,route->group_index}),false};
+    wc3AccSelection_t selected={wc3_acc_group_advance((wc3FineRoute_t){route->group_points,route->group_index}),false};
     route->group_index=selected.index;
     route->count=route->adaptive_count=0;
     route->index=route->adaptive_index=UINT32_MAX;
@@ -1431,9 +1433,7 @@ static bool move_gate_place(void *context,wc3FineVector_t point) {
 bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *unit,moveFineRoute_t *route,bool *warped) {
     if (!route || !route->adaptive_points || !route->adaptive_count ||
         !route->adaptive_index || route->adaptive_index>=route->adaptive_count) return false;
-    FOR_LOOP(i,route->adaptive_count)
-        move_acc_points[i]=(wc3FineVector_t){route->adaptive_points[i].x,route->adaptive_points[i].y};
-    wc3FineRoute_t path={move_acc_points,route->adaptive_index};
+    wc3FineRoute_t path={route->adaptive_points,route->adaptive_index};
     if(!wc3_acc_advance(&path,true,move_gate_active,move_gate_place,unit,warped))return false;
     route->adaptive_index=path.index;
     route->count=0; route->index=UINT32_MAX;
@@ -1495,7 +1495,7 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
         curve->points = points; curve->count = count; curve->partial=move_fine_points[0].x!=b.x || move_fine_points[0].y!=b.y;
         curve->index = move_fine.observed_obstruction && count>1 ? count-2 : 0;
         curve->mask = params->blocked_flags;
-        FOR_LOOP(i,count) curve->points[i] = (vec2_t){move_fine_points[i].x,move_fine_points[i].y};
+        memcpy(curve->points,move_fine_points,count*sizeof(*points));
         *out = move_world_from_grid(curve->points[curve->index].x,curve->points[curve->index].y);
         return true;
     }
@@ -1608,10 +1608,9 @@ bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute
 
     if (wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy)) <= wc3_mul(range,range)) {
         if (!route->index) return false;
-        FOR_LOOP(i,route->count) move_fine_points[i] = (wc3FineVector_t){route->points[i].x,route->points[i].y};
         moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
         wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
-        route->index = wc3_segment_waypoint(&segment,(wc3FineRoute_t){move_fine_points,route->index});
+        route->index = wc3_segment_waypoint(&segment,(wc3FineRoute_t){route->points,route->index});
         point = route->points[route->index];
     }
     *out = move_world_from_grid(point.x,point.y);

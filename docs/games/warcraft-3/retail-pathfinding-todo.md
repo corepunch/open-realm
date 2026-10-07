@@ -55,7 +55,9 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**235 done / 336 tasks; 101 remaining.**
+**236 done / 336 tasks; 100 remaining.**
+Payoff140 closes ROUTE-01.1 with all-class oblique fine/coarse producer words and200 actual engine adapter rows. Move now advances owned arrays directly, eliminating full-chain scratch copies; saved layout and numerical results stay exact. See [reconstruction and owned consumption](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140).
+
 Payoff139 ports MAP-02.2's terrain/bridge independence and removes inferred-deck scans plus a duplicate terrain buffer. All256 byte lanes and three captured map grids survive creation/save/death. Numerical support geometry remains open; see [bridge terrain authority](retail-pathfinding-engine.md#bridges-preserve-authored-terrain-payoff139).
 
 Payoff138 closes FOOT-03.2: actual widget footprints now publish separate pooled
@@ -761,7 +763,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 
 ### ROUTE-01 — Reconstruction
 
-- [ ] **ROUTE-01.1** Extend fine/coarse endpoint reconstruction to oblique directions and every class; assert exact coordinates, rounding and route order.
+- [x] **ROUTE-01.1** Complete2664 original fine/10656 coarse producer requests across all classes/lanes and oblique directions; exact reconstruction order, rounding, partial endpoints and bypasses match production C at O0/O2.200 actual Move adapter rows pass2586 assertions. Owned-array advancement removes whole-chain copies without changing words or Save122 layout. See [Payoff140](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140); buffer/public advance state remains01.2.
 - [ ] **ROUTE-01.2** Exercise empty/partial buffers, invalid starts and one growth/index limit; assert return code and next public advance state.
 - [x] **ROUTE-01.3** Port fine reconstruction coordinates and endpoint replacement into Move's nearby route adapter.3840 original eight-direction parent chains match raw C coordinate words with reuse at O0/O2; exact source, one-node source-before-goal and matching/nonmatching destination cells are explicit. Eight actual engine endpoint failures are reproduced/fixed across four classes. The partial-wall Move now keeps a fractional original goal through obstruction/removal/resume. Coarse reconstruction and buffer growth remain01.1/01.2. Evidence: [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints). Payoff34 also retains native fine waypoints in clear location routes instead of subtracting final published world positions; actual spawn-to-Move regression and repeats are [recorded here](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints).
 

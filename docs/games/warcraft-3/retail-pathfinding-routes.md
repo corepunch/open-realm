@@ -1492,3 +1492,22 @@ oblique numerical parity, exact threshold rounding and gate-placement failure
 remain outside this corpus.
 
 Oracle: `verify_wc3_pathing_transition.py` → `transition-oracle.json`.
+
+
+## Full reconstruction producers and owned consumption
+
+Payoff140 closes ROUTE-01.1 with2664 original fine and10656 original coarse
+requests, all four classes and lanes, fractional oblique endpoints, partial
+routes and same-cell/promoted-region bypasses. Coarse partial point0 is the raw
+nearest-node centre +0.5, without the size2 edge correction used for interior
+reconstructed points. Real166c30 size inputs are class>>1, producing1/2 only;
+synthetic size4 chains establish the helper rule, not a public route producer.
+The script uses36 regular vectors plus9 enclosed-goal vectors (45 distinct);
+the earlier handoff's52-vector description is corrected.
+
+Move consumes its retained native-coordinate arrays directly. Removing the
+whole-chain copies leaves selector/segment work proportional to the inspected
+portion, while preserving exact word order, save layout and gate sentinels.
+The200-row adapter regression and fresh original/model/C O0/O2 comparison are
+recorded in [the engine ledger](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140).
+Growth, invalid starts and next public advance state remain ROUTE-01.2.

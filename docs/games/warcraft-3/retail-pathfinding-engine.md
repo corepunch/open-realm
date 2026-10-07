@@ -10878,3 +10878,69 @@ WPM consumer cases and256 exact engine byte comparisons. No full-suite checkpoin
 for this chunk. MAP-02.2 stays **open**: deck ray geometry, air-height production,
 the amphibious refresh history and the complete supported-lane support fixtures
 must reach the engine before closure. No additional TODO is introduced.
+
+
+## Oblique reconstruction and direct owned consumption (Payoff140)
+
+ROUTE-01.1 is closed with the completed reconstruction handoff integrated into
+Move. Fresh unchanged original instructions execute2664 fine requests through
+166e90/148100 and10656 coarse requests through166c30/162cb0, across all four
+footprint classes and four hierarchy lanes. The actual reproducer uses36 regular
+vectors (32 oblique and4 same-cell/short/cardinal controls), plus9 enclosed-goal
+vectors:45 distinct vectors in their union. The handoff's old52-vector description
+was inaccurate; the frozen requests and counts are unchanged. Two source fractions,
+three ordinary goal fractions and four maps cover all route words and order.
+Production C at-O0/-O2 matches5328 fine and21312 coarse comparisons with zero
+differences; the independent float32 models also match every reconstructed word.
+
+Fine points are destination-first cell centres, with exact source last and exact
+goal first only when floors match. The72 same-cell bypasses store one exact goal;
+96 fine routes are partial. Coarse classes0/1 produce stored size1 and classes2/3
+size2. The size2 edge decrement applies at levels1..3 before adding1.25;6604
+coordinate decrements are witnessed. All348 partial coarse destinations are the
+**raw nearest-node centre +0.5**, without that decrement or1.25 offset. There
+are2568 coarse bypasses (864 same-cell,1704 shared promoted node), with one exact
+goal and no mismatch. The older synthetic size4 reconstruction rows remain
+controls;166c30 does not produce size4.
+
+The actual engine adapter regression replays200 literal request rows:40 fine
+and160 coarse, covering all classes, lanes, fractional oblique endpoints,
+complete/partial routes and bypasses. All2586 coordinate/count/index assertions
+pass. The fixture is generated from the frozen original words and checked by
+Python; tests reset the independent request budgets rather than mistaking FIFO
+exhaustion for a reconstruction difference. The native lane order is ground2,
+amphibious80,float40,flight4. Public order clipping, world transforms and owner
+cadence remain the existing separate tasks, not additional reconstruction leaves.
+
+The engine payoff removes three full-chain scratch copies from fine, member
+coarse and group coarse advancement. `wc3FineVector_t` now aliases the existing
+plain `vec2_t`, so consumers borrow the owned native-coordinate arrays with no
+casts or intermediate representation. Route publication still copies a newly
+reconstructed chain once, using `memcpy`. Point coordinates, traversal order,
+gate sentinels and arithmetic are unchanged. The serialized instance layout and
+Save122 payload remain identical. No capacity/growth change is hidden here;
+ROUTE-01.2 still owns that behavior.
+
+The1024-point regression fails three scratch-preservation assertions before the
+change and passes all eight afterward. Advancement now costs only the points and
+segments actually inspected by the selector, rather than also copying every point
+in the stored route. Fine visibility tests and coarse selection still perform
+genuine work. This removes an O(total route length) cost per advancement; it is
+not a new4096-unit frame-time measurement or a claim that all routing is O(1).
+
+Seven actual Ghidra functions have saved Payoff140 annotations, mirrored in
+`MapPathfinding.java` and authenticated by
+`retail-route-reconstruction-ghidra-1.27.json`. The fresh strict `oracle-routes`
+entry preserves its9216 synthetic coarse controls and requires the full producer
+corpus, zero engine differences,200 adapter rows and all seven saved functions.
+No live Frida witness is claimed: reconstruction has no runtime-only producer,
+and the handoff uses read-only original-code entry observers. Buffer/public
+advance boundaries remain ROUTE-01.2 and the existing ROUTE/SCHED tasks.
+
+Focused debug and release Classic/TFT checks each pass656 tests /7655695
+assertions per variant: WC3 pathfinding, shared routing, movement (including gate
+traversal and saved continuations), and save/load. Both production and test
+modules build;24 Python evidence/corpus checks pass. The fresh strict route
+contract passes and all570 staged source/fixture pins agree. This is the fifth
+implementation commit since the successful Payoff135 full-suite checkpoint;
+no new full-repository suite is claimed.

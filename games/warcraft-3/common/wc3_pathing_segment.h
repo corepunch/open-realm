@@ -3,6 +3,7 @@
 
 #include "wc3_pathing_fine.h"
 #include "wc3_math.h"
+#include "shared/types/vector2.h"
 
 typedef struct {
     float start[2], direction[2], length;
@@ -11,7 +12,9 @@ typedef struct {
     void const *data;
 } wc3FineSegment_t;
 typedef struct { wc3FinePoint_t pos; unsigned count; bool vertical; } wc3FineStrip_t;
-typedef struct { float x, y; } wc3FineVector_t;
+/* One point representation from reconstruction through owned consumption.
+ * Units remain native fine/accelerator coordinates until world publication. */
+typedef vec2_t wc3FineVector_t;
 typedef struct { wc3FineVector_t const *points; uint32_t index; } wc3FineRoute_t;
 
 /* 168280 leaves vectors of length <=1 unchanged. Software sqrt/reciprocal

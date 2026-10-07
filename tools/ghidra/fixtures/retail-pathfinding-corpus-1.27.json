@@ -828,26 +828,63 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--engine-library",
+        "{engine}",
+        "--producer-fixture",
+        "tools/ghidra/fixtures/research/ROUTE-01.1-expected.json.gz",
+        "--engine-fixture",
+        "games/warcraft-3/game/tests/retail_reconstruction.h",
+        "--ghidra-evidence",
+        "tools/ghidra/fixtures/retail-route-reconstruction-ghidra-1.27.json"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
       },
       "report": "route-reconstruction-oracle.json",
       "expected_exit": 0,
-      "expected_status": "verified",
+      "expected_status": "original-model-engine-exact",
       "checks": {
         "mismatches": {
           "length": 0
         },
         "fine_cases": {
           "minimum": 1
+        },
+        "producer_fine_requests": {
+          "equal": 2664
+        },
+        "producer_coarse_requests": {
+          "equal": 10656
+        },
+        "producer_engine_fine_cases": {
+          "equal": 2664
+        },
+        "producer_engine_coarse_cases": {
+          "equal": 10656
+        },
+        "producer_engine_differences": {
+          "equal": 0
+        },
+        "producer_expected_equal": {
+          "equal": true
+        },
+        "producer_adapter_fixture_rows": {
+          "equal": 200
+        },
+        "producer_saved_functions": {
+          "equal": 7
+        },
+        "producer_payload_sha256": {
+          "equal": "5f2915f292c602743f1a345574b20370306752a82f514442de5be67d99e79805"
         }
       },
       "evidence": [
-        "O"
+        "S",
+        "O",
+        "C"
       ],
-      "scope": "original reconstruction/float helpers/container append; synthetic valid parent chains; preallocated storage; tag only on middle node; no smoothing or destination placement",
+      "scope": "Original synthetic reconstruction controls plus full166e90/166c30 route producers:2664 fine and10656 coarse requests, all four footprint classes/four lanes,36 regular vectors plus9 enclosed-goal vectors, two source fractions, complete/partial/bypass words, exact original float32 model and production C;200 literal adapter regression rows and7 saved Ghidra functions. Supplied map/bucket/storage preconditions; public cadence, world transforms and buffer growth remain separate. Synthetic size4 chains are not real166c30 producer evidence.",
       "exclusions": []
     },
     {
@@ -37145,7 +37182,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8e972d551a3b322d4fea2ae08524f5d1e65c97846f63242c00eec182d0949e3c"
+      "sha256": "edd34d9395780f17b0e5afc378ab3fa211c2b5305c851824c67a7b60a079f4d7"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38433,7 +38470,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "c281f82737be1ce5f5ce89a1c8fcf950f78cd8bd082898b8653195e6337c2751"
+      "sha256": "a3731f95e6ac21390710feaeac237c65460bc4264adfaa7b5d3c4959d8296d11"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38490,6 +38527,46 @@
     {
       "path": "tools/ghidra/verify_wc3_pathing_load_masks.py",
       "sha256": "c12460fae165da8329c85fb3c979cfb72b35a7d4cf28241ba35c8a08d7ad5bd6"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_segment.h",
+      "sha256": "98e1c45a52d7ecdbaaa74342236dcf74ecb9480297f9555907ddb34cf97b2e60"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_pathfinding.c",
+      "sha256": "f3589ccbfd5b62c00fe03b7cc791e8c1f54904c6d18cf0ec52d7afe27561f100"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_routes.py",
+      "sha256": "7662372ef022c1bbd78e64d96a58f5b6f1a48cbec004cb01f4504096e765716e"
+    },
+    {
+      "path": "shared/types/vector2.h",
+      "sha256": "b1e14625179951f9048000155afb1fa0f9d57e1f2e1ebeba46efdd95f4dd40e5"
+    },
+    {
+      "path": "tools/ghidra/research/route01_1_2_harness.py",
+      "sha256": "478c76045a84580e0c021b23b20c8d790922b1256edacf55e5cffb1264d021f7"
+    },
+    {
+      "path": "tools/ghidra/research/verify_route01_1_reconstruction.py",
+      "sha256": "b712789e5695e47e13a9e087ca40ff5620add19585ce690606bebd533e7e29b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ROUTE-01.1-expected.json.gz",
+      "sha256": "b24c4b35b0e13c6ad4281ec5fa5a96bc5a8ae15ec71e7fa89881b0980d57cf00"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-reconstruction-ghidra-1.27.json",
+      "sha256": "e43cf442b4a439e5113e9a9c5c21d9b92d04a9936698c0f92b49b777db7263f5"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_reconstruction.h",
+      "sha256": "dc1f79558bf42caa945aad5f7c6159c2c2d02153f8a263970ec3b994fca363f6"
+    },
+    {
+      "path": "tests/test_wc3_route_reconstruction.py",
+      "sha256": "2b8b5483268a6bc0ed59f3c4670c3ab1f8fdb3bf12ffb57c65550b297c009cec"
     }
   ]
 }

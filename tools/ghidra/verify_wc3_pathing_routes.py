@@ -11,6 +11,8 @@ import itertools
 import json
 import math
 import struct
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -23,6 +25,9 @@ def main():
     parser.add_argument('--all-directions', action='store_true', help='extend fine chains to every cardinal/diagonal direction')
     parser.add_argument('--fixture', type=Path, help='freeze exact original fine coordinate words')
     parser.add_argument('--engine-library', type=Path, help='compare production fine reconstruction')
+    parser.add_argument('--producer-fixture', type=Path, help='also run the complete ROUTE-01.1 producer corpus')
+    parser.add_argument('--engine-fixture', type=Path, help='literal Move adapter regression subset')
+    parser.add_argument('--ghidra-evidence', type=Path, help='saved reconstruction function annotations')
     args = parser.parse_args()
     engine = ctypes.CDLL(str(args.engine_library.resolve())) if args.engine_library else None
     if engine:
@@ -137,6 +142,20 @@ def main():
         report.update(engine_queries=fine_cases, engine_repeats=fine_cases, engine_sha256=hashlib.sha256(args.engine_library.read_bytes()).hexdigest())
     if args.fixture:
         args.fixture.write_text(json.dumps(dict(binary_sha256=digest, scope='Original147dc0 fine coordinate words; preallocated valid parent chains, eight directions and lengths1..5. Coarse policy and buffer growth separate.', cases=frozen), separators=(',', ':')) + '\n')
+    if args.producer_fixture:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        producer_report = args.report.with_name(args.report.stem + '-producers.json')
+        command = [sys.executable, str(Path(__file__).with_name('research') / 'verify_route01_1_reconstruction.py'),
+                   '--binary', str(args.binary), '--report', str(producer_report), '--expected', str(args.producer_fixture)]
+        for option, path in (('--engine-library', args.engine_library), ('--engine-fixture', args.engine_fixture),
+                             ('--ghidra-evidence', args.ghidra_evidence)):
+            if path:
+                command += [option, str(path)]
+        subprocess.run(command, check=True)
+        producer = json.loads(producer_report.read_text())
+        for key in ('fine_requests', 'coarse_requests', 'engine_fine_cases', 'engine_coarse_cases', 'engine_differences',
+                    'expected_equal', 'adapter_fixture_rows', 'saved_functions', 'payload_sha256'):
+            report['producer_' + key] = producer[key]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     print(f'{fine_cases} fine / {accelerated_cases} accelerated reconstruction cases; all pass')
