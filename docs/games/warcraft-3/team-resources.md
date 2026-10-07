@@ -32,7 +32,8 @@ UI controller. This is essential for bots and campaign triggers.
 
 ## Unimplemented And Unverified
 
-- A provisional Team Resources `svc_layout` renderer now exists on `LAYER_GAME_2`.
+- A provisional Team Resources `svc_layout` renderer now exists on `LAYER_GAME_3`
+  (`WC3_LAYER_MULTIBOARD`); `LAYER_GAME_2` is the command-error overlay.
   It shows eligible allies' names, gold, lumber and used/cap food values.
   Custom multiboards take precedence, and multiboard suppression hides the panel.
 - The retail board's exact stock FDF geometry, minimize buttons, custom-board fallback priority,
