@@ -1765,12 +1765,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
         payer->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += lumber;
         building->construction->paid = false;
         G_InvalidateCommands(payer);
-        FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
-            gameClient_t *viewer = &game.clients[i];
-            if (viewer->connected &&
-                G_CanViewTeamResources(viewer->ps.number, payer->ps.number))
-                level.multiboard_dirty_clients |= 1u << i;
-        }
+        G_MarkMultiboardPlayerDirty(payer->ps.number);
         if (payer->connected)
             G_RefreshResourceBar(G_GetPlayerEntityByNumber(payer->ps.number));
     }

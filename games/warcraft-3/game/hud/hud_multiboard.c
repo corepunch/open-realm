@@ -261,3 +261,15 @@ void G_UpdateMultiboards(void) {
         level.multiboard_dirty_clients &= ~(1u << i);
     }
 }
+
+/* Resource transactions may belong to a player without a connected client.
+ * Dirty only connected allied viewers; the regular multiboard pass coalesces
+ * multiple deposits into one HUD write per viewer. */
+void G_MarkMultiboardPlayerDirty(uint32_t owner) {
+    if (owner >= PLAYER_NEUTRAL_AGGRESSIVE) return;
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
+        gameClient_t *viewer = &game.clients[i];
+        if (viewer->connected && G_CanViewTeamResources(viewer->ps.number, owner))
+            level.multiboard_dirty_clients |= 1u << i;
+    }
+}

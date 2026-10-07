@@ -1546,10 +1546,7 @@ void G_RefreshResourceBar(edict_t *ent) {
 
     /* Allied Team Resources reads this player's economy; refresh eligible
      * viewers on real changes, not on every frame. */
-    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS))
-        if (game.clients[i].connected &&
-            G_CanViewTeamResources(game.clients[i].ps.number, ps->number))
-            level.multiboard_dirty_clients |= 1u << i;
+    G_MarkMultiboardPlayerDirty(ps->number);
 
     UI_WriteStart(LAYER_CONSOLE);
     UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
