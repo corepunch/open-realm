@@ -57,6 +57,18 @@ existing asynchronous item activation path can retain the charge. There is
 no added logging. Construction's per-instance duration is serialized in the
 existing `construction_t` pool, with save version 67.
 
+The info panel build timer (`G_GetBuildQueue` in `hud/hud_unit.c`) reads
+`construction->duration_ms` when it is set, so a Tiny progress bar runs on the
+authored Tiny clock rather than the structure's `UnitBalance.buildTime`.
+
+Execution coverage lives in `tests/t_building.c` (`wc3_building.tiny_*`): the
+item flow through `G_UseItem` and the `point` client command spawns a
+`CONSTRUCTION_TINY` building, consumes one charge only on success, completes
+through the real `globals.RunFrame()` scheduler on `duration_ms`, completes a
+zero-duration row immediately, and leaves a blocked footprint with the charge
+intact and no spawned entity. The save round-trip is
+`wc3_save.tiny_construction_round_trips_in_roc_and_tft_map_state`.
+
 ## Targeted building preview
 
 Build Tiny item targeting now publishes the same `svc_cursor` model/footprint
@@ -66,6 +78,9 @@ executor, including the stock racial Great Hall variants. The generic client
 snaps the model and colours placement cells; the game still validates a clicked
 position authoritatively. Successful casts and cancelled targeting clear the
 cursor. Invalid clicks keep the target mode armed without spending the item.
+When the cursor cannot resolve a building (an `AIbg` row without `UnitID1`),
+`spell_cmd` logs the gap and returns before adding the Cancel button, so the
+client never ends up in a half-open target mode with a dead Cancel button.
 
 A Tiny Great Hall with an explicitly different authored UnitID is preserved;
 only the stock Great Hall mapping is expanded to other player races. An

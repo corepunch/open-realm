@@ -5850,4 +5850,158 @@ TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_require
     building_restore_repair_data(old_abilities, rows);
 }
 
+/* Stock Build Tiny data shape: the item carries one AbilityData alias whose
+ * UnitID1 names the structure and Dur1 the autonomous build time. AIbt is a
+ * zero-duration row and AIbg omits UnitID1 so the cursor cannot resolve. */
+static char const building_tiny_ability_slk[] =
+    "ID;PWXL;N;EBB;Y5;X14\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+    "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+    "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+    "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"UnitID1\"\n"
+    "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+    "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
+    "C;Y3;X1;K\"AIbl\"\nC;Y3;X2;K\"AIbl\"\nC;Y3;X3;K\"1\"\n"
+    "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
+    "C;Y3;X7;K\"600\"\nC;Y3;X8;K\"3\"\nC;Y3;X14;K\"hbar\"\n"
+    "C;Y4;X1;K\"AIbt\"\nC;Y4;X2;K\"AIbl\"\nC;Y4;X3;K\"1\"\n"
+    "C;Y4;X4;K\"ground\"\nC;Y4;X7;K\"600\"\nC;Y4;X8;K\"0\"\nC;Y4;X14;K\"hbar\"\n"
+    "C;Y5;X1;K\"AIbg\"\nC;Y5;X2;K\"AIbl\"\nC;Y5;X3;K\"1\"\n"
+    "C;Y5;X4;K\"ground\"\nC;Y5;X7;K\"600\"\nC;Y5;X8;K\"3\"\nE\n";
+
+typedef struct {
+    edict_t *player, *hero, *item;
+    slkTestData_t *rows, *old;
+} buildingTinyFixture_t;
+
+/* A selected inventory unit carrying one two-charge Tiny Structure item,
+ * standing in cast range of the (64,64) footprint the tests place on. A
+ * non-hero carrier keeps the headless info panel off the hero attribute
+ * frames, which only exist once the HUD FDF is loaded. */
+static buildingTinyFixture_t building_tiny_fixture(cstring_t ability) {
+    static UnitAbilities_t const abilities = { .abilList = "AInv", .heroAbilList = "" };
+    static ItemData_t item_data;
+    buildingTinyFixture_t f;
+
+    setup_test_world();
+    f.rows = parse_slk_string(building_tiny_ability_slk);
+    f.old = G_SetSLKRows("AbilityData", f.rows);
+    f.player = &g_edicts[0]; f.player->client->ps.number = 0;
+    f.hero = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -200.0f, -200.0f);
+    f.hero->data.UnitAbilities = &abilities; f.hero->s.player = 0; f.hero->svflags |= SVF_MONSTER;
+    f.hero->targtype = TARG_GROUND; f.hero->health.value = f.hero->health.max_value = 100;
+    f.hero->think = monster_think; f.hero->stand = unit_stand; f.hero->movetype = MOVETYPE_STEP;
+    f.hero->collision = 16.0f; unit_stand(f.hero); gi.LinkEntity(f.hero);
+    item_data = MAKE(ItemData_t, .abilList = ability, .uses = 2, .perishable = false);
+    f.item = alloc_test_unit(MAKEFOURCC('s','t','w','p'), -200.0f, -200.0f);
+    f.item->s.model = 1; f.item->movetype = MOVETYPE_NONE; f.item->targtype = TARG_ITEM;
+    if (!f.item->item) f.item->item = G_AllocItem();
+    assert(f.item->item);
+    f.item->item->carrier = NULL; f.item->item->inventory_slot = -1; f.item->item->in_world = true;
+    f.item->data.ItemData = &item_data; f.item->item->charges = 2; f.item->spawn_time = 1234;
+    gi.LinkEntity(f.item);
+    T_ASSERT(G_AddItemToSlot(f.hero, f.item, 0));
+    G_SelectEntity(f.player->client, f.hero);
+    return f;
+}
+
+static void building_tiny_restore(buildingTinyFixture_t const *f) {
+    G_SetSLKRows("AbilityData", f->old);
+    free_slk_rows(f->rows);
+}
+
+static edict_t *building_find_tiny_structure(void) {
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','b','a','r')) return ent;
+    return NULL;
+}
+
+static uint32_t building_count_inuse_edicts(void) {
+    uint32_t count = 0;
+    FILTER_EDICTS(ent, ent->inuse) count++;
+    return count;
+}
+
+TEST(wc3_building, tiny_structure_item_spawns_tiny_construction_and_completes_on_authored_duration) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbl");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *building;
+    UnitBalance_t balance;
+
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(f.player->client->menu.on_location_selected);
+    T_EQ(f.player->client->menu.ability_item, f.item);
+    G_ClientCommand(f.player, 3, click);
+
+    building = building_find_tiny_structure();
+    T_NOT_NULL(building);
+    if (!building) { building_tiny_restore(&f); return; }
+    T_EQ(building->s.player, 0);
+    T_NOT_NULL(building->construction);
+    if (!building->construction) { building_tiny_restore(&f); return; }
+    T_EQ(building->construction->type, CONSTRUCTION_TINY);
+    T_FEQ(building->construction->duration_ms, 3000.0f, 0.001f);
+    T_ASSERT(building->build == building);
+    T_ASSERT(building->health.value < building->health.max_value);
+    /* Only a successful A_EXECUTE consumes the item; the targeting state is released with it. */
+    T_EQ(G_ItemCharges(f.item), 1);
+    T_NULL(f.player->client->menu.on_location_selected);
+    T_NULL(f.player->client->menu.ability_item);
+
+    /* The structure's normal build time must not drive the Tiny clock. */
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = true;
+    level.scriptsStarted = true;
+    FOR_LOOP(frame, 15) globals.RunFrame();
+    T_NOT_NULL(building->construction);
+    if (building->construction) T_FEQ(building->construction->progress, 15.0f * FRAMETIME, 0.001f);
+    FOR_LOOP(frame, 15) globals.RunFrame();
+    T_ASSERT(building->inuse);
+    T_NULL(building->construction);
+    T_NULL(building->build);
+    T_FEQ(building->health.value, building->health.max_value, 0.001f);
+    building->data.UnitBalance = NULL;
+    building_tiny_restore(&f);
+}
+
+TEST(wc3_building, tiny_structure_blocked_footprint_keeps_item_and_leaves_no_structure) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbl");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    uint32_t inuse;
+
+    blocker->svflags |= SVF_MONSTER;
+    blocker->collision = 16.0f;
+    gi.LinkEntity(blocker);
+    G_UseItem(f.hero, 0);
+    T_NOT_NULL(f.player->client->menu.on_location_selected);
+    inuse = building_count_inuse_edicts();
+    G_ClientCommand(f.player, 3, click);
+    T_NULL(building_find_tiny_structure());
+    T_EQ(building_count_inuse_edicts(), inuse);
+    T_EQ(G_ItemCharges(f.item), 2);
+    building_tiny_restore(&f);
+}
+
+TEST(wc3_building, tiny_structure_zero_duration_completes_immediately) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbt");
+    cstring_t click[] = { "point", "64", "64" };
+    edict_t *building;
+
+    G_UseItem(f.hero, 0);
+    G_ClientCommand(f.player, 3, click);
+    building = building_find_tiny_structure();
+    T_NOT_NULL(building);
+    if (building) {
+        T_NULL(building->construction);
+        T_NULL(building->build);
+        T_FEQ(building->health.value, building->health.max_value, 0.001f);
+    }
+    T_EQ(G_ItemCharges(f.item), 1);
+    building_tiny_restore(&f);
+}
+
 #endif
