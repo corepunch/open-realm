@@ -893,6 +893,11 @@ typedef struct {
 } mapItemDataOverride_t;
 
 typedef struct {
+    uint32_t id;
+    DestructableData_t row;
+} mapDestructableDataOverride_t;
+
+typedef struct {
     uint32_t id, num_levels;
     AbilityData_t row;
     abilityLevel_t *extra_levels;
@@ -908,6 +913,8 @@ static mapUnitAbilitiesOverride_t *map_unit_abilities_overrides;
 static uint32_t map_unit_abilities_override_count;
 static mapItemDataOverride_t *map_item_data_overrides;
 static uint32_t map_item_data_override_count;
+static mapDestructableDataOverride_t *map_destructable_data_overrides;
+static uint32_t map_destructable_data_override_count;
 static mapAbilityOverride_t *map_ability_overrides;
 static uint32_t map_ability_override_count;
 static uint32_t ability_data_generation;
@@ -1043,6 +1050,31 @@ unitMeta_t const UnitsMetaData[] = {
     M("isst",ItemData,stockStart,BZ_FIELD_U32),
     M("iusa",ItemData,usable,BZ_FIELD_BOOL),
     M("iuse",ItemData,uses,BZ_FIELD_U32),
+    M("bcat",DestructableData,category,BZ_FIELD_CSTR),
+    M("btil",DestructableData,tilesets,BZ_FIELD_CSTR),
+    M("bnam",DestructableData,displayName,BZ_FIELD_CSTR),
+    M("bfil",DestructableData,file,BZ_FIELD_CSTR),
+    M("btxf",DestructableData,textureFile,BZ_FIELD_CSTR),
+    M("btxi",DestructableData,texID,BZ_FIELD_CSTR),
+    M("bshd",DestructableData,shadow,BZ_FIELD_CSTR),
+    M("bptx",DestructableData,pathingTexture,BZ_FIELD_CSTR),
+    M("bptd",DestructableData,deathPathingTexture,BZ_FIELD_CSTR),
+    M("bdsn",DestructableData,deathSnd,BZ_FIELD_CSTR),
+    M("btar",DestructableData,targetType,BZ_FIELD_CSTR),
+    M("bhps",DestructableData,maxHealth,BZ_FIELD_U32),
+    M("barm",DestructableData,armorSoundType,BZ_FIELD_CSTR),
+    M("bvar",DestructableData,numVar,BZ_FIELD_U32),
+    M("bsel",DestructableData,selSize,BZ_FIELD_FLOAT),
+    M("bmis",DestructableData,minScale,BZ_FIELD_FLOAT),
+    M("bmas",DestructableData,maxScale,BZ_FIELD_FLOAT),
+    M("bmap",DestructableData,maxPitch,BZ_FIELD_FLOAT),
+    M("bmar",DestructableData,maxRoll,BZ_FIELD_FLOAT),
+    M("brad",DestructableData,radius,BZ_FIELD_FLOAT),
+    M("bocc",DestructableData,occluderHeight,BZ_FIELD_FLOAT),
+    M("bfly",DestructableData,flyHeight,BZ_FIELD_FLOAT),
+    M("bwlk",DestructableData,walkable,BZ_FIELD_BOOL),
+    M("bwat",DestructableData,onWater,BZ_FIELD_BOOL),
+    M("bclc",DestructableData,onCliffs,BZ_FIELD_BOOL),
     M("uani",UnitProfile,animProps,BZ_FIELD_CSTR),
     M("uico",UnitProfile,art,BZ_FIELD_CSTR),
     M("iico",UnitProfile,itemArt,BZ_FIELD_CSTR),
@@ -1336,6 +1368,14 @@ static ItemData_t const *FindMapItemDataOverride(uint32_t id) {
     return NULL;
 }
 
+static DestructableData_t const *FindMapDestructableDataOverride(uint32_t id) {
+    FOR_LOOP(i, map_destructable_data_override_count) {
+        if (map_destructable_data_overrides[i].id == id)
+            return &map_destructable_data_overrides[i].row;
+    }
+    return NULL;
+}
+
 static bool UnitModificationString(unitModification_t const *mod) {
     switch (mod->type) {
     case mod_string:
@@ -1474,8 +1514,23 @@ static void AddMapItemDataOverride(unitData_t const *item, uint32_t target_id, u
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.ItemData), item->modifications + i);
 }
 
+static void AddMapDestructableDataOverride(unitData_t const *object, uint32_t target_id, uint32_t base_id) {
+    DestructableData_t const *base = FindMapDestructableDataOverride(base_id);
+    mapDestructableDataOverride_t *override;
+
+    if (!base) base = FS_SLKLookup(&dest_idx, base_id);
+    override = map_destructable_data_overrides + map_destructable_data_override_count++;
+    memset(&override->row, 0, sizeof(override->row));
+    if (base) override->row = *base;
+    override->id = target_id;
+    override->row.id = target_id;
+
+    FOR_LOOP(i, object->numbeOfModifications)
+        ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.DestructableData), object->modifications + i);
+}
+
 void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
-    uint32_t unit_capacity, item_capacity;
+    uint32_t unit_capacity, item_capacity, destructable_capacity;
 
     free(map_unit_balance_overrides);
     map_unit_balance_overrides = NULL;
@@ -1492,11 +1547,15 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     free(map_item_data_overrides);
     map_item_data_overrides = NULL;
     map_item_data_override_count = 0;
+    free(map_destructable_data_overrides);
+    map_destructable_data_overrides = NULL;
+    map_destructable_data_override_count = 0;
     if (!mapinfo) return;
 
     unit_capacity = mapinfo->num_originalUnits + mapinfo->num_userCreatedUnits;
     item_capacity = mapinfo->num_originalItems + mapinfo->num_userCreatedItems;
-    if (!unit_capacity && !item_capacity) return;
+    destructable_capacity = mapinfo->num_originalDestructables + mapinfo->num_userCreatedDestructables;
+    if (!unit_capacity && !item_capacity && !destructable_capacity) return;
     if (unit_capacity) {
         map_unit_balance_overrides = calloc(unit_capacity, sizeof(*map_unit_balance_overrides));
         map_unit_profile_overrides = calloc(unit_capacity, sizeof(*map_unit_profile_overrides));
@@ -1505,14 +1564,18 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     }
     if (item_capacity)
         map_item_data_overrides = calloc(item_capacity, sizeof(*map_item_data_overrides));
+    if (destructable_capacity)
+        map_destructable_data_overrides = calloc(destructable_capacity, sizeof(*map_destructable_data_overrides));
     if ((unit_capacity && (!map_unit_balance_overrides || !map_unit_profile_overrides ||
                            !map_unit_ui_overrides || !map_unit_abilities_overrides)) ||
-        (item_capacity && !map_item_data_overrides)) {
+        (item_capacity && !map_item_data_overrides) ||
+        (destructable_capacity && !map_destructable_data_overrides)) {
         free(map_unit_balance_overrides); map_unit_balance_overrides = NULL;
         free(map_unit_profile_overrides); map_unit_profile_overrides = NULL;
         free(map_unit_ui_overrides); map_unit_ui_overrides = NULL;
         free(map_unit_abilities_overrides); map_unit_abilities_overrides = NULL;
         free(map_item_data_overrides); map_item_data_overrides = NULL;
+        free(map_destructable_data_overrides); map_destructable_data_overrides = NULL;
         return;
     }
 
@@ -1538,6 +1601,14 @@ void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     FOR_LOOP(i, mapinfo->num_userCreatedItems) {
         unitData_t const *item = mapinfo->userCreatedItems + i;
         AddMapItemDataOverride(item, item->newUnitID, item->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_originalDestructables) {
+        unitData_t const *object = mapinfo->originalDestructables + i;
+        AddMapDestructableDataOverride(object, object->originalUnitID, object->originalUnitID);
+    }
+    FOR_LOOP(i, mapinfo->num_userCreatedDestructables) {
+        unitData_t const *object = mapinfo->userCreatedDestructables + i;
+        AddMapDestructableDataOverride(object, object->newUnitID, object->originalUnitID);
     }
 }
 
@@ -1831,6 +1902,16 @@ static uint32_t ResolveUnitID(uint32_t id) {
     return id;
 }
 
+static uint32_t ResolveDestructableID(uint32_t id) {
+    if (!level.mapinfo) return id;
+    FOR_LOOP(n, level.mapinfo->num_userCreatedDestructables) {
+        unitData_t const *object = level.mapinfo->userCreatedDestructables + n;
+        if (object->newUnitID == id)
+            return object->originalUnitID;
+    }
+    return id;
+}
+
 static uint32_t ResolveItemID(uint32_t id) {
     if (!level.mapinfo) return id;
     FOR_LOOP(n, level.mapinfo->num_userCreatedItems) {
@@ -2055,7 +2136,14 @@ ItemData_t const *G_ItemData(uint32_t id) {
     return row ? row : &zero;
 }
 ItemData_t const *G_ItemDataRows(uint32_t *count) { *count = g_ItemDataCount; return g_ItemData; }
-DestructableData_t const *G_DestructableData(uint32_t id) { static DestructableData_t zero; DestructableData_t *row = FS_SLKLookup(&dest_idx, ResolveUnitID(id)); return row ? row : &zero; }
+DestructableData_t const *G_DestructableData(uint32_t id) {
+    static DestructableData_t zero;
+    DestructableData_t const *override = FindMapDestructableDataOverride(id);
+    DestructableData_t *row;
+    if (override) return override;
+    row = FS_SLKLookup(&dest_idx, ResolveDestructableID(id));
+    return row ? row : &zero;
+}
 
 /* TFT stores collision in UnitBalance; ROC stores it in UnitData. */
 float G_UnitCollision(uint32_t id) {
