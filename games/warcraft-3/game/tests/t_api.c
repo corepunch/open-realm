@@ -3671,9 +3671,9 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
     free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
 }
 
-/* Movement-disabled is a property of the movetp row, not of "has no attack": a retail tower row authors "_"
- * with an enabled weapon and a non-zero speed cell, and both position natives must leave it where asked. */
-TEST(wc3_api, movement_disabled_armed_unit_keeps_requested_position) {
+/* BASE-02.1: zero fine query does not remove a positive-speed Move owner.
+ * Both position natives still retain the requested unblocked pose. */
+TEST(wc3_api, zero_query_armed_move_owner_keeps_requested_position) {
     static cstring_t const data_slk =
         "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
@@ -3706,7 +3706,8 @@ TEST(wc3_api, movement_disabled_armed_unit_keeps_requested_position) {
     created = find_test_unit(MAKEFOURCC('n','f','r','m'));
     T_NOT_NULL(created);
     if (created) {
-        T_ASSERT(M_UnitMoveDisabled(created));
+        T_ASSERT(!M_UnitMoveDisabled(created));
+        T_FEQ(S_UnitMoveSpeed(created), 75.0f, 0.001f);
         T_FEQ(created->s.origin.x, 256.0f, 0.001f);
         T_FEQ(created->s.origin.y, 256.0f, 0.001f);
     }
@@ -7606,8 +7607,9 @@ TEST(wc3_api, group_point_order_ability_ownership) {
         "call BJassAssert(GetUnitCurrentOrder(b)==OrderId(\"smart\"),\"both Move members remain active\")\n"
         "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
         "call BJassAssert(GroupPointOrder(g,\"patrol\",640,512),\"Patrol batch accepted\")\n"
-        "call BJassAssert(GetUnitCurrentOrder(a)==OrderId(\"patrol\"),\"Patrol owner retained\")\n"
-        "call BJassAssert(GetUnitCurrentOrder(b)==OrderId(\"patrol\"),\"second Patrol owner retained\")\n"
+        /* ORDER-01.9: issued Patrol expands to the active two-endpoint order. */
+        "call BJassAssert(GetUnitCurrentOrder(a)==851991,\"Patrol owner retained\")\n"
+        "call BJassAssert(GetUnitCurrentOrder(b)==851991,\"second Patrol owner retained\")\n"
         "call BJassAssert(GroupPointOrder(g,\"attack\",640,512),\"Attack batch accepted\")\n"
         "call DestroyGroup(g)\nendfunction\n";
     T_ASSERT(run_test_jass(script));

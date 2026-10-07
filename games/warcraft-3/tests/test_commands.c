@@ -571,6 +571,8 @@ typedef struct {
     bool twin_w3x;
     bool overlay;
     bool transport;
+    bool pathing_reload;
+    bool pathing_changelevel;
 } mapListState_t;
 
 static void count_fixture_map(cstring_t path, void *userData) {
@@ -589,6 +591,10 @@ static void count_fixture_map(cstring_t path, void *userData) {
         state->overlay = true;
     } else if (!strcmp(path, "Maps\\Transport.w3m")) {
         state->transport = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingReload.w3m")) {
+        state->pathing_reload = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingChangeLevel.w3m")) {
+        state->pathing_changelevel = true;
     }
 }
 
@@ -598,14 +604,16 @@ TEST(commands, fixture_maps_are_listed_from_mpq) {
 
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 6);
-    T_EQ(state.count, 6);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 8);
+    T_EQ(state.count, 8);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
     T_ASSERT(state.twin_w3x);
     T_ASSERT(state.overlay);
     T_ASSERT(state.transport);
+    T_ASSERT(state.pathing_reload);
+    T_ASSERT(state.pathing_changelevel);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {

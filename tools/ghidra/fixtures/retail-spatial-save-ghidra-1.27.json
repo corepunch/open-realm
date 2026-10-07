@@ -11,8 +11,9 @@
     {
       "address": "6f14d000",
       "name": "SpatialObject_Load",
-      "comment": "[MAP-06.2] Spatial object vtable slot (6fa9096c+4). Thiscall ECX object, stack4 stream; RET4. Reads map, payload handles, +34, rectangle +1C..28, +38 stamp, +3C refs, +40 flags; if not 0x10000000 re-inserts the saved rectangle via 6f14d380.",
-      "signature": "undefined SpatialObject_Load(void)"
+      "comment": "[MAP-06.2] Spatial object vtable slot (6fa9096c+4). Thiscall ECX object, stack4 stream; RET4. Reads map, payload handles, +34, rectangle +1C..28, +38 stamp, +3C refs, +40 flags; if not 0x10000000 re-inserts the saved rectangle via 6f14d380.\nPayoff135 Save120: retain logical proximity object stamps, insert rectangles in save order; load registers a fresh maintenance request. Link table/free-list identities are reconstructed, not persisted process pointers.",
+      "signature": "undefined SpatialObject_Load(void)",
+      "plate_comment": "[MAP-06.2] Spatial object vtable slot (6fa9096c+4). Thiscall ECX object, stack4 stream; RET4. Reads map, payload handles, +34, rectangle +1C..28, +38 stamp, +3C refs, +40 flags; if not 0x10000000 re-inserts the saved rectangle via 6f14d380.\nPayoff135 Save120: retain logical proximity object stamps, insert rectangles in save order; load registers a fresh maintenance request. Link table/free-list identities are reconstructed, not persisted process pointers.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
     },
     {
       "address": "6f14d430",
@@ -23,8 +24,9 @@
     {
       "address": "6f14d620",
       "name": "SpatialMap_Save",
-      "comment": "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only.",
-      "signature": "undefined SpatialMap_Save(void)"
+      "comment": "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only.\nPayoff135 Save120: after full proximity compaction, map stamp and logical owner rectangles/stamps are written; no heap/process pointer. Generic region collectors and fine map save stamps remain separate open work.",
+      "signature": "undefined SpatialMap_Save(void)",
+      "plate_comment": "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only.\nPayoff135 Save120: after full proximity compaction, map stamp and logical owner rectangles/stamps are written; no heap/process pointer. Generic region collectors and fine map save stamps remain separate open work.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
     },
     {
       "address": "6f14d4c0",

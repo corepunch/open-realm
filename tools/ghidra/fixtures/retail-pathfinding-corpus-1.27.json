@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "131 executable original oracle contracts,121 archive audits and114 strict live contracts;366 total entries.",
+  "scope": "132 executable original oracle contracts,121 archive audits and114 strict live contracts;367 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -36109,6 +36109,63 @@
       ],
       "scope": "Fresh complete original eligibility matrix and two-category producer execution; reconstruct unchanged research freezes and both complete Frida captures with observer-free public control. Engine item/building publication, admission and saves are tested independently in-engine.",
       "exclusions": "Engine raw-link history/49-link cap and mixed static/dynamic order; full building/construction/missile lifecycles and layered bridge/outside-map item admission."
+    },
+    {
+      "id": "oracle-spatial-storage",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_records.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "spatial-storage-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "status": {
+          "equal": "verified"
+        },
+        "differences": {
+          "length": 0
+        },
+        "mutation_stages": {
+          "equal": 78
+        },
+        "queries": {
+          "equal": 131
+        },
+        "boundary_capacity": {
+          "equal": 262144
+        },
+        "live_capture_count": {
+          "equal": 2
+        },
+        "control_markers": {
+          "equal": 362
+        },
+        "saved_functions": {
+          "equal": 14
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Production raw-record map versus original constructors/mutations/queries/compaction: exact full chains, all free slots, stamps/reference counts,131072-link growth/reuse and64-object pools. Complete AB/BA Frida controls and saved Ghidra layouts. Actual engine proximity/timer/save paths tested independently.",
+      "exclusions": [
+        "Fine raw producers/region/metadata consumers and49-link cap remain open.",
+        "Forced wrap cases are labelled; no natural seven-hour capture.",
+        "Live growing beyond the first1MiB link block is not established.",
+        "Native invalid ownership across map release is a diagnostic, not a supported engine API."
+      ]
     }
   ],
   "fixtures": [
@@ -36174,7 +36231,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b2ce529833d9cc4d70daede11cfe7251df319a54dd54efec4e0cd767fc0f3aca"
+      "sha256": "ee92eecb2265fb957949873780929c3b4bdfa54297378a91ad4e615a14a2d643"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -37007,7 +37064,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "524a65be14f7da59617d3af09eced513a4514892635f8d63be7d5108360d01c9"
+      "sha256": "b402fa562fc9b9897ffffc8b446967d9b4d68d13af746a0c3a9ba0bfade936cf"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -37827,7 +37884,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-repulsion-policy-ghidra-1.27.json",
-      "sha256": "93e87e51241318b4c0fe64fb691771966ebf9583b4eb36c8157fdf5b558f58a0"
+      "sha256": "38d3d6c5f792eaa0f382f6380374b3b59e6b632da279d274e46cd7b93efaae12"
     },
     {
       "path": "tools/ghidra/generate_wc3_repulsion_policy.py",
@@ -37887,7 +37944,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-spatial-save-ghidra-1.27.json",
-      "sha256": "e70688822f671d9633cb8fb2424050a6dd47bc49fcd099d14950d4cdd730f0c8"
+      "sha256": "320921d25869ca32dae3d6f49608e97147b5722e2bea07e28e5b3ab257c08f1c"
     },
     {
       "path": "tools/frida/research/sep03_map06_expected.py",
@@ -38067,11 +38124,11 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_proximity.h",
-      "sha256": "6f15a25089a3f13158310942c2db46f3d20a705905d45173272701ab4a64cbfe"
+      "sha256": "ba8c4ee2c769c157a670a69da58f4a4437435bc6568d8a32ef1be8ad61799c72"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "235cb273454de8289fb8ea8f51507e1c0f7ab1870a6896bd05f6a8b79b0fb603"
+      "sha256": "788f71318b0e3d010ddb46a3ef4e2e9d439912dba96d065837a9f2a21c873b63"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -38083,7 +38140,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_proximity.c",
-      "sha256": "304582e96861182f68f3f7867da791c040b1e9a06de6068793cc24101e57ecdd"
+      "sha256": "b832ffecca8b3e0192122200b2934e8e223f9d6cb362f2a6c74f90b70138e464"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_proximity.py",
@@ -38212,6 +38269,54 @@
     {
       "path": "tools/frida/research/foot032_probe.j",
       "sha256": "1fbffc44f96de8315b62d324cea6c7b17dbcf519816664000842efc900f2189e"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_storage.py",
+      "sha256": "20d6bdb139e69381064de0145ee9660342e402ccdcc0ed7000c465fac59c9e97"
+    },
+    {
+      "path": "tools/ghidra/wc3_spatial_records_probe.c",
+      "sha256": "80404b964ed277b497663e17a78f89a4942ceb7e282fb5cf97f4e26e630ec972"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_records.h",
+      "sha256": "568d089ea25b6f40c74bd0ecc1b5841e53aae1d1445a087fd2532463be2e00b3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spatial-storage-inputs-1.27.json.gz",
+      "sha256": "1231e4531133a151d846c44b0ab18f82d461e3275ec579bb45dd9a63d8f174f7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spatial-storage-ghidra-1.27.json",
+      "sha256": "7259753bc00419a424caf12c8feb4ae47f8eb7bffb1a3d6d175b5e26f9b9ce11"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/MAP-05.1-expected.json",
+      "sha256": "8d73801a22f62fe9f29c663734a03413dc6ffd810ff36c07b677627d0d2e54b9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-03.1-expected.json",
+      "sha256": "fdc2e65af02d8bbf08c00b7bbf9ee727a80d19acb8e7a922d48a1bba8eb05161"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-03.2-expected.json",
+      "sha256": "0b1a6583042f9b7819811d839a0527ca064544c2ba256670c850b3d5b81e4f39"
+    },
+    {
+      "path": "tools/ghidra/research/verify_MAP-05.1_spatial_storage_reuse.py",
+      "sha256": "d0298b349753599175ca92eea7e05bfd4bb9edcaf5ba7815cfe6779be997c943"
+    },
+    {
+      "path": "tools/ghidra/research/verify_SEP-03.1_spatial_lifecycle.py",
+      "sha256": "970d3e27ebec99dd602143ceea7bd819973b473ef0c498c3252b68ba4f4090c0"
+    },
+    {
+      "path": "tools/ghidra/research/verify_SEP-03.2_spatial_stamps_blocks.py",
+      "sha256": "d256510bc3341a32ec19b396a014317a1cdddafbb45355f1616d4f9d43c713ba"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_records.py",
+      "sha256": "ca2c5ecaa080b7c6b6b6c4f54c5caf0ad0d9ef8a5d41a2bf97e5c765acc53ffa"
     }
   ]
 }

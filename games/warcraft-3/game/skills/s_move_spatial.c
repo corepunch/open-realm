@@ -3,34 +3,43 @@
 #include "../../common/wc3_pathing_coordinates.h"
 
 static wc3ProximityMap_t move_proximity;
+static struct {wc3Clock_t deadline;uint32_t sequence;bool active;} move_proximity_request;
 typedef struct { vec2_t world,fine,published;float radius;bool valid,pose_valid; } moveProximityGeometry_t;
 static moveProximityGeometry_t move_proximity_geometry[MAX_ENTITIES];
 
 void S_ClearMoveProximity(void) {
-    if(move_proximity.cells)memset(move_proximity.cells,0,(size_t)move_proximity.width*move_proximity.height*sizeof(*move_proximity.cells));
-    if(move_proximity.objects)memset(move_proximity.objects,0,(size_t)move_proximity.object_count*sizeof(*move_proximity.objects));
-    move_proximity.count=move_proximity.free_head=move_proximity.free_count=0;move_proximity.query=0;
+    wc3_records_clear(&move_proximity);
+    move_proximity_request.active=false;
     memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
 }
 
 void S_FreeMoveProximity(void) {
     wc3_proximity_free(&move_proximity);memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
+    move_proximity_request.active=false;
 }
 
 static void move_proximity_prepare(void) {
     box2_t bounds=CM_GetWorldBounds();
     uint32_t width=(uint32_t)((bounds.max.x-bounds.min.x)/32+16)/8+1;
     uint32_t height=(uint32_t)((bounds.max.y-bounds.min.y)/32+16)/8+1;
-    if(move_proximity.cells && move_proximity.width==width && move_proximity.height==height)return;
-    if(!wc3_proximity_init(&move_proximity,width,height,MAX_ENTITIES))gi.error("Move proximity: cannot allocate %ux%u map",width,height);
-    memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
+    if(!move_proximity.cells || move_proximity.width!=width || move_proximity.height!=height) {
+        if(!wc3_proximity_init(&move_proximity,width,height,MAX_ENTITIES))gi.error("Move proximity: invalid %ux%u map",width,height);
+        memset(move_proximity_geometry,0,sizeof(move_proximity_geometry));
+        move_proximity_request.active=false;
+    }
+    if(!move_proximity_request.active) {
+        move_proximity_request.deadline=G_TimerQueryClock(NULL);
+        move_proximity_request.deadline.time=wc3_add(move_proximity_request.deadline.time,wc3_div(1,10));
+        move_proximity_request.sequence=++level.timer_sequence;
+        move_proximity_request.active=true;
+    }
     /* A map geometry change resets both grids through G_ClearMoveSpatial;
      * only initialization may reach here. Do not scan/re-publish other units. */
 }
 
 void S_RemoveMoveProximity(edict_t const *unit) {
     uint32_t index=unit-g_edicts;
-    if(move_proximity.objects && index<move_proximity.object_count && move_proximity.objects[index].active)
+    if(move_proximity.objects && wc3_records_owned(&move_proximity,index))
         if(!wc3_proximity_update(&move_proximity,index,(wc3FineBox_t){0},false))gi.error("Move proximity: invalid removal");
     if(index<MAX_ENTITIES)move_proximity_geometry[index].valid=false;
 }
@@ -73,8 +82,8 @@ void S_QueryMoveProximity(edict_t const *source,float const point[2],float radiu
 }
 
 wc3FineBox_t const *S_GetMoveProximity(uint32_t index) {
-    return move_proximity.objects && index<move_proximity.object_count && move_proximity.objects[index].active ?
-        &move_proximity.objects[index].box : NULL;
+    wc3RecordObject_t *object=move_proximity.objects ? wc3_records_owned(&move_proximity,index) : NULL;
+    return object ? &object->box : NULL;
 }
 
 bool S_LoadMoveProximity(uint32_t index,wc3FineBox_t box) {
@@ -88,6 +97,36 @@ bool S_LoadMoveProximity(uint32_t index,wc3FineBox_t box) {
     return true;
 }
 
+/* One recurring request per map, merged with the ordinary scalar timer heap.
+ * Repeats add the retail software 1/10 word to the previous deadline; neither
+ * record counts nor wall time select cleanup. Load registers a fresh request. */
+bool S_NextMoveSpatialMaintenance(wc3Clock_t *deadline,uint32_t *sequence) {
+    if(!move_proximity_request.active)return false;
+    *deadline=move_proximity_request.deadline;*sequence=move_proximity_request.sequence;return true;
+}
+void S_RunMoveSpatialMaintenance(void) {
+    wc3_records_compact(&move_proximity,false);
+    move_proximity_request.deadline.time=wc3_add(move_proximity_request.deadline.time,wc3_div(1,10));
+}
+void S_RebaseMoveSpatialMaintenance(float span) {
+    if(!move_proximity_request.active)return;
+    move_proximity_request.deadline.time=wc3_sub(move_proximity_request.deadline.time,span);
+    move_proximity_request.deadline.epoch++;
+}
+void S_CompactMoveProximity(void) {
+    if(move_proximity.cells)wc3_records_compact(&move_proximity,true);
+}
+uint32_t S_GetMoveProximityQuery(void) {return move_proximity.query;}
+void S_SetMoveProximityQuery(uint32_t stamp) {move_proximity.query=stamp;}
+uint32_t S_GetMoveProximityStamp(uint32_t index) {
+    wc3RecordObject_t *object=move_proximity.objects ? wc3_records_owned(&move_proximity,index) : NULL;
+    return object ? object->stamp : UINT32_MAX;
+}
+void S_SetMoveProximityStamp(uint32_t index,uint32_t stamp) {
+    wc3RecordObject_t *object=wc3_records_owned(&move_proximity,index);
+    if(object)object->stamp=stamp;
+}
+
 #ifdef BZ_TESTS
-uint32_t S_TestMoveProximityLinks(void) {return move_proximity.count-move_proximity.free_count;}
+uint32_t S_TestMoveProximityLinks(void) {return move_proximity.records;}
 #endif

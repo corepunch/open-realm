@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**228 done / 336 tasks; 108 remaining.**
+**229 done / 336 tasks; 107 remaining.**
+
+Payoff135 closes MAP-05.1 with exact raw-record growth/reclamation/reuse in the
+engine proximity map, pooled identities, scalar maintenance and Save120 stamps.
+See [spatial storage](retail-pathfinding-storage.md). Fine record producers and
+consumers retain SEP-03.1/03.2/03.3 and FOOT-03.1/03.2.
+
 
 Payoff134 closes BASE-02.2: the producer/category/consumer inventory now drives
 item admission and occupancy, building own-mover records and immediate
@@ -535,7 +541,7 @@ Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_mask
 
 ### MAP-05 — Map/spatial capacity
 
-- [ ] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents.
+- [x] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents. Evidence: [engine raw-record storage](retail-pathfinding-storage.md), complete original/C chain and free-list equality across131072 links, frozen36-cell reuse indices,64-object stable pools, actual proximity publication and Save120. Native stale-owner release hazard is preserved as an invalid-ownership control; fine raw-record producers retain SEP-03/FOOT-03.
 - [x] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map. Evidence: [fine map stamp wrap](retail-pathfinding-engine.md#fine-stamp-wrap-preserves-complete-engine-request-state), one pre-call seed then original14ad50 increments FFFF/0/1/2 across unchanged fine metadata. All four complete requests and every final node/work/route equal fresh maps and engine C; actual engine storage is reused in both class orders. Spatial/adaptive stamps and allocation capacity retain their existing IDs.
 - [ ] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links.
 

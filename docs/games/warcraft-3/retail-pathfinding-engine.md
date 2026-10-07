@@ -1078,7 +1078,7 @@ MAP-03.7 validation: final umbrella tests pass85 pathfinding tool tests and
 37,286 assertions in2,155 engine tests per Classic/TFT. Construction displacement
 passes85 assertions in normal and forced DEBUG Move builds; normal is restored.
 WC3/SC2 production builds pass. Fresh `map-03.7-final-corpus/corpus-results.json`
-passes134/134 with source fingerprints unchanged. Manifest SHA256
+passes 134/134 with source fingerprints unchanged. Manifest SHA256
 `0a691e0657ae0affaf25860d725e2a7f0d08cf6d10a58486e2ac8f2cda98750a`;
 summary SHA256
 `94fc67963332bff10a955bbc43297951f5e607c78d00657650a4302195bf33fe`.
@@ -1125,7 +1125,7 @@ archived files reproduce each hash. The strict native sequence digest is
 `238d8a90f6f0153a8311e673b62cb1c3b41f7f9a6e00f8406baa1fb917160888`.
 The frozen fixture is`retail-public-power-inputs-1.27.json`.
 The engine public-native regression reproduces27 host-Pow mismatches before the
-port, then passes all40 exact cases. The wider public numeric subset passes136
+port, then passes all40 exact cases. The wider public numeric subset passes 136
 checks, including the new error/inverse case. Fixtures compare real constants;
 an earlier scratch version used integer expected literals and was corrected
 before accepting the baseline.
@@ -3451,7 +3451,7 @@ replacing the previously unconditional count-2 engine policy. Earlier64-cell
 handoff and refill buffers retain their original words; their previously assumed
 indices now use the independently recorded original outputs.
 
-The32-case engine regression passes13,384 exact assertions after the fix. An
+The32-case engine regression passes 13,384 exact assertions after the fix. An
 actual public long Move across an offset wall gap reaches the legal goal through
 multiple coarse transitions. It preserves a nonzero coarse index across save/load
 and repeats260 frames with exact world/native fine pose, velocity, heading,
@@ -10782,3 +10782,17 @@ native's two publications. Pickup/drop publish before queries or saves can
 observe stale membership. See [object categories](retail-pathfinding-categories.md).
 FOOT-03.1/03.2 remain open for raw-link history,49-link hierarchy admission and
 mixed static/dynamic encounter order.
+
+## Raw spatial storage and timed maintenance
+
+Payoff135 closes MAP-05.1 through the production proximity map: eight-byte raw
+records, stable64-object pool blocks, exact131072-link growth/reclaim/reuse,
+native stamps and ordered software-clock maintenance. Save120 stores logical
+stamps and rebuilds compact links. Fine raw producers remain open. See
+[storage integration and evidence limits](retail-pathfinding-storage.md).
+
+The full batch checkpoint passes with native SDL2: 2,800 tests and9,223,538
+assertions per Classic/TFT mode, plus 755 Python tests. All 537 staged evidence
+hashes match; the fresh spatial-record differential and both preserved
+fine-storage oracles pass. This establishes behavioral integration, not the
+remaining IceCrown performance acceptance.

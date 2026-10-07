@@ -518,13 +518,13 @@
           "offset": 56,
           "name": "eligibility",
           "type": "i32",
-          "evidence": "16fa00 callback eligibility\nROUTE-02.2/FOOT-03.1: per-cell visit stamp compared with map+b4 (first record per object decides); ffffffff marks a dead record\nPayoff134: FOOT-03.1: per-cell visit stamp;ffffffff retired. Metadata/removal records retain separate semantics."
+          "evidence": "16fa00 callback eligibility\nROUTE-02.2/FOOT-03.1: per-cell visit stamp compared with map+b4 (first record per object decides); ffffffff marks a dead record\nPayoff134: FOOT-03.1: per-cell visit stamp;ffffffff retired. Metadata/removal records retain separate semantics.\nPayoff135: native32-bit stamp and low24 reference lifetime; engine pooled object survives edict reuse until its last retained record is reclaimed. Forced high-bit repair retains native alias hazards."
         },
         {
           "offset": 60,
           "name": "outstanding_records",
           "type": "u32",
-          "evidence": "low24 outstanding cell records, writers increment, 14e050 14e12f DEC; high byte flags (writer unresolved, proposed SEP-03.4); SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: low24 cell records; writers increment,14e050 decrements; high byte policy unresolved."
+          "evidence": "low24 outstanding cell records, writers increment, 14e050 14e12f DEC; high byte flags (writer unresolved, proposed SEP-03.4); SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: low24 cell records; writers increment,14e050 decrements; high byte policy unresolved.\nPayoff135: native32-bit stamp and low24 reference lifetime; engine pooled object survives edict reuse until its last retained record is reclaimed. Forced high-bit repair retains native alias hazards."
         },
         {
           "offset": 64,
@@ -3945,6 +3945,78 @@
           "name": "continuation_y",
           "type": "WC3PathScalar",
           "evidence": "Payoff124 original689d40 setters;692010 task factory;5fff70 d0175 scalar copies. No full task class claimed."
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialRecord",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "kind_and_next",
+          "type": "u32",
+          "evidence": "14d9e0/14e050: kind high8, next index low24; 00 removal,01 insertion,02 fine metadata; ffffff sentinel. Payoff135 original/C exact raw-chain comparisons."
+        },
+        {
+          "offset": 4,
+          "name": "payload",
+          "type": "u32",
+          "evidence": "Ordinary links carry object pointers; kind02 carries two16-bit fine-node indices. No unconditional pointer type;14d890/170b30/14e050."
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialMapPrefix",
+      "length": 188,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "base",
+          "type": "WC3PathMapHeader",
+          "evidence": "SpatialMap subclass of shared path map;14c280/14c990. Shared base remains108 bytes."
+        },
+        {
+          "offset": 108,
+          "name": "link_table",
+          "type": "WC3DynamicTablePrefix",
+          "evidence": "14d9e0/14dde0: eight-byte records, growth20000 slots (1MiB); data78,capacity84,count88; capacity retained. Original MAP05.1 and exact production indices."
+        },
+        {
+          "offset": 152,
+          "name": "dirty_bitmap",
+          "type": "ptr:void",
+          "evidence": "14df20 ascending dirty cells only; each bit denotes a removal/metadata producer, not an active-owner count."
+        },
+        {
+          "offset": 168,
+          "name": "dirty_word_count",
+          "type": "u32",
+          "evidence": "14df20 reads a8 and clears processed words; no cleanup count threshold."
+        },
+        {
+          "offset": 172,
+          "name": "free_link_head",
+          "type": "u32",
+          "evidence": "14e050 LIFO reclaim;14d9e0 LIFO reuse;ffffff sentinel. MAP05.1 complete original/C free-list equality."
+        },
+        {
+          "offset": 176,
+          "name": "outstanding_records",
+          "type": "u32",
+          "evidence": "Insert/remove/metadata writers increment; compactor decrements. Constructor zeroes; native pooled release leaves stale count. Normal teardown retires owners first."
+        },
+        {
+          "offset": 180,
+          "name": "cell_visit_stamp",
+          "type": "u32",
+          "evidence": "170c00 once per clipped query,170b30 once per nonempty cell;14df20/14dfc0 reset above7fffffff without repairing object stamps. Labelled alias hazards reproduced by C."
+        },
+        {
+          "offset": 184,
+          "name": "maintenance_request",
+          "type": "ptr:void",
+          "evidence": "14c990 register repeat3dccccce=software1/10;14cac0 cancel; load14d1d0 registers fresh. Payoff135 merged deterministic scalar-timer engine request."
         }
       ]
     }

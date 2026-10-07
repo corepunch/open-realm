@@ -411,11 +411,18 @@ static void TimerFireScalar(gtimer_t *timer) {
     TimerHeapInsert(timer);
 }
 static void TimerDrain(float limit,bool before_owner) {
-    while(level.timer_heap_count) {
-        gtimer_t *timer=level.timers+level.timer_heap[0];
-        float due=timer->scalar_deadline.time;
-        if(due>limit || (before_owner && due==limit && timer->scalar_sequence>level.pathing_owner_sequence))break;
-        TimerHeapRemove(timer);TimerFireScalar(timer);
+    for(;;) {
+        gtimer_t *timer=level.timer_heap_count ? level.timers+level.timer_heap[0] : NULL;
+        wc3Clock_t maintenance;uint32_t sequence;
+        bool spatial=S_NextMoveSpatialMaintenance(&maintenance,&sequence) &&
+            (!timer || maintenance.time<timer->scalar_deadline.time ||
+                (maintenance.time==timer->scalar_deadline.time && sequence<timer->scalar_sequence));
+        if(!spatial && !timer)break;
+        float due=spatial ? maintenance.time : timer->scalar_deadline.time;
+        uint32_t serial=spatial ? sequence : timer->scalar_sequence;
+        if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
+        if(spatial)S_RunMoveSpatialMaintenance();
+        else {TimerHeapRemove(timer);TimerFireScalar(timer);}
     }
 }
 static void RunScalarTimers(wc3Clock_t const *before) {
@@ -426,6 +433,7 @@ static void RunScalarTimers(wc3Clock_t const *before) {
     level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
     if(now.epoch!=target.epoch) {
         TimerDrain(now.span,false);
+        S_RebaseMoveSpatialMaintenance(now.span);
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;
