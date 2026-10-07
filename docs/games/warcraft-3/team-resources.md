@@ -82,3 +82,4 @@ invalidate the source viewer's panel. A map-created multiboard uses the same
 
 The UI does not grant sharing or transfer resources. A client cannot obtain
 resource values for non-eligible players through this panel.
+The square control beside the Team Resources title toggles only that client's resource rows. The title and control remain visible while collapsed, and the local collapse state is saved with the game.

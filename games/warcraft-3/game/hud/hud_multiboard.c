@@ -38,6 +38,24 @@ static void MultiboardIcon(uint32_t parent, float x, float y, cstring_t art) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+static void MultiboardButton(uint32_t parent, float x, float y, float w, float h,
+                             cstring_t text) {
+    uiFrame_t frame = { 0 };
+    uiLabel_t label = { 0 };
+    frame.flags.type = FT_STRING;
+    frame.parent = parent;
+    frame.text = text;
+    frame.onclick = "team_resources_toggle";
+    frame.color = COLOR32_WHITE;
+    label.font = MultiboardFont();
+    label.textalignx = FONT_JUSTIFYMIDDLE;
+    label.textaligny = FONT_JUSTIFYMIDDLE;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
+    frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
 static void MultiboardText(uint32_t parent, float x, float y, float w, float h,
                            cstring_t value, color32_t color, uiFontJustificationH_t align) {
     uiFrame_t frame = { 0 };
@@ -120,6 +138,7 @@ void UI_WriteMultiboard(edict_t *ent) {
         rows = MultiboardTeamRows(viewer);
         team = rows > 0;
         cols = 4;
+        minimized = (level.team_resources_collapsed_clients & (1u << client_index)) != 0;
     } else if (board) {
         rows = MIN(board->rows, (uint32_t)MAX_MULTIBOARD_ROWS);
         cols = MIN(board->cols, (uint32_t)MAX_MULTIBOARD_COLS);
@@ -127,8 +146,10 @@ void UI_WriteMultiboard(edict_t *ent) {
     }
     if (!team && !board) { UI_ClearLayer(ent, WC3_LAYER_MULTIBOARD); return; }
 
-    body_height = (minimized ? 0 : rows * WC3_MB_ROW_HEIGHT) + (team ? 0.012f : 0.006f);
-    height = team ? WC3_MB_HEADER_HEIGHT + 0.010f + body_height
+    body_height = team
+        ? (minimized ? 0.0f : rows * WC3_MB_ROW_HEIGHT + 0.012f)
+        : (minimized ? 0.0f : rows * WC3_MB_ROW_HEIGHT) + 0.006f;
+    height = team ? WC3_MB_HEADER_HEIGHT + 0.006f + (minimized ? 0.0f : 0.004f + body_height)
                   : WC3_MB_HEADER_HEIGHT + body_height;
     x = UI_BASE_WIDTH - WC3_MB_WIDTH - HUD_HERO_SHORTCUT_EDGE_X;
     /* Timer, leaderboard, title and resources form one top-right stack. */
@@ -145,13 +166,15 @@ void UI_WriteMultiboard(edict_t *ent) {
         float const title_width = width - header_square - WC3_MB_HEADER_GAP;
         float const square_x = x + title_width + WC3_MB_HEADER_GAP;
         body_y = y + WC3_MB_HEADER_HEIGHT + 0.010f;
-        MultiboardPanel(root, x, body_y, width, body_height);
+        if (!minimized) MultiboardPanel(root, x, body_y, width, body_height);
         MultiboardPanel(root, x, y, title_width, header_height);
         MultiboardPanel(root, square_x, y, header_square, header_height);
         MultiboardText(root, x + 0.007f, y + 0.003f,
                        title_width - 0.014f, WC3_MB_HEADER_HEIGHT,
                        "Team Resources", hud.leaderboard_default_title_color,
                        FONT_JUSTIFYLEFT);
+        MultiboardButton(root, square_x, y + 0.003f, header_square,
+                         WC3_MB_HEADER_HEIGHT, minimized ? "+" : "-");
     } else {
         body_y = y;
         MultiboardPanel(root, x, y, width, height);
