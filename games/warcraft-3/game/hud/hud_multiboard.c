@@ -1,7 +1,10 @@
 /* Server-authored multiboard / Team Resources presentation. */
 #include "hud_local.h"
 
-#define WC3_MB_WIDTH 0.275f // FDF units; panel width matching the stock top-right HUD stack
+#define WC3_MB_WIDTH 0.287f
+#define WC3_MB_MIN_NAME_WIDTH 0.105f
+#define WC3_MB_NAME_CHAR_WIDTH 0.0058f
+#define WC3_MB_NAME_MAX_WIDTH 0.300f
 #define WC3_MB_ROW_HEIGHT 0.016f // FDF units; one resource/cell row at HUD_FONT_SIZE
 #define WC3_MB_HEADER_HEIGHT 0.020f // FDF units; title strip text height
 #define WC3_MB_HEADER_PAD 0.006f // FDF units; title strip padding above/below the text
@@ -161,12 +164,29 @@ static uint32_t MultiboardTeamRows(uint32_t viewer) {
     return count;
 }
 
+static float MultiboardTeamNameWidth(uint32_t viewer) {
+    size_t max_chars = 0;
+    FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) {
+        if (!G_CanViewTeamResources(viewer, i)) continue;
+        FOR_LOOP(slot, (uint32_t)game.max_clients) {
+            cstring_t name;
+            if (game.clients[slot].ps.number != i) continue;
+            name = game.clients[slot].ps.name ? game.clients[slot].ps.name : "";
+            max_chars = MAX(max_chars, strlen(name));
+            break;
+        }
+    }
+    return MIN(WC3_MB_NAME_MAX_WIDTH,
+               MAX(WC3_MB_MIN_NAME_WIDTH, (float)max_chars * WC3_MB_NAME_CHAR_WIDTH + 0.006f));
+}
+
 void UI_WriteMultiboard(edict_t *ent) {
     gameClient_t *client;
     multiboard_t *board;
     uint32_t client_index, viewer, root, rows = 0, cols = 0;
     bool team = false, minimized = false;
-    float width = WC3_MB_WIDTH, height, body_height, body_y, x, y;
+    float width = WC3_MB_WIDTH, name_width = WC3_MB_MIN_NAME_WIDTH;
+    float height, body_height, body_y, x, y;
 
     if (!ent || !(client = ent->client)) return;
     client_index = (uint32_t)(client - game.clients);
@@ -182,6 +202,10 @@ void UI_WriteMultiboard(edict_t *ent) {
         cols = MIN(board->cols, (uint32_t)MAX_MULTIBOARD_COLS);
         minimized = (board->minimized_clients & (1u << client_index)) != 0;
     }
+    if (team) {
+        name_width = MultiboardTeamNameWidth(viewer);
+        width += name_width - WC3_MB_MIN_NAME_WIDTH;
+    }
     if (!team && !board) { UI_ClearLayer(ent, WC3_LAYER_MULTIBOARD); return; }
 
     body_height = team
@@ -190,7 +214,7 @@ void UI_WriteMultiboard(edict_t *ent) {
     height = team ? WC3_MB_HEADER_HEIGHT + WC3_MB_HEADER_PAD +
                     (minimized ? 0.0f : WC3_MB_PANEL_GAP + body_height)
                   : WC3_MB_HEADER_HEIGHT + body_height;
-    x = UI_BASE_WIDTH - WC3_MB_WIDTH - HUD_HERO_SHORTCUT_EDGE_X;
+    x = UI_BASE_WIDTH - width - HUD_HERO_SHORTCUT_EDGE_X;
     /* Timer, leaderboard, title and resources form one top-right stack. */
     y = WC3_MB_TOP + UI_TimerDialogLeaderboardOffset(viewer)
         + UI_LeaderboardMultiboardOffset(viewer);
@@ -248,16 +272,16 @@ void UI_WriteMultiboard(edict_t *ent) {
                 food_cap = G_GetEffectiveFoodCap(owner_client);
                 snprintf(food, sizeof(food), "%ld/%ld",
                          (long)food_used, (long)food_cap);
-                MultiboardText(root, x + 0.007f, yy, 0.105f, WC3_MB_ROW_HEIGHT,
+                MultiboardText(root, x + 0.007f, yy, name_width - 0.007f, WC3_MB_ROW_HEIGHT,
                                owner->name, MultiboardPlayerColor(owner->color), FONT_JUSTIFYLEFT);
-                MultiboardIcon(root, x + 0.115f, yy + 0.0015f, "GoldIcon");
-                MultiboardText(root, x + 0.129f, yy, 0.034f, WC3_MB_ROW_HEIGHT,
+                MultiboardIcon(root, x + name_width, yy + 0.0015f, "GoldIcon");
+                MultiboardText(root, x + name_width + 0.014f, yy, 0.040f, WC3_MB_ROW_HEIGHT,
                                gold, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
-                MultiboardIcon(root, x + 0.165f, yy + 0.0015f, "LumberIcon");
-                MultiboardText(root, x + 0.179f, yy, 0.033f, WC3_MB_ROW_HEIGHT,
+                MultiboardIcon(root, x + name_width + 0.056f, yy + 0.0015f, "LumberIcon");
+                MultiboardText(root, x + name_width + 0.070f, yy, 0.040f, WC3_MB_ROW_HEIGHT,
                                lumber, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
-                MultiboardIcon(root, x + 0.214f, yy + 0.0015f, "SupplyIcon");
-                MultiboardText(root, x + 0.228f, yy, 0.040f, WC3_MB_ROW_HEIGHT,
+                MultiboardIcon(root, x + name_width + 0.112f, yy + 0.0015f, "SupplyIcon");
+                MultiboardText(root, x + name_width + 0.126f, yy, 0.054f, WC3_MB_ROW_HEIGHT,
                                food, food_used >= food_cap
                                    ? MAKE(color32_t, 255, 64, 64, 255)
                                    : MAKE(color32_t, 96, 255, 96, 255),
