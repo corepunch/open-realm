@@ -9,6 +9,7 @@ void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
+bool run_test_jass(cstring_t src);
 
 static void test_wander_damage(edict_t *unit, edict_t *attacker) {
     abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
@@ -17,6 +18,46 @@ static void test_wander_damage(edict_t *unit, edict_t *attacker) {
 
 static bool test_wander_blocked_move(edict_t *unit) {
     return S_UnitAbilityEvent(unit, A_MOVE_BLOCKED);
+}
+
+/* A started map always owns a JASS VM; the server frame pumps its timers and
+ * events unconditionally, so frame-driven tests load an empty map script. */
+static void wander_setup_frame_world(void) {
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+}
+
+/* Real per-frame entry point. The test gi.GetTime hook returns level.time,
+ * so advancing it and calling globals.RunFrame() runs G_RunEntities, the
+ * resumable path jobs and the rest of the server frame exactly as play does. */
+static void wander_run_frames(uint32_t frames) {
+    bool const started = level.started, scripts = level.scriptsStarted;
+    level.started = level.scriptsStarted = true;
+    FOR_LOOP(i, frames) { level.time += FRAMETIME; globals.RunFrame(); }
+    level.started = started; level.scriptsStarted = scripts;
+}
+
+static void wander_run_frames_until_standing(edict_t *unit) {
+    for (int frame = 0; frame < 400 && move_is_active_order_walk(unit); frame++) wander_run_frames(1);
+}
+
+/* A critter the scheduler drives itself: think, stand and die callbacks are
+ * the production ones, and the unit is linked so collision sees it. */
+static edict_t *make_scheduled_critter(float x, float y) {
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), x, y);
+    unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
+    unit->think = monster_think;
+    unit->die = unit_die;
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 320.0f;
+    unit->abilities.added[0] = ID_AWAN;
+    ARRAY_COUNT(unit->abilities.added) = 1;
+    gi.LinkEntity(unit);
+    unit_stand(unit);
+    return unit;
 }
 
 TEST(wc3_wander, authored_ability_dispatches_innate_idle) {
@@ -524,47 +565,141 @@ TEST(wc3_wander, save_load_move_reaches_goal_and_rearms) {
     remove(filename);
 }
 
-TEST(wc3_wander, blocked_move_think_returns_wander_to_idle) {
-    edict_t *unit, *attacker, *goal;
-    reset_entities();
-    setup_test_world();
-    level.time = 1000;
-    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
+/* A genuine blocked route: the destination was free when chosen, then another
+ * unit parks on it. The critter stops at contact inside Move's near-goal settle
+ * band, Move's own blocked-frame watermark reaches terminal Hold, and
+ * A_MOVE_BLOCKED hands the unit back to idle with a fresh deadline. */
+TEST(wc3_wander, frame_scheduler_recovers_from_dynamically_blocked_route) {
+    edict_t *unit, *attacker, *blocker, *goal;
+    vec2_t destination;
+    uint32_t retry;
+    wander_setup_frame_world();
+    unit = make_scheduled_critter(0, 0);
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
-    unit->svflags |= SVF_MONSTER;
-    unit->stand = unit_stand;
-    unit->abilities.added[0] = ID_AWAN;
-    ARRAY_COUNT(unit->abilities.added) = 1;
-    test_wander_damage(unit, attacker);
+    wander_run_frames(1);
+    T_Damage(unit, attacker, 1);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(move_is_active_order_walk(unit));
-    /* Arrange an already-settled blocked-route watermark and drive the real
-     * Move think callback. The destination is still distant enough that the
-     * arrival branch cannot short-circuit the failure path. */
-    unit->movement.last_distance = 0.0f;
-    unit->movement.last_origin = unit->s.origin2;
-    unit->movement.blocked_frames = 10000;
-    unit->movement.flow_direct = true;
-    unit->movement.flow_unreachable = false;
-    unit->movement.flow_goal_reached = false;
-    level.time += 50;
-    monster_think(unit);
-    T_ASSERT(!move_is_terminal_hold(unit));
+    destination = goal->s.origin2;
+    T_ASSERT(Vector2_distance(&destination, &unit->s.origin2) > 100.0f);
+    /* Radius 24: contact at 40 units is beyond the 32 + 4 arrival corridor
+     * but inside the 32 + 16 + 8 settle band, so Move cannot snap onto the
+     * goal and must settle as blocked. */
+    blocker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), destination.x, destination.y);
+    blocker->s.model = 1; /* IS_HOLLOW() ignores model-less edicts for collision */
+    blocker->collision = 24.0f;
+    blocker->bounds = MAKE(box2_t, .min = {destination.x - 24.0f, destination.y - 24.0f},
+                                   .max = {destination.x + 24.0f, destination.y + 24.0f});
+    gi.LinkEntity(blocker);
+
+    wander_run_frames_until_standing(unit);
     T_ASSERT(!move_is_active_order_walk(unit));
-    T_ASSERT(unit->wander_waypoint == goal);
+    T_ASSERT(!move_is_terminal_hold(unit));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &destination) >= 40.0f - 0.5f);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &destination) < 100.0f);
+    T_ASSERT(unit->wander_waypoint == goal && goal->inuse);
     T_NULL(unit->wander_goal);
     T_NULL(unit->goalentity);
-    /* Simulate an expired in-flight deadline: terminal blockage must start a
-     * new pause, not immediately enter another obstructed Move. */
+    /* Terminal blockage starts a new pause instead of retrying on the next
+     * idle tick, even though the in-flight deadline may already have passed. */
     T_ASSERT(unit->wander_next_time > level.time);
-    uint32_t const retry = unit->wander_next_time;
-    level.time += 50;
-    monster_think(unit);
+    retry = unit->wander_next_time;
+    wander_run_frames(1);
     T_EQ(unit->wander_next_time, retry);
     T_ASSERT(!move_is_active_order_walk(unit));
     S_DisableAbility(unit, ID_AWAN);
     T_ASSERT(!goal->inuse);
+}
+
+/* Idle scheduling through the real server frame: the first idle tick arms
+ * the 8-10 s deadline, nothing moves before it, the Move begins at it, and
+ * arrival re-arms the next deadline. */
+TEST(wc3_wander, frame_scheduler_starts_wander_after_delay_and_rearms) {
+    edict_t *unit;
+    vec2_t start;
+    uint32_t armed_at;
+    wander_setup_frame_world();
+    unit = make_scheduled_critter(0, 0);
+    start = unit->s.origin2;
+    wander_run_frames(1);
+    armed_at = level.time;
+    T_ASSERT(unit->wander_next_time >= armed_at + 8000);
+    T_ASSERT(unit->wander_next_time <= armed_at + 10000);
+    while (level.time + FRAMETIME < unit->wander_next_time) {
+        wander_run_frames(1);
+        if (move_is_active_order_walk(unit)) break;
+    }
+    T_ASSERT(!move_is_active_order_walk(unit));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &start) < 0.01f);
+    for (int attempt = 0; attempt < 3 && !move_is_active_order_walk(unit); attempt++) {
+        while (level.time < unit->wander_next_time && !move_is_active_order_walk(unit)) wander_run_frames(1);
+        wander_run_frames(1);
+    }
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_ASSERT(level.time >= armed_at + 8000);
+    T_NOT_NULL(unit->wander_waypoint);
+    T_ASSERT(unit->goalentity == unit->wander_waypoint);
+    T_ASSERT(unit->wander_goal == unit->wander_waypoint);
+    wander_run_frames_until_standing(unit);
+    T_ASSERT(!move_is_active_order_walk(unit));
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &start) > 16.0f);
+    T_NULL(unit->wander_goal);
+    T_ASSERT(unit->wander_waypoint && unit->wander_waypoint->inuse);
+    T_ASSERT(unit->wander_next_time > level.time);
+    S_DisableAbility(unit, ID_AWAN);
+    T_NULL(unit->wander_waypoint);
+}
+
+/* A player's Move order outlives every wander deadline and a real hit. */
+TEST(wc3_wander, frame_scheduler_does_not_override_player_move) {
+    edict_t *unit, *attacker, *goal;
+    vec2_t destination = { 900.0f, 0.0f };
+    wander_setup_frame_world();
+    unit = make_scheduled_critter(0, 0);
+    attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
+    unit->unitinfo.MoveSpeed = 40.0f; /* 4 units per frame: the order lasts well past 10 s */
+    goal = Waypoint_add(&destination);
+    order_move(unit, goal);
+    wander_run_frames(60);
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_Damage(unit, attacker, 1);
+    wander_run_frames(60);
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_ASSERT(unit->goalentity == goal);
+    T_NULL(unit->wander_waypoint);
+    T_NULL(unit->wander_goal);
+    T_ASSERT(unit->s.origin2.x > 200.0f);
+}
+
+/* The landed-attack path (S_ResolveAttackHit -> T_Damage -> A_DAMAGED) makes
+ * an idle critter flee away from the attacker, finish that Move through the
+ * scheduler without retaliating, and re-arm wandering. */
+TEST(wc3_wander, frame_scheduler_flees_landed_attack_and_rearms) {
+    edict_t *unit, *attacker;
+    float before;
+    wander_setup_frame_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    unit = make_scheduled_critter(0, 0);
+    unit->s.player = PLAYER_NEUTRAL_PASSIVE;
+    attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
+    attacker->s.player = 0;
+    attacker->svflags |= SVF_MONSTER;
+    wander_run_frames(1);
+    before = unit->health.value;
+    S_ResolveAttackHit(attacker, unit, 5);
+    T_ASSERT(unit->health.value < before);
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_NOT_NULL(unit->wander_waypoint);
+    T_ASSERT(unit->goalentity == unit->wander_waypoint);
+    T_ASSERT(unit->wander_waypoint->s.origin2.x > 100.0f);
+    wander_run_frames_until_standing(unit);
+    T_ASSERT(!move_is_active_order_walk(unit));
+    T_ASSERT(unit->s.origin2.x > 100.0f);
+    T_ASSERT(!G_UnitHasActiveOrder(unit));
+    T_ASSERT(unit->wander_next_time > level.time);
+    S_DisableAbility(unit, ID_AWAN);
 }
 
 
