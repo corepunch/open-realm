@@ -10807,3 +10807,14 @@ neighbor expansion samples each perimeter cell once. SEP-03.1/03.2/03.3 and
 MAP-05.3 close with original DLL, preserved Frida controls, saved Ghidra and
 actual engine regressions. Static regions and the49-record hierarchy cap remain
 FOOT-03.1/03.2. See [storage contracts and validation](retail-pathfinding-storage.md#payoff136-fine-map-integration).
+
+## Raw-cell consumers preserve retail eligibility and stamp order
+
+Payoff137 closes FOOT-03.1 with one production traversal for fine/segment/endpoint
+admission, step blockers and hierarchy. Suppression/active state, target-before-
+suppression observation,49 raw-record hierarchy examinations, collector suffix
+stamps and clockwise lane/cell rebuild order now have test-first engine fixes.
+50,112 original/model/C predicates and36 terrain cases per-O0/-O2 build preserve
+every map/object stamp; unchanged controlled Frida evidence remains verified.
+FOOT-03.2 owns actual sparse widget region publication/reference lifetimes. See
+[consumer integration and limits](retail-pathfinding-categories.md#payoff137-exact-raw-cell-consumer-eligibility).

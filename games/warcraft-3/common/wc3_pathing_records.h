@@ -17,7 +17,7 @@ enum {
 typedef struct {uint32_t next,payload;} wc3SpatialRecord_t;
 typedef struct wc3RecordObject_s {
     wc3FineBox_t box;
-    uint32_t owner,stamp,refs,flags,free_next;
+    uint32_t owner,stamp,refs,flags,free_next,category;
 } wc3RecordObject_t;
 typedef struct wc3SpatialRecords_s {
     uint32_t width,height,count,capacity,free_head,free_count,records,object_count,query;
@@ -104,7 +104,7 @@ static inline uint32_t wc3_records_create(wc3SpatialRecords_t *map,uint32_t owne
             map->block_count++;
         }
     }
-    *wc3_records_object(map,id)=(wc3RecordObject_t){.box={{-1,-1},{-1,-1}},.owner=owner,.flags=flags};
+    *wc3_records_object(map,id)=(wc3RecordObject_t){.box={{-1,-1},{-1,-1}},.owner=owner,.flags=flags,.category=WC3_RECORD_INSERT};
     map->live_objects++;return id;
 }
 static inline bool wc3_records_release(wc3SpatialRecords_t *map,uint32_t id) {

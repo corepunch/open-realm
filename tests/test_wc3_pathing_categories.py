@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,30 @@ SPEC.loader.exec_module(CATEGORIES)
 
 
 class CategoriesEvidence(unittest.TestCase):
+    def test_cell_evidence_rejects_unsaved_or_incomplete_annotations(self):
+        payload = json.loads((CATEGORIES.FIXTURES / 'retail-cell-consumers-ghidra-1.27.json').read_text())
+        self.assertEqual(CATEGORIES.verify_cell_saved_evidence(payload), 7)
+        payload['unsaved'] = True
+        with self.assertRaisesRegex(ValueError, 'not saved'):
+            CATEGORIES.verify_cell_saved_evidence(payload)
+        payload['unsaved'] = False
+        payload['rows'][0]['comment'] = 'unverified'
+        with self.assertRaisesRegex(ValueError, 'inventory'):
+            CATEGORIES.verify_cell_saved_evidence(payload)
+
+    def test_production_terrain_short_circuit_preserves_stamps_and_target_observation(self):
+        obj = SimpleNamespace(cat=0xca, active=True, live='live', flags=0x10000000, mover=True)
+        with tempfile.TemporaryDirectory() as directory:
+            library = CATEGORIES.cell_library(Path(directory), 'O2')
+            blocked, stamps = CATEGORIES.cell_result(library, 'fine', [(1, 0)], [obj], 0x02000002,
+                                                    target=0, terrain=0x02000000)
+            self.assertEqual(blocked, dict(clear=0, target_seen=0, blocked_flag=1))
+            self.assertEqual(stamps, [1000, 0])
+            categories, stamps = CATEGORIES.cell_result(library, 'union', [(1, 0)], [obj], 0,
+                                                       terrain=0x02000000)
+            self.assertEqual(categories, dict(union=0x020000ca))
+            self.assertEqual(stamps, [1001, 1001])
+
     def test_unchanged_capture_and_crlf_public_output_restore_exactly(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

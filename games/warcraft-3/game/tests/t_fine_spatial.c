@@ -170,4 +170,82 @@ TEST(wc3_fine_spatial, fresh_sixty_four_object_block_keeps_addresses_and_recycle
     T_EQ(map->raw_objects,65);T_EQ(map->block_count,2);
     reset_entities();setup_test_world();
 }
+
+/* FOOT-03.1: flags and active state are properties of the retained identity,
+ * independent of owner type or encounter kind. Use real endpoint/collector. */
+TEST(wc3_fine_spatial, inactive_and_suppressed_objects_do_not_block_or_emit) {
+    fine_spatial_world();edict_t *source=fine_spatial_unit(8.5f,9.5f,8);
+    edict_t *unit=fine_spatial_unit(9.5f,9.5f,8);
+    wc3RecordObject_t *object=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+    vec2_t goal={304,304};movePathQuery_t query={{&source->s.origin2,&goal,8,2},source,NULL,true};
+    uint32_t const flags[]={1,2,0x0fffffff,0x80000000};
+    FOR_LOOP(i,sizeof(flags)/sizeof(*flags)) {
+        object->flags=flags[i];edict_t *tokens[32];
+        T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,(float[]){9.5f,9.5f}));
+        T_EQ(G_CollectUnitMoveStepBlockers(&query,NULL,tokens),0);
+    }
+    object->flags=0;object->category=0;edict_t *tokens[32];
+    uint32_t stamp=object->stamp;
+    T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,(float[]){9.5f,9.5f}));
+    T_EQ(G_CollectUnitMoveStepBlockers(&query,NULL,tokens),0);T_EQ(object->stamp,stamp);
+    object->category=WC3_RECORD_INSERT;
+    T_ASSERT(!G_UnitMovePathFinePointIsPathable(&query,(float[]){9.5f,9.5f}));
+    reset_entities();setup_test_world();
+}
+
+extern void G_TestMovePathRefresh(point2_t,point2_t);
+extern int G_TestMovePathClass(uint8_t,unsigned,unsigned,unsigned);
+/*49 raw records, not49 eligible objects. Ordinary movers never qualify;
+ * metadata/inactive records still consume the hierarchy's examination budget. */
+TEST(wc3_fine_spatial, hierarchy_counts_raw_records_and_excludes_ordinary_movers) {
+    fine_spatial_world();edict_t *unit=fine_spatial_unit(9.5f,9.5f,8);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();wc3RecordObject_t *object=wc3_records_owned(map,unit-g_edicts);
+    G_TestMovePathRefresh((point2_t){8,8},(point2_t){10,10});
+    T_EQ(G_TestMovePathClass(2,0,4,4),0);
+    object->flags=WC3_RECORD_REGION;object->category=WC3_RECORD_INSERT|0xca;
+    FOR_LOOP(i,48)wc3_records_prepend(map,9*64+9,0,WC3_RECORD_METADATA);
+    G_TestMovePathRefresh((point2_t){8,8},(point2_t){10,10});
+    T_EQ(G_TestMovePathClass(2,0,4,4),2); /* blocker is record49 */
+    wc3_records_prepend(map,9*64+9,0,WC3_RECORD_METADATA);
+    G_TestMovePathRefresh((point2_t){8,8},(point2_t){10,10});
+    T_EQ(G_TestMovePathClass(2,0,4,4),0); /* blocker is record50 */
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_fine_spatial, full_collector_keeps_stamping_eligible_suffix) {
+    fine_spatial_world();edict_t *source=fine_spatial_unit(8.5f,9.5f,8),*units[40];
+    FOR_LOOP(i,40)units[i]=fine_spatial_unit(9.5f,9.5f,8);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RecordObject_t *newest=wc3_records_owned(map,units[39]-g_edicts);newest->flags=1;
+    wc3RecordObject_t *inactive=wc3_records_owned(map,units[38]-g_edicts);inactive->category=0;
+    uint32_t old_stamp=inactive->stamp;
+    vec2_t goal={304,304};movePathQuery_t query={{&source->s.origin2,&goal,8,2},source,NULL,true};
+    edict_t *tokens[32];T_EQ(G_CollectUnitMoveStepBlockers(&query,NULL,tokens),32);
+    FOR_LOOP(i,32)T_EQ(tokens[i],units[37-i]);
+    T_EQ(inactive->stamp,old_stamp);
+    T_EQ(wc3_records_owned(map,units[0]-g_edicts)->stamp,newest->stamp);
+    T_EQ(newest->stamp,map->query);
+    reset_entities();setup_test_world();
+}
+
+/*15cf80 is row-major by coarse cell, then06/80/40/04 lanes;15d0e0
+ * visits TL,TR,BR,BL. A terrain80 corner skips that lane's raw traversal. */
+TEST(wc3_fine_spatial, hierarchy_rebuild_preserves_lane_and_clockwise_cell_stamp_order) {
+    fine_spatial_world();uint8_t terrain[64*64]={0};terrain[8*64+9]=0x80;
+    CM_SetupTestPathmap(64,64,terrain);
+    wc3RecordObject_t *objects[4];
+    static point2_t const corners[]={{8,8},{9,8},{9,9},{8,9}};
+    FOR_LOOP(i,4) {
+        edict_t *unit=fine_spatial_unit(corners[i].x+.5f,corners[i].y+.5f,8);
+        objects[i]=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        objects[i]->flags=WC3_RECORD_REGION;objects[i]->category=WC3_RECORD_INSERT|0xca;
+    }
+    S_GetMoveFineSpatial()->query=1000;
+    G_TestMovePathRefresh((point2_t){8,8},(point2_t){10,10});
+    T_EQ(S_GetMoveFineSpatial()->query,1015);
+    FOR_LOOP(i,4)T_EQ(objects[i]->stamp,1012+i);
+    T_EQ(G_TestMovePathClass(2,0,4,4),1);T_EQ(G_TestMovePathClass(0x80,0,4,4),1);
+    T_EQ(G_TestMovePathClass(0x40,0,4,4),1);T_EQ(G_TestMovePathClass(4,0,4,4),0);
+    reset_entities();setup_test_world();
+}
 #endif

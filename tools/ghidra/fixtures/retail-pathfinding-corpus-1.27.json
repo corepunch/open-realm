@@ -36099,6 +36099,38 @@
         },
         "input_files": {
           "equal": 6
+        },
+        "engine_cell_cases_per_build": {
+          "equal": 50112
+        },
+        "engine_terrain_cases_per_build": {
+          "equal": 36
+        },
+        "engine_optimizations": {
+          "equal": [
+            "O0",
+            "O2"
+          ]
+        },
+        "cell_saved_functions": {
+          "equal": 7
+        },
+        "hierarchy_order": {
+          "equal": {
+            "final_stamp": 1015,
+            "object_stamps": [
+              1012,
+              1013,
+              1014,
+              1015
+            ],
+            "classes": {
+              "ground": 1,
+              "amph": 1,
+              "float": 1,
+              "flight": 0
+            }
+          }
         }
       },
       "evidence": [
@@ -36107,8 +36139,8 @@
         "C",
         "L"
       ],
-      "scope": "Fresh complete original eligibility matrix and two-category producer execution; reconstruct unchanged research freezes and both complete Frida captures with observer-free public control. Engine item/building publication, admission and saves are tested independently in-engine.",
-      "exclusions": "Engine raw-link history/49-link cap and mixed static/dynamic order; full building/construction/missile lifecycles and layered bridge/outside-map item admission."
+      "scope": "Fresh original/model/production C eligibility in-O0/-O2, every cell/object stamp and terrain gate; original hierarchy-order witness; complete mixed-producer reconstruction and controlled Frida reanalysis. Actual engine endpoint/segment/collector/hierarchy regressions test consumer integration.",
+      "exclusions": "Actual sparse widget-region producers and mixed-category reference lifecycles remain FOOT-03.2; full building/construction/missile lifecycles and layered bridge/outside-map admission remain their existing tasks."
     },
     {
       "id": "oracle-spatial-storage",
@@ -37082,7 +37114,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "9cda31c7faada5bb65cd4d65388f81a45287a67ff94bcd35f4c21d3eafa0c58f"
+      "sha256": "943c6c45fd3acd48677794bf4cb02719e5b0633e9e35fb515b29a00b8c409735"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38222,11 +38254,11 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_categories.py",
-      "sha256": "dafef5ae7b42fbba59db6b47a118c77ed03ec046c5e6771442a89e3368e896c7"
+      "sha256": "ca162c956b7a5eed997a862ca7b36bf8ada73476759f462e50011aebd23324dd"
     },
     {
       "path": "tests/test_wc3_pathing_categories.py",
-      "sha256": "0926298a977ff69edcf3f8f3a2f9ee6a715fd27f11ae0546371feda1e54d5ab7"
+      "sha256": "0336c01f6c36b5d590808c99370ca332164215ab956784de8a423993cdb8d5cb"
     },
     {
       "path": "games/warcraft-3/game/tests/t_object_categories.c",
@@ -38298,7 +38330,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_records.h",
-      "sha256": "cdbd3184da48dea9882cef04a602ef1c9aed17aa6704520d75f1d564bba9379f"
+      "sha256": "24cabfacfdb3ee9d745e62100d6094fcda6995cf23f4e3529426a597ff0e1378"
     },
     {
       "path": "tools/ghidra/fixtures/retail-spatial-storage-inputs-1.27.json.gz",
@@ -38350,7 +38382,27 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_fine_spatial.c",
-      "sha256": "30873e65a1e441bad0cfe5758ec0aed88988841a9f20c2eb8d84f1f8a5b35c3f"
+      "sha256": "ed7f99ffe7e84debf3b7ece4fa7c72d3ac32c9852346be1f936349ae5eb636a0"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_cell.h",
+      "sha256": "e2c01dc07b1c1247008942a9bacc3dcf7e7ce8d482ad06d236db0da230321cb8"
+    },
+    {
+      "path": "tools/ghidra/wc3_cell_query_probe.c",
+      "sha256": "709dbfb51b020e836f56a767d197735d715a49fc55b90f301648797d8bfad00d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cell-consumers-ghidra-1.27.json",
+      "sha256": "a196fed4898df6f858c63ee4561f9dd4d0ea326cb9ce1544bbb60a1242be124f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cell-hierarchy-order-1.27.json",
+      "sha256": "bb1f1acf8106884e154856b97cb454ad18201ddfdf0ad7be692c4e1eee1e16b8"
+    },
+    {
+      "path": "games/warcraft-3/game/g_world.c",
+      "sha256": "0dd0b314155ce901a19930791ac0bfe3f58b1f22f959644944df28011f3509cd"
     }
   ]
 }

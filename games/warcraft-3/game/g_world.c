@@ -6,6 +6,7 @@
 #include "../common/wc3_pathing_adaptive.h"
 #include "../common/wc3_pathing_widget.h"
 #include "../common/wc3_pathing_records.h"
+#include "../common/wc3_pathing_cell.h"
 
 typedef struct {
     int size;
@@ -149,6 +150,16 @@ static uint8_t entity_static_pathing_flags(edict_t const *ent) { (void)ent; retu
 static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
     /* Query masks describe the mover; occupancy describes the encountered unit. */
     return G_IsItem(ent) ? G_ItemPathingCategory() : S_UnitMoveCategory(ent);
+}
+
+/* Region categories belong to their pooled identities; ordinary category and
+ * transient flags follow the live ability owner. Reads never publish links. */
+static wc3FineObject_t move_cell_object(void *data,wc3RecordObject_t const *object) {
+    (void)data;
+    if(object->flags&WC3_RECORD_REGION)return (wc3FineObject_t){object->category,object->flags,true};
+    edict_t const *ent=g_edicts+object->owner;
+    return (wc3FineObject_t){(object->category&WC3_RECORD_INSERT)|entity_dynamic_pathing_flags(ent),
+        object->flags|(G_IsItem(ent) ? 0 : S_UnitMoveFineObjectFlags(ent)),true};
 }
 static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
@@ -366,6 +377,8 @@ static void move_acc_prepare(void) {
 /* Original15d360 clips once in fine coordinates. Each level independently
  * visits floor(min/scale)..floor(max/scale), including the upper edge. */
 static void move_acc_rebuild_rectangle_from(wc3FineBox_t box, bool clear, unsigned first_level) {
+    static unsigned const lanes[]={0,3,2,1}; /*15cf80:06/80/40/04, storage unchanged. */
+    static wc3FinePoint_t const corners[]={{0,0},{1,0},{1,1},{0,1}};
     box.min.x=MAX(0,box.min.x); box.min.y=MAX(0,box.min.y);
     box.max.x=MIN((int)pathmap.width,box.max.x); box.max.y=MIN((int)pathmap.height,box.max.y);
     if (box.min.x>=box.max.x || box.min.y>=box.max.y) return;
@@ -374,12 +387,23 @@ static void move_acc_rebuild_rectangle_from(wc3FineBox_t box, bool clear, unsign
         unsigned scale=2u<<level;
         unsigned minx=box.min.x/scale,miny=box.min.y/scale;
         unsigned maxx=MIN(map->width,box.max.x/scale+1),maxy=MIN(map->height,box.max.y/scale+1);
-        FOR_LOOP(lane,4) for(unsigned y=miny;y<maxy;y++) for(unsigned x=minx;x<maxx;x++) {
+        for(unsigned y=miny;y<maxy;y++) for(unsigned x=minx;x<maxx;x++) FOR_LOOP(order,4) {
+            unsigned lane=lanes[order];
             unsigned value=0;
             if (!level) {
                 unsigned blocked=0;
-                if (!clear) FOR_LOOP(dy,2) FOR_LOOP(dx,2)
-                    blocked+=!is_pathable_node_original_flags(x*2+dx,y*2+dy,lane ? move_acc_masks[lane] : 6);
+                if (!clear) FOR_LOOP(corner,4) {
+                    wc3FinePoint_t pos={x*2+corners[corner].x,y*2+corners[corner].y};
+                    uint32_t mask=lane ? move_acc_masks[lane] : 6;
+                    bool allowed=is_pathable_node_original_flags(pos.x,pos.y,mask);
+                    wc3SpatialRecords_t *records=S_GetMoveFineSpatial();
+                    if(allowed && records->cells) {
+                        wc3CellQuery_t query={.mode=WC3_CELL_HIERARCHY,.mask=mask|mask<<24,
+                            .target=WC3_RECORD_END,.describe=move_cell_object};
+                        allowed=wc3_records_cell(records,pos,0,&query).value;
+                    }
+                    blocked+=!allowed;
+                }
                 value=blocked==4 ? 1 : blocked ? 2 : 0;
             } else {
                 wc3AccMap_t const *child_map=move_acc.maps+level-1;
@@ -729,35 +753,33 @@ static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *qu
     graph->query=query;
 }
 
-/*1489a0: raw encounter order, per-nonempty-cell stamps, removals before
- * insertions, identity observation before eligibility, first blocker wins. */
+/* Identity is observed before self/target suppression. Suppression stays
+ * query-local; callbacks and saved instance state cannot inherit this scope. */
+static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const *object) {
+    moveFineGraph_t const *graph=data;
+    wc3FineObject_t shape=move_cell_object(NULL,object);
+    if(!(object->flags&WC3_RECORD_REGION)) {
+        edict_t const *ent=g_edicts+object->owner;
+        if(ent==graph->query->mover || (graph->suppress_target && ent==graph->query->target))shape.flags|=1;
+    }
+    return shape;
+}
+
+/*1489a0: one shared raw traversal, including active-state and flag gates. */
 static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     moveFineGraph_t const *graph=data;
     if(!is_valid_point(pos.x,pos.y))return false;
-    movePathQuery_t const *query=graph->query;
-    if(!query)return true;
+    if(!graph->query)return true;
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
-    uint32_t id=map->cells[(uint32_t)pos.y*map->width+pos.x]&WC3_RECORD_END;
-    if(id==WC3_RECORD_END)return true;
-    uint32_t stamp=++map->query;
-    while(id!=WC3_RECORD_END) {
-        wc3SpatialRecord_t link=map->links[id];uint32_t kind=link.next&~WC3_RECORD_END;
-        id=link.next&WC3_RECORD_END;
-        if(kind==WC3_RECORD_METADATA)continue;
-        wc3RecordObject_t *object=wc3_records_object(map,link.payload);
-        if(object->stamp==UINT32_MAX || object->stamp==stamp)continue;
-        object->stamp=stamp;
-        if(kind!=WC3_RECORD_INSERT)continue;
-        edict_t const *ent=g_edicts+object->owner;
-        if(graph->has_target && ent==query->target)*graph->target_hit=true;
-        if(ent==query->mover || (graph->suppress_target && ent==query->target))continue;
-        uint32_t mask=graph->flags;mask|=mask<<24;
-        if(!wc3_fine_object_blocks((wc3FineObject_t){0x01000000u|entity_dynamic_pathing_flags(ent),
-            G_IsItem(ent) ? 0 : S_UnitMoveFineObjectFlags(ent),true},mask,graph->endpoint))continue;
-        if(graph->rejection)*graph->rejection=object->box;
-        return false;
-    }
-    return true;
+    uint32_t target=WC3_RECORD_END,mask=graph->flags;
+    if(graph->has_target && graph->query->target)target=map->objects[graph->query->target-g_edicts];
+    wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask|mask<<24,.target=target,.endpoint=graph->endpoint,
+        .describe=move_fine_cell_object,.data=(void *)graph};
+    wc3CellResult_t result=wc3_records_cell(map,pos,0,&query);
+    if(result.target_seen)*graph->target_hit=true;
+    if(!result.value && graph->rejection && result.blocker!=WC3_RECORD_END)
+        *graph->rejection=wc3_records_object(map,result.blocker)->box;
+    return result.value;
 }
 
 static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
@@ -1133,32 +1155,32 @@ uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cache
 
 typedef struct { movePathQuery_t const *query; edict_t **items; uint32_t count; } moveBlockerQuery_t;
 
-/* Original148ad0 includes terrain/null tokens and moving objects. Deduplication
- * is per cell; a wider object can consume multiple slots across the footprint. */
-static bool move_collect_blocker_cell(void const *data, wc3FinePoint_t pos) {
+static wc3FineObject_t move_collector_object(void *data,wc3RecordObject_t const *object) {
+    moveBlockerQuery_t const *scan=data;
+    wc3FineObject_t shape=move_cell_object(NULL,object);
+    if(!(object->flags&WC3_RECORD_REGION) && g_edicts+object->owner==scan->query->mover)shape.flags|=1;
+    return shape;
+}
+static void move_collector_emit(void *data,uint32_t id) {
+    moveBlockerQuery_t *scan=data;
+    if(scan->count==32)return; /* Capacity limits append, never traversal. */
+    edict_t *ent=NULL;
+    if(id!=WC3_RECORD_END) {
+        wc3RecordObject_t const *object=wc3_records_object(S_GetMoveFineSpatial(),id);
+        if(!(object->flags&WC3_RECORD_REGION) && !G_IsItem(g_edicts+object->owner))ent=g_edicts+object->owner;
+    }
+    scan->items[scan->count++]=ent;
+}
+
+/*148ad0 shares active/suppression gates, includes moving objects and emits
+ * NULL for terrain and non-mover payloads. Stamp the suffix after32 outputs. */
+static bool move_collect_blocker_cell(void const *data,wc3FinePoint_t pos) {
     moveBlockerQuery_t *scan=(moveBlockerQuery_t *)data;
-    uint8_t mask=scan->query->geometry.blocked_flags;
-    if(!is_valid_point(pos.x,pos.y) || (mask && !is_pathable_node_original_flags(pos.x,pos.y,mask))) {
-        if(scan->count<32)scan->items[scan->count++]=NULL;
-        return true;
-    }
-    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
-    uint32_t id=map->cells[(uint32_t)pos.y*map->width+pos.x]&WC3_RECORD_END;
-    if(id==WC3_RECORD_END)return true;
-    uint32_t stamp=++map->query;
-    while(id!=WC3_RECORD_END) {
-        wc3SpatialRecord_t link=map->links[id];uint32_t kind=link.next&~WC3_RECORD_END;
-        id=link.next&WC3_RECORD_END;
-        if(kind==WC3_RECORD_METADATA)continue;
-        wc3RecordObject_t *object=wc3_records_object(map,link.payload);
-        if(object->stamp==UINT32_MAX || object->stamp==stamp)continue;
-        object->stamp=stamp;
-        if(kind!=WC3_RECORD_INSERT)continue;
-        edict_t *ent=g_edicts+object->owner;
-        if(ent==scan->query->mover || !(entity_dynamic_pathing_flags(ent)&mask))continue;
-        if(scan->count<32)scan->items[scan->count++]=G_IsItem(ent) ? NULL : ent;
-    }
-    /* Keep the same cell order and32-token cap; newest active object first. */
+    uint32_t mask=scan->query->geometry.blocked_flags;
+    bool allowed=is_valid_point(pos.x,pos.y) && (!mask || is_pathable_node_original_flags(pos.x,pos.y,mask));
+    wc3CellQuery_t query={.mode=WC3_CELL_COLLECT,.mask=mask|mask<<24,.target=WC3_RECORD_END,
+        .describe=move_collector_object,.emit=move_collector_emit,.data=scan};
+    wc3_records_cell(S_GetMoveFineSpatial(),pos,allowed ? 0 : mask<<24,&query);
     return true;
 }
 

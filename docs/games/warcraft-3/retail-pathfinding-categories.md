@@ -139,3 +139,82 @@ LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests \
 See also [authored movement profiles](retail-pathfinding-profiles.md),
 [proximity ownership](retail-pathfinding-proximity.md) and
 [the engine ledger](retail-pathfinding-engine.md).
+
+## Payoff137: exact raw-cell consumer eligibility
+
+FOOT-03.1 closes the consumer truth table and ports its gates to the engine.
+`common/wc3_pathing_cell.h` owns one encounter walk for fine admission, hierarchy,
+blocker collection and category union. `g_world.c` uses it for actual fine search,
+segments, endpoint placement, next-step blockers and adaptive base rebuilds.
+The ordinary owner adapter reads current authored categories and transient Move
+flags; retained identity suppression/activation remains independent of the owner.
+The pooled record gains a category word (40 bytes per object, not an edict field).
+Ordinary saved identities still reconstruct their authored category/active state,
+so Save121's serialized layout is unchanged.
+
+The gates execute in this order: terrain/bounds, nonempty-cell stamp, metadata
+skip, dead/active/previous-stamp eligibility, then stamp the object before record
+kind, suppression and category tests. A removal therefore hides its older insertion
+within the cell. Inactive records neither observe a target nor receive the stamp.
+Fine target observation precedes suppression; ordinary mode ignores moving/group
+flags60000000, while endpoints and collectors include them. The collector's32
+tokens cap only appends; its eligible suffix still receives stamps. Region/item
+payloads produce NULL tokens. Union keeps terrain's high byte and ORs low24
+categories independently of the query/mode.
+
+Hierarchy eligibility additionally requires REGION10000000 before stamping.
+Its49-record limit counts every raw link, including metadata, removals and inactive
+objects. The cap is a verified retail rule, not a new scheduling shortcut. Ordinary
+movers never affect hierarchy classes. Rebuild order is coarse-cell row-major,
+then06/80/40/04 lanes, each with TL/TR/BR/BL fine-cell queries. Stored lane
+indices and saved hierarchy bytes retain their existing representation.
+
+### Evidence and regression coverage
+
+The existing category verifier now executes the actual production header through
+`wc3_cell_query_probe.c`. **50,112 original/model/C cases per -O0/-O2 build**
+compare results, target flags, token identities and every map/object stamp; the
+frozen research matrix remains unchanged. Another36 original/C cases per build
+check terrain-first rejection and category-union high bytes. Synthetic unknown
+record kinds and forced stamp collisions remain labelled fixture controls.
+The unchanged16 original mixed-producer scenarios and both complete Frida
+captures still verify328 live consumer calls and60 observer-free public markers.
+This chunk reuses those controlled captures; it does not claim a new live run.
+
+A fresh complete original15d360 call freezes the terrain80-corner witness in
+`retail-cell-hierarchy-order-1.27.json`: from stamp1000 the map finishes at1015
+and clockwise object stamps are1012/1013/1014/1015. Saved Ghidra readback
+`retail-cell-consumers-ghidra-1.27.json` preserves seven consumer/rebuild
+annotations; the reproducible mapper includes each finding.
+
+Three actual engine regressions first fail45 assertions for suppression, active
+state,49/50 hierarchy eligibility and collector suffix order. A separate rebuild
+ordering regression then fails four final-stamp assertions before changing its
+traversal. All12 fine-spatial tests pass461 assertions afterward in Classic/TFT.
+Focused Classic/TFT validation passes690 engine tests and7,984,720 assertions
+per edition (movement, routing, save/load, categories and spatial consumers).
+55 Python evidence/inventory checks pass, and a fresh strict
+`oracle-object-categories` report is verified. This is implementation commit2
+after the successful Payoff135 full checkpoint; the next full suite remains at
+the authorized batch boundary. Production and test release modules build; all12
+fine-spatial release tests pass461 assertions in each edition. Five alternating
+12-mover/4000-scenery smoke runs have medians0.43ms in the prior release module
+and0.42ms after this port (ranges0.36–0.46/0.38–0.51ms per100ms simulation
+frame). This is a regression smoke check, not4096-unit or path-budget acceptance.
+Run the category verifier command above and the engine filter
+`+test 'wc3_fine_spatial.*'` to reproduce the focused checks.
+
+### Complexity and remaining producer work
+
+The traversal allocates nothing and scans the encountered chain directly. Fine,
+collector and union cost O(raw links); hierarchy examines at most49 links. There
+is no rank reconstruction, candidate sorting or global owner scan in a cell query.
+The collector continues stamp work after capacity, as required by retail.
+
+**FOOT-03.2 remains open.** Real widget footprints are still baked into the
+existing static fallback; the hierarchy also queries any published raw region
+identities. Moving all widget category regions into retained sparse raster records
+and preserving retire-versus-unraster reference counts is the next producer chunk.
+This closure establishes the consumer table, not the complete mixed static/dynamic
+publication lifecycle or a new 4096-unit performance acceptance. Region suppression
+scopes and full world flag-query producers retain their existing MAP/FOOT owners.
