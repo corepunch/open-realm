@@ -795,6 +795,7 @@ TEST(renderer_terrain, tileset_archive_layers_between_map_imports_and_base_data)
     refImport_t saved_imports = ri;
     assetCandidates_t candidates;
     PATHSTR candidate;
+    PATHSTR resolved;
     void *buffer = NULL;
     cstring_t const cliff = "ReplaceableTextures\\Cliff\\Cliff1.blp";
 
@@ -808,6 +809,11 @@ TEST(renderer_terrain, tileset_archive_layers_between_map_imports_and_base_data)
     T_ASSERT(R_GameAssetCandidate(cliff, candidate, sizeof(candidate)));
     T_STREQ(candidate, "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.blp");
     T_ASSERT(test_renderer_read(candidate, &buffer) > 0); /* The FS resolves the layered path. */
+    test_renderer_free(buffer);
+    /* Destructable object data authors .tga, but MPQ cliff assets are BLP. */
+    T_ASSERT(R_GameAssetCandidate("ReplaceableTextures\\Cliff\\Cliff1.tga", candidate, sizeof(candidate)));
+    T_STREQ(candidate, "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.tga");
+    T_ASSERT(R_ReadTextureFile(candidate, resolved, &buffer) > 0);
     test_renderer_free(buffer);
     T_ASSERT(!R_GameAssetCandidate("ReplaceableTextures\\Cliff\\Cliff0.blp", candidate, sizeof(candidate)));
 
