@@ -81,6 +81,8 @@
 #include "retail_route_invalid_consumers.h"
 #include "retail_ground_support.h"
 #include "retail_group_target_speed.h"
+#include "retail_yield_composed163.h"
+#include "retail_dynamic_blocker163.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Helpers defined in t_utils.c */
@@ -2033,6 +2035,204 @@ TEST(wc3_movement, selected_formation_yield_uses_saved_group_policy) {
 /* A removed blocker cannot release the countdown or lend its identity to a
  * replacement. Owner ticks consume the original4/20 visits; a later ordinary
  * allocation reuses the freed edict without inheriting that relationship. */
+/* Entire public crossing/tunnel/three-mover owner streams, not resolver seeds. */
+static uint32_t const (*yield163_rows)[27];
+static unsigned yield163_count,yield163_cursor;
+static edict_t *yield163_units[3];
+static bool yield163_mismatch;
+
+static void yield163_compare(uint32_t const *actual,uint32_t const *expected,unsigned count) {
+    FOR_LOOP(i,count) {
+        T_EQ(actual[i],expected[i]);
+        if(actual[i]!=expected[i]) {
+            fprintf(stderr,"yield163 row=%u counter=%u member=%u field=%u actual=%08x expected=%08x\n",
+                yield163_cursor,yield163_rows[yield163_cursor][0],yield163_rows[yield163_cursor][1],i,actual[i],expected[i]);
+            yield163_mismatch=true;
+        }
+    }
+}
+
+static void yield163_before(moveGroup_t const *group,edict_t *unit) {
+    if(group || !unit || yield163_mismatch)return;
+    if(!yield163_units[1] && unit!=yield163_units[0])yield163_units[1]=unit;
+    T_ASSERT(yield163_cursor<yield163_count);if(yield163_cursor>=yield163_count)return;
+    unsigned member=0;while(member<3 && yield163_units[member]!=unit)member++;
+    uint32_t actual[]={level.pathing_counter,member,wc3_float_bits(unit->movement.fine_pose.x),
+        wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    yield163_compare(actual,yield163_rows[yield163_cursor],7);
+    uint32_t wait[]={unit->movement.wait_delay,unit->movement.retry_count};
+    yield163_compare(wait,yield163_rows[yield163_cursor]+17,2);
+}
+
+static void yield163_after(edict_t *unit) {
+    if(yield163_mismatch)return;
+    T_ASSERT(yield163_cursor<yield163_count);if(yield163_cursor>=yield163_count)return;
+    uint32_t const *row=yield163_rows[yield163_cursor];
+    T_EQ(unit,yield163_units[row[1]]);
+    uint32_t pose[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),
+        wc3_float_bits(unit->s.angle)};
+    yield163_compare(pose,row+7,row[19] ? 5 : 4);
+    unsigned blocker=UINT32_MAX;
+    FOR_LOOP(i,3)if(yield163_units[i] && unit->movement.wait_blocker==yield163_units[i])blocker=i;
+    uint32_t route[]={unit->movement.fine_route.count,unit->movement.fine_route.index,
+        unit->movement.wait_delay,unit->movement.retry_count,blocker};
+    yield163_compare(route,row+12,5);
+    unsigned player=unit->movement.fine_class;
+    uint32_t work[]={unit->movement.fine_route.adaptive_count,unit->movement.fine_route.adaptive_index,
+        unit->movement.fine_request_time,unit->movement.fine_route.adaptive_admission.time,
+        level.move_fine_budgets[player].work,level.move_coarse_budgets[player][2].work,
+        level.move_coarse_budgets[player][0].work};
+    yield163_compare(work,row+20,7);
+    yield163_cursor++;
+}
+
+TEST(wc3_movement, public_composed_yield_matches_retail_owner_streams) {
+    uint32_t const (*rows[])[27]={yield163_cross_same,yield163_cross_diff,yield163_tunnel_same,
+        yield163_tunnel_diff,yield163_tri_converge};
+    unsigned counts[]={(sizeof(yield163_cross_same)/sizeof(yield163_cross_same[0])),(sizeof(yield163_cross_diff)/sizeof(yield163_cross_diff[0])),
+        (sizeof(yield163_tunnel_same)/sizeof(yield163_tunnel_same[0])),(sizeof(yield163_tunnel_diff)/sizeof(yield163_tunnel_diff[0])),(sizeof(yield163_tri_converge)/sizeof(yield163_tri_converge[0]))};
+    cstring_t starts[]={"400,1024,0","1024,677,90","320,1024,0","1728,1024,180",
+        "1024,1280,270","802.3,896,30","1245.7,896,150"};
+    cstring_t goals[]={"1700,1024","1024,1700","1792,1024","256,1024",
+        "1024,640","1356.6,1216","691.4,1216"};
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','Y','L','D'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,5){
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+        if(c==2 || c==3)FOR_LOOP(y,64)FOR_LOOP(x,64)if(x>=20 && x<=43 && y!=31 && y!=32)cells[y*64+x]=2;
+        CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+        level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+        level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+        G_InitLockedMapRandom();
+        char script[1900];unsigned base=c==4 ? 4 : c>=2 ? 2 : 0;
+        snprintf(script,sizeof(script),"globals\nunit array u\ninteger tick=0\nendglobals\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\nif tick==100 then\n"
+            "call IssuePointOrder(u[0],\"move\",%s)\ncall IssuePointOrder(u[1],\"move\",%s)\n%s\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set u[0]=CreateUnit(Player(0),'hYLD',%s)\nset u[1]=CreateUnit(Player(%u),'hYLD',%s)\n"
+            "%s\ncall TimerStart(CreateTimer(),0.01,true,function on_tick)\nendfunction\n",
+            goals[base],goals[base+1],c==4 ? "call IssuePointOrder(u[2],\"move\",691.4,1216)" : "",
+            starts[base],c==1 || c==3 ? 1 : 0,starts[base+1],c==4 ?
+            "set u[2]=CreateUnit(Player(0),'hYLD',1245.7,896,150)" : "call SetUnitMoveSpeed(u[1],150)");
+        T_ASSERT(run_test_jass(script));memset(yield163_units,0,sizeof(yield163_units));unsigned n=0;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(n<3)yield163_units[n++]=ent;
+        T_EQ(n,c==4 ? 3 : 2);
+        yield163_rows=rows[c];yield163_count=counts[c];yield163_cursor=0;yield163_mismatch=false;
+        move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        unsigned saved=0;uint32_t save_counter=c==4 ? 1106 : c>=2 ? 1165 : 1133;
+        cstring_t file="/tmp/wc3-yield163-composed.bin";
+        while(level.time<15000 && yield163_cursor<yield163_count && !yield163_mismatch){
+            level.time+=5;globals.RunFrame();
+            if(!saved && !yield163_mismatch && level.pathing_counter>=save_counter){
+                saved=yield163_cursor;T_ASSERT(WriteGame(file));
+            }
+        }
+        T_EQ(yield163_cursor,yield163_count);T_ASSERT(saved>0);
+        if(!yield163_mismatch && saved){
+            reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+            CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+            T_ASSERT(ReadGame(file));yield163_cursor=saved;
+            while(level.time<15000 && yield163_cursor<yield163_count && !yield163_mismatch){level.time+=5;globals.RunFrame();}
+        }
+        remove(file);
+        move_test_group_route=NULL;move_test_motion_commit=NULL;
+        T_EQ(yield163_cursor,yield163_count);
+        FOR_LOOP(i,n)T_EQ(yield163_units[i]->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));level.started=false;
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+TEST(wc3_movement, public_dynamic_blockers_match_retail_owner_streams) {
+    uint32_t const (*rows[])[27]={dynamic163_after,dynamic163_before,dynamic163_peer,dynamic163_remove_wait,
+        dynamic163_remove_leg,dynamic163_remove_far,dynamic163_terrain,dynamic163_terrain_remove};
+    unsigned counts[]={sizeof(dynamic163_after)/sizeof(dynamic163_after[0]),sizeof(dynamic163_before)/sizeof(dynamic163_before[0]),
+        sizeof(dynamic163_peer)/sizeof(dynamic163_peer[0]),sizeof(dynamic163_remove_wait)/sizeof(dynamic163_remove_wait[0]),
+        sizeof(dynamic163_remove_leg)/sizeof(dynamic163_remove_leg[0]),sizeof(dynamic163_remove_far)/sizeof(dynamic163_remove_far[0]),
+        sizeof(dynamic163_terrain)/sizeof(dynamic163_terrain[0]),sizeof(dynamic163_terrain_remove)/sizeof(dynamic163_terrain_remove[0])};
+    unsigned inserts[]={1430,1394,1300,1430,1430,1430,1430,1430},removes[]={0,0,0,1445,1659,1890,0,1445};
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','D','Y','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,8){
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[128*128]={0};box2_t bounds={{0,0},{4096,4096}};
+        FOR_LOOP(y,128)FOR_LOOP(x,128)if((y==62 || y==63) && (x<112 || x>=116))cells[y*128+x]=2;
+        CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+        level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+        level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+        G_InitLockedMapRandom();
+        char script[2200];
+        snprintf(script,sizeof(script),"globals\nunit mover\nunit blocker\ninteger tick=0\nendglobals\n"
+            "function terrain takes boolean walk returns nothing\nlocal integer i=0\nlocal integer j=0\n"
+            "loop\nexitwhen i>=4\nset j=0\nloop\nexitwhen j>=2\n"
+            "call SetTerrainPathable(32.0*(112+i)+16.0,32.0*(62+j)+16.0,PATHING_TYPE_WALKABILITY,walk)\n"
+            "set j=j+1\nendloop\nset i=i+1\nendloop\nendfunction\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+            "if tick==100 then\ncall IssuePointOrder(mover,\"move\",528,3536)\nendif\n"
+            "if tick==%u then\n%s\nendif\nif tick==%u then\n%s\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hDYN',528,528,0)\n"
+            "call TimerStart(CreateTimer(),0.01,true,function on_tick)\nendfunction\n",
+            inserts[c],c>=6 ? "call terrain(false)" : c==2 ?
+                "set blocker=CreateUnit(Player(0),'hDYN',3648,2304,270)\ncall SetUnitMoveSpeed(blocker,150)\ncall IssuePointOrder(blocker,\"move\",3648,1600)" :
+                "set blocker=CreateUnit(Player(15),'hDYN',3648,2016,0)",
+            removes[c],c>=6 ? "call terrain(true)" : "call RemoveUnit(blocker)\nset blocker=null");
+        T_ASSERT(run_test_jass(script));memset(yield163_units,0,sizeof(yield163_units));
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)yield163_units[0]=ent;
+        T_NOT_NULL(yield163_units[0]);
+        yield163_rows=rows[c];yield163_count=counts[c];yield163_cursor=0;yield163_mismatch=false;
+        move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        uint32_t const save_counters[]={1777,1771,1508,1505,1576,1653,1777,1505};
+        unsigned saved=0;bool written=false;cstring_t file="/tmp/wc3-dynamic163-composed.bin";
+        while(level.time<35000 && yield163_cursor<yield163_count && !yield163_mismatch){
+            level.time+=5;globals.RunFrame();
+            if(!saved && !yield163_mismatch && level.pathing_counter>=save_counters[c]){
+                saved=yield163_cursor;written=WriteGame(file);T_ASSERT(written);
+            }
+        }
+        T_EQ(yield163_cursor,yield163_count);T_ASSERT(saved>0);
+        if(!yield163_mismatch && written){
+            reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+            CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+            T_ASSERT(ReadGame(file));yield163_cursor=saved;
+            while(level.time<35000 && yield163_cursor<yield163_count && !yield163_mismatch){level.time+=5;globals.RunFrame();}
+        }
+        remove(file);
+        move_test_group_route=NULL;move_test_motion_commit=NULL;
+        fprintf(stderr,"dynamic163 case=%u rows=%u/%u\n",c,yield163_cursor,yield163_count);
+        T_EQ(yield163_cursor,yield163_count);T_EQ(yield163_units[0]->current_order_id,0);
+        if(c==2)T_EQ(yield163_units[1]->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));level.started=false;
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
 TEST(wc3_movement, yield_removal_reuse_preserves_wait_and_saved_countdown) {
     FOR_LOOP(long_wait,2) {
         reset_entities();setup_test_world();
@@ -16746,6 +16946,7 @@ TEST(wc3_movement, selected_formation_policy_matches_original_complete_owner_tic
     FOR_LOOP(capture,4) {
         bool alt=capture&1;
         reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
         uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
         CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
         uint32_t const *input=formation_policy_inputs[capture];
@@ -16811,6 +17012,7 @@ TEST(wc3_movement, selected_blocked_formation_matches_original_fresh_and_cached_
     FOR_LOOP(capture,2) {
         bool alt=false;
         reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
         uint8_t cells[64*64]={0};
         FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
         CM_SetupTestPathmap(64,64,cells);
@@ -16884,6 +17086,7 @@ TEST(wc3_movement, selected_blocked_formation_classifies_before_destination_adju
     FOR_LOOP(capture,1) {
         bool alt=capture&1;
         reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
         uint8_t cells[64*64]={0};
         FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
         CM_SetupTestPathmap(64,64,cells);

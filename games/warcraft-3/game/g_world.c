@@ -1542,7 +1542,9 @@ bool G_AdvanceUnitMoveAdaptiveDestination(edict_t *unit,moveFineRoute_t *route,b
     wc3FineRoute_t path={route->adaptive_points,route->adaptive_index};
     if(!wc3_acc_advance(&path,true,move_gate_active,move_gate_place,unit,warped))return false;
     route->adaptive_index=path.index;
-    route->count=0; route->index=UINT32_MAX;
+    /* Original165f10/167070 invalidate the fine index, retaining its table.
+     * Admission on a later visit owns replacement and charged search work. */
+    route->index=UINT32_MAX;
     return true;
 }
 

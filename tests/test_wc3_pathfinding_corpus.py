@@ -26,7 +26,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),138)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),129)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),130)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -49,6 +49,16 @@ class CorpusTests(unittest.TestCase):
         check_report(report,entry,self.target)
         for field,value in [('passed',False),('captures',9),('controls',1),
                             ('owner_records',379),('policy_cases',4)]:
+            changed=dict(report);changed[field]=value
+            with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+
+    def test_composed_blockers_require_complete_streams_and_original_exports(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-composed-dynamic-blockers-and-yields')
+        report={field:rule['equal'] for field,rule in entry['checks'].items()}
+        check_report(report,entry,self.target)
+        for field,value in [('passed',False),('captures',18),('controls',6),('repeats',4),
+                            ('original_owner_records',538),('observed_member_steps',13723),
+                            ('engine_scenes',12),('engine_owner_steps',9880)]:
             changed=dict(report);changed[field]=value
             with self.assertRaises(ValueError):check_report(changed,entry,self.target)
 

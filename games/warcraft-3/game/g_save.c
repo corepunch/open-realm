@@ -2069,7 +2069,8 @@ static bool ReadHashtables(FILE *f) {
 
 /* Route buffers use one bounded, finite-point payload contract for both Move owners. */
 static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
-    if (route->count > BZ_WC3_FINE_NODES || (route->count && (!route->points || route->index >= route->count))) {
+    if (route->count > BZ_WC3_FINE_NODES || (route->count && (!route->points ||
+        (route->index != UINT32_MAX && route->index >= route->count)))) {
         fprintf(stderr,"WC3 SaveGame: invalid fine route count=%u index=%u\n",route->count,route->index);
         return false;
     }
@@ -2091,7 +2092,9 @@ static bool WriteMoveRouteBuffers(FILE *f, moveFineRoute_t const *route) {
 static bool ReadMoveRouteBuffers(FILE *f, moveFineRoute_t *route) {
     route->points = NULL; route->adaptive_points=NULL; route->group_points=NULL;
     route->capacity=route->adaptive_capacity=route->group_capacity=0;
-    if (route->count > BZ_WC3_FINE_NODES || (route->count && route->index >= route->count)) return false;
+    /* A consumed intermediate leg retains its table until refill admission. */
+    if (route->count > BZ_WC3_FINE_NODES ||
+        (route->count && route->index != UINT32_MAX && route->index >= route->count)) return false;
     if (route->count) {
         G_ReserveMoveRouteBuffer(&route->points,&route->capacity,route->count);
         if (!route->points || !LoadBytes(f,route->points,route->count*sizeof(*route->points))) {
@@ -3349,6 +3352,19 @@ TEST(wc3_save, route_capacities_are_rebuilt_from_logical_payloads) {
     G_ReserveMoveRouteBuffer(&restored.points,&restored.capacity,2);
     T_ASSERT(backing==restored.points);T_EQ(restored.capacity,128);
     free(restored.points);free(restored.adaptive_points);free(restored.group_points);fclose(file);
+}
+
+TEST(wc3_save, retained_fine_table_with_invalid_index_round_trips) {
+    vec2_t points[]={{31.5f,63.5f},{30.5f,63.5f}};
+    moveFineRoute_t route={.points=points,.count=2,.index=UINT32_MAX,.partial=true},restored=route;
+    FILE *file=tmpfile();T_NOT_NULL(file);if(!file)return;
+    bool written=WriteMoveRouteBuffers(file,&route);T_ASSERT(written);
+    if(written){
+        rewind(file);T_ASSERT(ReadMoveRouteBuffers(file,&restored));
+        T_EQ(restored.count,2);T_EQ(restored.index,UINT32_MAX);T_ASSERT(restored.points!=points);
+        T_ASSERT(!memcmp(restored.points,points,sizeof(points)));free(restored.points);
+    }
+    fclose(file);
 }
 
 TEST(wc3_save, rejects_invalid_fine_route_payloads) {

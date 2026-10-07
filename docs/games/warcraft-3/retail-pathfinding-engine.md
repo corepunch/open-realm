@@ -11754,3 +11754,19 @@ continuations implement ROUTE-05.1. Ten archived Frida observations, two control
 and380 frozen owner records pass strict verification. UI timing and the retained
 late one-ulp repeat difference remain explicit; complete composed trajectories
 are separate. See [yield lifecycle](retail-pathfinding-yield-lifecycle.md).
+
+## Composed dynamic blockers and yields (Payoff163)
+
+Move now clears retry/delay at singleton group-waypoint handoffs, shares
+intermediate endpoint consumption with physical groups and retains the old
+path destination until both request timestamps allow replacement. Explicit
+work assertions expose the previously premature coarse search. Adaptive advancement
+retains the fine table with an invalid index until refill; save/load accepts that
+valid sentinel and still rejects malformed indices. Failing-first full public
+dynamic-gap trajectories exposed three engine mismatches and the save rejection.
+Thirteen complete crossing/tunnel/convergence/insertion/removal/terrain scenes
+compare9,881 owner steps and cold-load suffixes, including request timestamps and
+charged work. Fresh verification checks19 archived Frida streams, seven controls,
+five repeats and539 original frozen owner records. The resolver excludes cyclic
+waits; the three-mover witness exercises an ordered chain. ROUTE-03.1/03.2/05.2
+are integrated. See [composed blockers](retail-pathfinding-composed-blockers.md).

@@ -2262,12 +2262,22 @@ static void move_retry_fine(edict_t *self) {
 
 /* Original165c60 consumes a reached partial endpoint before the next refill;
  *167290 preserves every buffer on terminal4 and resets only fine on retry1. */
-static uint32_t move_retry_endpoint(edict_t *unit, wc3GridPose_t const *pose, vec2_t goal, uint32_t members) {
+static uint32_t move_advance_endpoint(edict_t *unit, wc3GridPose_t const *pose, vec2_t goal,
+                                      uint32_t members, vec2_t *direction) {
     moveFineRoute_t *route=&unit->movement.fine_route;
     if (!route->partial || !route->count || route->index) return 0;
     float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
     float range=wc3_float(0x3efae148);
     if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return 0;
+    if(route->adaptive_index && route->adaptive_index<route->adaptive_count){
+        /* Original167070 consumes an intermediate coarse point before retry.
+         * The fine table survives, with an invalid index, until the next visit. */
+        *direction=(vec2_t){x,y};bool warped=false;
+        if(!G_AdvanceUnitMoveAdaptiveDestination(unit,route,&warped))
+            unit->movement.wait_delay=MAX(unit->movement.wait_delay,20u);
+        unit->movement.path.valid=false;
+        return 2;
+    }
     /* Failed adaptive reconstruction publishes its retained endpoint to the
      * adjusted fine goal used by1689d0, independently of the user click. */
     goal=move_retry_goal(route,goal);
@@ -2282,10 +2292,14 @@ static bool move_point_retry_endpoint(edict_t *unit) {
         (unit->current_order_id!=G_OrderId("move") && unit->current_order_id!=G_OrderId("smart"))) return false;
     wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
     vec2_t goal=unit->movement.fine_route.group_goal;
-    uint32_t result=move_retry_endpoint(unit,&pose,goal,1);
+    vec2_t direction;
+    uint32_t result=move_advance_endpoint(unit,&pose,goal,1,&direction);
     if (!result) return false;
     if (result==4) unit->movement.point_forced_arrival=true;
-    move_hold_goal_heading(unit);
+    if(result==2){
+        unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
+        unit_turn_toward(unit,unit->movement.heading);unit->movement.turn_blocked=true;
+    }else move_hold_goal_heading(unit);
     return true;
 }
 
@@ -2450,6 +2464,19 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
     vec2_t final=query.fine_target ? *query.fine_target :
         (vec2_t){wc3_grid_coordinate(query.geometry.target->x,bounds.min.x,32),wc3_grid_coordinate(query.geometry.target->y,bounds.min.y,32)};
     vec2_t held={wc3_sub(final.x,before.grid[0]),wc3_sub(final.y,before.grid[1])};
+    if(query.units && query.fine_target && curve->adaptive_points &&
+        (((int32_t)floorf(final.x)>>1)!=((int32_t)floorf(curve->adaptive_goal.x)>>1) ||
+         ((int32_t)floorf(final.y)>>1)!=((int32_t)floorf(curve->adaptive_goal.y)>>1)) &&
+        (level.pathing_counter-self->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL ||
+         level.pathing_counter-curve->adaptive_admission.time<BZ_WC3_FINE_REQUEST_INTERVAL)) {
+        /* Native167e40/16fca2 retain the path destination until both request
+         * timestamps permit replacement. Arrival/held heading still use the
+         * caller's new destination. A group reset does not erase these times. */
+        fine_destination=curve->adaptive_goal;
+        local=(vec2_t){wc3_add(bounds.min.x,wc3_mul(fine_destination.x,CM_PathCellWorldSize())),
+            wc3_add(bounds.min.y,wc3_mul(fine_destination.y,CM_PathCellWorldSize()))};
+        query.geometry.target=&local;query.fine_target=&fine_destination;
+    }
     moveRoutePoint_t turn = { &path->waypoint, point.radius, point.policy };
     if (query.units) {
         uint32_t advance=0;
@@ -3791,6 +3818,10 @@ static bool move_point_arrival(edict_t *ent) {
     if (reached) {
         ent->movement.point_forced_arrival=false;
         if (G_AdvanceUnitMoveGroupDestination(route)) {
+            /* Native16d6a0 resets member progress at every shared waypoint,
+             * including a terminal partial leg. Keep request timestamps and
+             * the retained group route; the next leg owns a fresh retry. */
+            ent->movement.retry_count=ent->movement.wait_delay=0;
             ent->movement.path.valid=false;
             return true;
         }
@@ -4530,21 +4561,9 @@ static bool move_group_route(moveGroup_t *group) {
  * Final partial endpoints retain165c60/167290's stopped retry transition. */
 static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_t *member,
                                             wc3GridPose_t const *pose, vec2_t *direction) {
-    edict_t *unit=member->unit; moveFineRoute_t *route=&unit->movement.fine_route;
-    if (route->partial && route->count && !route->index && route->adaptive_index &&
-        route->adaptive_index<route->adaptive_count) {
-        float x=wc3_sub(route->points[0].x,pose->grid[0]),y=wc3_sub(route->points[0].y,pose->grid[1]);
-        float range=wc3_float(0x3efae148);
-        if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=wc3_mul(range,range)) {
-            *direction=(vec2_t){x,y};
-            bool warped=false;
-            if (!G_AdvanceUnitMoveAdaptiveDestination(unit,route,&warped))
-                unit->movement.wait_delay=MAX(unit->movement.wait_delay,20u);
-            unit->movement.path.valid=false;
-            return 2;
-        }
-    }
-    uint32_t result=move_retry_endpoint(unit,pose,member->destination,group->count);
+    edict_t *unit=member->unit;
+    uint32_t result=move_advance_endpoint(unit,pose,member->destination,group->count,direction);
+    if(result==2)return result;
     if (result==4) {member->forced_arrival=true;member->flags|=0x20000;}
     return result;
 }

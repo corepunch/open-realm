@@ -39489,6 +39489,855 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-composed-dynamic-blockers-and-yields",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_composed_blocker163_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-composed-blocker163-1.27.json",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "composed-blocker163.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-composed-blockers",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 19
+        },
+        "controls": {
+          "equal": 7
+        },
+        "repeats": {
+          "equal": 5
+        },
+        "original_owner_records": {
+          "equal": 539
+        },
+        "observed_member_steps": {
+          "equal": 13724
+        },
+        "engine_scenes": {
+          "equal": 13
+        },
+        "engine_owner_steps": {
+          "equal": 9881
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Complete public asymmetric yielding, dynamic insertion/removal, moving peer and terrain closure/reopening. Engine normal-frame and cold-load journeys retain fine/adaptive indices, exact numerical movement, blocker identities, countdowns/retries, request timestamps, charged work and final order retirement. Original resolver excludes persistent cyclic waits.",
+      "exclusions": [
+        "No original-code oracle replay of these whole scenes; repeated read-only retail observations plus actual engine owner frames.",
+        "Different-player crossing and tunnel each have one observed run; crossing has no own observer-free control.",
+        "Some dynamic insertion/removal variants have one observed run; controls/repeats belong to named scenes only.",
+        "Three-mover scene forms an acyclic chain; no fabricated cycle or forced counter/identity changes.",
+        "Engine cold-load suffixes compare with uninterrupted retail; these exact retail yield scenes were not themselves saved."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "research/ROUTE-05.2/captures/cross-same-observe-1-envB.jsonl",
+        "sha256": "45be7b9b5c7ed98861c239e29e655261ce228e70942fd514a829afe7365079f0",
+        "bytes": 1935182,
+        "metadata": {
+          "task": "ROUTE-05.2",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+            "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+            "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+            "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+            "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+            "map": "0c991ea171c377217bf8520fa4e7edf505712de6d61792ac0c4ee836d0f4bd12"
+          },
+          "map": "Maps\\RS-ROUTE-05.2-cross-same.w3m",
+          "seconds": 200.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/cross-same-observe-2-envC.jsonl",
+            "sha256": "3d8ac6dd516d29200a3af8005cc0a96a0a121ee83d7a166a3ad9fc7002412beb",
+            "bytes": 1935297,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "0c991ea171c377217bf8520fa4e7edf505712de6d61792ac0c4ee836d0f4bd12",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-cross-same.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/cross-diff-observe-1-envB.jsonl",
+            "sha256": "43c0c94dc8e668c60e73376d8a60ea8d7dc84df8f65a832b5de53a628b7f29f8",
+            "bytes": 1937543,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "02973fd295bc2063292241da7037d751f7e054857dd5b376517e9757e57644bb"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-cross-diff.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tri-converge-observe-1-envC.jsonl",
+            "sha256": "36d70c6b65a5f645af85ce9c24b37e7f0ec0338d434519029ba4fd959b56aa55",
+            "bytes": 1313133,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "d36c88f7c21cde716a3b646b2f30b0a0b79cc0bd939d860ec817a816ebed03df"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tri-converge.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tri-converge-observe-2-envC.jsonl",
+            "sha256": "f518502fa0888b49a86e4883e35fbf8c603ed9f2dff6534773ac34477d42bf98",
+            "bytes": 1313249,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "d36c88f7c21cde716a3b646b2f30b0a0b79cc0bd939d860ec817a816ebed03df",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tri-converge.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tunnel-same-observe-1-envC.jsonl",
+            "sha256": "5c1e7741e70af18a1eed34342224a3d8693dc4f5d492e3bd160c50645ab185fe",
+            "bytes": 1610332,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "46d91789939965c90299f063d15b9084e0686a7dd0b2ba1f4dc123edc309b9a4",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "43165ce4a37222d95cb66e14a4b788c92dc9fe6b0776c7ee730b2c4703008e3e",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tunnel-same.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tunnel-same-observe-2-envB.jsonl",
+            "sha256": "c5f401d9f0feec610ecd510963e089c9ae1f4c5d0ea20277e83181b2b03e9f58",
+            "bytes": 1610388,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "291bdb5f54bdb836c0315fdc1995b94264a7f331d46bd2702fa2534719c7c179",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "43165ce4a37222d95cb66e14a4b788c92dc9fe6b0776c7ee730b2c4703008e3e",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tunnel-same.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tunnel-diff-observe-1-envC.jsonl",
+            "sha256": "b79e5c9687540cc5cca95995cce64904b8cfccdb458fe6149d8d6ab92ed52b30",
+            "bytes": 1549374,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "46d91789939965c90299f063d15b9084e0686a7dd0b2ba1f4dc123edc309b9a4",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "92559b1e3c55595bbdcc3272c738277d325a973cf590e3c65668cf826765e6aa",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tunnel-diff.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/cross-same-control-1-envC.jsonl",
+            "sha256": "1ffbbb5216ea97fc521d214838537bbf63eea300e053cc11b8e1df31b17bd809",
+            "bytes": 1326,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "0c991ea171c377217bf8520fa4e7edf505712de6d61792ac0c4ee836d0f4bd12",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-cross-same.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tri-converge-control-1-envC.jsonl",
+            "sha256": "f8a19e1fd43f8809561d508831afefdc5f75b048da212bb292dc2eb92ce1047a",
+            "bytes": 1329,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "2e13c7833d227e1c78442ee0f71b034df61f84f4a1d071a2249926086bf674e2",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "d36c88f7c21cde716a3b646b2f30b0a0b79cc0bd939d860ec817a816ebed03df",
+                "route05_alt_probe.j": "e4db7abfafe44130bf41cc9277fc00e2e179be5fefb473abc6429f96ee4896b2"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tri-converge.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tunnel-same-control-1-envC.jsonl",
+            "sha256": "90ace26bb7a3dff878300cd796c31dd669e242d87251ddcf3f0de4ad5d4b2a78",
+            "bytes": 1385,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "291bdb5f54bdb836c0315fdc1995b94264a7f331d46bd2702fa2534719c7c179",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "43165ce4a37222d95cb66e14a4b788c92dc9fe6b0776c7ee730b2c4703008e3e",
+                "route05_alt_probe.j": "e69fad82c7548ef860deeed050b3ebbb8a835a1f4033de76b9f36763bd2381d5"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tunnel-same.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-05.2/captures/tunnel-diff-control-1-envC.jsonl",
+            "sha256": "f0c807caca365a4dfcf992b0044f0b0d1de0255d87096a4b682029518575601f",
+            "bytes": 1381,
+            "metadata": {
+              "task": "ROUTE-05.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "31dfd9c291b924140db3dfe28e53d599136684cf295c4e2b97f2a39eed6147ab",
+                "route03_observer.js": "291bdb5f54bdb836c0315fdc1995b94264a7f331d46bd2702fa2534719c7c179",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "92559b1e3c55595bbdcc3272c738277d325a973cf590e3c65668cf826765e6aa",
+                "route05_alt_probe.j": "e69fad82c7548ef860deeed050b3ebbb8a835a1f4033de76b9f36763bd2381d5"
+              },
+              "map": "Maps\\RS-ROUTE-05.2-tunnel-diff.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "registryEvents": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/ukeep-t1430-observe-1-envB.jsonl",
+            "sha256": "0deaa5423538c77fb3ffb79f082857aa181bd94c50a031a97d7e51a623d8ed09",
+            "bytes": 4527627,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "aeb0bb5a17c87168c9a4e23c90c72b611e27d088b52ad15606bf7cae04423636",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "96f2aa451e4fdead94e329beee0b5bda91d9a54478d9357aff9964dda6951d0d"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-ukeep-t1430.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/ukeep-t1430-observe-2-envB.jsonl",
+            "sha256": "ba0687fffa018e9433bdb24a00f860106cf5170e18d7ea8552c3e8b30c0f3ae8",
+            "bytes": 4527601,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "96f2aa451e4fdead94e329beee0b5bda91d9a54478d9357aff9964dda6951d0d"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-ukeep-t1430.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/ukeep-t1394-observe-1-envB.jsonl",
+            "sha256": "33411f9edd8d23afcf86fae35aa83da40072375d806b622a7ebb40c40898cb29",
+            "bytes": 4507115,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "aeb0bb5a17c87168c9a4e23c90c72b611e27d088b52ad15606bf7cae04423636",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "9dab533d63550ae2aea20a67ee1bd8a7f650a93abf7f644d6fb7c4806f14e3d9"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-ukeep-t1394.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/peer-t1300-observe-1-envC.jsonl",
+            "sha256": "33da7901a60ac2f74bee27b4d4f8562e1bcf1eabb22db81adfe0a9126bf2d3bc",
+            "bytes": 5878421,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "aeb0bb5a17c87168c9a4e23c90c72b611e27d088b52ad15606bf7cae04423636",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "c5ac1cec4edc1575057f89017e9efab8537e80de4d3ca294dbcb36c4c5a3ffb3"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-peer-t1300.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/ucalib-observe-1-envC.jsonl",
+            "sha256": "93be493496901eca0b986d39dd8802765aa979c2ac7cc9c1eb9a24f370327047",
+            "bytes": 4275862,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "aeb0bb5a17c87168c9a4e23c90c72b611e27d088b52ad15606bf7cae04423636",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "f195c68bb56b1474c0ccdc9fca6073633ea20dbc81836c2667ad8e711f6e572e"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-ucalib.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1445-observe-1-envB.jsonl",
+            "sha256": "08b2a3c648db066dcdb01a8ceb9c0745d2fc1ca1016924260c62979fbdf6b651",
+            "bytes": 4319910,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "9145acc508ba712f5d29df5d06e7ed2d1ec4ee6f64f3222292fef60234534d32"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1445.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1445-observe-2-envB.jsonl",
+            "sha256": "e8089f75f11d62f1580a5896da7850fa97d464cc2d3c365a64e29add3b4c534b",
+            "bytes": 4319912,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "9145acc508ba712f5d29df5d06e7ed2d1ec4ee6f64f3222292fef60234534d32"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1445.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1659-observe-1-envB.jsonl",
+            "sha256": "d62be33a3a85482cab7005aef3a1b1a795550606dac0d5d019c158285fe70fc4",
+            "bytes": 5087920,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "aeba2238cfdfb48e2d8a5ab619cbacd7591a173a672ff41768750c1e3390d4f6"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1659.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1890-observe-1-envC.jsonl",
+            "sha256": "072b394cfe60f05fbe064121f91f9cb5c2d52dacc8dabef249439bd73717764c",
+            "bytes": 4528308,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "aeb0bb5a17c87168c9a4e23c90c72b611e27d088b52ad15606bf7cae04423636",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "aa71e5dfef0cc713c690a477da9fe8ba6c382ec66aa7d81f94556e8bf7f1ce85"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1890.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/tkeep-t1430-observe-1-envB.jsonl",
+            "sha256": "253ebdcddcafb7ee2a43bd45a830e696fb5cfdffaa8acd62ba39df517692cb7d",
+            "bytes": 4523357,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "83ca97aef447f072e08be578c8aa6a67dc6e8288b458d79c5f235ffff52f7c96"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-tkeep-t1430.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/tremove-t1430-r1445-observe-1-envB.jsonl",
+            "sha256": "dcbaa57dc782e6a77e97b05fa11f5cf462cb0b1e0843018d2e857c7dd15fbad7",
+            "bytes": 4315831,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "73dc4ea9e16ba627922523543e3fa858186d4efbaf49d5d512f439c2e9ab3ff2"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-tremove-t1430-r1445.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/ukeep-t1430-control-1-envB.jsonl",
+            "sha256": "1ee16edb8c4613784ff8ff1b7dcba56d5c2e9510dcc4dbca5543e996a1ddfcc4",
+            "bytes": 1266,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "96f2aa451e4fdead94e329beee0b5bda91d9a54478d9357aff9964dda6951d0d"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-ukeep-t1430.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1445-control-1-envB.jsonl",
+            "sha256": "6ee449e7709833b509fd06aac2053c8a620eefbc76ad44c2ff90d4d4da16ab01",
+            "bytes": 1276,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "9145acc508ba712f5d29df5d06e7ed2d1ec4ee6f64f3222292fef60234534d32"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1445.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/ROUTE-03.1/captures/uremove-t1430-r1659-control-1-envB.jsonl",
+            "sha256": "9f9482366de00066ffac98cb0d7224c62be8713af24c8070796dc2c5f34a8541",
+            "bytes": 1276,
+            "metadata": {
+              "task": "ROUTE-03.1",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "route03_capture.py": "f625ac50037e57ea9e0af6416e2f85961a956cf711db509c908e40a532c08f04",
+                "route03_observer.js": "f72e43a83f2147dcada7b751a4fc57fe7603316ebfe9311eecb9dec5ee558a28",
+                "route03_probe.j": "035eece9b1c6f62561d07bdb2d76c2a7d843c2729a8c311149be37b11cc31f4d",
+                "route05_probe.j": "1713d9aaf9bacbb845ddb67534563835767d570e54f5d73f90e8ff07fc5bee34",
+                "route03_make_map.py": "b87bbe3d3812d7be52d7e97e738d20c9e7ca72d5b8643d40b6ab1b45dbb88c9d",
+                "map": "aeba2238cfdfb48e2d8a5ab619cbacd7591a173a672ff41768750c1e3390d4f6"
+              },
+              "map": "Maps\\RS-ROUTE-03.1-uremove-t1430-r1659.w3m",
+              "seconds": 200.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -40387,7 +41236,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4847b3021d8460b5492c56144d59e2789e650572a52184e337b1a954c4d07831"
+      "sha256": "82bc4726d3daf9b9e0751a7044542788591937940c85bf81d8e9a90c600df5e9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -41243,7 +42092,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "fb0da3b39bbf8e4862450295186644e4a301c242d3d2681a1af7f42ad8b01961"
+      "sha256": "8fbe3581dfe91d04fb6bbc98fa6411b2fbb3cb19d0defbf040c26565e36840fb"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -41675,11 +42524,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "a99900690eceb49b6842cc7f5466e51c578303978114c22a169dcf96a7ab0936"
+      "sha256": "0fa23a98b8830b382280ec6b874d6a21a2a22793a7a94cd3084e7b169432c6a4"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "5a1396a146fcbe7f9b62aca0178962363f2bb1ca5de6a3b9055a6e7055152553"
+      "sha256": "664e9bf954e682f0f8c7ef5cd91506596feb695552c8af1bde64bb3b67ce85f6"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -41935,7 +42784,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "860bd541b11f94cdaa53f1c59ba994486896a3375646203a30eb038e4540f18f"
+      "sha256": "23d41099a4f2432268b030089831ca493d27c5b8db918f80e210635423d48688"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -42179,7 +43028,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "3e56f31be9a229bb2988279e93ea16b18476f382f6dcbf8ff686b89278e1efb1"
+      "sha256": "960e5a03bd365a2f37e2287c866298b7fe1cd56275bdb657c746cfa7e2d04e12"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -42191,11 +43040,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "2832814d93a3483c2536882b8928191c93afcac0691964e9bd16cfbac8657680"
+      "sha256": "208c30115207e94c7097f6e8fcf2546c445e22bae439163c5a10b74ee0e9c2e7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "bc065ceb760523803321ba4c54e0eae37aa943753e3f7f05393b2946fd944a26"
+      "sha256": "ffc66f4b1a8d73ba7d0b08d689012b987c0d12820193b673d56c60a114bf834d"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -42724,6 +43573,46 @@
     {
       "path": "tests/test_wc3_pathfinding_yield_lifecycle.py",
       "sha256": "1791f22982ab66b2139d8e555a7c227df9cd0fbaa9c3ae4788c76ba893091fb2"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_yield_composed163.h",
+      "sha256": "358738698630d32c2858d973eab24b656888d4a0bc66eff4a7eea8c207879dd1"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_dynamic_blocker163.h",
+      "sha256": "69c6b54c97666acaebc90028151ae3b4acb0286a0af6f40a5e6b0dfcb10ac28a"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-composed-blockers.md",
+      "sha256": "729c3ab278f2825b4d673a34183ad5d2ed9be6ad87add874a3009b9a05de5049"
+    },
+    {
+      "path": "tools/frida/research/yield163_engine_fixture.py",
+      "sha256": "00c76f8a3e23aee66a0d7d21a9b5e17ca8abbe59bf51091420e259f0864f208d"
+    },
+    {
+      "path": "tools/ghidra/research/verify_composed_blocker163_live.py",
+      "sha256": "d1070e5c8da62a10cd6511e5b9dd1b674acc9d42946efd3039814b764c0ecbfe"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-composed-blocker163-1.27.json",
+      "sha256": "33209c796ec881a537f2aa953f29ae186ada56721aef09f014fd7d0722d52de5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ROUTE-05.2-expected.json.gz",
+      "sha256": "801938fc9149dfb537df7cab2187d0ab9aab8ad89b99a705b6816e37d7ab056c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ROUTE-03.1-expected.json.gz",
+      "sha256": "e1e31cf261a1af6511fcfc897bb8d56801dcb1d3194811d286a6a54138648b57"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ROUTE-03.2-expected.json",
+      "sha256": "6daef31f38a09e1ce00846d83b603c2225886ea0b8ab94f8ff8e329e4c50f6a6"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_composed_blockers.py",
+      "sha256": "6e5c1d115466a4052b4be217f4643e94139ec7cdb6d3e362fb2cf8eaa0b46dad"
     }
   ]
 }
