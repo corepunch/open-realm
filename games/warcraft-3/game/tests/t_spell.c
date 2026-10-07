@@ -927,6 +927,44 @@ TEST(wc3_spell, creep_command_and_war_drums_auras_share_damage_consumer) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+/* Stock creep Command Aura carries air,ground,friend,self and no `neutral`
+ * token. The token describes a target that is neutral relative to the source
+ * (another owner's Neutral-typed slot); the source's own slot type must not
+ * turn its same-owner creeps into non-friends. */
+TEST(wc3_spell, neutral_owned_aura_source_still_buffs_same_owner_creeps) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"ACac\"\nC;Y2;X2;K\"ACac\"\nC;Y2;X3;K\"air,ground,friend,self\"\n"
+        "C;Y2;X4;K\"300\"\nC;Y2;X5;K\"0.2\"\nC;Y2;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('o','g','r','u'), 100, 0, 0, 0);
+    edict_t *fellow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *sheep = alloc_test_unit(MAKEFOURCC('n','s','h','e'), 120, 0);
+    edict_t *human = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 140, 0);
+    UnitAbilities_t abilities = { .abilList = "ACac" };
+
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_AGGRESSIVE].playerType = kPlayerTypeNeutral;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    source->data.UnitAbilities = &abilities;
+    source->s.player = fellow->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
+    sheep->s.player = PLAYER_NEUTRAL_PASSIVE;
+    human->s.player = 0;
+    source->targtype = fellow->targtype = sheep->targtype = human->targtype = TARG_GROUND;
+
+    T_FEQ(S_CommandAuraAttackBonus(fellow), 0.2f, 0.001f);
+    T_FEQ(S_CommandAuraAttackBonus(source), 0.2f, 0.001f);
+    /* Another owner's Neutral slot is still neutral relative to the creep, even
+     * though Neutral Passive is passive-allied with every slot by default. */
+    T_FEQ(S_CommandAuraAttackBonus(sheep), 0.0f, 0.001f);
+    /* Neutral Hostile has no alliance with player slots. */
+    T_FEQ(S_CommandAuraAttackBonus(human), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X7\n"
