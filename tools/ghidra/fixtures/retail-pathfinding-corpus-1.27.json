@@ -38844,6 +38844,212 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-captain-larger-roster-batches",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_captain_roster161_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-captain-roster161-1.27.json",
+        "--captures",
+        "{archive}/runtime/captain-roster161",
+        "--output",
+        "{report}"
+      ],
+      "report": "captain-roster161.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 2
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "prepared_members": {
+          "equal": 218
+        },
+        "public_markers": {
+          "equal": 2567
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Complete repeated public24/25-member point publications preserve twelve-row physical batches, shared identities, ordinary counts and speed words. Actual engine larger-roster admission, shared movement, cold-save count reconstruction, middle withdrawal and point replacement regressions.",
+      "exclusions": [
+        "Complete word-exact original/engine trajectories, larger target/combat paths, special/additional count policy and default homes remain open.",
+        "Initial twentyfive-observe-1 remained at loading; twentyfive-observe-2 and twentyfour-observe-1/2 failed Frida attachment. These preserved attempts are excluded."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "runtime/captain-roster161/twentyfour-observe-3.jsonl",
+        "sha256": "c3c30dcfaf17d1a203000862cb096f27cba90faa51400cf3f7d34d58eb52b084",
+        "bytes": 728826,
+        "metadata": {
+          "task": "payoff161",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+            "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+            "map": "974124429b0f5097c4feb5bb02f7deddb34e19a5d7f203ed7e03fe0d4d1deef1"
+          },
+          "map": "Maps\\RS-CR161-twentyfour.w3m",
+          "seconds": 130.0,
+          "continue_at": 30.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-roster161/twentyfour-observe-4.jsonl",
+            "sha256": "b79f994f8363c40d0a66b6f5310d1e4b019da55a511a701605b059ea2e6613f7",
+            "bytes": 728830,
+            "metadata": {
+              "task": "payoff161",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+                "map": "974124429b0f5097c4feb5bb02f7deddb34e19a5d7f203ed7e03fe0d4d1deef1"
+              },
+              "map": "Maps\\RS-CR161-twentyfour.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-roster161/twentyfive-observe-3.jsonl",
+            "sha256": "fb5ed24c3afe0aedfdb81652bcd15979a21620ab35f56582ae6104e968dd2174",
+            "bytes": 769719,
+            "metadata": {
+              "task": "payoff161",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+                "map": "f03ccf6a24451aaf0dfb49212b88de2b36d458d710c3dc860af948d0f9f4732b"
+              },
+              "map": "Maps\\RS-CR161-twentyfive.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-roster161/twentyfive-observe-4.jsonl",
+            "sha256": "99d01eecc046bb1f4dd6cbd961daf7e1e3e059bce6169c3d7a48d916ee1a7956",
+            "bytes": 769719,
+            "metadata": {
+              "task": "payoff161",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+                "map": "f03ccf6a24451aaf0dfb49212b88de2b36d458d710c3dc860af948d0f9f4732b"
+              },
+              "map": "Maps\\RS-CR161-twentyfive.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-roster161/twentyfour-control-1.jsonl",
+            "sha256": "cf103db5e1b9d1cf83c56226da7c4f4c4960a9e3b290c5926935ba6fd419742e",
+            "bytes": 1015,
+            "metadata": {
+              "task": "payoff161",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+                "map": "974124429b0f5097c4feb5bb02f7deddb34e19a5d7f203ed7e03fe0d4d1deef1"
+              },
+              "map": "Maps\\RS-CR161-twentyfour.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-roster161/twentyfive-control-1.jsonl",
+            "sha256": "e5906e61368fc0adcdd4a7af0fbcf785e843a9b6eaa726fc300d13934d6a6e99",
+            "bytes": 1013,
+            "metadata": {
+              "task": "payoff161",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_roster161_observer.js": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314",
+                "map": "f03ccf6a24451aaf0dfb49212b88de2b36d458d710c3dc860af948d0f9f4732b"
+              },
+              "map": "Maps\\RS-CR161-twentyfive.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -39742,7 +39948,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "973d85cf1bc1ff7b9d40e6f76c93eb29a76632ec6f149c41485d6863ab4f1a91"
+      "sha256": "e22b87042abec5483a3426931cf074074dbfb226790bd99e5cc08587ef83e43a"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -40598,7 +40804,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "523a34891cb73d79e3890e995332c7730ae98ec127e4b3107d43e251130776e4"
+      "sha256": "7047616cfda6cbcb11ec58ecb297c28485e2297906cb210d651ae3edb64f9a23"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -41042,7 +41248,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "d17d26931842db07c76f086d69be468ab5b07bb4f80d313dd220bbb2547e8737"
+      "sha256": "da9cbd81ad40c35832a5c114e6edd53d2faae489d6fd58d8a5903aedc4e045ea"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -41534,7 +41740,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e60f85507adf0b283c2bebef9b8335699645b492cffd43d3f8594e40d9f21b7e"
+      "sha256": "93a05ba80db981cf369ff6e533ba07e286613336df1f1dac7c7a39c76f59038d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -41550,7 +41756,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "93c8e1955153cae7b250258ea07f4991a4f6e5ab3f1395276fa6ac20f7f3ea99"
+      "sha256": "71006566c7a946bbe7eac985ddfe39ee366ca1579584439535c18d6144f34b3a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -41922,7 +42128,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "8a3ff65245ac4e3546ff574d8027ef66352ab33feb1de41c91579c093b8694ce"
+      "sha256": "aa78d85b905a2e5f52073669b916f1da0c7cd9145feb32f4fb8c1531d12c5db8"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -42027,6 +42233,30 @@
     {
       "path": "tests/test_wc3_pathfinding_captain_speed.py",
       "sha256": "ee59b4639b8d7bd2b5d72163d2dfe98a04b4c44d315a1f3755261fbf6b89c7e7"
+    },
+    {
+      "path": "tools/frida/research/captain_roster161_make_map.py",
+      "sha256": "32fa245257d1b2b197038980f0986b5c2393ccd1765c9f7b43870dea0b20950c"
+    },
+    {
+      "path": "tools/frida/research/captain_roster161_observer.js",
+      "sha256": "b5d09ffdcf4575deb125910879cae22213b9459cfc158611bc73a3a87c1cb314"
+    },
+    {
+      "path": "tools/ghidra/research/verify_captain_roster161_live.py",
+      "sha256": "867d4723a038270679022f655366f951a5333625f0f62f5925f97575bdd0c49c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-roster161-1.27.json",
+      "sha256": "5b2587b1176a214bee57d7e7d3341a488b80ada7b090b8ef621fd44eb3fe8857"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_roster.py",
+      "sha256": "7e38b9404039e694a342899438f145c3155522aa0e81ef122ef6471f2ce5268a"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-captain-storage.md",
+      "sha256": "c7b4cd07aa2481a7a011f83377ed42f6eb8fb15b810914b2f065f0bed673b8d6"
     }
   ]
 }

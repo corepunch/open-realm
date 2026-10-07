@@ -2365,6 +2365,7 @@ typedef struct {
     ARRAY(edict_t *, units);
     edict_t **units_storage; /* Allocation base; units points past unused prepend capacity. */
     uint32_t units_capacity;
+    uint32_t entered_members; /* Derived inner memberships; Move updates edges and rebuilds on load. */
     edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
     float request_range; /* Retained request; range-enter refresh may use200 without replacing it. */

@@ -9,7 +9,8 @@ extern void free_slk_rows(slkTestData_t *);
 
 static void CaptainPolicyWorld(void) {
     G_BotStop(0);reset_entities();setup_test_world();
-    level.time=0;level.pathing_phase=0;level.timer_clock_valid=false;
+    level.time=level.pathing_msec=level.pathing_phase=0;
+    level.pathing_due=level.pathing_owner_clock_valid=level.timer_clock_valid=false;
     static uint8_t cells[64*64];memset(cells,0,sizeof(cells));
     CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
     level.pathing_clock=(wc3Clock_t){0,0,300};
@@ -195,5 +196,72 @@ TEST(wc3_bot, captain_speed_ignores_removed_move_owner) {
     G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
     T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x4310c858u);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_large_roster_preserves_admission_batches_and_cold_save) {
+    uint32_t sizes[]={24,25};
+    FOR_LOOP(case_index,sizeof(sizes)/sizeof(*sizes)) {
+        uint32_t count=sizes[case_index];
+        CaptainPolicyWorld();
+        player_t *player=&game.clients[0].ps;
+        botCaptain_t *captain=level.bots[0].captains;
+        T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+        FOR_LOOP(i,count) unit_create(0,MAKEFOURCC('h','f','o','o'),
+            &(vec2_t){128+96*(i%8),128+96*(i/8)},0);
+        T_ASSERT(G_BotAddAssault(player,count,MAKEFOURCC('h','f','o','o')));
+        T_EQ(ARRAY_COUNT(captain->units),count);
+        bool admitted=true;
+        FOR_LOOP(i,count) {
+            edict_t *unit=captain->units[i];
+            T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+            T_EQ(unit->movement.captain_home.member_index,i);
+            if(unit->movement.captain_home.roster_actor!=captain->home_actor) admitted=false;
+        }
+        /* The old thirteen-member fallback loses registration. Stop the red
+         * run here instead of driving its inconsistent range-listener state. */
+        if(!admitted) goto done;
+        G_BotCaptainAttack(player,&(vec2_t){256,64});
+        /* Completed retail repeats: the twenty-fifth member takes the factor
+         * above one; there is no post-multiplier clamp back to the minimum. */
+        T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),count==24 ? 0x43870000u : 0x438877a6u);
+        cstring_t file="/tmp/wc3-captain-large161.bin";
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+        T_EQ(ARRAY_COUNT(captain->units),count);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        bool shared=false;
+        FOR_LOOP(frame,600) {
+            level.time+=5;globals.RunFrame();
+            shared=true;
+            FOR_LOOP(i,count) if(captain->units[i]->movement.captain_home.active) shared=false;
+            if(shared)break;
+        }
+        T_ASSERT(shared);
+        T_EQ(captain->entered_members,count);
+        uint64_t shared_id=0;
+        uint32_t batches=0,admitted_count=0;
+        FOR_EACH_ARRAY(moveGroup_t *,item,level.move_groups) {
+            moveGroup_t *group=*item;
+            if(!group->inuse || !group->shared_id || group->target)continue;
+            if(!shared_id)shared_id=group->shared_id;
+            T_EQ(group->shared_id,shared_id);
+            T_EQ(group->count,MIN(count-admitted_count,BZ_WC3_GROUP_ORDER_UNITS));
+            admitted_count+=group->count;batches++;
+        }
+        T_EQ(batches,(count+BZ_WC3_GROUP_ORDER_UNITS-1)/BZ_WC3_GROUP_ORDER_UNITS);
+        T_EQ(admitted_count,count);
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_EQ(captain->entered_members,count);
+        G_FreeEdict(captain->units[count/2]);
+        T_EQ(ARRAY_COUNT(captain->units),count-1);
+        T_EQ(captain->entered_members,count-1);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        G_BotCaptainAttack(player,&(vec2_t){1536,1024});
+        FOR_LOOP(i,count-1)T_EQ(captain->units[i]->movement.captain_home.roster_actor,captain->home_actor);
+done:
+        G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    }
 }
 #endif
