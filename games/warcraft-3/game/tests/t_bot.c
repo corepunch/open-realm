@@ -48,6 +48,97 @@ TEST(wc3_bot, public_owned_pool_recruitment_tracks_owner_insertion) {
     G_BotStop(0); reset_entities(); setup_test_world();
 }
 
+/* Native public computer/neutral controls: enrollment precedes script startup,
+ * genuine transfer clears/re-enrolls, same-owner retains, VM lifetime is separate. */
+TEST(wc3_bot, help_policy_follows_ai_enrollment_transfer_and_save) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){.25f,0,300};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];G_BotInitPlayers();
+    T_ASSERT(run_test_jass("globals\nunit victim\nunit helper\nunit source\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set victim=CreateUnit(Player(0),'hfoo',800,800,0)\n"
+        "set helper=CreateUnit(Player(1),'hfoo',1650,800,0)\n"
+        "set source=CreateUnit(Player(3),'hfoo',1800,1800,0)\nendfunction\n"));
+    edict_t *victim=NULL,*helper=NULL,*source=NULL;
+    FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','f','o','o')) {
+        if(unit->s.player==0)victim=unit;
+        if(unit->s.player==1)helper=unit;
+        if(unit->s.player==3)source=unit;
+    }
+    T_NOT_NULL(victim);T_NOT_NULL(helper);T_NOT_NULL(source);
+    if(!victim || !helper || !source)return;
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);T_ASSERT(!(helper->aiflags&AI_TOWN_OWNED));
+    float old=game.constants.callForHelp;game.constants.callForHelp=173;
+    victim->s.model=helper->s.model=1;victim->collision=helper->collision=31;
+    S_AttackProfileWrite(victim,0)->type=S_AttackProfileWrite(helper,0)->type=ATK_NORMAL;
+    G_PublishMoveSpatialObject(victim);G_PublishMoveSpatialObject(helper);
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_Damage(victim,source,0);
+    T_ASSERT(helper->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(.75f));
+    uint32_t serial=victim->combat_help.sequence;
+    T_ASSERT(G_BotStart(&game.clients[0].ps,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);G_BotStop(0);
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);
+    G_SetUnitPlayer(victim,2);T_ASSERT(!(victim->aiflags&AI_TOWN_OWNED));
+    T_EQ(victim->combat_help.sequence,serial);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(.75f));
+    G_SetUnitPlayer(victim,2);T_ASSERT(!(victim->aiflags&AI_TOWN_OWNED));
+    G_SetUnitPlayer(victim,0);T_ASSERT(victim->aiflags&AI_TOWN_OWNED);
+    cstring_t file="/tmp/wc3-help-ai153.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(victim->aiflags&AI_TOWN_OWNED);T_EQ(level.ai_owned_players,(1u<<0)|(1u<<PLAYER_NEUTRAL_AGGRESSIVE));
+    T_EQ(victim->combat_help.sequence,serial);
+    game.constants.callForHelp=old;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+/* Town membership belongs to CUnit, not every widget with a default data row. */
+TEST(wc3_bot, ai_enrollment_preserves_preplaced_identity_and_excludes_nonunits) {
+    reset_entities();setup_test_world();
+    edict_t *unit=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){0,0},0);
+    edict_t *ward=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){128,0},0);
+    edict_t *dead=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256,0},0);
+    ward->targtype=TARG_WARD;dead->health.value=0;
+    edict_t *widget=G_Spawn();widget->class_id=MAKEFOURCC('L','T','l','t');
+    G_BindEntityData(widget);widget->health.value=100;
+    game.clients[0].jass.controller=1;
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=&level.mapinfo->players[0];
+    uint32_t sequence=unit->own_seq;
+    G_BotInitPlayers();
+    T_ASSERT(unit->aiflags&AI_TOWN_OWNED);T_EQ(unit->own_seq,sequence);
+    T_ASSERT(!(ward->aiflags&AI_TOWN_OWNED));T_ASSERT(!(dead->aiflags&AI_TOWN_OWNED));
+    T_ASSERT(!(widget->aiflags&AI_TOWN_OWNED));
+    G_BotUnitOwnerChanged(widget);T_ASSERT(!(widget->aiflags&AI_TOWN_OWNED));
+    game.clients[0].jass.removed=true;
+    game.clients[1].jass.controller=1;game.clients[1].mapplayer=&level.mapinfo->players[1];
+    G_BotInitPlayers();T_EQ(level.ai_owned_players,1u<<PLAYER_NEUTRAL_AGGRESSIVE);
+    cstring_t file="/tmp/wc3-help-ai153-invalid.bin";
+    level.ai_owned_players|=1u<<PLAYER_NEUTRAL_PASSIVE;
+    T_ASSERT(!WriteGame(file));remove(file);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, neutral_help_policy_distinguishes_aggressive_and_passive) {
+    reset_entities();setup_test_world();G_BotInitPlayers();level.timer_clock_valid=false;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){.25f,0,300};
+    edict_t *aggressive=unit_create(PLAYER_NEUTRAL_AGGRESSIVE,MAKEFOURCC('h','f','o','o'),&(vec2_t){800,800},0);
+    edict_t *passive=unit_create(PLAYER_NEUTRAL_PASSIVE,MAKEFOURCC('h','f','o','o'),&(vec2_t){800,1200},0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,1800);G_SetUnitPlayer(source,3);
+    T_ASSERT(aggressive->aiflags&AI_TOWN_OWNED);T_ASSERT(!(passive->aiflags&AI_TOWN_OWNED));
+    T_Damage(aggressive,source,0);T_Damage(passive,source,0);
+    T_EQ(wc3_float_bits(aggressive->combat_help.deadline.time),wc3_float_bits(.75f));
+    T_EQ(wc3_float_bits(passive->combat_help.deadline.time),wc3_float_bits(3.25f));
+    G_SetUnitPlayer(aggressive,PLAYER_NEUTRAL_PASSIVE);T_ASSERT(!(aggressive->aiflags&AI_TOWN_OWNED));
+    G_SetUnitPlayer(passive,PLAYER_NEUTRAL_AGGRESSIVE);T_ASSERT(passive->aiflags&AI_TOWN_OWNED);
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     int32_t values[] = {12, -3, 7};
     char text[64], small[8];

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "137 executable original oracle contracts;377 total entries.",
+  "scope": "137 executable original oracle contracts;378 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -37360,6 +37360,156 @@
       "exclusions": [
         "Not complete engine trajectories, all native guards or AI enrollment/propagation parity. Unit-map lookup counts outside help depend on wall time and are excluded. Control has no observer; unused recorded observer hash may differ, while map/producers match."
       ]
+    },
+    {
+      "id": "live-attack-help-ai-enrollment",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_attack_help_live.py",
+        "--first",
+        "{archive}/runtime/attack-help153/v2-observe-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/attack-help153/v2-observe-2.jsonl",
+        "--control",
+        "{archive}/runtime/attack-help153/v2-control-1.jsonl",
+        "--preload",
+        "{archive}/runtime/attack-help153/v2-control-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-help-ai-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/attack-help153/v2-observe-1.jsonl",
+        "sha256": "6d0ddd6b396ad6c74e0179f99e5aa3c22e15fd693527a5882b90347d58c437f0",
+        "bytes": 233698,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "attack_help153_observer.js": "289cea6bfd8da96b0cd1d24ef227a8272cb562392ee24e8b3b496061f597272e",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "89592c312840eebd68ded27bc44a693cddc6016e6ebdd8dffa70ac00384f27e0"
+          },
+          "map": "Maps\\RS-AttackHelp153-v2.w3m",
+          "seconds": 150.0,
+          "continue_at": 10.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "AH153 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/attack-help153/v2-observe-2.jsonl",
+            "sha256": "93539540113b6a0881a32f7a2c6275256107bc743fe8855470a7f1b69851c6df",
+            "bytes": 233697,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_help153_observer.js": "289cea6bfd8da96b0cd1d24ef227a8272cb562392ee24e8b3b496061f597272e",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "89592c312840eebd68ded27bc44a693cddc6016e6ebdd8dffa70ac00384f27e0"
+              },
+              "map": "Maps\\RS-AttackHelp153-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 10.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AH153 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/attack-help153/v2-control-1.jsonl",
+            "sha256": "0fb1c5ca41edf464d70a9bc1d2e18eae51dbb4af7069bed431c37ef253e375f9",
+            "bytes": 1418,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_help153_observer.js": "289cea6bfd8da96b0cd1d24ef227a8272cb562392ee24e8b3b496061f597272e",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "89592c312840eebd68ded27bc44a693cddc6016e6ebdd8dffa70ac00384f27e0"
+              },
+              "map": "Maps\\RS-AttackHelp153-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 10.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AH153 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-attack-help-ai-enrollment.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "mode": {
+          "equal": "ai-policy"
+        },
+        "markers": {
+          "equal": 377
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "counts": {
+          "equal": {
+            "help": 48,
+            "help-radius": 18,
+            "help-arm": 18,
+            "candidate": 30,
+            "ally": 57
+          }
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete captured configured computer0 creation, script-start, genuine/same-owner transfer and neutral12/15 help policy lifecycles; full semantic repeat and observer-free public marker control. Engine creation/transfer/neutral/save regressions consume the membership policy.",
+      "exclusions": [
+        "Not all AI record lifetimes, per-ability AI-mode callbacks, propagation90/94 or Town/captain reactions. Not all lobby/controller mutations or complete engine trajectories. Generic capture wrapper records an unused builder; actual153 map producer/assets are independently pinned in the Ghidra evidence fixture."
+      ]
     }
   ],
   "fixtures": [
@@ -37425,7 +37575,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b6a7105ccf00a8fe5400790ce7f09a61843abc50780c1eca9b5e709670ac6086"
+      "sha256": "f919baf265b686efcaeedb4662f8e0bba2672336baf8088c5f37532dfc4eabd3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -38258,7 +38408,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "ae50515c5f8758280be26e631b0cd6eaf21a9358d7340cf593a79116c60135b2"
+      "sha256": "19923eaf66b632606af06d706ad80ccc606f83a98aacaf55fb0ba64bca11c696"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -39550,7 +39700,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "d472512ffc482d5270061691bbdec3d102419a2a04b2ef608a032379025fbe33"
+      "sha256": "0d966bac917bab0a6f10869bc8539ee60a699fb77c7efde1d0cd0ace5c0a8dc2"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -39558,7 +39708,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "57665a90f6b50f0ff7fc510d1cc0cdac6aafc585c6c8a9922ddf2ed9699f635a"
+      "sha256": "2ee53462453d2ae66db975d2867ad45f4eee67526eff06c68c27c3e5a55b9699"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -40050,23 +40200,23 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "56ccb45a54c5618e64b8552fda0218fb243eed515ced297a9c0ca6f25e7318c1"
+      "sha256": "df25f23946487d6de318ae16a5e2794ed20658bcf8be51d2390ae1c78e7e445a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
-      "sha256": "3e2c8b3635b5710bb08acc4fbec52a71f1cd8b5fe0460e1eca2dc6142fa3336d"
+      "sha256": "d229d483560b6db493d637056b8951f03924d522b1720a055ee987d0ce7f0ec2"
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "f725fd81b4f7421d8e505f19ef4c06e42248b9ad296294ffdcaea839a8af78cc"
+      "sha256": "c9aad7a3621131eb2aaefa394e40e6e6c036266872ef1515b21784f04af1f0ca"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "448c49205e3ccfff8232506bdc1c691bc33b3bc9bdb4fd405daa39da0ce714b7"
+      "sha256": "d16cd538733dc87bb33607a17e12c37a0b6186ab70481f0b3dcf0e970bd517dd"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "97522323b8a29644d3969fbc4f17b45cf5d6a9cac697da5b587de689b74f4cf8"
+      "sha256": "d175d096028362f71fdb8622e166a5ed321e3c873b25f2b9310fbf13a4c2fadc"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -40074,7 +40224,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "e94c345796ee9ead944606c0c3db7ac817228d7a6eb8fe59177e66235503205b"
+      "sha256": "20105f183ba88b1b882ef06b526fd8ca307de426e7e4e63f42a12a50fc2fea18"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -40134,7 +40284,7 @@
     },
     {
       "path": "tools/ghidra/research/verify_attack_help_live.py",
-      "sha256": "4109a312dede93c7e7fe45b80af87677967427696acfb7ee0e44534dd2426ece"
+      "sha256": "5ca5d6461961f6e4f9ba7fc44940006dfd8cd963766980cf6e93fd6e9fd42a7f"
     },
     {
       "path": "tools/frida/research/attack_alert152_probe.j",
@@ -40158,7 +40308,7 @@
     },
     {
       "path": "tools/frida/research/attack_help152_make_map.py",
-      "sha256": "373d4129d6b8e0ff9810265420a08291ce5ad4ecf20db4920761cc1cff9ba2ea"
+      "sha256": "b9929d2734c3e0360ff658c8910c76a5c2978face730b944a93a7268b8023670"
     },
     {
       "path": "tools/ghidra/fixtures/retail-attack-help-policy-1.27.json.gz",
@@ -40182,7 +40332,47 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_attack_help.py",
-      "sha256": "f30689138b345575e05c962088131914a86f5b82668f47cee201b016c7e6c9d8"
+      "sha256": "3e2f0d1041cda3874918ea2cf938c21c10899e89cd13d45df666d5e1818f9a3b"
+    },
+    {
+      "path": "games/warcraft-3/game/g_bot.c",
+      "sha256": "d59f2c9f00aea6a129d20f2060201ca738cb089697a2decbcabc3379535f017e"
+    },
+    {
+      "path": "games/warcraft-3/game/g_food.c",
+      "sha256": "df47229e7a4b1a43b9e3a9b7e48b4ca867b6c52b78f725c8152600c71239c47b"
+    },
+    {
+      "path": "games/warcraft-3/game/g_spawn.c",
+      "sha256": "056d8acd2ecb730c4520c856ba75bf5246ef895a0a96be1956782ffa4c2ce8aa"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_bot.c",
+      "sha256": "6cec1e98914d502aa56ed9693bdb1d17386d0487146dcd828d8d3599879fe67f"
+    },
+    {
+      "path": "tools/frida/research/attack_help153_probe.j",
+      "sha256": "a74373913b4b6767eadda0fb87b9513bbbedc12376f339ec4e3c5a61e3f6af3e"
+    },
+    {
+      "path": "tools/frida/research/attack_help153_probe.ai",
+      "sha256": "77cd4a8bd23163272e33dd3d6a55f620c8437c3130bae1de2b088f8f101cba9d"
+    },
+    {
+      "path": "tools/frida/research/attack_help153_observer.js",
+      "sha256": "289cea6bfd8da96b0cd1d24ef227a8272cb562392ee24e8b3b496061f597272e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-ai-1.27.json.gz",
+      "sha256": "c30bca8843dda51335217229ce7bcc3ad938c7eff78772aa4d1e128e3e1de560"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-ai-captures-1.27.json.gz",
+      "sha256": "ad15d1f603ae47a1dc59882169cb8e6e0bed3ac4d6372168433b030c029991f9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-ai-ghidra-1.27.json",
+      "sha256": "a1fde2b1a6c577cb118bdcbdcdec2986bfed6be2c28bec690feafb608257e9cc"
     }
   ]
 }

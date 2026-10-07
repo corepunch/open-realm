@@ -4,7 +4,8 @@
 Ignore only address allocation, recorder sequence, wall-time controls and unit-map
 lookup counts outside the help chain. Preserve all help/candidate/gate/notification,
 cap deadline and public marker data. Pose mode also preserves canonical fine words.
-This verifies retail evidence, not complete engine trajectories or AI enrollment.
+This verifies retail evidence, not complete engine trajectories. AI-policy mode
+checks the captured enrollment/transfer lifecycle; it does not certify every AI producer.
 """
 import argparse,gzip,hashlib,json,re
 from pathlib import Path
@@ -58,7 +59,7 @@ def verify(first,repeat,control,preload):
     if 'label=complete' not in markers[-1]:raise ValueError('missing final marker')
     stream=normalize(a)
     if stream!=normalize(b):raise ValueError('retail semantic repeat differs')
-    mode='help' if prefix=='AH152 ' else 'permissions' if prefix=='AA152 ' else None
+    mode='ai-policy' if prefix=='AH153 ' else 'help' if prefix=='AH152 ' else 'permissions' if prefix=='AA152 ' else None
     if mode is None:raise ValueError('unknown experiment')
     counts={kind:sum(r['event']==kind for r in a) for kind in ('help','help-radius','help-arm','candidate','ally')}
     if mode=='permissions':
@@ -67,6 +68,26 @@ def verify(first,repeat,control,preload):
         ally=next(r for r in a if r['event']=='ally')
         if ally['tick']!=160 or ally['helper']['owner']!=1 or not ally['after']['active']:
             raise ValueError('wrong directional admission')
+    elif mode=='ai-policy':
+        radii=[(r['tick'],r['victim']['owner'],r['radius']) for r in a if r['event']=='help-radius']
+        expected=[(t,0,1147207680) for t in (10,16,39,50,56,79,90,96,119)]+[(130,2,1127022592),(170,2,1127022592)]+[(t,0,1147207680) for t in (210,216,239)]+[(t,12,1130692608) for t in (250,256,279)]+[(290,15,1130692608)]
+        arms=[(r['tick'],r['victim']['owner'],r['delay']) for r in a if r['event']=='help-arm']
+        if radii!=expected or arms!=[(t,o,1077936128 if o in (2,15) else 1056964608) for t,o,_ in expected]:
+            raise ValueError('AI radius/cooldown lifecycle')
+        if counts!={'help':48,'help-radius':18,'help-arm':18,'candidate':30,'ally':57} or len(markers)!=377:
+            raise ValueError('AI help coverage')
+        enroll=[(r['tick'],r['before']['owner'],bool(r['before']['status']&4),bool(r['after']['status']&4)) for r in a if r['event']=='enroll']
+        if enroll!=[(1,0,False,True),(80,0,False,True),(120,2,False,False),(200,0,False,True),(240,12,False,True),(280,15,False,False)]:
+            raise ValueError('Town AI enrollment')
+        owners=[(r['tick'],r['before']['owner'],r['after']['owner'],bool(r['after']['status']&4)) for r in a if r['event']=='owner']
+        if owners!=[(120,0,2,False),(160,2,2,False),(200,2,0,True)]:raise ValueError('Town AI owner transition')
+        for r in a:
+            if r['event']=='help-radius' and (r['normalDelay']!=1077936128 or r['aiRadius']!=1147207680):raise ValueError('native AI constants')
+            if r['event'] in ('help-radius','candidate'):
+                actor=r['victim'] if r['event']=='help-radius' else r['helper']
+                if actor['fine'] is None:raise ValueError('missing canonical AI pose')
+        if not any(r['event']=='ally' and r['helper']['address']==r['victim']['address'] and r['tick']==11 for r in a):
+            raise ValueError('missing AI self notification while suppressed')
     else:
         expected=[(10,0,1127022592),(41,0,1127022592),(60,12,1130692608),
                   (89,12,1130692608),(110,0,1127022592),(141,0,1127022592)]

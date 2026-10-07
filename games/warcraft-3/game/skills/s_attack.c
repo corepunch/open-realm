@@ -40,6 +40,11 @@ static umove_t attack_move_ranged_cooldown;
 
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
+/* Native startup001d70 /001c80 and Math_RoundHalf; these are not map tuning. */
+#define ATTACK_AI_HELP_RADIUS 900.0f
+#define ATTACK_HELP_SUPPRESSION 3.0f
+#define ATTACK_AI_HELP_SUPPRESSION 0.5f
+
 enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_COUNT };
 static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
 static uint32_t attack_cap_count;
@@ -163,8 +168,11 @@ static void attack_call_for_help(edict_t *victim,edict_t *source) {
     box2_t bounds=CM_GetWorldBounds();
     vec2_t center={wc3_grid_coordinate(victim->s.origin2.x,bounds.min.x,32),
         wc3_grid_coordinate(victim->s.origin2.y,bounds.min.y,32)};
-    float radius=wc3_div(victim->s.player>=PLAYER_NEUTRAL_AGGRESSIVE ? game.constants.creepCallForHelp : game.constants.callForHelp,32);
-    S_QueryMoveProximityContext(victim,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    /* Native688060: neutral radius wins over Town AI's initialized900. */
+    float world_radius=victim->s.player>=PLAYER_NEUTRAL_AGGRESSIVE ? game.constants.creepCallForHelp :
+        victim->aiflags&AI_TOWN_OWNED ? ATTACK_AI_HELP_RADIUS : game.constants.callForHelp;
+    float radius=wc3_div(world_radius,32);
+    S_QueryMoveProximityContext(victim->aiflags&AI_TOWN_OWNED ? NULL : victim,(float[]){center.x,center.y},radius,attack_help_collect,query);
     FOR_LOOP(i,query->count) {
         if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim) ||
             !source->inuse || source->spawn_time!=source_birth || G_IsDeferredFree(source))break;
@@ -180,13 +188,14 @@ static void attack_call_for_help(edict_t *victim,edict_t *source) {
         S_UnitAllyCombatAlert(unit,victim,source);
     }
     query->next=attack_help_queries;attack_help_queries=query;
-    /* Native66e700 arms suppression after all recipient callbacks, even if
+    /* Native66e700 arms the selected suppression after all recipient callbacks, even if
      * the victim has no Attack ability or the damage amount is zero. */
     if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim))return;
     attack_cap_remove(victim,ATTACK_TIMER_HELP);
     victim->combat_help=(abilityPrimaryTimer_t){.deadline=G_TimerQueryClock(NULL),
         .sequence=++level.timer_sequence,.active=true};
-    victim->combat_help.deadline.time=wc3_add(victim->combat_help.deadline.time,3);
+    victim->combat_help.deadline.time=wc3_add(victim->combat_help.deadline.time,
+        victim->aiflags&AI_TOWN_OWNED ? ATTACK_AI_HELP_SUPPRESSION : ATTACK_HELP_SUPPRESSION);
     attack_cap_insert(victim,ATTACK_TIMER_HELP);
 }
 
@@ -512,6 +521,9 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
                     (G_IsDestructable(target) && G_DestructableCanBeAttackedBy(attacker, target))) &&
                    G_PlayerInstantKill(attacker->s.player);
     if (!G_IsDestructable(target)) {
+        /* Native69b380 notifies AI self before the ordinary packet observers;
+         * this runs even while the source's help query is suppressed. */
+        if(target->aiflags&AI_TOWN_OWNED && attacker)S_UnitAllyCombatAlert(target,target,attacker);
         S_UnitCombatAlert(target,attacker,0);
         attack_call_for_help(target,attacker);
     }

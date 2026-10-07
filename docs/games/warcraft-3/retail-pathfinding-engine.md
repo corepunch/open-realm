@@ -11474,3 +11474,73 @@ last candidate-mask/generation checks pass14 targeted Classic/TFT executions.
 Ghidra saves16 function annotations, the corrected guard
 comment and both native constant initializers; `MapPathfinding.java` mirrors the
 new evidence. GROUP-03.2 stays open; no extra TODOs were created.
+
+
+## Town AI enrollment selects the help policy (Payoff153)
+
+The help policy belongs to retained Town AI membership, independently of the
+private AI script VM. Original `1e9a40` creates Town AI for computer players whose
+slot state is playing, and always for Neutral Aggressive. `26b0d0` retains its
+canonical identity in player `2d4/2d8`. Eligible units join through `9b9230`, which
+sets unit `5c.4`; targeted-as wards and dead units are excluded. Engine setup
+publishes configured membership before map `main`, and public creation consumes
+it without scanning the player roster. The one initialization pass also admits
+preplaced units without changing their owned sequence. Non-unit widgets are
+excluded even though their immutable data-row pointers are non-null.
+
+`698ce0` performs a genuine owner transfer after the owner event: disable ability
+AI mode, clear the membership bit and enroll with the new owner. Same-owner calls
+do not perform those transitions. Starting or stopping an AI script does not
+change the retained membership policy. Engine `AI_TOWN_OWNED` is distinct from
+`ai_vm_initialized`; Save129 retains the availability mask and unit flags. An
+already armed suppression request keeps its deadline and serial across transfer
+and restoration. The saved availability mask rejects unsupported player bits;
+Save128 and older layouts are rejected without migration.
+
+Attack now selects initialized900 radius for an enrolled non-neutral victim,
+otherwise authored CallForHelp. Neutral owners first select authored
+CreepCallForHelp, regardless of membership. Suppression is0.5 seconds for enrolled
+victims and3 seconds otherwise. AI damage delivers the self ally-alert before
+the ordinary damage notification even during help suppression; an admitted AI
+help query can additionally include the victim among its ordered recipients.
+The existing indexed timer heap and spatial collector remain the owners of
+these operations; no per-hit roster scan or per-unit timer allocation was added.
+
+The new public retail scene contains eight creation/script/transfer/neutral
+stages and48 zero-damage hits. Two complete read-only Frida repeats preserve
+377 public markers,18 radius/arm pairs,30 candidates,57 ally notifications,
+six enrollments and three owner calls. Their full normalized help streams match;
+an observer-free control reproduces all public markers. With authored radii
+173/229, computer0 uses900/0.5 before and after script startup, transfer to2
+uses173/3, and transfer back restores900/0.5. Neutral12 uses229/0.5 while15
+uses229/3. Genuine transfer during suppression retains the existing deadline.
+A negative map control whose player0 remains neutral does not gain membership
+merely by starting a script; that single capture is retained as supporting
+negative evidence, not counted as a repeated acceptance witness.
+
+Engine regressions were added first: the computer enrollment/transfer/save
+case failed8 assertions and the neutral case failed3 before the port. A further
+preplaced-unit/scenery boundary regression failed2 assertions before the unit
+classification gate was corrected. All three now pass. The Classic/TFT bot,
+movement, combat, save, map-script and Chaos suites pass1,818 test executions
+with10,491,566 assertions. Production and test modules build. The22 help/exemption
+Python checks pass; including inventory/metadata checks,52 Python tests pass.
+Four fresh strict contracts (the original192-case ally oracle and three complete
+retail repeat/control verifiers) pass. These are
+focused checks under the requested12-commit full-suite cadence, not a full
+repository validation claim.
+
+Ghidra saves nine annotated functions plus membership, AI-record and player
+factory fields. `MapPathfinding.java` and the type schema preserve the same
+annotations; the readback fixture includes original assembly and producer/map
+hashes. The lossless capture fixture supplies repeat/control verifier regressions.
+The capture wrapper records its unused generic map-builder hash; the actual
+153 builder, probe, AI asset and changed map members are independently pinned.
+
+GROUP-03.2 remains open. The captured enrollment flag and AI record are distinct
+native state; the wider AI-record lifecycle, per-ability AI-mode callbacks,
+revive/temporary-captain and special re-enrollment producers, propagated `90/94`
+counters, Town/captain reactions, engagement guards and remaining exemption
+producers are not certified by these controls. Native player slot-state checks
+are instruction-backed; the public scene covers configured computer0 and
+neutral2/12/15, not all lobby or runtime controller mutations.

@@ -144,3 +144,22 @@ Correction:4935e0 reads guard bits from unit+5c. Payoff151's old oracle wrote+20
 the corrected72-state fixture changes four accepted outcomes. Its timer and
 group-consumer fixtures are unchanged. See the
 [full engine evidence](retail-pathfinding-engine.md#ordered-ally-help-reaches-moving-peers-payoff152).
+
+
+## Town AI membership and help timing (Payoff153)
+
+Configured playing computer slots and Neutral Aggressive retain Town AI
+membership independently of the script VM. Creation and genuine owner transfer
+publish that saved flag; same-owner calls and script startup retain it. Attack
+uses900 radius for enrolled non-neutral victims, authored creep radius for
+neutral owners, and0.5 versus3-second source suppression according to membership.
+AI self alerts precede ordinary damage notifications and still run during help
+suppression. Save129 retains configured availability, instance enrollment and
+armed request words. A one-time preplaced-unit pass preserves owned sequence;
+non-unit scenery, wards and dead units are excluded.
+
+Three failing-first engine regressions now pass alongside both focused mode
+suites. Two complete retail repeats and an observer-free control retain377
+markers and exact enrollment/transfer/radius/delay decisions. Ghidra function
+annotations and player/unit fields are saved and mirrored in the mapper/schema.
+See the [engine evidence and remaining scope](retail-pathfinding-engine.md#town-ai-enrollment-selects-the-help-policy-payoff153).

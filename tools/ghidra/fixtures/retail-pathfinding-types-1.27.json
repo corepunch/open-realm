@@ -740,7 +740,7 @@
     },
     {
       "name": "WC3UnitOrdersPrefix",
-      "length": 512,
+      "length": 780,
       "fields": [
         {
           "offset": 0,
@@ -782,7 +782,7 @@
           "offset": 92,
           "name": "order_admission_flags",
           "type": "u32",
-          "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head.\n206610 bit21 reports scripted pause;697770/6977c0 set/clear200000"
+          "evidence": "693490 TEST Unit5c bit100 rejects append; remaining bits undefined. Actual idle Shift starts through empty internal head.\n206610 bit21 reports scripted pause;697770/6977c0 set/clear200000\nPayoff153: bit4 records successful Town AI enrollment9b9230, cleared on genuine owner change6991b0. It selects help radius900 for non-neutral owners and suppression0.5; separate from AI record304/308."
         },
         {
           "offset": 96,
@@ -843,6 +843,12 @@
           "name": "movement_type",
           "type": "u32",
           "evidence": "670b06 writes the replacement movement enum;670ddb CMP [EBX+1fc],2/SETZ gates0594a0 adaptive enablement. New-unit68a060 sets policy before movement class; rebind distinguishes fly enum2."
+        },
+        {
+          "offset": 772,
+          "name": "ai_record",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff153:687020 returns NULL for304/308 all-ones, otherwise resolves canonical payload;66e9e0 uses this pointer for victim-self handling. Live153 observer reads both identity words."
         }
       ]
     },
@@ -1616,7 +1622,7 @@
     },
     {
       "name": "WC3PlayerRacePrefix",
-      "length": 612,
+      "length": 732,
       "fields": [
         {
           "offset": 604,
@@ -1629,6 +1635,30 @@
           "name": "resolved_race",
           "type": "u32",
           "evidence": "1e9dd0 reset/random/table assignment; two live scene48 owner draw chains."
+        },
+        {
+          "offset": 616,
+          "name": "controller",
+          "type": "u32",
+          "evidence": "Payoff153:1e9a4e checks1 (computer) before configured Town creation."
+        },
+        {
+          "offset": 620,
+          "name": "difficulty",
+          "type": "u32",
+          "evidence": "Payoff153:1e9a60 passes configured difficulty to26b0d0 stack4."
+        },
+        {
+          "offset": 624,
+          "name": "slot_state",
+          "type": "u32",
+          "evidence": "Payoff153:1e9a57 checks1 (playing); controller and slot state are independent gates."
+        },
+        {
+          "offset": 724,
+          "name": "town_ai",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff153:26b0d0 retains resolved Town identity or all-ones;9b9230 resolves it for unit membership independent of script startup."
         }
       ]
     },

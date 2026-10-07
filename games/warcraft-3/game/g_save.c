@@ -81,8 +81,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format128 adds the independent unit combat-help suppression request. */
-static uint32_t const save_version = 128;
+/* Format129 retains configured Town AI availability and unit enrollment. */
+static uint32_t const save_version = 129;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -565,6 +565,7 @@ static field_t const level_fields[] = {
     F(level_locals, started, F_INT),
     F(level_locals, scriptsConfigured, F_INT),
     F(level_locals, scriptsStarted, F_INT),
+    F(level_locals, ai_owned_players, F_INT),
     F(level_locals, ai_vm_initialized, F_INT),
     F(level_locals, pending_consumed_item_cleanup, F_INT),
     F(level_locals, waypoints.base, F_INT),
@@ -2873,6 +2874,7 @@ bool WriteGame(cstring_t filename) {
     }
     bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
+    if (level.ai_owned_players >> (PLAYER_NEUTRAL_AGGRESSIVE+1)) { fprintf(stderr,"WC3 SaveGame: invalid Town AI players\n"); goto done; }
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 SaveGame: invalid AI initialization players\n"); goto done; }
     FILTER_EDICTS(unit,unit->inuse && unit->order_queue.count) {
         if (!unit->order_queue.entries) {
@@ -3007,6 +3009,7 @@ bool ReadGame(cstring_t filename) {
     }
     ClearRuntimeFields(&level, level_fields, FIELD_RUNTIME);
     G_ResetMoveRegionEvents();
+    if (level.ai_owned_players >> (PLAYER_NEUTRAL_AGGRESSIVE+1)) { fprintf(stderr,"WC3 LoadGame: invalid Town AI players\n"); fclose(f); return false; }
     if (level.ai_vm_initialized >> MAX_PLAYERS) { fprintf(stderr,"WC3 LoadGame: invalid AI initialization players\n"); fclose(f); return false; }
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
         fprintf(stderr, "WC3 LoadGame: saved event registry dropped live non-region slot %u\n", (unsigned)i);
@@ -3817,8 +3820,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-125.bin",
         "/tmp/openwarcraft3-wc3-save-version-126.bin",
         "/tmp/openwarcraft3-wc3-save-version-127.bin",
+        "/tmp/openwarcraft3-wc3-save-version-128.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128 };
 
     reset_entities();
     setup_test_world();

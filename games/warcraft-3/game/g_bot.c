@@ -2038,7 +2038,37 @@ void G_BotHeroLevelUp(edict_t *hero) {
     G_BotHeroChooseSkill(bot, hero);
 }
 
+/* Native9b9230 skips dead units and targeted-as wards, then enrolls through
+ * the player's retained Town AI object. No script VM or Hero test is involved. */
+static void G_BotAdmitUnit(edict_t *unit) {
+    if(!unit || !unit->inuse || !(unit->svflags & SVF_MONSTER) || M_IsDead(unit) ||
+       unit->targtype==TARG_WARD || unit->s.player>=MAX_PLAYERS)return;
+    if(level.ai_owned_players&(1u<<unit->s.player))unit->aiflags|=AI_TOWN_OWNED;
+}
+
+/* Native1e9a40 creates Town AI for playing computer slots and always for
+ * Neutral Aggressive. Retain availability separately from the private VM. */
+void G_BotInitPlayers(void) {
+    level.ai_owned_players=1u<<PLAYER_NEUTRAL_AGGRESSIVE;
+    FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
+        gameClient_t const *client=G_GetPlayerClientByNumber(i);
+        if(client && client->jass.controller==1 && !client->jass.removed &&
+           client->mapplayer && client->mapplayer->used)level.ai_owned_players|=1u<<i;
+    }
+    /* OpenRealm loads preplaced units before config. Publish the configured
+     * membership before main can observe those units; no owned sequence changes. */
+    FILTER_EDICTS(unit,unit->inuse)G_BotAdmitUnit(unit);
+}
+
+void G_BotUnitOwnerChanged(edict_t *unit) {
+    /* Native698ce0 clears bit4 after the owner event, then9b9230 reenrolls.
+     * An already armed help request retains its original deadline. */
+    unit->aiflags&=~AI_TOWN_OWNED;
+    G_BotAdmitUnit(unit);
+}
+
 void G_BotUnitReady(edict_t *unit) {
+    G_BotAdmitUnit(unit);
     bot_t *bot = unit && unit->s.player < MAX_PLAYERS ? G_BotState(unit->s.player) : NULL;
     G_BotApplyRepairToUnit(bot, unit);
     if (G_UnitIsHero(unit)) G_BotHeroChooseSkill(bot, unit);

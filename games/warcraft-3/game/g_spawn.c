@@ -1005,6 +1005,7 @@ void G_SpawnEntities(void) {
         if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
     }
 
+    G_BotInitPlayers();
     UI_Init();
     CM_BakeStaticObstacles();
     /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */

@@ -301,6 +301,7 @@ enum {
     AI_CORPSE_IN_CARGO = 1 << 10, /* corpse lifecycle; stored in a Meat Wagon cargo slot */
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
+    AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
 };
 
 typedef enum {
@@ -2510,6 +2511,7 @@ struct level_locals {
     gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
+    uint32_t ai_owned_players; /* Configured Town AI objects; independent of script startup. */
     uint32_t ai_vm_initialized; /* Player bits: retail AI+248 gates initial VM creation. */
     mapInfo_t const *mapinfo;
     PATHSTR map_path;
@@ -2745,6 +2747,8 @@ void G_BotAddGuardPost(player_t *, uint32_t, float, float);
 void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
+void G_BotInitPlayers(void);
+void G_BotUnitOwnerChanged(edict_t *);
 void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
 uint32_t G_BotCommandsWaiting(player_t *);

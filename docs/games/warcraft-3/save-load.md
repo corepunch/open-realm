@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 121, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 129, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1388,3 +1388,10 @@ indexed heap holds both cap and help requests and rebuilds its derived indexes
 on load. A zero-damage broadcast regression verifies saved suppression, expiry,
 re-admission and removal. Version127 and earlier are rejected without migration.
 See [ordered ally help](retail-pathfinding-engine.md#ordered-ally-help-reaches-moving-peers-payoff152).
+
+
+Version129 retains configured Town AI availability independently of AI script
+initialization. Unit enrollment uses the saved aiflags contract. Creation and
+owner-transfer regressions round-trip an armed help request without rebasing its
+deadline or serial, and invalid availability bits are rejected. Version128 and
+earlier layouts are rejected without migration. See [AI help policy](retail-pathfinding-engine.md#town-ai-enrollment-selects-the-help-policy-payoff153).

@@ -7,7 +7,7 @@ map with war3map.j produced by the same builder's instrument() from the base cam
 research probe (default group032_probe.j). Optional --wpm-blocked replaces war3map.wpm through the
 builder's own passage_map_member() with the given blocked base cells (2x2 fine cells each).
 """
-import argparse, hashlib, importlib.util, json, subprocess, sys, tempfile
+import argparse, hashlib, importlib.util, json, re, subprocess, sys, tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -31,6 +31,8 @@ def main():
     ap.add_argument('--wpm-blocked', default=None, help='JSON list of [x,y] blocked base cells (32-world-unit)')
     ap.add_argument('--task', default='GROUP-03.2')
     ap.add_argument('--misc', type=Path, required=True)
+    ap.add_argument('--computer-player', action='append', type=int, default=[], help='Set a player controller in config before map startup')
+    ap.add_argument('--asset', action='append', default=[], help='SOURCE=ARCHIVE_PATH extra immutable map asset')
     ap.add_argument('--replace', action='append', default=[], help='KEY=VALUE probe placeholder (@KEY@) replacement')
     ap.add_argument('--output', type=Path, required=True)
     args = ap.parse_args()
@@ -51,21 +53,27 @@ def main():
         stage_meta = json.loads(stage.with_suffix('.json').read_text())
         members = [m for m in subprocess.check_output([tool, '-mpq', str(stage), 'ls']).decode().splitlines() if m != '(listfile)']
         source = subprocess.check_output([tool, '-mpq', str(args.base), 'cat', 'war3map.j']).decode('utf-8').replace('\r\n', '\n')
-        script = mod.instrument(source, probe, args.scenario).encode('utf-8')
+        script_text = mod.instrument(source, probe, args.scenario)
+        for player in args.computer_player:
+            script_text, count = re.subn(r'call SetPlayerController\(\s*Player\('+str(player)+r'\),\s*MAP_CONTROL_\w+\s*\)', 'call SetPlayerController( Player('+str(player)+'), MAP_CONTROL_COMPUTER )', script_text)
+            if count != 1: ap.error('expected one config controller for player '+str(player))
+        script = script_text.encode('utf-8')
         blocked = json.loads(args.wpm_blocked) if args.wpm_blocked else None
         payload = root / 'payload.mpq'
         command = [tool, '-mpq', str(payload), 'pack']
         changed = {}
-        if 'war3mapMisc.txt' not in members: members.append('war3mapMisc.txt')
+        assets = {archive: Path(source).read_bytes() for source, archive in (item.split('=', 1) for item in args.asset)}
+        for archive in ('war3mapMisc.txt', *assets):
+            if archive not in members: members.append(archive)
         for i, member in enumerate(members):
-            data = args.misc.read_bytes() if member == 'war3mapMisc.txt' else subprocess.check_output([tool, '-mpq', str(stage), 'cat', member])
+            data = assets[member] if member in assets else args.misc.read_bytes() if member == 'war3mapMisc.txt' else subprocess.check_output([tool, '-mpq', str(stage), 'cat', member])
             if member == 'war3mapMisc.txt':
                 data = args.misc.read_bytes()
             elif member == 'war3map.j':
                 data = script
             if member == 'war3map.wpm' and blocked is not None:
                 data = mod.passage_map_member('war3map.wpm', data, [tuple(c) for c in blocked])
-            if member in ('war3map.j', 'war3map.wpm', 'war3mapMisc.txt'):
+            if member in ('war3map.j', 'war3map.wpm', 'war3mapMisc.txt') or member in assets:
                 changed[member] = hashlib.sha256(data).hexdigest()
                 args.output.with_suffix('.' + member.split('.')[-1]).write_bytes(data)
             p = root / str(i)
@@ -78,7 +86,7 @@ def main():
                   members=members, changed_members=changed, wpm_blocked=blocked, preload_output=args.preload_output,
                   builder_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   shared_builder_sha256=hashlib.sha256((HERE.parent / 'make_wc3_pathfinding_map.py').read_bytes()).hexdigest(),
-                  probe=args.probe.name, replacements=args.replace, probe_sha256=hashlib.sha256(args.probe.read_bytes()).hexdigest(),
+                  probe=args.probe.name, replacements=args.replace, computer_players=args.computer_player, probe_sha256=hashlib.sha256(args.probe.read_bytes()).hexdigest(),
                   fine_origin=[0.0, 0.0], fine_cell_world=32.0,
                   container='rebuilt MPQ with original HM3W header; signature not retained')
     args.output.with_suffix('.json').write_text(json.dumps(result, indent=1) + '\n')
