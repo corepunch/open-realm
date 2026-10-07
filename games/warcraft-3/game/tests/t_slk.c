@@ -951,6 +951,54 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     T_EQ(G_ItemData(base_id)->goldcost, saved_gold);
 }
 
+TEST(wc3_slk, map_destructable_overrides_inherit_and_normalize_armor) {
+    static cstring_t const dest_slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"armor\"\nC;Y1;X3;K\"HP\"\n"
+        "C;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"None\"\nC;Y2;X3;K100\nE\n";
+    uint32_t const base_id = MAKEFOURCC('L','T','0','5');
+    uint32_t const custom_id = MAKEFOURCC('x','T','0','5');
+    uint32_t health = 250;
+    cstring_t const material = "Stone";
+    unitModification_t original_mod = {
+        .modID = MAKEFOURCC('b','a','r','m'), .type = mod_string, .data = (handle_t)"Wood"
+    };
+    unitModification_t custom_mods[] = {
+        { .modID = MAKEFOURCC('b','h','p','s'), .type = mod_int, .data = &health },
+        { .modID = MAKEFOURCC('b','a','r','m'), .type = mod_string, .data = (handle_t)material },
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 1, .modifications = &original_mod
+    };
+    unitData_t custom = {
+        .originalUnitID = base_id, .newUnitID = custom_id,
+        .numbeOfModifications = 2, .modifications = custom_mods
+    };
+    mapInfo_t mapinfo = {
+        .num_originalDestructables = 1, .originalDestructables = &original,
+        .num_userCreatedDestructables = 1, .userCreatedDestructables = &custom
+    };
+    slkTestData_t *rows = parse_slk_string(dest_slk);
+    slkTestData_t *saved_rows = G_SetSLKRows("DestructableData", rows);
+    mapInfo_t const *saved_mapinfo;
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_DestructableData(base_id)->armor, 3);
+    T_STREQ(G_DestructableData(base_id)->armorSoundType, "Wood");
+    T_EQ(G_DestructableData(custom_id)->armor, 5);
+    T_STREQ(G_DestructableData(custom_id)->armorSoundType, "Stone");
+    T_EQ(G_DestructableData(custom_id)->maxHealth, 250);
+
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    G_SetSLKRows("DestructableData", saved_rows);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
     static const char slk_ui[] =
         "C;Y1;X1;K\"unitUIID\"\n"

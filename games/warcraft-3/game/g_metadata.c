@@ -1527,6 +1527,8 @@ static void AddMapDestructableDataOverride(unitData_t const *object, uint32_t ta
 
     FOR_LOOP(i, object->numbeOfModifications)
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.DestructableData), object->modifications + i);
+
+    override->row.armor = G_NormalizeArmorType(override->row.armorSoundType, override->row.armor);
 }
 
 void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
