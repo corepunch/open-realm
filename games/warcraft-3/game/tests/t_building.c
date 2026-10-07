@@ -6267,7 +6267,7 @@ TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
     gi.ImageIndex = building_test_image_index;
     building_queue_frame_count = 0;
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteBuildQueue(building);
+    UI_WriteBuildQueue(building, client);
     T_EQ(building_queue_frame_count, 1);
     T_EQ(building_queue_numitems, 1);
     T_EQ(building_queue_endtime - building_queue_starttime, 9000);
