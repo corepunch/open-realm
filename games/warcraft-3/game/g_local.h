@@ -2602,6 +2602,7 @@ bool G_IsMultiboardDisplayed(multiboard_t const *board, player_t const *player);
 void G_SuppressMultiboardDisplay(player_t *player, bool suppress);
 bool G_IsMultiboardSuppressed(player_t const *player);
 multiboard_t *G_VisibleMultiboard(uint32_t client_index);
+void G_MarkMultiboardPlayerDirty(uint32_t owner);
 void G_UpdateMultiboards(void);
 void UI_WriteMultiboard(edict_t *ent);
 void G_SetMultiboardMinimized(multiboard_t *board, player_t *player, bool minimized);
