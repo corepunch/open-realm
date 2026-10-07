@@ -44,11 +44,14 @@ static bool wander_eligible(edict_t *unit) {
            !G_UnitQueuedOrderCount(unit);
 }
 
-/* Keep autonomous destinations visibly clear of buildings after contact. */
+/* Keep autonomous destinations visibly clear of live buildings after contact.
+ * A destroyed structure keeps its edict through the death animation but no
+ * longer blocks pathing, so it does not constrain the destination. */
 static bool wander_clear_of_buildings(edict_t *unit, vec2_t const *point) {
     FOR_LOOP(i, MAX_ENTITIES) {
         edict_t *building = &g_edicts[i];
-        if (building == unit || !building->inuse || !(building->s.flags & EF_BUILDING)) continue;
+        if (building == unit || !building->inuse || !(building->s.flags & EF_BUILDING) ||
+            M_IsDead(building)) continue;
         if (Vector2_distance(point, &building->s.origin2) <
             unit->collision + building->collision + WANDER_BUILDING_CLEARANCE) return false;
     }

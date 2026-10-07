@@ -682,4 +682,40 @@ TEST(wc3_wander, custom_wander_alias_enable_disable_lifecycle) {
     free_slk_rows(rows);
 }
 
+/* The flee direction is deterministic (away from the attacker), so a building
+ * placed on that line shows exactly which retreat distance the clearance rule
+ * accepted. A destroyed structure still occupies its edict but no longer
+ * blocks pathing, so it must not push the destination back. */
+TEST(wc3_wander, destroyed_building_does_not_restrict_wander_destination) {
+    edict_t *mill, *unit, *attacker;
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    /* 192-unit retreat lands 138 units from the mill centre: inside the
+     * 16 + 100 + 32 clearance band, outside the 100 + 16 collision contact. */
+    mill = alloc_test_unit(MAKEFOURCC('h', 'l', 'u', 'm'), 330.0f, 0.0f);
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100.0f, 0.0f);
+    mill->collision = 100.0f;
+    mill->bounds = MAKE(box2_t, .min = {230.0f, -100.0f}, .max = {430.0f, 100.0f});
+    mill->runtime.flags |= UNIT_BALANCE_BUILDING;
+    mill->s.flags |= EF_BUILDING;
+    unit->collision = 16.0f;
+    unit->abilities.added[0] = ID_AWAN;
+    ARRAY_COUNT(unit->abilities.added) = 1;
+    gi.LinkEntity(mill);
+    gi.LinkEntity(unit);
+
+    test_wander_damage(unit, attacker);
+    T_NOT_NULL(unit->wander_waypoint);
+    T_FEQ(unit->wander_waypoint->s.origin2.x, 96.0f, 0.01f);
+
+    /* Model a destroyed structure as KillUnit/unit_die leave it. */
+    mill->health.value = 0.0f;
+    mill->svflags |= SVF_DEADMONSTER;
+    test_wander_damage(unit, attacker);
+    T_FEQ(unit->wander_waypoint->s.origin2.x, 192.0f, 0.01f);
+    S_DisableAbility(unit, ID_AWAN);
+}
+
 #endif
