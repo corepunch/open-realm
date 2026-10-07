@@ -595,6 +595,32 @@ TEST(wc3_combat, explicit_attack_continues_against_allied_target) {
     T_ASSERT(attacker->currentmove && attacker->currentmove->proc == CAbilityAttack);
 }
 
+TEST(wc3_combat, undead_campaign_arthas_can_attack_a_ground_unit) {
+    edict_t *arthas, *target;
+
+    setup_test_world(); reset_entities();
+    arthas = make_combat_unit(MAKEFOURCC('U','e','a','r'), 700.0f, 0.0f, 0.0f);
+    target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 48.0f, 0.0f);
+    arthas->s.player = 0;
+    target->s.player = 1;
+    arthas->targtype = target->targtype = TARG_GROUND;
+    arthas->attack1.type = ATK_NORMAL;
+    arthas->attack1.damageBase = 25;
+    arthas->attack1.damagePoint = 0.01f;
+    arthas->attack1.range = 100.0f;
+    arthas->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    arthas->wait = 40.0f; /* Birth's wait must not delay an explicit attack. */
+
+    T_ASSERT(S_OrderAttack(arthas, target));
+    T_ASSERT(arthas->currentmove && arthas->currentmove->proc == CAbilityAttack);
+    T_ASSERT(arthas->goalentity == target);
+    arthas->currentmove->think(arthas);
+    T_STREQ(arthas->currentmove->animation, "attack");
+    arthas->currentmove->think(arthas);
+
+    T_ASSERT(target->health.value < target->health.max_value);
+}
+
 TEST(wc3_combat, tdamage_lethal_calls_die) {
     edict_t *target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     edict_t *attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);

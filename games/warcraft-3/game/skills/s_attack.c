@@ -29,6 +29,7 @@ static void ai_ranged_cooldown(edict_t *ent);
 static bool attack_target_out_of_range(edict_t *ent);
 static bool attack_target_out_of_base_range(edict_t *ent);
 static bool attack_target_too_close(edict_t *ent);
+static bool attack_is_cooling_down(edict_t const *ent);
 static bool attack_cooldown_elapsed(edict_t *ent, bool tick_recovery);
 static float attack_speed_divisor(edict_t *self);
 static void attack_set_backswing_deadline(edict_t *ent);
@@ -838,6 +839,13 @@ static void order_attack_internal(edict_t *self, edict_t *target, bool retaliati
     unit_entercombat(self, target);
     self->goalentity = target;
     self->attack_target_spawn_time = target->spawn_time;
+    /* Birth and other non-attack moves can leave a long wait on the unit.
+     * Preserve waits only while an authored weapon cooldown is still active. */
+    if (!attack_is_cooling_down(self)) {
+        self->attack_cooldown_active = false;
+        self->attack_cooldown_remaining = 0.0f;
+        self->wait = 0.0f;
+    }
     attack_walk(self);
 }
 
