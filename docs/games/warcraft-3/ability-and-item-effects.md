@@ -69,7 +69,7 @@ The following existing abilities now use the common resolver rather than owning 
 
 - Holy Light: `WC3_EFFECT_TARGET` on the affected unit.
 - Blink: `WC3_EFFECT_SPECIAL` before relocation and `WC3_EFFECT_AREA_EFFECT` after relocation.
-- Devotion Aura: persistent `WC3_EFFECT_TARGET` on the caster.
+- Devotion Aura and Unholy Aura: the ability `TargetArt` is one persistent `WC3_EFFECT_TARGET` on the owner (the ground pattern). The winning buff `TargetArt` is a second persistent `WC3_EFFECT_TARGET` on each recipient (the soft glow). ROC has no `BuffID` column, so recipients already show the ability art and the owner does not spawn a second copy. See [Aura Targets And Overlays](aura-targets-and-overlays.md).
 - regeneration auras (`Aoar`, `Aabr`, `Aarm`, including Fountain aliases): the
   selected recipient `buffID` supplies persistent `WC3_EFFECT_TARGET` art while the
   recipient remains inside the live aura.

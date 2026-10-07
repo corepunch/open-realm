@@ -36,12 +36,96 @@ zero row for unknown rawcodes, and `G_BindEntityData` binds that pointer to
 scenery too.
 
 `S_UpdateHeroAuraEffects` selects the strongest eligible Devotion or Unholy Aura
-source, resolves `BuffID` target art when present, and maintains one effect
-edict attached to each eligible recipient. RoC `AHad` has no `BuffID` column;
-the existing art fallback resolves `AHad.TargetArt`, the gold Devotion Aura
-rune. The scenery bug made those runes appear under crates and trees. The
-recipient regression runs `monster_think` on a friendly unit and two static
-destructables, then checks the buff state and attached effect edicts.
+for each recipient and keeps that buff's `TargetArt` on the recipient. The
+ability's own `TargetArt` is a second effect, spawned only on the unit that owns
+the aura.
+
+| | Devotion Aura | Unholy Aura |
+|---|---|---|
+| Ability rawcode | `AHad` | `AUau` |
+| Ability `TargetArt` (caster ground pattern) | `Abilities\Spells\Human\DevotionAura\DevotionAura.mdl` | `Abilities\Spells\Undead\UnholyAura\UnholyAura.mdl` |
+| Buff rawcode | `BHad` | `BUau` |
+| Buff `TargetArt` (recipient glow) | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` | `Abilities\Spells\Other\GeneralAuraTarget\GeneralAuraTarget.mdl` |
+
+ROC `War3.mpq` and TFT `War3x.mpq` both author those strings in
+`Units/HumanAbilityFunc.txt` and `Units/UndeadAbilityFunc.txt`. `Targetattach`
+is `origin` for each. TFT ranks set `AHad` `BuffID` to `BHad` and `AUau` to
+`BUau` (`ability_audit -tft -raw AHad`). ROC `AbilityData.slk` has no `BuffID`
+column, so
+`hero_aura_sync_overlay` falls back to the ability `TargetArt` on every
+recipient, including the caster. `hero_aura_sync_source` must not spawn a second
+copy of that same model. TFT keeps both models: ability art once on the owner,
+buff art on each recipient. The owner is also a recipient when `targs` includes
+`friend` or `self`.
+
+Each effect is a persistent `WC3_EFFECT_TARGET` owned by the unit it follows.
+Both effects store the base rawcode (`AHad` or `AUau`) in `summon_ability`,
+which save/load already keeps. The next cache rebuild tells the rune from the
+glow by model, so no new edict field is required. `regen_aura_cache_update`
+clears the slot arrays every simulation frame and classifies live edicts by
+model. Ability art that differs from the recipient model goes in the source
+slot. The owner's current alias supplies that art; once the skill is gone the
+base rawcode's `TargetArt` is used so the leftover rune still reaches the
+source slot and is destroyed. Every other matching edict stays in the recipient
+slot. Putting both into
+one slot makes the next refresh destroy one model and leak the other.
+`regen_cache_frame` is stamped before that scan, so the classification may call
+`hero_aura_presentation` without rebuilding the cache.
+
+Brilliance, Endurance, Vampiric, Thorns, and Command Aura do not use this pair
+of slots. Vampiric's extra buff `SpecialArt` is a separate contract.
+
+The scenery bug made recipient art appear under crates and trees. The recipient
+regression runs `monster_think` on a friendly unit and two static destructables,
+then checks the buff state and attached effect edicts.
+
+## Known Pitfalls
+
+Issue 594 (the Devotion ground pattern missing while the glow still renders) is
+this art split, not a renderer failure. `DevotionAura.mdx` has no `TXAN` chunk.
+Its layers are filter mode 4 (`LAYER_BLEND_ADDALPHA` in `MDLX_SetLayerBlend`:
+`GL_SRC_ALPHA`, `GL_ONE`). Geosets 0–2 sample `AuraRune10.blp`; geoset 3 samples
+`AuraRuneArrow1.blp` and fades that layer with material `KMTA` across Stand
+(333–1400). Both textures are BLP1 JPEG. The arrow's last mip header is 1×0 and
+is skipped; levels 0–6 still upload, so the texture stays complete. An orbit
+render of the real model draws the rune and the arrow ring together.
+
+Do not "fix" this by changing MDX blend modes. Geoset `ADD` / `ADDALPHA` in
+`games/warcraft-3/renderer/mdx/r_mdx_geoset.c` are intentionally the opposite of
+the shared particle path in `renderer/r_particles.c`.
+
+`mdxtool --info` counts variable-size records as exclusive. Production
+`r_mdx_load.c` treats the size as inclusive, which is what loads all four
+DevotionAura geosets. Do not change the loader to match the tool. `mdxtool
+--frame` is an offset inside the current sequence, not `entity.frame`.
+`SaveFramePNG` reads the logical window size. On a Retina display the drawable
+is larger, so the PNG is the bottom-left quadrant flipped vertically. A model
+cropped into a corner of that PNG is not a placement bug.
+
+## Verification
+
+`wc3_spell.devotion_aura_source_shows_pattern_and_recipient_keeps_glow` uses
+fixture `AHad` art `panel_sprite.mdx` and `BHad` art `anim_pulse.mdx`. The caster
+keeps one of each, the ally keeps only the glow, a second refresh does not
+stack a copy, leaving range removes the ally glow, and clearing the ability
+removes both of the caster's effects.
+`wc3_spell.devotion_aura_roc_fallback_does_not_stack_on_source` omits `BuffID`
+and expects one ability-art effect on the caster and one on the ally.
+
+```sh
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_spell.devotion_aura*'
+build/bin/openwarcraft3-tests -data build/tests -tft +dedicated 1 +test 'wc3_spell.devotion_aura*'
+```
+
+The `+test` matcher is exact or a trailing-star prefix of `suite.name`. A
+pattern that does not start with `wc3_spell.` matches nothing and still exits 0.
+`make test-wc3-engine WC3_PATTERN='wc3_spell.devotion_aura*'` runs classic and
+`-tft`.
+
+```sh
+build/bin/ability_audit -data 'data/Warcraft III' -roc -raw AHad
+build/bin/ability_audit -data 'data/Warcraft III' -tft -raw AHad
+```
 
 Aura relations are evaluated from the provider's owner: `friend`/`allies` apply
 to that player's own units and allied players, and `enemy`/`enemies` apply to

@@ -73,7 +73,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 Stop guard position, automatic-combat return, explicit-order priority, and broader creep/JASS guard follow-up | [docs/games/warcraft-3/guard-position.md](docs/games/warcraft-3/guard-position.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
-| WC3 aura target masks, RoC rank columns, and scenery overlay filtering | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
+| WC3 aura target masks, RoC rank columns, source pattern vs recipient glow | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
 | WC3 mutable Blight world state, Abli growth, placement/regen, JASS natives, save/load | [docs/games/warcraft-3/blight.md](docs/games/warcraft-3/blight.md) |
 | WC3 Barkskin modal autocast, authored armor status, expiry/death inverse | [docs/games/warcraft-3/barkskin.md](docs/games/warcraft-3/barkskin.md) |
 | WC3 camera viewport/bounds, cinematic camera state, world-overlay clipping | [docs/games/warcraft-3/cinematics.md](docs/games/warcraft-3/cinematics.md) |
