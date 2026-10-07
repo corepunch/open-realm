@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 68 persists multiboard suppression state (67 tags JASS dialog/button ids with a slot-reuse generation). */
-static uint32_t const save_version = 68;
+/* Version 69 persists local Team Resources collapse state (68 added multiboard suppression). */
+static uint32_t const save_version = 69;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -522,6 +522,7 @@ static field_t const level_fields[] = {
     F(level_locals, player_leaderboards, F_INT),
     F(level_locals, multiboards, F_STRUCT, MAX_MULTIBOARDS, multiboard_fields),
     F(level_locals, multiboard_suppressed_clients, F_INT),
+    F(level_locals, team_resources_collapsed_clients, F_INT),
     F(level_locals, multiboard_items, F_STRUCT, MAX_MULTIBOARD_ITEMS, multiboard_item_fields),
     F(level_locals, texttags, F_STRUCT, MAX_TEXTTAGS, texttag_fields),
     F(level_locals, hashtables, F_STRUCT, MAX_HASHTABLES, hashtable_fields),

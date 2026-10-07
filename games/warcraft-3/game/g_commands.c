@@ -2931,6 +2931,20 @@ static void CMD_UICanvas(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     ent->client->canvas = (UICANVASCLASS)value;
 }
 
+static void CMD_TeamResourcesToggle(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    uint32_t client_index;
+    uint32_t bit;
+    (void)argc;
+    (void)argv;
+    if (!ent || !ent->client || !game.clients) return;
+    client_index = (uint32_t)(ent->client - game.clients);
+    if (client_index >= (uint32_t)game.max_clients || client_index >= MAX_CLIENTS ||
+        G_VisibleMultiboard(client_index) || G_IsMultiboardSuppressed(&ent->client->ps)) return;
+    bit = 1u << client_index;
+    level.team_resources_collapsed_clients ^= bit;
+    level.multiboard_dirty_clients |= bit;
+}
+
 /* The client sends opaque generation-tagged IDs; G_JassDialogClick validates slot, generation and ownership. */
 static void CMD_JassDialogChoice(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     char *end_dialog, *end_button;
@@ -3016,6 +3030,7 @@ clientCommand_t clientCommands[] = {
     { "resume", CMD_Resume },
     { "pause", CMD_Pause },
     { "ui_canvas", CMD_UICanvas },
+    { "team_resources_toggle", CMD_TeamResourcesToggle },
     { "allies", CMD_Allies },
     { "allies_toggle", CMD_AlliesToggle },
     { "allies_toggle_victory", CMD_AlliesToggleVictory },

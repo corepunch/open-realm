@@ -2194,6 +2194,7 @@ struct level_locals {
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     uint32_t multiboard_dirty_clients;
     uint32_t multiboard_suppressed_clients; /* serialized local display suppression */
+    uint32_t team_resources_collapsed_clients; /* serialized local Team Resources panel state */
     uint32_t timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
     int32_t timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
     int32_t timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
