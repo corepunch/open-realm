@@ -4850,6 +4850,44 @@ TEST(wc3_save, construction_payment_round_trip) {
     remove(filename);
 }
 
+/* Tiny Structures own their construction clock: the authored duration_ms,
+ * the CONSTRUCTION_TINY strategy and the self-linked build pointer that the
+ * info panel queue walks all have to survive a save in both archive variants. */
+TEST(wc3_save, tiny_construction_round_trips_in_roc_and_tft_map_state) {
+    uint32_t const formats[] = { 24, 25 };
+
+    FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
+        char filename[96];
+        edict_t *building;
+
+        setup_test_world();
+        reset_entities();
+        ((mapInfo_t *)level.mapinfo)->fileFormat = formats[i];
+        snprintf(filename, sizeof(filename), "/tmp/openwarcraft3-wc3-save-tiny-construction-%u.bin",
+                 (unsigned)formats[i]);
+        building = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
+        if (!building->construction) building->construction = G_AllocConstruction();
+        assert(building->construction);
+        building->construction->type = CONSTRUCTION_TINY;
+        building->construction->progress = 4000.0f;
+        building->construction->duration_ms = 9000.0f;
+        building->build = building;
+
+        T_ASSERT(WriteGame(filename));
+        building->construction->type = CONSTRUCTION_NONE;
+        building->construction->progress = 0.0f;
+        building->construction->duration_ms = 0.0f;
+        building->build = NULL;
+        T_ASSERT(ReadGame(filename));
+        T_ASSERT(building->construction);
+        T_EQ(building->construction->type, CONSTRUCTION_TINY);
+        T_FEQ(building->construction->progress, 4000.0f, 0.001f);
+        T_FEQ(building->construction->duration_ms, 9000.0f, 0.001f);
+        T_ASSERT(building->build == building);
+        remove(filename);
+    }
+}
+
 TEST(wc3_save, racial_gold_mine_state_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-racial-gold-mine.bin";
     edict_t *parent, *overlay, *acolyte;
