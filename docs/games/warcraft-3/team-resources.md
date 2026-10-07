@@ -58,7 +58,7 @@ UI controller. This is essential for bots and campaign triggers.
 
 The relevant source is `g_commands.c`, `g_utils.c`, `hud/hud_infopanel.c`,
 `hud/hud_allies.c`, `skills/s_build.c` and `skills/s_train.c`.
-Regression tests live in `tests/t_api.c`, `tests/t_building.c`, and
+Regression tests live in `tests/t_api.c`, `tests/t_building.c`, `tests/t_multiboard.c` (panel layer, visibility, scheduler path and leaderboard stacking), and
 `hud/hud_allies.c`. Save/load round-trip coverage for multiboard suppression
 and local Team Resources collapse state lives in `tests/t_game.c`.
 
