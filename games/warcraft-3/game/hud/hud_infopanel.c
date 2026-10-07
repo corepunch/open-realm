@@ -1558,13 +1558,17 @@ void G_RefreshResourceBar(edict_t *ent) {
         return;
 
     /* Allied Team Resources reads this player's economy; refresh eligible
-     * viewers on real changes, not on every frame. */
+     * viewers on real changes, not on every frame.  Computer and departed
+     * owners have no console to redraw, but their cached values still feed
+     * the panels of allies holding advanced control. */
     G_MarkMultiboardPlayerDirty(ps->number);
 
-    UI_WriteStart(LAYER_CONSOLE);
-    UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
-    UI_WriteMinimapFrame();
-    UI_WriteEnd(ent);
+    if (ent->client->connected) {
+        UI_WriteStart(LAYER_CONSOLE);
+        UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
+        UI_WriteMinimapFrame();
+        UI_WriteEnd(ent);
+    }
 
     ent->client->resourcebar.quest_until = ent->client->quest_until;
     ent->client->resourcebar.canvas      = ent->client->canvas;
@@ -1577,9 +1581,9 @@ void G_RefreshResourceBar(edict_t *ent) {
 }
 
 /* Reserved player edicts are connected clients, not inuse world units. */
+/* Every player slot, not only connected clients: the compare pass is what
+ * notices a computer ally's spending for Team Resources. */
 void G_UpdateClientResourceBars(void) {
-    FOR_LOOP(i, game.max_clients) {
-        gameClient_t *client = &game.clients[i];
-        if (client->connected) G_RefreshResourceBar(G_GetPlayerEntityByNumber(client->ps.number));
-    }
+    FOR_LOOP(i, game.max_clients)
+        G_RefreshResourceBar(G_GetPlayerEntityByNumber(game.clients[i].ps.number));
 }

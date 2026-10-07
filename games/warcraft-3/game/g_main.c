@@ -1091,7 +1091,6 @@ static void G_RunFrame(void) {
     jass_runevents(level.vm);
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();
-    G_UpdateMultiboards();
 
     /* A result action may call RemovePlayer() and then PauseGame(true) from
      * the JASS work above.  The pause takes effect immediately at the server
@@ -1118,6 +1117,9 @@ static void G_RunFrame(void) {
 
     G_UpdateClientInfoPanels();
     G_UpdateClientResourceBars();
+    /* After the resource compare pass so Team Resources follows an owner's
+     * gold/lumber/food change in the same frame as that owner's console. */
+    G_UpdateMultiboards();
     G_UpdateClientUnitShortcuts();
 
     /* RemovePlayer queues its fallback result UI instead of writing it inline.

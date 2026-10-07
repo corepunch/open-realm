@@ -306,9 +306,10 @@ void G_UpdateMultiboards(void) {
     }
 }
 
-/* Resource transactions may belong to a player without a connected client.
- * Dirty only connected allied viewers; the regular multiboard pass coalesces
- * multiple deposits into one HUD write per viewer. */
+/* Resource transactions may belong to a computer or departed owner, and the
+ * per-frame resource compare pass reports those owners too.  Dirty only
+ * connected allied viewers; the regular multiboard pass coalesces multiple
+ * changes into one HUD write per viewer. */
 void G_MarkMultiboardPlayerDirty(uint32_t owner) {
     if (owner >= PLAYER_NEUTRAL_AGGRESSIVE) return;
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
