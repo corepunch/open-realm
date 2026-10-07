@@ -194,7 +194,7 @@ cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggl
 bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state);
 void UI_FormatTooltip(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, string_t out, uint32_t out_size);
 uint32_t UI_ClassIdFromCode(cstring_t code);
-void UI_WriteBuildQueue(edict_t *ent);
+void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer);
 void UI_AddCancelButton(edict_t *ent);
 void UI_AddCommandButton(cstring_t code);
 void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level);

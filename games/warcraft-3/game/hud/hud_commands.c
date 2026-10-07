@@ -212,7 +212,7 @@ void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level) {
     UI_WriteCommandButtonFrame(buttons);
 }
 
-void UI_WriteBuildQueue(edict_t *ent) {
+void UI_WriteBuildQueue(edict_t *ent, gameClient_t *viewer) {
     gameQueueItem_t queue[MAX_BUILD_QUEUE];
     uint8_t count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
     uint32_t size;
@@ -290,8 +290,11 @@ void UI_WriteBuildQueue(edict_t *ent) {
 
     /* Match the repeated icon geometry for cancellation hit targets as well as
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
-     * remaining slots are the smaller row along the panel bottom. */
-    if (!unsummoning && (constructing || upgrading || (ent->build && ent->build->training))) {
+     * remaining slots are the smaller row along the panel bottom.  Cancelling
+     * refunds the owner, so CancelTrain/CancelBuild are denied server-side
+     * without advanced sharing; offer no hit targets the viewer cannot use. */
+    if (!unsummoning && G_UnitCanSpendResources(viewer, ent) &&
+        (constructing || upgrading || (ent->build && ent->build->training))) {
         uint32_t const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;

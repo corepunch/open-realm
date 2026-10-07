@@ -1033,7 +1033,7 @@ void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
         if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
-            UI_WriteBuildQueue(selected[0]);
+            UI_WriteBuildQueue(selected[0], ent->client);
         } else {
             UI_WriteSingleInfo(selected[0], ent->client);
         }
@@ -1104,13 +1104,15 @@ void Get_Commands_f(edict_t *ent) {
     }
     /* Resource-consuming buttons must agree with the authoritative advanced-
      * sharing check. Ordinary orders and hero skill points remain usable with
-     * basic control; production, research, upgrades and revival do not. */
+     * basic control; production, research, upgrades, revival and the Build
+     * submenu (ui_builds is gated the same way) do not. */
     if (!G_UnitCanSpendResources(ent->client, selected)) {
         UnitProfile_t const *profile = G_UnitProfile(selected->class_id);
         FOR_LOOP(i, count) {
             bool production = buttons[i].building_upgrade != 0 ||
                               !strncmp(buttons[i].command, "revive:", 7) ||
                               !strcmp(buttons[i].command, STR_CmdCancelBuild) ||
+                              !strcmp(buttons[i].command, STR_CmdBuild) ||
                               (!strcmp(buttons[i].command, STR_CmdCancel) &&
                                selected->build && selected->build->revival &&
                                selected->build->revival->reviving);
