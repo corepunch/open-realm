@@ -6036,4 +6036,40 @@ TEST(wc3_building, tiny_structure_without_cursor_adds_no_cancel_button) {
     building_tiny_restore(&f);
 }
 
+/* The info-panel build timer follows the Tiny clock, not the structure's buildTime. */
+TEST(wc3_building, tiny_construction_queue_timer_uses_authored_duration) {
+    gameClient_t *client = &game.clients[0];
+    edict_t *building;
+    UnitBalance_t balance;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+
+    setup_test_world();
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 100;
+    building->data.UnitBalance = &balance;
+    building->s.player = client->ps.number;
+    building->build = building;
+    if (!building->construction) building->construction = G_AllocConstruction();
+    assert(building->construction);
+    building->construction->type = CONSTRUCTION_TINY;
+    building->construction->duration_ms = 9000.0f;
+    building->health.value = building->health.max_value * 0.5f;
+    gi.Write = building_queue_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_queue_frame_count = 0;
+    UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteBuildQueue(building);
+    T_EQ(building_queue_frame_count, 1);
+    T_EQ(building_queue_numitems, 1);
+    T_EQ(building_queue_endtime - building_queue_starttime, 9000);
+
+    building->build = NULL;
+    G_FreeConstruction(building);
+    building->data.UnitBalance = NULL;
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
 #endif
