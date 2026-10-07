@@ -78,7 +78,7 @@ The original control's virtual `+18` is `060ad0`, which returns **remaining**
 time. Rearming requires `3.0 - remaining >= 0.5`, using software subtraction.
 This means at least half a second has elapsed, not half a second remains.
 The original timer oracle covers 84 states, including adjacent boundary words
-and cancelled requests. Its notification-prefix oracle covers 72 guard states;
+and cancelled requests. Its corrected notification-prefix oracle covers 72 guard states;
 these constructed inputs do not prove that every guard is publicly reachable.
 Another 1,296 original calls cover the three group consumers. The engine runs
 72 of their regroup cases through actual group advancement; the actual hit
@@ -117,3 +117,30 @@ public target-speed domains. These are retained within the existing task;
 no child TODOs were added. TARGET-02/03 retain their wider policy scopes.
 See the [engine ledger](retail-pathfinding-engine.md) and
 [target gate policy](retail-pathfinding-target-warp.md).
+
+
+## Ally help uses ordered spatial recipients (Payoff152)
+
+Zero-damage and ordinary damage now broadcast help before positive-amount
+rejection. Move shares its proximity records with Attack, retaining separate
+X/Y widget-query and Y/X separation traversal. The help predicate includes the
+candidate's collision radius. Recipient callbacks run in native encounter order,
+then the ordinary victim arms its saved three-second suppression request.
+Peers retain their explicit orders while receiving the cap exemption.
+
+Authored CallForHelp/CreepCallForHelp radii and both directional help permissions
+are consumed; opposite-direction permissions cannot substitute. Same-owner
+permissions start enabled and can be revoked. Save128 preserves independent
+cap/help deadlines and serials. The first unhit-peer regression, radius/order
+regression and traversal-order regression each failed before implementation.
+Focused Classic/TFT checks and repeated native public controls pass.
+
+The native AI/Town-owned flag,900 radius and0.5-second policy are separately
+mapped evidence and remain to be integrated with their actual enrollment and
+propagation producers. Native engagement/notification guards and other acquisition
+producers also remain within GROUP-03.2. This does not close the leaf.
+
+Correction:4935e0 reads guard bits from unit+5c. Payoff151's old oracle wrote+20;
+the corrected72-state fixture changes four accepted outcomes. Its timer and
+group-consumer fixtures are unchanged. See the
+[full engine evidence](retail-pathfinding-engine.md#ordered-ally-help-reaches-moving-peers-payoff152).

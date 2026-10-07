@@ -643,6 +643,9 @@ void G_InitPlayerAlliances(mapInfo_t const *mapinfo) {
      * so triggers can subsequently revoke/change the relation instead of
      * relying on owner-ID special cases in every consumer. */
     FOR_LOOP(player, MAX_PLAYERS) {
+        /* Retail help queries intersect both directional diplomacy masks,
+         * including their own-owner bit. Keep it mutable like other relations. */
+        level.alliances[player][player] |= (1u<<ALLIANCE_HELP_REQUEST)|(1u<<ALLIANCE_HELP_RESPONSE);
         level.alliances[player][PLAYER_NEUTRAL_PASSIVE] |= passive;
         level.alliances[PLAYER_NEUTRAL_PASSIVE][player] |= passive;
     }

@@ -9126,6 +9126,152 @@ TEST(wc3_movement, group_move_attack_notification_releases_shared_cap) {
     reset_entities(); setup_test_world();
 }
 
+/* Delivered GROUP-03.2 laneD: the attacked member and both alerted peers
+ * receive the exemption while retaining the explicit movement order. */
+TEST(wc3_movement, group_move_alerts_unhit_peer_without_replacing_order) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *clent=alloc_test_unit(0,0,0);clent->client=game.clients;
+    clent->client->menu.order_queued=false;
+    edict_t *fast=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *slow=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    G_SetUnitPlayer(source,1);
+    edict_t *units[]={fast,slow};
+    FOR_LOOP(i,2) {
+        units[i]->collision=16;units[i]->stand=unit_stand;
+        units[i]->svflags|=SVF_MONSTER;units[i]->s.model=1;
+        units[i]->unitinfo.MoveSpeed=i ? 150 : 350;
+        G_SetEntitySelectionMask(units[i],1<<clent->client->ps.number);unit_stand(units[i]);
+        gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_ASSERT(move_selectlocation(clent,&(vec2_t){800,0}));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    T_Damage(slow,source,1);
+    T_ASSERT(slow->attack_speed_cap.active);
+    T_ASSERT(fast->attack_speed_cap.active);
+    T_EQ(fast->current_order_id,G_OrderId("move"));
+    T_EQ(slow->current_order_id,G_OrderId("move"));
+    reset_entities();setup_test_world();
+}
+
+/* Fresh native help witness: admission moves the near-overlapping helpers;
+ * use their observed committed positions, not the requested input positions. */
+TEST(wc3_movement, combat_help_uses_spatial_order_authored_radius_and_saved_cooldown) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    float old=game.constants.callForHelp;game.constants.callForHelp=173;
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),800,800);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,800);
+    G_SetUnitPlayer(source,3);
+    vec2_t positions[]={{970,800},{944,752},{1008,752},{1040,816},{1040,880},{976,880},{912,880}};
+    edict_t *helpers[7];
+    FOR_LOOP(i,7) {
+        helpers[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),positions[i].x,positions[i].y);
+        G_SetUnitPlayer(helpers[i],1);helpers[i]->s.model=1;helpers[i]->collision=31;
+        helpers[i]->svflags|=SVF_MONSTER;S_AttackProfileWrite(helpers[i],0)->type=ATK_NORMAL;
+        G_PublishMoveSpatialObject(helpers[i]);
+        helpers[i]->current_order_id=G_OrderId("holdposition");
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    /* An unarmed victim still broadcasts; recipients own Attack eligibility. */
+    victim->data.UnitWeapons=NULL;
+    FOR_LOOP(i,2)S_AttackProfileWrite(victim,i)->type=ATK_NONE;
+    level.pathing_clock.time=.25f;T_Damage(victim,source,0);
+    T_ASSERT(victim->combat_help.active);T_ASSERT(!victim->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(3.25f));
+    unsigned order[]={1,6,5,0};
+    FOR_LOOP(i,7) {
+        bool accepted=i==0 || i==1 || i==5 || i==6;
+        T_EQ(helpers[i]->attack_speed_cap.active,accepted);
+        T_EQ(helpers[i]->current_order_id,G_OrderId("holdposition"));
+    }
+    FOR_LOOP(i,3)T_ASSERT(helpers[order[i]]->attack_speed_cap.sequence<helpers[order[i+1]]->attack_speed_cap.sequence);
+    T_ASSERT(helpers[0]->attack_speed_cap.sequence<victim->combat_help.sequence);
+    uint32_t serial=victim->combat_help.sequence,peer_serial=helpers[0]->attack_speed_cap.sequence;
+    level.pathing_clock.time=1;T_Damage(victim,source,0);
+    T_EQ(victim->combat_help.sequence,serial);T_EQ(helpers[0]->attack_speed_cap.sequence,peer_serial);
+    cstring_t file="/tmp/wc3-combat-help152.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(victim->combat_help.active);T_EQ(victim->combat_help.sequence,serial);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(3.25f));
+    level.scheduled_frame=true;level.pathing_clock.time=3.245f;
+    level.pathing_owner_sequence=level.timer_sequence+1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3.25f,0,300});
+    T_ASSERT(!victim->combat_help.active);
+    FOR_LOOP(i,7)T_ASSERT(!helpers[i]->attack_speed_cap.active);
+    level.scheduled_frame=false;level.timer_clock_valid=false;level.pathing_clock.time=3.25f;
+    T_Damage(victim,source,0);T_ASSERT(victim->combat_help.active);
+    T_ASSERT(helpers[0]->attack_speed_cap.active);
+    G_FreeEdict(victim);T_ASSERT(!victim->combat_help.active);
+    game.constants.callForHelp=old;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, combat_help_visits_columns_before_rows) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    float old=game.constants.callForHelp;game.constants.callForHelp=512;
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),800,800);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,800);G_SetUnitPlayer(source,3);
+    edict_t *lower_x=alloc_test_unit(MAKEFOURCC('h','f','o','o'),720,1040);
+    edict_t *lower_y=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1040,720);
+    edict_t *helpers[]={lower_x,lower_y};
+    FOR_LOOP(i,2) {
+        G_SetUnitPlayer(helpers[i],1);helpers[i]->s.model=1;helpers[i]->collision=31;
+        S_AttackProfileWrite(helpers[i],0)->type=ATK_NORMAL;G_PublishMoveSpatialObject(helpers[i]);
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_Damage(victim,source,0);
+    T_ASSERT(lower_x->attack_speed_cap.active);T_ASSERT(lower_y->attack_speed_cap.active);
+    T_ASSERT(lower_x->attack_speed_cap.sequence<lower_y->attack_speed_cap.sequence);
+    game.constants.callForHelp=old;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, combat_help_defaults_allow_own_units_and_can_be_revoked) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *helper=alloc_test_unit(MAKEFOURCC('h','f','o','o'),96,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,0);G_SetUnitPlayer(source,3);
+    helper->s.model=1;helper->collision=31;G_PublishMoveSpatialObject(helper);
+    T_Damage(victim,source,0);T_ASSERT(helper->attack_speed_cap.active);
+    S_ResetAbilityTimers();helper->attack_speed_cap.active=false;victim->attack_speed_cap.active=false;
+    victim->combat_help.active=false;
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,false);
+    T_Damage(victim,source,0);T_ASSERT(!helper->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, ally_combat_alert_uses_directional_help_permissions) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *helper=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),256,0);
+    G_SetUnitPlayer(helper,1);G_SetUnitPlayer(source,3);
+    player_t *a=&game.clients[0].ps,*b=&game.clients[1].ps,*c=&game.clients[3].ps;
+    FOR_LOOP(i,8) {
+        G_SetPlayerAlliance(a,b,ALLIANCE_HELP_REQUEST,i&1);
+        G_SetPlayerAlliance(b,a,ALLIANCE_HELP_RESPONSE,i&2);
+        G_SetPlayerAlliance(b,c,ALLIANCE_PASSIVE,i&4);
+        /* Opposite permissions cannot replace either native directional gate. */
+        G_SetPlayerAlliance(b,a,ALLIANCE_HELP_REQUEST,true);
+        G_SetPlayerAlliance(a,b,ALLIANCE_HELP_RESPONSE,true);
+        S_ResetAbilityTimers();helper->attack_speed_cap.active=false;
+        S_UnitAllyCombatAlert(helper,victim,source);
+        T_EQ(helper->attack_speed_cap.active,(i&3)==3 && !(i&4));
+    }
+    reset_entities();setup_test_world();
+}
+
 #include "retail_attack_exemption.h"
 TEST(wc3_movement, attack_speed_cap_rearm_matches_original_remaining_query) {
     reset_entities();setup_test_world();
@@ -9171,7 +9317,7 @@ TEST(wc3_movement, attack_speed_cap_guard_expiry_save_and_reuse) {
     level.pathing_owner_sequence=sequence-1;
     G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
     T_ASSERT(unit->attack_speed_cap.active); /* Later equal-deadline request. */
-    level.pathing_owner_sequence=sequence+1;
+    level.pathing_owner_sequence=level.timer_sequence+1;
     G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
     T_ASSERT(!unit->attack_speed_cap.active);T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
     level.scheduled_frame=false;level.timer_clock_valid=false;

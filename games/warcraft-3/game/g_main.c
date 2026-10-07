@@ -403,6 +403,8 @@ static void InitConstants(void) {
     /* Stock WC3 Units\MiscData.txt values. war3mapMisc.txt remains authoritative. */
     InitMiscValueDefault("AttackNotifyDelay", &game.constants.attackNotifyDelay, 30.0f);
     InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
+    InitMiscValueDefault("CallForHelp", &game.constants.callForHelp, 600.0f);
+    InitMiscValueDefault("CreepCallForHelp", &game.constants.creepCallForHelp, 600.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {

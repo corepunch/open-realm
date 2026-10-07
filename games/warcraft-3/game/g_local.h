@@ -916,6 +916,7 @@ typedef enum {
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
     A_COMBAT_ALERT,     /* Source notification before damage transformations or retaliation. */
+    A_ALLY_COMBAT_ALERT, /* Victim broadcasts its source to eligible help responders. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVING,    /* Semantic removal before deferred memory reclamation; owners release identities. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
@@ -1000,6 +1001,12 @@ typedef intptr_t (*abilityProc_t)(edict_t *ent, abilityMsg_t msg, abilityCall_t 
 typedef struct {
     wc3Clock_t deadline;
     uint32_t sequence;
+    bool active;
+} abilityPrimaryTimer_t;
+
+typedef struct {
+    wc3Clock_t deadline;
+    uint32_t sequence;
     abilityProc_t proc;
 } abilityTimerRequest_t;
 
@@ -1035,7 +1042,7 @@ struct ability_call_s {
         abilityMessageSet_t *unit_messages; /* A_UNIT_EVENT_MASK: procedure-owned broadcast subscriptions. */
         abilityTimerRequest_t *primary_timer; /* Exact primary request query/delivery. */
         float clock_span; /* A_PRIMARY_TIMER_REBASE. */
-        struct { edict_t *source; uint32_t flags; } combat_alert; /* A_COMBAT_ALERT; retail packet flags. */
+        struct { edict_t *source; uint32_t flags; edict_t *victim; } combat_alert;
         struct { edict_t *producer; edict_t *item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
@@ -2091,11 +2098,8 @@ struct edict_s {
     float attack_cooldown_remaining;
     uint32_t attack_cooldown_end_time;
     uint32_t attack_backswing_end_time;
-    struct {
-        wc3Clock_t deadline;
-        uint32_t sequence;
-        bool active; /* Attack-owned shared-cap exemption, independent of current order. */
-    } attack_speed_cap;
+    abilityPrimaryTimer_t attack_speed_cap; /* Independent of the public order. */
+    abilityPrimaryTimer_t combat_help; /* Unit's primary d01b3 suppression request. */
     unitInfo_t unitinfo;
     unitAttack_t const *attack_profiles[2];
     unitAttack_t *attack_overrides[2];
@@ -2209,6 +2213,7 @@ struct game_locals {
         /* Automatic attack alarms use stock MiscGame tuning; map Misc overrides win. */
         float attackNotifyDelay;
         float attackNotifyRange;
+        float callForHelp, creepCallForHelp;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
         float defenseArmor;
@@ -3244,6 +3249,7 @@ void S_FreeMoveProximity(void);
 void S_PublishMoveProximity(edict_t const *);
 void S_RemoveMoveProximity(edict_t const *);
 void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t const *));
+void S_QueryMoveProximityContext(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
 wc3FineBox_t const *S_GetMoveProximity(uint32_t);
 bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);
@@ -3302,6 +3308,7 @@ void S_RebuildAbilityTimers(void);
 void S_BeginAbilityOwnerUpdates(void);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
 void S_UnitCombatAlert(edict_t *, edict_t *, uint32_t);
+void S_UnitAllyCombatAlert(edict_t *, edict_t *, edict_t *);
 bool S_InitFreshUnitAbilities(edict_t *);
 bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
 bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);

@@ -83,7 +83,7 @@ def main():
     notify_hook=u.hook_add(UC_HOOK_CODE,arm,begin=0x6f49bc40,end=0x6f49bc40)
     for disabled, flags, suspension, source, packet_flags in itertools.product((0,1),(0,0x100000,0x200000),
             (0,1),(0,unit),(0,2,4)):
-        w(ability+0x3c,disabled);w(unit+0x20,flags);w(unit+0x54,suspension)
+        w(ability+0x3c,disabled);w(unit+0x5c,flags);w(unit+0x54,suspension)
         w(packet,source,0,0,packet_flags);stops.clear();call(0x6f4935e0,ability,packet)
         notification.append(dict(input=[disabled,flags,suspension,bool(source),packet_flags],accepted=bool(stops)))
     u.hook_del(notify_hook)

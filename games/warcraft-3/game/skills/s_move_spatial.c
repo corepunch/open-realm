@@ -190,6 +190,21 @@ static void move_proximity_candidate(void *data,uint32_t index) {
     query->candidate(g_edicts+index);
 }
 
+typedef struct {void (*candidate)(void *,edict_t const *);void *data;} moveProximityContext_t;
+static void move_proximity_context_candidate(void *data,uint32_t index) {
+    moveProximityContext_t const *query=data;
+    query->candidate(query->data,g_edicts+index);
+}
+void S_QueryMoveProximityContext(edict_t const *source,float const point[2],float radius,
+    void (*candidate)(void *,edict_t const *),void *data) {
+    G_SyncMoveSpatial();move_proximity_prepare();
+    moveProximityContext_t query={candidate,data};
+    /* Widget queries05ce60/05f010 visit X then Y; separation's16f570
+     * retains Y then X. Both consume the same publication history. */
+    wc3_records_query_ordered(&move_proximity,wc3_proximity_bounds(point,radius),source ? (uint32_t)(source-g_edicts) : UINT32_MAX,
+        move_proximity_context_candidate,&query,true);
+}
+
 void S_QueryMoveProximity(edict_t const *source,float const point[2],float radius,bool (*candidate)(edict_t const *)) {
     G_SyncMoveSpatial();move_proximity_prepare();
     moveProximityQuery_t query={candidate};

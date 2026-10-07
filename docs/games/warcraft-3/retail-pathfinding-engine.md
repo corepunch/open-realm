@@ -11388,3 +11388,89 @@ Focused Classic/TFT validation passes1,498 test executions/10,489,856 assertions
 across movement, combat, save, timer callbacks and Chaos lifecycle. Seven new
 Python evidence regressions and22 corpus checks pass. The staged inventory has
 374 entries/689 pins; four freshly executed original/live contracts pass.
+
+## Ordered ally help reaches moving peers (Payoff152)
+
+A damaged unit now broadcasts help before positive-damage rejection, including
+zero damage. Nearby eligible peers receive Attack's speed-cap exemption while
+retaining their explicit orders. This fixes the delivered GROUP-03.2 unhit-peer
+regression; the broadcasting victim need not own an Attack ability.
+
+Retail `66e700` reads committed world position and selects `688060`'s radius.
+The normal radius is authored `Misc/CallForHelp`; neutral owners select
+`CreepCallForHelp` first. Query tokens `b/17/16/1f` intersect the victim's
+HelpRequest mask with each helper's HelpResponse mask. Attack `49bb50` then
+checks its engagement state and whether the source is an enemy. The enemy check
+reads diplomacy directly, without the engine spell helper's extra enabled-slot
+gate. Own-owner help permissions start enabled and remain explicitly revocable.
+
+The spatial predicate is **not center distance alone**. Token `b` selects
+`04c5a0 -> 05f230 -> 05ce60`, comparing retained mover positions against
+`(query radius + candidate collision radius)^2`, with software scalar operations
+and inclusive equality. The center-only `05d680` belongs to the other query
+mode. The native helper at `(976,880)` qualifies for a source at `(800,800)` with
+query radius173 and collision31; a center-only port incorrectly excludes it.
+This discrepancy was reproduced before correcting the engine predicate.
+
+Widget queries `05f010` scan X before Y and preserve newest effective insertion
+and first-cell deduplication. Separation retains its verified Y/X traversal.
+Move shares the existing proximity records between both consumers and selects
+the appropriate traversal order. A two-cell production-damage regression fails
+with row-first help and passes with column-first help. Candidate identities are
+collected before ability dispatch; reusable buffers support nested queries
+without overwriting the outer collection or mutating its active stamp traversal.
+The query visits intersecting cells and candidates rather than scanning all
+entities. No second spatial index is introduced.
+
+Ordinary units arm one three-second source suppression request **after** all
+recipient callbacks. The indexed Attack timer heap now contains cap and help
+requests, retaining O(1) earliest lookup and O(log n) insertion/cancellation.
+Save128 retains both requests' independent active/deadline/serial state and
+rebuilds derived heap membership; Save127 and earlier layouts are rejected.
+The actual zero-damage regression checks authored radius173, native recipient
+order1/6/5/0, retained heads, an unarmed victim, suppression, saved restoration,
+expiry and removal. Same-owner permission revocation has its own regression.
+
+Fresh read-only `attack_alert152_probe.j` captures test all four directional
+permission combinations with the opposite directions held enabled. Both
+observations agree on209 markers and one helper admission; the observer-free
+control has identical public markers. The native original-code callback oracle
+executes192 constructed states through real owner, diplomacy, canonical mask
+resolution and packet construction:12 reach notification and one reaches the
+exemption entry. This is not192 engine comparisons or public guard reachability.
+
+`attack_help152_probe.j` supplies map-local radii173/229. Two observed repeats,
+a third pose observer and its repeat, and an observer-free control agree on190
+public markers. The pose repeats preserve every relevant help/candidate/ally/
+gate/notification/cap record, including canonical fine words. Six queries
+produce30 candidate callbacks. Ordinary admissions occur at ticks10/41 and
+110/141; neutral AI-owned admissions60/89 use0.5 seconds. Lookup counts outside
+the help chain vary with wall-time execution and are not gameplay assertions.
+The first friendly-source scene and the initial map with reserved JASS local
+name `code` remain failed/negative artifacts, excluded from acceptance.
+
+AI policy is recorded but not claimed implemented: native unit5c bit4 is set by
+Town AI enrollment `9b9230`, not by Hero/building classification. It selects900
+for non-neutral AI-owned sources and0.5-second suppression; neutral owners still
+read the authored creep radius. AI self notification and `69c810` propagation,
+full enrollment/removal producers, remaining acquisition/engagement guards and
+packet-kind policies remain within GROUP-03.2. The ordinary source implementation
+currently uses the three-second request; the neutral live timeline is evidence
+for that remaining implementation, not an engine parity claim.
+
+Payoff152 also corrects Payoff151's notification guard oracle. Original4935e0
+reads unit**+5c** bits100000/200000; the old fixture wrote**+20** and therefore
+failed to exercise those guards. Regenerating the72 cases changes four accepted
+outcomes. The84 timer and1,296 group-consumer results are unchanged. The old
+Ghidra snapshot remains historical; current annotations, the corrected fixture
+and the new saved readback record the correction explicitly.
+
+Validation: focused Classic/TFT movement, proximity, combat, save, timer and
+Chaos checks pass1,534 test executions/10,516,718 assertions. Production and test
+game targets build. Fifteen Python attack-evidence checks pass, including the
+new negative controls. Twenty-two corpus tests and all three new fresh corpus
+entries pass; the manifest contains377 entries and705 source/fixture pins. The
+last candidate-mask/generation checks pass14 targeted Classic/TFT executions.
+Ghidra saves16 function annotations, the corrected guard
+comment and both native constant initializers; `MapPathfinding.java` mirrors the
+new evidence. GROUP-03.2 stays open; no extra TODOs were created.

@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "136 executable original oracle contracts;374 total entries.",
+  "scope": "137 executable original oracle contracts;377 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -37018,6 +37018,348 @@
       "exclusions": [
         "Not complete engine trajectory parity or unobserved guards/ally alerts. Public positions are3-decimal script samples. Expiry control already cleared; hook does not observe the popped deadline."
       ]
+    },
+    {
+      "id": "oracle-attack-ally-alert",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack_help.py",
+        "--binary",
+        "{binary}",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-help-policy-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "attack-ally-alert-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 192
+        },
+        "accepted": {
+          "equal": 1
+        },
+        "notified": {
+          "equal": 12
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "192 complete original ally-alert callback chains with real diplomacy/registry/owner bodies and zero-packet constructor; read-only stop at cap entry. Engine directly checks eight directional/passive combinations, not all192 guard states.",
+      "exclusions": [
+        "Constructed field matrices do not prove public producer reachability. Engagement and wider notification guards remain GROUP03.2."
+      ]
+    },
+    {
+      "id": "live-attack-help-permissions",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_attack_help_live.py",
+        "--first",
+        "{archive}/runtime/attack-help152/observe-v2-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/attack-help152/observe-v2-2.jsonl",
+        "--control",
+        "{archive}/runtime/attack-help152/control-v2-1.jsonl",
+        "--preload",
+        "{archive}/runtime/attack-help152/control-v2-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-help-permissions-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/attack-help152/observe-v2-1.jsonl",
+        "sha256": "b7b40f8410cc1af494c92becb5b3fd5589773893a0e9e34a20fcb1de420135ad",
+        "bytes": 41170,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "attack_alert152_observer.js": "17ee1897fae8902ca743864ae102e4e0a78b2ed0947aa55997d42ea0d9128a1f",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "a7901045f3d961f681d509e8199e223b5a2c8d52009c922e9dbfc83a3bc72432"
+          },
+          "map": "Maps\\RS-AttackAlert152-v2.w3m",
+          "seconds": 150.0,
+          "continue_at": 8.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "AA152 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/attack-help152/observe-v2-2.jsonl",
+            "sha256": "14631d4df731f959a8e6150cc9687cec8037bcf73612ec693f8db979168adce0",
+            "bytes": 41170,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_alert152_observer.js": "17ee1897fae8902ca743864ae102e4e0a78b2ed0947aa55997d42ea0d9128a1f",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "a7901045f3d961f681d509e8199e223b5a2c8d52009c922e9dbfc83a3bc72432"
+              },
+              "map": "Maps\\RS-AttackAlert152-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AA152 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/attack-help152/control-v2-1.jsonl",
+            "sha256": "ceb83c068488b32e2c82ad2a6ba4c10b6492041336537fe59a821f98e1dfd6aa",
+            "bytes": 1282,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_alert152_observer.js": "17ee1897fae8902ca743864ae102e4e0a78b2ed0947aa55997d42ea0d9128a1f",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "a7901045f3d961f681d509e8199e223b5a2c8d52009c922e9dbfc83a3bc72432"
+              },
+              "map": "Maps\\RS-AttackAlert152-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AA152 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-attack-help-permissions.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "mode": {
+          "equal": "permissions"
+        },
+        "markers": {
+          "equal": 209
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "counts": {
+          "equal": {
+            "help": 4,
+            "help-radius": 0,
+            "help-arm": 0,
+            "candidate": 5,
+            "ally": 1
+          }
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete retail help chain semantic repeats and observer-free public markers. Radius witness includes canonical fine poses, authored173/229 and normal3/AI0.5 cooldowns; directional witness admits only both required directions.",
+      "exclusions": [
+        "Not complete engine trajectories, all native guards or AI enrollment/propagation parity. Unit-map lookup counts outside help depend on wall time and are excluded. Control has no observer; unused recorded observer hash may differ, while map/producers match."
+      ]
+    },
+    {
+      "id": "live-attack-help-radius",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_attack_help_live.py",
+        "--first",
+        "{archive}/runtime/attack-help152/help-pose-observe-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/attack-help152/help-pose-observe-2.jsonl",
+        "--control",
+        "{archive}/runtime/attack-help152/help-v2-control-1.jsonl",
+        "--preload",
+        "{archive}/runtime/attack-help152/help-v2-control-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-attack-help-radius-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/attack-help152/help-pose-observe-1.jsonl",
+        "sha256": "3eeb65a2c75545e5e65c8b27088351488eb3b15087457f03402a6375cf599d55",
+        "bytes": 387591,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "attack_help152_pose_observer.js": "793cf60983f5c43661331aa311704873e2fdc6dd9d2455d8e193adcec3a5fb98",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "bcad48b90c48ed6359400f3dc05066bc8f6ce0b04c8f158159f5b22f4b9a71a9"
+          },
+          "map": "Maps\\RS-AttackHelp152-v2.w3m",
+          "seconds": 150.0,
+          "continue_at": 8.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "AH152 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/attack-help152/help-pose-observe-2.jsonl",
+            "sha256": "8d34c5b31e04126de9e8d15d8bbad249fc49d295a31d78626e7de9d1bbbd5988",
+            "bytes": 372427,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_help152_pose_observer.js": "793cf60983f5c43661331aa311704873e2fdc6dd9d2455d8e193adcec3a5fb98",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "bcad48b90c48ed6359400f3dc05066bc8f6ce0b04c8f158159f5b22f4b9a71a9"
+              },
+              "map": "Maps\\RS-AttackHelp152-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AH152 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/attack-help152/help-v2-control-1.jsonl",
+            "sha256": "9f255da56318f7b3f2fdf44c886fd7defcdfe01ced0aace20a47812a9073dcd7",
+            "bytes": 1214,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "attack_help152_observer.js": "e9beab0644f0394976fea79cfbfbb816a129808eb0e514600630e45f5a83b6bb",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "bcad48b90c48ed6359400f3dc05066bc8f6ce0b04c8f158159f5b22f4b9a71a9"
+              },
+              "map": "Maps\\RS-AttackHelp152-v2.w3m",
+              "seconds": 150.0,
+              "continue_at": 8.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "AH152 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-attack-help-radius.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "mode": {
+          "equal": "help"
+        },
+        "markers": {
+          "equal": 190
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "counts": {
+          "equal": {
+            "help": 15,
+            "help-radius": 6,
+            "help-arm": 6,
+            "candidate": 30,
+            "ally": 31
+          }
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Complete retail help chain semantic repeats and observer-free public markers. Radius witness includes canonical fine poses, authored173/229 and normal3/AI0.5 cooldowns; directional witness admits only both required directions.",
+      "exclusions": [
+        "Not complete engine trajectories, all native guards or AI enrollment/propagation parity. Unit-map lookup counts outside help depend on wall time and are excluded. Control has no observer; unused recorded observer hash may differ, while map/producers match."
+      ]
     }
   ],
   "fixtures": [
@@ -37916,7 +38258,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8cc53ced43a2a77a1521aeaeb60358b2225e4bdd218d41391ee3277b8c7f2842"
+      "sha256": "ae50515c5f8758280be26e631b0cd6eaf21a9358d7340cf593a79116c60135b2"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38980,7 +39322,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "09214eff7ee8200ca58a4eb98aec563bde41b4222e474f33422ac2c36cafb9a9"
+      "sha256": "4304ce7359a62a969bd815fe380dbd1423d2ba41f676e657f3ee22ae94a3d8a7"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -39132,7 +39474,7 @@
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_records.h",
-      "sha256": "24cabfacfdb3ee9d745e62100d6094fcda6995cf23f4e3529426a597ff0e1378"
+      "sha256": "b4a445ab31293e9a2a60de01fd15a725b25f381935200755ff12758909d46b24"
     },
     {
       "path": "tools/ghidra/fixtures/retail-spatial-storage-inputs-1.27.json.gz",
@@ -39208,7 +39550,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "e057c206a2976daa6e2eff6985dd4c1b3d5c38c39abd36f0a3acdd5e1b67b2cd"
+      "sha256": "d472512ffc482d5270061691bbdec3d102419a2a04b2ef608a032379025fbe33"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -39216,7 +39558,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "02193d494dda01452eb62f8d2262455a032e914d198ba4245e42e46003fcc74a"
+      "sha256": "57665a90f6b50f0ff7fc510d1cc0cdac6aafc585c6c8a9922ddf2ed9699f635a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -39464,7 +39806,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "b65444093c72ae7622c47360ee312cc68ca10d02c9540df26bf4fdfb519561a8"
+      "sha256": "d59df038a33576b2df9506c868c93e09dc41879f549538f32e1fc2e7ce8a34c8"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -39708,23 +40050,23 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "41a586b9dc0413fdb2c469ffff3e0d525d2d7afa3bdc1db6965c4624c12ace3c"
+      "sha256": "56ccb45a54c5618e64b8552fda0218fb243eed515ced297a9c0ca6f25e7318c1"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
-      "sha256": "c588b756e8d0a4923132e7f2a4260ab0988babad9315bc698bcaf80352b9b971"
+      "sha256": "3e2c8b3635b5710bb08acc4fbec52a71f1cd8b5fe0460e1eca2dc6142fa3336d"
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "7e42e093a3fdcd61beb09b8606bbf5e78daea075153a68bd1e0c88a401380e16"
+      "sha256": "f725fd81b4f7421d8e505f19ef4c06e42248b9ad296294ffdcaea839a8af78cc"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "eec6f28048108edd8230c84b4199dabce7771363292ac3fd8c7485a48e5d305b"
+      "sha256": "448c49205e3ccfff8232506bdc1c691bc33b3bc9bdb4fd405daa39da0ce714b7"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "8071fc9094949df6ac6aa6adc6a096ef53e614b697ba744a26cdbb01b43eac50"
+      "sha256": "97522323b8a29644d3969fbc4f17b45cf5d6a9cac697da5b587de689b74f4cf8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -39732,11 +40074,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "32f6f5d2f4840a1c0c854d0bd01df820b2e9ee1a40958673b6c430526737cb71"
+      "sha256": "e94c345796ee9ead944606c0c3db7ac817228d7a6eb8fe59177e66235503205b"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "49f984fc3c5b3edbc4a5c70f0c20432c32f1d637486bbf1951a955a386c19ea8"
+      "sha256": "2876ef17cf23a550c3f6656867c409ad41c350188e9e629697edb3bca70f58cb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -39744,7 +40086,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_exemption.py",
-      "sha256": "bb1418899fa76bc796a3119b8a20b461f11ccb2d0d6d5e8dedbdb64068218f7f"
+      "sha256": "a933104c46b795f6262b420c22507826a86b91653152d514f489f3f119db17d4"
     },
     {
       "path": "tools/ghidra/research/verify_attack_cap_live.py",
@@ -39760,7 +40102,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-attack-exemption-1.27.json.gz",
-      "sha256": "afe406ab8e7108918c5813eca738517d624e32ed7395cd19b2d723b834b8283d"
+      "sha256": "bb9ce1433881490eb460493ba815b849ca3626917736128ca1cee428be7a3f9e"
     },
     {
       "path": "tools/ghidra/fixtures/retail-attack-exemption-live-1.27.json.gz",
@@ -39776,7 +40118,71 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_attack_exemption.py",
-      "sha256": "eacf9667a2a8ca914b95854afcf4892da75209ff36a53feafedc6d458c5e55e2"
+      "sha256": "d6b18ce8490183bf4f796e3e318e40bed2988cb2e8b2c8a2ed237ca83c38b46a"
+    },
+    {
+      "path": "games/warcraft-3/game/g_main.c",
+      "sha256": "c29f211ee5ab46644013ca111b21f07eaae8d1cd9dc78c488b67931ebcf3d21c"
+    },
+    {
+      "path": "games/warcraft-3/game/g_utils.c",
+      "sha256": "4e0bf31cebbf553d03d7a03529d4ded95a86313f500cfb0ab181d7a640a5aff5"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
+      "sha256": "e49225655542fcaadd35e4a8c47d8c629d5f36d06625303c89d9d7b1d6f8163a"
+    },
+    {
+      "path": "tools/ghidra/research/verify_attack_help_live.py",
+      "sha256": "4109a312dede93c7e7fe45b80af87677967427696acfb7ee0e44534dd2426ece"
+    },
+    {
+      "path": "tools/frida/research/attack_alert152_probe.j",
+      "sha256": "ece3732ffc1be2eae15a149473187497a066f0321de55824f4ed212a1dae2245"
+    },
+    {
+      "path": "tools/frida/research/attack_alert152_observer.js",
+      "sha256": "17ee1897fae8902ca743864ae102e4e0a78b2ed0947aa55997d42ea0d9128a1f"
+    },
+    {
+      "path": "tools/frida/research/attack_help152_probe.j",
+      "sha256": "7dcc04038e43340a640945b5f932fdcffe5b5611d1abe6848e487c5869342f41"
+    },
+    {
+      "path": "tools/frida/research/attack_help152_observer.js",
+      "sha256": "e9beab0644f0394976fea79cfbfbb816a129808eb0e514600630e45f5a83b6bb"
+    },
+    {
+      "path": "tools/frida/research/attack_help152_pose_observer.js",
+      "sha256": "793cf60983f5c43661331aa311704873e2fdc6dd9d2455d8e193adcec3a5fb98"
+    },
+    {
+      "path": "tools/frida/research/attack_help152_make_map.py",
+      "sha256": "373d4129d6b8e0ff9810265420a08291ce5ad4ecf20db4920761cc1cff9ba2ea"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-policy-1.27.json.gz",
+      "sha256": "11ba000529ae8b79cd74769c0ddcfc5cbab88e46d44468de04f8d497d5599903"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-permissions-1.27.json.gz",
+      "sha256": "6c9396100c56b5e04eddce6770e1186678ab6812fa5d0bccf2aa2e161b51b763"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-radius-1.27.json.gz",
+      "sha256": "475435c67c5f64bb1ea37c794f4facf07ee5fdb7bf8cf6dc679cbdccb5227bf4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-captures-1.27.json.gz",
+      "sha256": "f9bcf6f590f5ec7651907f88a780ea4f41aed6447126fd0cec0be426d610b744"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-attack-help-ghidra-1.27.json",
+      "sha256": "70a449536a825576420218c628ec51f0dd8a46198897e0bc3544f8f2ba1fc949"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack_help.py",
+      "sha256": "f30689138b345575e05c962088131914a86f5b82668f47cee201b016c7e6c9d8"
     }
   ]
 }

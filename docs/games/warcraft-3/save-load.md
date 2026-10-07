@@ -1380,3 +1380,11 @@ positions are derived and rebuilt after restoration. An active-save regression
 checks the restored earliest request, its ordering at the path owner's equal
 deadline, removal/reuse and clock rebasing. Version126 and earlier layouts are
 rejected without migration. See [Attack exemption](retail-pathfinding-group-speed.md#attack-owned-cap-exemption-payoff151).
+
+
+Version128 saves the unit's independent combat-help suppression request,
+including active state, absolute primary deadline and unsigned serial. Attack's
+indexed heap holds both cap and help requests and rebuilds its derived indexes
+on load. A zero-damage broadcast regression verifies saved suppression, expiry,
+re-admission and removal. Version127 and earlier are rejected without migration.
+See [ordered ally help](retail-pathfinding-engine.md#ordered-ally-help-reaches-moving-peers-payoff152).

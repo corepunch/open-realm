@@ -45,6 +45,13 @@ class AttackExemptionTests(unittest.TestCase):
         self.paths[3].write_bytes(self.paths[3].read_bytes()+b'changed')
         with self.assertRaisesRegex(ValueError,'control file'):verify(*self.paths)
 
+    def test_original_notification_guards_use_unit_status_at_5c(self):
+        fixture=json.loads(gzip.decompress((ROOT/'tools/ghidra/fixtures/retail-attack-exemption-1.27.json.gz').read_bytes()))
+        self.assertEqual(len(fixture['notification']),72)
+        for row in fixture['notification']:
+            disabled,flags,suspension,source,packet_flags=row['input']
+            self.assertEqual(row['accepted'],not disabled and not flags and not suspension and source and not(packet_flags&2))
+
     def test_original_timer_and_regroup_words_match_generated_header(self):
         fixture=json.loads(gzip.decompress((ROOT/'tools/ghidra/fixtures/retail-attack-exemption-1.27.json.gz').read_bytes()))
         text=(ROOT/'games/warcraft-3/game/tests/retail_attack_exemption.h').read_text()

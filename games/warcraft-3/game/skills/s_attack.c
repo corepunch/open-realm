@@ -17,6 +17,7 @@
 #include "s_skills.h"
 #include "jass/jass.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 
 void attack_walk(edict_t *ent);
 void attack_melee(edict_t *ent);
@@ -39,19 +40,24 @@ static umove_t attack_move_ranged_cooldown;
 
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
-static uint32_t attack_cap_heap[MAX_ENTITIES], attack_cap_positions[MAX_ENTITIES];
+enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_COUNT };
+static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
 static uint32_t attack_cap_count;
 
+static abilityPrimaryTimer_t *attack_primary_timer(uint32_t key) {
+    edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
+    return key%ATTACK_TIMER_COUNT==ATTACK_TIMER_HELP ? &unit->combat_help : &unit->attack_speed_cap;
+}
 static bool attack_cap_less(uint32_t a,uint32_t b) {
-    typeof(g_edicts->attack_speed_cap) const *left=&g_edicts[a].attack_speed_cap,*right=&g_edicts[b].attack_speed_cap;
+    abilityPrimaryTimer_t const *left=attack_primary_timer(a),*right=attack_primary_timer(b);
     return left->deadline.time==right->deadline.time ? left->sequence<right->sequence :
         left->deadline.time<right->deadline.time;
 }
 static void attack_cap_put(uint32_t position,uint32_t unit) {
     attack_cap_heap[position]=unit;attack_cap_positions[unit]=position+1;
 }
-static void attack_cap_remove(edict_t *unit) {
-    uint32_t slot=unit-g_edicts,position=attack_cap_positions[slot];
+static void attack_cap_remove(edict_t *unit,unsigned kind) {
+    uint32_t slot=(unit-g_edicts)*ATTACK_TIMER_COUNT+kind,position=attack_cap_positions[slot];
     if(!position)return;
     attack_cap_positions[slot]=0;position--;
     uint32_t last=attack_cap_heap[--attack_cap_count];
@@ -67,8 +73,8 @@ static void attack_cap_remove(edict_t *unit) {
     }
     attack_cap_put(position,last);
 }
-static void attack_cap_insert(edict_t *unit) {
-    uint32_t slot=unit-g_edicts,position=attack_cap_count++;
+static void attack_cap_insert(edict_t *unit,unsigned kind) {
+    uint32_t slot=(unit-g_edicts)*ATTACK_TIMER_COUNT+kind,position=attack_cap_count++;
     while(position && attack_cap_less(slot,attack_cap_heap[(position-1)/2])) {
         attack_cap_put(position,attack_cap_heap[(position-1)/2]);position=(position-1)/2;
     }
@@ -87,15 +93,101 @@ static void attack_cap_begin(edict_t *unit) {
      * after that drain observes the already-rebased deadline. */
     float remaining=wc3_sub(unit->attack_speed_cap.deadline.time,now.time);
     if(!wc3_attack_speed_cap_rearm(unit->attack_speed_cap.active,remaining))return;
-    attack_cap_remove(unit);
+    attack_cap_remove(unit,ATTACK_TIMER_CAP);
     unit->attack_speed_cap.active=true;
     unit->attack_speed_cap.deadline=now;
     unit->attack_speed_cap.deadline.time=wc3_add(now.time,3);
     unit->attack_speed_cap.sequence=++level.timer_sequence;
-    attack_cap_insert(unit);
+    attack_cap_insert(unit,ATTACK_TIMER_CAP);
 }
 static void attack_cap_cancel(edict_t *unit) {
-    attack_cap_remove(unit);unit->attack_speed_cap.active=false;
+    attack_cap_remove(unit,ATTACK_TIMER_CAP);unit->attack_speed_cap.active=false;
+}
+static void attack_help_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_HELP);unit->combat_help.active=false;
+}
+static void attack_primary_fire(void) {
+    uint32_t key=attack_cap_heap[0];
+    edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
+    if(key%ATTACK_TIMER_COUNT==ATTACK_TIMER_HELP)attack_help_cancel(unit);
+    else attack_cap_cancel(unit);
+}
+
+/* Native05f230 materializes the ordered spatial candidates before invoking
+ * abilities. Reuse buffers, and borrow a distinct one for nested broadcasts:
+ * callbacks must not overwrite the outer query or mutate its stamp traversal. */
+typedef struct {uint32_t index,birth;} attackHelpMember_t;
+typedef struct attackHelpQuery_s {
+    struct attackHelpQuery_s *next;
+    attackHelpMember_t *members;
+    uint32_t count,capacity,owners;
+} attackHelpQuery_t;
+static attackHelpQuery_t *attack_help_queries;
+static void attack_help_queries_reset(void) {
+    while(attack_help_queries) {
+        attackHelpQuery_t *query=attack_help_queries;attack_help_queries=query->next;
+        free(query->members);free(query);
+    }
+}
+static void attack_help_collect(void *data,edict_t const *unit) {
+    attackHelpQuery_t *query=data;
+    if(unit->s.player>=MAX_PLAYERS || !(query->owners&(1u<<unit->s.player)))return;
+    if(query->count==query->capacity) {
+        uint32_t capacity=MIN(MAX_ENTITIES,query->capacity ? query->capacity*2 : 64);
+        attackHelpMember_t *members=realloc(query->members,capacity*sizeof(*members));
+        if(!members)gi.error("Attack help: cannot retain spatial candidates");
+        query->members=members;query->capacity=capacity;
+    }
+    query->members[query->count++]=(attackHelpMember_t){unit-g_edicts,unit->spawn_time};
+}
+static vec2_t attack_help_fine_position(edict_t const *unit,box2_t bounds) {
+    return unit->movement.pose_valid && !memcmp(&unit->s.origin2,&unit->movement.pose_world,sizeof(vec2_t)) ?
+        unit->movement.fine_pose : (vec2_t){wc3_grid_coordinate(unit->s.origin2.x,bounds.min.x,32),
+            wc3_grid_coordinate(unit->s.origin2.y,bounds.min.y,32)};
+}
+static void attack_call_for_help(edict_t *victim,edict_t *source) {
+    if(!source || victim->combat_help.active || !victim->inuse || G_IsDeferredFree(victim) ||
+        (victim->s.renderfx&RF_HIDDEN) || victim->s.player>=MAX_PLAYERS)return;
+    attackHelpQuery_t *query=attack_help_queries;
+    if(query)attack_help_queries=query->next;
+    else if(!(query=calloc(1,sizeof(*query))))gi.error("Attack help: cannot acquire spatial query");
+    query->count=0;
+    query->owners=0;
+    player_t const *owner=&game.clients[victim->s.player].ps;
+    FOR_LOOP(i,MAX_PLAYERS) {
+        player_t const *helper=&game.clients[i].ps;
+        if(G_GetPlayerAlliance(owner,helper,ALLIANCE_HELP_REQUEST) &&
+            G_GetPlayerAlliance(helper,owner,ALLIANCE_HELP_RESPONSE))query->owners|=1u<<i;
+    }
+    uint32_t victim_birth=victim->spawn_time,source_birth=source->spawn_time;
+    box2_t bounds=CM_GetWorldBounds();
+    vec2_t center={wc3_grid_coordinate(victim->s.origin2.x,bounds.min.x,32),
+        wc3_grid_coordinate(victim->s.origin2.y,bounds.min.y,32)};
+    float radius=wc3_div(victim->s.player>=PLAYER_NEUTRAL_AGGRESSIVE ? game.constants.creepCallForHelp : game.constants.callForHelp,32);
+    S_QueryMoveProximityContext(victim,(float[]){center.x,center.y},radius,attack_help_collect,query);
+    FOR_LOOP(i,query->count) {
+        if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim) ||
+            !source->inuse || source->spawn_time!=source_birth || G_IsDeferredFree(source))break;
+        attackHelpMember_t member=query->members[i];edict_t *unit=g_edicts+member.index;
+        if(!unit->inuse || unit->spawn_time!=member.birth || G_IsDeferredFree(unit) || IS_HOLLOW(unit) ||
+            !unit->data.UnitData || unit->s.player>=MAX_PLAYERS)continue;
+        vec2_t point=attack_help_fine_position(unit,bounds);
+        float dx=wc3_sub(point.x,center.x),dy=wc3_sub(point.y,center.y);
+        /* Query token0xb selects05ce60: compare against the query radius
+         * plus the candidate's canonical radius, not its center alone. */
+        float reach=wc3_add(radius,wc3_div(MAX(1,unit->collision),32));
+        if(wc3_add(wc3_mul(dx,dx),wc3_mul(dy,dy))>wc3_mul(reach,reach))continue;
+        S_UnitAllyCombatAlert(unit,victim,source);
+    }
+    query->next=attack_help_queries;attack_help_queries=query;
+    /* Native66e700 arms suppression after all recipient callbacks, even if
+     * the victim has no Attack ability or the damage amount is zero. */
+    if(!victim->inuse || victim->spawn_time!=victim_birth || G_IsDeferredFree(victim))return;
+    attack_cap_remove(victim,ATTACK_TIMER_HELP);
+    victim->combat_help=(abilityPrimaryTimer_t){.deadline=G_TimerQueryClock(NULL),
+        .sequence=++level.timer_sequence,.active=true};
+    victim->combat_help.deadline.time=wc3_add(victim->combat_help.deadline.time,3);
+    attack_cap_insert(victim,ATTACK_TIMER_HELP);
 }
 
 typedef struct {
@@ -419,7 +511,10 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
                    ((target->svflags & SVF_MONSTER) ||
                     (G_IsDestructable(target) && G_DestructableCanBeAttackedBy(attacker, target))) &&
                    G_PlayerInstantKill(attacker->s.player);
-    if (!G_IsDestructable(target)) S_UnitCombatAlert(target,attacker,0);
+    if (!G_IsDestructable(target)) {
+        S_UnitCombatAlert(target,attacker,0);
+        attack_call_for_help(target,attacker);
+    }
     damage = S_ManaShieldDamage(target, damage);
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
     if (damage <= 0) return;
@@ -1234,24 +1329,27 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
 BZ_ABILITY_PROC(CAbilityAttack) {
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING);
     case A_TIMERS_RESET:
+        attack_help_queries_reset();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));return true;
     case A_TIMERS_REBUILD:
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));
-        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].attack_speed_cap.active)
-            attack_cap_insert(g_edicts+i);
+        FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
+            if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
+            if(g_edicts[i].combat_help.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_HELP);
+        }
         return true;
     case A_PRIMARY_TIMER_NEXT:
         if(!attack_cap_count || !call || !call->primary_timer)return false;
-        *call->primary_timer=(abilityTimerRequest_t){g_edicts[attack_cap_heap[0]].attack_speed_cap.deadline,
-            g_edicts[attack_cap_heap[0]].attack_speed_cap.sequence,CAbilityAttack};return true;
+        *call->primary_timer=(abilityTimerRequest_t){attack_primary_timer(attack_cap_heap[0])->deadline,
+            attack_primary_timer(attack_cap_heap[0])->sequence,CAbilityAttack};return true;
     case A_PRIMARY_TIMER_FIRE:
-        if(attack_cap_count)attack_cap_cancel(g_edicts+attack_cap_heap[0]);
+        if(attack_cap_count)attack_primary_fire();
         return true;
     case A_PRIMARY_TIMER_REBASE:
         FOR_LOOP(i,attack_cap_count) {
-            typeof(ent->attack_speed_cap) *timer=&g_edicts[attack_cap_heap[i]].attack_speed_cap;
+            abilityPrimaryTimer_t *timer=attack_primary_timer(attack_cap_heap[i]);
             timer->deadline.time=wc3_sub(timer->deadline.time,call->clock_span);timer->deadline.epoch++;
         }
         return true;
@@ -1259,11 +1357,21 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         /* Real frames merge exact requests in TimerDrain. Direct owner tests
          * retain the same expiration predicate without scanning all entities. */
         if(!level.scheduled_frame)while(attack_cap_count) {
-            edict_t *unit=g_edicts+attack_cap_heap[0];wc3Clock_t now=G_TimerQueryClock(NULL);
-            if(unit->attack_speed_cap.deadline.time>now.time)break;
-            attack_cap_cancel(unit);
+            wc3Clock_t now=G_TimerQueryClock(NULL);
+            if(attack_primary_timer(attack_cap_heap[0])->deadline.time>now.time)break;
+            attack_primary_fire();
         }
         return true;
+    case A_ALLY_COMBAT_ALERT: {
+        edict_t *victim=call ? call->combat_alert.victim : NULL;
+        edict_t *source=call ? call->combat_alert.source : NULL;
+        if(!ent || !victim || !source || ent->s.player>=MAX_PLAYERS || victim->s.player>=MAX_PLAYERS || source->s.player>=MAX_PLAYERS)return false;
+        player_t const *helper=&game.clients[ent->s.player].ps,*owner=&game.clients[victim->s.player].ps;
+        if(!G_GetPlayerAlliance(owner,helper,ALLIANCE_HELP_REQUEST) ||
+           !G_GetPlayerAlliance(helper,owner,ALLIANCE_HELP_RESPONSE) ||
+           G_PlayerTreatsPlayerAsAlly(ent->s.player,source->s.player))return false;
+        return CAbilityAttack(ent,A_COMBAT_ALERT,call);
+    }
     case A_COMBAT_ALERT:
         /* Native4935e0 rejects null sources, packet bit2 and suspension before
          * setting the bit. Retaliation eligibility is a later decision. */
@@ -1273,9 +1381,11 @@ BZ_ABILITY_PROC(CAbilityAttack) {
     case A_AUTO_COMBAT_START:
         attack_cap_begin(ent);return false;
     case A_DISABLE:
+        if(ent)attack_cap_cancel(ent);
+        return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent)attack_cap_cancel(ent);
+        if(ent){attack_cap_cancel(ent);attack_help_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;

@@ -211,14 +211,17 @@ static inline void wc3_records_compact(wc3SpatialRecords_t *map,bool all) {
 /*170c00/170b30: query stamp once, cell stamp for each nonempty raw cell.
  * Removal records suppress older insertions only within their cell. An accepted
  * or rejected ordinary insertion receives the query stamp before the next cell. */
-static inline void wc3_records_query(wc3SpatialRecords_t *map,wc3FineBox_t box,uint32_t source,
-    void (*visit)(void *,uint32_t),void *data) {
+static inline void wc3_records_query_ordered(wc3SpatialRecords_t *map,wc3FineBox_t box,uint32_t source,
+    void (*visit)(void *,uint32_t),void *data,bool columns_first) {
     box=wc3_records_clip(map,box);
     if(box.min.x>=box.max.x || box.min.y>=box.max.y)return;
     uint32_t query=++map->query;
     wc3RecordObject_t *exclude=wc3_records_owned(map,source);
     if(exclude)exclude->stamp=query;
-    for(int y=box.min.y;y<box.max.y;y++)for(int x=box.min.x;x<box.max.x;x++) {
+    int outer_min=columns_first ? box.min.x : box.min.y,outer_max=columns_first ? box.max.x : box.max.y;
+    int inner_min=columns_first ? box.min.y : box.min.x,inner_max=columns_first ? box.max.y : box.max.x;
+    for(int outer=outer_min;outer<outer_max;outer++)for(int inner=inner_min;inner<inner_max;inner++) {
+        int x=columns_first ? outer : inner,y=columns_first ? inner : outer;
         uint32_t id=map->cells[(uint32_t)y*map->width+x]&WC3_RECORD_END;
         if(id==WC3_RECORD_END)continue;
         uint32_t stamp=++map->query;
@@ -234,5 +237,9 @@ static inline void wc3_records_query(wc3SpatialRecords_t *map,wc3FineBox_t box,u
             id=link.next&WC3_RECORD_END;
         }
     }
+}
+static inline void wc3_records_query(wc3SpatialRecords_t *map,wc3FineBox_t box,uint32_t source,
+    void (*visit)(void *,uint32_t),void *data) {
+    wc3_records_query_ordered(map,box,source,visit,data,false);
 }
 #endif

@@ -1481,6 +1481,13 @@ void S_UnitCombatAlert(edict_t *unit,edict_t *source,uint32_t flags) {
     unit_dispatch_authored_abilities(unit,A_COMBAT_ALERT,&call,false,false,false);
 }
 
+void S_UnitAllyCombatAlert(edict_t *unit,edict_t *victim,edict_t *source) {
+    if(!unit)return;
+    abilityCall_t call={.combat_alert={.source=source,.victim=victim,.flags=4}};
+    unit_dispatch_engine_event_abilities(unit,A_ALLY_COMBAT_ALERT,&call);
+    unit_dispatch_authored_abilities(unit,A_ALLY_COMBAT_ALERT,&call,false,false,false);
+}
+
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
 void S_UnitTargetRemoved(edict_t *target) {
     abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);
