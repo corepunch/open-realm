@@ -10,6 +10,11 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
+static void test_wander_damage(edict_t *unit, edict_t *attacker) {
+    abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
+    S_UnitAbilityEventWithCall(unit, A_DAMAGED, &call);
+}
+
 TEST(wc3_wander, authored_ability_dispatches_innate_idle) {
     edict_t *unit;
     reset_entities();
@@ -85,7 +90,10 @@ TEST(wc3_wander, retreat_does_not_override_external_move) {
     goal = Waypoint_add(&destination);
     order_move(unit, goal);
     T_ASSERT(move_is_active_order_walk(unit));
-    S_WanderOnDamage(unit, attacker);
+    {
+        abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
+        S_UnitAbilityEventWithCall(unit, A_DAMAGED, &call);
+    }
     T_ASSERT(unit->goalentity == goal);
     T_NULL(unit->wander_goal);
 }
@@ -106,7 +114,7 @@ TEST(wc3_wander, recycled_waypoint_does_not_authorize_flee_override) {
     unit->wander_goal_generation = goal->waypoint_generation;
     /* Simulate a slot reused by the shared waypoint ring. */
     goal->waypoint_generation++;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     T_ASSERT(unit->goalentity == goal);
 }
 
@@ -119,7 +127,7 @@ TEST(wc3_wander, disable_cancels_only_owned_move) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     owned_goal = unit->wander_waypoint;
     T_NOT_NULL(owned_goal);
     T_ASSERT(unit->goalentity == owned_goal);
@@ -150,7 +158,7 @@ TEST(wc3_wander, damage_does_not_interrupt_explicit_non_move_order) {
     ARRAY_COUNT(unit->abilities.added) = 1;
     unit->currentmove = &explicit_attack;
     T_ASSERT(G_UnitHasActiveOrder(unit));
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     T_ASSERT(unit->currentmove == &explicit_attack);
     T_NULL(unit->wander_waypoint);
     T_NULL(unit->wander_goal);
@@ -207,7 +215,7 @@ TEST(wc3_wander, private_destination_cannot_be_recycled_by_shared_ring) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     private_goal = unit->wander_waypoint;
     T_NOT_NULL(private_goal);
     T_ASSERT(unit->goalentity == private_goal);
@@ -235,7 +243,7 @@ TEST(wc3_wander, stable_goal_survives_save_load) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(WriteGame(filename));
@@ -255,7 +263,7 @@ TEST(wc3_wander, disabling_after_ownership_retired_frees_stale_private_goal) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     /* Model an accepted-order transition that retires ownership while the
@@ -279,7 +287,7 @@ TEST(wc3_wander, ordinary_external_move_survives_private_goal_cleanup) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     T_NOT_NULL(unit->wander_waypoint);
     goal = Waypoint_add(&destination);
     order_move(unit, goal);
@@ -345,7 +353,7 @@ TEST(wc3_wander, blocked_private_move_returns_idle_after_ownership_retirement) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(move_is_active_order_walk(unit));
@@ -372,7 +380,7 @@ TEST(wc3_wander, blocked_recovery_does_not_intercept_external_move) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     T_NOT_NULL(unit->wander_waypoint);
     other = Waypoint_add(&destination);
     order_move(unit, other);
@@ -392,11 +400,11 @@ TEST(wc3_wander, repeated_damage_retargets_private_goal_without_leak) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     generation = goal->waypoint_generation;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     T_ASSERT(unit->wander_waypoint == goal);
     T_ASSERT(unit->goalentity == goal);
     T_ASSERT(move_is_active_order_walk(unit));
@@ -414,7 +422,7 @@ TEST(wc3_wander, saved_private_destination_continues_after_reload) {
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(WriteGame(filename));
@@ -470,7 +478,7 @@ TEST(wc3_wander, real_move_arrival_then_scheduler_rearms_wander) {
     unit->unitinfo.MoveSpeed = 320.0f;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(move_is_active_order_walk(unit));
@@ -497,7 +505,7 @@ TEST(wc3_wander, save_load_move_reaches_goal_and_rearms) {
     unit->unitinfo.MoveSpeed = 320.0f;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(WriteGame(filename));
@@ -523,7 +531,7 @@ TEST(wc3_wander, blocked_move_think_returns_wander_to_idle) {
     unit->stand = unit_stand;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
-    S_WanderOnDamage(unit, attacker);
+    test_wander_damage(unit, attacker);
     goal = unit->wander_waypoint;
     T_NOT_NULL(goal);
     T_ASSERT(move_is_active_order_walk(unit));
