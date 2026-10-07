@@ -125,7 +125,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 95 removes the historical Heroes Used counter: the retail page
  * snapshots current hero entities and is not part of the saved client state. */
 /* Version 96 persists per-item death-drop overrides. */
-static uint32_t const save_version = 96;
+/* Version 97 persists the SetWaterBaseColor RGBA state. */
+static uint32_t const save_version = 97;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -550,6 +551,7 @@ static field_t const level_fields[] = {
     F(level_locals, environment_fog.defaults.density, F_FLOAT),
     F(level_locals, environment_fog.defaults.color, F_VECTOR),
     F(level_locals, environment_fog.defaults_valid, F_INT),
+    F(level_locals, water_base_color, F_INT),
     F(level_locals, camera_bounds, F_VECTOR),
     F(level_locals, started, F_INT),
     F(level_locals, scriptsConfigured, F_INT),
@@ -2487,6 +2489,7 @@ bool ReadGame(cstring_t filename) {
     /* Configstrings were rebuilt while reloading the map. Re-publish the
      * restored authoritative scene fog before client-side presentation resumes. */
     G_EnvironmentFogPublish();
+    G_WaterBaseColorPublish();
     /* Client-side decoders are presentation state, not part of the save file.
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */

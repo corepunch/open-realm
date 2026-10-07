@@ -42,6 +42,24 @@ static model_t const *V_ConfigSkyModel(void) {
 /* CS_SCENE_FOG is a generic server-authored distance-fog contract. Games may
  * leave the slot empty. Positive styles share the renderer's linear start/end
  * path until a producer proves and exposes additional equations. */
+/* CS_SCENE_WATER_COLOR is a generic server-authored water tint. Games that
+ * do not publish it keep the neutral white multiplier. */
+static void V_UpdateSceneWaterColor(viewDef_t *view, bool world) {
+    float red = 1.0f, green = 1.0f, blue = 1.0f, alpha = 1.0f;
+
+    if (!view) return;
+    view->waterBaseColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
+    if (!world || !*cl.configstrings[CS_SCENE_WATER_COLOR]) return;
+    if (sscanf(cl.configstrings[CS_SCENE_WATER_COLOR], "%f %f %f %f",
+               &red, &green, &blue, &alpha) != 4) return;
+    view->waterBaseColor = (vec4_t){
+        MAX(0.0f, MIN(1.0f, red)),
+        MAX(0.0f, MIN(1.0f, green)),
+        MAX(0.0f, MIN(1.0f, blue)),
+        MAX(0.0f, MIN(1.0f, alpha)),
+    };
+}
+
 static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     static bool invalid_logged;
     int style = 0;
@@ -80,6 +98,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
     view->terrainLight = (environLight_t){0};
     view->entityLight = (environLight_t){0};
     V_UpdateSceneFog(view, world);
+    V_UpdateSceneWaterColor(view, world);
     if (!world) {
         view->terrainLightModel = NULL;
         view->entityLightModel = NULL;

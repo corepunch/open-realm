@@ -4207,6 +4207,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
             .initialized = true,
         },
     };
+    level.water_base_color = (color32_t){ 12, 34, 56, 78 };
     level.environment_fog = (wc3EnvironmentFog_t){
         .active = {
             .style = WC3_ENV_FOG_LINEAR,
@@ -4306,6 +4307,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     saved_item->completed = false;
     memset(&level.timeofday, 0, sizeof(level.timeofday));
     memset(&level.environment_fog, 0, sizeof(level.environment_fog));
+    level.water_base_color = (color32_t){0};
     T_ASSERT(ReadGame(filename));
     T_ASSERT(!level.cinefilter.displayed);
     /* The sleeping unit's persistent ACsp overlay is a linked, non-selectable
@@ -4351,6 +4353,10 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.environment_fog.defaults.color.y, 0.5f, 0.001f);
     T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
     T_ASSERT(level.environment_fog.defaults_valid);
+    T_EQ(level.water_base_color.r, 12);
+    T_EQ(level.water_base_color.g, 34);
+    T_EQ(level.water_base_color.b, 56);
+    T_EQ(level.water_base_color.a, 78);
     T_ASSERT(level.started && level.scriptsConfigured && level.scriptsStarted);
     T_EQ(level.multiboard_suppressed_clients, 1u << 3);
     T_EQ(level.team_resources_collapsed_clients, 1u << 5);

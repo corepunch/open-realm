@@ -74,6 +74,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 ground tile atlas layout, nested `<tileset>.mpq` texture layer, Water.slk water height/tint/animation | [docs/games/warcraft-3/terrain-tiles-and-water.md](docs/games/warcraft-3/terrain-tiles-and-water.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
+| WC3 runtime water tint, `SetWaterBaseColor`, scene configstring and W3M water-layer shader multiply | [docs/games/warcraft-3/water-base-color.md](docs/games/warcraft-3/water-base-color.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
 | WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
 | WC3 invisibility causes, detector integration, Wind Walk/Ghost/item invisibility, Ghost Visible/Burrow compatibility policy | [docs/games/warcraft-3/invisibility.md](docs/games/warcraft-3/invisibility.md) |

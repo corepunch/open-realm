@@ -442,6 +442,7 @@ void R_SetupGL(bool drawLight) {
     tr.shader_default.state.model = model_matrix;
     tr.shader_default.state.lightMatrix = tr.viewDef.lightMatrix;
     tr.shader_default.state.normalMatrix = normal_matrix;
+    tr.shader_default.state.baseColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
 
     tr.shader_ui.state.viewProjection = ui_matrix;
     tr.shader_ui.state.model = model_matrix;

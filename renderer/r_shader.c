@@ -258,6 +258,7 @@ const shader_desc_t sd_default = {
         UNIFORM(fogEnable,      UT_BOOL,       PRECISION_LOW),
         UNIFORM(fogColor,       UT_FLOAT_VEC3, PRECISION_LOW),
         UNIFORM(fogParams,      UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(baseColor,      UT_FLOAT_VEC4, PRECISION_LOW),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -346,7 +347,7 @@ const shader_desc_t sd_default = {
         "}\n"
         "#endif\n"
         "vec4 frag() {\n"
-        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
+        "  vec4 col = texture(u_texture, v_texcoord) * v_color * u_baseColor;\n"
         "#ifdef USE_FOGOFWAR\n"
         "  col.rgb *= get_fogofwar() * get_lighting();\n"
         "#else\n"

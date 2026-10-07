@@ -2505,6 +2505,7 @@ struct level_locals {
     uint32_t dialog_count, dialog_button_count; /* high-water slot counts; free slots below are reused */
     timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
+    color32_t water_base_color;
     box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     bool started;
     bool scriptsConfigured;
@@ -2798,6 +2799,11 @@ void G_EnvironmentFogInitMap(void);
 void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
+
+// g_water_color.c
+void G_WaterBaseColorInitMap(void);
+void G_WaterBaseColorSet(int32_t red, int32_t green, int32_t blue, int32_t alpha);
+void G_WaterBaseColorPublish(void);
 
 // skills/s_creep_sleep.c — JASS natural-sleep interface
 bool G_UnitCanSleep(edict_t const *);
