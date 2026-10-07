@@ -2358,6 +2358,8 @@ typedef enum {
 
 typedef struct {
     ARRAY(edict_t *, units);
+    edict_t **units_storage; /* Allocation base; units points past unused prepend capacity. */
+    uint32_t units_capacity;
     edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
     bool home_set, full;

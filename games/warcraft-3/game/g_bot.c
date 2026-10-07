@@ -228,7 +228,7 @@ static bool G_BotIsHostile(player_t *, edict_t *);
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
         S_ReleaseCaptainHomeActor(bot->captains[i].home_actor);
-        if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
+        gi.MemFree(bot->captains[i].units_storage ? bot->captains[i].units_storage : bot->captains[i].units);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
     }
 }
@@ -1255,11 +1255,21 @@ void G_BotInitAssault(player_t *player) {
 
 static void G_BotCaptainAdd(botCaptain_t *captain, edict_t *unit) {
     uint32_t count = ARRAY_COUNT(captain->units);
-    edict_t * *units = gi.MemAlloc((count + 1) * sizeof(*units));
-    /* Native9cf680 prepends the retained captain roster link. */
-    if (count) memcpy(units + 1, captain->units, count * sizeof(*units));
-    if (captain->units) gi.MemFree(captain->units);
-    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[0] = unit;
+    /* Native9cf680 prepends. Keep the contiguous encounter order, with free
+     * capacity BEFORE the live range: ordinary insertion writes one pointer.
+     * Geometric growth copies O(N) pointers over the entire creation batch,
+     * rather than copying the whole roster for every new member. */
+    if (!captain->units_storage || captain->units == captain->units_storage) {
+        uint32_t capacity=MAX(32,captain->units_capacity*2);
+        while (capacity<=count) capacity*=2;
+        edict_t **storage=gi.MemAlloc(capacity*sizeof(*storage));
+        edict_t **units=storage+capacity-count;
+        if (count) memcpy(units,captain->units,count*sizeof(*units));
+        gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
+        captain->units_storage=storage;captain->units_capacity=capacity;captain->units=units;
+    }
+    *--captain->units=unit;
+    ARRAY_COUNT(captain->units)=count+1;
 }
 
 /* Captain requests reconcile totals by type, including retained assault recruits.

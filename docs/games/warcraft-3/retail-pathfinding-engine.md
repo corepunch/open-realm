@@ -11699,3 +11699,20 @@ regression, full timeline with paused save/load and4096-unit growth exercise act
 JASS/server lifecycle. See [the contract and remaining gaps](retail-pathfinding-timed-life.md).
 GROUP-03.4.6.2.1.2 remains open for automatic captain enrollment, subclass extra
 effects, generic buff composition and full long-duration segmented clocks.
+
+## Captain roster construction retains ordered front capacity (Payoff157)
+
+Captain recruitment retains the original newest-owned selection and prepended
+logical roster order, while avoiding a new whole-roster allocation and copy for
+every attachment. The contiguous roster now occupies the end of a geometric
+allocation, so new members consume preceding capacity. Removal still preserves
+survivor order. The allocation base is retained separately for reset/free.
+Actual bulk AddAssault regressions include an owner round-trip, middle withdrawal,
+recruitment and complete reset. See [storage contract and remaining costs](retail-pathfinding-captain-storage.md).
+
+The automatic temporary enrollment regression remains failing and is not claimed
+fixed by this representation change. Two complete retail repeats and an observer-free
+control now preserve90 public markers, seven applications and three new attachments.
+First and repeated applications retain the public Move head; internal AI order
+publication must not be treated as clearing that head. Physical enrollment travel
+and disabled-policy behavior remain open.

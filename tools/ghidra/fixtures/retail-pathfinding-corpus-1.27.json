@@ -38010,6 +38010,130 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-temporary-captain-enrollment",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_captain_enrollment157_live.py",
+        "--captures",
+        "{archive}/runtime/captain-enrollment157",
+        "--expected",
+        "tools/ghidra/fixtures/retail-captain-enrollment-live-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "report": "captain-enrollment-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 90
+        },
+        "enrollments": {
+          "equal": 7
+        },
+        "attachments": {
+          "equal": 3
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Public temporary enrollment: first attachment versus duplicate, internal AI-order publication and retained public Move head. Engine roster storage preserves previously verified encounter order with linear allocation volume.",
+      "exclusions": [
+        "Automatic enrollment implementation, physical motion and disabled policy remain open. Earlier failed/incomplete producer attempts are excluded."
+      ],
+      "capture_failures": [],
+      "inputs": {
+        "capture": "runtime/captain-enrollment157/observe-11.jsonl",
+        "sha256": "3e782544cd7aff175163d7723c6d5d00568df3d836deeb36bb85ee5df5dc7c78",
+        "bytes": 11033,
+        "metadata": {
+          "task": "payoff157",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+            "captain_enrollment157_observer.js": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c",
+            "map": "9fdc31e0554095a26475cce3e1a0e85f01eeb2fc651bc8424cf4678590cedfe4"
+          },
+          "map": "Maps\\RS-Enrollment157d.w3m",
+          "seconds": 55.0,
+          "continue_at": 15.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-enrollment157/observe-12.jsonl",
+            "sha256": "e67b1656f043d9c5d8c9fd60a3b596b0a72ab3117c11e87552011acbad89b04d",
+            "bytes": 11033,
+            "metadata": {
+              "task": "payoff157",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_enrollment157_observer.js": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c",
+                "map": "9fdc31e0554095a26475cce3e1a0e85f01eeb2fc651bc8424cf4678590cedfe4"
+              },
+              "map": "Maps\\RS-Enrollment157d.w3m",
+              "seconds": 55.0,
+              "continue_at": 15.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-enrollment157/control-4.jsonl",
+            "sha256": "3b1e85756653b64a459a50321f8aa47fc3e86a1675da661e29e951004c4fbd10",
+            "bytes": 899,
+            "metadata": {
+              "task": "payoff157",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_enrollment157_observer.js": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c",
+                "map": "9fdc31e0554095a26475cce3e1a0e85f01eeb2fc651bc8424cf4678590cedfe4"
+              },
+              "map": "Maps\\RS-Enrollment157d.w3m",
+              "seconds": 90.0,
+              "continue_at": 8.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -38908,7 +39032,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4816137bf3c3a63a919415b004217fd16449f1f7d6a4ef1cfded2d833579d720"
+      "sha256": "59b512ef85f5985f6f3a0c394a7620fbeac2d56b56572c03a976ae5a516bb206"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -40208,7 +40332,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "1470731d8ddc37b8ff36c95ecfd86639ab506ef7bad73ddf8de968219d41e730"
+      "sha256": "e2cae351bb9fe2dbb198b8a923d272234dde33eaed1b5ddca5831644f6ddb27a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -40700,7 +40824,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "a27faebc148eab1a37a27fd55d554f8a77694e667f20120b157f85d1af6c7466"
+      "sha256": "63482067272f15297237d095db83b0c03b870f9c569d42e9438b0eaaa3aa8f9d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -40712,11 +40836,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "0e9cf5a59f8a2de95986d87dfe9208f059a6de04d35275d22c28990558b08f50"
+      "sha256": "ac9bb777477e41e4263f4ef888c54fdbc55e1ef2161b105b23f36fc79831784f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "5371902a5fd18b1e1bb6e3a7551f35bc8a7c545525281ba15cfa1f4bbed83904"
+      "sha256": "e4b52781c9dad655acda963f626b7d0df0cb746226726a561876121ffba0af67"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -40836,7 +40960,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "d59f2c9f00aea6a129d20f2060201ca738cb089697a2decbcabc3379535f017e"
+      "sha256": "e34acd37c278f0b7226517a69741eea71d97332dca0494539a7e3e162ffea6f0"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -41017,6 +41141,38 @@
     {
       "path": "tests/test_wc3_pathfinding_timed_life.py",
       "sha256": "87a72ff30fbc1863557ad82cfaf054c999666b0b771eb06cd6c2ffc7a6e507d6"
+    },
+    {
+      "path": "tools/ghidra/research/verify_captain_enrollment157_live.py",
+      "sha256": "2b312ddcdd4d6172f88a9dda8eb7c23de893ee85de1b582971feec1aef3d1dcf"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-enrollment-live-1.27.json",
+      "sha256": "0a38c316649c1ba33a9a2af54ec4a43ed23e0853c42f74b5ee3e395d54732a4a"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_enrollment.py",
+      "sha256": "c0bd5a1382a0650d0a1b4f8b4d1404e06bae2b7225fb6286039e813935adc041"
+    },
+    {
+      "path": "tools/frida/research/captain_enrollment157_capture.py",
+      "sha256": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91"
+    },
+    {
+      "path": "tools/frida/research/captain_enrollment157_make_map.py",
+      "sha256": "84a9235df5faddc92677ede7f6a7bdc8d7c703d7af536e3b5c9f47da9cc2ea6d"
+    },
+    {
+      "path": "tools/frida/research/captain_enrollment157_observer.js",
+      "sha256": "bcba0e78113ee6bc6fb4aea3d6eac1b9e43781d5479b08c9fab9c41d6c51e67c"
+    },
+    {
+      "path": "tools/frida/research/captain_enrollment157_probe.ai",
+      "sha256": "b307671b2db55113aa5d9372b44e10cb05478b2aa1c2748e9761c0d2203a3f6e"
+    },
+    {
+      "path": "tools/frida/research/captain_enrollment157_probe.j",
+      "sha256": "8ae2fec41438da6e8f974ab69fe31e35826cf862683b13577de0083d100d30e0"
     }
   ]
 }
