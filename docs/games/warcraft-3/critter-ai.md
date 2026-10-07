@@ -1,123 +1,150 @@
-# Critter wandering (`Awan`)
+# Critter Wandering (`Awan`)
 
-`Awan` owns autonomous decisions. The unit simulator drives its innate `A_IDLE`
-callback; the existing Move ability owns movement, collision and pathfinding.
-A simulation-local PRNG is persisted per unit with the next movement deadline
-and a private, stable destination edict reference. No client-side decisions or debug logs.
+`Awan` makes idle neutral critters take short autonomous walks and run from a
+hit. The ability owns only scheduling, the flee decision and the identity of
+its private destination; the standard Move ability owns routing, collision and
+arrival. Implementation: `games/warcraft-3/game/skills/s_wander.c`, registered
+as `{ "Awan", CAbilityWander, AB_PASSIVE | AB_INNATE }` in `skills/s_skills.c`.
+Custom rawcodes whose `code` column is `Awan` are found through
+`S_ResolveAbilityAlias(unit, 'Awan')`, not by matching the stock rawcode only.
 
-## Behaviour
+## Contract
 
-- Eligible idle units with `Awan` periodically attempt a short Move from their
-  current location. No spawn-centred leash is imposed.
-- Wander suppresses idle automatic combat acquisition and retaliation, not
-  enemy selection of a critter as a target.
-- Nonlethal damage attempts to move away from the attacker, unless any explicit active order
-  (moving, attacking, casting, harvesting, building or patrolling) is active. A new Wander movement can be interrupted.
-- Unit pause, stun, immobilization, construction, training, Hold Position and
-  queued orders prevent starting new autonomous moves.
-- Each unit owns a private, stable destination edict while wandering is active.
-  The shared waypoint ring cannot recycle this edict. Move owns pathfinding.
-- An external Move replaces the internal goal even when its movement procedure
-  remains unchanged. Accepted non-Move orders also clear Wander ownership.
-- Disabling `Awan` cancels its currently owned Move, but never cancels an
-  unrelated explicit order.
-- The scheduling PRNG and private destination reference are part of save version 68.
-- Any active explicit order prevents idle Wander from starting, including orders
-  whose animation temporarily reaches the stand callback.
+- An eligible idle unit with `Awan` starts a Move to a random nearby point
+  every 8-10 s. There is no spawn leash; destinations are relative to the
+  current position.
+- While `Awan` is present the unit never auto-acquires enemies and never
+  retaliates (`A_IDLE` is consumed, `A_NO_RETALIATE` returns true). Enemies
+  may still target the critter.
+- A hit that the unit survives makes it walk away from the attacker unless an
+  explicit order (move, attack, cast, build, harvest, patrol) is active. A
+  flee may interrupt an earlier autonomous Move.
+- `Awan` only ever cancels movement it started. External orders, including a
+  Move whose procedure happens to be the same walk behaviour, are untouched.
+- No JASS order events are synthesized for autonomous Moves.
 
-## Retail uncertainty
+## Eligibility
 
-Movement delay 8–10 seconds, radius 64–256 world units, and retreat distances
-192/96/48/24 units are **provisional**. They are not verified retail constants.
-Destination selection is position-relative. Stop/Hold ordering, proximity-only
-fleeing, special-case critter behaviour and JASS order-event compatibility require
-retail tests. This implementation deliberately does not synthesize JASS issued
-orders for autonomous Move.
+`wander_eligible()` requires the ability present, the unit alive, not paused,
+stunned, training, under construction, `AI_IMMOBILE`, holding position,
+cycloned, entangled, ensnared or Purge-immobilized, no queued orders, and
+either no active order or an active order that `Awan` itself owns.
 
-## Test coverage and remaining gaps
+## Scheduling
 
-The headless tests cover innate registration, separate seeded schedules, scheduler
-pause/resume, accepted-order ownership clearing, disabled-ability cancellation, external Move preservation,
-recycled shared-waypoint generation rejection, private-waypoint non-recycling,
-serializer field and active-goal round trips.
-New tests exercise two naturally scheduled Move/arrival cycles on the shared
-synthetic pathmap, custom Wander alias enable/disable, and a retry deadline
-following terminal blockage. Compilation and execution remain outstanding.
-Further coverage is needed for dynamically obstructed routes, blocked retreats,
-and exhaustive queued-order restoration after loading.
+| Constant (`s_wander.c`) | Value | Meaning |
+|---|---|---|
+| `WANDER_MIN_DELAY_MS` + `% WANDER_DELAY_SPREAD_MS` | 8000 + [0, 2001) ms | pause before the next autonomous decision |
+| `WANDER_MIN_DISTANCE` + `WANDER_DISTANCE_SPREAD` | 64 + [0, 192) units | destination radius |
+| `WANDER_ATTEMPTS` | 6 | destination rolls per decision; all rejected means wait for the next deadline |
+| `WANDER_BUILDING_CLEARANCE` | 32 units | extra gap kept from live building footprints |
+| `WANDER_FLEE_DISTANCE` | 192 units | first retreat length, halved per failed attempt |
+| `WANDER_FLEE_ATTEMPTS` | 4 | retreats tried: 192 / 96 / 48 / 24 units |
 
-## Stable destination lifetime
+`wander_next_time` is re-armed (`wander_schedule()`) whenever a decision is
+taken, at `A_MOVE_ARRIVE`, at `A_MOVE_BLOCKED`, and after a flee starts, so a
+finished or failed journey always begins a fresh pause. Randomness comes from a
+per-unit LCG (`wander_random_state`) seeded from the edict number and spawn
+time, never from the process RNG or wall clock, so replays and saves are
+deterministic. `A_IDLE` is dispatched by `ai_stand()` in `g_ai.c`; the first
+idle tick only arms the deadline.
 
-The shared 256-entry waypoint ring may overwrite coordinates of an active
-Move target, not merely its generation. Each unit that actually generates a
-Wander/flee order therefore allocates one private invisible destination edict,
-reuses it only when the previous autonomous Move is finished, and frees it on
-ability disable or unit removal. The private pointer is serialized as F_EDICT;
-no client AI or alternate pathfinding is introduced. Authored Wander aliases
-are detected via `S_ResolveAbilityAlias` instead of only matching `Awan`.
+Destination rules: `M_MoveIsValid()` (terrain, baked footprints, swept unit
+collision) plus `wander_clear_of_buildings()`, which rejects any point closer
+than `unit->collision + building->collision + WANDER_BUILDING_CLEARANCE` to a
+live `EF_BUILDING` edict. Every building type counts, not just lumber mills;
+destroyed structures (`M_IsDead()`) still occupy their edict but do not.
 
-## Disable and death cleanup
+## Move ownership and ability events
 
-The private destination is ability-owned. Disabling Wander, death, or unit
-removal must stop an active Move that still targets this private entity,
-detach `goalentity`, clear Wander ownership, and release the entity even
-when an earlier accepted-order callback already retired the owner token.
-External orders with independent targets remain untouched. The revised
-regression tests exercise stale ownership, external Move preservation,
-combat damage dispatch, and continuation/cleanup following a save/load.
-Natural arrival and blocked recovery now have test assertions, but their
-execution and retail timing still require local runtime verification.
+Each wandering unit keeps one private destination edict, `wander_waypoint`
+(`SVF_NOCLIENT`, allocated by the first autonomous Move, freed on disable,
+death or removal). The shared `Waypoint_add()` ring is never used because a
+ring slot can be overwritten while a Move still references it. `wander_goal`
+plus `wander_goal_generation` form the ownership token: `wander_owns_move()`
+is true only when `goalentity == wander_goal`, the generation matches the
+waypoint's current `waypoint_generation`, and the unit is in the ordinary walk
+move. A private waypoint is never rewritten while a Move still targets it.
 
-## Follow-up source review (6 October 2026)
+| Event | `CAbilityWander` behaviour |
+|---|---|
+| `A_IDLE` | consume while present; arm or evaluate the deadline; start a Move |
+| `A_NO_RETALIATE` | true while present |
+| `A_DAMAGED` | `wander_on_damage()`: flee (see below) |
+| `A_ORDER_ACCEPTED` | clear the ownership token (an accepted order may keep the same move object) |
+| `A_MOVE_START` | clear ownership unless `call->move_target` is the private waypoint |
+| `A_MOVE_ARRIVE` | if the arriving Move targets the private waypoint: clear ownership, re-arm |
+| `A_MOVE_BLOCKED` | `wander_recover_blocked_move()`: return to idle instead of terminal Hold, re-arm |
+| `A_MOVE_LEAVE` | clear the ownership token |
+| `A_DISABLE`, `A_DEATH`, `A_UNIT_REMOVE` | stop an owned Move (`unit_stand_no_queue`), detach `goalentity`, free the waypoint, reset the deadline |
 
-- Fleeing checks `G_UnitHasActiveOrder()` rather than only `unit_is_walking()`,
-  so damage does not override an active attack/cast/build/harvest/patrol order.
-- Ability-disable tests must use an actual `Awan` private waypoint, not a
-  shared `Waypoint_add()` goal mislabeled as Wander-owned.
-- The shared synthetic pathmap is all-walkable. Scheduler tests now demand
-  two naturally initiated movements and arrivals, without injecting damage.
-  A dynamically blocked route remains to be tested with a dedicated fixture.
-- The post-load test advances `monster_think` through arrival; the test must
-  still be executed before successful continuation can be claimed.
+`A_MOVE_BLOCKED` is raised by `move_hold()` in `skills/s_move.c` before Move
+installs its terminal Hold pose. The handler checks the live `goalentity`
+against `wander_waypoint`, not the token, because `A_MOVE_LEAVE` or an accepted
+order may already have retired the token while the route was still in flight.
+It returns false for external Moves so their Hold semantics are unchanged.
 
-## Blocked Move recovery
+## Flee
 
-Move invokes `S_WanderRecoverBlockedMove` before entering its terminal Hold
-state. It checks the currently targeted private waypoint rather than the
-`wander_goal` token, because move/accepted-order callbacks may have already
-retired that token. A blocked autonomous Move returns to idle and retains its
-private waypoint for the next decision; external Moves continue to use normal
-Hold semantics. Unit tests cover stale tokens, external orders and repeated
-damage retargeting. The new synthetic arrival tests and post-load test
-remain unexecuted; blocked routing on a dynamic obstacle fixture is still
-missing.
+`T_Damage()` in `skills/s_attack.c` dispatches `A_DAMAGED` only after the hit
+has been applied to a surviving unit; a killing blow goes straight to
+`die()`, so no flee waypoint is allocated for a corpse. `wander_on_damage()`
+needs a live attacker, eligibility, and no active order other than an owned
+Move. It retires an owned Move first, then walks away along
+`Vector2_sub(unit, attacker)` (a random heading when the attacker is
+coincident), trying `WANDER_FLEE_DISTANCE / 2^i` for `WANDER_FLEE_ATTEMPTS`
+attempts; each candidate passes `M_MoveIsValid()` and the building clearance.
 
-## Regression fixtures added in the follow-up
+## Save and load
 
-The synthetic all-walkable map is used to advance `monster_think()` through a
-real private Move arrival and to check that the next Wander decision is
-scheduled. A second test saves during the active Move, reloads, and advances
-through arrival rather than ending the order manually. A blocked-route test
-sets the production movement progress watermark to a terminal blocked state
-and advances the actual Move think callback; it asserts that Wander does not
-enter the terminal Hold pose. These fixtures need compilation and execution;
-the presence of source assertions does not establish that they pass.
+| `edict_t` field (`g_local.h`) | `g_save.c` | Role |
+|---|---|---|
+| `wander_next_time` | `F_INT` | next decision deadline (`level.time` ms) |
+| `wander_random_state` | `F_INT` | per-unit LCG state |
+| `wander_goal` | `F_EDICT` | ownership token target |
+| `wander_waypoint` | `F_EDICT` | private destination edict |
+| `wander_goal_generation` | `F_INT` | ownership token generation |
 
-Precise retail random intervals, native order-event behaviour, executing
-the new custom derived ability fixture, and large-population entity capacity
-remain separate validation work. No runtime performance or retail-fidelity claim is made here.
+A save taken mid-Move restores the private waypoint as the live `goalentity`
+and the Move resumes through the normal think callback.
 
-## Arrival and failure retry timing
+## Verification
 
-A completed autonomous Move starts a fresh wandering delay at the Move arrival
-callback, rather than retaining the deadline chosen before travel. A terminal
-blocked Move similarly schedules its next attempt *before* returning to idle,
-so a failed journey cannot immediately retry when its old deadline expired.
-These timings are provisional retail approximations.
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_wander.*'
+make test-wc3-engine WC3_PATTERN='wc3_spell.*aura*'   # aura target masks incl. neutral slots
+make test                                             # full matrix before committing
+```
 
-The regression suite includes autonomous idle → Move → actual arrival → idle →
-second Move → arrival using the shared test pathmap, plus an expired-deadline
-blocked Move check and an authored `Awan` alias activation/disable check.
-The blocked-route test injects the terminal blockage watermark into the
-production Move think callback; a full dynamic-obstacle pathfinding fixture
-and runtime population benchmark remain outstanding.
+`games/warcraft-3/game/tests/t_wander.c` covers direct dispatch (schedules,
+ownership tokens, disable/death cleanup, save round trips) and the real
+scheduler: `frame_scheduler_*` tests advance `level.time` and call
+`globals.RunFrame()` so `G_RunEntities`, path jobs and the full server frame
+run. They prove the 8-10 s deadline, Move start and arrival re-arm, a player
+Move that outlives every deadline and a hit, a flee started by the landed-attack
+path (`S_ResolveAttackHit` -> `T_Damage` -> `A_DAMAGED`), and recovery from a
+genuinely blocked route (a solid unit parks on the destination after the Move
+starts).
+
+## Known pitfalls
+
+- A frame-driven test must load a JASS VM (`run_test_jass("function main
+  takes nothing returns nothing\nendfunction\n")`): `G_RunFrame()` pumps
+  `jass_runevents(level.vm)` unconditionally and crashes on `NULL`.
+- Test colliders need `s.model = 1`; `IS_HOLLOW()` ignores model-less edicts.
+- `M_MoveIsValid()` sweeps the whole origin-to-destination segment, so a
+  unit already on the line rejects the destination up front. A blocked route
+  can only be produced by an obstacle placed after the Move has started, and
+  Move only settles as blocked inside its near-goal band
+  (`move_distance + collision + MOVE_SLOT_MARGIN`); a distant blocker keeps
+  the order alive by design.
+- Compare waypoint identity by generation, never by pointer alone.
+- Never free the private waypoint while `goalentity` still points at it; the
+  disable path stands the unit down first.
+
+## Retail fidelity
+
+The intervals, radius and retreat lengths above are provisional
+approximations, not measured classic-retail constants. Stop/Hold ordering,
+proximity-only fleeing, special-case critter behaviour and JASS order-event
+compatibility have not been compared against retail.
