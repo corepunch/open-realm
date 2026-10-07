@@ -1937,6 +1937,9 @@ struct edict_s {
     waygate_t *waygate;
     struct edictMovement_s {
         struct edictRepulse_s { wc3Repulse_t state; edict_t *next; bool active; } repulse;
+        uint32_t support_flags; /* Unit280: deck2 and prior-refresh deep-water20; saved before the next height query. */
+        vec2_t support_point; /* Unit284/288; ordinary physics does not force another same-position query. */
+        bool support_valid;
         vec2_t last_origin;
         float last_distance;
         uint32_t blocked_frames;
@@ -2955,6 +2958,7 @@ void G_ClearEdictStorage(uint32_t count);
 void G_MarkEdictStorageUsed(uint32_t count);
 void G_MarkFreeEdict(edict_t *);
 void M_CheckGround (edict_t *);
+void S_RefreshUnitSupport(edict_t *, bool force);
 void G_RegisterGroundSurface(edict_t *);
 void G_UnregisterGroundSurface(edict_t *);
 void G_ClearGroundSurfaces(void);

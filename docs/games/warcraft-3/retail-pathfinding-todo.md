@@ -56,6 +56,7 @@ work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
 **239 done / 336 tasks; 97 remaining.**
+Payoff145 implements ground support refresh state, FLOAT deck eligibility, prior-deep AMPH selection and non-forcing idle physics with saved continuations. MAP-02.2 stays open for exact support geometry/sampling; no new TODOs are introduced. See [support refresh](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).
 Payoff144 closes SEP-04.2/03 with complete mixed-crowd and enabled/disabled ground engine traces, including saved continuations. Ordinary point requests now use newest-first physical owners, retries share the adjusted coarse endpoint, and arrival turning avoids new retry work. See [crowd composition](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).
 Payoff143 closes ROUTE-01.2:112 complete invalid-start member decisions match original buffers/work/retries and exact RNG. Load now discards unsaved query history while retaining unit curves; seven failing assertions are fixed and repeated UI-load captures verify fresh search owners. See [invalid consumers and load](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143).
 

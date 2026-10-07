@@ -42,7 +42,7 @@ void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction) {
 }
 
 void SV_Physics_Step(edict_t *ent) {
-    M_CheckGround(ent);
+    S_RefreshUnitSupport(ent, false);
 }
 
 /* Missile entities use the same snapshot/model path as ordinary units, but

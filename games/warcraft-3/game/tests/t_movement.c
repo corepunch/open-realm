@@ -78,6 +78,7 @@
 #include "retail_scheduler_contention.h"
 #include "retail_scheduler_work.h"
 #include "retail_route_invalid_consumers.h"
+#include "retail_ground_support.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -8466,7 +8467,7 @@ TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
     T_FEQ(unit->s.origin.z, 364.0f, 0.01f);
 }
 
-TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
+TEST(wc3_movement, float_unit_uses_higher_walkable_deck) {
     static UnitData_t const float_data = { .moveTypeName = "float" };
     static DestructableData_t const bridge_data = { .walkable = true };
     struct { uint16_t width, height; color32_t map[4]; } bridge_path = { .width = 2, .height = 2 };
@@ -8475,6 +8476,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
 
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
+    bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
@@ -8482,9 +8484,127 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
+    T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
     M_CheckGround(unit);
 
-    T_FEQ(unit->s.origin.z, 32.0f, 0.01f);
+    /* MAP-02.2:66d780 has no float exclusion from deck support. */
+    T_FEQ(unit->s.origin.z, 96.0f, 0.01f);
+}
+
+/* MAP-02.2:684480 writes deep-water state AFTER querying support. These
+ * observations exercise production refreshes, including the first entry and
+ * departure; querying the current cell before height selection loses the lag. */
+TEST(wc3_support, amphibious_refresh_retains_previous_deep_state) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    edict_t *unit = make_moving_unit(128, 128);
+    float const ground = CM_GetHeightAtPoint(128, 128);
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    memset(cells, 0, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+}
+
+TEST(wc3_support, deep_state_survives_save_before_second_refresh) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    cstring_t file = "/tmp/wc3-support-deep-refresh.bin";
+    edict_t *unit = make_moving_unit(128, 128);
+    uint32_t number = unit->s.number;
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    float const ground = CM_GetHeightAtPoint(128, 128);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    T_ASSERT(WriteGame(file));
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    T_ASSERT(ReadGame(file));
+    unit = g_edicts + number;
+    /* Metadata rows are rebuilt by load; this synthetic type has no rawcode. */
+    unit->data.UnitData = &data;
+    T_FEQ(unit->s.origin.z, ground, 0);
+    G_RunEntity(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    remove(file);
+}
+
+TEST(wc3_support, axis_commit_preserves_first_height_during_idle_physics) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    edict_t *unit = make_moving_unit(128, 128);
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    float const ground = CM_GetHeightAtPoint(160, 128);
+    S_SetUnitAxisPosition(unit, 0, 160);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    FOR_LOOP(i, 3) {
+        level.time += FRAMETIME;
+        G_RunEntity(unit);
+        T_FEQ(unit->s.origin.z, ground, 0);
+    }
+    /* The same-position explicit writer forces another support query. */
+    S_SetUnitAxisPosition(unit, 0, 160);
+    T_FEQ(unit->s.origin.z, 32, 0);
+}
+
+TEST(wc3_support, native_ground_matrix_and_all_terrain_bytes) {
+    static DestructableData_t const deck_data = { .walkable = true };
+    struct { uint16_t width, height; color32_t map[4]; } texture = { .width = 2, .height = 2 };
+    uint8_t cells[64 * 64];
+    FOR_LOOP(c, sizeof(retail_ground_support) / sizeof(*retail_ground_support)) {
+        edict_t *unit = make_moving_unit(128, 128);
+        UnitData_t data = { .moveTypeName = retail_ground_support[c].type };
+        war3mapVertex_t *vertices = world.map->vertices;
+        FOR_LOOP(i, world.map->width * world.map->height) {
+            vertices[i].accurate_height = 0x2000 - 192 * 4;
+            vertices[i].level = 2;
+        }
+        unit->data.UnitData = &data;
+        unit->unitinfo.FlyHeight = retail_ground_support[c].fly;
+        set_uniform_test_water_height(300);
+        if (retail_ground_support[c].deck) {
+            edict_t *deck = G_Spawn();
+            deck->class_id = MAKEFOURCC('L', 'T', '0', '5');
+            deck->data.DestructableData = &deck_data;
+            deck->destructable = G_AllocDestructable();
+            deck->destructable->placement_solid = true;
+            deck->pathtex = (pathTex_t *)&texture;
+            deck->s.origin = (vec3_t){128, 128, 84};
+            G_RegisterGroundSurface(deck);
+            T_ASSERT(deck->s.flags & EF_GROUND_SURFACE);
+        }
+        FOR_LOOP(byte, 256) {
+            /* Produce the prior flag through an actual refresh, independently
+             * of the new cell's byte. The next getter must consume that state. */
+            memset(cells, retail_ground_support[c].prior_deep ? 2 : 0x40, sizeof(cells));
+            CM_SetupTestPathmap(64, 64, cells);
+            M_CheckGround(unit);
+            memset(cells, byte, sizeof(cells));
+            CM_SetupTestPathmap(64, 64, cells);
+            M_CheckGround(unit);
+            T_EQ(wc3_float_bits(unit->s.origin.z), retail_ground_support[c].z);
+            T_EQ(!!(unit->movement.support_flags & WC3_SUPPORT_IN_DEEP_WATER), retail_support_deep[byte]);
+        }
+        /* The row on the stack must not survive into the next save or reset. */
+        unit->data.UnitData = NULL;
+    }
 }
 
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */

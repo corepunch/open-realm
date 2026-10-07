@@ -2907,8 +2907,7 @@ static bool M_UnitUsesWaterSurface(edict_t const *self, wc3MovementProfile_t con
     if (profile->support == WC3_SUPPORT_FLIGHT || profile->support == WC3_SUPPORT_WATER_MAX)
         return true;
     if (profile->support == WC3_SUPPORT_DEEP_WATER) {
-        return CM_TerrainPointIsSwimmable(&self->s.origin2) &&
-               !CM_TerrainPointIsWalkable(&self->s.origin2);
+        return (self->movement.support_flags & WC3_SUPPORT_IN_DEEP_WATER) != 0;
     }
     return false;
 }
@@ -2931,32 +2930,49 @@ static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     return true;
 }
 
-/* Resolve the visual/support surface, then apply the unit's mutable fly height.
- * FOOT/HORSE stay terrain-based; FLY/HOVER/float and swimming AMPH units use
- * max(terrain, water).  Walkable destructables can raise every movement type
- * except float, matching Warsmash's "boats can't go on bridges" rule. */
-void M_CheckGround(edict_t *self) {
+/*66d780/684480: all ground movement types accept higher deck support. AMPH
+ * selects water using the previous refresh's deep flag; publish the current
+ * terrain classification only AFTER selecting height. */
+void S_RefreshUnitSupport(edict_t *self, bool force) {
+    /*684480 still publishes cached XY when the displacement is below.01.
+     * Explicit setters and pose commits force the query through M_CheckGround. */
+    bool const moved = !self->movement.support_valid ||
+        fabsf(self->s.origin.x - self->movement.support_point.x) >= 0.01f ||
+        fabsf(self->s.origin.y - self->movement.support_point.y) >= 0.01f;
+    self->movement.support_point = self->s.origin2;
+    if (!force && !moved) return;
     unitMovementType_t const type = S_UnitMovementType(self->data.UnitData);
-    bool const floating = type == UNIT_MOVE_FLOAT;
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
     float const cell = CM_PathCellWorldSize();
+    uint8_t terrain_flags = 0;
+    uint32_t support_flags = 0;
 
+    for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
+        pathTex_t const *pathtex = surface->pathtex;
+        pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
+        if (!surface->inuse || surface->destructable->dead ||
+            !surface->destructable->placement_solid || !pathtex) continue;
+        if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f ||
+            fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f) continue;
+        if (surface->s.origin.z > height) {
+            height = surface->s.origin.z;
+            support_flags |= WC3_SUPPORT_ON_DECK;
+        }
+    }
     if (M_UnitUsesWaterSurface(self, wc3_movement_profile(type)))
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
-    if (!floating) {
-        for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
-            pathTex_t const *pathtex = surface->pathtex;
-            pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
-            if (!surface->inuse || surface->destructable->dead ||
-                !surface->destructable->placement_solid || !pathtex) continue;
-            if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f ||
-                fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f) continue;
-            height = MAX(height, surface->s.origin.z);
-        }
-    }
+    if (G_GetTerrainPathingFlags(&self->s.origin2, &terrain_flags) &&
+        (terrain_flags & CM_PATHING_UNWALKABLE) && !(terrain_flags & CM_PATHING_UNFLOATABLE))
+        support_flags |= WC3_SUPPORT_IN_DEEP_WATER;
+    self->movement.support_flags = support_flags;
+    self->movement.support_valid = true;
     self->s.ground_offset = self->unitinfo.FlyHeight;
     self->s.origin.z = height + self->s.ground_offset;
+}
+
+void M_CheckGround(edict_t *self) {
+    S_RefreshUnitSupport(self, true);
 }
 
 float M_DistanceToGoal(edict_t *ent) {

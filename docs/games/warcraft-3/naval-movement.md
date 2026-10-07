@@ -45,9 +45,13 @@ because it contradicts these category publications.
 
 ## Height And Consumers
 
-Support height is independent of pathability. Existing `M_CheckGround()` keeps
-FLOAT on water rather than bridge height and selects amphibious water height from
-the terrain/support state. Render-water detection does not authorize movement.
+Support height is independent of pathability. Move accepts higher deck support
+for FLOAT as well as other ground profiles. AMPH uses the previous refresh's
+deep-water flag before publishing the new terrain classification. Ordinary idle
+physics retains the current height; explicit writers force a refresh. See
+[ground support state](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).
+Exact deck geometry, terrain/water sampling and the alternate flyer field remain
+open. Render-water detection does not authorize movement.
 
 Move, Patrol, Attack/chase, formation slots, spawn placement, Way Gates, Blink,
 construction approaches and cargo routing consume `M_UnitStaticPathingFlags()`.
@@ -61,4 +65,4 @@ selection, real Move detours, widget footprint publication/release and command
 occupancy. The upstream connected-water detour test is retained. Bridge/altitude
 tests exercise height separately. Public retail captures and the original fine
 search oracle establish these mask/category contracts; complete boat/amphibious
-trajectories and support transitions remain BASE-02.1 work in the retail backlog.
+trajectories and numerical support geometry remain MAP-02.2/E2E work in the retail backlog.

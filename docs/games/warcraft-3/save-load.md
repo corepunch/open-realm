@@ -1356,3 +1356,16 @@ values and contradictory ownership. Prior formats are rejected without
 migration. Both complete mixed-crowd and enabled/disabled ground regressions
 save mid-order and compare every subsequent pose/vector/RNG/admission/retry and
 public sample against uninterrupted retail captures. See [Payoff144](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).
+
+
+## Retained support refresh state (format125)
+
+Format125 saves Move's `support_flags`, `support_point` and `support_valid` in
+the ordinary raw edict record. They are authoritative values, not pointers or
+reconstructible caches: recomputing the deep flag before the next support query
+changes amphibious entry/departure height. Load also retains the current height
+so unchanged-position ordinary physics cannot force an extra query. The focused
+regression saves immediately after the first deep-water refresh, verifies idle
+physics retains that height after load, then checks the second forced refresh.
+Format124 and earlier are rejected without migration. See
+[Payoff145](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).

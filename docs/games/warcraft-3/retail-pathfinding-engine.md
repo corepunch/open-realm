@@ -11204,3 +11204,53 @@ no ordinary physical owner or a permanently occupied group slot0, without
 changing frozen numerical expectations. Builds are warning-free and the fresh
 `oracle-crowds` corpus result is verified. Full repository validation remains
 on the agreed approximately12-chunk cadence.
+
+
+## Ground support refresh state (Payoff145)
+
+Move now preserves the support refresh order recovered from original684480 and
+66d780. All ground movement profiles, including FLOAT, accept a higher walkable
+deck. AMPH selects the water maximum using the **previous** deep-water flag;
+only afterward does refresh publish the current terrain classification. Deep
+water is walk02 blocked and float40 clear, independently of bridge regions.
+The engine reads one terrain byte rather than repeating two coordinate queries.
+
+`S_RefreshUnitSupport` distinguishes ordinary physics from explicit commits.
+An ordinary update queries height only if either coordinate changed by at least
+.01; otherwise it retains height and flags while updating its sampled XY.
+`M_CheckGround` forces a query for explicit setters, initialization and accepted
+pose commits. This removes repeated terrain/deck scans for unchanged idle units
+and preserves the first amphibious entry height until a real refresh. Cached XY,
+validity and support flags survive the normal edict save (format125).
+
+Tests first reproduced entry/departure lag, a save between the two refreshes,
+ordinary idle physics after an axis writer, and FLOAT deck support. The former
+boat test lacked a nonzero destructable identity, so its bridge registration was
+silently rejected; the corrected fixture asserts actual surface publication.
+The literal native ground matrix supplies48 original66d780 results for six
+profiles, prior deep state, planar deck/no-deck and zero/nonzero fly offset. Each
+is executed against all256 terrain bytes through production refreshes; expected
+heights are exported from original-code execution, not calculated in the test.
+
+A fresh Frida authored-map capture records3171 refreshes:1986 queries and1185
+cached updates. Every query/no-query decision, cached XY/Z publication and
+post-query deck/deep write agrees with the recovered contract. Its193 JASS
+markers equal the prior observer-free control. The original support oracle
+passes8068 cases. The portable capture and saved three-function Ghidra readback
+are audited by `verify_wc3_pathing_support.py`; the native oracle now preserves
+all rows and exits unsuccessfully on any mismatch.
+
+**MAP-02.2 remains open.** The ground matrix supplies planar geometry and
+integral water heights; it does not certify the current deck bounding-box
+approximation, exact terrain/water sampling, structure multi-sampling or the
+alternate flyer-height field. `GetLocationZ` also still uses terrain alone.
+Those gaps require actual producer/geometry integration, not invented map-specific
+height constants. See the [original handoff](retail-pathfinding-handoffs/MAP-02.2/HANDOFF.md).
+
+Final focused validation passes2,248 test executions/10,906,462
+assertions across Classic/TFT debug/release: support, saves, destructables, unit
+lifecycle and Ensnare, with both optimized351-test movement sweeps. Production
+and test builds are warning-free. The new `oracle-support` corpus entry passes,
+and the exact staged inventory verifies369 entries/638 pins. Full repository
+validation remains on the agreed approximately12-implementation-commit cadence;
+this is the tenth implementation chunk since the Payoff135 checkpoint.

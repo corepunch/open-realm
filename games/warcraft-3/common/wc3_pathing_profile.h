@@ -13,6 +13,9 @@ typedef enum {
     WC3_SUPPORT_TERRAIN, WC3_SUPPORT_WATER_MAX, WC3_SUPPORT_DEEP_WATER, WC3_SUPPORT_FLIGHT
 } wc3SupportPolicy_t;
 
+/* Unit280 bits published by684480 after66d780 has selected support. */
+enum { WC3_SUPPORT_ON_DECK = 0x02, WC3_SUPPORT_IN_DEEP_WATER = 0x20 };
+
 typedef struct {
     char const *name;
     uint8_t bits, query, category, path_class;
