@@ -1472,6 +1472,7 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         move_acc_prepare();
         FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
         move_acc_enable_gates();
+        move_acc.warp=!input->no_warp;
         wc3AccRequest_t req={{wc3_mul(source.x,.5f),wc3_mul(source.y,.5f)},
             {wc3_mul(goal.x,.5f),wc3_mul(goal.y,.5f)},input->geometry.radius>=pathmap_cell_world_size()?2:1,BZ_WC3_GROUP_ACC_WORK};
         uint32_t count=move_build_acc_route(input,&req,input->mover?&route->group_admission:NULL)&0x7fffffffu;

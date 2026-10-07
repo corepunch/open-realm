@@ -15789,6 +15789,86 @@ TEST(wc3_movement, coarse_saved_queue_rejects_corrupt_ranks_links_and_budget) {
     reset_entities();setup_test_world();
 }
 
+/* Native5fc640 queries Adro class ownership, then16ce10 disables group warp
+ * edges from the captured bit10. Amed/Atdp share an engine procedure but are
+ * different retail classes; authored aliases must retain their base policy. */
+TEST(wc3_movement, target_drop_policy_is_captured_by_approach_follow_and_save) {
+    uint32_t codes[]={0,MAKEFOURCC('A','d','r','o'),MAKEFOURCC('Z','d','r','o'),
+        MAKEFOURCC('A','m','e','d'),MAKEFOURCC('A','t','d','p')};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y5\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X1;Y2;K\"Adro\"\nC;X2;K\"Adro\"\nC;X3;K1\n"
+        "C;X1;Y3;K\"Zdro\"\nC;X2;K\"Adro\"\nC;X3;K1\n"
+        "C;X1;Y4;K\"Amed\"\nC;X2;K\"Amed\"\nC;X3;K1\n"
+        "C;X1;Y5;K\"Atdp\"\nC;X2;K\"Atdp\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(k,sizeof(codes)/sizeof(*codes)) {
+        reset_entities();setup_test_world();
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-512,-512);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),512,512);
+        unit->movetype=target->movetype=MOVETYPE_STEP;unit->stand=target->stand=unit_stand;
+        unit->svflags=target->svflags=SVF_MONSTER;
+        unit->collision=target->collision=8;unit_stand(unit);unit_stand(target);
+        if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        T_EQ(ARRAY_COUNT(level.move_groups),1);
+        if(!ARRAY_COUNT(level.move_groups))continue;
+        moveGroup_t *group=level.move_groups[0];bool blocked=k==1||k==2;
+        T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        /* The target's later ability removal does not rewrite this request. */
+        if(codes[k])T_ASSERT(G_ActorRemoveSkill(target,codes[k]));
+        T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
+        T_ASSERT(WriteGame("/tmp/wc3-drop-group-policy.bin"));
+        T_ASSERT(ReadGame("/tmp/wc3-drop-group-policy.bin"));
+        group=level.move_groups[0];T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        /* Complete the approach through ordinary Move callbacks, then inspect
+         * the independently constructed persistent request. */
+        unit->s.origin2=target->s.origin2;unit->s.origin.x=target->s.origin.x;unit->s.origin.y=target->s.origin.y;
+        unit->movement.pose_valid=false;
+        unit->movement.fine_pose=target->movement.fine_pose;
+        FOR_LOOP(tick,4) {
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+            level.pathing_counter++;level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        moveGroup_t *persistent=NULL;
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse &&
+            level.move_groups[i]->id==unit->movement.group_id)persistent=level.move_groups[i];
+        T_NOT_NULL(persistent);
+        if(persistent)T_EQ(persistent->flags&0xffffu,blocked?0x1811u:0x1801u);
+    }
+    remove("/tmp/wc3-drop-group-policy.bin");reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* Native lookup includes attached item and learned ability classes even when
+ * command usage is disabled; the query must neither dispatch nor allocate. */
+TEST(wc3_movement, target_route_policy_reads_live_ability_membership) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X1;Y2;K\"Zdro\"\nC;X2;K\"Adro\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0);
+    UnitAbilities_t authored={.abilList="Zdro"};unit->data.UnitAbilities=&authored;
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('Z','d','r','o')));
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->data.UnitAbilities=NULL;
+    unit->heroabilities[0]=(heroability_t){MAKEFOURCC('Z','d','r','o'),1};
+    /* Removal still suppresses the same attached alias. */
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('Z','d','r','o')));
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->heroabilities[0].level=0;
+    edict_t *item=alloc_test_unit(MAKEFOURCC('s','p','r','o'),32,0);
+    ItemData_t item_data={.abilList="Zdro"};item->data.ItemData=&item_data;
+    unit->inventory[0]=item;
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->inventory[0]=NULL;
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    item->data.ItemData=NULL;
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
 TEST(wc3_movement, target_group_routes_use_priority_budget_and_release_old_queue) {
     reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
     uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+32]=cells[y*64+33]=2;

@@ -815,6 +815,7 @@ typedef enum {
 #define AB_STATUS_POLICY (1u << 17) // bit 17; procedure classifies its attached buffs for public removal
 #define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
 #define AB_TYPE_UPDATE (1u << 20) // procedure declares type/state requirements for persistent updates
+#define AB_MOVE_TARGET_NO_WARP (1u << 21) // target ability excludes Way Gates from new group routes
 #define AB_MOVE_SPEED_BONUS (1u << 18) // bit 18; receives the maximum move-speed bonus query
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -3161,6 +3162,7 @@ typedef struct {
     vec2_t const *fine; /* Published native32-unit pose; NULL for explicit world-only geometry. */
     vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
     uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
+    bool no_warp; /* Captured group policy10 excludes Way Gate edges on new coarse requests. */
 } movePathQuery_t;
 #ifdef BZ_TESTS
 enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS };
@@ -3281,6 +3283,7 @@ bool S_InitFreshUnitAbilities(edict_t *);
 bool S_InitPreparedUnitAbilities(edict_t *, unitRuntimeType_t *);
 bool S_UnitTypeHasAbilityProc(UnitAbilities_t const *, abilityProc_t);
 bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
+bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
 void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);

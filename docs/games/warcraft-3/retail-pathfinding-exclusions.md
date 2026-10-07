@@ -227,10 +227,10 @@ Logs, red builds and repeat exports: `/GitHub/wc3-analysis/runtime/payoff148/`.
 Full validation remains on the approximately twelve-implementation-commit
 cadence; Payoff147 was the last full checkpoint.
 
-Completed focused validation passes **452 test executions /6,899,192 assertions**
-across Classic/TFT pathfinding, repulsion policy and save/load. The additional
-Classic movement sweep passes **351 tests /5,191,707 assertions**; its TFT sweep
-is still running at this checkpoint and is not included in the completed totals.
+Completed validation passes **1,154 engine test executions /17,282,606 assertions**.
+Classic/TFT pathfinding, repulsion policy and save/load contribute452 executions
+and6,899,192 assertions. Both additional movement sweeps pass351 tests and
+5,191,707 assertions each; the previously pending TFT sweep finished successfully.
 The initial `wc3_move.*` filter selected zero tests; those runs are explicitly
 excluded and were replaced with the actual `wc3_movement.*` suite. Seven Python
 evidence tests and22 staged corpus contract tests pass; the exact staged corpus

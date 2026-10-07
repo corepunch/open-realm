@@ -36494,6 +36494,150 @@
         "Exact terrain/water sampling",
         "Structure multi-sample producers"
       ]
+    },
+    {
+      "id": "live-target-warp-policy",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_form013_warp_live.py",
+        "--first",
+        "{archive}/runtime/target-warp-policy149/observe-2.jsonl",
+        "--repeat",
+        "{archive}/runtime/target-warp-policy149/observe-3.jsonl",
+        "--control",
+        "{archive}/runtime/target-warp-policy149/control-1.jsonl",
+        "--control-preload",
+        "{archive}/runtime/target-warp-policy149/control-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-target-warp-live-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/target-warp-policy149/observe-2.jsonl",
+        "sha256": "0551ac038a15f37c68727b4645dc919929411b5799e14be8249b06c978fd1675",
+        "bytes": 154477,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "form013_warp_observer.js": "bdea3100b1ffcad03f295c0d199e6a178d3d2aea74ed78bc5e7ec0540bba6aa1",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "86922b9405a92f23d7a25e44115d0d7f6b54ea0a9c0cee05fea37e4f6cb307b9"
+          },
+          "map": "Maps\\Payoff149-F13.w3m",
+          "seconds": 160.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "F13 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/target-warp-policy149/observe-3.jsonl",
+            "sha256": "da172a251417123ead091e6e29761fddeb9b4b21b7b12e4f97a34ee358944ce5",
+            "bytes": 154475,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form013_warp_observer.js": "bdea3100b1ffcad03f295c0d199e6a178d3d2aea74ed78bc5e7ec0540bba6aa1",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "86922b9405a92f23d7a25e44115d0d7f6b54ea0a9c0cee05fea37e4f6cb307b9"
+              },
+              "map": "Maps\\Payoff149-F13.w3m",
+              "seconds": 160.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F13 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/target-warp-policy149/control-1.jsonl",
+            "sha256": "59f4df0a25173a159bb636e93737886d1f8cb77d08af66ed86aacc7f0865e755",
+            "bytes": 1401,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form013_warp_observer.js": "bdea3100b1ffcad03f295c0d199e6a178d3d2aea74ed78bc5e7ec0540bba6aa1",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "86922b9405a92f23d7a25e44115d0d7f6b54ea0a9c0cee05fea37e4f6cb307b9"
+              },
+              "map": "Maps\\Payoff149-F13.w3m",
+              "seconds": 160.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F13 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-target-warp-policy.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "requests": {
+          "equal": 4
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "markers": {
+          "equal": 406
+        },
+        "semantic": {
+          "length": 1743
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Four public target ability lanes: full repeated policy/warp/gate-marker records and observer-free public markers.",
+      "exclusions": [
+        "Ground Footman target with Adro/Amed/Atdp; not stock flying transport traversal or complete engine motion. Initial missing finish capture is failed and excluded."
+      ]
     }
   ],
   "fixtures": [
@@ -37392,7 +37536,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "8337ad863c211e8fb6d787eb4b90853792362fe59fe342e82b257f95bfc1c2e5"
+      "sha256": "e38c77efe557b09498bfdc4babead10b15a872cc9e9a8c75664540baa63035ec"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38248,7 +38392,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "2ce8bdf35f2d9940ff807689d3208d315202ebd028d881dafc18ee4430882898"
+      "sha256": "612187a115308fb46cc91d9955da0e01d44a8ac04199384e5261c5c3fe2b0f11"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -38680,7 +38824,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "c7fe0b6b51d9f6d8faa06babcee3a56d64f5299a2fccf420df090647e624c6c1"
+      "sha256": "7202c0c3c81a7077577e36c66b603370acd50a393c7cc748c60f67e661d5b95f"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38692,7 +38836,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "a7bc06453cabdb889529e83f4d03ab958a2fce452f85ccc27e0725b4eb40c6ec"
+      "sha256": "f178137f0601f49a1a4e87dcc4588f620a0f8fe5f690d87f81f9c49d04e1be7f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -38744,7 +38888,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "bee1e0738e153e49462aa6778d729e67c6ca59fbbbebc48944b561185a5a2aad"
+      "sha256": "0ed29d3455ba6e9c999d690203cf3e315529921c2c41a99d7e950633bfcb3807"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -38940,7 +39084,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "c8b91cfb88f3a0a36ee1acab85cf1bbd9458e90db17851e4211ae588e51ed510"
+      "sha256": "4338c06844e9ef9ac699a5848c78e4843182186e58cc73ae2840afbca0b81473"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -39105,6 +39249,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-exclusion-consumer-ghidra-1.27.json",
       "sha256": "e4866e935538db5484e8ad5643fa4dbbf203c005038e1d57095283fd6da495b7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-warp-policy-ghidra-1.27.json",
+      "sha256": "375af497f3514463b6994d2c531d9ef2ac512687eb90c75194219cc2d0b02497"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-warp-live-1.27.json.gz",
+      "sha256": "f13cb76cc8f9f71fdb2afa515f3de19b0d834adfa27abd6444e35b5914280459"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-warp-captures-1.27.json.gz",
+      "sha256": "3b69cefd6213cf95fefd1b659f08ab8d693b9adbf0c21318a38699d024f1ff37"
+    },
+    {
+      "path": "tools/ghidra/research/verify_form013_warp_live.py",
+      "sha256": "64d48cf7237696220679cf5d7337fe2d0cd7173ba0f6a785e3900184a76c6dca"
+    },
+    {
+      "path": "tools/frida/research/form013_warp_probe.j",
+      "sha256": "38761e33f509e722823348fd8f42d806102d28b9d0cbc9a0a2c62bf59a34f3cf"
+    },
+    {
+      "path": "tools/frida/research/form013_warp_observer.js",
+      "sha256": "bdea3100b1ffcad03f295c0d199e6a178d3d2aea74ed78bc5e7ec0540bba6aa1"
+    },
+    {
+      "path": "tools/frida/research/group032_capture.py",
+      "sha256": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d"
+    },
+    {
+      "path": "tools/frida/research/group032_make_map.py",
+      "sha256": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_target_warp.py",
+      "sha256": "e253fa99f71a0a57c19af34de34a71508f1ec5a99d56a507983d9c78b831e384"
     }
   ]
 }

@@ -4079,6 +4079,7 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->target=target; group->target_spawn=target->spawn_time;
     group->flags=0x1000u|(persistent ? 0x801u : 0); group->age=UINT32_MAX;
+    if (S_UnitHasAbilityFlags(target,AB_MOVE_TARGET_NO_WARP)) group->flags|=0x10u;
     group->radius=unit->collision; group->request_id=unit->movement.previous_request_id;
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
     group->goal=(vec2_t){pose.world[0],pose.world[1]};
@@ -4341,7 +4342,8 @@ static bool move_group_route(moveGroup_t *group) {
     if (shared) group->radius=shared->radius;
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
-        .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source)};
+        .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source),
+        .no_warp=(group->flags&0x10u)!=0};
     uint32_t revision=group->route.group_revision;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
         if(!group->route.group_admission.waiting)

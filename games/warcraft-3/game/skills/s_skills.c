@@ -217,7 +217,7 @@ static ability_t abilitylist[] = {
     { "Abgm", CAbilityBlightedGoldMine, 0 },  /* Blighted Gold Mine Ability */
     { "Aegm", CAbilityEntangledGoldMine, AB_PASSIVE | AB_UPDATE | AB_TYPE_UPDATE },  /* Entangled Gold Mine Ability */
     { "Aloa", CAbilityCargoLoad, AB_COMMAND },  /* Load */
-    { "Adro", CAbilityCargoDrop, AB_COMMAND },  /* Unload */
+    { "Adro", CAbilityCargoDrop, AB_COMMAND | AB_MOVE_TARGET_NO_WARP },  /* Unload */
     { "Adri", CAbilityCargoDropInstant, AB_COMMAND },  /* Unload Instant */
     { "Abun", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold (Orc Burrow) */
     { "Acar", CAbilityPassive, AB_PASSIVE },  /* Cargo Hold */
@@ -1056,6 +1056,36 @@ bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *row, uint32_t code) {
     unitAbilityToken_t const *tokens = G_UnitAbilityTokens(row, &count);
     FOR_LOOP(i, count)
         if (tokens[i].length == 4 && (tokens[i].code == code || tokens[i].base == code)) return true;
+    return false;
+}
+
+static bool unit_ability_has_flags(uint32_t code, uint32_t flags) {
+    abilityitem_t item = S_AbilityItem(code);
+    return item.ability && (item.ability->flags & flags) == flags;
+}
+
+/* Query attached behavior, including custom aliases and item abilities. This
+ * is a read-only membership query: disabled commands still own their class.
+ * Native48cb80(Adro,1,0,1,1) includes both ordinary and item attachments. */
+bool S_UnitHasAbilityFlags(edict_t const *ent, uint32_t flags) {
+    if (!ent || !flags) return false;
+    uint32_t count;
+    uint32_t const *codes = G_UnitAbilityCodes(ent->data.UnitAbilities, &count);
+    FOR_LOOP(i, count)
+        if (!unit_event_seen(codes[i],ent->abilities.removed,ARRAY_COUNT(ent->abilities.removed)) &&
+            unit_ability_has_flags(codes[i],flags)) return true;
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
+        if (unit_ability_has_flags(ent->abilities.added[i],flags)) return true;
+    FOR_LOOP(i, MAX_HERO_ABILITIES)
+        if (ent->heroabilities[i].level &&
+            !unit_event_seen(ent->heroabilities[i].code,ent->abilities.removed,ARRAY_COUNT(ent->abilities.removed)) &&
+            unit_ability_has_flags(ent->heroabilities[i].code,flags)) return true;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        cstring_t list = G_ItemAbilityList(ent->inventory[i]);
+        if (!list) continue;
+        PARSE_LIST(list, name, parse_segment)
+            if (strlen(name)==4 && unit_ability_has_flags(FS_SLKKey(name),flags)) return true;
+    }
     return false;
 }
 

@@ -1455,6 +1455,29 @@ TEST(pathfinding, waygate_special_edges_reach_group_and_retained_routes) {
     reset_entities();setup_test_world();G_FreeMovePathCache();
 }
 
+/* FORM-01.3 bit10 disables special edges without changing the published
+ * gate graph. Ordinary requests still see the same gate immediately after it. */
+TEST(pathfinding, group_no_warp_policy_excludes_gate_edges_on_new_requests) {
+    reset_entities();setup_test_world();G_FreeMovePathCache();S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *gate=alloc_test_unit(MAKEFOURCC('h','f','o','o'),512,768);
+    T_ASSERT(G_ActorAddSkill(gate,MAKEFOURCC('Z','w','r','p')));
+    S_WaygateSetDestination(gate,&(vec2_t){1728,1760});S_WaygateSetActive(gate,true);
+    vec2_t source={272,304},target={1744,1776},selected;
+    FOR_LOOP(k,3) {
+        movePathQuery_t query={.geometry={&source,&target,8,2},.no_warp=k==1};
+        moveFineRoute_t route={0};T_ASSERT(G_UnitMoveGroupDestination(&query,&route,&selected));
+        bool warp=false;
+        FOR_LOOP(i,route.group_count)if(wc3_float_bits(route.group_points[i].x)==0xc7fa0001)warp=true;
+        T_EQ(warp,k!=1);
+        free(route.group_points);
+    }
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();G_FreeMovePathCache();
+}
+
 TEST(pathfinding, group_adaptive_storage_grows_and_reuses_backing_for_owned_partial_routes) {
     reset_entities(); setup_test_world(); G_FreeMovePathCache(); S_ClearMoveFineRequests();
     uint8_t *cells=malloc(1024*1024); T_NOT_NULL(cells); if(!cells)return;

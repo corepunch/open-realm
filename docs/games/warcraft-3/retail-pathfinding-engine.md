@@ -11346,3 +11346,15 @@ exact/partial/denied exits also retain counters and unchanged hierarchy state.
 No persistent layout, allocation or map scan is added. MAP-04.2 remains open for
 resolver/recovery/portal/group lifecycle composition; see
 [consumer scope evidence](retail-pathfinding-exclusions.md#fine-consumers-hold-captured-self-through-their-queries-payoff148).
+
+## Target ability classes retain their group gate policy
+
+Payoff149 captures Cargo Drop class ownership into new approach/Follow groups,
+then carries bit10 through group coarse routing. Custom aliases participate;
+Meat Drop and Tank Drop Pilot do not inherit the policy from their shared engine
+procedure. Two public retail repeats agree on1,743 semantic records and406
+observer-free markers; four native coarse requests expose warp1/0/1/1 and
+matching gate-marker presence. Both-edition focused regressions, saved group
+policy and the existing Follow trajectory pass. FORM-01.3 and the wider flying
+Follow producer remain open. See [target gate policy](retail-pathfinding-target-warp.md)
+for raw evidence, reproducers, failed attempts and exact scope.
