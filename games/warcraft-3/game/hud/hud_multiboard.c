@@ -1,10 +1,10 @@
 /* Server-authored multiboard / Team Resources presentation. */
 #include "hud_local.h"
 
-#define WC3_MB_WIDTH 0.287f
-#define WC3_MB_MIN_NAME_WIDTH 0.105f
-#define WC3_MB_NAME_CHAR_WIDTH 0.0058f
-#define WC3_MB_NAME_MAX_WIDTH 0.300f
+#define BZ_WC3_MB_WIDTH 0.287f // FDF units; widened for the resource columns while keeping the panel right-aligned
+#define BZ_WC3_MB_MIN_NAME_WIDTH 0.105f // FDF units; minimum name column preserving the prior resource alignment
+#define BZ_WC3_MB_NAME_CHAR_WIDTH 0.0058f // FDF units per byte; estimate name-column width before placing resource columns
+#define BZ_WC3_MB_NAME_MAX_WIDTH 0.300f // FDF units; cap name expansion so long names retain the resource panel
 #define WC3_MB_ROW_HEIGHT 0.016f // FDF units; one resource/cell row at HUD_FONT_SIZE
 #define WC3_MB_HEADER_HEIGHT 0.020f // FDF units; title strip text height
 #define WC3_MB_HEADER_PAD 0.006f // FDF units; title strip padding above/below the text
@@ -176,8 +176,8 @@ static float MultiboardTeamNameWidth(uint32_t viewer) {
             break;
         }
     }
-    return MIN(WC3_MB_NAME_MAX_WIDTH,
-               MAX(WC3_MB_MIN_NAME_WIDTH, (float)max_chars * WC3_MB_NAME_CHAR_WIDTH + 0.006f));
+    return MIN(BZ_WC3_MB_NAME_MAX_WIDTH,
+               MAX(BZ_WC3_MB_MIN_NAME_WIDTH, (float)max_chars * BZ_WC3_MB_NAME_CHAR_WIDTH + 0.006f));
 }
 
 void UI_WriteMultiboard(edict_t *ent) {
@@ -185,7 +185,7 @@ void UI_WriteMultiboard(edict_t *ent) {
     multiboard_t *board;
     uint32_t client_index, viewer, root, rows = 0, cols = 0;
     bool team = false, minimized = false;
-    float width = WC3_MB_WIDTH, name_width = WC3_MB_MIN_NAME_WIDTH;
+    float width = BZ_WC3_MB_WIDTH, name_width = BZ_WC3_MB_MIN_NAME_WIDTH;
     float height, body_height, body_y, x, y;
 
     if (!ent || !(client = ent->client)) return;
@@ -204,7 +204,7 @@ void UI_WriteMultiboard(edict_t *ent) {
     }
     if (team) {
         name_width = MultiboardTeamNameWidth(viewer);
-        width += name_width - WC3_MB_MIN_NAME_WIDTH;
+        width += name_width - BZ_WC3_MB_MIN_NAME_WIDTH;
     }
     if (!team && !board) { UI_ClearLayer(ent, WC3_LAYER_MULTIBOARD); return; }
 
