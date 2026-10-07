@@ -21,7 +21,9 @@ and a private, stable destination edict reference. No client-side decisions or d
   remains unchanged. Accepted non-Move orders also clear Wander ownership.
 - Disabling `Awan` cancels its currently owned Move, but never cancels an
   unrelated explicit order.
-- The scheduling PRNG and private destination reference are part of save version 66.
+- The scheduling PRNG and private destination reference are part of save version 68.
+- Any active explicit order prevents idle Wander from starting, including orders
+  whose animation temporarily reaches the stand callback.
 
 ## Retail uncertainty
 

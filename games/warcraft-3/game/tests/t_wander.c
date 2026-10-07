@@ -17,6 +17,7 @@ TEST(wc3_wander, authored_ability_dispatches_innate_idle) {
     level.time = 1000;
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
     T_ASSERT(G_ActorHasSkill(unit, "Awan"));
@@ -52,6 +53,7 @@ TEST(wc3_wander, scheduler_ticks_schedule_only_while_idle_and_eligible) {
     level.time = 1000;
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
     unit_stand(unit);
@@ -152,6 +154,21 @@ TEST(wc3_wander, damage_does_not_interrupt_explicit_non_move_order) {
     T_ASSERT(unit->currentmove == &explicit_attack);
     T_NULL(unit->wander_waypoint);
     T_NULL(unit->wander_goal);
+}
+
+TEST(wc3_wander, idle_does_not_start_while_an_explicit_order_is_active) {
+    umove_t explicit_attack = { "attack", NULL, NULL, CAbilityAttack };
+    edict_t *unit;
+    reset_entities();
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
+    unit->abilities.added[0] = ID_AWAN;
+    ARRAY_COUNT(unit->abilities.added) = 1;
+    unit->currentmove = &explicit_attack;
+    T_ASSERT(G_UnitHasActiveOrder(unit));
+    T_ASSERT(S_UnitAbilityEvent(unit, A_IDLE));
+    T_EQ(unit->wander_next_time, 0);
+    T_NULL(unit->wander_waypoint);
 }
 
 TEST(wc3_wander, active_goal_round_trips_with_generation) {
@@ -280,6 +297,7 @@ TEST(wc3_wander, scheduler_starts_actual_wander_move) {
     level.time = 1000;
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
     unit_stand(unit);
@@ -408,6 +426,7 @@ TEST(wc3_wander, saved_private_destination_continues_after_reload) {
      * A synthetic world may lack routes; it must never reuse/free the goal
      * while the mover still references it. */
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     for (int tick = 0; tick < 8 && move_is_active_order_walk(unit); tick++) {
         level.time += 50;
         monster_think(unit);
@@ -447,6 +466,7 @@ TEST(wc3_wander, real_move_arrival_then_scheduler_rearms_wander) {
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->unitinfo.MoveSpeed = 320.0f;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
@@ -473,6 +493,7 @@ TEST(wc3_wander, save_load_move_reaches_goal_and_rearms) {
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->unitinfo.MoveSpeed = 320.0f;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
@@ -499,6 +520,7 @@ TEST(wc3_wander, blocked_move_think_returns_wander_to_idle) {
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
     S_WanderOnDamage(unit, attacker);
@@ -546,6 +568,7 @@ TEST(wc3_wander, autonomous_idle_move_arrival_second_move) {
     level.time = 1000;
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->unitinfo.MoveSpeed = 320.0f;
     unit->abilities.added[0] = ID_AWAN;
     ARRAY_COUNT(unit->abilities.added) = 1;
@@ -594,6 +617,7 @@ TEST(wc3_wander, custom_wander_alias_enable_disable_lifecycle) {
     level.time = 1000;
     unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0, 0);
     unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
     unit->abilities.added[0] = alias;
     ARRAY_COUNT(unit->abilities.added) = 1;
     S_EnableAbility(unit, alias);
