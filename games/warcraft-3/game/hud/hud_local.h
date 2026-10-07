@@ -160,6 +160,7 @@ void UI_WriteTimerDialogs(edict_t *ent);
 float UI_TimerDialogLeaderboardOffset(uint32_t client_num);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(edict_t *ent);
+float UI_LeaderboardMultiboardOffset(uint32_t player_num);
 void UI_WriteFrameValue(frameDef_t const *frame, float value);
 void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params);
 uint32_t UI_GetWrittenFrameNumber(frameDef_t const *frame);

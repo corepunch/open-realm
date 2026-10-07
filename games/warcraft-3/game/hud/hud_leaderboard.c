@@ -4,6 +4,7 @@
 #define LEADERBOARD_TOP_PAD        0.004f
 #define LEADERBOARD_BOTTOM_PAD     0.004f
 #define LEADERBOARD_TITLE_GAP      0.002f
+#define LEADERBOARD_MULTIBOARD_GAP 0.004f
 #define LEADERBOARD_TEXT_HEIGHT    0.012f
 #define BZ_WC3_LEADERBOARD_MIN_CONTENT_WIDTH 0.020f // normalized UI units; keeps an empty board readable
 #define BZ_WC3_LEADERBOARD_COLUMN_GAP     "    " // spaces; separates measured label and value columns
@@ -19,6 +20,17 @@ typedef struct {
 } leaderboardTextParams_t;
 
 static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOARD_ITEMS + 1)];
+
+float UI_LeaderboardMultiboardOffset(uint32_t player_num) {
+    leaderboard_t *board;
+    player_t *player;
+    frameDef_t *root = hud.leaderboard.Leaderboard;
+    if (player_num >= MAX_CLIENTS || !root) return 0.0f;
+    board = G_PlayerLeaderboard(player_num);
+    player = G_GetPlayerByNumber(player_num);
+    if (!board || !player || !G_IsLeaderboardDisplayed(board, player)) return 0.0f;
+    return root->Height + LEADERBOARD_MULTIBOARD_GAP;
+}
 
 static void LeaderboardItemText(leaderboard_t const *board, struct gleaderboarditem_s const *item,
                                 string_t out, size_t out_size) {
