@@ -1324,6 +1324,41 @@ static void move_captain_shared_target(edict_t *actor) {
     }
 }
 
+static botCaptain_t *move_actor_captain(edict_t const *actor) {
+    uint32_t type=actor->movement.captain_actor_type;
+    if (!actor->movement.captain_actor_owned || actor->s.player>=MAX_PLAYERS ||
+        !type || type>BOT_CAPTAIN_COUNT) return NULL;
+    botCaptain_t *captain=level.bots[actor->s.player].captains+type-1;
+    return captain->home_actor==actor ? captain : NULL;
+}
+
+/*9d4c20 point policy: scan the retained logical roster, not all entities.
+ * The reduction uses total membership, but only eligible Move owners supply
+ * the minimum and Adro classification. Combat target policies are separate. */
+static float move_captain_point_speed(botCaptain_t const *captain) {
+    if (captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) return 500;
+    float speed=9999;uint32_t entered=0,members=ARRAY_COUNT(captain->units);
+    uint32_t board=G_OrderId("board");
+    bool ordinary=false;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units) {
+        edict_t *unit=*member;
+        if (unit->movement.captain_home.entered) entered++;
+        if (M_UnitMoveDisabled(unit) || !G_ActorHasAbilityCode(unit,MAKEFOURCC('A','m','o','v')) ||
+            S_CargoTransportForUnit(unit) || unit->current_order_id==board) continue;
+        speed=MIN(speed,S_UnitMoveSpeed(unit));
+        if (!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP)) ordinary=true;
+    }
+    float x=wc3_float(wc3_float_bits(wc3_sub(captain->goal.x,captain->home.x))&0x7fffffffu);
+    float y=wc3_float(wc3_float_bits(wc3_sub(captain->goal.y,captain->home.y))&0x7fffffffu);
+    if (ordinary && entered<members &&
+        !(x<wc3_float(0x3a83126f) && y<wc3_float(0x3a83126f))) {
+        float count=wc3_float(wc3_from_int(members));
+        float factor=wc3_add(wc3_mul(count,wc3_float(0x3c321643)),wc3_float(0x3f3d37a7));
+        speed=wc3_mul(speed,factor);
+    }
+    return speed;
+}
+
 /* Strict predicted membership retains creation phase and exact timer deadline. */
 static void move_captain_home_update(edict_t *self) {
     edict_t *actor=self->movement.captain_home.roster_actor ? self->movement.captain_home.roster_actor : self->movement.captain_home.actor;
@@ -1406,8 +1441,11 @@ static void move_captain_home_update(edict_t *self) {
     if (entered_count==members) {
         /* Native9d4600 replaces the moving virtual point request first.
          * Consume its old velocity at the exact callback deadline. */
-        if (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET)
+        if (actor->unitinfo.move_flags&BZ_UNIT_SPEED_SET) {
+            botCaptain_t *captain=move_actor_captain(actor);
+            if (captain) actor->unitinfo.MoveSpeed=move_captain_point_speed(captain);
             move_captain_actor_point(actor,&self->movement.captain_home.home,200);
+        }
         move_captain_shared_point(actor,roster,members,&self->movement.captain_home.home,logical);
     }
     level.pathing_clock=now;
@@ -4322,23 +4360,21 @@ void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
         return;
     }
     captain->goal=*point;captain->request_range=range;
-    float speed=9999; uint32_t entered=0;
-    FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
+    uint32_t entered=0;
+    FOR_EACH_ARRAY(edict_t *,member,captain->units) {
+        edict_t *ent=*member;
+        if (!ent->inuse || ent->movement.captain_home.roster_actor!=actor) continue;
         uint32_t index=ent->movement.captain_home.member_index;
         if (index>=members || roster[index]) gi.error("Move: invalid captain point roster %u/%u",index,members);
         roster[index]=ent;
         if (ent->movement.captain_home.entered) entered++;
-        speed=MIN(speed,S_UnitMoveSpeed(ent));
         ent->movement.captain_home.home=*point;
     }
     FOR_LOOP(i,members) if (!roster[i]) {
         fprintf(stderr,"WC3 Move: captain point missing physical member %u/%u\n",i,members);
         return;
     }
-    /* Runtime9d4c20: retreat uses500, and an empty eligible roster9999.
-     * The non-home missing-member speed modifier remains a separate branch. */
-    if (captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) speed=500;
-    actor->unitinfo.MoveSpeed=speed;
+    actor->unitinfo.MoveSpeed=move_captain_point_speed(captain);
     actor->unitinfo.TurnSpeed=wc3_float(0x3ecccccd);
     actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
     actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
@@ -4929,6 +4965,8 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_UNIT_OWNED:
+        return ent && (ent->data.UnitBalance || ent->movement.captain_actor_type) && !M_UnitMoveDisabled(ent);
     case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;
     case A_UNIT_EVENT_MASK:
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,

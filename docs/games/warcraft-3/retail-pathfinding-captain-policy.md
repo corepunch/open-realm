@@ -1,4 +1,4 @@
-# Captain home, retreat and point policies (Payoff159)
+# Captain home, retreat and point policies
 
 ## Recovered contract and implementation
 
@@ -92,7 +92,75 @@ Ghidra names/comments are saved and mirrored in `MapPathfinding.java`: creation
 period and state arguments, distinct authored/retained points, runtime speed
 constants, mana operand provenance, periodic update and near-home inverse.
 
-## Batch checkpoint
+## Retained point speed policy (Payoff160)
+
+The virtual actor does not always take the slowest member's speed directly.
+Original `9d4c20` traverses the logical roster. A member contributes only with
+a Move owner at `unit+1ec`, without the cargo bit `unit+5c.10`, and without a
+resolved current public `board` head. Public `OrderId("board")` is852043;
+`load` is852046. These are different commands, and the engine resolves the
+comparison through its order registry.
+
+If an eligible member lacks the Cargo Drop class (`Adro`), both retained target
+identities are unresolved, `cc+c4 < bc`, and the retained request differs from
+authored home, retail multiplies the minimum by:
+
+```
+soft_add(soft_mul(soft_from_int(total_roster_count), float_word(0x3c321643)),
+         float_word(0x3f3d37a7))
+```
+
+The home comparison subtracts each axis with the retail scalar helper and tests
+absolute difference strictly below `3a83126f` on both axes. Equality applies the
+multiplier. Ordinary host floating-point arithmetic changes observable words.
+The factor uses total logical membership, including members excluded from the
+minimum. Retreat still overrides with500; an empty eligible roster retains9999.
+
+Five public six-Footman scenes each have two completed observed runs and an
+observer-free control. Early non-home `CaptainAttack` publishes217.173904
+(`43592c85`) from270-speed members, then270 (`43870000`) on range entry. A180-speed
+minimum publishes144.782593 (`4310c858`), then180. An all-Adro roster stays270.
+Removing the180-speed member's implicit Move owner leaves five270 inputs,
+but the six-member factor still gives `43592c85`. A home request stays270.
+Every public marker, including position/order samples through completion,
+matches the repeats and control. PreloadEnd wall time is excluded.
+
+Move now computes this ordinary retained-point policy from the logical roster,
+using software scalars. Point roster assembly also uses that roster rather than
+scanning every map entity. The all-entered callback recomputes speed before
+replacing the virtual actor request; otherwise the early reduction would persist
+after admission. Amov exposes its existing implicit owner through the flat
+intrinsic ability query, so public removal/re-add and saved removed codes affect
+minimum eligibility without editing authored metadata.
+
+Four production-path regressions first fail nine assertions and then cover
+early/recovered speed, a non-stock minimum, home replacement, Adro removal,
+implicit Move removal/re-add and cold saved point state. Existing captured
+Captain journeys remain separate checks. This verifies the speed policy, not
+word-exact engine reproduction of all five new complete trajectories.
+
+Frozen inputs and the strict verifier are
+`tools/ghidra/fixtures/retail-captain-speed160-1.27.json` and
+`tools/ghidra/research/verify_captain_speed160_live.py`. Raw captures/maps are in
+`runtime/captain-speed160/` under the report root. The map wrapper's
+`--legacy-markers` option reproduces the initial away/home maps without the two
+auxiliary OrderId fields; the away archive is rebuilt byte-identically.
+The failed second initial attachment is preserved and excluded; the completed
+third observation is the second away repeat. The observer only reads/hook-records
+the owned process; it invokes no retail functions and writes no game memory.
+
+Focused Classic and TFT validation each passes103 bot tests,373 movement
+tests,127 unit tests and27 ability-dispatch tests. The movement suite has
+5,226,344 assertions per mode. A mistaken `wc3_skills` filter ran zero tests;
+it is excluded, and the actual `wc3_ability_dispatch` suite ran in both modes.
+All843 pathfinding Python checks and the fresh strict five-scene corpus pass.
+
+Ghidra saves the decoded query, refresh/implicit-owner comments and both factor
+labels; the mapper carries the same evidence. Combat targets, the extra `cc`
+counter and special siege range counts still require their full engine owners.
+They must not be approximated from generic combat activity or weapon type.
+
+## Payoff159 batch checkpoint
 
 The production game and test targets build. The full repository checkpoint
 passes with the isolated native SDL2 runtime: Classic and TFT each pass2,877
@@ -107,7 +175,7 @@ The engine was not changed to bypass the input regression.
 GROUP-03.4.7.3 stays open. No whole-trajectory parity claim is made for the new
 retreat/Attack scenes. Combat target identities and engagement/strength branches,
 retail mid-Captain save/load, public melee mana mutations, siege special range
-counts, non-home missing-member speed factors/eligibility, default Town home
+counts, wider speed eligibility/target compositions, default Town home
 creation, larger rosters and cross-clock/callback scheduler compositions still
 need their evidence and engine integration. The existing handoff proposes extra
 IDs for some gaps; this integration keeps them under the existing open leaf.

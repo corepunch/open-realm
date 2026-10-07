@@ -4,6 +4,8 @@
 #include "shared/test.h"
 extern void reset_entities(void),setup_test_world(void);
 extern bool run_test_jass(cstring_t);
+extern slkTestData_t *parse_slk_string(char const *),*G_SetSLKRows(char const *,slkTestData_t *);
+extern void free_slk_rows(slkTestData_t *);
 
 static void CaptainPolicyWorld(void) {
     G_BotStop(0);reset_entities();setup_test_world();
@@ -118,6 +120,80 @@ TEST(wc3_bot, captain_attack_arrival_returns_home_without_retreat) {
     T_EQ(wc3_float_bits(captain->home_actor->s.origin2.x),wc3_float_bits(256));
     T_ASSERT(!G_BotCaptainRetreating(&game.clients[0].ps));
     T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+static void CaptainSpeedRoster(edict_t **units) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    FOR_LOOP(i,6) units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),
+        &(vec2_t){256+80*(i%4),192-80*(i/4)},0);
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+}
+
+TEST(wc3_bot, captain_nonhome_request_reduces_speed_until_range_entry) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    player_t *player=&game.clients[0].ps;
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotCaptainAttack(player,&(vec2_t){256,64});
+    /* Two complete public retail repeats: six 270-speed members, no inner
+     * range entries, retained request different from the authored home. */
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    bool entered=false;
+    FOR_LOOP(i,600) {
+        level.time+=5;globals.RunFrame();
+        entered=true;
+        FOR_LOOP(j,6) if(!units[j]->movement.captain_home.entered) entered=false;
+        if(entered) break;
+    }
+    T_ASSERT(entered);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x43870000u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_nonhome_speed_uses_live_minimum_and_retained_save_state) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    botCaptain_t *captain=level.bots[0].captains;
+    S_SetUnitMoveSpeed(units[0],180);
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    cstring_t file="/tmp/wc3-captain-speed160.bin";
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    S_CaptainPointMove(captain,&captain->goal,200);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    G_BotCaptainAttack(&game.clients[0].ps,&captain->home);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),wc3_float_bits(180));
+    remove(file);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_cargo_drop_roster_keeps_unreduced_speed) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X1;Y2;K\"Adro\"\nC;X2;K\"Adro\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(i,6) T_ASSERT(G_ActorAddSkill(units[i],MAKEFOURCC('A','d','r','o')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43870000u);
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','d','r','o')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_bot, captain_speed_ignores_removed_move_owner) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    S_SetUnitMoveSpeed(units[0],180);
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','m','o','v')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    T_ASSERT(G_ActorAddSkill(units[0],MAKEFOURCC('A','m','o','v')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x4310c858u);
     G_BotStop(0);level.started=false;reset_entities();setup_test_world();
 }
 #endif

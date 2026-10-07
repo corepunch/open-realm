@@ -523,6 +523,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "patrol", WC3_ORDER_ID_PATROL, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
+    { "board", 852043, 0 }, /* Public retail OrderId; Captain speed excludes this head. */
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },

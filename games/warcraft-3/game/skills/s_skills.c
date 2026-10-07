@@ -109,7 +109,7 @@ static ability_t abilitylist[] = {
     { "Afir", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire */
     { "Afiu", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Undead) */
     { "Aloc", CAbilityPassive, AB_PASSIVE },  /* Locust */
-    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_TYPE_INIT | AB_OWNER_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, move_orders },  /* Move */
+    { "Amov", CAbilityMove, AB_COMMAND | AB_INNATE | AB_INTRINSIC | AB_TYPE_INIT | AB_OWNER_UPDATE | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, move_orders },  /* Move */
     { "Atdp", CAbilityCargoDrop, AB_COMMAND },  /* Drop Pilot */
     { "Atlp", CAbilityCargoLoad, AB_COMMAND },  /* Load Pilot */
     { "Attu", CAbilityPassive, AB_PASSIVE },  /* Turret */

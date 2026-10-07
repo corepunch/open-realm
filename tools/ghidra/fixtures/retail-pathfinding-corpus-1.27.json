@@ -38395,6 +38395,455 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-captain-retained-point-speed",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_captain_speed160_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-captain-speed160-1.27.json",
+        "--captures",
+        "{archive}/runtime/captain-speed160",
+        "--output",
+        "{report}"
+      ],
+      "report": "captain-speed160.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 5
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "speed_publications": {
+          "equal": 42
+        },
+        "public_markers": {
+          "equal": 1133
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Five public ordinary Captain point-speed scenes with exact effective inputs, scalar multiplier, range-entry restoration and completed repeated/control position/order markers. Actual engine request/removal/re-add/home and cold-save regressions.",
+      "exclusions": [
+        "Full word-exact engine trajectories for the five scenes, combat target identities, additional/special range counts and larger roster domains remain open.",
+        "Initial away-observe-2 failed during Frida attachment and is preserved but excluded; completed away-observe-3 is the second repeat."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "runtime/captain-speed160/away-observe-1.jsonl",
+        "sha256": "afa2ecdf248a4d32d5872090108c93ee493705811da7cf0b5d42b9af2daa8db0",
+        "bytes": 202894,
+        "metadata": {
+          "task": "payoff160",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+            "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+            "map": "3b45cfe60ef0aa0c162a2e47f4a895254b8bcea0e7de64d186c50e753fe26f24"
+          },
+          "map": "Maps\\RS-CS160-away.w3m",
+          "seconds": 130.0,
+          "continue_at": 30.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/away-observe-3.jsonl",
+            "sha256": "1e7c2b2776095b519df252904d0e913dc602942da81d145154438da6dfaaf4f6",
+            "bytes": 202897,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "3b45cfe60ef0aa0c162a2e47f4a895254b8bcea0e7de64d186c50e753fe26f24"
+              },
+              "map": "Maps\\RS-CS160-away.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/home-observe-1.jsonl",
+            "sha256": "952f7e94383a1c6460ff851583280a1c19e1921ffb2b788d9e9aa860e07505f1",
+            "bytes": 192796,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "631d88ce8c3654dfb773a3259fe3f9011dcb58f10e74a4a99bacfba53062dfd3"
+              },
+              "map": "Maps\\RS-CS160-home.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/home-observe-2.jsonl",
+            "sha256": "5bb546a5641220356bcb2eef6728a14f423be2c6dcb3e4083d1a1d6ad19a7666",
+            "bytes": 192798,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "631d88ce8c3654dfb773a3259fe3f9011dcb58f10e74a4a99bacfba53062dfd3"
+              },
+              "map": "Maps\\RS-CS160-home.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/slow-observe-1.jsonl",
+            "sha256": "d9a8c459c6d2e86ec7d22844c99e484d04d8cef31b3c3be1a2311cd8ca97650d",
+            "bytes": 196555,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "60be08026c844dd89f9f93fb23278117a29dc6d0c7af76634b20b3396dee207d"
+              },
+              "map": "Maps\\RS-CS160-slow.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/slow-observe-2.jsonl",
+            "sha256": "d19aea7c49a24fd1a66521ea8ad50e683dd9db5cada4692fc6bab11a1c8f8a37",
+            "bytes": 196554,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "60be08026c844dd89f9f93fb23278117a29dc6d0c7af76634b20b3396dee207d"
+              },
+              "map": "Maps\\RS-CS160-slow.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/drop-observe-1.jsonl",
+            "sha256": "d7b194a42cab01bf6737cab9694a4f6797a34c5ae354c567400b8ffc0599b5ca",
+            "bytes": 196906,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "c9cf3a0fd56c907082fa80e2bf000ba96b87b87dc75bbe6007a3fc96d4bc095c"
+              },
+              "map": "Maps\\RS-CS160-drop.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/drop-observe-2.jsonl",
+            "sha256": "f31896f681aa9742ea3e24928d07a3f1c7b824033dcc6b859966bc1d5e6a4016",
+            "bytes": 196906,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "c9cf3a0fd56c907082fa80e2bf000ba96b87b87dc75bbe6007a3fc96d4bc095c"
+              },
+              "map": "Maps\\RS-CS160-drop.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/nomove-observe-1.jsonl",
+            "sha256": "6e75b14c0ed38c662e9a6ebc25add6c50d7753f27008a84dd4d5ed6e54722802",
+            "bytes": 197068,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "f219cd8ed36ea2b656679f5cd410e3a28a05d994fbd9024d2db59c05afe5fa18"
+              },
+              "map": "Maps\\RS-CS160-nomove.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/nomove-observe-2.jsonl",
+            "sha256": "93ffead8e91c75c44ee8788b87b820c5d2b211af953882277055bbadea6dac02",
+            "bytes": 197065,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "f219cd8ed36ea2b656679f5cd410e3a28a05d994fbd9024d2db59c05afe5fa18"
+              },
+              "map": "Maps\\RS-CS160-nomove.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/away-control-1.jsonl",
+            "sha256": "808f6dbe390bca37ef3c7abe211b9236c3bf39ec4902de7f375b160a09eeb4dc",
+            "bytes": 952,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "3b45cfe60ef0aa0c162a2e47f4a895254b8bcea0e7de64d186c50e753fe26f24"
+              },
+              "map": "Maps\\RS-CS160-away.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/home-control-1.jsonl",
+            "sha256": "05c7f66c0bf8987bc3200bc940e682c2bd896e4657ac198b29645c12a2f349c9",
+            "bytes": 949,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "631d88ce8c3654dfb773a3259fe3f9011dcb58f10e74a4a99bacfba53062dfd3"
+              },
+              "map": "Maps\\RS-CS160-home.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/slow-control-1.jsonl",
+            "sha256": "c7f550ad5007a106d60bd9ce88bb9a99dedbb1d9b2cc0ea7c2bcaf2ac907928e",
+            "bytes": 950,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "60be08026c844dd89f9f93fb23278117a29dc6d0c7af76634b20b3396dee207d"
+              },
+              "map": "Maps\\RS-CS160-slow.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/drop-control-1.jsonl",
+            "sha256": "4910ff44f1d1ee364b820088245447a1098bc3417ff0331bd1b6bc1dbf8861bd",
+            "bytes": 949,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "c9cf3a0fd56c907082fa80e2bf000ba96b87b87dc75bbe6007a3fc96d4bc095c"
+              },
+              "map": "Maps\\RS-CS160-drop.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-speed160/nomove-control-1.jsonl",
+            "sha256": "9965ad1dffbdee3811271a00e522119bd81dc059dabf4fe8a21b0cd6d895e840",
+            "bytes": 950,
+            "metadata": {
+              "task": "payoff160",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+                "map": "f219cd8ed36ea2b656679f5cd410e3a28a05d994fbd9024d2db59c05afe5fa18"
+              },
+              "map": "Maps\\RS-CS160-nomove.w3m",
+              "seconds": 130.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -39293,7 +39742,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "013530ecc4f30bc603c273b94571f355de8dff2e87c734b4f94592697e544031"
+      "sha256": "973d85cf1bc1ff7b9d40e6f76c93eb29a76632ec6f149c41485d6863ab4f1a91"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -40149,7 +40598,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "0935490db08a7eb53a28893efbafd26145bac8a6a806a2566bcac94ee107c0df"
+      "sha256": "523a34891cb73d79e3890e995332c7730ae98ec127e4b3107d43e251130776e4"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -41085,7 +41534,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "149658ebad8f6740e8c45b50989b09a4d89addd4b8856584cca8c217b40d3268"
+      "sha256": "e60f85507adf0b283c2bebef9b8335699645b492cffd43d3f8594e40d9f21b7e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -41101,7 +41550,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "7f4d470da9b764cdb74b899b95198ceab128fa954a3d80ca9072f1156a6b17a7"
+      "sha256": "93c8e1955153cae7b250258ea07f4991a4f6e5ab3f1395276fa6ac20f7f3ea99"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -41113,7 +41562,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "12dd598db85978d3a98b02bb53d755af6d31b18c3974e9b272f0b93df68e0b82"
+      "sha256": "f161bc65a8fa34ca1e1081bd0e1bcf908f380d5738acfc655501bbf8fe4c1af6"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -41473,7 +41922,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "0521df1518c609a7d97acf10cf5da53606502f605e64cc2857f44ed4832e3532"
+      "sha256": "8a3ff65245ac4e3546ff574d8027ef66352ab33feb1de41c91579c093b8694ce"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -41497,7 +41946,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
-      "sha256": "8cf410f80c0b464da92f26d6e3065586ea95aa18def9b849b1f142737cd6c206"
+      "sha256": "898c13ed926ccf4474f246b591a58cf623d11b73a5b2c99141bf53a812936429"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
@@ -41554,6 +42003,30 @@
     {
       "path": "tools/frida/research/GROUP-03.4.7.3_probe.j",
       "sha256": "27073d98657da6592127ec7f5338ac3f81a2847bcabe0219e3542e6f7ac7d88b"
+    },
+    {
+      "path": "tools/frida/research/captain_speed160_observer.js",
+      "sha256": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee"
+    },
+    {
+      "path": "tools/frida/research/captain_speed160_make_map.py",
+      "sha256": "771f9bc4462f8046cc1a549714cc8b947ffea7600d8de7bbf3dac3c700efe85b"
+    },
+    {
+      "path": "tools/ghidra/research/verify_captain_speed160_live.py",
+      "sha256": "044aeae7ee784d0f9a84627ae098972e57e657370a781ba6d254bd1eddaf3844"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_numeric.py",
+      "sha256": "4b662d992bfee2ac25ad46abf675acdb3582b124f14f68c93d12c66e2d171ed8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-speed160-1.27.json",
+      "sha256": "d707bdff21269939908c4b80f342ae4e5125f7faf791b24882707e028cef3cd5"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_speed.py",
+      "sha256": "ee59b4639b8d7bd2b5d72163d2dfe98a04b4c44d315a1f3755261fbf6b89c7e7"
     }
   ]
 }
