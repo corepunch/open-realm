@@ -1,5 +1,9 @@
 # Warcraft III Save/Load
 
+Save133 adds Captain policy flags, the signed roster-strength counter, retained
+point/range and the periodic update deadline. Save132 and older formats are
+rejected. See [Captain policy](retail-pathfinding-captain-policy.md).
+
 Save132 adds logical Captain roster encounter order, actor references, authored
 home/creation phase and Town grouping policy. Physical Move indices remain an
 independent saved contract; backing allocations and private AI VM continuation
@@ -21,7 +25,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 132, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 133, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -1410,3 +1414,13 @@ initialization. Unit enrollment uses the saved aiflags contract. Creation and
 owner-transfer regressions round-trip an armed help request without rebasing its
 deadline or serial, and invalid availability bits are rejected. Version128 and
 earlier layouts are rejected without migration. See [AI help policy](retail-pathfinding-engine.md#town-ai-enrollment-selects-the-help-policy-payoff153).
+
+
+## Captain policy and periodic deadlines (Payoff159)
+
+Save133 retains Captain retreat/strength flags, the signed roster strength
+counter, retained point/range and one-second periodic deadline. Home changes,
+removal and actor goal events now reach the recovered non-combat policy rather
+than a health/power persistence heuristic. `CaptainAttack` is registered.
+Failing-first engine regressions, exact speed/update retail captures and scope
+limits are in [Captain policy](retail-pathfinding-captain-policy.md).

@@ -2356,16 +2356,23 @@ typedef enum {
     BOT_CAPTAIN_RETREATING,
 } botCaptainState_t;
 
+enum {
+    BOT_CAPTAIN_RETREAT_FLAG = 1 << 1,
+    BOT_CAPTAIN_STRENGTH_READY = 1 << 12,
+};
+
 typedef struct {
     ARRAY(edict_t *, units);
     edict_t **units_storage; /* Allocation base; units points past unused prepend capacity. */
     uint32_t units_capacity;
     edict_t *home_actor; /* Move owns its occupancy and retained follower lifetime. */
     vec2_t home, goal;
+    float request_range; /* Retained request; range-enter refresh may use200 without replacing it. */
     bool home_set, full;
     wc3Clock_t created; /* Native range subscriptions begin when the virtual captain is created. */
-    uint32_t disadvantage_since; /* group-flee persistence timer; valid while disadvantage_active */
-    bool disadvantage_active;
+    int32_t strength_count; /* Nativec0 roster deltas, not a health sum. */
+    uint32_t policy_flags; /* Native6c: retreat2 and target-strength-ready1000. */
+    wc3Clock_t update_due; /* Native repeating d01c1, one second from actor creation. */
     botCaptainState_t state;
 } botCaptain_t;
 
@@ -2749,6 +2756,9 @@ bool G_BotAddAssault(player_t *, int32_t, uint32_t);
 uint32_t G_BotCaptainGroupSize(player_t *);
 bool G_BotCaptainIsFull(player_t *);
 bool G_BotCaptainRetreating(player_t *);
+void G_BotCaptainAttack(player_t *, vec2_t const *);
+void G_BotCaptainGoalEvent(edict_t *);
+void G_RunCaptainTimers(void);
 void G_BotUpdateGroupFlee(player_t *);
 void G_BotRefreshPeonsRepair(player_t *);
 void G_BotUpdateIndividualFlee(player_t *);
@@ -3926,6 +3936,10 @@ void S_DetachCaptainUnit(edict_t *);
 bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
 void S_CaptainGoHome(botCaptain_t *);
+void S_ReissueCaptainUnit(edict_t *, edict_t *);
+bool S_CaptainNearHome(botCaptain_t const *);
+bool S_CaptainNearRequest(botCaptain_t const *);
+void S_CaptainPointMove(botCaptain_t *, vec2_t const *, float);
 void S_ReleaseCaptainHomeActor(edict_t *);
 bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);

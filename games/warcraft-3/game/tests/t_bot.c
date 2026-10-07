@@ -914,7 +914,7 @@ TEST(wc3_bot, captain_retreating_native_is_registered_for_player_bound_ai) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
-TEST(wc3_bot, captain_retreating_reports_attack_captain_state_only) {
+TEST(wc3_bot, captain_retreating_reads_attack_policy_bit_independently_of_state) {
     bot_t *bot = level.bots + 2;
     player_t *player = &game.clients[2].ps;
 
@@ -923,14 +923,16 @@ TEST(wc3_bot, captain_retreating_reports_attack_captain_state_only) {
     bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
     T_ASSERT(!G_BotCaptainRetreating(player));
 
-    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_ATTACK].policy_flags = BOT_CAPTAIN_RETREAT_FLAG;
     T_ASSERT(G_BotCaptainRetreating(player));
 
     bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_IDLE;
+    T_ASSERT(G_BotCaptainRetreating(player));
+    bot->captains[BOT_CAPTAIN_ATTACK].policy_flags = 0;
     T_ASSERT(!G_BotCaptainRetreating(player));
 }
 
-TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_returns_home) {
+TEST(wc3_bot, group_flee_does_not_invent_a_frame_polled_power_timer) {
     static UnitBalance_t const friendly_balance = { .maxHealth = 100, .level = 1 };
     static UnitBalance_t const enemy_balance = { .maxHealth = 100, .level = 4 };
     static UnitWeapons_t const enabled_attack = { .attacksEnabled = 1 };
@@ -963,29 +965,13 @@ TEST(wc3_bot, group_flee_enters_retreat_after_persistent_local_disadvantage_and_
     level.time = 1000;
     G_BotUpdateGroupFlee(player);
     T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_ASSERT(captain->disadvantage_active);
-
-    level.time = 3499;
-    G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-
+    T_ASSERT(!G_BotCaptainRetreating(player));
     level.time = 3500;
     G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
-    T_ASSERT(G_BotCaptainRetreating(player));
-    T_NULL(first->combatentity); T_NULL(second->combatentity);
-    T_NOT_NULL(first->currentmove); T_EQ(first->currentmove->proc, CAbilityMove);
-    T_NOT_NULL(second->currentmove); T_EQ(second->currentmove->proc, CAbilityMove);
-    T_NOT_NULL(first->goalentity); T_EQ(second->goalentity, first->goalentity);
-    T_FEQ(first->goalentity->s.origin2.x, 0, 0.001f);
-    T_FEQ(first->goalentity->s.origin2.y, 0, 0.001f);
-
-    first->s.origin2 = MAKE(vec2_t, 32, 0);
-    second->s.origin2 = MAKE(vec2_t, 64, 0);
-    level.time = 3600;
-    G_BotUpdateGroupFlee(player);
-    T_EQ(captain->state, BOT_CAPTAIN_IDLE);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
     T_ASSERT(!G_BotCaptainRetreating(player));
+    T_EQ(first->combatentity,enemy);T_EQ(second->combatentity,enemy);
+
 }
 
 TEST(wc3_bot, group_flee_policy_disabled_does_not_enter_retreat) {
@@ -1012,7 +998,7 @@ TEST(wc3_bot, group_flee_policy_disabled_does_not_enter_retreat) {
     level.time = 1000; G_BotUpdateGroupFlee(player);
     level.time = 10000; G_BotUpdateGroupFlee(player);
     T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
-    T_ASSERT(!captain->disadvantage_active);
+    T_ASSERT(!G_BotCaptainRetreating(player));
 }
 
 TEST(wc3_bot, retreating_captain_rejects_attack_refresh_until_home) {
@@ -1025,14 +1011,16 @@ TEST(wc3_bot, retreating_captain_rejects_attack_refresh_until_home) {
     G_BotInitAssault(player);
     member = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 512, 0, 2, NULL);
     target = make_bot_harvest_unit(MAKEFOURCC('o','g','r','u'), 900, 0, 1, NULL);
-    bot->player = player; captain->state = BOT_CAPTAIN_RETREATING; captain->home = MAKE(vec2_t, 0, 0);
+    bot->player = player; captain->state = BOT_CAPTAIN_ACTIVE;
+    captain->policy_flags=BOT_CAPTAIN_RETREAT_FLAG;captain->home = MAKE(vec2_t, 0, 0);
     captain->units = gi.MemAlloc(sizeof(edict_t *)); ARRAY_COUNT(captain->units) = 1; captain->units[0] = member;
-    G_BotUpdateGroupFlee(player);
+    S_IssueMoveOrder(member,Waypoint_add(&captain->home),G_OrderId("move"));
     retreat_goal = member->goalentity;
     T_NOT_NULL(retreat_goal);
 
     G_BotAttackMoveKill(player, target);
-    T_EQ(captain->state, BOT_CAPTAIN_RETREATING);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_ASSERT(G_BotCaptainRetreating(player));
     T_EQ(member->goalentity, retreat_goal);
     T_FEQ(captain->goal.x, 0, 0.001f);
     T_FEQ(captain->goal.y, 0, 0.001f);
@@ -1136,7 +1124,7 @@ TEST(wc3_bot, assault_init_retains_captains_and_fill_tracks_formation_result) {
     G_BotInitAssault(&game.clients[2].ps);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.x, 128, 0.001f);
     T_FEQ(bot->captains[BOT_CAPTAIN_ATTACK].home.y, 256, 0.001f);
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
@@ -1215,7 +1203,7 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
     G_BotInitAssault(&game.clients[2].ps);
     T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 3, type));
     T_ASSERT(!G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), true));
-    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_IDLE);
 
     T_ASSERT(G_BotSuicidePlayer(&game.clients[2].ps, PLAYER_NUM(target), false));
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_ACTIVE);
@@ -1292,7 +1280,7 @@ TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_reques
     T_NOT_NULL(captain->home_actor);
     T_EQ(captain->home_actor->s.origin2.x,128); T_EQ(captain->home_actor->s.origin2.y,256);
     T_EQ(captain->home_actor->movement.group_id,0);
-    T_EQ(unit->movement.captain_home.home.x,192);
+    T_EQ(unit->movement.captain_home.home.x,128);
     T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
     T_ASSERT(unit->movement.captain_home.active);
     /* Recruitment can transfer a point owner to Follow. Near-home GoHome
@@ -1309,7 +1297,7 @@ TEST(wc3_bot, public_captain_go_home_near_home_keeps_the_actor_and_roster_reques
         T_EQ(captain->home_actor->s.origin2.x,128);
         T_EQ(captain->home_actor->s.origin2.y,256);
         T_EQ(captain->home_actor->movement.group_id,0);
-        T_EQ(unit->movement.captain_home.home.x,192);
+        T_EQ(unit->movement.captain_home.home.x,128);
         T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
         T_ASSERT(unit->movement.captain_home.active);
     }

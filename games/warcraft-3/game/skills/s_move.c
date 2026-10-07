@@ -1128,16 +1128,20 @@ void S_ReleaseCaptainHomeActor(edict_t *actor) {
 /* Native9d2f90 retains category2 with radius0. Fine occupancy still covers
  * one cell; no model, ordinary unit data or client presentation is required. */
 void S_SetCaptainHomeActor(botCaptain_t *captain, uint32_t player, uint32_t type) {
-    if (captain->home_actor && captain->home_actor->movement.captain_actor_members) {
-        /* Occupied home authors the request point, not the actor's position.
-         * TODO GROUP-03.4.7.3: autonomous home-change/retreat admission policy. */
-        fprintf(stderr,"WC3 Move: occupied captain home updated; autonomous admission remains unresolved player=%u type=%u\n",player,type);
-        FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==captain->home_actor)
-            ent->movement.captain_home.home=captain->home;
+    if (captain->home_actor) {
+        /* Authored home and the retained point request are separate. Native
+         *9d5c70 leaves an occupied actor/request in place before reevaluation. */
         return;
     }
     edict_t *actor=captain->home_actor;
-    if (!actor) actor=captain->home_actor=G_Spawn();
+    if (!actor) {
+        actor=captain->home_actor=G_Spawn();
+        captain->update_due=level.pathing_clock;
+        wc3_clock_advance(&captain->update_due,1,0);
+        captain->state=type==BOT_CAPTAIN_ATTACK+1 ? BOT_CAPTAIN_ACTIVE : BOT_CAPTAIN_FORMING;
+        captain->goal=captain->home;
+        captain->request_range=200;
+    }
     actor->svflags=SVF_NOCLIENT;
     actor->stand=unit_stand;
     actor->s.player=player;
@@ -1211,10 +1215,23 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
 
 /* Native9d2ee0 with retained GoHome range500:2*r*r+5000 world squared.
  * Initializers019720/019890/001c30 provide500/5000/2; PE slots are zero. */
-static bool move_captain_near_home(edict_t const *actor,vec2_t const *home) {
+static bool move_captain_near_point(edict_t const *actor,vec2_t const *point,float range) {
     wc3GridPose_t pose; unit_predicted_pose(actor,&pose);
-    float x=wc3_sub(pose.world[0],home->x),y=wc3_sub(pose.world[1],home->y);
-    return wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=wc3_add(wc3_mul(2,wc3_mul(500,500)),5000);
+    float x=wc3_sub(pose.world[0],point->x),y=wc3_sub(pose.world[1],point->y);
+    float limit=range<100 ? 20000 : wc3_add(wc3_mul(2,wc3_mul(range,range)),5000);
+    return wc3_add(wc3_mul(x,x),wc3_mul(y,y))<=limit;
+}
+
+static bool move_captain_near_home(edict_t const *actor,vec2_t const *home) {
+    return move_captain_near_point(actor,home,500);
+}
+
+bool S_CaptainNearHome(botCaptain_t const *captain) {
+    return captain->home_actor && move_captain_near_home(captain->home_actor,&captain->home);
+}
+
+bool S_CaptainNearRequest(botCaptain_t const *captain) {
+    return captain->home_actor && move_captain_near_point(captain->home_actor,&captain->goal,captain->request_range);
 }
 
 /* Native9d27c0 retains roster order through bounded physical batches. */
@@ -1399,6 +1416,7 @@ static void move_captain_home_update(edict_t *self) {
 /* Dispatch after a due path owner, before ordinary timer/event actions. Pose
  * sampling is observational and must not replace tasks ahead of that owner. */
 void S_RunMoveTimers(void) {
+    G_RunCaptainTimers();
     for(uint32_t i=entity_set_next(&move_timer_members,0);i<globals.num_edicts;i=entity_set_next(&move_timer_members,i+1)) {
         edict_t *ent=g_edicts+i;
         if(ent->inuse && (ent->movement.captain_home.actor || ent->movement.captain_home.roster_actor))move_captain_home_update(ent);
@@ -4279,53 +4297,72 @@ static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float ran
     move_start_point_group(actor,home,range);
 }
 
-/* Public9c40c0 selects the attack captain;9d2670 submits its authored home.
- * The virtual mover retains the slowest roster speed, turn.4 and window.1. */
-void S_CaptainGoHome(botCaptain_t *captain) {
+/* Internal reissue preserves the member's range-listener state. It is not
+ * temporary enrollment and must not reset entered/outer flags or deadlines. */
+void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
+    typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
+    unit->movement.captain_home.actor=unit->movement.captain_home.roster_actor=NULL;
+    S_TrackMoveTimers(unit);
+    S_IssueMoveOrder(unit,Waypoint_add(&retained.home),G_OrderId("move"));
+    unit->movement.captain_home=retained;
+    unit->movement.captain_home.actor=actor;
+    unit->movement.captain_home.active=true;
+    S_TrackMoveTimers(unit);
+    move_start_follow_group(unit,actor,true);
+}
+
+/*9d44d0 retains the point/range before publishing the virtual mover request.
+ * Physical roster publication remains in encounter order, in twelve-row batches. */
+void S_CaptainPointMove(botCaptain_t *captain,vec2_t const *point,float range) {
     edict_t *actor=captain->home_actor;
-    if (!actor || !captain->home_set) return;
-    if (move_captain_near_home(actor,&captain->home)) return;
+    if (!actor) return;
     edict_t *roster[13]={0}; uint32_t members=actor->movement.captain_actor_members;
     if (members>sizeof(roster)/sizeof(*roster)) {
-        fprintf(stderr,"WC3 Move: CaptainGoHome roster exceeds verified admission: %u\n",members);
+        fprintf(stderr,"WC3 Move: captain point roster exceeds verified admission: %u\n",members);
         return;
     }
-    float speed=FLT_MAX; uint32_t entered=0;
+    captain->goal=*point;captain->request_range=range;
+    float speed=9999; uint32_t entered=0;
     FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor) {
         uint32_t index=ent->movement.captain_home.member_index;
-        if (index>=members || roster[index]) gi.error("Move: invalid CaptainGoHome roster %u/%u",index,members);
+        if (index>=members || roster[index]) gi.error("Move: invalid captain point roster %u/%u",index,members);
         roster[index]=ent;
         if (ent->movement.captain_home.entered) entered++;
         speed=MIN(speed,S_UnitMoveSpeed(ent));
-        ent->movement.captain_home.home=captain->home;
+        ent->movement.captain_home.home=*point;
     }
     FOR_LOOP(i,members) if (!roster[i]) {
-        fprintf(stderr,"WC3 Move: CaptainGoHome missing logical member %u/%u\n",i,members);
+        fprintf(stderr,"WC3 Move: captain point missing physical member %u/%u\n",i,members);
         return;
     }
-    if (!members) {
-        /* TODO GROUP-03.4: empty-captain default speed/housekeeping producer. */
-        fprintf(stderr,"WC3 Move: CaptainGoHome empty roster speed is unresolved\n");
-        return;
-    }
+    /* Runtime9d4c20: retreat uses500, and an empty eligible roster9999.
+     * The non-home missing-member speed modifier remains a separate branch. */
+    if (captain->policy_flags&BOT_CAPTAIN_RETREAT_FLAG) speed=500;
     actor->unitinfo.MoveSpeed=speed;
     actor->unitinfo.TurnSpeed=wc3_float(0x3ecccccd);
     actor->unitinfo.PropWindow=wc3_float(0x3dcccccd);
     actor->unitinfo.move_flags|=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
-    move_captain_actor_point(actor,&captain->home,500);
-    if (entered==members) move_captain_shared_point(actor,roster,members,&captain->home,true);
-    else FOR_LOOP(i,members) {
-        edict_t *ent=roster[i]; typeof(ent->movement.captain_home) retained=ent->movement.captain_home;
-        ent->movement.captain_home.actor=ent->movement.captain_home.roster_actor=NULL;
-        S_TrackMoveTimers(ent);
-        move_leave(ent); S_RecoverStoppedUnitPosition(ent);
-        S_IssueMoveOrder(ent,Waypoint_add(&captain->home),G_OrderId("move"));
-        ent->movement.captain_home=retained;
-        S_TrackMoveTimers(ent);
-        ent->movement.captain_home.actor=actor; ent->movement.captain_home.active=true;
-        S_TrackMoveTimers(ent);
-        move_start_follow_group(ent,actor,true);
+    move_captain_actor_point(actor,point,range);
+    if (!members) return;
+    if (entered==members) move_captain_shared_point(actor,roster,members,point,true);
+    else FOR_LOOP(i,members) S_ReissueCaptainUnit(roster[i],actor);
+}
+
+/*9d2670 near-home inverse uses the roster range count, not the state enum.
+ * Empty captains and state1 place the actor before requesting their home. */
+void S_CaptainGoHome(botCaptain_t *captain) {
+    edict_t *actor=captain->home_actor;
+    if (!actor || !captain->home_set) return;
+    if (S_CaptainNearHome(captain)) {
+        uint32_t entered=0;
+        FILTER_EDICTS(ent,ent->inuse && ent->movement.captain_home.roster_actor==actor)
+            if (ent->movement.captain_home.entered) entered++;
+        if (entered>=ARRAY_COUNT(captain->units)/2) captain->policy_flags&=~BOT_CAPTAIN_RETREAT_FLAG;
+        return;
     }
+    if (!ARRAY_COUNT(captain->units) || captain->state==BOT_CAPTAIN_FORMING)
+        S_SetUnitPosition(actor,&captain->home);
+    S_CaptainPointMove(captain,&captain->home,500);
 }
 
 /* Native171070 installs the profile;16cb80 consumes its low rank nibble.
@@ -4753,7 +4790,10 @@ static void move_run_group_updates(void) {
                         S_TrackMoveTimers(unit);
                         unit->movement.captain_home.active=true;
                         move_start_follow_group(unit,actor,true);
-                    } else unit->stand(unit);
+                    } else {
+                        unit->stand(unit);
+                        if (unit->movement.captain_actor_owned) G_BotCaptainGoalEvent(unit);
+                    }
                 }
             }
         }

@@ -114,6 +114,7 @@ jassModule_t jass_funcs[] = {
     { "Sleep", JassSleep },
     { "SetCaptainHome", SetCaptainHome },
     { "CaptainGoHome", CaptainGoHome },
+    { "CaptainAttack", CaptainAttack },
     { "SetStagePoint", SetStagePoint },
     { "SuicideUnit", SuicideUnit },
     { "SuicideUnitEx", SuicideUnitEx },

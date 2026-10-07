@@ -11735,3 +11735,12 @@ load and committed fallback positions. Repeated retail captures/control, exact
 scope and focused validation are in [temporary Captain enrollment](retail-pathfinding-captain-enrollment.md).
 Default homes, guard inverse, full idle reissue and wider fallback/roster domains
 remain open; this integration does not close the whole private-range leaf.
+
+## Captain policy and periodic deadlines (Payoff159)
+
+Save133 retains Captain retreat/strength flags, the signed roster strength
+counter, retained point/range and one-second periodic deadline. Home changes,
+removal and actor goal events now reach the recovered non-combat policy rather
+than a health/power persistence heuristic. `CaptainAttack` is registered.
+Failing-first engine regressions, exact speed/update retail captures and scope
+limits are in [Captain policy](retail-pathfinding-captain-policy.md).

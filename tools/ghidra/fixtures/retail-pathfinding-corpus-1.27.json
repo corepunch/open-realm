@@ -38267,6 +38267,134 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-captain-policy-speed-and-period",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_captain_policy159_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-captain-policy159-1.27.json",
+        "--repeat",
+        "{archive}/runtime/captain-policy159/observe-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/captain-policy159/observe-2.jsonl",
+        "--control",
+        "{archive}/runtime/captain-policy159/retreat-c-control-1-envB.jsonl",
+        "--output",
+        "{report}"
+      ],
+      "report": "captain-policy159.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 373
+        },
+        "speed_publications": {
+          "equal": 12
+        },
+        "periodic_updates": {
+          "equal": 128
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Public Captain home/retreat and Attack scene: exact speed publications and one-second periodic update state/order, two repeated observations matching the observer-free public timeline. Engine policy, native, goal-event and cold-save regressions.",
+      "exclusions": [
+        "Full word-exact retreat/Attack trajectories, melee public roster/mana controls, combat targets/strength, broader speed-modifier eligibility and retail mid-Captain save/load remain open."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "runtime/captain-policy159/observe-1.jsonl",
+        "sha256": "acb80b16d8d42773793f255aece9d04a83ff53086da015c7372f57d2b1422b7c",
+        "bytes": 452527,
+        "metadata": {
+          "task": "payoff159",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+            "captain_policy159_observer.js": "0bae2beee6b8d72ef8ce8401b8db95aed0c2ca930070a6041c196b33afbab396",
+            "map": "f288651b4603672803151ac1f8255d0f4929794ac7e8eab44757f197c149e63f"
+          },
+          "map": "Maps\\RS-G0473-retreat-c.w3m",
+          "seconds": 160.0,
+          "continue_at": 30.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-policy159/observe-2.jsonl",
+            "sha256": "33036cb6192417a7fd8165b391d8e713002b953f7abf693566fff182a92007a4",
+            "bytes": 452527,
+            "metadata": {
+              "task": "payoff159",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+                "captain_policy159_observer.js": "0bae2beee6b8d72ef8ce8401b8db95aed0c2ca930070a6041c196b33afbab396",
+                "map": "f288651b4603672803151ac1f8255d0f4929794ac7e8eab44757f197c149e63f"
+              },
+              "map": "Maps\\RS-G0473-retreat-c.w3m",
+              "seconds": 160.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-policy159/retreat-c-control-1-envB.jsonl",
+            "sha256": "1881a540fb61fde3f0e52ba3ae7b0de09b26521b5cd44176759beeb939118d38",
+            "bytes": 1131,
+            "metadata": {
+              "task": "GROUP-03.4.7.3",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "f288651b4603672803151ac1f8255d0f4929794ac7e8eab44757f197c149e63f"
+              },
+              "map": "Maps\\RS-G0473-retreat-c.w3m",
+              "seconds": 200.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -39165,7 +39293,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e6ad3cea0c299c114edbc53ca6270508bc2430769f52e1062d6e4b1acd843675"
+      "sha256": "013530ecc4f30bc603c273b94571f355de8dff2e87c734b4f94592697e544031"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -40021,7 +40149,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "50832c17e6c00c17bf1138316bd8ea995b647083c507bdbab676d5c8a97df7c1"
+      "sha256": "0935490db08a7eb53a28893efbafd26145bac8a6a806a2566bcac94ee107c0df"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -40457,7 +40585,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "887cbd2288cf7171e015ead559076c101d732dc7af354b30a280c7f6af2cf855"
+      "sha256": "5a1396a146fcbe7f9b62aca0178962363f2bb1ca5de6a3b9055a6e7055152553"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -40465,7 +40593,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "801acba3348175fe977a9b08eaf50132d5296c45b5cdfe05a1afd3ec056c9c9b"
+      "sha256": "d17d26931842db07c76f086d69be468ab5b07bb4f80d313dd220bbb2547e8737"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -40957,7 +41085,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "5f71f5aa0b27df1ebdd1f46132e230018cc3860605b00a4430f6f23d0353f059"
+      "sha256": "149658ebad8f6740e8c45b50989b09a4d89addd4b8856584cca8c217b40d3268"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -40965,15 +41093,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "564de4beb05bf2242f593f94dd0ab41cbc891bcf0b9297ffa63234cd2dfbbbab"
+      "sha256": "378ce6c6c3f4e75e54fd4c375c203127443dde77a735e545c8167aedd1877df6"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ee8872545718a94571c4eec4231ef6a6fa04c049fbbfe6aedcde6b3c0bd7c0fe"
+      "sha256": "856d69970710fbe8c712aaf10bdaf45216bf54a44ab442f4df0f96f9d68fce55"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "56caa15fadc48a5e2ca9835956c1adc0a730a4e32848e113d6637e9998fa0517"
+      "sha256": "7f4d470da9b764cdb74b899b95198ceab128fa954a3d80ca9072f1156a6b17a7"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -41093,7 +41221,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_bot.c",
-      "sha256": "e089d3425de26a66d970b85e09ed38aabba09c84a09ad7f6595bec2e5bf478dd"
+      "sha256": "d59cdac7bbf64d74b300bb45ff11b086bdd3eec8e20b497180687d0ea749c19e"
     },
     {
       "path": "games/warcraft-3/game/g_food.c",
@@ -41105,7 +41233,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
-      "sha256": "26541c4af0b2a3a444e081dab22d06a29288e83da75ac8d82756f263cc98db1e"
+      "sha256": "0309a59f605b364a8ebb09e3e485a263f1287eb08d8e2c056bd14dfab559c597"
     },
     {
       "path": "tools/frida/research/attack_help153_probe.j",
@@ -41334,6 +41462,98 @@
     {
       "path": "tools/frida/research/captain_enrollment158_probe.j",
       "sha256": "fa9d337ce78456d4c9dc7a04b8541c0ef488823c6efcd451863b595e8d93db4c"
+    },
+    {
+      "path": "games/warcraft-3/game/api/api_ai.h",
+      "sha256": "6a4c3a782588306a60f47c4dce799a2aee650b09af54c0b2f6ca2cec6c569e25"
+    },
+    {
+      "path": "games/warcraft-3/game/api/api_module.c",
+      "sha256": "d76146b5119601676721c640b2ed804a554c6ea986314650859631f49cadafa0"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_captain_policy.c",
+      "sha256": "0521df1518c609a7d97acf10cf5da53606502f605e64cc2857f44ed4832e3532"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
+      "sha256": "7d81e39d78ba8f8abf65af2f621d86ecb3fb83bb7ebfbcc0316b4345cca42dda"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_policy.py",
+      "sha256": "a02c0464acfd9dc841bc88a171f5d4d89704d73937f01903b18100d05c4b446a"
+    },
+    {
+      "path": "tools/frida/research/captain_policy159_observer.js",
+      "sha256": "0bae2beee6b8d72ef8ce8401b8db95aed0c2ca930070a6041c196b33afbab396"
+    },
+    {
+      "path": "tools/ghidra/research/verify_captain_policy159_live.py",
+      "sha256": "58b02f242eb7b71bb220905079ac562cfb626653f22a11044d87a89fdd38557d"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-policy159-1.27.json",
+      "sha256": "a9280dbbd96c3c4176fcd2072e63d043816d912f8a29fa4f35468000331209b1"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-captain-policy.md",
+      "sha256": "8cf410f80c0b464da92f26d6e3065586ea95aa18def9b849b1f142737cd6c206"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/HANDOFF.md",
+      "sha256": "e81a396277b0c5a2297d0e1235e57440bfee818061273742bdf24aae05c45544"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.7.3/mapping-rows.txt",
+      "sha256": "810c7ac99734a6fe5bbbf2fe766fbbef7690df266cf6b2a587fe9470a5168682"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.7.3-expected.json",
+      "sha256": "b75657f092e51809c6ed267341d0bce789a87f122445dba9913851cce8f7368c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.7.3-expected-interrupt.json",
+      "sha256": "20a798345ad037ea3185dcf8eb7cd571a51d120ff32bf8874163d4e4de48c7cb"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.7.3-expected-noflee.json",
+      "sha256": "8f3adb15415768adb222720ec40e735ea80b11233cb783624664b88eff48ab9f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.7.3-expected-retreat.json",
+      "sha256": "830bfb097b9b97ee1488672b691d24d50bded3402fedeb8693d954211d716a76"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.7.3-expected-threshold7.json",
+      "sha256": "54e3c6a74bd5cdf06683cd8e96073222cb88bc504b1e1f494772eb52db550e25"
+    },
+    {
+      "path": "tools/ghidra/research/verify_GROUP-03.4.7.3_policy.py",
+      "sha256": "1079008f254665bd16015c5cc292f5b846c0762932e87068147cbc5f5cce5875"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_analyze.py",
+      "sha256": "409588c725b9e8cc9f1688079a6e4284f954ed784375aff056a74a56f7976e75"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_expected.py",
+      "sha256": "904cfc0662d199729ec8a27e0c895cf0824b022dd33ffb6e5f6b8ff01803d4c0"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_make_map.py",
+      "sha256": "c3c7cf4e09045ba804d02836e3788f991145f78f36d1e47d085a576ade8ef15f"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_observer.js",
+      "sha256": "f0f15d5169e756fe57ebc4a340f1ad6db16271af951d9e340e4ea025dcfb73bd"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_probe.ai",
+      "sha256": "b858b9a40a65f39f8f07c7edf95890610594193e151f28751f0eb4bdf0157e4c"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.7.3_probe.j",
+      "sha256": "27073d98657da6592127ec7f5338ac3f81a2847bcabe0219e3542e6f7ac7d88b"
     }
   ]
 }

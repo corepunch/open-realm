@@ -541,6 +541,11 @@ uint32_t CaptainGoHome(jass_t *j) {
     G_BotCaptainGoHome(jass_getcontext(j)->playerState);
     return 0;
 }
+uint32_t CaptainAttack(jass_t *j) {
+    vec2_t point={jass_checknumber(j,1),jass_checknumber(j,2)};
+    G_BotCaptainAttack(jass_getcontext(j)->playerState,&point);
+    return 0;
+}
 uint32_t SetStagePoint(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     float x = jass_checknumber(j, 1), y = jass_checknumber(j, 2);

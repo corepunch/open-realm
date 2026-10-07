@@ -1,0 +1,38 @@
+// GROUP-03.4.7.3: public attack-captain policies driven by CommandAI phases from the map timer.
+// Phases: 1 occupied SetCaptainHome south, 2 SetGroupsFlee(true)+same home, 3 CaptainAttack north,
+// 4 SetCaptainHome north, 5 SetGroupsFlee(true), 6 CaptainAttack south.
+function RshPhase takes integer phase returns nothing
+    if phase==1 then
+        call SetCaptainHome(1,-1936.0,-1424.0)
+    elseif phase==2 then
+        call SetGroupsFlee(true)
+        call SetCaptainHome(1,-1936.0,-1424.0)
+    elseif phase==3 then
+        call CaptainAttack(-1936.0,-144.0)
+    elseif phase==4 then
+        call SetCaptainHome(1,-1936.0,-144.0)
+    elseif phase==5 then
+        call SetGroupsFlee(true)
+    elseif phase==6 then
+        call CaptainAttack(-1936.0,-1424.0)
+    endif
+endfunction
+function main takes nothing returns nothing
+    local boolean retreating=false
+    call SetCampaignAI()
+    call CreateCaptains()
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call InitAssault()
+    call AddAssault(@MEMBERS@,'hfoo')
+    loop
+        loop
+            exitwhen CommandsWaiting()==0
+            call RshPhase(GetLastCommand())
+            call PopLastCommand()
+        endloop
+        // AI-thread string concatenation corrupted Preload text in capture home-b; the observer
+        // records CaptainRetreating's raw result instead.
+        set retreating=CaptainRetreating()
+        call Sleep(0.1)
+    endloop
+endfunction
