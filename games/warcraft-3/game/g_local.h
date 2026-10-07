@@ -787,6 +787,7 @@ typedef enum {
     A_AUTO_COMBAT_END,   /* Generic combat ended; persistent behaviors may resume or restore their order. */
     A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
+    A_MOVE_START,       /* Move accepted a new target; call->move_target identifies it. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_MOVE_BLOCKED,     /* Move reached terminal Hold after a blocked route; true consumes the transition. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
@@ -836,6 +837,7 @@ struct ability_call_s {
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
         struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
         edict_t *attacker; /* A_DAMAGED */
+        edict_t *move_target; /* A_MOVE_START */
         cstring_t classname;
         uint32_t level;
         bool enabled;

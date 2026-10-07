@@ -184,6 +184,10 @@ BZ_ABILITY_PROC(CAbilityWander) {
     case A_MOVE_LEAVE:
         if (ent) wander_clear(ent);
         return false;
+    case A_MOVE_START:
+        if (ent && (!call || call->move_target != ent->wander_waypoint))
+            wander_clear(ent);
+        return false;
     case A_DISABLE:
     case A_DEATH:
     case A_UNIT_REMOVE:
