@@ -8,9 +8,11 @@
 #define WANDER_DELAY_SPREAD_MS 2001u
 #define WANDER_MIN_DISTANCE 64.0f
 #define WANDER_DISTANCE_SPREAD 192.0f
-#define WANDER_ATTEMPTS 6u
+#define WANDER_ATTEMPTS 6u /* destination rolls per decision; a dense camp then waits for the next deadline */
 #define WANDER_TAU 6.2831853071795864769f
-#define WANDER_BUILDING_CLEARANCE 32.0f /* world units */
+#define WANDER_BUILDING_CLEARANCE 32.0f /* world units; keeps a critter from parking against a mill wall */
+#define WANDER_FLEE_DISTANCE 192.0f /* world units; full retreat from an attacker, halved per failed attempt */
+#define WANDER_FLEE_ATTEMPTS 4u /* 192/96/48/24 units; a shorter hop is not a visible retreat */
 
 static bool wander_present(edict_t const *unit) {
     return unit && S_ResolveAbilityAlias((edict_t *)unit, MAKEFOURCC('A', 'w', 'a', 'n')).alias != 0;
@@ -25,6 +27,16 @@ static uint32_t wander_random(edict_t *unit) {
     }
     unit->wander_random_state = unit->wander_random_state * 1664525u + 1013904223u;
     return unit->wander_random_state;
+}
+
+/* Uniform [0, 1) from the unit's own PRNG. */
+static float wander_random_unit(edict_t *unit) {
+    return wander_random(unit) / 4294967296.0f;
+}
+
+static vec2_t wander_random_direction(edict_t *unit) {
+    float const angle = wander_random_unit(unit) * WANDER_TAU;
+    return MAKE(vec2_t, cosf(angle), sinf(angle));
 }
 
 static void wander_schedule(edict_t *unit) {
@@ -59,12 +71,10 @@ static bool wander_clear_of_buildings(edict_t *unit, vec2_t const *point) {
 }
 
 static bool wander_choose_destination(edict_t *unit, vec2_t *result) {
-    for (uint32_t i = 0; i < WANDER_ATTEMPTS; i++) {
-        float angle = (wander_random(unit) / 4294967296.0f) * WANDER_TAU;
-        float radius = WANDER_MIN_DISTANCE +
-                       (wander_random(unit) / 4294967296.0f) * WANDER_DISTANCE_SPREAD;
-        vec2_t point = { unit->s.origin2.x + cosf(angle) * radius,
-                         unit->s.origin2.y + sinf(angle) * radius };
+    FOR_LOOP(i, WANDER_ATTEMPTS) {
+        vec2_t const direction = wander_random_direction(unit);
+        float const radius = WANDER_MIN_DISTANCE + wander_random_unit(unit) * WANDER_DISTANCE_SPREAD;
+        vec2_t const point = Vector2_mad(&unit->s.origin2, radius, &direction);
         /* M_MoveIsValid allows stopping just outside collision. A clearance
          * margin prevents an autonomous route from ending against a mill. */
         if (!M_MoveIsValid(unit, &point) || !wander_clear_of_buildings(unit, &point)) continue;
@@ -216,8 +226,7 @@ BZ_ABILITY_PROC(CAbilityWander) {
  * every active explicit order (attack, build, cast, patrol, harvest, move),
  * not just an ordinary walking order. Only Awan-owned movement may yield. */
 static void wander_on_damage(edict_t *unit, edict_t *attacker) {
-    vec2_t direction, destination;
-    float length;
+    vec2_t direction;
     if (!attacker || !attacker->inuse || attacker == unit || !wander_eligible(unit)) return;
     if (G_UnitHasActiveOrder(unit) && !wander_owns_move(unit)) return;
     /* A new hit can interrupt an existing autonomous Move. Retire it before
@@ -227,20 +236,13 @@ static void wander_on_damage(edict_t *unit, edict_t *attacker) {
         if (unit->goalentity == unit->wander_waypoint) unit->goalentity = NULL;
         wander_clear(unit);
     }
-    direction.x = unit->s.origin2.x - attacker->s.origin2.x;
-    direction.y = unit->s.origin2.y - attacker->s.origin2.y;
-    length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-    if (length < 1.0f) {
-        float angle = (wander_random(unit) / 4294967296.0f) * WANDER_TAU;
-        direction.x = cosf(angle); direction.y = sinf(angle);
-    } else {
-        direction.x /= length; direction.y /= length;
-    }
+    /* Away from the attacker; a coincident attacker gives no direction. */
+    direction = Vector2_sub(&unit->s.origin2, &attacker->s.origin2);
+    if (Vector2_len(&direction) < 1.0f) direction = wander_random_direction(unit);
+    else Vector2_normalize(&direction);
     /* Try progressively shorter retreats if a full escape is obstructed. */
-    for (uint32_t i = 0; i < 4; i++) {
-        float distance = 192.0f / (1u << i);
-        destination.x = unit->s.origin2.x + direction.x * distance;
-        destination.y = unit->s.origin2.y + direction.y * distance;
+    FOR_LOOP(i, WANDER_FLEE_ATTEMPTS) {
+        vec2_t const destination = Vector2_mad(&unit->s.origin2, WANDER_FLEE_DISTANCE / (1u << i), &direction);
         if (!M_MoveIsValid(unit, &destination) || !wander_clear_of_buildings(unit, &destination)) continue;
         wander_start(unit, &destination);
         wander_schedule(unit);
