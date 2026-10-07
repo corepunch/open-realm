@@ -1766,9 +1766,10 @@ void order_move(edict_t *self, edict_t *target) {
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
     move_cancel_displacement(self);
-    /* Replacing a Move with another Move does not fire A_MOVE_LEAVE. */
-    self->wander_goal = NULL;
-    self->wander_goal_generation = 0;
+    {
+        abilityCall_t call = MAKE(abilityCall_t, .move_target = target);
+        S_UnitAbilityEventWithCall(self, A_MOVE_START, &call);
+    }
     self->goalentity = target;
     self->attack_target_spawn_time = 0;
     self->movement.attackmove_waypoint = NULL;
