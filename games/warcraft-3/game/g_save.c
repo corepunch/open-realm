@@ -2966,6 +2966,9 @@ bool ReadGame(cstring_t filename) {
     S_ResetAbilityTimers();
     G_ResetWaypointCache();
     S_InvalidateAuraSources();
+    /* Retail reload constructs fresh search owners; only maps/stamps and
+     * unit-owned curves are saved. Do not reuse an unsaved nearest-node chain. */
+    G_FreeMovePathCache();
     G_ClearMoveSpatial();
     if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;

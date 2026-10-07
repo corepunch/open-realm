@@ -1528,3 +1528,14 @@ rebuilds derived capacities from validated payload lengths. The full452 fine/
 axis-setter controls and remaining public-advance work are recorded in
 [Payoff141](retail-pathfinding-engine.md#retained-search-history-and-route-capacity-payoff141).
 ROUTE-01.2 remains open; no proposed01.4 leaf has been added.
+
+## Complete invalid-start consumption and load scratch (Payoff143)
+
+The56 remaining initialized invalid-start cases now match112 actual engine
+member decisions, including every represented route/work/retry and raw owner
+PRNG word. Load reconstructs search owners rather than serializing nearest-node
+history; the engine's stale scratch retention is fixed. Retained saved curves
+remain usable. Together with Payoffs141/142 this closes ROUTE-01.2 without a new
+leaf. Cold outside-source calls lack an established safe native return and do
+not certify physical recovery or native crash/hang emulation. See
+[engine integration](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143).

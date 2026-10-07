@@ -55,8 +55,10 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**236 done / 336 tasks; 100 remaining.**
-Payoff142 separates coarse admission from retained fine consumption, preserves the disabled-adaptive one-point cache and removes redundant fine refills.208 initialized ordinary consumer scenarios plus48 saved next advances pass; ROUTE-01.2 stays open for invalid-start consumer/history integration. See [independent caches](retail-pathfinding-engine.md#independent-coarse-admission-and-fine-cache-payoff142).
+**237 done / 336 tasks; 99 remaining.**
+Payoff143 closes ROUTE-01.2:112 complete invalid-start member decisions match original buffers/work/retries and exact RNG. Load now discards unsaved query history while retaining unit curves; seven failing assertions are fixed and repeated UI-load captures verify fresh search owners. See [invalid consumers and load](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143).
+
+Payoff142 separates coarse admission from retained fine consumption, preserves the disabled-adaptive one-point cache and removes redundant fine refills.208 initialized ordinary consumer scenarios plus48 saved next advances pass; Payoff143 completes the remaining invalid-start consumer/history integration. See [independent caches](retail-pathfinding-engine.md#independent-coarse-admission-and-fine-cache-payoff142).
 Payoff140 closes ROUTE-01.1 with all-class oblique fine/coarse producer words and200 actual engine adapter rows. Move now advances owned arrays directly, eliminating full-chain scratch copies; saved layout and numerical results stay exact. See [reconstruction and owned consumption](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140).
 
 Payoff139 ports MAP-02.2's terrain/bridge independence and removes inferred-deck scans plus a duplicate terrain buffer. All256 byte lanes and three captured map grids survive creation/save/death. Numerical support geometry remains open; see [bridge terrain authority](retail-pathfinding-engine.md#bridges-preserve-authored-terrain-payoff139).
@@ -302,7 +304,7 @@ retain the original group heading, clock prediction and refresh-to-motion chain.
 | FINE — Fine search | 12 | 0 |
 | ACC — Adaptive search | 9 | 4 |
 | NUM — Numbers and random state | 27 | 16 |
-| ROUTE — Route progression and yielding | 7 | 9 |
+| ROUTE — Route progression and yielding | 8 | 8 |
 | TARGET — Pursuit and arrival policy | 6 | 7 |
 | SCHED — Scheduling and owner updates | 6 | 7 |
 | MOVE — Stepping and callbacks | 12 | 3 |
@@ -765,7 +767,7 @@ eight-direction word corpus from01.1's remaining coarse/all-class endpoint scope
 ### ROUTE-01 — Reconstruction
 
 - [x] **ROUTE-01.1** Complete2664 original fine/10656 coarse producer requests across all classes/lanes and oblique directions; exact reconstruction order, rounding, partial endpoints and bypasses match production C at O0/O2.200 actual Move adapter rows pass2586 assertions. Owned-array advancement removes whole-chain copies without changing words or Save122 layout. See [Payoff140](retail-pathfinding-engine.md#oblique-reconstruction-and-direct-owned-consumption-payoff140); buffer/public advance state remains01.2.
-- [ ] **ROUTE-01.2** Exercise empty/partial buffers, invalid starts and one growth/index limit; assert return code and next public advance state. Payoff141 ports initialized outside-source history and retained128-point route capacities;264 original scenarios/12 growth controls reach452 fine and152 adaptive C-exact builds. Payoff142 adds208 corrected initialized ordinary consumer scenarios and48 saved next advances; invalid-start consumer outcomes and post-load history remain open.
+- [x] **ROUTE-01.2** Empty/partial/denied buffers, unsigned consumer indices, initialized invalid starts,128→256 growth and exact following advances. Payoffs141/142 port retained search/storage and independent coarse/fine caches; Payoff143 adds56 invalid scenarios/112 complete engine member decisions with exact owner RNG and fixes stale unsaved query history on load. Repeated UI loads plus observer-free control verify fresh search owners; saved curves remain usable. Cold outside calls with no accepted history do not establish a safe native return or physical recovery. See [Payoff143](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143); [research handoff](retail-pathfinding-handoffs/ROUTE-01.2/HANDOFF.md).
 - [x] **ROUTE-01.3** Port fine reconstruction coordinates and endpoint replacement into Move's nearby route adapter.3840 original eight-direction parent chains match raw C coordinate words with reuse at O0/O2; exact source, one-node source-before-goal and matching/nonmatching destination cells are explicit. Eight actual engine endpoint failures are reproduced/fixed across four classes. The partial-wall Move now keeps a fractional original goal through obstruction/removal/resume. Coarse reconstruction and buffer growth remain01.1/01.2. Evidence: [fine route endpoints](retail-pathfinding-engine.md#exact-fine-route-endpoints). Payoff34 also retains native fine waypoints in clear location routes instead of subtracting final published world positions; actual spawn-to-Move regression and repeats are [recorded here](retail-pathfinding-engine.md#clear-public-routes-retain-native-waypoints).
 
 ### ROUTE-02 — Segment checks

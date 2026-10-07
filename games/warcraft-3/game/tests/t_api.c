@@ -5891,7 +5891,7 @@ TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
 }
 
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
-    int handle_storage = 0;
+    gsound_t handle_storage = {0};
     handle_t handle = &handle_storage;
     jassSoundPlayback_t playback;
     edict_t *unit;

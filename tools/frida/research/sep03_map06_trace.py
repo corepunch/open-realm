@@ -37,6 +37,7 @@ def main():
     ap.add_argument('--snapshot-every', type=int, default=0)
     ap.add_argument('--all-updates', action='store_true')
     ap.add_argument('--all-movers', action='store_true')
+    ap.add_argument('--observer-extra', type=Path, help='additional read-only observer source, recorded in provenance')
     ap.add_argument('--delete-save', action='append', default=[], help='RS-* save name to remove before launch')
     ap.add_argument('--preload-names', default='', help='comma list of CustomMapData rs-*.txt files to collect')
     ap.add_argument('--screenshot-every', type=float, default=0, help='PNG of the owned display every N s after --continue-at')
@@ -61,6 +62,9 @@ def main():
     map_path = data / args.map.replace('\\', '/')
     provenance = {'sep03_map06_trace.py': sha(Path(__file__)), 'sep03_map06_observer.js': sha(js),
                   'sep03_map06_probe.j': sha(here / 'sep03_map06_probe.j'), 'map': sha(map_path)}
+    extra = args.observer_extra.read_text() if args.observer_extra else ''
+    if args.observer_extra:
+        provenance[str(args.observer_extra)] = sha(args.observer_extra)
     saves = data / 'save' / 'Profile1'
     removed = []
     for name in args.delete_save:
@@ -105,7 +109,7 @@ def main():
                     'removed_before_launch': removed, 'frida': frida.__version__, 'config': config})
             if args.mode == 'observe':
                 session = device.attach(pid)
-                script = session.create_script('const config = ' + json.dumps(config) + ';\n' + js.read_text())
+                script = session.create_script('const config = ' + json.dumps(config) + ';\n' + js.read_text() + '\n' + extra)
                 script.on('message', message)
                 script.load()
             device.resume(pid)

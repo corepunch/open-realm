@@ -11056,3 +11056,57 @@ configuration at debug/release, plus28 Python evidence tests. The fresh strict
 initialized consumers, their kernel comparisons, literal checks and saved
 annotations. This is the seventh implementation commit since the successful
 Payoff135 full-suite checkpoint; the full repository suite was not repeated.
+
+## Invalid-start consumers and fresh search owners after load (Payoff143)
+
+ROUTE-01.2 now covers the remaining56 initialized invalid-start scenarios,
+including112 complete physical-member decisions. The unchanged original
+`165ae0` runs with the actual coarse-distance initializer and explicit owner
+PRNG input `12345678/0`. The engine test runs the real registered group member,
+steering, step collector, blocker resolver and retry owner. Fine/coarse point
+words, retained128-point capacities, indices, request times, work, delay/retry
+and both raw RNG words agree. Outside negative/beyond-X visits stop, erase only
+the fine leg and draw once each admitted visit; outside-Y visits retain the
+previous chain without a draw. Blocked starts use the normal fine search.
+
+Save/load required a separate engine fix. Ghidra virtual-table inspection shows
+fine payload methods `148210/1481e0` serialize only the map handle and ushort
+search stamp. Adaptive methods `162fd0/162da0` serialize map handles, warp table
+and marker count. Neither saves query nodes, source/nearest identities or work
+limit. Two complete UI-save/load Frida repeats observe new fine/adaptive owners
+with source/nearest `ffffffff`, zero nodes and zero budget immediately after
+load. The observer-free UI save/load control checks every unique public position
+sample through tick300; repeated samples must agree with their original tick.
+
+OpenRealm had preserved whichever query preceded `ReadGame`. Seven failing
+regression assertions reproduce this unsaved history; `ReadGame` now releases
+derived routing/search caches before reading the saved hierarchy and spatial
+state. The saved unit-owned curves remain immediately usable without an extra
+search. No saved layout changes. This is a load boundary operation and does not
+add per-frame rebuilding or change creation/movement scheduling.
+
+Artifacts: `retail-route-invalid-consumers-1.27.json` (56 frozen cases and actual
+constructor controls), `retail_route_invalid_consumers.h` (literal expectations),
+`retail-route-invalid-ghidra-1.27.json` (seven saved/read-back functions), and
+`retail-route-search-load-1.27.json` plus its six compressed capture/public files.
+Reproducers are `verify_route012_invalid_consumers.py`,
+`export_route012_invalid_consumers.py --check` and
+`route012_search_load_summarize.py`; the strict routes corpus invokes them.
+Runtime reports: `/GitHub/wc3-analysis/runtime/payoff143/`.
+
+Together Payoffs141–143 cover empty/partial/denied and unsigned index states,
+initialized invalid starts, exact following advances,128→256 growth and retained
+storage. Kernel comparisons alone were insufficient; the actual consumer and
+load lifecycle are now covered. The cold out-of-map case with no preceding
+accepted query has no established safe native return; this work does not claim
+retail crash/hang emulation or full physical recovery. Impossible supplied
+indices remain labelled consumer controls, not retail-produced states.
+
+Validation: Classic and TFT each pass663 affected debug tests/7,681,648
+assertions. Final warning-free debug/release modules each pass316 targeted
+routing/save/consumer tests per edition (2,791,396 assertions), plus the sound
+fixture check that exposed an undersized test handle. Thirty Python checks,
+367 corpus entries/610 pinned files and a fresh strict routes report pass.
+Release production `libgame.so` builds. Full repository validation was last run
+at Payoff135; this is implementation commit8 toward the next12-commit checkpoint.
+No constructor, frame-time or pathfinding-performance target is claimed here.

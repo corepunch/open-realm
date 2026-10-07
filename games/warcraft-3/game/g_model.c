@@ -276,7 +276,7 @@ int G_RegisterModel(cstring_t filename) {
     if (!filename || !filename[0]) return 0;
     int index = gi.ModelIndex(filename);
     if (index > 0 && index < G_MAX_MODELS && !g_models[index].filename[0])
-        strncpy(g_models[index].filename, filename, MAX_PATHLEN - 1);
+        strlcpy(g_models[index].filename, filename, sizeof(g_models[index].filename));
     return index;
 }
 

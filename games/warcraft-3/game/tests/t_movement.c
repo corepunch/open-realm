@@ -77,6 +77,7 @@
 #include "retail_owner_change.h"
 #include "retail_scheduler_contention.h"
 #include "retail_scheduler_work.h"
+#include "retail_route_invalid_consumers.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -117,6 +118,108 @@ static edict_t *make_moving_unit(float x, float y) {
     ent->health.max_value = 250.0f;
     unit_stand(ent);
     return ent;
+}
+
+/* Unlike the route-only seam, the physical member decision runs the real
+ * next-step collector, blocker resolver and retry owner before publishing speed. */
+TEST(wc3_movement, invalid_start_decisions_match_original_public_consumers) {
+    uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
+    wc3Random_t random=level.pathing_random;
+    FOR_LOOP(c,sizeof(retail_invalid_consumers)/sizeof(*retail_invalid_consumers)) {
+        retailInvalidConsumer_t const *row=retail_invalid_consumers+c;
+        edict_t *unit=make_moving_unit(30.125f*32,33.875f*32);
+        uint8_t cells[64*64]={0};
+        if(row->wall)for(unsigned y=8;y<58;y++)if(y<30 || y>33)cells[y*64+40]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        unit->collision=8+16*row->cls;
+        vec2_t goal={51.25f*32,42.75f*32},direction;
+        groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},.point=&goal,
+            .order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)continue;
+        group->flags=0;group->initialized=true;
+        moveGroupMember_t *member=group->members;
+        member->destination=(vec2_t){51.25f,42.75f};member->world_destination=goal;member->flags=0;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        unit->movement.adaptive_disabled=!row->adaptive;
+        route->index=route->adaptive_index=UINT32_MAX;
+        level.move_fine_responsive=false;level.pathing_counter=100;
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,unit->collision,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+        /* Construct a fresh path owner while retaining the preceding search
+         * kernels, exactly as the original oracle's path constructor does. */
+        free(route->points);free(route->adaptive_points);
+        route->points=route->adaptive_points=NULL;route->count=route->adaptive_count=0;
+        route->capacity=route->adaptive_capacity=0;route->index=route->adaptive_index=UINT32_MAX;
+        route->partial=false;route->adaptive_admission.time=0;
+        unit->movement.path.valid=false;unit->movement.fine_request_time=0;
+        unit->movement.retry_count=unit->movement.wait_delay=0;
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        S_SetUnitAxisPosition(unit,0,wc3_float(row->source[0])*32);
+        S_SetUnitAxisPosition(unit,1,wc3_float(row->source[1])*32);
+        level.pathing_random=(wc3Random_t){row->rng[0],row->rng[1]};
+        FOR_LOOP(pass,2) {
+            retailInvalidState_t const *expected=retail_invalid_states+row->state[pass];
+            level.pathing_counter=200+pass*10;
+            move_group_decide(group,member);
+            T_EQ(route->count,expected->count);T_EQ(route->capacity,expected->capacity);
+            T_EQ(route->index,expected->index);T_EQ(route->adaptive_count,expected->coarse_count);
+            T_EQ(route->adaptive_capacity,expected->coarse_capacity);T_EQ(route->adaptive_index,expected->coarse_index);
+            T_EQ(unit->movement.fine_request_time,expected->fine_time);
+            T_EQ(route->adaptive_admission.time,expected->coarse_time);
+            T_EQ(unit->movement.wait_delay,expected->delay);T_EQ(unit->movement.retry_count,expected->retry);
+            T_EQ(level.move_fine_budgets[0].work,expected->fine_work);
+            T_EQ(level.move_coarse_budgets[0][2].work,expected->coarse_work);
+            T_EQ(level.pathing_random.sum,expected->rng[0]);T_EQ(level.pathing_random.index,expected->rng[1]);
+            if(expected->result) { T_EQ(member->speed,0);T_ASSERT(unit->movement.turn_blocked); }
+            if(route->count==expected->count)FOR_LOOP(i,route->count) {
+                T_EQ(wc3_float_bits(route->points[i].x),expected->points[i*2]);
+                T_EQ(wc3_float_bits(route->points[i].y),expected->points[i*2+1]);
+            }
+            if(route->adaptive_count==expected->coarse_count)FOR_LOOP(i,route->adaptive_count) {
+                T_EQ(wc3_float_bits(route->adaptive_points[i].x),expected->coarse_points[i*2]);
+                T_EQ(wc3_float_bits(route->adaptive_points[i].y),expected->coarse_points[i*2+1]);
+            }
+        }
+    }
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;level.pathing_random=random;
+}
+
+/* Retail reconstructs both search owners on load. A different query after
+ * saving must not become the loaded game's initialized invalid-source history. */
+wc3FineSearch_t const *G_TestMoveFineSearch(void);
+wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void);
+TEST(wc3_movement, load_rebuilds_search_owners_without_unsaved_query_history) {
+    edict_t *unit=make_moving_unit(30.125f*32,33.875f*32);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    unit->collision=8;
+    vec2_t goal={51.25f*32,42.75f*32},direction;
+    order_move(unit,Waypoint_add(&goal));
+    uint32_t counter=level.pathing_counter,number=unit->s.number;
+    bool responsive=level.move_fine_responsive;
+    level.move_fine_responsive=false;level.pathing_counter=100;
+    T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,8,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+    T_ASSERT(G_TestMoveFineSearch()->query_initialized);
+    T_ASSERT(G_TestMoveAdaptiveSearch()->work.query_initialized);
+    moveFineRoute_t const *route=&unit->movement.fine_route;
+    uint32_t count=route->count,index=route->index,coarse=route->adaptive_count;
+    cstring_t file="/tmp/wc3-search-owner-load.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+    T_ASSERT(!G_TestMoveFineSearch()->query_initialized);
+    T_ASSERT(!G_TestMoveAdaptiveSearch()->work.query_initialized);
+    T_EQ(G_TestMoveFineSearch()->initialized,0);
+    T_EQ(G_TestMoveAdaptiveSearch()->work.initialized,0);
+    T_NULL(G_TestMoveFineSearch()->nodes);T_NULL(G_TestMoveAdaptiveSearch()->work.nodes);
+    /* Saved unit-owned curves remain usable without an immediate new search. */
+    route=&unit->movement.fine_route;
+    T_EQ(route->count,count);T_EQ(route->index,index);T_EQ(route->adaptive_count,coarse);
+    level.pathing_counter=110;
+    T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,8,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+    T_ASSERT(!G_TestMoveFineSearch()->query_initialized);
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
 }
 
 /* Drive the native setters before steering, as a map script does. */

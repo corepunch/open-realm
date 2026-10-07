@@ -29,6 +29,9 @@ def main():
     parser.add_argument('--buffer-fixture', type=Path, help='frozen public buffer/invalid-start controls')
     parser.add_argument('--buffer-ghidra-evidence', type=Path, help='saved buffer/source Ghidra readback')
     parser.add_argument('--consumer-fixture', type=Path, help='public controls with original coarse-distance initialization')
+    parser.add_argument('--invalid-consumer-fixture', type=Path, help='complete initialized invalid consumers and owner RNG')
+    parser.add_argument('--invalid-ghidra-evidence', type=Path)
+    parser.add_argument('--search-load-fixture', type=Path, help='repeated UI-load search resets with an observer-free control')
     parser.add_argument('--consumer-ghidra-evidence', type=Path, help='saved consumer/initializer annotations')
     parser.add_argument('--producer-fixture', type=Path, help='also run the complete ROUTE-01.1 producer corpus')
     parser.add_argument('--engine-fixture', type=Path, help='literal Move adapter regression subset')
@@ -205,6 +208,36 @@ def main():
             assert len(saved['functions']) == 4
             assert all('Payoff142 ROUTE-01.2:' in f['comment'] for f in saved['functions'])
             report['consumer_saved_functions'] = len(saved['functions'])
+    if args.invalid_consumer_fixture:
+        invalid_report = args.report.with_name(args.report.stem + '-invalid-consumers.json')
+        subprocess.run([sys.executable, str(Path(__file__).parent / 'research' / 'verify_route012_invalid_consumers.py'),
+                        '--binary', str(args.binary), '--report', str(invalid_report),
+                        '--expected', str(args.invalid_consumer_fixture)], check=True)
+        invalid = json.loads(invalid_report.read_text())
+        report['invalid_consumer_rows'] = len(invalid['rows'])
+        report['invalid_consumer_advances'] = sum(2 for row in invalid['rows'])
+        report['invalid_consumer_expected_equal'] = True
+        subprocess.run([sys.executable, str(Path(__file__).parent / 'research' / 'export_route012_invalid_consumers.py'), '--check'], check=True)
+        if args.invalid_ghidra_evidence:
+            saved = json.loads(args.invalid_ghidra_evidence.read_text())
+            assert saved['binary_sha256'] == digest and not saved['unsaved_changes']
+            assert len(saved['functions']) == 7
+            assert all('Payoff143' in f['comment'] for f in saved['functions'])
+            assert {f['address'] for f in saved['functions']} == {
+                '6f147600', '6f14f570', '6f1481e0', '6f148210', '6f162da0', '6f162fd0', '6f165c60'}
+            report['invalid_saved_functions'] = len(saved['functions'])
+    if args.search_load_fixture:
+        load_report = args.report.with_name(args.report.stem + '-search-load.json')
+        command = [sys.executable, str(Path(__file__).parents[1] / 'frida' / 'research' / 'route012_search_load_summarize.py'),
+                   '--report', str(load_report), '--expected', str(args.search_load_fixture), '--captures']
+        command += [str(args.search_load_fixture.parent / ('retail-route-search-load-' + variant + '-1.27.jsonl.gz'))
+                    for variant in ('first', 'repeat', 'control')]
+        command += ['--preloads'] + [str(args.search_load_fixture.parent / ('retail-route-search-load-' + variant + '-1.27-preload.txt.gz'))
+                                     for variant in ('first', 'repeat', 'control')]
+        subprocess.run(command, check=True)
+        loaded = json.loads(load_report.read_text())
+        for key in ('observer_repeats', 'observer_free_controls', 'full_public_sequences_equal'):
+            report['search_load_' + key] = loaded[key]
     if args.outside_axis_fixture:
         axis_report = args.report.with_name(args.report.stem + '-outside-axis.json')
         command = [sys.executable, str(Path(__file__).parents[1] / 'frida' / 'research' / 'route012_summarize.py'),

@@ -846,7 +846,13 @@
         "--consumer-fixture",
         "tools/ghidra/fixtures/retail-route-consumers-initialized-1.27.json",
         "--consumer-ghidra-evidence",
-        "tools/ghidra/fixtures/retail-route-consumer-ghidra-1.27.json"
+        "tools/ghidra/fixtures/retail-route-consumer-ghidra-1.27.json",
+        "--invalid-consumer-fixture",
+        "tools/ghidra/fixtures/retail-route-invalid-consumers-1.27.json",
+        "--invalid-ghidra-evidence",
+        "tools/ghidra/fixtures/retail-route-invalid-ghidra-1.27.json",
+        "--search-load-fixture",
+        "tools/ghidra/fixtures/retail-route-search-load-1.27.json"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -941,6 +947,27 @@
         },
         "consumer_saved_functions": {
           "equal": 4
+        },
+        "invalid_consumer_rows": {
+          "equal": 56
+        },
+        "invalid_consumer_advances": {
+          "equal": 112
+        },
+        "invalid_consumer_expected_equal": {
+          "equal": true
+        },
+        "invalid_saved_functions": {
+          "equal": 7
+        },
+        "search_load_observer_repeats": {
+          "equal": 2
+        },
+        "search_load_observer_free_controls": {
+          "equal": 1
+        },
+        "search_load_full_public_sequences_equal": {
+          "equal": true
         }
       },
       "evidence": [
@@ -949,7 +976,7 @@
         "C",
         "L"
       ],
-      "scope": "Original synthetic reconstruction controls plus full166e90/166c30 route producers:2664 fine and10656 coarse requests, all four footprint classes/four lanes,36 regular vectors plus9 enclosed-goal vectors, two source fractions, complete/partial/bypass words, exact original float32 model and production C;200 literal adapter regression rows and7 saved Ghidra functions. Supplied map/bucket/storage preconditions; public cadence, world transforms and buffer growth remain separate. Synthetic size4 chains are not real166c30 producer evidence. Payoff141 adds264 frozen public buffer/invalid-start scenarios and12 growth controls;452 fine/152 adaptive reached builds compare exact with production C, with12 saved Ghidra functions. Two completing public axis-setter repeats and one observer-free control establish three outside sources. Full actual engine public-advance state, cold-invalid source and post-load search history are not certified by these kernel comparisons. Payoff142 labels the original buffer oracle as zero-BSS coarse-consumer controls; a new264-row fixture runs original0040d0 distance initialization.208 ordinary Move consumer literals plus48 saved continuations verify represented buffer/work/queue/time/output state.452/152 reached kernels remain exact; invalid-start public consumer outcomes and post-load history remain open.",
+      "scope": "Original synthetic reconstruction controls plus full166e90/166c30 route producers:2664 fine and10656 coarse requests, all four footprint classes/four lanes,36 regular vectors plus9 enclosed-goal vectors, two source fractions, complete/partial/bypass words, exact original float32 model and production C;200 literal adapter regression rows and7 saved Ghidra functions. Supplied map/bucket/storage preconditions; public cadence, world transforms and buffer growth remain separate. Synthetic size4 chains are not real166c30 producer evidence. Payoff141 adds264 frozen public buffer/invalid-start scenarios and12 growth controls;452 fine/152 adaptive reached builds compare exact with production C, with12 saved Ghidra functions. Two completing public axis-setter repeats and one observer-free control establish three outside sources. Full actual engine public-advance state, cold-invalid source and post-load search history are not certified by these kernel comparisons. Payoff142 labels the original buffer oracle as zero-BSS coarse-consumer controls; a new264-row fixture runs original0040d0 distance initialization.208 ordinary Move consumer literals plus48 saved continuations verify represented buffer/work/queue/time/output state.452/152 reached kernels remain exact; invalid-start public consumer outcomes and post-load history remain open. Payoff143 completes56 initialized invalid consumers/112 advances with explicit raw owner RNG; literal actual-member regressions verify represented state. Fine/adaptive vtable save payloads omit query history. Two full UI-load repeats plus an observer-free UI-load control verify cold search owners and597 unique public position samples, with seven saved Ghidra functions. Cold outside calls with no accepted query do not establish a safe native return; no crash/hang emulation or full physical recovery is certified.",
       "exclusions": []
     },
     {
@@ -37247,7 +37274,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4808e7b0c4b93ed9aac3395d1e189ba4a86d862034fa59edffcebaa61030b602"
+      "sha256": "5b7e8c50d0181bf1a46a4cbc6f62515de51e49f63a09925354609d83805a2da4"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38539,7 +38566,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "6b4f15560eda5352878fd309667947c3729d8cf91fc59e785b532c0deec1ee21"
+      "sha256": "ec07fd1cdc7a22187f95dbee4f718c8251f726129cade4a31506f14b8db5d773"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -38603,7 +38630,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
-      "sha256": "de39ca620a207a6b153fd8828ab2bc2d38635fe825d82ad9b59db2d46fbae31a"
+      "sha256": "b4f45981f124cfc3a4999362cf8c3130d148e2aa53a43ce5fe132d0ce08c3864"
     },
     {
       "path": "shared/types/vector2.h",
@@ -38671,7 +38698,7 @@
     },
     {
       "path": "tests/test_wc3_route_buffers.py",
-      "sha256": "098e18b5133a49e3566be5126359fc668ed5b2c19b28e26485a0d9fc47d5ea2e"
+      "sha256": "142505483e52a57bc81b8680ea8a40c6d9cb4c07b268cfcb3a482b86548108a1"
     },
     {
       "path": "tools/ghidra/fixtures/retail-outside-axis-control-1.27.jsonl.gz",
@@ -38732,6 +38759,66 @@
     {
       "path": "tools/ghidra/research/export_route012_consumers.py",
       "sha256": "5bea39e0c28baf675745fdbc81748ef257210113430b455a220cffb7fe6ff6e4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-control-1.27.jsonl.gz",
+      "sha256": "4424f51d2d1d2b1bb3b50d6aebb8b675db67e94ab63d8762c4389559fbbaf07f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-1.27.json",
+      "sha256": "753d7e71c789fd753547622ffa9d0df3024c939ad3afc396f9cf3d170e9691ad"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-control-1.27-preload.txt.gz",
+      "sha256": "d9bdde7a4b2c2c010093949dfedd2d5f3d8493ebb076479800aa1efa17b823ef"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-first-1.27-preload.txt.gz",
+      "sha256": "8cad1f8ad2e4ce2414b80e47a01c27272c2ad8de7d2dbba44df062f3843069d8"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-first-1.27.jsonl.gz",
+      "sha256": "7b5fd31972f651581f046b1848ff34b3382f86be547f6e0ca921fb998f299ef6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-repeat-1.27-preload.txt.gz",
+      "sha256": "ce47326c683f7519ef8fe75a0b08c6d2cfffd461ed85b35516a783aaa50a175b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-search-load-repeat-1.27.jsonl.gz",
+      "sha256": "b19db0829f1e5362497eca626ad7eab06700f2ce2d26239545c2ab1fee0b4c29"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-invalid-consumers-1.27.json",
+      "sha256": "ca4a881dc0a5ff75b975ac10fbe45c53832521d0379b0fdc3159cb70d7ecfdbc"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-invalid-ghidra-1.27.json",
+      "sha256": "ddf59e7e654ecd1b65bc3231fbc0652ca628a10249614242a2fda7a8025a43a5"
+    },
+    {
+      "path": "tools/ghidra/research/verify_route012_invalid_consumers.py",
+      "sha256": "ade5136a4491f4cfa7ae2cbc87c331d8e8d28ce5fa45e902af20f7f00d690090"
+    },
+    {
+      "path": "tools/ghidra/research/export_route012_invalid_consumers.py",
+      "sha256": "605875daac06b64e4782d3012f069696bd5756f0dbea5bc7b9db2eb7d36e4310"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_route_invalid_consumers.h",
+      "sha256": "1805f1e3d54e7f0e5bb24ea485ce8a0dcd4770d89e5f29c9af0449b6ef9f49db"
+    },
+    {
+      "path": "tools/frida/research/route012_search_load_observer.js",
+      "sha256": "ff26a5f754740e13273cc963a85ef8cb911c896a56bfb0f0dc092bbe360f7dd6"
+    },
+    {
+      "path": "tools/frida/research/route012_search_load_summarize.py",
+      "sha256": "bcd094bcf41bd20cefa489334ad307effbcbc61aae2606a2a57c0c7b3132d434"
+    },
+    {
+      "path": "tools/frida/research/sep03_map06_trace.py",
+      "sha256": "7620b1172ed69c6fdcf99c95483e9a8542c17859bdffb90a812b9f1c2cb42837"
     }
   ]
 }

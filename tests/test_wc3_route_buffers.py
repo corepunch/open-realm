@@ -14,6 +14,59 @@ spec.loader.exec_module(summary)
 
 
 class RouteBufferEvidenceTests(unittest.TestCase):
+    def test_load_captures_require_completed_reset_and_control(self):
+        source = ROOT / 'tools/frida/research/route012_search_load_summarize.py'
+        spec = importlib.util.spec_from_file_location('route012_load', source)
+        load = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(load)
+        captures = [FIXTURES / ('retail-route-search-load-' + variant + '-1.27.jsonl.gz')
+                    for variant in ('first', 'repeat', 'control')]
+        preloads = [FIXTURES / ('retail-route-search-load-' + variant + '-1.27-preload.txt.gz')
+                    for variant in ('first', 'repeat', 'control')]
+        result = load.summarize(captures, preloads)
+        self.assertEqual(result, json.loads((FIXTURES / 'retail-route-search-load-1.27.json').read_text()))
+        self.assertEqual(result['public_markers'], 597)
+        with tempfile.TemporaryDirectory() as directory:
+            damaged = Path(directory) / 'first.jsonl'
+            rows = [json.loads(line) for line in load.read(captures[0]).splitlines()]
+            for row in rows:
+                if row.get('event') == 'search-owners-after-load':
+                    row['fine']['source'] = 0
+            damaged.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            with self.assertRaises(AssertionError):
+                load.summarize([damaged, *captures[1:]], preloads)
+            rows = [row for row in rows if row.get('event') != 'search-owners-after-load']
+            damaged.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            with self.assertRaises(AssertionError):
+                load.summarize([damaged, *captures[1:]], preloads)
+
+    def test_invalid_consumers_include_full_retry_owner_state(self):
+        source = ROOT / 'tools/ghidra/research/export_route012_invalid_consumers.py'
+        spec = importlib.util.spec_from_file_location('route012_invalid', source)
+        exporter = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(exporter)
+        self.assertEqual(exporter.render(), exporter.OUTPUT.read_text())
+        fixture = json.loads(exporter.SOURCE.read_text())
+        self.assertEqual(len(fixture['rows']), 56)
+        self.assertEqual(fixture['constructors'], {
+            kind: dict(source=0xffffffff, nearest=0xffffffff, count=0, budget=0)
+            for kind in ('fine', 'coarse')})
+        for row in fixture['rows']:
+            self.assertEqual(row['rng'], [0x12345678, 0])
+            if row['label'] in ('outside_negative_x', 'outside_beyond_x'):
+                for visit in ('first', 'second'):
+                    self.assertEqual(row[visit]['result'], 1)
+                    self.assertEqual(row[visit]['state']['fine_count'], 0)
+                    self.assertEqual(row[visit]['state']['fine_index'], 0xffffffff)
+                    self.assertEqual(row[visit]['state']['retry'], 7)
+                self.assertNotEqual(row['first']['rng'], row['rng'])
+                self.assertNotEqual(row['second']['rng'], row['first']['rng'])
+            else:
+                for visit in ('first', 'second'):
+                    self.assertEqual(row[visit]['result'], 0)
+                    self.assertEqual(row[visit]['state']['retry'], 0)
+                    self.assertEqual(row[visit]['rng'], row['rng'])
+
     def test_consumer_literals_require_original_distance_initialization(self):
         source = ROOT / 'tools/ghidra/research/export_route012_consumers.py'
         spec = importlib.util.spec_from_file_location('route012_consumers', source)
