@@ -788,6 +788,7 @@ typedef enum {
     A_UNIT_STAND,       /* Common stand installation; an owning ability may install its persistent stand behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
+    A_MOVE_BLOCKED,     /* Move reached terminal Hold after a blocked route; true consumes the transition. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */

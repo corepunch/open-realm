@@ -128,7 +128,7 @@ static void wander_start(edict_t *unit, vec2_t const *point) {
 /* Invoked by Move before its terminal Hold transition. A_MOVE_LEAVE can
  * already have retired wander_goal, so the stable private target is the
  * authoritative identity here. Never intercept ordinary player Move targets. */
-bool S_WanderRecoverBlockedMove(edict_t *unit) {
+static bool wander_recover_blocked_move(edict_t *unit) {
     if (!unit || !unit->wander_waypoint ||
         unit->goalentity != unit->wander_waypoint ||
         !unit->wander_waypoint->inuse ||
@@ -179,6 +179,8 @@ BZ_ABILITY_PROC(CAbilityWander) {
             wander_schedule(ent);
         }
         return false;
+    case A_MOVE_BLOCKED:
+        return wander_recover_blocked_move(ent);
     case A_MOVE_LEAVE:
         if (ent) wander_clear(ent);
         return false;
