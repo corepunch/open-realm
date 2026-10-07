@@ -81,10 +81,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format123 adds derived route capacities to the instance layout. Format122 saves
- * mixed ordinary/region identities in entity save order and
- * actual compacted sparse region membership, not an enclosing rectangle. */
-static uint32_t const save_version = 123;
+/* Format124 persists physical singleton execution ownership. Earlier records
+ * cannot distinguish unit-owned routes from shared cohort execution. */
+static uint32_t const save_version = 124;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -846,6 +845,7 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, cooldown, F_INT),
     TF(moveGroup_t, inuse, F_INT),
     TF(moveGroup_t, initialized, F_INT),
+    TF(moveGroup_t, individual, F_INT),
     TF(moveGroup_t, ticking, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, newer, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveGroup_t, older, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2163,6 +2163,8 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     if (!group->id || !group->sequence || group->sequence>level.next_move_group_sequence ||
         group->count>BZ_WC3_GROUP_ORDER_UNITS || group->cooldown>66 ||
         *(uint8_t const *)&group->inuse!=1 || *(uint8_t const *)&group->initialized>1 || group->ticking ||
+        *(uint8_t const *)&group->individual>1 ||
+        (group->individual && (group->count>1 || group->shared_id || group->target)) ||
         !isfinite(group->goal.x) || !isfinite(group->goal.y) || !isfinite(group->point.x) ||
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
@@ -3614,7 +3616,7 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     T_ASSERT(G_IssueGroupPointOrder(&request)); T_EQ(ARRAY_COUNT(level.move_groups),1);
     moveGroup_t original=*level.move_groups[0];
     S_ClearMoveGroups();
-    FOR_LOOP(i,22) {
+    FOR_LOOP(i,25) {
         FILE *file=tmpfile(); T_NOT_NULL(file); if (!file) continue;
         moveGroup_t raw=original; uint32_t count=i==0 ? globals.num_edicts+1 : i==13 ? 2 : 1;
         raw.route.points=raw.route.adaptive_points=raw.route.group_points=(vec2_t *)(uintptr_t)1;
@@ -3632,6 +3634,9 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
         if (i==19) raw.flags|=0x1000;
         if (i==20) raw.shared_id=1;
         if (i==21) raw.cooldown=67;
+        if (i==22) *(uint8_t *)&raw.individual=2;
+        if (i==23) raw.individual=true; /* A private route cannot own two members. */
+        if (i==24) {raw.count=1;raw.individual=true;raw.target=second;raw.flags|=0x1000;}
         if (i>=7 && i<13) { raw.route.group_count=1; raw.route.group_index=0; }
         if (i==7) raw.route.group_count=BZ_WC3_ACC_ROUTE_NODES+1;
         if (i==8) raw.route.group_index=1;
@@ -3797,8 +3802,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-118.bin",
         "/tmp/openwarcraft3-wc3-save-version-119.bin",
         "/tmp/openwarcraft3-wc3-save-version-120.bin",
+        "/tmp/openwarcraft3-wc3-save-version-123.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123 };
 
     reset_entities();
     setup_test_world();

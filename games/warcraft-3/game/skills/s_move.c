@@ -183,7 +183,7 @@ static moveGroup_t *move_unit_group(edict_t const *unit) {
 /* An edict address alone is insufficient after removal and slot reuse. */
 static moveGroupMember_t *move_find_member(edict_t const *unit) {
     moveGroup_t *group=move_unit_group(unit);
-    if (!group) return NULL;
+    if (!group || group->individual) return NULL;
     FOR_LOOP(i,group->count) if (group->members[i].unit==unit && group->members[i].spawn==unit->spawn_time)
         return group->members+i;
     return NULL;
@@ -2113,14 +2113,24 @@ static uint32_t move_retry_members(edict_t const *self) {
     return count;
 }
 
+/* Original166c30 publishes the reconstructed coarse endpoint to path+24
+ * when it differs from the requested destination. Both retry callers read
+ * that same adjusted goal, even before the coarse index reaches zero. The
+ * retained first point already owns these words; no new saved cache is needed. */
+static vec2_t move_retry_goal(moveFineRoute_t const *route,vec2_t requested) {
+    if (route->adaptive_count)
+        return (vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
+    return requested;
+}
+
 /* Original167290 resets the fine leg only; retaining the coarse route lets
  * the following thinker refill around the peer that has now stopped. */
 static void move_retry_fine(edict_t *self) {
     moveFineRoute_t *route=&self->movement.fine_route;
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
     moveGroupMember_t const *member=move_find_member(self);
-    wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},
-        {member ? member->destination.x : route->points[0].x,member ? member->destination.y : route->points[0].y},1};
+    vec2_t goal=move_retry_goal(route,member ? member->destination : route->points[0]);
+    wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},{goal.x,goal.y},1};
     /* TODO GROUP: engine cohorts supply members until the original group
      * activation/membership producer replaces the current selection owner. */
     if (self->movement.group_id) {
@@ -2143,8 +2153,7 @@ static uint32_t move_retry_endpoint(edict_t *unit, wc3GridPose_t const *pose, ve
     if (wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range)) return 0;
     /* Failed adaptive reconstruction publishes its retained endpoint to the
      * adjusted fine goal used by1689d0, independently of the user click. */
-    if (route->adaptive_count && !route->adaptive_index)
-        goal=(vec2_t){wc3_mul(route->adaptive_points[0].x,2),wc3_mul(route->adaptive_points[0].y,2)};
+    goal=move_retry_goal(route,goal);
     wc3RetryInput_t in={{pose->grid[0],pose->grid[1]},{goal.x,goal.y},members};
     uint32_t result=move_advance_retry(unit,&in);
     if (result!=4) {route->count=0;route->index=UINT32_MAX;unit->movement.path.valid=false;}
@@ -3660,6 +3669,8 @@ static void ai_move_walk(edict_t *ent) {
     if(ent->movement.pause_order_id)return;
     if (ent->movement.type_rebind_pending) return;
     if (move_find_member(ent)) return; /* Shared owner stages all members before any commit. */
+    moveGroup_t *owner=move_unit_group(ent);
+    if (owner && owner->individual && level.scheduled_frame && !owner->ticking) return;
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
@@ -3695,7 +3706,7 @@ static void ai_move_walk(edict_t *ent) {
     point_order = (ent->current_order_id == G_OrderId("move") || ent->current_order_id == G_OrderId("smart")) &&
         ent->goalentity && (ent->goalentity->svflags & SVF_MOVE_WAYPOINT);
 
-    if (point_order && !ent->movement.group_id) {
+    if (point_order && (!ent->movement.group_id || (owner && owner->individual))) {
         movePathQuery_t query=move_route_query(ent,(moveRoutePoint_t){&ent->goalentity->s.origin2,ent->collision,MOVE_AVOID_GENERIC});
         vec2_t destination;
         uint32_t revision=ent->movement.fine_route.group_revision;
@@ -4043,6 +4054,9 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
 }
 
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
+    /* Move->Follow shares the procedure, so unit_setmove need not dispatch
+     * leave. Transfer physical ownership before installing its successor. */
+    move_detach_group(unit);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->target=target; group->target_spawn=target->spawn_time;
@@ -4098,6 +4112,10 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
 
 /* Move owns the shared request; generic order admission still handles each
  * candidate's validation, Smart rally behavior and issued-order callbacks. */
+/* A prepared packet supplies the physical owner after each ordinary admission.
+ * Keep this stack-scoped producer separate from nested orders issued by callbacks. */
+static struct { edict_t *unit; vec2_t point; } move_group_admission;
+
 static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t shared_id,edict_t *target) {
     if (!request->count) return false;
     if (request->queued) return move_queue_group_point(request);
@@ -4125,7 +4143,11 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
     FOR_LOOP(i,request->count) {
         edict_t *unit=request->units[i].unit;
         if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
-        if (!unit_issueorder(unit,request->order,request->point)) continue;
+        typeof(move_group_admission) previous=move_group_admission;
+        move_group_admission=(typeof(move_group_admission)){unit,*request->point};
+        bool accepted=unit_issueorder(unit,request->order,request->point);
+        move_group_admission=previous;
+        if (!accepted) continue;
         any=true;
         if (unit->current_order_id!=request->order_id || unit->currentmove!=&move_move_walk) continue;
         moveGroupMember_t *member=group->members+group->count++;
@@ -4174,7 +4196,7 @@ static void move_group_seed_route(moveGroup_t *group) {
 static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
-    group->goal=*home; group->age=UINT32_MAX;
+    group->goal=*home; group->age=UINT32_MAX; group->radius=actor->collision;
     group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,.arrival_range=wc3_div(range,32)};
     actor->movement.group_id=group->id;
     move_group_seed_route(group); group->ticking=false;
@@ -4410,7 +4432,9 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     }
     float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
     vec2_t direction;
-    uint32_t progress=move_group_advance_endpoint(group,member,&pose,&direction);
+    /* Native arrival can stop translation before its angular gate completes.
+     * In-range/forced members turn without another path or retry request. */
+    uint32_t progress=arrival.in_range ? 0 : move_group_advance_endpoint(group,member,&pose,&direction);
     if (progress==2) {
         /* Native returns the consumed fine point, including a zero vector.
          * 16fbd0 passes stop1 for every nonzero Path_Advance status. */
@@ -4419,6 +4443,7 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
         unit->movement.turn_blocked=true;
     } else if (arrival.in_range || progress) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
+        if (arrival.in_range) move_unlink_requests(unit);
     } else {
         if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
             progress=move_group_advance_endpoint(group,member,&pose,&direction);
@@ -4505,6 +4530,12 @@ static void move_run_group_updates(void) {
             i++;
         }
         if (!group->count) { move_release_group(group); continue; }
+        if (group->individual) {
+            edict_t *unit=group->members[0].unit;
+            if (!unit->paused && !unit->stunned) ai_move_walk(unit);
+            group->ticking=false;
+            continue;
+        }
         if (group->target && (!group->target->inuse || group->target->spawn_time!=group->target_spawn ||
                 G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             while(group->count) {
@@ -4793,14 +4824,20 @@ BZ_ABILITY_PROC(CAbilityMove) {
     case A_GROUP_POINT_ORDER:
         return move_group_point_order(call->group_order,0) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_ORDER_ACCEPTED:
-        /* Public replacement retires the old shared binding, but the retained
-         * captain roster does not retire the unit's physical scheduling domain.
-         * Admit its successor as a private point request, newest owner first.
-         * Internal two-pass captain admission temporarily transfers roster refs
-         * and supplies its own physical request instead. */
-        if (ent->movement.captain_home.roster_actor && ent->currentmove==&move_move_walk &&
-            ent->goalentity && (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent))
+        /* Retail point activation creates a physical singleton too. Route
+         * decisions, scheduler admission and retry RNG therefore follow the
+         * newest-first owner list rather than entity allocation order. A
+         * prepared packet installs its own owner after admission; independent
+         * nested point orders must still receive their physical singleton. */
+        if (ent->currentmove==&move_move_walk && ent->goalentity &&
+            (ent->goalentity->svflags&SVF_MOVE_WAYPOINT) && !move_unit_group(ent) &&
+            !(move_group_admission.unit==ent &&
+              move_group_admission.point.x==ent->goalentity->s.origin2.x &&
+              move_group_admission.point.y==ent->goalentity->s.origin2.y))
+        {
             move_start_point_group(ent,&ent->goalentity->s.origin2,0);
+            move_unit_group(ent)->individual=!ent->movement.captain_home.roster_actor;
+        }
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;

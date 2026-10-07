@@ -2871,7 +2871,8 @@ TEST(wc3_movement, forced_position_retires_move_and_queued_orders) {
         FOR_LOOP(i,4) { level.time += FRAMETIME; globals.RunFrame(); }
         if (mode != 2) T_ASSERT(unit->movement.clock_valid);
         if (mode == 3) S_SetUnitPaused(unit,true);
-        unit->movement.group_id = 123; unit->movement.group_speed = 139;
+        if (!unit->movement.group_id) unit->movement.group_id = 123;
+        unit->movement.group_speed = 139;
         vec2_t before = unit->s.origin2;
         jass_callbyname(level.vm, mode == 4 ? "shiftLoc" : mode ? "shift" : "same", false);
         T_ASSERT(!jass_rterror_pending(level.vm));
@@ -7966,7 +7967,8 @@ TEST(wc3_movement, group_point_request_twelve_boundary_matches_retail_layouts) {
             T_EQ(units[i]->movement.velocity.x,0);
         }
         for(uint32_t i=n;i<fixture->count;i++) {
-            T_EQ(units[i]->movement.group_id,0);
+            T_NE(units[i]->movement.group_id,0);
+            T_ASSERT(move_unit_group(units[i])->individual);
             T_EQ(units[i]->goalentity,old_goals[i]);T_EQ(units[i]->movement.velocity.x,64);
             T_ASSERT(units[i]->movement.clock_valid);
         }
@@ -8807,7 +8809,8 @@ TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
     clent->client->menu.order_queued=false;
     T_ASSERT(move_selectlocation(clent, &destination));
     S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
-    moveGroup_t *group=level.move_groups[0];
+    moveGroup_t *group=move_unit_group(units[0]);
+    T_NOT_NULL(group); if (!group) return;
     T_EQ(group->count,3);
     FOR_LOOP(i, 3) {
         T_NOT_NULL(units[i]->goalentity);
@@ -9167,7 +9170,9 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     replacement->stand = unit_stand; unit_stand(replacement);
     replacement->unitinfo.MoveSpeed = 50;
     T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
-    T_EQ(replacement->movement.group_id, 0);
+    T_NE(replacement->movement.group_id, 0);
+    T_NE(replacement->movement.group_id, first_group);
+    T_ASSERT(move_unit_group(replacement)->individual);
     S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),300,0.001f);
     T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
@@ -9217,7 +9222,9 @@ TEST(wc3_movement, group_survivor_reorder_after_member_reuse_reaches_new_goal) {
         T_EQ(survivor->movement.group_id, old_group);
         vec2_t new_goal = {384, 448};
         T_ASSERT(unit_issueorder(survivor, "move", &new_goal));
-        T_EQ(survivor->movement.group_id, 0);
+        T_NE(survivor->movement.group_id, 0);
+        T_NE(survivor->movement.group_id, old_group);
+        T_ASSERT(move_unit_group(survivor)->individual);
         T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
         T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
         for (int frame = 0; frame < 240 && move_is_active_order_walk(survivor); frame++) {
@@ -12906,7 +12913,7 @@ static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_c
             if(scenario==FOLLOW_SPEED && (level.time==1020 || level.time==8010)) {
                 unsigned member=level.time==1020 ? 0 : 1;
                 moveGroup_t const *group=move_find_group(units[member]->movement.group_id);
-                moveFineRoute_t const *route=group ? &group->route : &units[member]->movement.fine_route;
+                moveFineRoute_t const *route=group && !group->individual ? &group->route : &units[member]->movement.fine_route;
                 T_ASSERT(route->group_count>0);
                 T_EQ(route->group_admission.policy,member==0 ? 1 : 0);
                 T_ASSERT(level.move_coarse_budgets[0][member==0 ? 1 : 0].work>0);

@@ -1343,3 +1343,16 @@ checks rebuilt capacity, exact words and reuse alongside the ordinary full
 Save/Load movement continuations. See
 [Payoff141](retail-pathfinding-engine.md#retained-search-history-and-route-capacity-payoff141)
 for the separate retained search-history/public outside-start evidence limits.
+
+## Individual physical Move execution (format124)
+
+Format124 saves `moveGroup_t.individual`: an ordinary point order's physical
+singleton schedules the unit-owned route, while selected/captain owners stage
+their member decisions together. Creation sequence controls encounter order
+and survives load; curve buffers remain with their existing logical owner.
+Private owners can be empty pending retirement or have one member, and cannot
+have a shared parameter identity or target. The reader rejects invalid boolean
+values and contradictory ownership. Prior formats are rejected without
+migration. Both complete mixed-crowd and enabled/disabled ground regressions
+save mid-order and compare every subsequent pose/vector/RNG/admission/retry and
+public sample against uninterrupted retail captures. See [Payoff144](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).

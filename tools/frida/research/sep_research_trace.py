@@ -35,6 +35,7 @@ def main():
     ap.add_argument('--key-at', type=float, nargs='+', default=[14.0, 22.0], help='wall seconds for Space keys')
     ap.add_argument('--pair-probes', action='store_true')
     ap.add_argument('--retry-events', action='store_true')
+    ap.add_argument('--observer-extra', type=Path, help='additional read-only observer, recorded in provenance')
     ap.add_argument('--output', type=Path, required=True, help='new directory')
     a = ap.parse_args()
     if a.remote.endswith(':27046') or a.x11_display == ':94' or 'w3-research' not in str(a.data):
@@ -55,6 +56,8 @@ def main():
                 observer_sha256=sha(js) if a.mode == 'observe' else None, frida=frida.__version__, seconds=a.seconds,
                 key_at=a.key_at, display=a.x11_display, remote=a.remote, config=config, argv=sys.argv,
                 started=time.strftime('%Y-%m-%dT%H:%M:%S'))
+    if a.observer_extra:
+        prov['observer_extra_sha256'] = sha(a.observer_extra)
     generated = data / 'CustomMapData' / a.preload_name
     if generated.exists():
         (a.output / 'previous-preload.txt').write_bytes(generated.read_bytes())
@@ -80,7 +83,7 @@ def main():
         if a.mode == 'observe':
             out.write(json.dumps(dict(event='metadata', sha256=HASH, owned=True, **prov)) + '\n')
             session = device.attach(pid)
-            script = session.create_script('const config = ' + json.dumps(config) + ';\n' + js.read_text())
+            script = session.create_script('const config = ' + json.dumps(config) + ';\n' + js.read_text() + ('\n' + a.observer_extra.read_text() if a.observer_extra else ''))
             script.on('message', on_message)
             script.load()
         device.resume(pid)

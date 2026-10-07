@@ -90,6 +90,7 @@ typedef struct moveGroup_s {
     uint64_t sequence; /* Creation order survives slot reuse and save/load. */
     uint64_t shared_id; /* Native group7c shared parameters, zero when unbound. */
     bool inuse, initialized, ticking;
+    bool individual; /* Physical singleton schedules the unit-owned route. */
     vec2_t goal, point;
     edict_t *target;
     uint32_t target_spawn;

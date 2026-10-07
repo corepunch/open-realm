@@ -55,7 +55,8 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**237 done / 336 tasks; 99 remaining.**
+**239 done / 336 tasks; 97 remaining.**
+Payoff144 closes SEP-04.2/03 with complete mixed-crowd and enabled/disabled ground engine traces, including saved continuations. Ordinary point requests now use newest-first physical owners, retries share the adjusted coarse endpoint, and arrival turning avoids new retry work. See [crowd composition](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).
 Payoff143 closes ROUTE-01.2:112 complete invalid-start member decisions match original buffers/work/retries and exact RNG. Load now discards unsaved query history while retaining unit curves; seven failing assertions are fixed and repeated UI-load captures verify fresh search owners. See [invalid consumers and load](retail-pathfinding-engine.md#invalid-start-consumers-and-fresh-search-owners-after-load-payoff143).
 
 Payoff142 separates coarse admission from retained fine consumption, preserves the disabled-adaptive one-point cache and removes redundant fine refills.208 initialized ordinary consumer scenarios plus48 saved next advances pass; Payoff143 completes the remaining invalid-start consumer/history integration. See [independent caches](retail-pathfinding-engine.md#independent-coarse-admission-and-fine-cache-payoff142).
@@ -1125,8 +1126,8 @@ complete neighbor traversal, ordering and original full application remain requi
 ### SEP-04 — Retail separation witnesses
 
 - [x] **SEP-04.1** Replay one live exact-overlap case with recorded seed and neighbors; match contributions, cooldown and trajectory. Research handoff: [SEP-04.1](retail-pathfinding-handoffs/SEP-04.1/HANDOFF.md). Payoff133: complete production owner passes, unchanged full overlap fixtures, individual shared RNG/pair/admission/occupancy checks; [engine payoff](retail-pathfinding-overlap.md).
-- [ ] **SEP-04.2** Capture a mixed-owner/radius/rank crowd with a blocked endpoint; explain displacement differences against the composed model.
-- [ ] **SEP-04.3** Run disabled-repulse ground controls beside enabled cases; assert retry/Stop outcomes without classifying path blocking as repulsion.
+- [x] **SEP-04.2** Complete mixed-owner/radius/rank/selector wall crowd matches2,255 real owner visits,3,228 ordered contributions and76 retries, exact endpoint/pose/RNG/occupancy plus public positions. Saved mid-order suffix also matches; four blocked orders remain unfinished and first blocking identity remains inferred. See [Payoff144](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144); [research handoff](retail-pathfinding-handoffs/SEP-04.2/HANDOFF.md).
+- [x] **SEP-04.3** Enabled/disabled ground controls match1,336 real owner visits,1,182 contributions and66 retries through closed-ring/gap movement and Stop; disabled sources retain collision/routing. Saved continuation and public outputs match. Shared adjusted retry goal and physical singleton scheduling replace incorrect engine ordering. See [Payoff144](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144); [research handoff](retail-pathfinding-handoffs/SEP-04.3/HANDOFF.md).
 
 ## GATE — Way Gates
 

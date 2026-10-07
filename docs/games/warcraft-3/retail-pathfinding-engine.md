@@ -11110,3 +11110,97 @@ fixture check that exposed an undersized test handle. Thirty Python checks,
 Release production `libgame.so` builds. Full repository validation was last run
 at Payoff135; this is implementation commit8 toward the next12-commit checkpoint.
 No constructor, frame-time or pathfinding-performance target is claimed here.
+
+## Mixed crowds, individual physical owners and adjusted retries (Payoff144)
+
+SEP-04.2 and SEP-04.3 now exercise complete real engine scenes through JASS
+creation, orders, the primary clock, physical-owner scheduling, routing,
+separation and public Stop. The fixtures retain the original scripts and map
+cells rather than calling arithmetic helpers with captured outputs as inputs.
+
+The mixed crowd includes ten units, two owners, three radii, three ranks,
+three selectors and a repulse-disabled blocker against a terrain wall. Its
+2,255 owner visits, 3,228 ordered neighbor contributions and 76 retries match
+retail exactly. The ground control includes four enabled and four disabled
+units, an unreachable closed ring, a reachable two-cell gap and Stop. Its
+1,336 visits, 1,182 contributions and 66 retries match exactly. Comparisons
+cover fine pose, vector, policy/cooldown, shared RNG, occupied rectangle,
+attempted endpoint and admission. All 3,100 public JASS samples also match
+order/owner exactly and four-decimal positions within 0.00015 world units.
+Disabled units have no separation source but still block ordinary routing.
+Candidate owner/rank filtering does not filter collision admission.
+
+Three general contracts explain the failing regressions:
+
+- Individual accepted point orders create physical singleton owners. Retail
+  visits them newest first; the old engine entity walk reversed retry/RNG
+  encounters. Each singleton now schedules its existing unit-owned route,
+  while selected packets and captain cohorts retain staged group execution.
+  Preparing a selected packet suppresses its provisional ordinary singleton;
+  independent nested point orders retain their own admission. Direct unit
+  think calls remain usable; scheduled frames execute each owner once.
+  Move→Follow transfers its physical member before admitting the successor;
+  switching within the same ability procedure does not necessarily invoke
+  leave. The former owner remains empty until its ordinary retirement visit.
+- `166c30` publishes the reconstructed coarse endpoint at path+24 independently
+  of coarse index. Both fine-blocker and endpoint retries measure this same
+  adjusted goal. At ground owner1083/unit4, source `(10.0289,12.6061)` fine,
+  adjusted goal `(17,13)` and first coarse point `(8.5,6.5)` decrement2→1
+  without RNG. Using the public click `(22.5,12.5)` spuriously draws6/7.
+  The retained first coarse point supplies the existing exact scalar words;
+  no additional adjusted-goal cache is introduced.
+- `16fbd0` tests arrival/held before path advancement. An in-range member still
+  turning must stop and unlink requests without another retry. This fixes the
+  extra retry after ground leg2 unit2's terminal4 and applies to shared groups
+  as well as ordinary movement.
+
+Four `wc3_repulsion_crowds` regressions repeat both complete scenes, including
+save/load mid-order (mixed6995ms, ground12995ms), for352,118 assertions. The
+saved suffix agrees with the uninterrupted captures; this does not establish
+universal retail spatial reinsertion order. Save format124 stores the physical
+owner's `individual` execution mode, rejects invalid boolean/multi-member/
+target/shared private owners and rejects the prior format.
+
+`verify_wc3_pathing_crowds.py` freshly executes unchanged original separation
+bodies from both handoff repeats, checks frozen sequences and observer-free
+controls, and verifies a further pair of read-only physical-owner/retry-input
+captures (2,135 normalized rows,1,616 public markers each). These snapshots show
+eight singleton owners, units7..0 at owner1061, and the adjusted retry source
+above. Saved Ghidra readback contains seven relevant functions; mapper comments
+reproduce the evidence. The early `ground-owners-first` attempt was incomplete
+because its observer dereferenced a retired null mover; complete null-safe
+repeats supersede it. No observed game state was written by the extra observer.
+
+Portable inputs and consumer expectations are
+`retail-separation-crowd-inputs-1.27.json.gz`,
+`retail-separation-crowds-1.27.json.gz` and
+`retail-crowd-owner-live-1.27.json.gz`. Generate/check the literal engine header
+with `tools/ghidra/research/export_separation_crowds.py --check`. Reproduce the
+original checks with:
+
+```sh
+python tools/ghidra/verify_wc3_pathing_crowds.py \
+  --binary /path/to/1.27.1.7085/game.dll --report /tmp/crowds-fresh.json
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_repulsion_crowds.*'
+```
+
+These closures cover composed displacement and enabled/disabled ground
+controls. First blocking-object identity remains inferred from overlaps, and
+four mixed-crowd blocked orders remain unfinished at tick302. Startup seed
+production, remaining route producers and other open leaves are not certified
+by supplying the captured initial RNG/parity to these tests. See the original
+[SEP-04.2 handoff](retail-pathfinding-handoffs/SEP-04.2/HANDOFF.md) and
+[SEP-04.3 handoff](retail-pathfinding-handoffs/SEP-04.3/HANDOFF.md).
+
+Final targeted validation:1,038 test executions /6,604,212 assertions pass across
+Classic/TFT debug/release. This includes both crowd/save suffix scenes, the
+save suite and related Follow/captain/selected-pair cases; debug also covers both
+pathfinding suites. The broader351-test Classic movement sweep preserves all
+captured motion/RNG checks. Its three failures were one stale route-owner
+assertion (physical singleton route lives on its unit); that corrected test
+passes in all four configurations. Other test updates remove assumptions of
+no ordinary physical owner or a permanently occupied group slot0, without
+changing frozen numerical expectations. Builds are warning-free and the fresh
+`oracle-crowds` corpus result is verified. Full repository validation remains
+on the agreed approximately12-chunk cadence.

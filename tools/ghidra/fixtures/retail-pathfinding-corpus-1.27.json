@@ -36376,6 +36376,66 @@
         "Live growing beyond the first1MiB link block is not established.",
         "Native invalid ownership across map release is a diagnostic, not a supported engine API."
       ]
+    },
+    {
+      "id": "oracle-crowds",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_crowds.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "crowds-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "checks": {
+          "equal": {
+            "crowd": {
+              "visits": 2255,
+              "pairs": 3228,
+              "bodies": 1117,
+              "retries": 76,
+              "public_markers": 1515,
+              "observed_repeats": 2,
+              "observer_free_controls": 1
+            },
+            "ground": {
+              "visits": 1336,
+              "pairs": 1182,
+              "bodies": 482,
+              "retries": 66,
+              "public_markers": 1616,
+              "observed_repeats": 2,
+              "observer_free_controls": 1
+            },
+            "physical_owners": {
+              "observed_repeats": 2,
+              "rows": 2135,
+              "public_markers": 1616,
+              "saved_functions": 7
+            }
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "Complete mixed-owner/radius/rank/selector blocked crowd and enabled/disabled ground controls. Original pair/tail replay, full globally ordered engine visits/retries/public samples and mid-order saved suffixes. Repeated read-only physical singleton/retry-input observation and saved Ghidra readback.",
+      "exclusions": [
+        "Initial owner RNG/parity supplied from capture; no startup seed producer certification.",
+        "First blocking identity inferred from overlaps; four blocked mixed orders unfinished at tick302.",
+        "Saved suffix agreement is not a universal native spatial reinsertion-order claim."
+      ]
     }
   ],
   "fixtures": [
@@ -37274,7 +37334,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "5b7e8c50d0181bf1a46a4cbc6f62515de51e49f63a09925354609d83805a2da4"
+      "sha256": "b7a9ffd47d399e22b11da675f2f04a7f67cff2dfa575494df3c45c95adfce4c7"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38130,7 +38190,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "c43d1a7616541e2fc7290ade5c0958b2e984e0c61425d8c020b4a95d552c19f9"
+      "sha256": "3b5ed3db85519de851553397f14ddf510a998f9bc6eb08be3d0fa2c33832cb0a"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -38566,7 +38626,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ec07fd1cdc7a22187f95dbee4f718c8251f726129cade4a31506f14b8db5d773"
+      "sha256": "f815cb597f60f48813f6ea079071b0acd3dd2c349306fd21f0c5f6bedf7a37bb"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -38574,7 +38634,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "3889fd3bd9dc270f04b3060903a62adc3da50f5cbb7bc9a9f4b267b470ecc62d"
+      "sha256": "e17f1b1c7172e19674ec0b925e7e0c6fa101404038e99f0ca6fe9ea68118b6a8"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -38819,6 +38879,74 @@
     {
       "path": "tools/frida/research/sep03_map06_trace.py",
       "sha256": "7620b1172ed69c6fdcf99c95483e9a8542c17859bdffb90a812b9f1c2cb42837"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_movement.c",
+      "sha256": "d69ae59c707e99106d4aa83debdc069fe571fbea3b82606d35f54189248e467d"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
+      "sha256": "48a8368ee612d55190d263ee2a61b8acf58da043193217b048b7e7293175cdd4"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_separation_crowds.h",
+      "sha256": "74f05e3cbe351fea1da064ea971c06f702af65c0af28d1c7bee47a144712bae3"
+    },
+    {
+      "path": "tools/frida/research/sep_research_trace.py",
+      "sha256": "f955c65fff27ff8ea8687181238e52ca395b6e846b2fdced54b9b88d78b5ae15"
+    },
+    {
+      "path": "tools/frida/research/separation_crowd_owners_observer.js",
+      "sha256": "755c847ce564074c3c5d8a61aade9e79d7e0325f2e02a9b77507201b8d3d29c7"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_crowds.py",
+      "sha256": "ea378568a03adbcc32244e78cba59569376a8605106ee4cd8cf864922d25b2c6"
+    },
+    {
+      "path": "tools/ghidra/research/export_separation_crowds.py",
+      "sha256": "a91bbaf5545bf7f6efc9dcbed243970babc40940df6913b9fbd537856d42927a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-separation-crowds-1.27.json.gz",
+      "sha256": "37965588b517f035e934f772bf6e13e4b145da015962dd01b2c2ab8ead9cd385"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-separation-crowd-inputs-1.27.json.gz",
+      "sha256": "cc54541059d3f55d824e1f17296441930f7c533ab2a01bdbbc5dc59e7168bd72"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-crowd-owner-live-1.27.json.gz",
+      "sha256": "3c57159006bc3fda0ea3bdd5aaaf5978d8638f16d50ec8b03535a1c161419ff7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-crowds-ghidra-1.27.json",
+      "sha256": "fd0a37165adff9444dd8d1508ac0610babaccbe8f8aa4f0064534b44c4611d64"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-04.2-expected.json.gz",
+      "sha256": "86e4e355033446401812aabd45d1f53591dda981ea10dad82aa75af938f503e6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-04.2-expected-sequences.json.gz",
+      "sha256": "07f94494e9201db323c528c124e7caeb9abacf8ae894d2d9474ef410af427a6b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/SEP-04.3-expected.json.gz",
+      "sha256": "5a80a628a607adf6da17d3c3adcf5d90e2152f48a8b61593e1e4839efc8179dd"
+    },
+    {
+      "path": "tools/frida/research/SEP-04.2_crowd_explain.py",
+      "sha256": "484a205f34f59795bef24805c6dfb3bd93a3af7d0c9c45c1f19129e4f702c15e"
+    },
+    {
+      "path": "tools/frida/research/SEP-04.2_phase_split.py",
+      "sha256": "648627285cda5351239e357b0547026a7f9cdf941c5fc1c846e502b11ee65f1d"
+    },
+    {
+      "path": "tools/frida/research/SEP-04.3_ground_controls.py",
+      "sha256": "085b36b55d67231d6e946f7462f2e29ae05a8b03ff5922b8120f8a83d79ce3a4"
     }
   ]
 }

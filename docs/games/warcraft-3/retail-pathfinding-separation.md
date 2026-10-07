@@ -738,3 +738,21 @@ retained cells unchanged. Actual engine frames and eight saved continuations
 match501 native mover commits and1,999 subsequent commits. See
 [engine history](retail-pathfinding-engine.md#overlapping-targets-retain-fine-cell-insertion-history)
 and [corpus](retail-pathfinding-corpus.md#overlapping-target-producer-and-engine-history).
+
+## Mixed blocked crowd and disabled ground controls (Payoff144)
+
+The complete engine composition now matches the SEP-04.2 mixed-owner/radius/
+rank/selector wall scene and SEP-04.3 enabled/disabled ground scene:3,591 owner
+visits,4,410 ordered contributions and142 retry decisions. Exact comparisons
+include endpoint admission and the shared owner RNG across routing and
+separation. Public positions/orders of repulse-disabled units are checked too;
+they retain collision and path retry behavior. Save/load mid-order retains the
+same full continuation in both scenes. Individual point orders now execute
+through newest-first physical owners using the unit-owned route, retries use
+the retained adjusted coarse endpoint, and arrival turning avoids a fresh
+path/retry. See [engine contracts and portable reproduction](retail-pathfinding-engine.md#mixed-crowds-individual-physical-owners-and-adjusted-retries-payoff144).
+
+Do not classify the first32–96 world units of blocked-start relocation as
+repulsion: disabled controls show it too. Do not claim a native first-blocker
+identity from reconstructed overlap causes, or completion for the four mixed
+orders unfinished at the captured tick302 boundary.
