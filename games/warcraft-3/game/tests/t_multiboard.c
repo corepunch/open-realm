@@ -225,6 +225,60 @@ TEST(wc3_multiboard, run_frame_refreshes_team_resources_in_the_spending_frame) {
     mb_restore_capture(saved);
 }
 
+TEST(wc3_multiboard, team_resources_offset_follows_each_viewers_own_leaderboard) {
+    /* A stale shared Height proves the offset is computed per viewer, not
+     * read back from whichever leaderboard was authored last. */
+    FRAMEDEF root = { .Type = FT_SIMPLEFRAME, .Height = 0.5f };
+    FRAMEDEF backdrop = { .Type = FT_BACKDROP };
+    FRAMEDEF title = { .Type = FT_STRING };
+    FRAMEDEF container = { .Type = FT_SIMPLEFRAME };
+    LeaderBoard_t const old_binding = hud.leaderboard;
+    leaderboard_t *small, *large;
+    float offset_small, offset_large;
+    mbCaptureSaved_t saved;
+
+    setup_test_world();
+    hud.leaderboard.Leaderboard = &root;
+    hud.leaderboard.LeaderboardBackdrop = &backdrop;
+    hud.leaderboard.LeaderboardTitle = &title;
+    hud.leaderboard.LeaderboardListContainer = &container;
+    G_SetClientConnected(&g_edicts[0], true);
+    G_SetClientConnected(&g_edicts[1], true);
+    small = G_AllocLeaderboard();
+    large = G_AllocLeaderboard();
+    T_ASSERT(small && large);
+    small->item_count = 1;
+    large->item_count = 4;
+    G_SetPlayerLeaderboard(0, small);
+    G_SetPlayerLeaderboard(1, large);
+    G_SetLeaderboardDisplayed(small, &game.clients[0].ps, true);
+    G_SetLeaderboardDisplayed(large, &game.clients[1].ps, true);
+
+    offset_small = UI_LeaderboardMultiboardOffset(0);
+    offset_large = UI_LeaderboardMultiboardOffset(1);
+    T_ASSERT(offset_small > 0.0f);
+    T_ASSERT(offset_large > offset_small);
+    T_ASSERT(offset_small < 0.5f);
+
+    /* Authoring both boards through the scheduler pass neither moves the
+     * other viewer's stack nor leaves the panels below them stale. */
+    level.multiboard_dirty_clients = 0;
+    saved = mb_install_capture();
+    G_UpdateLeaderboards();
+    mb_restore_capture(saved);
+    T_EQ(mb_layouts_on(WC3_LAYER_LEADERBOARD), 2);
+    T_FEQ(UI_LeaderboardMultiboardOffset(0), offset_small, 0.00001f);
+    T_FEQ(UI_LeaderboardMultiboardOffset(1), offset_large, 0.00001f);
+    T_EQ(level.multiboard_dirty_clients & 3u, 3u);
+
+    /* Hidden or absent boards contribute no offset. */
+    G_SetLeaderboardDisplayed(small, &game.clients[0].ps, false);
+    T_FEQ(UI_LeaderboardMultiboardOffset(0), 0.0f, 0.00001f);
+    T_FEQ(UI_LeaderboardMultiboardOffset(2), 0.0f, 0.00001f);
+
+    hud.leaderboard = old_binding;
+}
+
 TEST(wc3_api, multiboard_natives_manage_cells_display_and_minimize) {
     player_t *saved = currentplayer;
     multiboard_t *board;
