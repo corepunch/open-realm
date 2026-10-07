@@ -12,6 +12,30 @@ static uint32_t MultiboardFont(void) {
     return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
 }
 
+static color32_t MultiboardPlayerColor(uint32_t color) {
+    static color32_t const colors[] = {
+        { 255, 3, 3, 255 }, { 0, 66, 255, 255 }, { 28, 230, 185, 255 }, { 84, 0, 129, 255 },
+        { 255, 252, 1, 255 }, { 254, 138, 14, 255 }, { 32, 192, 0, 255 }, { 229, 91, 176, 255 },
+        { 149, 150, 151, 255 }, { 126, 191, 241, 255 }, { 16, 98, 70, 255 }, { 78, 42, 4, 255 },
+        { 155, 0, 0, 255 }, { 0, 0, 195, 255 }, { 0, 234, 255, 255 }, { 190, 0, 254, 255 },
+        { 235, 205, 135, 255 }, { 248, 164, 139, 255 }, { 191, 255, 128, 255 }, { 220, 185, 235, 255 },
+        { 40, 40, 40, 255 }, { 235, 240, 255, 255 }, { 0, 120, 30, 255 }, { 164, 111, 51, 255 },
+    };
+    return colors[MIN(color, 23u)];
+}
+
+static void MultiboardIcon(uint32_t parent, float x, float y, cstring_t art) {
+    uiFrame_t frame = { 0 };
+    frame.flags.type = FT_TEXTURE;
+    frame.flagsvalue |= UIFLAG_TEXTURE_OVERLAY;
+    frame.parent = parent;
+    frame.tex.index = UI_LoadTexture(art, true);
+    UI_SetFrameRect(&frame, x, y, 0.013f, 0.013f);
+    frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
+    frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
 static void MultiboardText(uint32_t parent, float x, float y, float w, float h,
                            cstring_t value, color32_t color, uiFontJustificationH_t align) {
     uiFrame_t frame = { 0 };
@@ -122,6 +146,7 @@ void UI_WriteMultiboard(edict_t *ent) {
                 player_t *owner;
                 gameClient_t *owner_client;
                 char gold[32], lumber[32], food[32];
+                int32_t food_used, food_cap;
                 float yy;
                 if (!G_CanViewTeamResources(viewer, i)) continue;
                 owner_client = NULL;
@@ -132,17 +157,24 @@ void UI_WriteMultiboard(edict_t *ent) {
                 yy = y + height - WC3_MB_HEADER_HEIGHT - (++row) * WC3_MB_ROW_HEIGHT;
                 snprintf(gold, sizeof(gold), "%ld", (long)owner->stats[PLAYERSTATE_RESOURCE_GOLD]);
                 snprintf(lumber, sizeof(lumber), "%ld", (long)owner->stats[PLAYERSTATE_RESOURCE_LUMBER]);
+                food_used = owner->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+                food_cap = G_GetEffectiveFoodCap(owner_client);
                 snprintf(food, sizeof(food), "%ld/%ld",
-                         (long)owner->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
-                         (long)G_GetEffectiveFoodCap(owner_client));
+                         (long)food_used, (long)food_cap);
                 MultiboardText(root, x + 0.007f, yy, 0.105f, WC3_MB_ROW_HEIGHT,
-                               owner->name, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
-                MultiboardText(root, x + 0.115f, yy, 0.048f, WC3_MB_ROW_HEIGHT,
+                               owner->name, MultiboardPlayerColor(owner->color), FONT_JUSTIFYLEFT);
+                MultiboardIcon(root, x + 0.115f, yy + 0.0015f, "GoldIcon");
+                MultiboardText(root, x + 0.129f, yy, 0.034f, WC3_MB_ROW_HEIGHT,
                                gold, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
-                MultiboardText(root, x + 0.165f, yy, 0.047f, WC3_MB_ROW_HEIGHT,
+                MultiboardIcon(root, x + 0.165f, yy + 0.0015f, "LumberIcon");
+                MultiboardText(root, x + 0.179f, yy, 0.033f, WC3_MB_ROW_HEIGHT,
                                lumber, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
-                MultiboardText(root, x + 0.214f, yy, 0.054f, WC3_MB_ROW_HEIGHT,
-                               food, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
+                MultiboardIcon(root, x + 0.214f, yy + 0.0015f, "SupplyIcon");
+                MultiboardText(root, x + 0.228f, yy, 0.040f, WC3_MB_ROW_HEIGHT,
+                               food, food_used >= food_cap
+                                   ? MAKE(color32_t, 255, 64, 64, 255)
+                                   : MAKE(color32_t, 96, 255, 96, 255),
+                               FONT_JUSTIFYRIGHT);
             }
         } else if (cols) {
             FOR_LOOP(r, rows) FOR_LOOP(c, cols) {

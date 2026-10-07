@@ -1407,11 +1407,11 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
     /* Paint the common sibling stack as texture background -> status bar ->
      * remaining frames/text. Frame numbers can reflect FDF parse order rather
      * than paint order: the Hero level label belongs above its XP bar, while
-     * hover-bar fills belong above their FT_TEXTURE backings. This global type
-     * order means textures cannot serve as foreground overlays over bars. */
+     * hover-bar fills belong above their FT_TEXTURE backings. */
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
-        if (f && f->flags.type == FT_TEXTURE) SCR_LayoutDrawFrame(f);
+        if (f && f->flags.type == FT_TEXTURE && !(f->flagsvalue & UIFLAG_TEXTURE_OVERLAY))
+            SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
@@ -1427,6 +1427,11 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
         uiFrame_t const *f = SCR_Frame(i);
         if (f && (f->flags.type == FT_GLUETEXTBUTTON || f->flags.type == FT_GLUEBUTTON))
             SCR_LayoutDrawGlueTextButtonHighlight(f);
+    }
+    FOR_LOOP(i, SCR_NumFrames()) {
+        uiFrame_t const *f = SCR_Frame(i);
+        if (f && f->flags.type == FT_TEXTURE && (f->flagsvalue & UIFLAG_TEXTURE_OVERLAY))
+            SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t const *f = SCR_Frame(i);
