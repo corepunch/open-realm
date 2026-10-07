@@ -3800,6 +3800,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     level.started = true;
     level.scriptsConfigured = true;
     level.scriptsStarted = true;
+    level.multiboard_suppressed_clients = 1u << 3;
+    level.team_resources_collapsed_clients = 1u << 5;
     game.clients[0].jass.race_pref = 2;
     game.clients[0].jass.controller = 1;
     strlcpy(game.clients[0].jass.name, "Jaina", sizeof(game.clients[0].jass.name));
@@ -3832,6 +3834,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].quest_dialog_open = true;
     game.clients[0].canvas = UI_CANVAS_WIDE;
     T_ASSERT(WriteGame(filename));
+    level.multiboard_suppressed_clients = 0;
+    level.team_resources_collapsed_clients = 0;
     level.cinefilter.displayed = true;
     PATHSTR saved_map;
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
@@ -3919,6 +3923,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_FEQ(level.environment_fog.defaults.color.z, 0.6f, 0.001f);
     T_ASSERT(level.environment_fog.defaults_valid);
     T_ASSERT(level.started && level.scriptsConfigured && level.scriptsStarted);
+    T_EQ(level.multiboard_suppressed_clients, 1u << 3);
+    T_EQ(level.team_resources_collapsed_clients, 1u << 5);
     T_EQ(game.clients[0].jass.race_pref, 2);
     T_EQ(game.clients[0].jass.controller, 1);
     T_EQ(game.clients[0].ping, 77);
