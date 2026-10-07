@@ -1399,19 +1399,30 @@ TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
     };
     gameClient_t *client;
     gameCommandButton_t buttons[16];
+    UnitData_t naga_unit_data = { .race = "naga" };
+    static char const profile_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y4;D0\n"
+        "C;X1;Y1;K\"id\"\nC;X2;K\"Trains\"\n"
+        "C;X1;Y2;K\"nntt\"\nC;X2;K\"nmpe,nnmg\"\n"
+        "C;X1;Y3;K\"nnsg\"\nC;X2;K\"nmyr,nsnp,nhyc\"\n"
+        "C;X1;Y4;K\"nnsa\"\nC;X2;K\"nnsw,nwgs\"\nE\n";
+    slkTestData_t *profile_rows, *old_profile_rows;
 
     setup_test_world();
+    profile_rows = parse_slk_string(profile_slk);
+    old_profile_rows = G_SetProfileRows(profile_rows);
     client = &game.clients[0];
     client->connected = true;
     client->ps.number = 0;
-    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100000;
-    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
 
     for (uint32_t p = 0; p < sizeof(producers) / sizeof(producers[0]); p++) {
         edict_t *producer = alloc_test_unit(producers[p], 0.0f, 0.0f);
         UnitProfile_t const *profile = G_UnitProfile(producers[p]);
         uint8_t count;
+        producer->data.UnitData = &naga_unit_data;
         producer->s.player = client->ps.number;
         T_STREQ(profile->trains, expected_trains[p]);
         count = G_GetCommandButtons(producer, buttons, sizeof(buttons) / sizeof(buttons[0]));
@@ -1439,6 +1450,8 @@ TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
             T_ASSERT(buttons[i].x != buttons[j].x || buttons[i].y != buttons[j].y);
         }
     }
+    G_SetProfileRows(old_profile_rows);
+    free_slk_rows(profile_rows);
 }
 
 TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {

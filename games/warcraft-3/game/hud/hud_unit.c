@@ -314,8 +314,8 @@ static void G_ResolveNagaCommandButtonCollisions(edict_t *ent,
                                                 uint8_t count) {
     UnitData_t const *data;
 
-    if (!ent || !buttons || !count) return;
-    data = G_UnitData(ent->class_id);
+    if (!ent || !ent->data.UnitData || !buttons || !count) return;
+    data = ent->data.UnitData;
     if (WC3_RaceFromString(data->race) != RACE_NAGA) return;
 
     FOR_LOOP(i, count) {
