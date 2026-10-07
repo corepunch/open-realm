@@ -4,6 +4,8 @@
 #define WC3_MB_WIDTH 0.275f
 #define WC3_MB_ROW_HEIGHT 0.016f
 #define WC3_MB_HEADER_HEIGHT 0.020f
+#define WC3_MB_HEADER_PAD 0.006f
+#define WC3_MB_HEADER_GAP 0.004f
 #define WC3_MB_TOP 0.040f
 
 static uint32_t MultiboardFont(void) {
@@ -138,11 +140,16 @@ void UI_WriteMultiboard(edict_t *ent) {
     if (team) {
         /* Keep the Team Resources heading in its own bordered strip directly
          * above the resource rows, matching the stock stacked HUD panels. */
+        float const header_height = WC3_MB_HEADER_HEIGHT + WC3_MB_HEADER_PAD;
+        float const header_square = header_height;
+        float const title_width = width - header_square - WC3_MB_HEADER_GAP;
+        float const square_x = x + title_width + WC3_MB_HEADER_GAP;
         body_y = y + WC3_MB_HEADER_HEIGHT + 0.010f;
         MultiboardPanel(root, x, body_y, width, body_height);
-        MultiboardPanel(root, x, y, width, WC3_MB_HEADER_HEIGHT + 0.006f);
+        MultiboardPanel(root, x, y, title_width, header_height);
+        MultiboardPanel(root, square_x, y, header_square, header_height);
         MultiboardText(root, x + 0.007f, y + 0.003f,
-                       width - 0.014f, WC3_MB_HEADER_HEIGHT,
+                       title_width - 0.014f, WC3_MB_HEADER_HEIGHT,
                        "Team Resources", hud.leaderboard_default_title_color,
                        FONT_JUSTIFYLEFT);
     } else {
