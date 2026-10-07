@@ -1215,11 +1215,21 @@ void G_RunBuildingUpgradeFrame(edict_t *building) {
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, uint8_t *required) {
     UnitBalance_t const *balance = G_UnitBalance(building_id);
     UnitUI_t const *ui = G_UnitUI(building_id);
+    UnitData_t const *data = G_UnitData(building_id);
     cstring_t prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
     cstring_t require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
+    uint8_t prevented_flags = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+
+    /* Naga structures can occupy shallow water: those cells are unwalkable
+     * but remain amphibious. Reject only cells blocked to both walkers and
+     * swimmers, while retaining the ordinary unbuildable restriction. */
+    if (WC3_RaceFromString(data->race) == RACE_NAGA && G_UnitIsBuilding(building_id)) {
+        prevented_flags &= (uint8_t)~WC3_PATH_UNWALKABLE;
+        prevented_flags |= WC3_PATH_UNAMPH;
+    }
 
     if (prevented) {
-        *prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+        *prevented = prevented_flags;
     }
     if (required) {
         *required = G_PlacementFlags(require);
