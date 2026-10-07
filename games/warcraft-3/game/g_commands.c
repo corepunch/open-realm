@@ -457,13 +457,23 @@ void G_UpdateClientSelections(void) {
             if (!G_UnitCanBeSelected(client, ent)) {
                 G_DeselectEntity(client, ent);
                 changed = true;
-            } else if (count >= limit) {
+            } else {
+                count++;
+            }
+        }
+        /* A lowered cap trims by Warcraft selection priority, not by edict
+         * index, so the Hero survives a 24 -> 12 switch ahead of its escort. */
+        if (count > limit) {
+            edict_t *keep[WC3_SELECTION_MAX];
+            uint32_t const kept = G_GetOrderedSelectedUnits(client, keep, limit);
+            FOR_SELECTED_UNITS(client, ent) {
+                bool retained = false;
+                FOR_LOOP(k, kept) if (keep[k] == ent) { retained = true; break; }
+                if (retained) continue;
                 G_DeselectEntity(client, ent);
                 G_PublishEvent(ent, EVENT_PLAYER_UNIT_DESELECTED);
                 G_PublishEvent(ent, EVENT_UNIT_DESELECTED);
                 changed = true;
-            } else {
-                count++;
             }
         }
         if (!changed && !client->selection_dirty) {
