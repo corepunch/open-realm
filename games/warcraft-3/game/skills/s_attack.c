@@ -358,10 +358,6 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     damage = S_SpiritLinkRedirect(target, attacker, damage);
     if (damage <= 0) return;
-    {
-        abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
-        S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
-    }
     /* GetEventDamage / GetEventDamageSource read value/source from these events. */
     G_PublishEventWithValue(target, EVENT_UNIT_DAMAGED, attacker, damage);
     G_PublishEventWithValue(target, EVENT_PLAYER_UNIT_DAMAGED, attacker, damage);
@@ -380,8 +376,13 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
         target->die(target, attacker);
         attack_finish_after_combat(attacker, target, "target_killed");
         return;
-    } else {
-        G_AddHealth(target, -damage);
+    }
+    G_AddHealth(target, -damage);
+    /* Only a survivor reacts to the hit. A killing blow goes straight to die();
+     * dispatching first would let Awan start a flee Move that death tears down. */
+    {
+        abilityCall_t call = MAKE(abilityCall_t, .attacker = attacker);
+        S_UnitAbilityEventWithCall(target, A_DAMAGED, &call);
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
