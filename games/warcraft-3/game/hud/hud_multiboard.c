@@ -38,6 +38,8 @@ static void MultiboardIcon(uint32_t parent, float x, float y, cstring_t art) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+static uiBackdrop_t MultiboardBackdrop(void);
+
 static void MultiboardButton(uint32_t parent, float x, float y, float w, float h,
                              cstring_t text) {
     uiFrame_t frame = { 0 };
@@ -54,6 +56,39 @@ static void MultiboardButton(uint32_t parent, float x, float y, float w, float h
     frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
     frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+static void MultiboardTitle(uint32_t parent, float x, float right_x, float y,
+                            float w, float h, bool fit_text) {
+    uiFrame_t frame = { 0 };
+    uiNameTag_t tag = { 0 };
+    frame.flags.type = FT_NAMETAG;
+    if (fit_text) frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT;
+    frame.parent = parent;
+    frame.text = "Team Resources";
+    frame.color = hud.leaderboard_default_title_color.a
+        ? hud.leaderboard_default_title_color : COLOR32_WHITE;
+    frame.size.height = h;
+    tag = MAKE(uiNameTag_t,
+        .background = MultiboardBackdrop(),
+        .text = {
+            .font = MultiboardFont(),
+            .textalignx = FONT_JUSTIFYLEFT,
+            .textaligny = FONT_JUSTIFYMIDDLE,
+        },
+        .padding_x = 0.007f,
+        .padding_y = 0.003f,
+    );
+    if (fit_text) {
+        UI_SetFramePoint(&frame.points.x[FPP_MAX], FPP_MAX, UI_PARENT,
+                         right_x - UI_BASE_WIDTH, false);
+        UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, UI_PARENT, y, true);
+    } else {
+        UI_SetFrameRect(&frame, x, y, w, h);
+    }
+    frame.points.x[FPP_MAX].relativeTo = UI_PARENT;
+    frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
+    UI_WriteProxyFrame(&frame, &tag, sizeof(tag));
 }
 
 static void MultiboardText(uint32_t parent, float x, float y, float w, float h,
@@ -86,30 +121,33 @@ static uint32_t MultiboardRoot(void) {
 static void MultiboardPanel(uint32_t parent, float x, float y, float w, float h) {
     frameDef_t const *style = hud.leaderboard.LeaderboardBackdrop;
     uiFrame_t frame = { 0 };
-    uiBackdrop_t backdrop = { 0 };
     frame.flags.type = FT_BACKDROP;
     frame.parent = parent;
     frame.color = style && style->Color.a ? style->Color : COLOR32_WHITE;
     UI_SetFrameRect(&frame, x, y, w, h);
     frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
     frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
-    if (style) {
-        backdrop = MAKE(uiBackdrop_t,
-            .CornerFlags = style->Backdrop.CornerFlags,
-            .CornerSize = style->Backdrop.CornerSize,
-            .BackgroundSize = style->Backdrop.BackgroundSize,
-            .BackgroundInsets = {
-                style->Backdrop.BackgroundInsets[0], style->Backdrop.BackgroundInsets[1],
-                style->Backdrop.BackgroundInsets[2], style->Backdrop.BackgroundInsets[3],
-            },
-            .EdgeFile = UI_LiveImage(style->Backdrop.EdgeFile),
-            .Background = UI_LiveImage(style->Backdrop.Background),
-            .TileBackground = style->Backdrop.TileBackground,
-            .Opaque = !style->Backdrop.BlendAll,
-            .Mirrored = style->Backdrop.Mirrored,
-        );
-    }
+    uiBackdrop_t backdrop = MultiboardBackdrop();
     UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
+}
+
+static uiBackdrop_t MultiboardBackdrop(void) {
+    frameDef_t const *style = hud.leaderboard.LeaderboardBackdrop;
+    if (!style) return (uiBackdrop_t){ 0 };
+    return MAKE(uiBackdrop_t,
+        .CornerFlags = style->Backdrop.CornerFlags,
+        .CornerSize = style->Backdrop.CornerSize,
+        .BackgroundSize = style->Backdrop.BackgroundSize,
+        .BackgroundInsets = {
+            style->Backdrop.BackgroundInsets[0], style->Backdrop.BackgroundInsets[1],
+            style->Backdrop.BackgroundInsets[2], style->Backdrop.BackgroundInsets[3],
+        },
+        .EdgeFile = UI_LiveImage(style->Backdrop.EdgeFile),
+        .Background = UI_LiveImage(style->Backdrop.Background),
+        .TileBackground = style->Backdrop.TileBackground,
+        .Opaque = !style->Backdrop.BlendAll,
+        .Mirrored = style->Backdrop.Mirrored,
+    );
 }
 
 static uint32_t MultiboardTeamRows(uint32_t viewer) {
@@ -168,12 +206,17 @@ void UI_WriteMultiboard(edict_t *ent) {
         float const square_x = x + title_width + WC3_MB_PANEL_GAP;
         body_y = y + header_height + WC3_MB_PANEL_GAP;
         if (!minimized) MultiboardPanel(root, x, body_y, width, body_height);
-        MultiboardPanel(root, x, y, title_width, header_height);
+        if (minimized)
+            MultiboardTitle(root, x, x + title_width, y,
+                            title_width, header_height, true);
+        else
+            MultiboardPanel(root, x, y, title_width, header_height);
         MultiboardPanel(root, square_x, y, header_square, header_height);
-        MultiboardText(root, x + 0.007f, y + 0.003f,
-                       title_width - 0.014f, WC3_MB_HEADER_HEIGHT,
-                       "Team Resources", hud.leaderboard_default_title_color,
-                       FONT_JUSTIFYLEFT);
+        if (!minimized)
+            MultiboardText(root, x + 0.007f, y + 0.003f,
+                           title_width - 0.014f, WC3_MB_HEADER_HEIGHT,
+                           "Team Resources", hud.leaderboard_default_title_color,
+                           FONT_JUSTIFYLEFT);
         MultiboardButton(root, square_x, y + 0.003f, header_square,
                          WC3_MB_HEADER_HEIGHT, minimized ? "+" : "-");
     } else {
@@ -209,16 +252,16 @@ void UI_WriteMultiboard(edict_t *ent) {
                                owner->name, MultiboardPlayerColor(owner->color), FONT_JUSTIFYLEFT);
                 MultiboardIcon(root, x + 0.115f, yy + 0.0015f, "GoldIcon");
                 MultiboardText(root, x + 0.129f, yy, 0.034f, WC3_MB_ROW_HEIGHT,
-                               gold, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
+                               gold, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
                 MultiboardIcon(root, x + 0.165f, yy + 0.0015f, "LumberIcon");
                 MultiboardText(root, x + 0.179f, yy, 0.033f, WC3_MB_ROW_HEIGHT,
-                               lumber, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
+                               lumber, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
                 MultiboardIcon(root, x + 0.214f, yy + 0.0015f, "SupplyIcon");
                 MultiboardText(root, x + 0.228f, yy, 0.040f, WC3_MB_ROW_HEIGHT,
                                food, food_used >= food_cap
                                    ? MAKE(color32_t, 255, 64, 64, 255)
                                    : MAKE(color32_t, 96, 255, 96, 255),
-                               FONT_JUSTIFYRIGHT);
+                               FONT_JUSTIFYLEFT);
             }
         } else if (cols) {
             FOR_LOOP(r, rows) FOR_LOOP(c, cols) {
