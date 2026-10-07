@@ -1297,6 +1297,155 @@ TEST(wc3_spell, devotion_aura_recipient_presents_authored_buff_and_target_art) {
     free_slk_rows(rows);
 }
 
+/* TFT AHad.BuffID is BHad. BHad.TargetArt is the soft recipient glow;
+ * AHad.TargetArt is the rune that stays on the aura source. */
+TEST(wc3_spell, devotion_aura_source_shows_pattern_and_recipient_keeps_glow) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"BHad\"\nC;Y2;X7;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"BHad\"\nC;Y3;X7;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    cstring_t pattern_art = G_AbilityEffectArt(MAKEFOURCC('A','H','a','d'), WC3_EFFECT_TARGET, 0);
+    cstring_t glow_art = G_AbilityEffectArt(MAKEFOURCC('B','H','a','d'), WC3_EFFECT_TARGET, 0);
+    int pattern = G_RegisterModel(pattern_art);
+    int glow = G_RegisterModel(glow_art);
+    int source_pattern, source_glow, target_pattern, target_glow;
+
+    T_NOT_NULL(pattern_art);
+    T_NOT_NULL(glow_art);
+    T_ASSERT(pattern > 0 && glow > 0 && pattern != glow);
+    level.time = level.framenum = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    source->think = target->think = monster_think;
+
+    G_RunEntities();
+    source_pattern = source_glow = target_pattern = target_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == source && effect->s.model == pattern) source_pattern++;
+        if (effect->owner == source && effect->s.model == glow) source_glow++;
+        if (effect->owner == target && effect->s.model == pattern) target_pattern++;
+        if (effect->owner == target && effect->s.model == glow) target_glow++;
+    }
+    T_EQ(source_pattern, 1);
+    T_EQ(source_glow, 1);
+    T_EQ(target_pattern, 0);
+    T_EQ(target_glow, 1);
+
+    /* A second refresh rebinds live effects and must not stack another copy. */
+    level.time = AURA_UPDATE_MS;
+    level.framenum++;
+    G_RunEntities();
+    source_pattern = source_glow = target_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == source && effect->s.model == pattern) source_pattern++;
+        if (effect->owner == source && effect->s.model == glow) source_glow++;
+        if (effect->owner == target && effect->s.model == glow) target_glow++;
+    }
+    T_EQ(source_pattern, 1);
+    T_EQ(source_glow, 1);
+    T_EQ(target_glow, 1);
+
+    target->s.origin2.x = 2000.0f;
+    level.time = AURA_UPDATE_MS * 2;
+    level.framenum++;
+    G_RunEntities();
+    target_glow = source_pattern = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->owner == target && effect->goalentity == target) target_glow++;
+        if (effect->owner == source && effect->s.model == pattern && effect->goalentity == source) source_pattern++;
+    }
+    T_EQ(target_glow, 0);
+    T_EQ(source_pattern, 1);
+
+    source->heroabilities[0].level = 0;
+    level.time = AURA_UPDATE_MS * 3;
+    level.framenum++;
+    G_RunEntities();
+    source_pattern = source_glow = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->owner != source || effect->goalentity != source ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
+        if (effect->s.model == pattern) source_pattern++;
+        if (effect->s.model == glow) source_glow++;
+    }
+    T_EQ(source_pattern, 0);
+    T_EQ(source_glow, 0);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* RoC AbilityData has no BuffID. Recipients fall back to ability TargetArt,
+ * and the caster must not spawn a second copy of that same model. */
+TEST(wc3_spell, devotion_aura_roc_fallback_does_not_stack_on_source) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K\"500\"\nC;Y2;X5;K\"3\"\nC;Y2;X6;K\"1\"\n"
+        "C;Y3;X1;K\"AHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X6;K\"1\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    cstring_t art = G_AbilityEffectArt(MAKEFOURCC('A','H','a','d'), WC3_EFFECT_TARGET, 0);
+    int model = G_RegisterModel(art);
+    int source_n, target_n;
+
+    T_NOT_NULL(art);
+    T_ASSERT(model > 0);
+    level.time = level.framenum = 0;
+    source->s.player = target->s.player = 0;
+    source->targtype = target->targtype = TARG_GROUND;
+    source->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('X','H','a','d'), .level = 1);
+    source->think = target->think = monster_think;
+
+    G_RunEntities();
+    source_n = target_n = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
+        if (effect->owner == source) source_n++;
+        if (effect->owner == target) target_n++;
+    }
+    T_EQ(source_n, 1);
+    T_EQ(target_n, 1);
+
+    level.time = AURA_UPDATE_MS;
+    level.framenum++;
+    G_RunEntities();
+    source_n = target_n = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = g_edicts + i;
+        if (!effect->inuse || effect->goalentity != effect->owner ||
+            effect->summon_ability != MAKEFOURCC('A','H','a','d') || effect->s.model != model) continue;
+        if (effect->owner == source) source_n++;
+        if (effect->owner == target) target_n++;
+    }
+    T_EQ(source_n, 1);
+    T_EQ(target_n, 1);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, unholy_aura_percent_regen_and_recipient_presentation) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X9\n"
