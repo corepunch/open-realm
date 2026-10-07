@@ -47,6 +47,7 @@
 extern cstring_t const raven_orders[];
 extern cstring_t const barkskin_orders[];
 extern cstring_t const stone_form_orders[];
+extern cstring_t const submerge_orders[];
 extern cstring_t const ancient_root_orders[];
 BZ_ABILITY_PROC(CAbilityHarvest);
 BZ_ABILITY_PROC(CAbilityHarvestBase);
@@ -273,6 +274,7 @@ BZ_ABILITY_PROC(CAbilityAbolishMagic);
 BZ_ABILITY_PROC(CAbilitySubmergeMyrmidon);
 BZ_ABILITY_PROC(CAbilitySubmergeRoyalGuard);
 BZ_ABILITY_PROC(CAbilitySubmergeSnapDragon);
+bool S_UnitIsSubmerged(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityEnsnare);
 BZ_ABILITY_PROC(CAbilityFrostArmorCampaign);
 BZ_ABILITY_PROC(CAbilityParasiteCampaign);

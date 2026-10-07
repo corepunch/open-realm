@@ -387,6 +387,7 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
 	uint32_t summon;
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
 	if (S_UnitHasTemporaryInvisibility(unit, NULL)) return true;
+	if (S_UnitIsSubmerged(unit)) return true;
 	if (G_UnitAbilityLevel(unit, ID_AMIN)) return true;
 	summon = G_AbilityCode(unit->summon_ability);
 	return summon == ID_AEYE || summon == ID_ASTA;

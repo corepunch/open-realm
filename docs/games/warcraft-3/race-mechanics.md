@@ -2,7 +2,7 @@
 
 ## Scope
 
-The shared WC3 simulation should own common state such as construction progress, food accounting, resources, unit lifetime, and pathing, while race-specific abilities/behaviors own the different state machines used by Human, Orc, Undead, and Night Elf units.
+The shared WC3 simulation should own common state such as construction progress, food accounting, resources, unit lifetime, and pathing, while race-specific abilities/behaviors own the different state machines used by Human, Orc, Undead, Night Elf, and Naga units.
 
 This document records the source comparison used for OpenRealm's race-specific construction and economy work and the remaining race-mechanic gaps. It is deliberately narrower than a general unit-data reference: a mechanic is listed here when two races perform the same RTS concept through materially different simulation state.
 
@@ -12,6 +12,7 @@ Reference behavior was compared against the bundled Warsmash sources:
 - `CBehaviorOrcBuild.java`
 - `CBehaviorUndeadBuild.java`
 - `CBehaviorNightElfBuild.java`
+- `CAbilityNagaBuild.java`
 - `CUnit.java`
 - `CAbilityOverlayedMine.java`
 - `CAbilityBlightedGoldMine.java`
@@ -33,21 +34,22 @@ OpenRealm stores an explicit `constructionType_t` on the unfinished building. Th
 | Undead | Acolyte remains visible for the summon work window | building-owned autonomous clock | Acolyte is released after the summon window; building continues |
 | Night Elf, non-Ancient | Wisp is hidden, paused, invulnerable inside construction | building-owned autonomous clock | Wisp is released beside the building |
 | Night Elf, Ancient | Wisp is hidden inside construction and its Food Used is removed | building-owned autonomous clock | Wisp is consumed |
+| Naga | Mur'gul builder is hidden, paused, invulnerable inside construction | building-owned autonomous clock | builder is released beside the building |
 
-All strategies begin at 10% maximum life and hold the Birth animation to authoritative construction progress. Human remains paused unless a valid Human Repair participant advances it. Orc, Undead, and Night Elf construction advance once per simulation frame through `G_RunConstructionFrame()` and add the corresponding fraction of `(max_life - start_life)` rather than deriving HP from absolute progress; damage to an unfinished building therefore remains damage.
+All strategies begin at 10% maximum life and hold the Birth animation to authoritative construction progress. Human remains paused unless a valid Human Repair participant advances it. Orc, Undead, Night Elf, and Naga construction advance once per simulation frame through `G_RunConstructionFrame()` and add the corresponding fraction of `(max_life - start_life)` rather than deriving HP from absolute progress; damage to an unfinished building therefore remains damage.
 
-`skills/s_build.c` chooses the Human path only when `UnitData.race` is Human and the builder exposes the existing Human Repair capability, and otherwise dispatches the three other standard strategies from `UnitData.race`. Unknown/custom workers retain the legacy construction fallback rather than silently being assigned a standard-race lifecycle.
+`skills/s_build.c` honours Warcraft's authored Naga build ability before race fallback: a worker that owns `AGbu`, including a custom alias whose base resolves to `AGbu`, enters `CONSTRUCTION_NAGA` even when `UnitData.race` is not Naga. Human Repair and the remaining stock race strategies continue through their existing dispatch, while unknown/custom workers without a recognized construction style retain the legacy construction fallback.
 
 ## Worker ownership and lifetime
 
-`edict.construction.primary_builder` remains the Human Repair owner. Race strategies that temporarily own a worker use the separate `edict.construction.worker` reference plus its `spawn_time`; these are distinct because Human can have multiple Repair participants while Orc/Night Elf construction has one internal worker and Undead only retains the summoner for the opening work animation.
+`edict.construction.primary_builder` remains the Human Repair owner. Race strategies that temporarily own a worker use the separate `edict.construction.worker` reference plus its `spawn_time`; these are distinct because Human can have multiple Repair participants while Orc/Night Elf/Naga construction has one internal worker and Undead only retains the summoner for the opening work animation.
 
 An internal worker is `RF_HIDDEN`, paused, and temporarily invulnerable. `RF_HIDDEN` makes it hollow to OpenRealm collision/pathing and keeps it out of ordinary selection/idle-worker presentation. Its pre-construction invulnerability state is restored when released.
 
 `G_StopConstruction()` is the common non-completion teardown. It:
 
 1. cancels Human Repair participants;
-2. releases an Orc/Night Elf worker or an unfinished Ancient Wisp;
+2. releases an Orc/Night Elf/Naga worker or an unfinished Ancient Wisp;
 3. releases an Undead summoner if its short summon window is still active;
 4. restores an Ancient Wisp's authored Food Used when construction does not finish;
 5. clears construction state and the held Birth animation.
@@ -55,6 +57,20 @@ An internal worker is `RF_HIDDEN`, paused, and temporarily invulnerable. `RF_HID
 Both unit death and direct `G_FreeEdict()`/`RemoveUnit` call this path. Direct removal must not strand a hidden/paused worker.
 
 On successful Ancient completion, the Wisp has already relinquished its Food Used and is removed instead of released. For cancellation/destruction the Wisp survives and its authored `UnitBalance.foodUsed` is restored.
+
+## Naga construction and terrain predicates
+
+Warsmash gives Naga a distinct `AGbu` / `CAbilityNagaBuild`, but that ability deliberately reuses `CBehaviorOrcBuild`. OpenRealm mirrors the worker-inside lifecycle while retaining `CONSTRUCTION_NAGA` as a distinct simulation identity: the Mur'gul builder is hidden, paused, and temporarily invulnerable while the unfinished structure advances autonomously, then the shared completion/cancellation/destruction path restores the worker.
+
+Building terrain legality remains data-driven. The common `preventPlace` / `requirePlace` parser understands Warcraft/Warsmash `unwalkable`, `unbuildable`, `unflyable`, `blockvision`, `blighted`, `unfloat`, and compound `unamph`. `unamph` is true only when a cell is both unwalkable and unswimmable; the same predicate rule is used by authoritative placement and the client preview grid. Naga construction does not bypass these pathing rules. OpenRealm's existing default building masks still apply, so stock shallow-water parity should be verified from the authored Naga object data before relaxing a global placement policy.
+
+## Naga Submerge
+
+`Asb1`, `Asb2`, `Asb3`, and `ANsu` use Warcraft's paired `submerge` / `unsubmerge` orders. The ability row supplies the normal unit type in Data A and the submerged unit type in UnitID, so the runtime transforms the same edict between authored forms rather than hard-coding Myrmidon, Royal Guard, or Snap Dragon rawcodes. Entering Submerge is legal only on terrain that is swimmable and not walkable; attempting it elsewhere reports the Warcraft command-error key `Cantsubmergethere`. Surfacing is the inverse transform.
+
+The submerged state is stored as an ability status so the alternate command state and save snapshot remain attached to the same unit identity. The submerged form uses `RF_HIDDEN` through the existing gameplay-invisibility visibility path: owners/shared vision can still receive the unit while hostile viewers require ordinary detection. The alternate unit row remains authoritative for movement speed, attacks, model, and other submerged-form stats. Exact retail morph animation/effect timing is presentation follow-up work rather than a reason to duplicate those stats in ability code.
+
+The normal Warcraft UI skin/error-string selector remains four-race indexed. Campaign Naga interface responses should therefore come from the same map/game-interface override mechanisms used by Warcraft campaign content; OpenRealm must not invent a fifth built-in `war3skins` race category merely because `RACE_NAGA` exists in gameplay data.
 
 ## Undead summon window
 
@@ -70,7 +86,7 @@ Do not infer Ancient status from rawcodes or model names.
 
 ## Repair boundary
 
-Only `CONSTRUCTION_HUMAN` may use Human Repair as a construction clock. Standard Repair and Human `Arep` must reject active Orc, Undead, and Night Elf construction so Repair cannot accidentally become a second progress source.
+Only `CONSTRUCTION_HUMAN` may use Human Repair as a construction clock. Standard Repair and Human `Arep` must reject active Orc, Undead, Night Elf, and Naga construction so Repair cannot accidentally become a second progress source.
 
 Completed buildings continue through the ordinary Repair behavior documented in [Building Construction](building-construction.md).
 

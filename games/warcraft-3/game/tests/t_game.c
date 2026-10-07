@@ -4807,7 +4807,7 @@ TEST(wc3_save, construction_payment_round_trip) {
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 64.0f, 0.0f);
     if (!unit->construction) unit->construction = G_AllocConstruction();
     assert(unit->construction);
-    unit->construction->type = CONSTRUCTION_ORC;
+    unit->construction->type = CONSTRUCTION_NAGA;
     unit->construction->worker = worker;
     unit->construction->worker_spawn_time = 1234;
     unit->construction->worker_inside = true;
@@ -4836,7 +4836,7 @@ TEST(wc3_save, construction_payment_round_trip) {
     unit->construction->gold = 0;
     unit->construction->lumber = 0;
     T_ASSERT(ReadGame(filename));
-    T_EQ(unit->construction->type, CONSTRUCTION_ORC);
+    T_EQ(unit->construction->type, CONSTRUCTION_NAGA);
     T_ASSERT(unit->construction->worker == worker);
     T_EQ(unit->construction->worker_spawn_time, 1234);
     T_ASSERT(unit->construction->worker_inside);

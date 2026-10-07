@@ -775,6 +775,7 @@ Confirmed from `games/warcraft-3/game/skills/s_skills.c` and
 | `Acdh`, `ANhw`, `ANhx` | campaign Drunken Haze, Healing Wave, and Hex procedures | currently share `campaign_status_execute`; verify each gameplay contract |
 | `ACs7`, `ACs8`, `Arsq`, `Arsg`, `Arsp`, `Acef`, `Arsw`, `AOls` | campaign summon procedures | share `campaign_summon_execute` with authored rawcodes |
 | `ANbr`, `ANsb` | `CAbilityBattleRoar`, `CAbilityStormBoltCampaign` | dedicated execution bodies |
+| `Asb1`, `Asb2`, `Asb3`, `ANsu` | Naga Submerge | specialized paired `submerge` / `unsubmerge` morph using authored Data A / UnitID forms; enter only on swimmable non-walkable terrain; submerged form uses existing invisibility/detection contract; exact morph presentation timing remains |
 | `AOr2`, `AOr3` | `CAbilityEnduranceAuraCampaign`, `CAbilityReincarnationCairne` | currently share `campaign_toggle_execute`; verify passive/lifecycle requirements |
 
 These are registration and code-path observations, not a completeness claim. Verify the behavior in

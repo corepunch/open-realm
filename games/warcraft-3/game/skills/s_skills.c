@@ -49,9 +49,9 @@ static ability_t abilitylist[] = {
     { "ANr2", CAbilityReincarnationCampaign, AB_SPELL },  /* Reincarnation */
     { "Afbb", CAbilityFeedbackCampaign, AB_SPELL | AB_TOGGLE },  /* Feedback (campaign toggle) */
     { "Andm", CAbilityAbolishMagic, AB_SPELL, SPELL_TARGET_POINT },  /* Abolish Magic */
-    { "Asb1", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE },  /* Submerge */
-    { "Asb2", CAbilitySubmergeRoyalGuard, AB_SPELL | AB_TOGGLE },  /* Submerge */
-    { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE },  /* Submerge */
+    { "Asb1", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
+    { "Asb2", CAbilitySubmergeRoyalGuard, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
+    { "Asb3", CAbilitySubmergeSnapDragon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge */
     { "ANha", CAbilityHarvest, AB_COMMAND },  /* Harvest */
     { "ANen", CAbilityEnsnare, AB_SPELL | AB_UPDATE, SPELL_TARGET_UNIT },  /* Ensnare */
     { "ACfu", CAbilityFrostArmorCampaign, AB_SPELL, SPELL_TARGET_UNIT },  /* Frost Armor */
@@ -558,7 +558,7 @@ static ability_t abilitylist[] = {
     /* No AbilityStrings source file */
     // TODO: AIgl a_unknown  /* FortificationGlyph — CAbility [ITEM] other */
     // TODO: AIrg a_unknown  /* Potion of Life Regen — CAbility [ITEM] other */
-    { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE },  /* Submerge (Myrmidon) */
+    { "ANsu", CAbilitySubmergeMyrmidon, AB_SPELL | AB_TOGGLE, SPELL_TARGET_NONE, submerge_orders },  /* Submerge (Myrmidon) */
     { "AOwd", CAbilitySerpentWard, AB_SPELL, SPELL_TARGET_POINT },  /* Shadow Hunter - Serpent Ward */
     { "Aimp", CAbilityImpale, AB_SPELL, SPELL_TARGET_POINT },  /* Impaling Bolt */
     { "Ansp", CAbilityNeutralSpell, AB_PASSIVE },  /* Neutral Spies */

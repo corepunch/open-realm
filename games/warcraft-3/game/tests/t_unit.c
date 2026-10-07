@@ -14,6 +14,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 
 /* Forward declarations for functions in m_unit.c without a public header. */
 void unit_stand(edict_t *self);
@@ -1745,6 +1746,107 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+static void install_submerge_test_data(slkTestData_t **rows, slkTestData_t **old,
+                                      slkTestData_t **ui_rows, slkTestData_t **old_ui) {
+    static cstring_t const ability_slk =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\n"
+        "C;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Asb1\"\n"
+        "C;Y2;X2;K\"Asb1\"\n"
+        "C;Y2;X3;K\"hpea\"\n"
+        "C;Y2;X4;K\"hfoo\"\n"
+        "E\n";
+    static cstring_t const ui_slk =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitUIID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"modelScale\"\n"
+        "C;Y1;X4;K\"scale\"\n"
+        "C;Y2;X1;K\"hpea\"\n"
+        "C;Y2;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
+        "C;Y2;X3;K1\n"
+        "C;Y2;X4;K1\n"
+        "C;Y3;X1;K\"hfoo\"\n"
+        "C;Y3;X2;K\"Units\\Creeps\\Medivh\\Medivh.mdx\"\n"
+        "C;Y3;X3;K1\n"
+        "C;Y3;X4;K1\n"
+        "E\n";
+    *rows = parse_slk_string(ability_slk);
+    *ui_rows = parse_slk_string(ui_slk);
+    T_NOT_NULL(*rows); T_NOT_NULL(*ui_rows);
+    *old = G_SetSLKRows("AbilityData", *rows);
+    *old_ui = G_SetSLKRows("UnitUI", *ui_rows);
+    T_NOT_NULL(*old); T_NOT_NULL(*old_ui);
+}
+
+static void restore_submerge_test_data(slkTestData_t *rows, slkTestData_t *old,
+                                      slkTestData_t *ui_rows, slkTestData_t *old_ui) {
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(ui_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
+    slkTestData_t *rows, *old, *ui_rows, *old_ui;
+    uint8_t land[1] = { CM_PATHING_UNSWIMMABLE };
+    uint8_t water[1] = { CM_PATHING_UNWALKABLE };
+    uint32_t const asb1 = MAKEFOURCC('A','s','b','1');
+    edict_t *unit;
+
+    reset_test_entities(); setup_test_world();
+    install_submerge_test_data(&rows, &old, &ui_rows, &old_ui);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.5f, 0.5f);
+    unit->svflags |= SVF_MONSTER;
+    T_ASSERT(G_ActorAddSkill(unit, asb1));
+
+    CM_SetupTestPathmap(1, 1, land);
+    T_ASSERT(!unit_issueimmediateorder(unit, "submerge"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
+    T_ASSERT(!S_UnitIsSubmerged(unit));
+
+    CM_SetupTestPathmap(1, 1, water);
+    T_ASSERT(unit_issueimmediateorder(unit, "submerge"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(S_UnitIsSubmerged(unit));
+    T_ASSERT(unit->s.renderfx & RF_HIDDEN);
+    T_ASSERT(S_UnitUsesInvisibilityRenderFlag(unit));
+
+    T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
+    T_ASSERT(!S_UnitIsSubmerged(unit));
+    T_ASSERT(!(unit->s.renderfx & RF_HIDDEN));
+
+    restore_submerge_test_data(rows, old, ui_rows, old_ui);
+}
+
+TEST(wc3_unit, submerge_toggle_state_selects_surface_button) {
+    slkTestData_t *rows, *old, *ui_rows, *old_ui;
+    uint8_t water[1] = { CM_PATHING_UNWALKABLE };
+    uint32_t const asb1 = MAKEFOURCC('A','s','b','1');
+    edict_t *unit;
+    abilityitem_t item;
+    abilityCall_t call;
+
+    reset_test_entities(); setup_test_world();
+    install_submerge_test_data(&rows, &old, &ui_rows, &old_ui);
+    CM_SetupTestPathmap(1, 1, water);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.5f, 0.5f);
+    unit->svflags |= SVF_MONSTER;
+    T_ASSERT(G_ActorAddSkill(unit, asb1));
+    item = S_AbilityItem(asb1);
+    call = MAKE(abilityCall_t, .item = &item);
+    T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
+    T_ASSERT(unit_issueimmediateorder(unit, "submerge"));
+    T_ASSERT(S_AbilityMessage(unit, A_TOGGLE_ON, &call));
+    T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
+    T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
+    restore_submerge_test_data(rows, old, ui_rows, old_ui);
 }
 
 TEST(wc3_unit, stoneform_order_requires_authored_ability_ownership) {

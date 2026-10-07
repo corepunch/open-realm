@@ -169,6 +169,7 @@ typedef enum {
     CONSTRUCTION_ORC,
     CONSTRUCTION_UNDEAD,
     CONSTRUCTION_NIGHTELF,
+    CONSTRUCTION_NAGA,
     CONSTRUCTION_TINY, /* item-owned autonomous construction */
 } constructionType_t;
 
@@ -2924,6 +2925,7 @@ bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
 bool G_StartUndeadConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building);
+bool G_StartNagaConstruction(edict_t *builder, edict_t *building);
 bool G_StartNightElfOverlayConstruction(edict_t *builder, edict_t *building);
 bool G_StartTinyConstruction(edict_t *builder, edict_t *building, float duration_seconds);
 void G_RunConstructionFrame(edict_t *building);

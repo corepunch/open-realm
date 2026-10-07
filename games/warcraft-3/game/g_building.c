@@ -77,6 +77,9 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define WC3_UNDEAD_BUILD_WORK_MS 2267 // milliseconds; Warsmash CBehaviorUndeadBuild summon-work window
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
+#define WC3_PATH_BLOCKVISION 0x10
+#define WC3_PATH_UNFLOAT     CM_PATHING_UNSWIMMABLE
+#define WC3_PATH_UNAMPH      0x80 /* placement predicate: UNWALKABLE && UNSWIMMABLE */
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
@@ -110,6 +113,14 @@ static uint8_t G_PlacementFlags(cstring_t list) {
             flags |= WC3_PATH_UNBUILDABLE;
         } else if (!strcmp(token, "blighted")) {
             flags |= WC3_PATH_BLIGHTED;
+        } else if (!strcmp(token, "unflyable")) {
+            flags |= CM_PATHING_UNFLYABLE;
+        } else if (!strcmp(token, "blockvision")) {
+            flags |= WC3_PATH_BLOCKVISION;
+        } else if (!strcmp(token, "unfloat")) {
+            flags |= WC3_PATH_UNFLOAT;
+        } else if (!strcmp(token, "unamph")) {
+            flags |= WC3_PATH_UNAMPH;
         } else {
             /* TODO: decode the remaining Warcraft placement predicates from the
              * authoritative unit data instead of silently treating them as no-op. */
@@ -117,6 +128,22 @@ static uint8_t G_PlacementFlags(cstring_t list) {
         }
     }
     return flags;
+}
+
+static bool G_PlacementPathingPrevented(uint8_t pathing, uint8_t prevented) {
+    uint8_t const simple = prevented & (uint8_t)~WC3_PATH_UNAMPH;
+    if (pathing & simple) return true;
+    return (prevented & WC3_PATH_UNAMPH) &&
+           (pathing & CM_PATHING_UNWALKABLE) &&
+           (pathing & CM_PATHING_UNSWIMMABLE);
+}
+
+static bool G_PlacementPathingRequired(uint8_t pathing, uint8_t required) {
+    uint8_t const simple = required & (uint8_t)~WC3_PATH_UNAMPH;
+    if ((pathing & simple) != simple) return false;
+    if (!(required & WC3_PATH_UNAMPH)) return true;
+    return (pathing & CM_PATHING_UNWALKABLE) &&
+           (pathing & CM_PATHING_UNSWIMMABLE);
 }
 
 static uint32_t G_CsvToken(cstring_t list, uint32_t index, string_t out, uint32_t out_size) {
@@ -1444,7 +1471,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
                 }
                 if (G_IsPointBlighted(&sample)) flags |= WC3_PATH_BLIGHTED;
                 else flags &= ~WC3_PATH_BLIGHTED;
-                if (flags & prevented) {
+                if (G_PlacementPathingPrevented(flags, prevented)) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",
@@ -1452,7 +1479,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
  #endif
                     return PLACE_TERRAIN_BLOCKED;
                 }
-                if ((flags & required) != required) {
+                if (!G_PlacementPathingRequired(flags, required)) {
                     buildPlacementResult_t const result =
                         (required & WC3_PATH_BLIGHTED) && !(flags & WC3_PATH_BLIGHTED)
                             ? PLACE_REQUIRES_BLIGHT
@@ -1626,6 +1653,12 @@ bool G_StartUndeadConstruction(edict_t *builder, edict_t *building) {
     return true;
 }
 
+bool G_StartNagaConstruction(edict_t *builder, edict_t *building) {
+    if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NAGA, false, true)) return false;
+    G_AssignConstructionWorker(building, builder, true);
+    return true;
+}
+
 bool G_StartNightElfConstruction(edict_t *builder, edict_t *building) {
     if (!builder || !G_StartConstruction(builder, building, CONSTRUCTION_NIGHTELF, false, true)) return false;
     G_AssignConstructionWorker(building, builder, true);
@@ -1737,6 +1770,7 @@ void G_RunConstructionFrame(edict_t *building) {
     if (building->construction->type != CONSTRUCTION_ORC &&
         building->construction->type != CONSTRUCTION_UNDEAD &&
         building->construction->type != CONSTRUCTION_NIGHTELF &&
+        building->construction->type != CONSTRUCTION_NAGA &&
         building->construction->type != CONSTRUCTION_TINY) return;
 
     if (building->construction->type == CONSTRUCTION_UNDEAD &&

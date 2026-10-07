@@ -5,6 +5,29 @@ void build_build(edict_t *ent);
 void repair_build_legacy(edict_t *ent, edict_t *building);
 void repair_build_primary(edict_t *ent, edict_t *building);
 
+#define BZ_NAGA_BUILD MAKEFOURCC('A', 'G', 'b', 'u')
+
+static bool build_actor_has_base_ability(edict_t *ent, uint32_t base_code) {
+    char alias[5] = { 0 };
+
+    if (!ent || !base_code) return false;
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
+            memcpy(&code, token, 4);
+            if (G_AbilityCode(code) == base_code) return true;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
+        uint32_t const code = ent->abilities.added[i];
+        if (!code) continue;
+        memcpy(alias, &code, 4);
+        if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return true;
+    }
+    return false;
+}
+
 static void G_BuildError(edict_t *clent, cstring_t text) {
     if (!clent || !text || !*text) return;
     G_ShowCommandErrorText(clent, text);
@@ -459,15 +482,21 @@ void build_build(edict_t *ent) {
 #endif
     }
     race = WC3_RaceFromString(ent->data.UnitData ? ent->data.UnitData->race : NULL);
-    /* Repair is shared by worker data, but only Human construction uses the
-     * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
-    if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
+    /* AGbu is Warcraft's authored Naga build style. Honour it (including custom
+     * aliases that resolve to AGbu) before race fallback so custom-map workers
+     * keep the worker-inside Naga lifecycle without requiring race=naga. */
+    if (build_actor_has_base_ability(ent, BZ_NAGA_BUILD)) {
+        construction_started = G_StartNagaConstruction(ent, building);
+    } else if (race == RACE_HUMAN && G_UnitHasHumanRepair(ent)) {
+        /* Repair is shared by worker data, but only Human construction uses the
+         * external Repair clock; Orc Peons must enter the hidden worker-owned path. */
         construction_started = G_StartHumanConstruction(ent, building);
     } else {
         switch (race) {
         case RACE_ORC: construction_started = G_StartOrcConstruction(ent, building); break;
         case RACE_UNDEAD: construction_started = G_StartUndeadConstruction(ent, building); break;
         case RACE_NIGHTELF: construction_started = G_StartNightElfConstruction(ent, building); break;
+        case RACE_NAGA: construction_started = G_StartNagaConstruction(ent, building); break;
         default: break;
         }
     }

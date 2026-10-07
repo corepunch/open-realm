@@ -58,9 +58,156 @@ BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
         count++;
     }
 }
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeMyrmidon) { campaign_toggle_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard) { campaign_toggle_execute(caster, st, spell); }
-BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon) { campaign_toggle_execute(caster, st, spell); }
+cstring_t const submerge_orders[] = { "submerge", "unsubmerge", NULL };
+
+#define ID_ASB1 MAKEFOURCC('A','s','b','1')
+#define ID_ASB2 MAKEFOURCC('A','s','b','2')
+#define ID_ASB3 MAKEFOURCC('A','s','b','3')
+#define ID_ANSU MAKEFOURCC('A','N','s','u')
+
+static bool submerge_base_code(uint32_t code) {
+    uint32_t const base = G_AbilityCode(code);
+    return base == ID_ASB1 || base == ID_ASB2 || base == ID_ASB3 || base == ID_ANSU;
+}
+
+static heroabilitystatus_t *submerge_status(edict_t *unit) {
+    if (!unit) return NULL;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t *status = unit->abilstatus + i;
+        if (status->level && submerge_base_code(status->code)) return status;
+    }
+    return NULL;
+}
+
+bool S_UnitIsSubmerged(edict_t const *unit) {
+    if (!unit) return false;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        if (status->level && submerge_base_code(status->code)) return true;
+    }
+    return false;
+}
+
+static bool submerge_types(uint32_t code, uint32_t *normal, uint32_t *submerged) {
+    AbilityData_t const *ability = G_AbilityData(code);
+    if (!ability || !ability->id || !ability->level[0].data[0].id || !ability->level[0].unitID) return false;
+    if (normal) *normal = ability->level[0].data[0].id;
+    if (submerged) *submerged = ability->level[0].unitID;
+    return true;
+}
+
+static bool submerge_deep_water(edict_t const *unit) {
+    return unit && CM_TerrainPointIsSwimmable(&unit->s.origin2) &&
+           !CM_TerrainPointIsWalkable(&unit->s.origin2);
+}
+
+static uint32_t submerge_find_code(edict_t const *unit) {
+    char const *abilities;
+    if (!unit) return 0;
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = unit->abilstatus + i;
+        if (status->level && submerge_base_code(status->code)) return status->code;
+    }
+    if ((abilities = unit->data.UnitAbilities ? unit->data.UnitAbilities->abilList : NULL)) {
+        PARSE_LIST(abilities, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) != 4) continue;
+            memcpy(&code, token, 4);
+            if (submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+        }
+    }
+    FOR_LOOP(i, ARRAY_COUNT(unit->abilities.added)) {
+        uint32_t const code = unit->abilities.added[i];
+        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        uint32_t const code = unit->heroabilities[i].level ? unit->heroabilities[i].code : 0;
+        if (code && submerge_base_code(code) && G_UnitAbilityLevel(unit, code)) return code;
+    }
+    return 0;
+}
+
+static bool submerge_validate(edict_t *unit, uint32_t code) {
+    uint32_t normal, submerged;
+    heroabilitystatus_t *status;
+    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
+    status = submerge_status(unit);
+    if (status) return unit->class_id == submerged;
+    return unit->class_id == normal && submerge_deep_water(unit);
+}
+
+static bool submerge_execute(edict_t *unit, uint32_t code) {
+    uint32_t normal, submerged, level;
+    bool const active = S_UnitIsSubmerged(unit);
+    if (!unit || !submerge_types(code, &normal, &submerged)) return false;
+    if (!active && !submerge_deep_water(unit)) return false;
+    if ((active && unit->class_id != submerged) || (!active && unit->class_id != normal)) return false;
+    level = G_UnitAbilityLevel(unit, code);
+    if (!level) level = 1;
+    if (!G_TransformUnitType(unit, active ? normal : submerged)) return false;
+    if (active) {
+        S_ToggleUnitAbilityStatus(unit, code, level);
+        unit->s.renderfx &= ~RF_HIDDEN;
+    } else {
+        S_ToggleUnitAbilityStatus(unit, code, level);
+        unit->s.renderfx |= RF_HIDDEN;
+    }
+    unit->goalentity = NULL;
+    unit->secondarygoal = NULL;
+    move_reset_progress(unit);
+    unit_stand(unit);
+    gi.LinkEntity(unit);
+    return true;
+}
+
+static intptr_t submerge_ability(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call) {
+    uint32_t code = call && call->item ? call->item->code : 0;
+    bool active;
+
+    if (!code) code = submerge_find_code(ent);
+    active = S_UnitIsSubmerged(ent);
+    switch (msg) {
+    case A_COMMAND: {
+        gameClient_t *client;
+        uint32_t subgroup_class;
+        bool executed = false, invalid_water = false;
+        if (!ent || !call || !call->client || !(client = call->client->client) || !code) return false;
+        subgroup_class = ent->class_id;
+        FOR_CONTROLLABLE_SELECTED_UNITS(client, unit) {
+            uint32_t unit_code;
+            if (unit->class_id != subgroup_class || !(unit_code = submerge_find_code(unit))) continue;
+            if (!S_UnitIsSubmerged(unit) && !submerge_deep_water(unit)) {
+                invalid_water = true;
+                continue;
+            }
+            if (S_CastNoTargetSpell(unit, unit_code)) executed = true;
+        }
+        if (!executed && invalid_water) G_ShowCommandErrorKey(call->client, "Cantsubmergethere", NULL);
+        if (executed) Get_Commands_f(call->client);
+        return executed;
+    }
+    case A_ORDER:
+        if (!call || !call->order || !code) return false;
+        if (!strcmp(call->order, submerge_orders[0])) {
+            if (active) return false;
+        } else if (!strcmp(call->order, submerge_orders[1])) {
+            if (!active) return false;
+        } else return false;
+        return S_CastNoTargetSpell(ent, code);
+    case A_TOGGLE_ON:
+        return active;
+    case A_VALIDATE:
+        return code && submerge_validate(ent, code);
+    case A_EXECUTE:
+        return code && submerge_execute(ent, code);
+    default:
+        return CAbilitySimpleSpell(ent, msg, call);
+    }
+}
+
+BZ_ABILITY_PROC(CAbilitySubmergeMyrmidon) { return submerge_ability(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilitySubmergeRoyalGuard) { return submerge_ability(ent, msg, call); }
+BZ_ABILITY_PROC(CAbilitySubmergeSnapDragon) { return submerge_ability(ent, msg, call); }
 
 static bool ensnare_is_flyer(edict_t const *unit) {
     cstring_t movetp;

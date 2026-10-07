@@ -53,6 +53,8 @@ Movement/pathing consumers already call `M_UnitStaticPathingFlags()` rather than
 
 Repair's authored naval range bonus is already implemented separately in `skills/s_repair.c` for `movetp=float` targets.
 
+Naga Submerge uses the same terrain truth rather than inventing another water classifier. `Asb1`/`Asb2`/`Asb3`/`ANsu` may enter the submerged form only when `CM_TerrainPointIsSwimmable()` is true and `CM_TerrainPointIsWalkable()` is false. That is an ability activation rule, not an amphibious routing rule: ordinary `amph` units can still traverse walkable land and water exactly as described above.
+
 Cargo passenger placement already asks `G_FindUnitUnstuckPosition()` using the passenger, so the passenger's movement policy is authoritative. The current last-resort unload fallback still places the passenger at the transport position if no legal unstuck point exists. Retail-exact behavior for the no-legal-unload-position case remains unresolved and is deliberately not changed by the naval routing work.
 
 ## Verification

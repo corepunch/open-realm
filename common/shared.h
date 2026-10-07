@@ -743,7 +743,7 @@ typedef struct entityState_s {
     uint8_t ability;
     uint16_t pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
     uint16_t pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
-    uint32_t pathing_preview;  /* low16 ignore entity, bits16..23 prevented, bits24..31 required */
+    uint32_t pathing_preview;  /* low16 ignore entity, bits16..23 prevented predicates, bits24..31 required predicates */
     uint32_t splat;
 #ifdef WOW
     uint32_t appearance;

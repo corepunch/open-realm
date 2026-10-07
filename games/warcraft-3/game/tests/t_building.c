@@ -2879,6 +2879,34 @@ TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {
     T_ASSERT(G_PlacementFlags("unwalkable") & WC3_PATH_UNWALKABLE);
 }
 
+TEST(wc3_building, placement_flags_decode_warsmash_pathing_predicates) {
+    uint8_t const flags = G_PlacementFlags("unflyable, blockvision, unfloat, unamph");
+    T_ASSERT(flags & CM_PATHING_UNFLYABLE);
+    T_ASSERT(flags & WC3_PATH_BLOCKVISION);
+    T_ASSERT(flags & WC3_PATH_UNFLOAT);
+    T_ASSERT(flags & WC3_PATH_UNAMPH);
+}
+
+TEST(wc3_building, placement_unamph_is_compound_walk_and_swim_blocker) {
+    uint8_t const land = CM_PATHING_UNSWIMMABLE;
+    uint8_t const water = CM_PATHING_UNWALKABLE;
+    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
+
+    T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH));
+    T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH));
+    T_ASSERT(G_PlacementPathingPrevented(neither, WC3_PATH_UNAMPH));
+    T_ASSERT(!G_PlacementPathingRequired(land, WC3_PATH_UNAMPH));
+    T_ASSERT(!G_PlacementPathingRequired(water, WC3_PATH_UNAMPH));
+    T_ASSERT(G_PlacementPathingRequired(neither, WC3_PATH_UNAMPH));
+}
+
+TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {
+    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(!G_PlacementPathingRequired(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
+}
+
 TEST(wc3_building, blight_required_placement_tracks_runtime_blight) {
     static const char balance_slk[] =
         "C;Y1;X1;K\"unitBalanceID\"\n"
@@ -3526,6 +3554,117 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
     T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
     T_ASSERT(building->health.value > hp_before);
     T_ASSERT(building->health.value < building->health.max_value);
+}
+
+TEST(wc3_building, naga_construction_hides_worker_and_progresses_autonomously) {
+    edict_t *worker;
+    edict_t *building;
+    UnitBalance_t balance;
+    float hp_before;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    balance = *building->data.UnitBalance;
+    balance.buildTime = 10;
+    building->data.UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+
+    T_ASSERT(G_StartNagaConstruction(worker, building));
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(!building->construction->paused);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
+    T_ASSERT(!building->construction->consumes_worker);
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_ASSERT(worker->paused);
+    T_ASSERT(worker->invulnerable);
+    T_FEQ(building->health.value, 100.0f, 0.001f);
+
+    hp_before = building->health.value;
+    G_RunConstructionFrame(building);
+    T_FEQ(building->construction->progress, (float)FRAMETIME, 0.001f);
+    T_ASSERT(building->health.value > hp_before);
+}
+
+TEST(wc3_building, naga_build_dispatch_uses_worker_inside_construction) {
+    gameClient_t *client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitProfile_t profile = { .builds = "hbar" };
+    edict_t *worker, *building = NULL;
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = STR_NAGA;
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
+    T_NOT_NULL(building);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
+    T_ASSERT(building->construction->worker == worker);
+    T_ASSERT(building->construction->worker_inside);
+}
+
+TEST(wc3_building, naga_build_custom_alias_resolves_to_agbu_semantics) {
+    static const char ability_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y2;D0\n"
+        "C;X1;Y1;K\"alias\"\nC;X2;K\"code\"\n"
+        "C;X1;Y2;K\"A0NB\"\nC;X2;K\"AGbu\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "A0NB" };
+    slkTestData_t *rows = parse_slk_string(ability_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *worker;
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    worker->data.UnitAbilities = &abilities;
+
+    T_EQ(G_AbilityCode(MAKEFOURCC('A', '0', 'N', 'B')), BZ_NAGA_BUILD);
+    T_ASSERT(build_actor_has_base_ability(worker, BZ_NAGA_BUILD));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, naga_build_ability_overrides_non_naga_race_dispatch) {
+    gameClient_t *client = &game.clients[0];
+    UnitData_t worker_data;
+    UnitProfile_t profile = { .builds = "hbar" };
+    UnitAbilities_t abilities = { .abilList = "AGbu" };
+    edict_t *worker, *building = NULL;
+    vec2_t point = { 64.0f, 64.0f };
+    uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
+
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), -128.0f, -128.0f);
+    worker_data = *worker->data.UnitData;
+    worker_data.race = STR_HUMAN;
+    worker->data.UnitData = &worker_data;
+    worker->data.UnitProfile = &profile;
+    worker->data.UnitAbilities = &abilities;
+    worker->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(worker, barracks, &point));
+    worker->s.origin2 = worker->goalentity->s.origin2;
+    build_build(worker);
+    FILTER_EDICTS(ent, ent->inuse && ent->s.class_id == barracks && ent != worker) building = ent;
+    T_NOT_NULL(building);
+    T_EQ(building->construction->type, CONSTRUCTION_NAGA);
 }
 
 TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
