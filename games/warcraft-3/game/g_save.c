@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 #include "../common/wc3_pathing_records.h"
 #include "../common/wc3_pathing_regions.h"
 #include "../common/wc3_pathing_cell.h"
@@ -81,8 +82,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format130 retains captured prevention masks and their authoritative counters. */
-static uint32_t const save_version = 130;
+/* Format131 retains independent public timed-life records and their deadlines. */
+static uint32_t const save_version = 131;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2909,6 +2910,7 @@ bool WriteGame(cstring_t filename) {
         }
     }
     if (!WritePools(f)) { fprintf(stderr, "WC3 SaveGame: failed at lifecycle pools\n"); goto done; }
+    if (!S_WriteTimedLives(f)) { fprintf(stderr,"WC3 SaveGame: failed at timed-life records\n"); goto done; }
     if (!WriteMoveSpatial(f)) { fprintf(stderr,"WC3 SaveGame: failed at fine spatial history\n"); goto done; }
     if (!WriteMoveProximity(f)) { fprintf(stderr,"WC3 SaveGame: failed at proximity spatial history\n"); goto done; }
     if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
@@ -3068,6 +3070,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     if (!ReadPools(f)) { fprintf(stderr, "WC3 LoadGame: failed at lifecycle pools\n"); fclose(f); return false; }
+    if (!S_ReadTimedLives(f)) { fprintf(stderr,"WC3 LoadGame: failed at timed-life records\n"); fclose(f); return false; }
     if (!S_RestoreMoveRepulsors()) { fprintf(stderr,"WC3 LoadGame: invalid repulsor owner links\n"); fclose(f); return false; }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 LoadGame: invalid Way Gate identities\n"); fclose(f); return false; }
     if (!ReadMoveSpatial(f)) { fprintf(stderr,"WC3 LoadGame: failed at fine spatial history\n"); fclose(f); return false; }
@@ -3824,8 +3827,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-127.bin",
         "/tmp/openwarcraft3-wc3-save-version-128.bin",
         "/tmp/openwarcraft3-wc3-save-version-129.bin",
+        "/tmp/openwarcraft3-wc3-save-version-130.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130 };
 
     reset_entities();
     setup_test_world();

@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -129,6 +130,7 @@ void G_PoolsReportPeaks(void) {
 }
 
 void G_PoolsReset(void) {
+    S_ClearTimedLives();
     G_ResetWaypointCache();
     S_InvalidateCargoHolders();
     S_InvalidateRallyProducers();
@@ -202,6 +204,7 @@ void G_PoolsReset(void) {
 
 void G_PoolsReleaseEdict(edict_t *ent) {
     assert(ent);
+    S_ReleaseTimedLives(ent);
     G_FreeConstruction(ent);
     G_FreeResearch(ent);
     G_FreeRally(ent);

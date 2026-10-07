@@ -27,6 +27,7 @@ static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
     { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
+    { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner
     { STR_CmdHoldPos, CAbilityHoldPosition, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Hold command policy

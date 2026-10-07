@@ -302,6 +302,7 @@ enum {
     AI_PROJECTILE_FIXED_TARGET = 1 << 11, /* projectile flies to channel.origin snapshot rather than homing */
     AI_SOUL_TRAPPED = 1 << 12, /* entity remains alive but leaves world interaction until Soul Trap release */
     AI_TOWN_OWNED = 1 << 13, /* Retail unit5c.4; AI enrollment, independent of script VM. */
+    AI_SUMMONED = 1 << 14, /* Retail unit248.4; independent of the creating ability. */
 };
 
 typedef enum {

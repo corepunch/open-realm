@@ -11682,3 +11682,20 @@ spell suites pass (2556 tests; 10536710 assertions).53 Python evidence/corpus ch
 pass, and both new corpus entries verify in a fresh output directory. This is
 the eighth implementation commit since the Payoff147 full-suite checkpoint;
 validation here is focused.
+
+## Public timed-life factories retain independent expiry (Payoff156)
+
+The public native now creates ability-owned optional timed-life records instead
+of returning from a stub. Seven specialized classes and unknown-to-BTLF fallback
+feed exact public levels, summoned identity, food-used removal and captain early50
+admission. Duplicate applications retain independent deadlines; permanent, short,
+paused/resumed, removed and dead-unit cases preserve the captured lifetime.
+A growable serial-ordered primary heap replaces script-timer capacity and entity
+scans. Save131 retains records and paused continuations without pointer/heap backing.
+
+Two complete retail repeats and observer-free control match1121 public markers,
+with20 factory/initializer/owner events per observed run. The failing-first engine
+regression, full timeline with paused save/load and4096-unit growth exercise actual
+JASS/server lifecycle. See [the contract and remaining gaps](retail-pathfinding-timed-life.md).
+GROUP-03.4.6.2.1.2 remains open for automatic captain enrollment, subclass extra
+effects, generic buff composition and full long-duration segmented clocks.

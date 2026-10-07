@@ -483,6 +483,8 @@ globals
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
     constant unittype UNIT_TYPE_FLYING = ConvertUnitType(3)
     constant unittype UNIT_TYPE_GROUND = ConvertUnitType(4)
+    constant unittype UNIT_TYPE_SUMMONED = ConvertUnitType(10)
+    constant playerstate PLAYER_STATE_RESOURCE_FOOD_USED = ConvertPlayerState(5)
     constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals
 

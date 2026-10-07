@@ -4079,6 +4079,42 @@
           "evidence": "14c990 register repeat3dccccce=software1/10;14cac0 cancel; load14d1d0 registers fresh. Payoff135 merged deterministic scalar-timer engine request."
         }
       ]
+    },
+    {
+      "name": "WC3TimedLifePrefix",
+      "length": 176,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "buff",
+          "type": "WC3BuffPrefix",
+          "evidence": "Payoff156 common52fe50 retains rawcode34 and unit30; live factory vtables confirm Buff ancestry."
+        },
+        {
+          "offset": 132,
+          "name": "expiry_clock",
+          "type": "WC3EventClockControlPrefix",
+          "evidence": "Payoff156532b50 LEA ECX,[buff+84] for0606c0 cancellation and0609b0 eventd01c4 scheduling."
+        },
+        {
+          "offset": 160,
+          "name": "elapsed_vtable",
+          "type": "ptr:void",
+          "evidence": "532b50 invokes scalar setter through buff+a0."
+        },
+        {
+          "offset": 168,
+          "name": "remaining_vtable",
+          "type": "ptr:void",
+          "evidence": "52fe50 clears embedded scalar at+a8;532fa0 reads+ac."
+        },
+        {
+          "offset": 172,
+          "name": "retained_duration",
+          "type": "WC3PathScalar",
+          "evidence": "532fa0 loads buff+ac and schedules only when positive."
+        }
+      ]
     }
   ],
   "methods": [
@@ -13048,6 +13084,73 @@
         }
       ],
       "evidence": "Complete48f380, Unit+1d0 += enable?1:-1, RET4; traverses ability_head and invokes notification virtuald0. Public bit8 traces; full notification lifecycle not certified."
+    },
+    {
+      "address": "6f530750",
+      "name": "TimedLife_InitializeUnit",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "buff",
+          "type": "ptr:WC3TimedLifePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "duration",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff156 original function body, stack offsets and RET cleanup, public producer capture."
+    },
+    {
+      "address": "6f532b50",
+      "name": "TimedLife_ScheduleExpiry",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "buff",
+          "type": "ptr:WC3TimedLifePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "duration",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "notify",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff156 original function body, stack offsets and RET cleanup, public producer capture."
+    },
+    {
+      "address": "6f2157d0",
+      "name": "JassNative_SetUnitUseFood",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit_handle",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "enabled",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff156 original function body, stack offsets and RET cleanup, public producer capture."
     }
   ],
   "globals": [

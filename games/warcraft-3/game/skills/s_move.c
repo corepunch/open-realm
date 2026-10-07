@@ -4047,7 +4047,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
          * result, including across save/load and later weapon changes.
          * Temporary units return50 before Hero/siege adjustment. Native Hero
          * classification here tests the rawcode, independently of Hero stats. */
-        if ((unit->aiflags&AI_ILLUSION) || unit_findstatus(unit,MAKEFOURCC('B','T','L','F')))
+        if ((unit->aiflags&AI_ILLUSION) || S_UnitHasTimedLife(unit))
             return wc3_div(wc3_add(50,MAX(1,unit->collision)),32);
         float attack_range=0;
         bool armed=S_UnitAttackApproachRange(unit,&attack_range);

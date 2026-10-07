@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 //void unit_die(edict_t *self);
 //void unit_decay2(edict_t *self);
@@ -1774,6 +1775,8 @@ bool G_HeroModifySkillPoints(edict_t *ent, int32_t delta) {
 }
 
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
+    uint32_t const timed_level=S_TimedLifeLevel(ent,abilcode);
+    if(timed_level)return timed_level;
     uint32_t const hero_level = g_unit_status_query && g_unit_status_query->unit == ent &&
         !g_unit_status_query->hero_slots ? 0 : G_HeroSkillLevel(ent, abilcode);
     if (hero_level) {

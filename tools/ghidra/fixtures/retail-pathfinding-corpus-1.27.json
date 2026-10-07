@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "138 executable original oracle contracts;381 total entries.",
+  "scope": "138 executable original oracle contracts;382 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -37886,6 +37886,130 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-public-timed-life",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_timed_life156_live.py",
+        "--captures",
+        "{archive}/runtime/timed-life156",
+        "--expected",
+        "tools/ghidra/fixtures/retail-timed-life-live-1.27.json",
+        "--report",
+        "{report}"
+      ],
+      "report": "timed-life-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "repeats": {
+          "equal": 2
+        },
+        "public_markers": {
+          "equal": 1121
+        },
+        "factories": {
+          "equal": 20
+        },
+        "initializers": {
+          "equal": 20
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Public factory/permanent/duplicate/pause/removal/death lifetime and class/food/captain-range engine integration with saved continuation.",
+      "exclusions": [
+        "Automatic captain enrollment, subclass extra effects, generic buff composition and long segmented durations remain open."
+      ],
+      "capture_failures": [],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "runtime/timed-life156/observe-1.jsonl",
+        "sha256": "43be5f3ed4b824086176d53a22691333ab79804e1ed2079ffbda8e280495a32a",
+        "bytes": 131432,
+        "metadata": {
+          "task": "timed-life156",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+            "timed_life156_observer.js": "789fb089938a696eab852ab8958cba1916c9e816680060ef7b109c1346b4ddf9",
+            "map": "a2edb5540889f77b7d8fd8029908213e653aff95e533f34cf66ec2b8a5e63a08"
+          },
+          "map": "Maps\\RS-TimedLife156.w3m",
+          "seconds": 100.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/timed-life156/observe-2.jsonl",
+            "sha256": "553ca4ce9547f94860a016c29e0e28296fd20e573a647edda474d4b19313f2a2",
+            "bytes": 131432,
+            "metadata": {
+              "task": "timed-life156",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "timed_life156_observer.js": "789fb089938a696eab852ab8958cba1916c9e816680060ef7b109c1346b4ddf9",
+                "map": "a2edb5540889f77b7d8fd8029908213e653aff95e533f34cf66ec2b8a5e63a08"
+              },
+              "map": "Maps\\RS-TimedLife156.w3m",
+              "seconds": 100.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/timed-life156/control-1.jsonl",
+            "sha256": "e9852c7e95ae6f27a8b9624e78339fb25dbed6f0383dcf5394b492a131afd052",
+            "bytes": 849,
+            "metadata": {
+              "task": "timed-life156",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "timed_life156_observer.js": "789fb089938a696eab852ab8958cba1916c9e816680060ef7b109c1346b4ddf9",
+                "map": "a2edb5540889f77b7d8fd8029908213e653aff95e533f34cf66ec2b8a5e63a08"
+              },
+              "map": "Maps\\RS-TimedLife156.w3m",
+              "seconds": 100.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -37951,7 +38075,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "e2344cc60cdd9bcb791c3db7d150961f0e66d07103706698ceae78af4200a722"
+      "sha256": "6255b0cd8a2c9c0763a8e7f3c65c3dd866bd8ea73ea1c369da368a30d7301a2f"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -38784,7 +38908,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e63e708e9df5017e947ed3ea37b928065c836879bc3d0609193640868e2f53a9"
+      "sha256": "4816137bf3c3a63a919415b004217fd16449f1f7d6a4ef1cfded2d833579d720"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -39640,7 +39764,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "18f30caf1660789ec6d4cb429f1720ebf003e1f5343bfa7f6d88680b6d7a7f78"
+      "sha256": "f4d81f5a4726b5c9775ab3065a4b52def11fbbfaff2a411204c8b020d33dccd6"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -40076,7 +40200,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "aa1eba1c384f6dde449d2929db511e2f5245f9a67b119d8c354f675811764b0d"
+      "sha256": "34699d82181d95f99f2e191f03417459ebc1614479b17592e7d22153bd660c90"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -40084,7 +40208,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "8357a2b47fcb4d76441cafcb45fce5bbdb6ff646c5733353563a905e40272508"
+      "sha256": "1470731d8ddc37b8ff36c95ecfd86639ab506ef7bad73ddf8de968219d41e730"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -40576,7 +40700,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0a8cc8908d9d621bd31d8c0365f0341155ddd94b0b9433193ce1c1ae2907b6a2"
+      "sha256": "a27faebc148eab1a37a27fd55d554f8a77694e667f20120b157f85d1af6c7466"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -40584,15 +40708,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "b4b3070c64238dc259479c815b6398be589433fbeda2aed5c96b0124e114d8f9"
+      "sha256": "bebcafd732637ceb74bb14fbb2edc1c3487d03981d654d52e0bcb11b4bb28af9"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ad45cf2d0125d5750d0752fcd03250281781239b83eb06dce7de9d8da0518a21"
+      "sha256": "0e9cf5a59f8a2de95986d87dfe9208f059a6de04d35275d22c28990558b08f50"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "6c7d3b2cd1a33a0a32254fed7624083a66a2684b1972ff7de32d83fb23d8b82b"
+      "sha256": "5371902a5fd18b1e1bb6e3a7551f35bc8a7c545525281ba15cfa1f4bbed83904"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -40604,7 +40728,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "6409bf277711f5137db499f18f9c73c3e0deca51f320c723576bb507b85699dd"
+      "sha256": "12dd598db85978d3a98b02bb53d755af6d31b18c3974e9b272f0b93df68e0b82"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -40861,6 +40985,38 @@
     {
       "path": "tests/test_wc3_pathfinding_attack_prevention.py",
       "sha256": "51fae4fbbe8804da84cf926d43ee04edd528c91abd4a975cdec5eefe16823e40"
+    },
+    {
+      "path": "tools/ghidra/research/verify_timed_life156_live.py",
+      "sha256": "734202fa646633fb60c315dd423d2d0e743a4f90aaf7b0cc18a24de1e44a5630"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-timed-life-live-1.27.json",
+      "sha256": "6a58d3e949c93a2e3022f06963314454c0812ed6970254519a0fde321907c7ab"
+    },
+    {
+      "path": "tools/frida/research/timed_life156_probe.j",
+      "sha256": "c24f9ab4517e3aededa6555e58b2bf6a9113d9ad1bb5bfd27755028d23fa84ce"
+    },
+    {
+      "path": "tools/frida/research/timed_life156_make_map.py",
+      "sha256": "0be0df163df7db9a67406188bb48c1696ea80949f4b55d3a13269e88b092f29f"
+    },
+    {
+      "path": "tools/frida/research/timed_life156_observer.js",
+      "sha256": "789fb089938a696eab852ab8958cba1916c9e816680060ef7b109c1346b4ddf9"
+    },
+    {
+      "path": "tools/frida/research/timed_life156_engine_fixture.py",
+      "sha256": "abd7b95044c4ddf67502eeadc4c230a0db91c9e2dea5acaa3b728fce37a793a3"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_timed_life_156.h",
+      "sha256": "db1ef0b87cb1f2ddb0152df99c08c0c7761236df50e2edc7310dca21432b6ad8"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_timed_life.py",
+      "sha256": "87a72ff30fbc1863557ad82cfaf054c999666b0b771eb06cd6c2ffc7a6e507d6"
     }
   ]
 }

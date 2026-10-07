@@ -602,6 +602,7 @@ uint32_t UnitCountBuffsEx(jass_t *j) {
 uint32_t UnitPauseTimedLife(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     bool flag = jass_checkboolean(j, 2);
+    S_PauseTimedLife(whichUnit,flag);
     uint32_t now;
     if (!whichUnit || whichUnit->timed_life_paused == flag) return 0;
     now = G_Time();
@@ -871,6 +872,13 @@ uint32_t GetUnitFoodMade(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->data.UnitBalance->foodMade : 0);
 }
+uint32_t SetUnitUseFood(jass_t *j) {
+    edict_t *unit=jass_checkhandle(j,1,"unit");
+    bool enabled=jass_checkboolean(j,2);
+    if(unit && unit->data.UnitBalance)
+        G_SetUnitFoodUsed(unit,enabled ? unit->data.UnitBalance->foodUsed : 0);
+    return 0;
+}
 uint32_t IsUnitInGroup(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     ggroup_t *whichGroup = jass_checkhandle(j, 2, "group");
@@ -967,7 +975,7 @@ uint32_t IsUnitType(jass_t *j) {
     if (*whichUnitType == 3) /* UNIT_TYPE_FLYING */
         return jass_pushboolean(j, whichUnit->aiflags & AI_FLYING);
     if (*whichUnitType == 10) /* UNIT_TYPE_SUMMONED */
-        return jass_pushboolean(j, whichUnit->summon_ability != 0);
+        return jass_pushboolean(j, (whichUnit->aiflags&AI_SUMMONED) || whichUnit->summon_ability != 0);
     if (*whichUnitType == 14) /* UNIT_TYPE_UNDEAD */
         return jass_pushboolean(j, whichUnit->data.UnitData &&
             WC3_RaceFromString(whichUnit->data.UnitData->race) == RACE_UNDEAD);
@@ -1043,7 +1051,7 @@ uint32_t UnitAddAbility(jass_t *j) {
 uint32_t UnitRemoveAbility(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t abilityId = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, G_ActorRemoveSkill(whichUnit, abilityId));
+    return jass_pushboolean(j, S_RemoveTimedLife(whichUnit,abilityId) || G_ActorRemoveSkill(whichUnit, abilityId));
 }
 uint32_t UnitMakeAbilityPermanent(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -1096,9 +1104,10 @@ uint32_t UnitWakeUp(jass_t *j) {
     return 0;
 }
 uint32_t UnitApplyTimedLife(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //int32_t buffId = jass_checkinteger(j, 2);
-    //float duration = jass_checknumber(j, 3);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    uint32_t buffId = jass_checkinteger(j, 2);
+    float duration = jass_checknumber(j, 3);
+    S_ApplyTimedLife(whichUnit,buffId,duration);
     return 0;
 }
 uint32_t IssueImmediateOrder(jass_t *j) {

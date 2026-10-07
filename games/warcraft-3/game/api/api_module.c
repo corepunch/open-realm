@@ -583,6 +583,7 @@ jassModule_t jass_funcs[] = {
     { "GetUnitName", GetUnitName },
     { "GetUnitFoodUsed", GetUnitFoodUsed },
     { "GetUnitFoodMade", GetUnitFoodMade },
+    { "SetUnitUseFood", SetUnitUseFood },
     { "GetFoodMade", GetFoodMade },
     { "GetFoodUsed", GetFoodUsed },
     { "IsUnitInGroup", IsUnitInGroup },
