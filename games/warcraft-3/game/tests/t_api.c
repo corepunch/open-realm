@@ -5355,6 +5355,45 @@ TEST(wc3_api, selection_limit_direct_insert_and_runtime_reduction) {
     gi.CvarString = old_cvar;
 }
 
+TEST(wc3_api, selection_limit_warns_once_for_unsupported_values) {
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    FILE *capture = tmpfile();
+    int saved_stderr = dup(STDERR_FILENO);
+    char diagnostic[1024] = { 0 };
+    uint32_t warnings = 0;
+
+    T_NOT_NULL(capture);
+    T_ASSERT(saved_stderr >= 0);
+    if (!capture || saved_stderr < 0) {
+        if (capture) fclose(capture);
+        if (saved_stderr >= 0) close(saved_stderr);
+        return;
+    }
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "18";
+    gi.CvarString = selection_limit_test_cvar;
+
+    fflush(stderr);
+    T_EQ(dup2(fileno(capture), STDERR_FILENO), STDERR_FILENO);
+    /* An unsupported value still resolves to the Reforged default, but the
+     * substitution is reported once instead of silently every frame. */
+    T_EQ(G_SelectionLimit(), 24);
+    T_EQ(G_SelectionLimit(), 24);
+    selection_limit_test_value = "12";
+    T_EQ(G_SelectionLimit(), 12);
+    fflush(stderr);
+    T_EQ(dup2(saved_stderr, STDERR_FILENO), STDERR_FILENO);
+    close(saved_stderr);
+    rewind(capture);
+    (void)fread(diagnostic, 1, sizeof(diagnostic) - 1, capture);
+    fclose(capture);
+    gi.CvarString = old_cvar;
+
+    for (cstring_t hit = diagnostic; (hit = strstr(hit, "wc3_selection_limit")) != NULL; hit++) warnings++;
+    T_EQ(warnings, 1);
+    T_ASSERT(strstr(diagnostic, "18") != NULL);
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     gameClient_t *client = &game.clients[0];
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

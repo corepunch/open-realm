@@ -1,6 +1,6 @@
 # Warcraft III Selection Limit
 
-`wc3_selection_limit` defaults to `24` (Reforged-style). Set it to exactly `12` for classic mode; other values use the default 24. Warcraft gameplay owns the authoritative selection cap, not the generic client. WC3 selection buffers support 24, while the generic client supports 64.
+`wc3_selection_limit` defaults to `24` (Reforged-style). Set it to exactly `12` for classic mode; any other value (for example `18`) falls back to 24 and `G_SelectionLimit` logs one stderr warning per distinct unsupported value, since only 12 and 24 have multiselect layouts. Warcraft gameplay owns the authoritative selection cap, not the generic client. WC3 selection buffers support 24, while the generic client supports 64.
 
 The regular `G_UpdateClientSelections` pass removes excess selected units when the limit is lowered, emits deselection events, and synchronizes the trimmed selection/portrait/commands to the client. Direct `G_SelectEntity` insertion also enforces the cap. Selection changes already in progress are validated by the server.
 
