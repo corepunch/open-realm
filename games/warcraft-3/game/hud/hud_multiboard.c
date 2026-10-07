@@ -1,11 +1,16 @@
-/* Server-authored multiboard / Team Resources presentation. The shared layout
- * is deliberately conservative until original stock TeamResources FDF is known. */
+/* Server-authored multiboard / Team Resources presentation. */
 #include "hud_local.h"
 
 #define WC3_MB_WIDTH 0.275f
 #define WC3_MB_ROW_HEIGHT 0.016f
 #define WC3_MB_HEADER_HEIGHT 0.020f
 #define WC3_MB_TOP 0.040f
+
+static uint32_t MultiboardFont(void) {
+    frameDef_t *title = hud.leaderboard.LeaderboardTitle;
+    uint32_t font = title ? UI_LiveFont(title->Font.Index) : 0;
+    return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+}
 
 static void MultiboardText(uint32_t parent, float x, float y, float w, float h,
                            cstring_t value, color32_t color, uiFontJustificationH_t align) {
@@ -15,7 +20,7 @@ static void MultiboardText(uint32_t parent, float x, float y, float w, float h,
     frame.parent = parent;
     frame.text = value && *value ? value : " ";
     frame.color = color.a ? color : COLOR32_WHITE;
-    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_SMALL_FONT_SIZE);
+    label.font = MultiboardFont();
     label.textalignx = align;
     label.textaligny = FONT_JUSTIFYMIDDLE;
     UI_SetFrameRect(&frame, x, y, w, h);
@@ -35,15 +40,32 @@ static uint32_t MultiboardRoot(void) {
 }
 
 static void MultiboardPanel(uint32_t parent, float x, float y, float w, float h) {
+    frameDef_t const *style = hud.leaderboard.LeaderboardBackdrop;
     uiFrame_t frame = { 0 };
-    frame.flags.type = FT_TEXTURE;
+    uiBackdrop_t backdrop = { 0 };
+    frame.flags.type = FT_BACKDROP;
     frame.parent = parent;
-    frame.tex.index = gi.ImageIndex("Textures\\Black32.blp");
-    frame.color = MAKE(color32_t, 0, 0, 0, 175);
+    frame.color = style && style->Color.a ? style->Color : COLOR32_WHITE;
     UI_SetFrameRect(&frame, x, y, w, h);
     frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
     frame.points.y[FPP_MIN].relativeTo = UI_PARENT;
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    if (style) {
+        backdrop = MAKE(uiBackdrop_t,
+            .CornerFlags = style->Backdrop.CornerFlags,
+            .CornerSize = style->Backdrop.CornerSize,
+            .BackgroundSize = style->Backdrop.BackgroundSize,
+            .BackgroundInsets = {
+                style->Backdrop.BackgroundInsets[0], style->Backdrop.BackgroundInsets[1],
+                style->Backdrop.BackgroundInsets[2], style->Backdrop.BackgroundInsets[3],
+            },
+            .EdgeFile = UI_LiveImage(style->Backdrop.EdgeFile),
+            .Background = UI_LiveImage(style->Backdrop.Background),
+            .TileBackground = style->Backdrop.TileBackground,
+            .Opaque = !style->Backdrop.BlendAll,
+            .Mirrored = style->Backdrop.Mirrored,
+        );
+    }
+    UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
 }
 
 static uint32_t MultiboardTeamRows(uint32_t viewer) {
@@ -81,14 +103,18 @@ void UI_WriteMultiboard(edict_t *ent) {
 
     height = WC3_MB_HEADER_HEIGHT + (minimized ? 0 : rows * WC3_MB_ROW_HEIGHT) + 0.006f;
     x = UI_BASE_WIDTH - WC3_MB_WIDTH - HUD_HERO_SHORTCUT_EDGE_X;
-    y = UI_BASE_HEIGHT - WC3_MB_TOP - height - UI_TimerDialogLeaderboardOffset(viewer);
+    /* Timer and leaderboard form a top-right stack. Place this panel below
+     * both, growing down from that stack instead of up from the bottom HUD. */
+    y = WC3_MB_TOP + UI_TimerDialogLeaderboardOffset(viewer)
+        + UI_LeaderboardMultiboardOffset(viewer);
     UI_SetCurrentClient(client);
     UI_WriteStart(WC3_LAYER_MULTIBOARD);
     root = MultiboardRoot();
     MultiboardPanel(root, x, y, width, height);
     MultiboardText(root, x + 0.007f, y + height - WC3_MB_HEADER_HEIGHT,
                    width - 0.014f, WC3_MB_HEADER_HEIGHT,
-                   team ? "Team Resources" : board->title, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+                   team ? "Team Resources" : board->title,
+                   hud.leaderboard_default_title_color, FONT_JUSTIFYLEFT);
     if (!minimized) {
         if (team) {
             uint32_t row = 0;
@@ -110,13 +136,13 @@ void UI_WriteMultiboard(edict_t *ent) {
                          (long)owner->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
                          (long)G_GetEffectiveFoodCap(owner_client));
                 MultiboardText(root, x + 0.007f, yy, 0.105f, WC3_MB_ROW_HEIGHT,
-                               owner->name, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+                               owner->name, hud.leaderboard_default_item_color, FONT_JUSTIFYLEFT);
                 MultiboardText(root, x + 0.115f, yy, 0.048f, WC3_MB_ROW_HEIGHT,
-                               gold, COLOR32_WHITE, FONT_JUSTIFYRIGHT);
+                               gold, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
                 MultiboardText(root, x + 0.165f, yy, 0.047f, WC3_MB_ROW_HEIGHT,
-                               lumber, COLOR32_WHITE, FONT_JUSTIFYRIGHT);
+                               lumber, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
                 MultiboardText(root, x + 0.214f, yy, 0.054f, WC3_MB_ROW_HEIGHT,
-                               food, COLOR32_WHITE, FONT_JUSTIFYRIGHT);
+                               food, hud.leaderboard_default_item_color, FONT_JUSTIFYRIGHT);
             }
         } else if (cols) {
             FOR_LOOP(r, rows) FOR_LOOP(c, cols) {
