@@ -1369,3 +1369,7 @@ regression saves immediately after the first deep-water refresh, verifies idle
 physics retains that height after load, then checks the second forced refresh.
 Format124 and earlier are rejected without migration. See
 [Payoff145](retail-pathfinding-engine.md#ground-support-refresh-state-payoff145).
+
+Version126 retains physical groups' hidden-target visit counters alongside their
+refresh countdown and cached destination. Save125 and older layouts are rejected.
+See [group speed and visibility](retail-pathfinding-group-speed.md).

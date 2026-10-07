@@ -79,6 +79,8 @@
 #include "retail_scheduler_work.h"
 #include "retail_route_invalid_consumers.h"
 #include "retail_ground_support.h"
+#include "retail_group_target_speed.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -15787,6 +15789,92 @@ TEST(wc3_movement, coarse_saved_queue_rejects_corrupt_ranks_links_and_budget) {
     S_CancelMoveCoarseRequest(first);T_EQ(budget->head,second);T_EQ(budget->count,1);
     S_CancelMoveCoarseRequest(second);T_EQ(budget->count,0);T_NULL(budget->head);T_NULL(budget->tail);
     reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, group_commit_speed_matches_original_policy_boundaries) {
+    FOR_LOOP(i,sizeof(retail_group_target_speed)/sizeof(*retail_group_target_speed)) {
+        uint32_t const *in=retail_group_target_speed[i].input;
+        wc3GroupSpeed_t speed={.flags=in[0],.unseen=in[1],.target=in[2]!=0,
+            .requested=wc3_float(in[3]),.cap=wc3_float(in[4]),.target_maximum=wc3_float(in[5]),
+            .target_velocity={wc3_float(in[6]),wc3_float(in[7])},
+            .source={wc3_float(in[8]),wc3_float(in[9])},
+            .destination={wc3_float(in[10]),wc3_float(in[11])},.arrival_range=wc3_float(in[12])};
+        T_EQ(wc3_float_bits(wc3_group_commit_speed(&speed)),retail_group_target_speed[i].output);
+    }
+}
+
+/* GROUP-03.2: controlled persistent group inputs exercise the actual owner
+ * commit, with a moving/stationary target and strict faster-member policy. */
+TEST(wc3_movement, persistent_group_commit_matches_moving_target_speed) {
+    FOR_LOOP(k,5) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),k==3 ? 768 : 672,256);
+        unit->svflags=target->svflags=SVF_MONSTER;
+        unit->movetype=target->movetype=MOVETYPE_STEP;
+        unit->stand=target->stand=unit_stand;
+        unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+        S_SetUnitMoveSpeed(unit,k==2 ? 150 : 350);S_SetUnitMoveSpeed(target,150);
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        T_EQ(ARRAY_COUNT(level.move_groups),1);if(!ARRAY_COUNT(level.move_groups))continue;
+        moveGroup_t *group=level.move_groups[0];if(k!=4)group->flags|=0x801u;
+        target->movement.velocity=(vec2_t){k==1 ? 0 : 150,0};
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        float expected=k==0 ? 142.5f : k==2 ? 150 : 350;
+        wc3Velocity_t wanted={.speed=expected,.heading=group->members[0].heading,.limit=k==2 ? 150 : 350};
+        wc3_velocity_update_world(&wanted);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(wanted.vel[0]));
+        T_EQ(wc3_float_bits(unit->movement.velocity.y),wc3_float_bits(wanted.vel[1]));
+    }
+    reset_entities();setup_test_world();
+}
+
+/* TARGET-03.2: a fogged owned target must retain the last sampled destination;
+ * regaining vision clears the hidden episode without bypassing its countdown. */
+TEST(wc3_movement, persistent_group_fog_retains_sample_until_refresh) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    G_FowInit();G_FowConnectPlayer(0);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),672,256);
+    unit->svflags=target->svflags=SVF_MONSTER;
+    unit->movetype=target->movetype=MOVETYPE_STEP;unit->stand=target->stand=unit_stand;
+    unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    S_SetUnitMoveSpeed(unit,350);S_SetUnitMoveSpeed(target,150);
+    uint32_t size=level.fow.width*level.fow.height;
+    memset(level.fow.players[0].visible,1,size);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    moveGroup_t *group=level.move_groups[0];group->flags|=0x801u;
+    level.pathing_counter++;level.scheduled_think=true;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    vec2_t retained=group->goal;group->target_refresh=0;
+    target->s.origin.x=target->s.origin2.x=800;target->movement.pose_valid=false;
+    memset(level.fow.players[0].visible,0,size);
+    FOR_LOOP(i,3) {
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
+        T_EQ(group->target_refresh,0);
+        T_EQ(group->unseen_counter,i+1);
+    }
+    T_ASSERT(WriteGame("/tmp/wc3-follow-hidden.bin"));
+    T_ASSERT(ReadGame("/tmp/wc3-follow-hidden.bin"));
+    group=level.move_groups[0];T_EQ(group->unseen_counter,3);
+    T_EQ(group->target_refresh,0);T_EQ(group->goal.x,retained.x);
+    group->target_refresh=2;
+    memset(level.fow.players[0].visible,1,size);
+    FOR_LOOP(i,3) {
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(group->unseen_counter,0);
+        if(i<2)T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
+        else T_EQ(group->goal.x,800);
+    }
+    remove("/tmp/wc3-follow-hidden.bin");G_FowShutdown();reset_entities();setup_test_world();
 }
 
 /* Native5fc640 queries Adro class ownership, then16ce10 disables group warp

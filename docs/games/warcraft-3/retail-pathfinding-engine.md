@@ -11358,3 +11358,10 @@ matching gate-marker presence. Both-edition focused regressions, saved group
 policy and the existing Follow trajectory pass. FORM-01.3 and the wider flying
 Follow producer remain open. See [target gate policy](retail-pathfinding-target-warp.md)
 for raw evidence, reproducers, failed attempts and exact scope.
+
+## Persistent groups match visible moving targets
+
+Payoff150 implements the original target-speed commit policy and retains hidden
+target sampling across save/load. See [group speed and visibility](retail-pathfinding-group-speed.md)
+for exact guards, failing-first regressions, native oracle and reused Frida evidence.
+Attack-owned shared-cap exemptions and broader target-loss policies remain open.

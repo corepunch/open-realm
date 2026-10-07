@@ -4573,8 +4573,15 @@ static void move_run_group_updates(void) {
             G_UnitRegionPositionChanged(unit,&point);
         }
         group->age++;
-        if (group->target && !group->target_refresh) {
+        vec2_t sampled=group->initialized ? group->route.group_goal :
+            (vec2_t){wc3_grid_coordinate(group->goal.x,CM_GetWorldBounds().min.x,32),
+                     wc3_grid_coordinate(group->goal.y,CM_GetWorldBounds().min.y,32)};
+        bool visible=!group->target || group->target->movement.captain_actor_type ||
+            G_FowPlayerCanTrackUnit(group->members[0].unit->s.player,group->target);
+        group->unseen_counter=visible ? 0 : group->unseen_counter+1;
+        if (group->target && visible && !group->target_refresh) {
             wc3GridPose_t pose; unit_predicted_pose(group->target,&pose);
+            sampled=(vec2_t){pose.grid[0],pose.grid[1]};
             box2_t bounds=CM_GetWorldBounds();
             vec2_t old=group->initialized ? group->route.group_goal :
                 (vec2_t){wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
@@ -4637,6 +4644,17 @@ static void move_run_group_updates(void) {
             unit_grid_pose(unit,&step.pose);
             float old[2]={unit->movement.velocity.x,unit->movement.velocity.y};
             wc3_grid_step(&step.pose,old,unit->movement.clock_valid ? wc3_elapsed(&level.pathing_clock,&unit->movement.pose_clock) : 0);
+            if ((group->flags&0x800) && group->target && !group->unseen_counter) {
+                wc3GroupSpeed_t speed={.requested=wc3_mul(member->speed,1.0f/32),
+                    .cap=share ? wc3_mul(cap,1.0f/32) : FLT_MAX,
+                    .flags=group->flags,.target=true,
+                    .source={step.pose.grid[0],step.pose.grid[1]},
+                    .destination={sampled.x,sampled.y},.arrival_range=member->arrival_range,
+                    .target_maximum=wc3_mul(unit_effective_speed(group->target),1.0f/32),
+                    .target_velocity={wc3_mul(group->target->movement.velocity.x,1.0f/32),
+                                      wc3_mul(group->target->movement.velocity.y,1.0f/32)}};
+                step.velocity.speed=wc3_mul(wc3_group_commit_speed(&speed),32);
+            }
             wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
             if (member->arrived && !group->route.group_index && !(group->flags&1)) finished[count++]=unit;
         }

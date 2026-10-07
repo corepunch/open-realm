@@ -95,6 +95,7 @@ typedef struct moveGroup_s {
     edict_t *target;
     uint32_t target_spawn;
     int32_t target_refresh;
+    uint32_t unseen_counter; /* Consecutive hidden target samples, native group+6c. */
     float heading, radius;
     moveFineRoute_t route;
     moveGroupMember_t members[BZ_WC3_GROUP_ORDER_UNITS];
@@ -2761,6 +2762,7 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
+bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
 bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
 void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share);

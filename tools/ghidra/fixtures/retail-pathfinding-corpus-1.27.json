@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "134 executable original oracle contracts;369 total entries.",
+  "scope": "135 executable original oracle contracts;372 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -36638,6 +36638,192 @@
       "exclusions": [
         "Ground Footman target with Adro/Amed/Atdp; not stock flying transport traversal or complete engine motion. Initial missing finish capture is failed and excluded."
       ]
+    },
+    {
+      "id": "oracle-group-target-speed",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_group_speed.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "group-target-speed-oracle.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 6480
+        },
+        "adjusted": {
+          "equal": 96
+        }
+      },
+      "evidence": [
+        "O",
+        "C"
+      ],
+      "scope": "Constructed original16b5c0 speed policy through real registry/clock/prediction/scalar calls; read-only stop at final commit. Exact engine word comparison.",
+      "exclusions": [
+        "Not public flag production, gameplay clock initialization or complete movement. Forced flags and constructed distance states are labelled."
+      ]
+    },
+    {
+      "id": "live-group-target-speed",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_group_speed_live.py",
+        "--first",
+        "{archive}/runtime/group-target-speed150/a-observe-1.jsonl",
+        "--repeat",
+        "{archive}/runtime/group-target-speed150/a-observe-2.jsonl",
+        "--control",
+        "{archive}/runtime/group-target-speed150/a-control-1.jsonl",
+        "--preload",
+        "{archive}/runtime/group-target-speed150/a-control-1-preload.txt",
+        "--expected",
+        "tools/ghidra/fixtures/retail-group-speed-live-1.27.json.gz",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/group-target-speed150/a-observe-1.jsonl",
+        "sha256": "64c42ff0a607cfda39c42a89db4a5ee8fb9144471cb13f0b1eaaf1fb4cf9f940",
+        "bytes": 2751888,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "group032_observer.js": "31cbe91c04b7e8172d7b4d058a716489cd0236d4ead49ccb8e5d8a11fb21f36d",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "map": "6dc6714e3a91950fdb3d1f327b6fe882560f28406c8a0e01591d801b8d450d6f"
+          },
+          "map": "Maps\\RS-GROUP-03.2-a.w3m",
+          "seconds": 260.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "G032 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/group-target-speed150/a-observe-2.jsonl",
+            "sha256": "10d6ce549e30f48d6fa7aa1346a3d587300e816880816869292d4318882d2ed9",
+            "bytes": 2751951,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "group032_observer.js": "31cbe91c04b7e8172d7b4d058a716489cd0236d4ead49ccb8e5d8a11fb21f36d",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "6dc6714e3a91950fdb3d1f327b6fe882560f28406c8a0e01591d801b8d450d6f"
+              },
+              "map": "Maps\\RS-GROUP-03.2-a.w3m",
+              "seconds": 260.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "G032 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/group-target-speed150/a-control-1.jsonl",
+            "sha256": "e515ab12ad14b00fc7497c6cc3f7b8c9c11ea470d17f0205d94bda2c24c9dadd",
+            "bytes": 1671,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "group032_observer.js": "31cbe91c04b7e8172d7b4d058a716489cd0236d4ead49ccb8e5d8a11fb21f36d",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "6dc6714e3a91950fdb3d1f327b6fe882560f28406c8a0e01591d801b8d450d6f"
+              },
+              "map": "Maps\\RS-GROUP-03.2-a.w3m",
+              "seconds": 260.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "env": "C",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "G032 "
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-group-target-speed.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "commits": {
+          "equal": 4671
+        },
+        "observed_speed_words": {
+          "equal": 4671
+        },
+        "adjusted": {
+          "equal": 226
+        },
+        "markers": {
+          "equal": 147
+        },
+        "repeats": {
+          "equal": 2
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "L"
+      ],
+      "scope": "Delivered read-only Follow/group lane-A evidence: complete numerical/event repeats, target-scale words and observer-free public marker equality.",
+      "exclusions": [
+        "Archived delivered captures, not new instrumentation. Observer lacks elapsed prediction inputs; no inferred distance-gate or complete engine trajectory claim. Exempt Follow and other lanes remain separate evidence."
+      ]
     }
   ],
   "fixtures": [
@@ -37536,7 +37722,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e38c77efe557b09498bfdc4babead10b15a872cc9e9a8c75664540baa63035ec"
+      "sha256": "8b28e4bbf5f8922eb0cbb724683c7f076c0e2b444d51f6e02fee0d761276122c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38392,7 +38578,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "612187a115308fb46cc91d9955da0e01d44a8ac04199384e5261c5c3fe2b0f11"
+      "sha256": "f1c404ba36cf3ef89069e37a4520a091921884f8983fcc617d91657242e12f8b"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -38828,7 +39014,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "35a90ecabebb8d8255eabec94eda5ec427a43c07cad8941cf0746257fb0e2ad1"
+      "sha256": "614192c8d74845ce0204cb8c74de1b22c0a3c31787c8244a6fdff3a9f07f55e4"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -38836,7 +39022,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "f178137f0601f49a1a4e87dcc4588f620a0f8fe5f690d87f81f9c49d04e1be7f"
+      "sha256": "2ebaf3a4c3508ec3c45698d28e6ddf39a8e8f2703fcae5b4eed5655b2fdacef7"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -38940,7 +39126,7 @@
     },
     {
       "path": "tools/ghidra/wc3_pathing_engine_probe.c",
-      "sha256": "145e8f29ddac82270a05a30c07d1cfcdaff22db22be1c016a511743ed5869fe0"
+      "sha256": "88fb703dc4d6857b689fdbf56a58da5d818d97880c76f0ba93708a98b96d9061"
     },
     {
       "path": "tools/ghidra/research/verify_route01_2_buffers.py",
@@ -39084,7 +39270,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "4338c06844e9ef9ac699a5848c78e4843182186e58cc73ae2840afbca0b81473"
+      "sha256": "c5dc3e3f515b86df0d0a3940005f916e40553bbb561301c9a1b5239224e3e6fd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -39285,6 +39471,66 @@
     {
       "path": "tests/test_wc3_pathfinding_target_warp.py",
       "sha256": "e253fa99f71a0a57c19af34de34a71508f1ec5a99d56a507983d9c78b831e384"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_speed.h",
+      "sha256": "6eb0fda7a492537e66d1735f0c22820936de31d99c3ecf8d1026875bb8f9aead"
+    },
+    {
+      "path": "games/warcraft-3/game/g_fow.c",
+      "sha256": "557f2deaa8ce0e44341f2dfbd7ee5e75f62e0d222b5de75c25d92b2d34ae147c"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_group_target_speed.h",
+      "sha256": "9da2cd336d6c210219097513fab7824ec613ab346d325fa451e96a43f424c6d0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_group_speed.py",
+      "sha256": "f720936c6a6e3b882f3be26859c63f451ceee0ffeff6540e34c40677e0060764"
+    },
+    {
+      "path": "tools/ghidra/research/verify_group_speed_live.py",
+      "sha256": "6f2c2de4975cc0ec22833a16ee06647fabe4feadcac905a50479502bf0e89531"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group-target-speed-1.27.json.gz",
+      "sha256": "cf833a3b9d4be9edbfd3431c95785c971bf44b32cb65fd44108769af789c3694"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group-speed-live-1.27.json.gz",
+      "sha256": "c779400b1bc5bac793cecca610fa0a5aa80435abe22d7fd6535107bf0b70b06e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group-speed-captures-1.27.json.gz",
+      "sha256": "a3b9f00aa91be26f15757a361268b14aa2bd796ccdb245a5ec67dd5dda02fcab"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-group-speed-ghidra-1.27.json",
+      "sha256": "a3528cbfb70fb63dd5b5dbd3db0a96ce2ddaf66e889f13eaca96bd43084d8fd3"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_group_speed.py",
+      "sha256": "3a9c132f8d0a5df10a3a0043b232f0de34ba5590ffa9e7298bc4b7d74a83d5a2"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_corpus.py",
+      "sha256": "c0c7ca284e97a94dddcc5a3bcffc979805c8fbd04c8e52ef0bcc91420ba715f1"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
+      "sha256": "a295def7168fcc577646f51e1911cd377733bb739a512b7217afdfa9ab7dc18c"
+    },
+    {
+      "path": "docs/games/warcraft-3/save-load.md",
+      "sha256": "5dba6a9252ac1d90c7f1f5959af3b1e9681f1f730d61128838746b20164f0c6f"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
+      "sha256": "5a23dcbc8fceb1b110f823874eb8083031cf8754ecc7a19d2cd7b7ab4ce0c858"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
+      "sha256": "49f91889edc8d082b1eca1af7655636c24d591fd23fca45f4cee3d77c316e5eb"
     }
   ]
 }

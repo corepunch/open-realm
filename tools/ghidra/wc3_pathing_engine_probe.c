@@ -13,6 +13,16 @@
 #include "games/warcraft-3/common/wc3_pathing_retry.h"
 #include "games/warcraft-3/common/wc3_pathing_widget.h"
 
+/* Controlled native16b5c0 policy; all inputs and output are fine scalar words. */
+uint32_t pathing_group_commit_speed(uint32_t const input[13]) {
+    wc3GroupSpeed_t speed={.flags=input[0],.unseen=input[1],.target=input[2]!=0,
+        .requested=wc3_float(input[3]),.cap=wc3_float(input[4]),.target_maximum=wc3_float(input[5]),
+        .target_velocity={wc3_float(input[6]),wc3_float(input[7])},
+        .source={wc3_float(input[8]),wc3_float(input[9])},
+        .destination={wc3_float(input[10]),wc3_float(input[11])},.arrival_range=wc3_float(input[12])};
+    return wc3_float_bits(wc3_group_commit_speed(&speed));
+}
+
 void pathing_widget_snap(uint32_t const input[5], uint32_t output[2]) {
     float point[]={wc3_float(input[0]),wc3_float(input[1])};
     wc3_widget_snap(point,input[input[4]&1 ? 3 : 2],input[input[4]&1 ? 2 : 3]);

@@ -34,4 +34,27 @@ static inline float wc3_speed_limit_update(wc3SpeedLimit_t *s) {
     return s->value;
 }
 
+/* Fine-cell inputs to original16b5c0, after member decisions and before the
+ * velocity commit. Keep the sampled destination distinct from the route goal. */
+typedef struct {
+    float requested, cap, target_maximum, target_velocity[2];
+    float source[2], destination[2], arrival_range;
+    uint32_t flags, unseen;
+    bool target;
+} wc3GroupSpeed_t;
+
+static inline float wc3_group_commit_speed(wc3GroupSpeed_t const *s) {
+    float speed=s->requested < s->cap ? s->requested : s->cap;
+    if (!(s->flags&0x800) || s->unseen || !(speed>0) || !s->target ||
+        !(speed>s->target_maximum)) return speed;
+    float moving=wc3_add(wc3_mul(s->target_velocity[0],s->target_velocity[0]),
+                         wc3_mul(s->target_velocity[1],s->target_velocity[1]));
+    if (!(moving>0)) return speed;
+    float threshold=wc3_add(s->arrival_range,4);
+    float x=wc3_sub(s->source[0],s->destination[0]),y=wc3_sub(s->source[1],s->destination[1]);
+    if (wc3_mul(threshold,threshold)>wc3_add(wc3_mul(x,x),wc3_mul(y,y)))
+        speed=wc3_mul(s->target_maximum,wc3_float(0x3f733334)); /* Runtime-parsed 0.95. */
+    return speed;
+}
+
 #endif

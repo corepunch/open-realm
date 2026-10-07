@@ -1831,6 +1831,23 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     return grid->visible && grid->visible[index] != 0;
 }
 
+/* Native23a760 uses mode4/flags0: ownership/shared vision bypass detection,
+ * but not the target vision cell. Rendering may still expose owned units. */
+bool G_FowPlayerCanTrackUnit(uint32_t player, edict_t const *ent) {
+    if (!ent || player>=MAX_PLAYERS) return false;
+    if (!G_FowReady()) return true;
+    if (G_UnitIsForcedVisibleToPlayer(ent,player)) return true;
+    if (S_UnitIsInvisibleToPlayer(ent,player)) return false;
+    if (G_FowPlayerFogDisabled(player)) return true;
+    uint32_t x=G_FowWorldToCellX(ent->s.origin.x),y=G_FowWorldToCellY(ent->s.origin.y);
+    if (x==FOW_INVALID_CELL || y==FOW_INVALID_CELL) return false;
+    fowPlayerGrid_t const *grid=&level.fow.players[player];
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast) return G_FowPackedAt(grid->packed_visible,grid,x,y);
+#endif
+    return grid->visible && grid->visible[y*level.fow.width+x]!=0;
+}
+
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
