@@ -4102,6 +4102,12 @@ SAVE_INT_FIELD_TEST(field_class_id_round_trip, class_id, MAKEFOURCC('h', 'p', 'e
 SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
+SAVE_INT_FIELD_TEST(field_wander_next_time_round_trip, wander_next_time, 9100)
+SAVE_INT_FIELD_TEST(field_wander_random_state_round_trip, wander_random_state, 0x1234567)
+SAVE_INT_FIELD_TEST(field_wander_goal_generation_round_trip, wander_goal_generation, 42)
+SAVE_INT_FIELD_TEST(field_waypoint_generation_round_trip, waypoint_generation, 43)
+SAVE_PTR_FIELD_TEST(field_wander_goal_round_trip, "wander_goal", wander_goal, 0)
+SAVE_PTR_FIELD_TEST(field_wander_waypoint_round_trip, "wander_waypoint", wander_waypoint, 0)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
 
 TEST(wc3_save, ability_owned_timed_summon_round_trip) {

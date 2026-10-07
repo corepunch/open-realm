@@ -78,8 +78,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Version 67 tags JASS dialog/button ids with a slot-reuse generation (66 stored plain one-based slots). */
-static uint32_t const save_version = 67;
+/* Version 68 adds persistent Awan scheduling and internal-order ownership. */
+static uint32_t const save_version = 68;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -840,6 +840,12 @@ field_t edict_fields[] = {
     F(edict_s, build_preview, F_EDICT, 0, FIELD_NONE),
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
+    F(edict_s, wander_next_time, F_INT),
+    F(edict_s, wander_random_state, F_INT),
+    F(edict_s, wander_goal, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, wander_waypoint, F_EDICT, 0, FIELD_NONE),
+    F(edict_s, wander_goal_generation, F_INT),
+    F(edict_s, waypoint_generation, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, shared_vision, F_INT),
@@ -2408,8 +2414,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-64.bin",
         "/tmp/openwarcraft3-wc3-save-version-65.bin",
         "/tmp/openwarcraft3-wc3-save-version-66.bin",
+        "/tmp/openwarcraft3-wc3-save-version-67.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67 };
 
     reset_entities();
     setup_test_world();

@@ -380,6 +380,7 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     } else {
         G_AddHealth(target, -damage);
     }
+    S_WanderOnDamage(target, attacker);
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
         if (!S_UnitAbilityEvent(target, A_NO_RETALIATE)) {

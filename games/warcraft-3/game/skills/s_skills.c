@@ -444,7 +444,7 @@ static ability_t abilitylist[] = {
     { "Aeth", CAbilityGhostVisible, AB_PASSIVE },  /* Ghost */
     { "Amin", CAbilityLandMine, AB_PASSIVE | AB_INNATE },  /* Mine - exploding */
     { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE },  /* Permanent Invisibility */
-    { "Awan", CAbilityWander, AB_PASSIVE },  /* Wander */
+    { "Awan", CAbilityWander, AB_PASSIVE | AB_INNATE },  /* Wander */
     /* Aarm is registered with the explicit regeneration family below. */
     { "Asid", CAbilitySellItem, AB_PASSIVE },  /* Sell Items */
     { "Asud", CAbilitySellUnit, AB_PASSIVE },  /* Sell Units */
