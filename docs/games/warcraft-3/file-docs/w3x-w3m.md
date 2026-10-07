@@ -85,4 +85,5 @@ war3mapImported\*.*     imported files (custom assets)
 - The MPQ starts at byte offset **512** (after the header).
 - To open a `.w3x` programmatically: skip the first 512 bytes, then parse as a standard MPQ.
 - The `war3map.j` may be relocated to `Scripts\war3map.j` by map protectors.
+- `war3map.w3b` uses the object-modification record layout shared with `war3map.w3u` and `war3map.w3t`. Custom destructable rows inherit their base `DestructableData.slk` row, then apply map-local field modifications before map doodads and JASS-created destructables spawn.
 - `(listfile)` is needed to enumerate files by name; some protected maps omit it.

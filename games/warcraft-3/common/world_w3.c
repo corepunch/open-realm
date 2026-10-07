@@ -162,6 +162,7 @@ static void CM_ReadWeather(handle_t archive);
 void CM_ReadUnits(handle_t archive);
 void CM_ReadItems(handle_t archive);
 void CM_ReadAbilities(handle_t archive);
+void CM_ReadDestructables(handle_t archive);
 void CM_ReadStrings(handle_t archive);
 void CM_ReadMapScript(handle_t archive);
 
@@ -178,6 +179,7 @@ static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadUnits,
     CM_ReadItems,
     CM_ReadAbilities,
+    CM_ReadDestructables,
     CM_ReadStrings,
     CM_ReadMapScript,
 };
@@ -497,6 +499,8 @@ static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_userCreatedItems, &world.info.userCreatedItems);
     CM_W3FreeUnitOverrides(world.info.num_originalAbilities, &world.info.originalAbilities);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
+    CM_W3FreeUnitOverrides(world.info.num_originalDestructables, &world.info.originalDestructables);
+    CM_W3FreeUnitOverrides(world.info.num_userCreatedDestructables, &world.info.userCreatedDestructables);
     CM_ReleaseModel();
     while (world.doodads) {
         doodad_t *doodad = world.doodads;
