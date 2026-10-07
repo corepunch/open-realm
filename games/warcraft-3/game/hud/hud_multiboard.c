@@ -5,7 +5,7 @@
 #define WC3_MB_ROW_HEIGHT 0.016f
 #define WC3_MB_HEADER_HEIGHT 0.020f
 #define WC3_MB_HEADER_PAD 0.006f
-#define WC3_MB_HEADER_GAP 0.004f
+#define WC3_MB_PANEL_GAP 0.001f
 #define WC3_MB_TOP 0.040f
 
 static uint32_t MultiboardFont(void) {
@@ -149,7 +149,8 @@ void UI_WriteMultiboard(edict_t *ent) {
     body_height = team
         ? (minimized ? 0.0f : rows * WC3_MB_ROW_HEIGHT + 0.012f)
         : (minimized ? 0.0f : rows * WC3_MB_ROW_HEIGHT) + 0.006f;
-    height = team ? WC3_MB_HEADER_HEIGHT + 0.006f + (minimized ? 0.0f : 0.004f + body_height)
+    height = team ? WC3_MB_HEADER_HEIGHT + WC3_MB_HEADER_PAD +
+                    (minimized ? 0.0f : WC3_MB_PANEL_GAP + body_height)
                   : WC3_MB_HEADER_HEIGHT + body_height;
     x = UI_BASE_WIDTH - WC3_MB_WIDTH - HUD_HERO_SHORTCUT_EDGE_X;
     /* Timer, leaderboard, title and resources form one top-right stack. */
@@ -163,9 +164,9 @@ void UI_WriteMultiboard(edict_t *ent) {
          * above the resource rows, matching the stock stacked HUD panels. */
         float const header_height = WC3_MB_HEADER_HEIGHT + WC3_MB_HEADER_PAD;
         float const header_square = header_height;
-        float const title_width = width - header_square - WC3_MB_HEADER_GAP;
-        float const square_x = x + title_width + WC3_MB_HEADER_GAP;
-        body_y = y + WC3_MB_HEADER_HEIGHT + 0.010f;
+        float const title_width = width - header_square - WC3_MB_PANEL_GAP;
+        float const square_x = x + title_width + WC3_MB_PANEL_GAP;
+        body_y = y + header_height + WC3_MB_PANEL_GAP;
         if (!minimized) MultiboardPanel(root, x, body_y, width, body_height);
         MultiboardPanel(root, x, y, title_width, header_height);
         MultiboardPanel(root, square_x, y, header_square, header_height);
