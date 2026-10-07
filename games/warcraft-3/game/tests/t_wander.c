@@ -718,4 +718,36 @@ TEST(wc3_wander, destroyed_building_does_not_restrict_wander_destination) {
     S_DisableAbility(unit, ID_AWAN);
 }
 
+static uint32_t wander_lethal_hit_edict_growth(bool with_wander) {
+    edict_t *unit, *attacker;
+    uint32_t before;
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    unit = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 0.0f, 0.0f);
+    attacker = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), -100.0f, 0.0f);
+    unit->svflags |= SVF_MONSTER;
+    unit->stand = unit_stand;
+    unit->die = unit_die;
+    if (with_wander) {
+        unit->abilities.added[0] = ID_AWAN;
+        ARRAY_COUNT(unit->abilities.added) = 1;
+    }
+    unit_stand(unit);
+    before = globals.num_edicts;
+    T_Damage(unit, attacker, (int)ceilf(unit->health.value));
+    T_ASSERT(M_IsDead(unit));
+    T_NULL(unit->wander_waypoint);
+    T_ASSERT(!move_is_active_order_walk(unit));
+    return globals.num_edicts - before;
+}
+
+/* A killing blow must not start a flee Move whose private waypoint death
+ * immediately tears down again. Compare edict growth against a unit without
+ * Awan so whatever unit_die itself allocates is factored out. */
+TEST(wc3_wander, lethal_hit_does_not_spawn_flee_waypoint) {
+    uint32_t const plain = wander_lethal_hit_edict_growth(false);
+    T_EQ(wander_lethal_hit_edict_growth(true), plain);
+}
+
 #endif

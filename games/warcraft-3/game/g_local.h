@@ -790,7 +790,7 @@ typedef enum {
     A_MOVE_START,       /* Move accepted a new target; call->move_target identifies it. */
     A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_MOVE_BLOCKED,     /* Move reached terminal Hold after a blocked route; true consumes the transition. */
-    A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
+    A_DAMAGED,          /* Positive post-mitigation damage applied to a surviving unit, before combat response. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
     A_NO_ACQUIRE,       /* Target query: return true to suppress automatic enemy acquisition. */
