@@ -80,6 +80,7 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define WC3_PATH_BLOCKVISION 0x10
 #define WC3_PATH_UNFLOAT     CM_PATHING_UNSWIMMABLE
 #define WC3_PATH_UNAMPH      0x80 /* placement predicate: UNWALKABLE && UNSWIMMABLE */
+#define WC3_PATH_NAGA_SHALLOW 0x01 /* preview policy: allow shallow-water UNBUILDABLE */
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
 #define ID_UPGRADE_EFFECT_ATTACK_DICE   MAKEFOURCC('r', 'a', 't', 'd')
 #define ID_UPGRADE_EFFECT_ATTACK_RANGE  MAKEFOURCC('r', 'a', 't', 'r')
@@ -130,8 +131,15 @@ static uint8_t G_PlacementFlags(cstring_t list) {
     return flags;
 }
 
-static bool G_PlacementPathingPrevented(uint8_t pathing, uint8_t prevented) {
-    uint8_t const simple = prevented & (uint8_t)~WC3_PATH_UNAMPH;
+static bool G_PlacementPathingPrevented(uint8_t pathing, uint8_t prevented, bool shallow_water) {
+    uint8_t simple = prevented & (uint8_t)~(WC3_PATH_UNAMPH | WC3_PATH_NAGA_SHALLOW);
+
+    /* Some shallow-water WPM cells carry UNBUILDABLE without the same
+     * UNWALKABLE signature. Only an actual water surface can exempt Naga
+     * placement from that authored/default bit. */
+    if ((prevented & WC3_PATH_NAGA_SHALLOW) && shallow_water) {
+        simple &= (uint8_t)~WC3_PATH_UNBUILDABLE;
+    }
     if (pathing & simple) return true;
     return (prevented & WC3_PATH_UNAMPH) &&
            (pathing & CM_PATHING_UNWALKABLE) &&
@@ -1226,6 +1234,7 @@ void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, u
     if (WC3_RaceFromString(data->race) == RACE_NAGA && G_UnitIsBuilding(building_id)) {
         prevented_flags &= (uint8_t)~WC3_PATH_UNWALKABLE;
         prevented_flags |= WC3_PATH_UNAMPH;
+        prevented_flags |= WC3_PATH_NAGA_SHALLOW;
     }
 
     if (prevented) {
@@ -1481,7 +1490,14 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
                 }
                 if (G_IsPointBlighted(&sample)) flags |= WC3_PATH_BLIGHTED;
                 else flags &= ~WC3_PATH_BLIGHTED;
-                if (G_PlacementPathingPrevented(flags, prevented)) {
+                bool shallow_water = false;
+                if ((prevented & WC3_PATH_NAGA_SHALLOW) &&
+                    (flags & WC3_PATH_UNBUILDABLE) &&
+                    !(flags & (CM_PATHING_UNSWIMMABLE | CM_PATHING_UNFLYABLE))) {
+                    shallow_water = CM_GetWaterHeightAtPoint(sample.x, sample.y) >
+                                    CM_GetHeightAtPoint(sample.x, sample.y);
+                }
+                if (G_PlacementPathingPrevented(flags, prevented, shallow_water)) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",

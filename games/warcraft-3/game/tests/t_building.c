@@ -2943,12 +2943,30 @@ TEST(wc3_building, placement_unamph_is_compound_walk_and_swim_blocker) {
     uint8_t const water = CM_PATHING_UNWALKABLE;
     uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
 
-    T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH));
-    T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH));
-    T_ASSERT(G_PlacementPathingPrevented(neither, WC3_PATH_UNAMPH));
+    T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH, false));
+    T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH, false));
+    T_ASSERT(G_PlacementPathingPrevented(neither, WC3_PATH_UNAMPH, false));
     T_ASSERT(!G_PlacementPathingRequired(land, WC3_PATH_UNAMPH));
     T_ASSERT(!G_PlacementPathingRequired(water, WC3_PATH_UNAMPH));
     T_ASSERT(G_PlacementPathingRequired(neither, WC3_PATH_UNAMPH));
+}
+
+TEST(wc3_building, naga_shallow_override_only_clears_unbuildable_on_water) {
+    uint8_t const unbuildable = WC3_PATH_UNBUILDABLE | WC3_PATH_NAGA_SHALLOW;
+    uint8_t const blocked_cliff = WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE |
+                                  WC3_PATH_NAGA_SHALLOW;
+
+    T_ASSERT(!G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE, unbuildable, true));
+    T_ASSERT(G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE, unbuildable, false));
+    T_ASSERT(G_PlacementPathingPrevented(WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE,
+                                         blocked_cliff, true));
+}
+
+static void building_set_test_water_surface(bool present) {
+    war3mapVertex_t *vertices = (war3mapVertex_t *)world.map->vertices;
+    uint16_t const waterlevel = present ? (uint16_t)(0x2000 + 4 * 32) : 0;
+    CM_W3SetWaterHeight(0.0f);
+    FOR_LOOP(i, world.map->width * world.map->height) vertices[i].waterlevel = waterlevel;
 }
 
 TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water) {
@@ -2971,36 +2989,49 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         T_ASSERT(prevented & WC3_PATH_UNBUILDABLE);
         T_ASSERT(prevented & WC3_PATH_UNAMPH);
         T_ASSERT(!(prevented & WC3_PATH_UNWALKABLE));
+        T_ASSERT(prevented & WC3_PATH_NAGA_SHALLOW);
         T_EQ(required, 0);
 
+        building_set_test_water_surface(false);
         memset(pathmap, CM_PATHING_UNSWIMMABLE, sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
-        memset(pathmap, CM_PATHING_UNWALKABLE, sizeof(pathmap));
+        /* Retail shallow-water WPM cells include both UNWALKABLE and
+         * UNBUILDABLE, but remain swimmable. */
+        building_set_test_water_surface(true);
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE, sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
-        memset(pathmap, CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE, sizeof(pathmap));
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNSWIMMABLE,
+               sizeof(pathmap));
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
+
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLYABLE,
+               sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
 
         memset(pathmap, WC3_PATH_UNBUILDABLE, sizeof(pathmap));
+        building_set_test_water_surface(false);
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
     }
 
     G_GetBuildPlacementPathingFlags(MAKEFOURCC('h','b','a','r'), &prevented, &required);
     T_ASSERT(prevented & WC3_PATH_UNWALKABLE);
-    memset(pathmap, CM_PATHING_UNWALKABLE, sizeof(pathmap));
+    building_set_test_water_surface(true);
+    memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE, sizeof(pathmap));
     setup_test_pathmap(CELLS, CELLS, pathmap);
     T_EQ(G_EvaluateBuildPlacement(builder, MAKEFOURCC('h','b','a','r'), &requested, NULL),
          PLACE_TERRAIN_BLOCKED);
 }
 
 TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {
-    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
-    T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT, false));
+    T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT, false));
     T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
     T_ASSERT(!G_PlacementPathingRequired(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
 }

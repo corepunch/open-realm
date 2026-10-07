@@ -369,9 +369,22 @@ static void V_ClearScene(void) {
 /* Building-placement preview predicates normally map directly to pathing
  * bits. The authored 0x80 predicate is the compound UNWALKABLE &&
  * UNSWIMMABLE condition, so evaluate it explicitly instead of sampling 0x80. */
-static bool CL_BuildPathingPrevented(uint8_t pathing, uint8_t prevented) {
+static bool CL_BuildPathingPrevented(uint8_t pathing, uint8_t prevented, vec2_t const *point) {
     uint8_t const unamph = 0x80;
-    uint8_t const simple = prevented & (uint8_t)~unamph;
+    uint8_t const naga_shallow = 0x01;
+    uint8_t const unbuildable = 0x08;
+    uint8_t simple = prevented & (uint8_t)~(unamph | naga_shallow);
+    bool shallow_water = false;
+
+    if ((prevented & naga_shallow) && (pathing & unbuildable) && point &&
+        !(pathing & (CM_PATHING_UNSWIMMABLE | CM_PATHING_UNFLYABLE))) {
+        shallow_water = CM_GetWaterHeightAtPoint(point->x, point->y) >
+                        CM_GetHeightAtPoint(point->x, point->y);
+    }
+    /* Only actual, swimmable water can override UNBUILDABLE for Naga. */
+    if (shallow_water) {
+        simple &= (uint8_t)~unbuildable;
+    }
     if (pathing & simple) return true;
     return (prevented & unamph) &&
            (pathing & CM_PATHING_UNWALKABLE) &&
@@ -433,7 +446,7 @@ static void CL_AddBuildingPlacementGrid(vec3_t const *origin) {
             };
             blocked = !CM_GetPathingFlagsAt(&sample, &pathing);
             if (!blocked) CL_GameModifyBuildPathing(&sample, &pathing);
-            blocked = blocked || CL_BuildPathingPrevented(pathing, prevented) ||
+            blocked = blocked || CL_BuildPathingPrevented(pathing, prevented, &sample) ||
                       !CL_BuildPathingRequired(pathing, required);
             rect.color = blocked || mine_blocked
                 ? (color32_t){ 255, 0, 0, 166 }
