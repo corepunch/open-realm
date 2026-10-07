@@ -23,7 +23,7 @@ must not convert a hostile player into a friendly controllable army.
 | Research, building upgrades | `CLIENTCOMMAND(Research/Upgrade)` advanced gate |
 | Worker construction placement menu and click | `s_build.c` advanced gate |
 | Production queue cancellation and cancel command | `G_UnitCanSpendResources` |
-| Production command-card display | `Get_Commands_f` disables spending buttons without advanced sharing |
+| Production command-card display | `Get_Commands_f` disables spending buttons, including the Build submenu entry, without advanced sharing; `UI_WriteBuildQueue` offers queue cancel hit targets only to viewers who may cancel |
 | Alliance changes | `G_SetPlayerAlliance` invalidates shortcuts and source player's command card |
 
 The permission checks apply to *player-initiated* orders; internal AI, map script

@@ -549,7 +549,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
      * FT_BUILDQUEUE payload that drives the client progress bar. */
     building_queue_frame_count = 0;
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteBuildQueue(building);
+    UI_WriteBuildQueue(building, client);
     T_EQ(building_queue_frame_count, 1);
     T_EQ(building_queue_numitems, 1);
     T_ASSERT(building_queue_buildtimer != 0);
@@ -568,7 +568,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
      * queue backdrop is hidden. */
     building_queue_frame_count = 0;
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteBuildQueue(building);
+    UI_WriteBuildQueue(building, client);
     T_EQ(building_queue_frame_count, 1);
     T_EQ(building_queue_numitems, 1);
     T_ASSERT(building_queue_buildtimer != 0);
@@ -2319,6 +2319,213 @@ TEST(wc3_building, advanced_control_grant_and_revoke_dirty_viewer_card) {
     viewer->connected = was_connected;
     viewer->commands_dirty = was_dirty;
 }
+
+/* Shared-control fixtures: client 0 owns the units, client 1 is the allied
+ * viewer.  Captured command buttons are keyed by their registered art so a
+ * disabled (DIS-skinned) button can still be matched to its command. */
+#define SHARED_MAX_BUTTONS 24 // FT_COMMANDBUTTON frames one command card can emit
+#define SHARED_MAX_IMAGES 64  // distinct image registrations one capture tracks
+
+typedef struct {
+    gameClient_t *owner;
+    gameClient_t *viewer;
+    edict_t *owner_ent;
+    edict_t *viewer_ent;
+} sharedControlFixture_t;
+
+static PATHSTR shared_image_paths[SHARED_MAX_IMAGES];
+static uint32_t shared_image_count;
+static uint32_t shared_button_image[SHARED_MAX_BUTTONS];
+static float shared_button_x[SHARED_MAX_BUTTONS];
+static float shared_button_y[SHARED_MAX_BUTTONS];
+static bool shared_button_has_onclick[SHARED_MAX_BUTTONS];
+static char shared_button_onclick[SHARED_MAX_BUTTONS][64];
+static uint32_t shared_button_count;
+static uint32_t shared_cancel_train_targets;
+
+static int shared_image_index(cstring_t name) {
+    FOR_LOOP(i, shared_image_count) if (!strcmp(shared_image_paths[i], name)) return (int)i + 1;
+    if (shared_image_count >= SHARED_MAX_IMAGES) return 0;
+    snprintf(shared_image_paths[shared_image_count], sizeof(shared_image_paths[0]), "%s", name);
+    return (int)++shared_image_count;
+}
+
+static void shared_reset_capture(void) {
+    memset(shared_image_paths, 0, sizeof(shared_image_paths));
+    memset(shared_button_image, 0, sizeof(shared_button_image));
+    memset(shared_button_x, 0, sizeof(shared_button_x));
+    memset(shared_button_y, 0, sizeof(shared_button_y));
+    memset(shared_button_has_onclick, 0, sizeof(shared_button_has_onclick));
+    memset(shared_button_onclick, 0, sizeof(shared_button_onclick));
+    shared_image_count = shared_button_count = shared_cancel_train_targets = 0;
+}
+
+static void shared_capture_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame;
+    if (type != PF_UIFRAME || !value) return;
+    frame = value;
+    if (frame->flags.type == FT_COMMANDBUTTON && shared_button_count < SHARED_MAX_BUTTONS) {
+        shared_button_image[shared_button_count] = frame->tex.index;
+        /* Serialized points are int16 UI_FRAMEPOINT_SCALE units, y negated. */
+        shared_button_x[shared_button_count] = (float)frame->points.x[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+        shared_button_y[shared_button_count] = -(float)frame->points.y[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+        shared_button_has_onclick[shared_button_count] = frame->onclick != NULL;
+        snprintf(shared_button_onclick[shared_button_count], sizeof(shared_button_onclick[0]),
+                 "%s", frame->onclick ? frame->onclick : "");
+        shared_button_count++;
+    } else if (frame->flags.type == FT_SIMPLEFRAME && frame->onclick &&
+               !strncmp(frame->onclick, "canceltrain ", 12)) {
+        shared_cancel_train_targets++;
+    }
+}
+
+/* Captured button authored at command-card cell (x, y); the fixture gives
+ * every command the same art, so the cell is the identity.  Mirrors the
+ * UI_WriteCommandButtonFrame grid origin and pitch. */
+static int shared_button_for_cell(uint8_t x, uint8_t y) {
+    float const fx = 0.6175f + (float)x * 0.0434f;
+    float const fy = 0.4660f + (float)y * 0.0440f;
+    float const eps = 1.5f / UI_FRAMEPOINT_SCALE; /* int16 quantization */
+    FOR_LOOP(i, shared_button_count)
+        if (fabsf(shared_button_x[i] - fx) < eps && fabsf(shared_button_y[i] - fy) < eps) return (int)i;
+    return -1;
+}
+
+static sharedControlFixture_t shared_control_fixture(bool advanced) {
+    sharedControlFixture_t f = { &game.clients[0], &game.clients[1], &g_edicts[0], &g_edicts[1] };
+    setup_test_world();
+    G_SetClientConnected(f.owner_ent, true);
+    G_SetClientConnected(f.viewer_ent, true);
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    f.owner->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_SHARED_CONTROL, true);
+    G_SetPlayerAlliance(&f.viewer->ps, &f.owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, advanced);
+    return f;
+}
+
+static edict_t *shared_owned_unit(sharedControlFixture_t const *f, uint32_t class_id, UnitProfile_t *profile) {
+    edict_t *unit = alloc_test_unit(class_id, 0.0f, 0.0f);
+    unit->data.UnitProfile = profile;
+    unit->s.player = f->owner->ps.number;
+    G_SelectEntity(f->viewer, unit);
+    return unit;
+}
+
+static void shared_check_build_menu_button(bool advanced) {
+    /* G_UnitHasBuildMenu reads the profile table, not the entity's row. */
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old_rows = G_SetProfileRows(rows);
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .builds = "hbar" };
+    gameCommandButton_t buttons[12];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *worker = shared_owned_unit(&f, MAKEFOURCC('h','p','e','a'), &profile);
+    gameCommandButton_t const *build = NULL;
+    int index;
+
+    T_ASSERT(G_UnitHasBuildMenu(worker));
+    FOR_LOOP(i, G_GetCommandButtons(worker, buttons, 12))
+        if (!strcmp(buttons[i].command, STR_CmdBuild)) build = &buttons[i];
+    T_NOT_NULL(build);
+    if (!build) { G_SetProfileRows(old_rows); free_slk_rows(rows); return; }
+
+    shared_reset_capture();
+    gi.Write = shared_capture_write;
+    gi.ImageIndex = shared_image_index;
+    Get_Commands_f(f.viewer_ent);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+
+    /* The Build submenu spends the owner's resources (ui_builds is gated on
+     * advanced sharing), so the card must agree with that authority. */
+    index = shared_button_for_cell(build->x, build->y);
+    T_ASSERT(index >= 0);
+    if (index >= 0) {
+        T_EQ(shared_button_has_onclick[index], advanced);
+        if (advanced) T_STREQ(shared_button_onclick[index], "button " STR_CmdBuild);
+        else T_NOT_NULL(strstr(shared_image_paths[shared_button_image[index] - 1], "DIS"));
+    }
+    G_SetProfileRows(old_rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, basic_control_ally_sees_build_menu_disabled) { shared_check_build_menu_button(false); }
+TEST(wc3_building, advanced_control_ally_sees_build_menu_enabled) { shared_check_build_menu_button(true); }
+
+static void shared_check_queue_cancel_targets(bool advanced) {
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .trains = "hpea" };
+    UnitBalance_t balance;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    edict_t *barracks = shared_owned_unit(&f, MAKEFOURCC('h','b','a','r'), &profile);
+
+    /* The fixture Barracks row carries no building flag; the queue panel needs one. */
+    balance = *barracks->data.UnitBalance;
+    balance.isBuilding = true;
+    barracks->data.UnitBalance = &balance;
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    T_EQ(G_ProductionQueueCount(barracks), 2);
+    T_ASSERT(UI_TestUsesBuildingQueuePanel(f.viewer, barracks));
+
+    gi.Write = shared_capture_write;
+    gi.ImageIndex = shared_image_index;
+    /* The owner always gets one cancel target per queued item. */
+    shared_reset_capture();
+    UI_SendInfoPanel(f.owner_ent, &barracks, 1);
+    T_EQ(shared_cancel_train_targets, 2);
+    /* CancelTrain is denied server-side without advanced sharing, so the
+     * viewer's panel offers the hit targets only when the command would work. */
+    shared_reset_capture();
+    UI_SendInfoPanel(f.viewer_ent, &barracks, 1);
+    T_EQ(shared_cancel_train_targets, advanced ? 2 : 0);
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, basic_control_ally_sees_no_queue_cancel_targets) { shared_check_queue_cancel_targets(false); }
+TEST(wc3_building, advanced_control_ally_sees_queue_cancel_targets) { shared_check_queue_cancel_targets(true); }
+
+static void shared_check_spending_commands(bool advanced) {
+    sharedControlFixture_t f = shared_control_fixture(advanced);
+    UnitProfile_t profile = { .trains = "hpea", .researches = "Rhme" };
+    slkTestData_t *rows = NULL;
+    slkTestData_t *old = building_install_upgrade_data(&rows);
+    edict_t *barracks;
+    uint32_t gold, queued;
+
+    memset(f.owner->tech, 0, sizeof(f.owner->tech));
+    barracks = shared_owned_unit(&f, MAKEFOURCC('h','b','a','r'), &profile);
+    T_ASSERT(G_UnitCanControl(f.viewer, barracks));
+    T_EQ(G_UnitCanSpendResources(f.viewer, barracks), advanced);
+    gold = f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "button", "hpea" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? 1 : 0);
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "research", "Rhme" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? 2 : 0);
+    if (advanced) T_ASSERT(f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD] < gold);
+    else T_EQ(f.owner->ps.stats[PLAYERSTATE_RESOURCE_GOLD], gold);
+
+    /* The owner's own production can only be cancelled with advanced sharing. */
+    T_ASSERT(SP_TrainUnit(barracks, MAKEFOURCC('h','p','e','a')));
+    queued = G_ProductionQueueCount(barracks);
+    G_ClientCommand(f.viewer_ent, 2, (cstring_t[]){ "canceltrain", "0" });
+    T_EQ(G_ProductionQueueCount(barracks), advanced ? queued - 1 : queued);
+
+    building_restore_upgrade_data(old, rows);
+}
+
+TEST(wc3_building, basic_control_ally_commands_cannot_spend_owner_resources) { shared_check_spending_commands(false); }
+TEST(wc3_building, advanced_control_ally_commands_spend_owner_resources) { shared_check_spending_commands(true); }
 
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
     edict_t *clent = &g_edicts[0];
