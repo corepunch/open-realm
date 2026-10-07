@@ -956,6 +956,8 @@ void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
                                   is_hero);
 }
 
+#define WC3_MULTISELECT_CLASSIC_CAPACITY 12 // units; the original 6x2 icon grid, larger selections need the 8x3 compact grid
+
 void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) {
     edict_t *focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
     cstring_t highlight = Theme_String("SelectedSubgroupHighlight", NULL);
@@ -971,8 +973,8 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     multi->mana_bar = gi.ImageIndex("SimpleManaBarConsole");
     multi->focus_highlight = highlight && *highlight ? gi.ImageIndex(highlight) : 0;
     /* The 8x3 Reforged-style layout fits inside the existing info panel.
-     * Keep original spacing at 12 or fewer to preserve the classic HUD. */
-    bool const compact = count > 12;
+     * Keep original spacing at the classic capacity to preserve the classic HUD. */
+    bool const compact = count > WC3_MULTISELECT_CLASSIC_CAPACITY;
     multi->offset = compact ? MAKE(vec2_t, 0.022f, 0.038f) : MAKE(vec2_t, 0.031f, 0.050f);
     multi->numcolumns = compact ? 8 : 6;
     multi->numitems = count;
@@ -988,8 +990,8 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_MULTISELECT;
     frame.color = COLOR32_WHITE;
-    UI_SetFrameRect(&frame, 0.314f, 0.500f, count > 12 ? 0.019f : 0.025f,
-                    count > 12 ? 0.019f : 0.025f);
+    UI_SetFrameRect(&frame, 0.314f, 0.500f, compact ? 0.019f : 0.025f,
+                    compact ? 0.019f : 0.025f);
     UI_WriteProxyFrame(&frame, buffer, size);
     gi.MemFree(buffer);
 }
