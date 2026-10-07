@@ -2500,6 +2500,31 @@ TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, autoharvestlumber_starts_wisp_harvest) {
+    slkTestData_t *rows, *old;
+    float const old_range = HARVEST_RANGE;
+    edict_t *wisp, *tree;
+
+    reset_entities();
+    setup_test_world();
+    rows = parse_slk_string(slk_wisp_harvest_test_data);
+    old = G_SetSLKRows("AbilityData", rows);
+    wisp = make_moving_unit(0.0f, 0.0f);
+    tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    HARVEST_RANGE = 128.0f;
+
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestlumber"));
+    T_EQ(wisp->goalentity, tree);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, wisp_harvest_uses_stock_range_and_duration) {
     slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_stock_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -4857,6 +4882,34 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     T_ASSERT(wisp->paused);
     T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, harvest_order_boards_wisp_into_entangled_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *mine, *wisp;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    mine->s.player = wisp->s.player = 0;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->construction = G_AllocConstruction();
+    T_NOT_NULL(mine->construction);
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+
+    T_ASSERT(unit_issuetargetorder(wisp, "harvest", mine));
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+
+    G_FreeConstruction(mine);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
