@@ -1,12 +1,12 @@
 /* Server-authored multiboard / Team Resources presentation. */
 #include "hud_local.h"
 
-#define WC3_MB_WIDTH 0.275f
-#define WC3_MB_ROW_HEIGHT 0.016f
-#define WC3_MB_HEADER_HEIGHT 0.020f
-#define WC3_MB_HEADER_PAD 0.006f
-#define WC3_MB_PANEL_GAP 0.001f
-#define WC3_MB_TOP 0.040f
+#define WC3_MB_WIDTH 0.275f // FDF units; panel width matching the stock top-right HUD stack
+#define WC3_MB_ROW_HEIGHT 0.016f // FDF units; one resource/cell row at HUD_FONT_SIZE
+#define WC3_MB_HEADER_HEIGHT 0.020f // FDF units; title strip text height
+#define WC3_MB_HEADER_PAD 0.006f // FDF units; title strip padding above/below the text
+#define WC3_MB_PANEL_GAP 0.001f // FDF units; gap between the title strip and the body panel
+#define WC3_MB_TOP 0.040f // FDF units; stack origin below the top edge, before timer/leaderboard offsets
 
 static uint32_t MultiboardFont(void) {
     frameDef_t *title = hud.leaderboard.LeaderboardTitle;
@@ -50,7 +50,7 @@ static void MultiboardButton(uint32_t parent, float x, float y, float w, float h
     frame.onclick = "team_resources_toggle";
     frame.color = COLOR32_WHITE;
     label.font = MultiboardFont();
-    label.textalignx = FONT_JUSTIFYMIDDLE;
+    label.textalignx = FONT_JUSTIFYCENTER;
     label.textaligny = FONT_JUSTIFYMIDDLE;
     UI_SetFrameRect(&frame, x, y, w, h);
     frame.points.x[FPP_MIN].relativeTo = UI_PARENT;
