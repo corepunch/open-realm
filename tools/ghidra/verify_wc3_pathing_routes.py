@@ -28,6 +28,8 @@ def main():
     parser.add_argument('--outside-axis-fixture', type=Path, help='completing public outside-axis controls')
     parser.add_argument('--buffer-fixture', type=Path, help='frozen public buffer/invalid-start controls')
     parser.add_argument('--buffer-ghidra-evidence', type=Path, help='saved buffer/source Ghidra readback')
+    parser.add_argument('--consumer-fixture', type=Path, help='public controls with original coarse-distance initialization')
+    parser.add_argument('--consumer-ghidra-evidence', type=Path, help='saved consumer/initializer annotations')
     parser.add_argument('--producer-fixture', type=Path, help='also run the complete ROUTE-01.1 producer corpus')
     parser.add_argument('--engine-fixture', type=Path, help='literal Move adapter regression subset')
     parser.add_argument('--ghidra-evidence', type=Path, help='saved reconstruction function annotations')
@@ -180,6 +182,29 @@ def main():
             assert len(saved['functions']) == 12
             assert all('Payoff141 ROUTE-01.2:' in f['comment'] for f in saved['functions'])
             report['buffer_saved_functions'] = len(saved['functions'])
+    if args.consumer_fixture:
+        consumer_report = args.report.with_name(args.report.stem + '-consumers.json')
+        command = [sys.executable, str(Path(__file__).parent / 'research' / 'verify_route01_2_buffers.py'),
+                   '--binary', str(args.binary), '--report', str(consumer_report),
+                   '--expected', str(args.consumer_fixture), '--initialized-consumer']
+        if args.engine_library:
+            command += ['--engine', str(args.engine_library)]
+        subprocess.run(command, check=True)
+        consumers = json.loads(consumer_report.read_text())
+        for key in ('rows', 'growth_cases', 'payload_sha256'):
+            report['consumer_' + key] = consumers[key]
+        if args.engine_library:
+            report['consumer_engine_fine_builds'] = consumers['engine_fine_builds']
+            report['consumer_engine_coarse_builds'] = consumers['engine_coarse_builds']
+            report['consumer_engine_differences'] = len(consumers['engine_differences'])
+        subprocess.run([sys.executable, str(Path(__file__).parent / 'research' / 'export_route012_consumers.py'), '--check'], check=True)
+        report['consumer_adapter_rows'] = 208
+        if args.consumer_ghidra_evidence:
+            saved = json.loads(args.consumer_ghidra_evidence.read_text())
+            assert saved['binary_sha256'] == digest and not saved['unsaved_changes']
+            assert len(saved['functions']) == 4
+            assert all('Payoff142 ROUTE-01.2:' in f['comment'] for f in saved['functions'])
+            report['consumer_saved_functions'] = len(saved['functions'])
     if args.outside_axis_fixture:
         axis_report = args.report.with_name(args.report.stem + '-outside-axis.json')
         command = [sys.executable, str(Path(__file__).parents[1] / 'frida' / 'research' / 'route012_summarize.py'),

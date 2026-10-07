@@ -842,7 +842,11 @@
         "--buffer-ghidra-evidence",
         "tools/ghidra/fixtures/retail-route-buffer-ghidra-1.27.json",
         "--outside-axis-fixture",
-        "tools/ghidra/fixtures/retail-outside-axis-1.27.json"
+        "tools/ghidra/fixtures/retail-outside-axis-1.27.json",
+        "--consumer-fixture",
+        "tools/ghidra/fixtures/retail-route-consumers-initialized-1.27.json",
+        "--consumer-ghidra-evidence",
+        "tools/ghidra/fixtures/retail-route-consumer-ghidra-1.27.json"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -913,6 +917,30 @@
         },
         "buffer_axis_observer_free_controls": {
           "equal": 1
+        },
+        "consumer_rows": {
+          "equal": 264
+        },
+        "consumer_growth_cases": {
+          "equal": 12
+        },
+        "consumer_payload_sha256": {
+          "equal": "052c77870db6f69a780a7f322fed3159628c40c2b8210670e5a0f3fc836566cc"
+        },
+        "consumer_engine_fine_builds": {
+          "equal": 452
+        },
+        "consumer_engine_coarse_builds": {
+          "equal": 152
+        },
+        "consumer_engine_differences": {
+          "equal": 0
+        },
+        "consumer_adapter_rows": {
+          "equal": 208
+        },
+        "consumer_saved_functions": {
+          "equal": 4
         }
       },
       "evidence": [
@@ -921,7 +949,7 @@
         "C",
         "L"
       ],
-      "scope": "Original synthetic reconstruction controls plus full166e90/166c30 route producers:2664 fine and10656 coarse requests, all four footprint classes/four lanes,36 regular vectors plus9 enclosed-goal vectors, two source fractions, complete/partial/bypass words, exact original float32 model and production C;200 literal adapter regression rows and7 saved Ghidra functions. Supplied map/bucket/storage preconditions; public cadence, world transforms and buffer growth remain separate. Synthetic size4 chains are not real166c30 producer evidence. Payoff141 adds264 frozen public buffer/invalid-start scenarios and12 growth controls;452 fine/152 adaptive reached builds compare exact with production C, with12 saved Ghidra functions. Two completing public axis-setter repeats and one observer-free control establish three outside sources. Full actual engine public-advance state, cold-invalid source and post-load search history are not certified by these kernel comparisons.",
+      "scope": "Original synthetic reconstruction controls plus full166e90/166c30 route producers:2664 fine and10656 coarse requests, all four footprint classes/four lanes,36 regular vectors plus9 enclosed-goal vectors, two source fractions, complete/partial/bypass words, exact original float32 model and production C;200 literal adapter regression rows and7 saved Ghidra functions. Supplied map/bucket/storage preconditions; public cadence, world transforms and buffer growth remain separate. Synthetic size4 chains are not real166c30 producer evidence. Payoff141 adds264 frozen public buffer/invalid-start scenarios and12 growth controls;452 fine/152 adaptive reached builds compare exact with production C, with12 saved Ghidra functions. Two completing public axis-setter repeats and one observer-free control establish three outside sources. Full actual engine public-advance state, cold-invalid source and post-load search history are not certified by these kernel comparisons. Payoff142 labels the original buffer oracle as zero-BSS coarse-consumer controls; a new264-row fixture runs original0040d0 distance initialization.208 ordinary Move consumer literals plus48 saved continuations verify represented buffer/work/queue/time/output state.452/152 reached kernels remain exact; invalid-start public consumer outcomes and post-load history remain open.",
       "exclusions": []
     },
     {
@@ -37219,7 +37247,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "850de01214ec5d83ea64d4419092e0372829d15b1bb0aa6ac445381410a3046f"
+      "sha256": "4808e7b0c4b93ed9aac3395d1e189ba4a86d862034fa59edffcebaa61030b602"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38075,7 +38103,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "41b74d87c047ef43a182c59ef574b4c7c101c99ca100906f27392c416f7f705e"
+      "sha256": "c43d1a7616541e2fc7290ade5c0958b2e984e0c61425d8c020b4a95d552c19f9"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -38507,7 +38535,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "46d0d1c3539938ce2a3eb457b5f14239d574bd24a5dff2d9caecc6321fd0eac3"
+      "sha256": "55cd4b00475bb845329808384531dc25b43159c60ef8393d7c986a29d8a1b85c"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38571,11 +38599,11 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "4f5fbd9445182201e7505d525580ee10561ff6ea660bfb087a0d8c0ad17f5f7e"
+      "sha256": "d0084ad0a17d42ad8b824765494e5efef57a75649e4672eaa81a05e73d2ad0e8"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
-      "sha256": "40bb9f9fc874591acd47c850ea7779cc4dd834a0103d2ffbfddfaf1ed421edd7"
+      "sha256": "de39ca620a207a6b153fd8828ab2bc2d38635fe825d82ad9b59db2d46fbae31a"
     },
     {
       "path": "shared/types/vector2.h",
@@ -38627,7 +38655,7 @@
     },
     {
       "path": "tools/ghidra/research/verify_route01_2_buffers.py",
-      "sha256": "c93c0141c9d424a121dd467d6f12d64f7f24fe5a493c843be1939869fe3af283"
+      "sha256": "1e6d8af1088dd706bd1c851fb3babdf00c3dd7dfb0653f225cfeaa3b692c3f07"
     },
     {
       "path": "tools/ghidra/fixtures/research/ROUTE-01.2-expected.json",
@@ -38643,7 +38671,7 @@
     },
     {
       "path": "tests/test_wc3_route_buffers.py",
-      "sha256": "cca5f7d7cbdd15294c6c1ac5a201c4403b6a840e7adfd1d104a6ac076a511176"
+      "sha256": "098e18b5133a49e3566be5126359fc668ed5b2c19b28e26485a0d9fc47d5ea2e"
     },
     {
       "path": "tools/ghidra/fixtures/retail-outside-axis-control-1.27.jsonl.gz",
@@ -38688,6 +38716,22 @@
     {
       "path": "tools/ghidra/fixtures/retail-outside-axis-repeat-1.27-preload.txt.gz",
       "sha256": "ad39f0bf3f81d8240c1d079316b643de76a27ff40bcb0c87c4d2083d5d64baf6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_route_consumers.h",
+      "sha256": "cb165d2f20a0582ebd8db35461d9b7881851630cf7eabdf7a29075ee15258d79"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-consumer-ghidra-1.27.json",
+      "sha256": "9fba331e129d0bc27284931be29331b4b9c5b07cd9efc88ad2211b495dc2f8e6"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-route-consumers-initialized-1.27.json",
+      "sha256": "528830197413a43f1c22520d0ce2eb95a371fa517144cadf842990ef44f64f7e"
+    },
+    {
+      "path": "tools/ghidra/research/export_route012_consumers.py",
+      "sha256": "5bea39e0c28baf675745fdbc81748ef257210113430b455a220cffb7fe6ff6e4"
     }
   ]
 }

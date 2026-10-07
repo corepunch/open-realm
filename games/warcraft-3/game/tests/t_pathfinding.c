@@ -43,6 +43,7 @@
 #include "retail_coarse_scopes.h"
 #include "retail_reconstruction.h"
 #include "retail_stale_route.h"
+#include "retail_route_consumers.h"
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -3556,6 +3557,106 @@ TEST(wc3_pathfinding, retained_route_consumers_do_not_copy_whole_chains_to_scrat
 /* Original setup0 leaves the previous node identities and search parameters
  * intact. The request still runs one pop and reconstructs its retained nearest
  * chain, replacing only the source endpoint with the current exact words. */
+unsigned S_TestMoveRouteDirection(edict_t *,vec2_t const *,vec2_t *);
+
+static void check_retail_route_consumer(edict_t *unit,vec2_t const *goal,int state,unsigned case_id) {
+    retailRouteConsumerState_t const *expected=retail_route_consumer_states+state;
+    moveFineRoute_t const *route=&unit->movement.fine_route;
+    vec2_t direction={0};
+    unsigned result=S_TestMoveRouteDirection(unit,goal,&direction);
+    if(route->count!=expected->count || route->index!=expected->index ||
+        route->adaptive_count!=expected->coarse_count || route->adaptive_index!=expected->coarse_index ||
+        level.move_fine_budgets[0].work!=expected->fine_work)
+        fprintf(stderr,"ROUTE012 case%u state%d result%u fine%u/%08x coarse%u/%08x work%u/%u time%u/%u expected fine%u/%08x coarse%u/%08x work%u/%u time%u/%u\n",
+            case_id,state,result,route->count,route->index,route->adaptive_count,route->adaptive_index,
+            level.move_fine_budgets[0].work,level.move_coarse_budgets[0][2].work,
+            unit->movement.fine_request_time,route->adaptive_admission.time,
+            expected->count,expected->index,expected->coarse_count,expected->coarse_index,
+            expected->fine_work,expected->coarse_work,expected->fine_time,expected->coarse_time);
+    /* Steering READY means the original public advance returned0. STOP
+     * means admission returned2; this is not a claim that its enum is EAX. */
+    T_EQ(result,expected->result ? 2u : 1u);
+    T_EQ(route->count,expected->count);T_EQ(route->capacity,expected->capacity);T_EQ(route->index,expected->index);
+    T_EQ(route->adaptive_count,expected->coarse_count);T_EQ(route->adaptive_capacity,expected->coarse_capacity);
+    T_EQ(route->adaptive_index,expected->coarse_index);
+    T_EQ(unit->movement.fine_request_time,expected->fine_time);
+    T_EQ(route->adaptive_admission.time,expected->coarse_time);
+    T_EQ(unit->movement.wait_delay,expected->delay);T_EQ(unit->movement.retry_count,expected->retry);
+    moveFineBudget_t const *fine=&level.move_fine_budgets[0];
+    moveCoarseBudget_t const *coarse=&level.move_coarse_budgets[0][2];
+    T_EQ(fine->work,expected->fine_work);T_EQ(fine->count,expected->fine_queued);
+    T_EQ(coarse->work,expected->coarse_work);T_EQ(coarse->count,expected->coarse_queued);
+    T_EQ(unit->movement.fine_queued,expected->fine_queued!=0);
+    T_EQ(route->adaptive_admission.queued,expected->coarse_queued!=0);
+    T_ASSERT((fine->head==unit)==(expected->fine_queued!=0));
+    T_ASSERT((coarse->head==&route->adaptive_admission)==(expected->coarse_queued!=0));
+    T_EQ(wc3_float_bits(direction.x),wc3_float_bits(wc3_sub(wc3_float(expected->output[0]),30.125f)));
+    T_EQ(wc3_float_bits(direction.y),wc3_float_bits(wc3_sub(wc3_float(expected->output[1]),33.875f)));
+    if(route->count==expected->count && route->points) FOR_LOOP(i,route->count) {
+        T_EQ(wc3_float_bits(route->points[i].x),expected->points[i*2]);
+        T_EQ(wc3_float_bits(route->points[i].y),expected->points[i*2+1]);
+    }
+    if(route->adaptive_count==expected->coarse_count && route->adaptive_points) FOR_LOOP(i,route->adaptive_count) {
+        T_EQ(wc3_float_bits(route->adaptive_points[i].x),expected->coarse_points[i*2]);
+        T_EQ(wc3_float_bits(route->adaptive_points[i].y),expected->coarse_points[i*2+1]);
+    }
+}
+
+TEST(wc3_pathfinding, ordinary_route_advances_match_original_buffer_consumers) {
+    uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
+    FOR_LOOP(c,sizeof(retail_route_consumers)/sizeof(*retail_route_consumers)) {
+        retailRouteConsumer_t const *row=retail_route_consumers+c;
+        uint8_t cells[64*64]={0};
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        if(row->wall)for(unsigned y=8;y<58;y++)if(y<30 || y>33)cells[y*64+40]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *unit=make_unit_at(30.125f*32,33.875f*32);
+        unit->collision=8+16*row->cls;
+        vec2_t goal={51.25f*32,42.75f*32},direction;
+        order_move(unit,make_waypoint(goal.x,goal.y));
+        unit->movement.adaptive_disabled=!row->adaptive;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        /* Supplied original caller destination, not a fresh group search. */
+        G_ReserveMoveRouteBuffer(&route->group_points,&route->group_capacity,1);
+        route->group_points[0]=(vec2_t){25.625f,21.375f};
+        route->group_goal=(vec2_t){51.25f,42.75f};route->group_count=1;route->group_index=0;
+        route->index=route->adaptive_index=UINT32_MAX;
+        level.move_fine_responsive=false;level.pathing_counter=100;
+        if(row->scenario>=4) {
+            T_EQ(S_TestMoveRouteDirection(unit,&goal,&direction),1);
+            if(row->scenario==4)route->index=row->index;
+            else route->adaptive_index=row->index;
+            level.pathing_counter=120;
+            if(row->admitted)level.move_fine_budgets[0].work=0;
+            else if(row->scenario==4)level.move_fine_budgets[0].work=1101;
+            level.move_coarse_budgets[0][2].work=row->scenario==5 && !row->admitted ? 901 : 0;
+        } else {
+            if(row->scenario==1)level.move_coarse_budgets[0][2].work=901;
+            if(row->scenario==2)level.move_fine_budgets[0].work=1101;
+            if(row->scenario==3)unit->movement.fine_request_time=100;
+        }
+        check_retail_route_consumer(unit,&goal,row->first,c);
+        if(row->second>=0) {
+            uint32_t number=unit->s.number;
+            cstring_t save="/tmp/wc3-route-consumer-continuation.bin";
+            T_ASSERT(WriteGame(save));
+            FOR_LOOP(pass,2) {
+                if(pass) {
+                    T_ASSERT(ReadGame(save));unit=g_edicts+number;
+                    T_ASSERT(S_ValidateMoveCoarseRequests());
+                }
+                level.pathing_counter=row->scenario==3 ? 140 : 110;
+                if(row->scenario==1)level.move_coarse_budgets[0][2].work=0;
+                if(row->scenario==2)level.move_fine_budgets[0].work=0;
+                check_retail_route_consumer(unit,&goal,row->second,c);
+            }
+            remove(save);
+        }
+    }
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
+}
+
 TEST(wc3_pathfinding, owned_route_growth_retains_capacity_across_shorter_refills) {
     uint8_t cells[256*256]={0};
     unsigned lengths[]={126,127,128,129,180,250};

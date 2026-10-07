@@ -169,8 +169,13 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--expected', type=Path)
     parser.add_argument('--engine', type=Path, help='production C probe; compare every reached fine build')
+    parser.add_argument('--initialized-consumer', action='store_true',
+                        help='run original0040d0 coarse-distance initializer before public advances')
     args = parser.parse_args()
     r = Retail(args.binary, 64)
+    if args.initialized_consumer:
+        r.run(0x6f0040d0, 0)
+        assert r.read(0x6fd54194)[0] == fw(10), 'original consumer threshold initialization failed'
     engine = ctypes.CDLL(str(args.engine.resolve())) if args.engine else None
     comparisons = [FineComparison(r, engine)] if engine else []
     coarse_comparisons = [CoarseComparison(r, engine)] if engine else []
@@ -282,6 +287,9 @@ def main():
                           flags=r.read(r.path + 0x88)[0], index=r.read(r.path + 0x74)[0], words=r.words(0x34)))
     # S8 growth boundary on a 256-cell map: straight corridor longer than 128 points.
     g = Retail(args.binary, 256)
+    if args.initialized_consumer:
+        g.run(0x6f0040d0, 0)
+        assert g.read(0x6fd54194)[0] == fw(10)
     if engine:
         comparisons.append(FineComparison(g, engine))
         coarse_comparisons.append(CoarseComparison(g, engine))
@@ -328,6 +336,8 @@ def main():
                       storm=g.storm_log[log1:], words=g.words(0x34))
         growth.append(dict(cls=cls, length=length, first=first, second=second))
     payload = dict(version=1, binary_sha256=r.digest, task='ROUTE-01.2', rows=rows, growth=growth, stale_outside=stale)
+    if args.initialized_consumer:
+        payload['consumer_initialization'] = {'entry': '6f0040d0', 'address': '6fd54194', 'word': fw(10)}
     blob = json.dumps(payload, separators=(',', ':'), sort_keys=True).encode()
     if args.expected:
         if args.expected.exists():

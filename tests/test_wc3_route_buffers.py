@@ -14,6 +14,23 @@ spec.loader.exec_module(summary)
 
 
 class RouteBufferEvidenceTests(unittest.TestCase):
+    def test_consumer_literals_require_original_distance_initialization(self):
+        source = ROOT / 'tools/ghidra/research/export_route012_consumers.py'
+        spec = importlib.util.spec_from_file_location('route012_consumers', source)
+        exporter = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(exporter)
+        self.assertEqual(exporter.render(), exporter.OUTPUT.read_text())
+        corrected = json.loads(exporter.SOURCE.read_text())
+        original = json.loads((FIXTURES / 'research/ROUTE-01.2-expected.json').read_text())
+        self.assertEqual(corrected['consumer_initialization']['word'], 0x41200000)
+        self.assertEqual(len(corrected['rows']), 264)
+        # Zero-BSS captures are controlled inputs, not gameplay expectations.
+        old = next(r for r in original['rows'] if r['scenario'] == 'empty_admitted' and r['adaptive_enabled'])
+        new = next(r for r in corrected['rows'] if r['scenario'] == 'empty_admitted' and r['adaptive_enabled'])
+        self.assertEqual(old['first']['state']['coarse_index'], 1)
+        self.assertEqual(new['first']['state']['coarse_index'], 0)
+        self.assertNotEqual(old['first']['state']['fine_words'], new['first']['state']['fine_words'])
+
     def test_public_axis_repeats_and_observer_free_control(self):
         paths = [FIXTURES / ('retail-outside-axis-' + variant + '-1.27.jsonl.gz')
                  for variant in ('first', 'repeat', 'control')]

@@ -148,7 +148,13 @@ static void move_acc_prepare(void);
 static void move_acc_enable_gates(void);
 static void move_acc_initialize(void);
 static void move_acc_rebuild_rectangle(wc3FineBox_t box, bool clear);
-typedef struct { movePathQuery_t const *input; wc3FineVector_t source, target; moveFineRoute_t *route; uint32_t *status; } moveAdaptiveQuery_t;
+typedef struct {
+    movePathQuery_t const *input;
+    wc3FineVector_t source, target;
+    moveFineRoute_t *route;
+    uint32_t *status;
+    bool retain_fine;
+} moveAdaptiveQuery_t;
 static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *out,uint32_t *status);
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
@@ -1304,7 +1310,10 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
     } else {
         /* Original166c30 leaves the fine FIFO before acquiring a replacement
          * adaptive route. A later fine refill is a new tail request. */
-        if(route && !S_AdmitMoveCoarseRequest(input->mover,&route->adaptive_admission,2)) return false;
+        if(route && !S_AdmitMoveCoarseRequest(input->mover,&route->adaptive_admission,2)) {
+            if(query->status)*query->status=2;
+            return false;
+        }
         if(!route)S_CancelUnitMoveFineRequest(input->mover);
         move_acc_prepare();
         FOR_LOOP(level,4) move_acc.maps[level].classes = move_acc_classes[lane][level];
@@ -1332,6 +1341,11 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
         point=route->adaptive_index ?
             (wc3FineVector_t){wc3_mul(route->adaptive_points[route->adaptive_index].x,2),wc3_mul(route->adaptive_points[route->adaptive_index].y,2)} : target;
     }
+    /* 166c30 replaces the coarse table independently. It does not expire a
+     * valid fine index;165ae0 subsequently consumes that cache through167ce0.
+     * Actual coarse progress above owns fine invalidation. */
+    if(query->retain_fine && route && route->points && route->index<route->count)
+        return G_AdvanceUnitMoveFineRouteStatus(input,route,out,query->status);
     vec2_t local = move_world_from_grid(point.x,point.y);
     movePathQuery_t nearby = *input; nearby.geometry.target = &local;
     /* The local leg targets the selected coarse point; retaining the formation
@@ -1569,13 +1583,22 @@ static bool move_find_route(movePathQuery_t const *input, moveFineRoute_t *route
      * disabled. It still performs the ordinary budget700 fine search with
      * its own terrain mask, including partial results. */
     if (input->mover && input->mover->movement.adaptive_disabled) {
-        if (route) route->adaptive_count=route->adaptive_index=0;
+        /* Native165b60 still owns a coarse cache. Only an exhausted index
+         * replaces it with the exact adjusted destination; fine admission
+         * can fail after this publication without erasing either buffer. */
+        if (route && route->adaptive_index>=route->adaptive_count) {
+            G_ReserveMoveRouteBuffer(&route->adaptive_points,&route->adaptive_capacity,1);
+            route->adaptive_points[0]=(vec2_t){wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)};
+            route->adaptive_count=1;route->adaptive_index=0;
+            route->adaptive_goal=b;route->adaptive_radius=input->geometry.radius;
+            route->adaptive_revision=move_map_revision;route->adaptive_mask=move_adaptive_mask(input);
+        }
         return G_BuildUnitMoveLocalRoute(input,route,out);
     }
     int dx=abs((int)floorf(a.x)-(int)floorf(b.x)),dy=abs((int)floorf(a.y)-(int)floorf(b.y));
     if ((input->units && input->mover) || (route && route->adaptive_count) ||
         dx>PATH_ACCEL_MAX_DISTANCE || dy>PATH_ACCEL_MAX_DISTANCE)
-        return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y},route,status},out);
+        return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{a.x,a.y},{b.x,b.y},route,status,false},out);
     return G_BuildUnitMoveLocalRoute(input,route,out);
 }
 
@@ -1627,12 +1650,17 @@ bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute
     if (route->adaptive_count) {
         if (!input->geometry.target) return false;
         vec2_t goal=input->fine_target ? *input->fine_target : move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
-        if (!route->adaptive_points || route->adaptive_count>BZ_WC3_ACC_ROUTE_NODES || route->adaptive_index>=route->adaptive_count ||
+        if (!route->adaptive_points || route->adaptive_count>BZ_WC3_ACC_ROUTE_NODES ||
             route->adaptive_revision!=move_map_revision || route->adaptive_radius!=input->geometry.radius ||
+            route->adaptive_mask!=move_adaptive_mask(input) ||
             route->adaptive_goal.x!=goal.x || route->adaptive_goal.y!=goal.y) return false;
+        if(route->adaptive_index>=route->adaptive_count) {
+            if(input->mover && input->mover->movement.adaptive_disabled)return false;
+            return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{source.x,source.y},{goal.x,goal.y},route,status,true},out);
+        }
         if (move_adaptive_progress(input,source,route,status)) {
             if (*status) return false;
-            return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{source.x,source.y},{goal.x,goal.y},route,NULL},out);
+            return move_adaptive_waypoint(&(moveAdaptiveQuery_t){input,{source.x,source.y},{goal.x,goal.y},route,status,false},out);
         }
     }
 

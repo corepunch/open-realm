@@ -2365,6 +2365,14 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
     return MOVE_ROUTE_READY;
 }
 
+#ifdef BZ_TESTS
+/* Exercise the production steering consumer without advancing animation,
+ * clocks or translation. Return its own FAILED/READY/STOP result, not EAX. */
+unsigned S_TestMoveRouteDirection(edict_t *self, vec2_t const *point, vec2_t *dir) {
+    return unit_accel_direction(self,(moveRoutePoint_t){point,self->collision,MOVE_AVOID_GENERIC},dir);
+}
+#endif
+
 /* A nonzero Path_Advance status turns toward the pre-crossing goal and
  * suppresses translation for this visit. Keep it distinct from route failure. */
 static void unit_apply_route_heading(edict_t *self,vec2_t const *dir,moveAvoidPolicy_t policy,moveRouteResult_t result) {

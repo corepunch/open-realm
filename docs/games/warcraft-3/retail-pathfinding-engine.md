@@ -11008,3 +11008,51 @@ open**: complete actual-engine public-advance state/return comparisons and
 post-load invalid-start history still need integration; cold invalid sources
 and live movement beyond the interrupted setup are not certified. No new
 TODO leaf is introduced.
+
+## Independent coarse admission and fine cache (Payoff142)
+
+Move now retains the original one-point coarse destination cache when adaptive
+search is disabled. Publication precedes fine admission, so an interval or work
+refusal preserves that cache. An exhausted coarse index acquires its replacement
+independently of the fine index: a still-valid fine leg is consumed without a
+second search or work charge. Actual coarse progress continues to invalidate
+that leg. A denied coarse request returns the stopped status at that visit,
+without a second admission attempt through the fallback builder.
+
+The research handoff needed a consumer correction. Its original harness left
+`6fd54194` at zero; unchanged `167ae0` therefore selected the first predecessor.
+Retail initializer `0040d0` writes ten through `Math_FromIntegerTruncated`.
+The new [initialized fixture](../../../tools/ghidra/fixtures/retail-route-consumers-initialized-1.27.json)
+executes that original initializer. The old264-row fixture remains explicit
+zero-BSS consumer evidence; its reached search-kernel comparisons remain valid
+for those supplied requests. Engine ten-unit selection is unchanged.
+
+The literal [consumer regression](../../../games/warcraft-3/game/tests/retail_route_consumers.h)
+exports208 ordinary scenarios across two maps and four footprint classes. It
+runs production Move steering, comparing READY/STOP semantics with original
+return0/2, every fine/coarse point, count/index/capacity, work, FIFO membership,
+request timestamps, retry/delay and direction words. The256 advances include
+48 following controls; those48 are also checked after actual Save123 reload.
+Native packed flags without an engine counterpart are not asserted by this
+adapter, and the test seam does not pretend its internal enum is original EAX.
+
+The pre-fix engine compiled separately against the corrected literal fixture
+fails400 assertions; the fixed consumer passes20,292, including all48 saved
+continuations. Initial zero-threshold expectations and one intermediate coarse-denial test
+setup are retained as rejected development inputs. The final original run and
+repeat each match264 scenarios/12 growth cases; all452 fine and152 adaptive
+builds remain C-exact. Four new/extended Ghidra function annotations, including
+the real initializer, are saved and read back. Evidence and focused logs live
+under `/GitHub/wc3-analysis/runtime/payoff142`.
+
+ROUTE-01.2 remains open for complete invalid-start consumer outcomes and
+post-load initialized-search history. This chunk removes redundant work and
+preserves retained state; it does not claim a new4096-unit timing result or
+close the remaining retail-fidelity gaps.
+
+Focused validation passes **661 tests /7,676,656 assertions** per Classic/TFT
+configuration at debug/release, plus28 Python evidence tests. The fresh strict
+`oracle-routes` report includes both archived controlled buffers and corrected
+initialized consumers, their kernel comparisons, literal checks and saved
+annotations. This is the seventh implementation commit since the successful
+Payoff135 full-suite checkpoint; the full repository suite was not repeated.

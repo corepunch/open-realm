@@ -159,3 +159,18 @@ capture. See [the engine ledger](../../retail-pathfinding-engine.md#retained-sea
 ROUTE-01.2 remains open for full actual-engine public advance state/return and
 post-load invalid-start history. The proposed01.4 is unnecessary and has not
 been added. The original handoff above remains as dated research provenance.
+
+## Payoff142 consumer correction and integration
+
+The original harness omitted scalar6fd54194 initialization. Enabled public
+advance rows therefore consumed routes with a zero distance threshold; this
+is a supplied BSS control, not initialized gameplay. Original0040d0 writes ten
+via Math_FromIntegerTruncated. The new264-row initialized fixture executes it
+and repeats exactly; the earlier frozen fixture remains unchanged for provenance.
+
+Production Move now retains disabled-adaptive one-point coarse caches and does
+not rebuild a valid fine leg merely because its coarse index needed a refill.
+The208 ordinary scenarios compare represented state through actual steering,
+including256 advances and48 saved continuations. Invalid-start consumer outcomes,
+packed flags without an engine counterpart, and post-load search history are
+still not closed. See [the engine ledger](../../retail-pathfinding-engine.md#independent-coarse-admission-and-fine-cache-payoff142).
