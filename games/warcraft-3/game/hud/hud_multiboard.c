@@ -108,7 +108,7 @@ void UI_WriteMultiboard(edict_t *ent) {
     multiboard_t *board;
     uint32_t client_index, viewer, root, rows = 0, cols = 0;
     bool team = false, minimized = false;
-    float width = WC3_MB_WIDTH, height, body_height, header_y, x, y;
+    float width = WC3_MB_WIDTH, height, body_height, body_y, x, y;
 
     if (!ent || !(client = ent->client)) return;
     client_index = (uint32_t)(client - game.clients);
@@ -125,13 +125,11 @@ void UI_WriteMultiboard(edict_t *ent) {
     }
     if (!team && !board) { UI_ClearLayer(ent, WC3_LAYER_MULTIBOARD); return; }
 
-    body_height = (minimized ? 0 : rows * WC3_MB_ROW_HEIGHT) + 0.006f;
-    height = team
-        ? WC3_MB_HEADER_HEIGHT + 0.006f + 0.004f + body_height
-        : WC3_MB_HEADER_HEIGHT + body_height;
+    body_height = (minimized ? 0 : rows * WC3_MB_ROW_HEIGHT) + (team ? 0.012f : 0.006f);
+    height = team ? WC3_MB_HEADER_HEIGHT + 0.010f + body_height
+                  : WC3_MB_HEADER_HEIGHT + body_height;
     x = UI_BASE_WIDTH - WC3_MB_WIDTH - HUD_HERO_SHORTCUT_EDGE_X;
-    /* Timer and leaderboard form a top-right stack. Place this panel below
-     * both, growing down from that stack instead of up from the bottom HUD. */
+    /* Timer, leaderboard, title and resources form one top-right stack. */
     y = WC3_MB_TOP + UI_TimerDialogLeaderboardOffset(viewer)
         + UI_LeaderboardMultiboardOffset(viewer);
     UI_SetCurrentClient(client);
@@ -140,14 +138,15 @@ void UI_WriteMultiboard(edict_t *ent) {
     if (team) {
         /* Keep the Team Resources heading in its own bordered strip directly
          * above the resource rows, matching the stock stacked HUD panels. */
-        header_y = y + body_height + 0.004f;
-        MultiboardPanel(root, x, y, width, body_height);
-        MultiboardPanel(root, x, header_y, width, WC3_MB_HEADER_HEIGHT + 0.006f);
-        MultiboardText(root, x + 0.007f, header_y + 0.006f,
+        body_y = y + WC3_MB_HEADER_HEIGHT + 0.010f;
+        MultiboardPanel(root, x, body_y, width, body_height);
+        MultiboardPanel(root, x, y, width, WC3_MB_HEADER_HEIGHT + 0.006f);
+        MultiboardText(root, x + 0.007f, y + 0.003f,
                        width - 0.014f, WC3_MB_HEADER_HEIGHT,
                        "Team Resources", hud.leaderboard_default_title_color,
                        FONT_JUSTIFYLEFT);
     } else {
+        body_y = y;
         MultiboardPanel(root, x, y, width, height);
         MultiboardText(root, x + 0.007f, y + height - WC3_MB_HEADER_HEIGHT,
                        width - 0.014f, WC3_MB_HEADER_HEIGHT, board->title,
@@ -168,7 +167,7 @@ void UI_WriteMultiboard(edict_t *ent) {
                     if (game.clients[slot].ps.number == i) { owner_client = &game.clients[slot]; break; }
                 if (!owner_client) continue;
                 owner = &owner_client->ps;
-                yy = y + body_height - 0.006f - (++row) * WC3_MB_ROW_HEIGHT;
+                yy = body_y + 0.006f + row++ * WC3_MB_ROW_HEIGHT;
                 snprintf(gold, sizeof(gold), "%ld", (long)owner->stats[PLAYERSTATE_RESOURCE_GOLD]);
                 snprintf(lumber, sizeof(lumber), "%ld", (long)owner->stats[PLAYERSTATE_RESOURCE_LUMBER]);
                 food_used = owner->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
