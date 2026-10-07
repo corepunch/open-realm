@@ -127,6 +127,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Required Animation Names (`animProps`/`uani`), alternate forms, `AddUnitAnimationProperties`, tagged MDX sequence selection | [docs/games/warcraft-3/unit-animation-properties.md](docs/games/warcraft-3/unit-animation-properties.md) |
 | WC3 resource-worker crowd routing and Human02 30-Peasant simulation | [docs/games/warcraft-3/worker-crowd-routing.md](docs/games/warcraft-3/worker-crowd-routing.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
+| WC3 HumanX06 elevators: authored height state, wall blockers, and transition sequences | [docs/games/warcraft-3/elevators.md](docs/games/warcraft-3/elevators.md) |
 | WC3 Goblin Land Mines `AIpm`/`Amin`/`Amnx`, delayed death AOE, targeted-item charge completion | [docs/games/warcraft-3/land-mines.md](docs/games/warcraft-3/land-mines.md) |
 | WC3 ability/item presentation art, effect edict lifetimes, JASS effect handles, consumable charge semantics | [docs/games/warcraft-3/ability-and-item-effects.md](docs/games/warcraft-3/ability-and-item-effects.md) |
 | WC3 ability implementation from data, behavior, and focused evidence | [docs/games/warcraft-3/ability-implementation.md](docs/games/warcraft-3/ability-implementation.md) |
