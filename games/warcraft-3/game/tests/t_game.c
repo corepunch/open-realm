@@ -1618,6 +1618,55 @@ TEST(wc3_game, multiselect_payload_switches_to_compact_grid_above_twelve_units) 
     T_FEQ(multiselect_capture_item_height, 0.025f, 0.0001f);
 }
 
+TEST(wc3_game, select_command_caps_oversized_candidate_lists_at_the_selection_limit) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    enum { CANDIDATES = MAX_SELECTED_ENTITIES - 1 }; /* the parser's 64 tokens minus "select" */
+    edict_t *units[CANDIDATES];
+    char numbers[CANDIDATES][12];
+    cstring_t argv[CANDIDATES + 1] = { "select" };
+    uint32_t const counts[] = { 30, CANDIDATES };
+
+    reset_entities();
+    setup_test_world();
+    player->client = client;
+    client->ps.number = 0;
+    client->connected = true;
+    FOR_LOOP(i, CANDIDATES) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)(i * 32), 0);
+        units[i]->svflags |= SVF_MONSTER;
+        units[i]->s.player = 0;
+        snprintf(numbers[i], sizeof(numbers[i]), "%u", units[i]->s.number);
+        argv[i + 1] = numbers[i];
+    }
+
+    /* A marquee can legitimately submit more eligible candidates than the
+     * authoritative cap. The server keeps the first 24 and acknowledges only
+     * those, so the client cache never retains rejected members. */
+    FOR_LOOP(c, sizeof(counts) / sizeof(counts[0])) {
+        uint32_t const argc = counts[c] + 1;
+
+        selection_sync_stage = 0;
+        selection_sync_count = 0;
+        selection_sync_entity_index = 0;
+        gi.Write = selection_test_write;
+        gi.unicast = selection_test_unicast;
+        G_ClientCommand(player, argc, argv);
+        gi.Write = old_write;
+        gi.unicast = old_unicast;
+
+        T_EQ(selection_sync_count, WC3_SELECTION_MAX);
+        T_EQ(selection_sync_entity_index, WC3_SELECTION_MAX);
+        FOR_LOOP(i, WC3_SELECTION_MAX) T_EQ(selection_sync_entities[i], units[i]->s.number);
+        T_ASSERT(G_IsEntitySelected(client, units[WC3_SELECTION_MAX - 1]));
+        T_ASSERT(!G_IsEntitySelected(client, units[WC3_SELECTION_MAX]));
+        T_ASSERT(!G_IsEntitySelected(client, units[counts[c] - 1]));
+    }
+    client->connected = false;
+}
+
 TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
