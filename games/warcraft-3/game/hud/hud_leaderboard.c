@@ -19,17 +19,49 @@ typedef struct {
     bool right_anchored;
 } leaderboardTextParams_t;
 
+typedef struct {
+    uint32_t rows;
+    uint32_t visible_rows;
+    bool has_title;
+    float row_height;
+    float title_height;
+    float list_top;
+    float total_height;
+} leaderboardLayout_t;
+
 static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOARD_ITEMS + 1)];
+
+/* Pure geometry of one board.  The shared frameDef only ever holds the last
+ * authored board, so stacked panels derive each viewer's offset from here.
+ * The stock list container reserves substantially more vertical space than
+ * a campaign counter needs; size the visible board to its actual rows so a
+ * one-line objective is only one text row tall instead of several blanks. */
+static leaderboardLayout_t LeaderboardLayout(leaderboard_t const *board) {
+    frameDef_t const *title = hud.leaderboard.LeaderboardTitle;
+    leaderboardLayout_t layout = { 0 };
+    layout.rows = board->size_by_item_count >= 0 ? (uint32_t)board->size_by_item_count : board->item_count;
+    layout.rows = MAX(1u, MIN(layout.rows, (uint32_t)MAX_LEADERBOARD_ITEMS));
+    layout.visible_rows = board->item_count ? MAX(1u, MIN(board->item_count, layout.rows)) : 0;
+    layout.has_title = board->show_label && board->label[0];
+    layout.row_height = title && title->Font.Size > 0.0f
+        ? MAX(LEADERBOARD_TEXT_HEIGHT, title->Font.Size * 1.25f)
+        : LEADERBOARD_TEXT_HEIGHT;
+    layout.title_height = layout.has_title ? layout.row_height : 0.0f;
+    layout.list_top = LEADERBOARD_TOP_PAD + layout.title_height
+        + (layout.title_height > 0.0f ? LEADERBOARD_TITLE_GAP : 0.0f);
+    layout.total_height = layout.list_top + layout.visible_rows * layout.row_height + LEADERBOARD_BOTTOM_PAD;
+    return layout;
+}
 
 float UI_LeaderboardMultiboardOffset(uint32_t player_num) {
     leaderboard_t *board;
     player_t *player;
-    frameDef_t *root = hud.leaderboard.Leaderboard;
-    if (player_num >= MAX_CLIENTS || !root) return 0.0f;
+    if (player_num >= MAX_CLIENTS || !hud.leaderboard.Leaderboard || !hud.leaderboard.LeaderboardListContainer)
+        return 0.0f;
     board = G_PlayerLeaderboard(player_num);
     player = G_GetPlayerByNumber(player_num);
     if (!board || !player || !G_IsLeaderboardDisplayed(board, player)) return 0.0f;
-    return root->Height + LEADERBOARD_MULTIBOARD_GAP;
+    return LeaderboardLayout(board).total_height + LEADERBOARD_MULTIBOARD_GAP;
 }
 
 static void LeaderboardItemText(leaderboard_t const *board, struct gleaderboarditem_s const *item,
@@ -122,9 +154,9 @@ void UI_LoadHudLeaderboards(void) {
 void UI_WriteLeaderboard(edict_t *ent) {
     leaderboard_t *board;
     frameDef_t *root, *backdrop, *title, *container;
-    float row_height, title_height, total_height, list_top, top_y;
-    bool has_title;
-    uint32_t player, rows, visible_rows, parent, measure_font;
+    leaderboardLayout_t layout;
+    float top_y;
+    uint32_t player, parent, measure_font;
     uiSizeToTextParams_t size_params;
 
     if (!ent || !ent->client) return;
@@ -157,23 +189,10 @@ void UI_WriteLeaderboard(edict_t *ent) {
                 player, (void *)board, board->item_count, board->label, board->displayed_clients);
 #endif
 
-    rows = board->size_by_item_count >= 0 ? (uint32_t)board->size_by_item_count : board->item_count;
-    rows = MAX(1u, MIN(rows, (uint32_t)MAX_LEADERBOARD_ITEMS));
-    visible_rows = board->item_count ? MAX(1u, MIN(board->item_count, rows)) : 0;
-    has_title = board->show_label && board->label[0];
-
-    /* The stock list container reserves substantially more vertical space than
-     * a campaign counter needs. Size the visible board to its actual rows so a
-     * one-line objective is only one text row tall instead of several blanks. */
-    row_height = title && title->Font.Size > 0.0f
-        ? MAX(LEADERBOARD_TEXT_HEIGHT, title->Font.Size * 1.25f)
-        : LEADERBOARD_TEXT_HEIGHT;
-    title_height = has_title ? row_height : 0.0f;
-    list_top = LEADERBOARD_TOP_PAD + title_height + (title_height > 0.0f ? LEADERBOARD_TITLE_GAP : 0.0f);
-    total_height = list_top + visible_rows * row_height + LEADERBOARD_BOTTOM_PAD;
+    layout = LeaderboardLayout(board);
 
     UI_SetHidden(root, false);
-    root->Height = total_height;
+    root->Height = layout.total_height;
 
     if (backdrop) {
         UI_SetHidden(backdrop, false);
@@ -183,33 +202,33 @@ void UI_WriteLeaderboard(edict_t *ent) {
     }
 
     if (title) {
-        UI_SetHidden(title, !has_title);
+        UI_SetHidden(title, !layout.has_title);
         UI_SetText(title, "%s", board->label[0] ? board->label : " ");
         title->Font.Color = board->label_color_set
             ? board->label_color : hud.leaderboard_default_title_color;
-        if (has_title) {
+        if (layout.has_title) {
             ResetFramePoints(title);
             UI_SetPoint(title, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT,
                         LEADERBOARD_EDGE_INSET, -LEADERBOARD_TOP_PAD);
             UI_SetPoint(title, FRAMEPOINT_TOPRIGHT, root, FRAMEPOINT_TOPRIGHT,
                         -LEADERBOARD_EDGE_INSET, -LEADERBOARD_TOP_PAD);
-            title->Height = title_height;
+            title->Height = layout.title_height;
         }
     }
 
-    UI_SetHidden(container, visible_rows == 0);
+    UI_SetHidden(container, layout.visible_rows == 0);
     ResetFramePoints(container);
     UI_SetPoint(container, FRAMEPOINT_TOPLEFT, root, FRAMEPOINT_TOPLEFT,
-                LEADERBOARD_EDGE_INSET, -list_top);
+                LEADERBOARD_EDGE_INSET, -layout.list_top);
     UI_SetPoint(container, FRAMEPOINT_TOPRIGHT, root, FRAMEPOINT_TOPRIGHT,
-                -LEADERBOARD_EDGE_INSET, -list_top);
-    container->Height = visible_rows * row_height;
+                -LEADERBOARD_EDGE_INSET, -layout.list_top);
+    container->Height = layout.visible_rows * layout.row_height;
 
     leaderboard_measure_text[0] = '\0';
-    if (has_title)
+    if (layout.has_title)
         LeaderboardAppendMeasureLine(leaderboard_measure_text, sizeof(leaderboard_measure_text),
                                      board->label[0] ? board->label : " ", NULL);
-    FOR_LOOP(i, MIN(board->item_count, rows)) {
+    FOR_LOOP(i, MIN(board->item_count, layout.rows)) {
         struct gleaderboarditem_s const *item = &board->items[i];
         char text[MAX_TRIGSTR_LENGTH], number[32];
         LeaderboardItemText(board, item, text, sizeof(text));
@@ -232,14 +251,14 @@ void UI_WriteLeaderboard(edict_t *ent) {
     };
     UI_WriteFrameWithChildrenSizedToText(&size_params);
     parent = UI_GetWrittenFrameNumber(container);
-    FOR_LOOP(i, MIN(board->item_count, rows)) {
+    FOR_LOOP(i, MIN(board->item_count, layout.rows)) {
         struct gleaderboarditem_s const *item = &board->items[i];
         char text[MAX_TRIGSTR_LENGTH], number[32];
         color32_t label_color = item->label_color_set ? item->label_color : hud.leaderboard_default_item_color;
         color32_t value_color = item->value_color_set ? item->value_color :
             (board->value_color_set ? board->value_color : hud.leaderboard_default_item_color);
         leaderboardTextParams_t label_params = {
-            .parent = parent, .y = (float)i * row_height, .h = row_height,
+            .parent = parent, .y = (float)i * layout.row_height, .h = layout.row_height,
             .text = NULL, .color = label_color,
             .align = FONT_JUSTIFYLEFT, .right_anchored = false,
         };

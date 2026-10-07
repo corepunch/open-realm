@@ -86,6 +86,9 @@ void G_UpdateLeaderboards(void) {
         if (!game.clients[i].connected) { level.leaderboard_dirty_clients &= ~(1u << i); continue; }
         ent = G_GetPlayerEntityByNumber(game.clients[i].ps.number);
         if (ent && ent->client) UI_WriteLeaderboard(ent);
+        /* The multiboard stacks directly below this viewer's board, so any
+         * re-authored (or cleared) leaderboard re-anchors it in the same frame. */
+        level.multiboard_dirty_clients |= 1u << i;
         level.leaderboard_dirty_clients &= ~(1u << i);
     }
 }
