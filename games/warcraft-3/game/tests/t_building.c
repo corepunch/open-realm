@@ -38,6 +38,8 @@ static uint8_t building_queue_numitems;
 static uint32_t building_queue_starttime;
 static uint32_t building_queue_endtime;
 static PATHSTR building_sound_path;
+static uint32_t building_commandbar_layouts;
+static int32_t building_last_byte;
 
 static int building_test_sound_index(cstring_t path) {
     snprintf(building_sound_path, sizeof(building_sound_path), "%s", path ? path : "");
@@ -108,6 +110,16 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
 }
 
 static void building_test_unicast(edict_t *ent) { (void)ent; }
+
+/* Counts svc_layout payloads that open the command bar: the only writer of
+ * that pair during spell targeting setup is UI_AddCancelButton. */
+static void building_layout_capture_write(pfWriteType_t type, void const *value) {
+    int32_t byte;
+    if (type != PF_BYTE || !value) { building_last_byte = -1; return; }
+    byte = *(int32_t const *)value;
+    if (building_last_byte == svc_layout && byte == LAYER_COMMANDBAR) building_commandbar_layouts++;
+    building_last_byte = byte;
+}
 
 static cstring_t building_all_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
@@ -6001,6 +6013,26 @@ TEST(wc3_building, tiny_structure_zero_duration_completes_immediately) {
         T_FEQ(building->health.value, building->health.max_value, 0.001f);
     }
     T_EQ(G_ItemCharges(f.item), 1);
+    building_tiny_restore(&f);
+}
+
+/* An unresolvable Tiny cursor (AIbg without UnitID1) must not leave the
+ * client in a half-open target mode where only a dead Cancel button exists. */
+TEST(wc3_building, tiny_structure_without_cursor_adds_no_cancel_button) {
+    buildingTinyFixture_t f = building_tiny_fixture("AIbg");
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+
+    building_commandbar_layouts = 0; building_last_byte = -1;
+    gi.Write = building_layout_capture_write; gi.unicast = building_test_unicast;
+    gi.ImageIndex = building_test_image_index;
+    G_UseItem(f.hero, 0);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_NULL(f.player->client->menu.on_location_selected);
+    T_NULL(f.player->client->menu.ability_item);
+    T_EQ(building_commandbar_layouts, 0);
+    T_EQ(G_ItemCharges(f.item), 2);
     building_tiny_restore(&f);
 }
 

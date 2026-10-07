@@ -1480,10 +1480,16 @@ void spell_cmd(edict_t *clent) {
         clent->client->menu.on_entity_selected = spell_unit_target_selected;
         break;
     case SPELL_TARGET_POINT: {
+        /* Resolve the Tiny cursor before opening target mode: the Cancel
+         * button used to be added first, so an unresolvable cursor (an AIbg
+         * row without a UnitID) left a dead Cancel button with no
+         * on_location_selected handler behind it. */
+        if (spell_is_tiny_structure(spell) && !spell_tiny_cursor_show(clent, caster, code)) {
+            fprintf(stderr, "spell_cmd: Tiny Structure '%.4s' has no buildable UnitID\n", (cstring_t)&code);
+            return;
+        }
         UI_AddCancelButton(clent);
-        if (spell_is_tiny_structure(spell)) {
-            if (!spell_tiny_cursor_show(clent, caster, code)) return;
-        } else {
+        if (!spell_is_tiny_structure(spell)) {
             float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
             S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         }
