@@ -970,7 +970,9 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     if (!strcmp(order, "harvest")) {
         bool accepted = false;
-        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
+        if (G_ActorHasSkill(self, "Awha") && G_ActorHasSkill(target, "Aegm"))
+            accepted = S_CargoOrderBoard(self, target);
+        else if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
             accepted = S_AcolyteHarvestOrder(self, target);
         else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
