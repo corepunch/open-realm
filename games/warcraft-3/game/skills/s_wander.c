@@ -10,6 +10,7 @@
 #define WANDER_DISTANCE_SPREAD 192.0f
 #define WANDER_ATTEMPTS 6u
 #define WANDER_TAU 6.2831853071795864769f
+#define WANDER_BUILDING_CLEARANCE 32.0f /* world units */
 
 static bool wander_present(edict_t const *unit) {
     return unit && S_ResolveAbilityAlias((edict_t *)unit, MAKEFOURCC('A', 'w', 'a', 'n')).alias != 0;
@@ -43,6 +44,17 @@ static bool wander_eligible(edict_t *unit) {
            !G_UnitQueuedOrderCount(unit);
 }
 
+/* Keep autonomous destinations visibly clear of buildings after contact. */
+static bool wander_clear_of_buildings(edict_t *unit, vec2_t const *point) {
+    FOR_LOOP(i, MAX_ENTITIES) {
+        edict_t *building = &g_edicts[i];
+        if (building == unit || !building->inuse || !(building->s.flags & EF_BUILDING)) continue;
+        if (Vector2_distance(point, &building->s.origin2) <
+            unit->collision + building->collision + WANDER_BUILDING_CLEARANCE) return false;
+    }
+    return true;
+}
+
 static bool wander_choose_destination(edict_t *unit, vec2_t *result) {
     for (uint32_t i = 0; i < WANDER_ATTEMPTS; i++) {
         float angle = (wander_random(unit) / 4294967296.0f) * WANDER_TAU;
@@ -50,7 +62,9 @@ static bool wander_choose_destination(edict_t *unit, vec2_t *result) {
                        (wander_random(unit) / 4294967296.0f) * WANDER_DISTANCE_SPREAD;
         vec2_t point = { unit->s.origin2.x + cosf(angle) * radius,
                          unit->s.origin2.y + sinf(angle) * radius };
-        if (!M_MoveIsValid(unit, &point)) continue;
+        /* M_MoveIsValid allows stopping just outside collision. A clearance
+         * margin prevents an autonomous route from ending against a mill. */
+        if (!M_MoveIsValid(unit, &point) || !wander_clear_of_buildings(unit, &point)) continue;
         *result = point;
         return true;
     }
@@ -214,7 +228,7 @@ void S_WanderOnDamage(edict_t *unit, edict_t *attacker) {
         float distance = 192.0f / (1u << i);
         destination.x = unit->s.origin2.x + direction.x * distance;
         destination.y = unit->s.origin2.y + direction.y * distance;
-        if (!M_MoveIsValid(unit, &destination)) continue;
+        if (!M_MoveIsValid(unit, &destination) || !wander_clear_of_buildings(unit, &destination)) continue;
         wander_start(unit, &destination);
         wander_schedule(unit);
         return;

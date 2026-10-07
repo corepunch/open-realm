@@ -600,6 +600,41 @@ TEST(wc3_wander, autonomous_idle_move_arrival_second_move) {
     T_NULL(unit->wander_waypoint);
 }
 
+TEST(wc3_wander, autonomous_move_leaves_lumber_mill_collision_edge) {
+    edict_t *mill, *unit;
+    vec2_t const origin = { 116.0f, 0.0f };
+    float const contact_distance = 116.0f;
+    reset_entities();
+    setup_test_world();
+    level.time = 1000;
+    mill = alloc_test_unit(MAKEFOURCC('h', 'l', 'u', 'm'), 0, 0);
+    unit = alloc_test_unit(MAKEFOURCC('n', 'w', 'l', 't'), origin.x, origin.y);
+    mill->s.player = unit->s.player = 0;
+    mill->collision = 100.0f;
+    mill->bounds = MAKE(box2_t, .min = {-100.0f, -100.0f}, .max = {100.0f, 100.0f});
+    mill->runtime.flags |= UNIT_BALANCE_BUILDING;
+    mill->s.flags |= EF_BUILDING;
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 320.0f;
+    unit->stand = unit_stand;
+    unit->svflags |= SVF_MONSTER;
+    unit->abilities.added[0] = ID_AWAN;
+    ARRAY_COUNT(unit->abilities.added) = 1;
+    gi.LinkEntity(mill);
+    gi.LinkEntity(unit);
+    T_FEQ(Vector2_distance(&unit->s.origin2, &mill->s.origin2), contact_distance, 0.01f);
+    unit_stand(unit);
+    unit->wander_random_state = 529;
+    unit->wander_next_time = level.time;
+    monster_think(unit);
+    T_ASSERT(move_is_active_order_walk(unit));
+    T_NOT_NULL(unit->wander_waypoint);
+    T_ASSERT(Vector2_distance(&unit->wander_waypoint->s.origin2, &mill->s.origin2) > contact_distance + 32.0f);
+    wander_tick_until_arrival(unit, unit->wander_waypoint);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &mill->s.origin2) > contact_distance + 1.0f);
+    S_DisableAbility(unit, ID_AWAN);
+}
+
 /* Alias discovery uses authored AbilityData, rather than matching only Awan
  * on the unit. Disable must release the exact custom-code ability's state. */
 TEST(wc3_wander, custom_wander_alias_enable_disable_lifecycle) {

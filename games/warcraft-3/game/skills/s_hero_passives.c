@@ -244,11 +244,13 @@ static bool aura_allows_target(edict_t *source, edict_t *target, cstring_t targe
         aura_target_has_token(targets, "invulnerable", "invu");
 
     if (!S_AuraUnitActive(source) || !S_AuraUnitActive(target)) return false;
-    is_self = source == target;
-    is_friend = S_SpellIsFriend(source, target);
-    is_enemy = S_SpellIsEnemy(source, target);
     is_neutral = target->s.player < MAX_PLAYERS && level.mapinfo &&
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
+    is_self = source == target;
+    /* Neutral slots can appear friendly under default alliances. Their
+     * authored relation remains neutral and requires an explicit mask token. */
+    is_friend = !is_neutral && S_SpellIsFriend(source, target);
+    is_enemy = !is_neutral && S_SpellIsEnemy(source, target);
     bool const wants_relation = aura_target_has_token(targets, "friend", "frie") ||
         aura_target_has_token(targets, "allies", "alli") ||
         aura_target_has_token(targets, "enemy", "enem") ||

@@ -956,6 +956,52 @@ TEST(wc3_spell, hero_aura_aliases_honor_authored_target_masks) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, aura_targets_follow_source_team_alliances_and_neutral_mask) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area1\"\nC;Y1;X5;K\"DataA1\"\nC;Y1;X6;K\"BuffID1\"\nC;Y1;X7;K\"levels\"\n"
+        "C;Y2;X1;K\"XHad\"\nC;Y2;X2;K\"AHad\"\nC;Y2;X3;K\"ground,friend,organic\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K4\nC;Y2;X6;K\"Biml\"\nC;Y2;X7;K1\n"
+        "C;Y3;X1;K\"YHad\"\nC;Y3;X2;K\"AHad\"\nC;Y3;X3;K\"ground,neutral,organic\"\n"
+        "C;Y3;X4;K900\nC;Y3;X5;K7\nC;Y3;X6;K\"Biml\"\nC;Y3;X7;K1\nE\n";
+    uint32_t const ally_code = MAKEFOURCC('X','H','a','d');
+    uint32_t const neutral_code = MAKEFOURCC('Y','H','a','d');
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *source = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
+    edict_t *neutral_source = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 2000, 200);
+    edict_t *ally = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    edict_t *enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+    edict_t *neutral = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 140, 0);
+    edict_t *neutral_outside_mask = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 200);
+
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[2].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[3].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    G_SetPlayerAlliance(&game.clients[1].ps, &game.clients[2].ps, ALLIANCE_PASSIVE, true);
+    source->s.player = 1;
+    source->heroabilities[0] = MAKE(heroability_t, .code = ally_code, .level = 1);
+    neutral_source->s.player = 1;
+    neutral_source->svflags |= SVF_MONSTER;
+    neutral_source->heroabilities[0] = MAKE(heroability_t, .code = neutral_code, .level = 1);
+    ally->s.player = 2;
+    enemy->s.player = 3;
+    neutral->s.player = PLAYER_NEUTRAL_PASSIVE;
+    neutral->s.origin2.x = 2000;
+    neutral_outside_mask->s.player = PLAYER_NEUTRAL_PASSIVE;
+    ally->targtype = enemy->targtype = neutral->targtype = neutral_outside_mask->targtype = TARG_GROUND;
+    ally->armor_value = enemy->armor_value = neutral->armor_value = neutral_outside_mask->armor_value = 2.0f;
+
+    T_FEQ(S_DevotionArmorBonus(ally), 4.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(enemy), 0.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(neutral), 7.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(neutral_outside_mask), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"

@@ -42,9 +42,14 @@ rune. The scenery bug made those runes appear under crates and trees. The
 recipient regression runs `monster_think` on a friendly unit and two static
 destructables, then checks the buff state and attached effect edicts.
 
-Neutral Passive is passively allied with map players by default, so living
-neutral units such as sheep can still qualify for a friendly aura if their
-target type matches the authored mask. They are distinct from static scenery.
+Aura relations are evaluated from the provider's owner: `friend`/`allies` apply
+to that player's own units and allied players, and `enemy`/`enemies` apply to
+their enemies. Neutral player slots are classified exclusively as neutral even
+when the default alliance table reports them as friendly. They receive an aura
+only when its authored mask includes `neutral`. The Human02 neutral sheep and
+the Human03 villagers are not recipients of Arthas's Devotion Aura in retail.
+Neutral units remain distinct from static scenery; a mask can still explicitly
+include them.
 
 See [Regeneration Auras And Fountains](regeneration-auras.md) for the other aura
 families and [Adding Warcraft III Abilities](ability-implementation.md)
