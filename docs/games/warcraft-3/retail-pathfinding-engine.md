@@ -11744,3 +11744,13 @@ removal and actor goal events now reach the recovered non-combat policy rather
 than a health/power persistence heuristic. `CaptainAttack` is registered.
 Failing-first engine regressions, exact speed/update retail captures and scope
 limits are in [Captain policy](retail-pathfinding-captain-policy.md).
+
+## Moving-blocker group policy and reuse (Payoff162)
+
+The stored selected formation flags now reach Move's blocker resolver. Ordinary
+same-group encounters assign requester4; Alt permits slower-peer20. Failing-first
+selected admission/cold-save regressions and actual RemoveUnit/countdown/slot-reuse
+continuations implement ROUTE-05.1. Ten archived Frida observations, two controls
+and380 frozen owner records pass strict verification. UI timing and the retained
+late one-ulp repeat difference remain explicit; complete composed trajectories
+are separate. See [yield lifecycle](retail-pathfinding-yield-lifecycle.md).

@@ -2399,12 +2399,14 @@ wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers
     FOR_LOOP(i,count) {
         edict_t *peer=blockers[i];
         if (!peer || !peer->inuse || peer==self) continue;
+        moveGroup_t const *group=move_unit_group(peer);
         wc3YieldPeer_t other={.velocity={peer->movement.velocity.x,peer->movement.velocity.y},
-            .player=peer->s.player,.grouped=unit_routes_to_location(peer),
+            .player=peer->s.player,.group_flags=group ? group->flags : 0,
+            .grouped=unit_routes_to_location(peer),
             .same_group=self->movement.group_id && self->movement.group_id==peer->movement.group_id,
             .blocked=peer->movement.wait_blocker && peer->movement.wait_blocker->inuse};
-        /* TODO GROUP/ROUTE-05.1: ordinary engine cohorts retain activation's flags0;
-         * the original group-bit8 writer/producer remains unimplemented. */
+        /* Native16843f uses the retained physical group flag, copied from
+         * the selected request's formation option before the first tick. */
         wc3YieldDecision_t choice=wc3_yield_decide(velocity,self->s.player,&other);
         if (choice==WC3_YIELD_SELF) {
             self->movement.wait_blocker=peer;

@@ -1979,6 +1979,116 @@ TEST(wc3_movement, moving_blocker_yield_uses_original_velocity_policy) {
     reset_entities(); setup_test_world();
 }
 
+/* ROUTE-05.1 UI captures: only Alt changes the same-group yield branch.
+ * Replay literal committed fine velocities through actual selected admission,
+ * including a cold save. Authored speeds do not decide the encounter. */
+TEST(wc3_movement, selected_formation_yield_uses_saved_group_policy) {
+    uint32_t const velocity[2][4]={
+        {1083483402u,3206607405u,1083462824u,1060274401u},
+        {1090897749u,3213939408u,1083462824u,1060274401u}
+    };
+    FOR_LOOP(alt,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,8};
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        T_ASSERT(run_test_jass("globals\nunit first\nunit second\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set first=CreateUnit(Player(0),'hRTE',600,1024,0)\n"
+            "set second=CreateUnit(Player(0),'hRTE',680,1024,0)\nendfunction\n"));
+        edict_t *unit=NULL,*peer=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(ent->s.origin2.x==600)unit=ent;else peer=ent;
+            G_SetEntitySelectionMask(ent,1);
+        }
+        T_NOT_NULL(unit);T_NOT_NULL(peer);if(!unit || !peer)continue;
+        clent->client->menu.on_location_selected=move_selectlocation;
+        clent->client->menu.supports_order_queue=true;
+        cstring_t args[]={"point","1300.132","1023.309","alt"};
+        G_ClientCommand(clent,alt ? 4 : 3,args);
+        moveGroup_t *group=move_unit_group(unit);
+        T_NOT_NULL(group);if(!group)continue;
+        T_EQ(group->count,2);T_EQ(group->flags&8u,alt ? 8u : 0);
+        T_EQ(unit->movement.group_id,peer->movement.group_id);
+        cstring_t file="/tmp/wc3-selected-yield162.bin";
+        T_ASSERT(WriteGame(file));
+        FOR_LOOP(pass,2) {
+            if(pass)T_ASSERT(ReadGame(file));
+            unit->movement.velocity=(vec2_t){wc3_mul(wc3_float(velocity[alt][0]),32),wc3_mul(wc3_float(velocity[alt][1]),32)};
+            peer->movement.velocity=(vec2_t){wc3_mul(wc3_float(velocity[alt][2]),32),wc3_mul(wc3_float(velocity[alt][3]),32)};
+            edict_t *blockers[]={peer};
+            T_EQ(S_ResolveMoveBlockers(unit,blockers,1),alt ? WC3_YIELD_PEER : WC3_YIELD_SELF);
+            T_EQ(unit->movement.wait_delay,alt ? 0 : 4);
+            T_EQ(peer->movement.wait_delay,alt ? 20 : 0);
+            T_EQ(unit->movement.wait_blocker,alt ? NULL : peer);
+            T_EQ(peer->movement.wait_blocker,alt ? unit : NULL);
+        }
+        remove(file);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* A removed blocker cannot release the countdown or lend its identity to a
+ * replacement. Owner ticks consume the original4/20 visits; a later ordinary
+ * allocation reuses the freed edict without inheriting that relationship. */
+TEST(wc3_movement, yield_removal_reuse_preserves_wait_and_saved_countdown) {
+    FOR_LOOP(long_wait,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,8};
+        T_ASSERT(run_test_jass("globals\nunit waiter\nunit blocker\nunit replacement\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set waiter=CreateUnit(Player(0),'hRTE',256,256,0)\n"
+            "set blocker=CreateUnit(Player(0),'hRTE',256,1024,0)\n"
+            "call IssuePointOrder(waiter,\"move\",1536,256)\n"
+            "call IssuePointOrder(blocker,\"move\",1536,1024)\nendfunction\n"
+            "function remove takes nothing returns nothing\n"
+            "call RemoveUnit(blocker)\nendfunction\n"
+            "function replace takes nothing returns nothing\n"
+            "set replacement=CreateUnit(Player(0),'hRTE',256,1024,0)\nendfunction\n"));
+        edict_t *waiter=NULL,*blocker=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(ent->s.origin2.y==256)waiter=ent;else blocker=ent;
+        }
+        T_NOT_NULL(waiter);T_NOT_NULL(blocker);if(!waiter || !blocker)continue;
+        waiter->movement.velocity=(vec2_t){32,0};blocker->movement.velocity=(vec2_t){64,0};
+        edict_t *candidates[]={long_wait ? waiter : blocker};
+        T_EQ(S_ResolveMoveBlockers(long_wait ? blocker : waiter,candidates,1),long_wait ? WC3_YIELD_PEER : WC3_YIELD_SELF);
+        uint32_t delay=long_wait ? 20 : 4,slot=blocker->s.number,spawn=blocker->spawn_time;
+        T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        cstring_t file="/tmp/wc3-yield-reuse162.bin";T_ASSERT(WriteGame(file));
+        FOR_LOOP(pass,2) {
+            if(pass)T_ASSERT(ReadGame(file));
+            T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
+            jass_callbyname(level.vm,"remove",false);
+            T_EQ(waiter->movement.wait_delay,delay);
+            FOR_LOOP(frame,delay) {
+                level.time+=30;globals.RunFrame();
+                T_EQ(waiter->movement.wait_delay,delay-frame-1);
+                T_EQ(waiter->movement.wait_blocker,NULL);
+                T_EQ(waiter->movement.velocity.x,0);T_EQ(waiter->movement.velocity.y,0);
+            }
+            level.time+=30;globals.RunFrame();
+            T_EQ(waiter->movement.wait_delay,0);T_ASSERT(waiter->movement.velocity.x>0);
+            T_ASSERT(!blocker->inuse);
+            /* Respect G_Spawn's reuse cooldown rather than forcing an ID. */
+            FOR_LOOP(frame,40) {level.time+=30;globals.RunFrame();}
+            jass_callbyname(level.vm,"replace",false);
+            edict_t *replacement=g_edicts+slot;
+            T_ASSERT(replacement->inuse);T_EQ(replacement->class_id,MAKEFOURCC('h','R','T','E'));
+            T_ASSERT(replacement->spawn_time!=spawn);T_EQ(waiter->movement.wait_blocker,NULL);
+            T_EQ(waiter->movement.wait_delay,0);
+        }
+        remove(file);
+    }
+    level.started=false;reset_entities();setup_test_world();
+}
+
 /* After assigning a peer20 wait, original165c60 restores the final caller goal
  * and167290 clears only fine storage. The current advance stops; coarse state
  * remains owned for the next admitted refill. */
