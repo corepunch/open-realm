@@ -34,6 +34,9 @@ void G_FreeLeaderboard(leaderboard_t *board) {
     FOR_LOOP(i, MAX_PLAYERS) if (level.player_leaderboards[i] == index) {
         level.player_leaderboards[i] = -1;
         level.leaderboard_dirty_clients |= leaderboard_client_mask(i);
+        /* The resource panel is stacked below this layer and needs the new
+         * offset after the assigned leaderboard disappears. */
+        level.multiboard_dirty_clients |= leaderboard_client_mask(i);
     }
     memset(board, 0, sizeof(*board));
 }
@@ -51,6 +54,7 @@ void G_SetPlayerLeaderboard(uint32_t player, leaderboard_t *board) {
     if (board && index < 0) return;
     level.player_leaderboards[player] = index;
     level.leaderboard_dirty_clients |= leaderboard_client_mask(player);
+    level.multiboard_dirty_clients |= leaderboard_client_mask(player);
 }
 
 void G_SetLeaderboardDisplayed(leaderboard_t *board, player_t *player, bool displayed) {
@@ -60,6 +64,7 @@ void G_SetLeaderboardDisplayed(leaderboard_t *board, player_t *player, bool disp
     else { uint32_t count = MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS); mask = count ? (uint32_t)((1ull << count) - 1ull) : 0; }
     if (displayed) board->displayed_clients |= mask; else board->displayed_clients &= ~mask;
     level.leaderboard_dirty_clients |= mask;
+    level.multiboard_dirty_clients |= mask;
 }
 
 bool G_IsLeaderboardDisplayed(leaderboard_t const *board, player_t const *player) {
@@ -74,7 +79,13 @@ void G_MarkLeaderboardDirty(leaderboard_t const *board) {
     int32_t index = leaderboard_index(board);
     if (index < 0) return;
     FOR_LOOP(i, MIN((uint32_t)MAX_PLAYERS, (uint32_t)MAX_CLIENTS))
-        if (level.player_leaderboards[i] == index) level.leaderboard_dirty_clients |= leaderboard_client_mask(i);
+        if (level.player_leaderboards[i] == index) {
+            uint32_t mask = leaderboard_client_mask(i);
+            level.leaderboard_dirty_clients |= mask;
+            /* UI_WriteMultiboard computes its position from the visible
+             * leaderboard height, so refresh the lower layer as well. */
+            level.multiboard_dirty_clients |= mask;
+        }
 }
 
 void G_UpdateLeaderboards(void) {
