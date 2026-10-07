@@ -201,6 +201,7 @@ Frames are grouped into `UILAYOUTLAYER` layers:
 | `LAYER_CINEMATIC` | Cinematic overlays |
 | `LAYER_MESSAGE` | Chat/transmission and ordinary gameplay message area |
 | `LAYER_GAME_2` | Game-reserved layer; Warcraft III aliases this as `WC3_LAYER_COMMAND_ERROR` for replacing command-failure text |
+| `LAYER_GAME_3` | Game-reserved layer; Warcraft III aliases this as `WC3_LAYER_MULTIBOARD` for the custom multiboard / Team Resources panel |
 | `LAYER_QUESTDIALOG` | Quest/objective display |
 | `LAYER_UNIT_SHORTCUTS` | Warcraft III persistent Hero and idle-worker controls |
 | `LAYER_TIMERDIALOG` | Warcraft III stock timer-dialog mission countdown |

@@ -1,11 +1,114 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+#include "../hud/hud_local.h"
+#include "common/ui_constants.h"
 #include <string.h>
 
 bool run_test_jass(cstring_t src);
 void setup_test_world(void);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 extern player_t *currentplayer;
+
+#define MB_MAX_LAYOUTS 16 // svc_layout messages one test captures
+#define MB_MAX_TEXTS 64   // FT_STRING texts one test captures
+
+/* svc_layout capture: one header (svc_layout byte + layer byte) per message,
+ * then the frames until UI_WriteEnd.  Mirrors the client contract that one
+ * message owns one layer, so a layer byte is read only after svc_layout. */
+static int32_t mb_layout_layers[MB_MAX_LAYOUTS];
+static uint32_t mb_layout_frames[MB_MAX_LAYOUTS];
+static uint32_t mb_layout_count;
+static bool mb_layer_pending;
+static char mb_texts[MB_MAX_TEXTS][32];
+static uint32_t mb_text_count;
+static uint32_t mb_unicast_count;
+static edict_t *mb_unicast_target;
+
+static void mb_reset_capture(void) {
+    memset(mb_layout_layers, 0, sizeof(mb_layout_layers));
+    memset(mb_layout_frames, 0, sizeof(mb_layout_frames));
+    memset(mb_texts, 0, sizeof(mb_texts));
+    mb_layout_count = mb_text_count = mb_unicast_count = 0;
+    mb_layer_pending = false;
+    mb_unicast_target = NULL;
+}
+
+static void mb_capture_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE && data) {
+        int32_t const value = *(int32_t const *)data;
+        if (mb_layer_pending) {
+            if (mb_layout_count < MB_MAX_LAYOUTS) mb_layout_layers[mb_layout_count] = value;
+            mb_layout_count++;
+            mb_layer_pending = false;
+        } else if (value == svc_layout) {
+            mb_layer_pending = true;
+        }
+        return;
+    }
+    if (type == PF_UIFRAME && data && mb_layout_count && mb_layout_count <= MB_MAX_LAYOUTS) {
+        uiFrame_t const *frame = data;
+        mb_layout_frames[mb_layout_count - 1]++;
+        if (frame->flags.type == FT_STRING && frame->text && mb_text_count < MB_MAX_TEXTS)
+            snprintf(mb_texts[mb_text_count++], sizeof(mb_texts[0]), "%s", frame->text);
+    }
+}
+
+static void mb_capture_unicast(edict_t *ent) { mb_unicast_count++; mb_unicast_target = ent; }
+
+static bool mb_text_seen(cstring_t text) {
+    FOR_LOOP(i, mb_text_count) if (!strcmp(mb_texts[i], text)) return true;
+    return false;
+}
+
+typedef struct {
+    void (*write)(pfWriteType_t, void const *);
+    void (*unicast)(edict_t *);
+} mbCaptureSaved_t;
+
+static mbCaptureSaved_t mb_install_capture(void) {
+    mbCaptureSaved_t saved = { gi.Write, gi.unicast };
+    mb_reset_capture();
+    gi.Write = mb_capture_write;
+    gi.unicast = mb_capture_unicast;
+    return saved;
+}
+
+static void mb_restore_capture(mbCaptureSaved_t saved) { gi.Write = saved.write; gi.unicast = saved.unicast; }
+
+/* viewer -> owner advanced sharing, the only alliance edge Team Resources reads. */
+static void mb_grant_advanced(gameClient_t *viewer, gameClient_t *owner, bool advanced) {
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_CONTROL, true);
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, advanced);
+}
+
+TEST(wc3_multiboard, team_resources_layer_is_distinct_from_command_error_layer) {
+    edict_t *viewer = &g_edicts[0];
+    mbCaptureSaved_t saved;
+
+    setup_test_world();
+    G_SetClientConnected(viewer, true);
+    mb_grant_advanced(viewer->client, &game.clients[1], true);
+    game.clients[1].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 321;
+
+    saved = mb_install_capture();
+    UI_WriteMultiboard(viewer);
+    UI_WriteCommandError(viewer, "Not enough gold.");
+    mb_restore_capture(saved);
+
+    /* The client clears a layer before storing a message for it, so the
+     * command-failure overlay must never share the Team Resources layer. */
+    T_EQ(mb_layout_count, 2);
+    T_EQ(mb_layout_layers[0], WC3_LAYER_MULTIBOARD);
+    T_EQ(mb_layout_layers[1], WC3_LAYER_COMMAND_ERROR);
+    T_NE(mb_layout_layers[0], mb_layout_layers[1]);
+    T_ASSERT(mb_layout_frames[0] > 0);
+    T_ASSERT(mb_text_seen("321"));
+    T_NE(WC3_LAYER_MULTIBOARD, WC3_LAYER_LEADERBOARD);
+    T_NE(WC3_LAYER_MULTIBOARD, WC3_LAYER_TIMERDIALOG);
+    T_ASSERT(WC3_LAYER_MULTIBOARD < MAX_LAYOUT_LAYERS);
+}
 
 TEST(wc3_api, multiboard_natives_manage_cells_display_and_minimize) {
     player_t *saved = currentplayer;

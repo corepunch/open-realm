@@ -45,4 +45,4 @@ make test-wc3-engine WC3_PATTERN='wc3_api.leaderboard*'
 
 Tests live in `games/warcraft-3/game/tests/t_multiboard.c`.
 
-Team Resources is a distinct engine-managed display on `LAYER_GAME_2`; see [Team Resources and Advanced Shared Control](team-resources.md).
+Team Resources is a distinct engine-managed display on `LAYER_GAME_3` (`WC3_LAYER_MULTIBOARD`), separate from the `LAYER_GAME_2` command-error overlay; see [Team Resources and Advanced Shared Control](team-resources.md).
