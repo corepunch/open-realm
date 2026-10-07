@@ -11333,3 +11333,16 @@ seven policy and22 corpus tests, and fresh `oracle-repulsion-policy` passes.
 This is a recovered full batch checkpoint, not a claim that the initially
 failed umbrella invocation exited successfully. Focused validation resumes
 for the next implementation batch. SEP-01.2 remains open;96 TODOs remain.
+
+
+## Fine consumers retain counted self scopes
+
+Payoff148 replaces endpoint, waypoint and blocker-collection self overlays with
+balanced holds of the actual pooled record. Nested depths survive; targets stay
+live and null-self collectors still emit terrain blockers. The 96 complete
+initialized original consumer cases and observer-free controls drive the engine
+regression, following 72 scope failures and 20 null-self failures. Fine-request
+exact/partial/denied exits also retain counters and unchanged hierarchy state.
+No persistent layout, allocation or map scan is added. MAP-04.2 remains open for
+resolver/recovery/portal/group lifecycle composition; see
+[consumer scope evidence](retail-pathfinding-exclusions.md#fine-consumers-hold-captured-self-through-their-queries-payoff148).

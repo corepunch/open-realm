@@ -755,6 +755,14 @@ static void (*move_coarse_scope_trace)(void *,unsigned,movePathQuery_t const *);
 static void *move_coarse_scope_data;
 static void (*move_fine_scope_trace)(void *,unsigned,movePathQuery_t const *);
 static void *move_fine_scope_data;
+static void (*move_object_scope_trace)(void *,moveScopeTrace_t const *);
+static void *move_object_scope_data;
+void G_TestMoveObjectScopeTrace(void (*trace)(void *,moveScopeTrace_t const *),void *data) {
+    move_object_scope_trace=trace;move_object_scope_data=data;
+}
+static void move_trace_object_scope(unsigned kind,unsigned stage,movePathQuery_t const *input) {
+    if(move_object_scope_trace)move_object_scope_trace(move_object_scope_data,&(moveScopeTrace_t){input,kind,stage});
+}
 void G_TestMoveFineScopeTrace(void (*trace)(void *,unsigned,movePathQuery_t const *),void *data) {
     move_fine_scope_trace=trace; move_fine_scope_data=data;
 }
@@ -770,6 +778,7 @@ static void move_trace_coarse_scope(unsigned stage,movePathQuery_t const *input)
 #else
 #define move_trace_coarse_scope(stage,input) ((void)0)
 #define move_trace_fine_scope(stage,input) ((void)0)
+#define move_trace_object_scope(kind,stage,input) ((void)0)
 #endif
 
 /*166c30 owns one complete synchronous scope. Admission precedes this call;
@@ -803,8 +812,18 @@ static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *qu
     graph->query=query;
 }
 
-/* Search reads captured object counters. Other endpoint/segment callers retain
- * their query-local self suppression; neither policy changes target chronology. */
+/*167bf0/166140/16ee80 hold the pooled self identity, not an edict overlay.
+ * A nested depth survives release, and a null self leaves other objects live. */
+static wc3RecordObject_t *move_hold_self(movePathQuery_t const *input) {
+    wc3RecordObject_t *self=input->units && input->mover ?
+        wc3_records_owned(S_GetMoveFineSpatial(),input->mover-g_edicts) : NULL;
+    if(self)self->flags++;
+    return self;
+}
+static void move_release_self(wc3RecordObject_t *self) {if(self)self->flags--;}
+
+/* Counted consumers read the held record; remaining placement/line adapters
+ * keep their local suppression until their owning scopes are integrated. */
 static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const *object) {
     moveFineGraph_t const *graph=data;
     wc3FineObject_t shape=move_cell_object(NULL,object);
@@ -1116,7 +1135,13 @@ bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *input, float const
     if (!input || !input->geometry.from || !pathmap.width || !pathmap.height) return false;
     moveFineGraph_t graph = move_foot_shape(&input->geometry); graph.endpoint = true;
     move_query_objects(&graph,input,NULL);
-    return move_foot_ok(&graph,(wc3FinePoint_t){(int)floorf(fine[0]),(int)floorf(fine[1])});
+    move_trace_object_scope(MOVE_SCOPE_ENDPOINT,0,input);
+    wc3RecordObject_t *self=move_hold_self(input);graph.counted_scope=true;
+    move_trace_object_scope(MOVE_SCOPE_ENDPOINT,1,input);
+    bool admitted=move_foot_ok(&graph,(wc3FinePoint_t){(int)floorf(fine[0]),(int)floorf(fine[1])});
+    move_release_self(self);
+    move_trace_object_scope(MOVE_SCOPE_ENDPOINT,2,input);
+    return admitted;
 }
 
 /* Keep existing nearest-ring endpoint correction while using the actual
@@ -1223,10 +1248,7 @@ uint8_t G_TestMoveFineEdges(movePathQuery_t const *input,point2_t pos,bool cache
 typedef struct { movePathQuery_t const *query; edict_t **items; uint32_t count; } moveBlockerQuery_t;
 
 static wc3FineObject_t move_collector_object(void *data,wc3RecordObject_t const *object) {
-    moveBlockerQuery_t const *scan=data;
-    wc3FineObject_t shape=move_cell_object(NULL,object);
-    if(!(object->flags&WC3_RECORD_REGION) && g_edicts+object->owner==scan->query->mover)shape.flags|=1;
-    return shape;
+    return move_cell_object(data,object);
 }
 static void move_collector_emit(void *data,uint32_t id) {
     moveBlockerQuery_t *scan=data;
@@ -1253,8 +1275,8 @@ static bool move_collect_blocker_cell(void const *data,wc3FinePoint_t pos) {
 /* Original166140 normalizes the native next step and collects every entering
  * cell. Returning true from the callback keeps scanning after a rejection. */
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const fine_goal[2], edict_t **out) {
-    if (!input || !input->units || !input->mover || !out || !input->geometry.target ||
-        !pathmap.width || !pathmap.height || (input->mover->aiflags&AI_FLYING)) return 0;
+    if (!input || !input->units || !out || !input->geometry.target ||
+        !pathmap.width || !pathmap.height || (input->mover && (input->mover->aiflags&AI_FLYING))) return 0;
     move_spatial_sync();
     vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
         move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
@@ -1264,7 +1286,12 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const
     wc3_segment_normalize(query.direction);
     wc3FinePoint_t current={(int)floorf(source.x),(int)floorf(source.y)}, next=wc3_segment_point(&query,1.f);
     unsigned code=(next.x<current.x?8u:next.x>current.x?2u:0u)|(next.y<current.y?1u:next.y>current.y?4u:0u);
+    move_trace_object_scope(MOVE_SCOPE_BLOCKERS,0,input);
+    wc3RecordObject_t *self=move_hold_self(input);
+    move_trace_object_scope(MOVE_SCOPE_BLOCKERS,1,input);
     wc3_segment_foot(&query,next,code);
+    move_release_self(self);
+    move_trace_object_scope(MOVE_SCOPE_BLOCKERS,2,input);
     return scan.count;
 }
 
@@ -1714,7 +1741,12 @@ bool G_AdvanceUnitMoveFineRouteStatus(movePathQuery_t const *input,moveFineRoute
         if (!route->index) return false;
         moveFineGraph_t graph = move_foot_shape(&input->geometry); move_query_objects(&graph,input,NULL);
         wc3FineSegment_t segment = {.start={source.x,source.y},.cls=(unsigned)graph.size-1,.cell=move_cell_ok,.data=&graph};
+        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,0,input);
+        wc3RecordObject_t *self=move_hold_self(input);graph.counted_scope=true;
+        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,1,input);
         route->index = wc3_segment_waypoint(&segment,(wc3FineRoute_t){route->points,route->index});
+        move_release_self(self);
+        move_trace_object_scope(MOVE_SCOPE_WAYPOINT,2,input);
         point = route->points[route->index];
     }
     *out = move_world_from_grid(point.x,point.y);

@@ -17,6 +17,7 @@ import tempfile
 HERE=Path(__file__).resolve().parent
 FIXTURES=HERE/'fixtures'
 SHA='d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
+CONSUMER_SHA='f3393e78cf64f85fcc8551d5cf9e3b604f9d78f42fb095ac2151b13fcfaa800e'
 FROZEN={
     'MAP-04.1-expected.json':'4a95b59fdd95872f464a33fbd21eca0f6eed60ee78f286b844aa83049b6475b0',
     'MAP-04.2-expected-oracle.json':'d8c0c978c29d0bd893fe2d8882e45f6e7adfb29c8d93fa992b9c9ca356fc1438',
@@ -46,19 +47,24 @@ def verify(binary):
             raise ValueError('frozen payload differs: '+name)
     if hashlib.sha256(binary.read_bytes()).hexdigest()!=SHA:raise ValueError('retail binary differs')
     mapping=(HERE/'MapPathfinding.java').read_text()
-    readback=json.loads((FIXTURES/'retail-exclusion-scope-ghidra-1.27.json').read_text())
-    if readback['unsaved_changes'] or len(readback['functions'])!=3:
-        raise ValueError('incomplete saved Ghidra evidence')
-    for row in readback['functions']:
-        if row['comment'] not in mapping:
-            raise ValueError('saved Ghidra note missing from mapper: '+row['address'])
+    if hashlib.sha256((FIXTURES/'retail-exclusion-consumers-1.27.json').read_bytes()).hexdigest()!=CONSUMER_SHA:
+        raise ValueError('fine consumer fixture differs')
+    for name in ('retail-exclusion-scope-ghidra-1.27.json','retail-exclusion-consumer-ghidra-1.27.json'):
+        readback=json.loads((FIXTURES/name).read_text())
+        if readback['unsaved_changes'] or len(readback['functions'])!=3:
+            raise ValueError('incomplete saved Ghidra evidence')
+        for row in readback['functions']:
+            if row['comment'] not in mapping:
+                raise ValueError('saved Ghidra note missing from mapper: '+row['address'])
     with tempfile.TemporaryDirectory() as directory:
         root=Path(directory);bundle=restore_inputs(root)
         oracle=root/'oracle.json'
         stages=root/'engine-stages.json'
+        consumers=root/'engine-consumers.json'
         run(HERE/'research/verify_map04_1_nested_exclusions.py','--binary',binary,'--report',oracle,
             '--reference',FIXTURES/'research/MAP-04.1-expected.json',
-            '--edit-reference',FIXTURES/'research/MAP-04.2-expected-oracle.json','--engine-fixture',stages)
+            '--edit-reference',FIXTURES/'research/MAP-04.2-expected-oracle.json','--engine-fixture',stages,
+            '--consumer-fixture',consumers)
         result=json.loads(oracle.read_text())
         if stages.read_bytes()!=gzip.decompress((FIXTURES/'retail-exclusion-stages-1.27.json.gz').read_bytes()):
             raise ValueError('complete native stage export differs')
@@ -68,6 +74,13 @@ def verify(binary):
         if header.read_bytes()!=(HERE.parents[1]/'games/warcraft-3/game/tests/retail_exclusion_stages.h').read_bytes():
             raise ValueError('engine stage fixtures differ')
         result['engine_stage_cases']=len(json.loads(stages.read_text())['cases'])
+        if consumers.read_bytes()!=(FIXTURES/'retail-exclusion-consumers-1.27.json').read_bytes():
+            raise ValueError('complete native consumer export differs')
+        header=root/'retail_exclusion_consumers.h'
+        run(HERE/'research/export_exclusion_consumers.py','--fixture',consumers,'--header',header)
+        if header.read_bytes()!=(HERE.parents[1]/'games/warcraft-3/game/tests/retail_exclusion_consumers.h').read_bytes():
+            raise ValueError('engine consumer fixtures differ')
+        result['consumer_scope_cases']=len(json.loads(consumers.read_text())['cases'])
         # Decode every scope again. Comparing the complete fresh report also
         # checks instruction/function coverage, resolved calls and unwind maps.
         static=root/'fresh-static.json'

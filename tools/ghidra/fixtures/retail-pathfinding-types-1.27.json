@@ -12831,6 +12831,25 @@
         }
       ],
       "evidence": "Payoff126: instruction-verified ECX/stack/RET contract; completed adaptive handoff and frozen disassembly."
+    },
+    {
+      "address": "6f16ee80",
+      "name": "Separate_ValidateEndpoint",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "separation",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "point",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff148 complete original32 endpoint cases: ECX separation, stack+4 point, RET4, footprint result retained in EAX; real capture/increment/restore of mover+98 record+40 and fine+d4."
     }
   ],
   "globals": [

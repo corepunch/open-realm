@@ -36028,6 +36028,9 @@
         },
         "engine_stage_cases": {
           "equal": 45
+        },
+        "consumer_scope_cases": {
+          "equal": 96
         }
       },
       "evidence": [
@@ -36035,7 +36038,7 @@
         "O",
         "L"
       ],
-      "scope": "Unchanged complete MAP04 scope/edit payloads, fresh12-site instruction inventory, all retained Frida scope captures and complete45-case native stage/header reconstruction. Separate engine regressions cover fine counters/windows/routes and every coarse hierarchy stage.",
+      "scope": "Unchanged complete MAP04 scope/edit payloads, fresh12-site instruction inventory, all retained Frida scope captures and complete45-case native stage/header reconstruction. Separate engine regressions cover fine counters/windows/routes and every coarse hierarchy stage. Payoff148 adds complete96 initialized endpoint/waypoint/collector calls with observer-free controls and exact native/header comparisons.",
       "exclusions": [
         "Asymmetric rectangles, category06 and outer counters are supplied original oracle inputs; additional public construction producers are not certified by this fixture.",
         "Stop recovery and portal inventory retains unresolved virtual calls; no new live reentrancy proof.",
@@ -36556,7 +36559,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "624196f2563cb4386ea5eb70f905f092982913924ab6425104444063f3c3a1d2"
+      "sha256": "b6a7105ccf00a8fe5400790ce7f09a61843abc50780c1eca9b5e709670ac6086"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -37389,7 +37392,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "aa86ffc74c02e94d30d4770a7b9db5a99048c744aea05ec7906eb30e95d262b8"
+      "sha256": "8337ad863c211e8fb6d787eb4b90853792362fe59fe342e82b257f95bfc1c2e5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38321,7 +38324,7 @@
     },
     {
       "path": "tests/test_wc3_pathing_exclusions.py",
-      "sha256": "f42bd2eb285b91871addbba6c7ee0d5ab5d8ea623d72e5289e3cf56663698168"
+      "sha256": "e05df6e85c3a7afbc073fc08a68b1ad368ac3e13dbd78eff3d765b666fa78548"
     },
     {
       "path": "tools/frida/research/map04_2_make_map.py",
@@ -38369,7 +38372,7 @@
     },
     {
       "path": "tools/ghidra/research/verify_map04_1_nested_exclusions.py",
-      "sha256": "d2eae96961acd3ab31d25d729ff3a493ba374d02dfc54bbcc303b246b7d8a0c0"
+      "sha256": "ba45d7414f9448f6dd96861b987daea642e53ff17cbafe23b7afa6cbe8728d9a"
     },
     {
       "path": "tools/ghidra/research/verify_map04_2_scope_exits.py",
@@ -38377,7 +38380,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_exclusions.py",
-      "sha256": "446c0bace224cd7ddb99f2ee5428cee1b8257a8f58bd63ea4aa4fa2227006fa9"
+      "sha256": "1049b892d910659445e3214d8e8fd8cbe3e79882c1cc7c026f61d9766d01b90b"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_profile.h",
@@ -38677,7 +38680,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "c4188e3fb9214e1b2f78a36b4a27d16ae289d4db23f136e47ef378e639774e2e"
+      "sha256": "c7fe0b6b51d9f6d8faa06babcee3a56d64f5299a2fccf420df090647e624c6c1"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -38689,7 +38692,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "6e1a3c2d06c59922038d6a5db2bcd2196b66108cc08736dc09eb96429e150e9e"
+      "sha256": "a7bc06453cabdb889529e83f4d03ab958a2fce452f85ccc27e0725b4eb40c6ec"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -38741,7 +38744,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "1daf1bf6a0d501b8af4842a02f5099be581167b75d187403212992c6b6ce0c05"
+      "sha256": "bee1e0738e153e49462aa6778d729e67c6ca59fbbbebc48944b561185a5a2aad"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -39086,6 +39089,22 @@
     {
       "path": "tools/ghidra/fixtures/retail-repulsion-immobile-1.27.json.gz",
       "sha256": "4f69b74e43cad09f4b67487c31d394430919e987fa868c82550d08baf52cabca"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_exclusion_consumers.h",
+      "sha256": "fb5b145e277fa9d6eb19819555d1dba1c3680fb249eec5081791941ef1a50e32"
+    },
+    {
+      "path": "tools/ghidra/research/export_exclusion_consumers.py",
+      "sha256": "9bb9e46dbcd39d7dfa86a769f3bdda16e3bdc6cee986d69205edc8c7e9344b1f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-exclusion-consumers-1.27.json",
+      "sha256": "f3393e78cf64f85fcc8551d5cf9e3b604f9d78f42fb095ac2151b13fcfaa800e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-exclusion-consumer-ghidra-1.27.json",
+      "sha256": "e4866e935538db5484e8ad5643fa4dbbf203c005038e1d57095283fd6da495b7"
     }
   ]
 }

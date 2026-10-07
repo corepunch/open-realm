@@ -40,6 +40,21 @@ class ExclusionEvidenceTests(unittest.TestCase):
         stages['cases'][0]['fine_cells']['after_self_inc'][0][0]^=1
         with self.assertRaises(ValueError):exporter.header(stages,frozen)
 
+    def test_complete_original_consumers_rebuild_header_and_reject_invalid_domains(self):
+        spec=importlib.util.spec_from_file_location('export_consumers',ROOT/'tools/ghidra/research/export_exclusion_consumers.py')
+        exporter=importlib.util.module_from_spec(spec);spec.loader.exec_module(exporter)
+        raw=(MODULE.FIXTURES/'retail-exclusion-consumers-1.27.json').read_bytes()
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),MODULE.CONSUMER_SHA)
+        fixture=json.loads(raw)
+        self.assertEqual(exporter.header(fixture),
+            (ROOT/'games/warcraft-3/game/tests/retail_exclusion_consumers.h').read_text())
+        for mutate in (lambda f:f['cases'].pop(),
+                       lambda f:f['cases'].__setitem__(0,f['cases'][1]),
+                       lambda f:f['cases'][0].__setitem__('cls',4),
+                       lambda f:f['cases'][0]['held'][0].__setitem__('endpoint_mode',0)):
+            changed=json.loads(raw);mutate(changed)
+            with self.assertRaises(ValueError):exporter.header(changed)
+
     def test_frozen_payloads_and_all_retained_inputs_are_unchanged(self):
         for name,digest in MODULE.FROZEN.items():
             self.assertEqual(hashlib.sha256((MODULE.FIXTURES/'research'/name).read_bytes()).hexdigest(),digest)

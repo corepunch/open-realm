@@ -18,8 +18,10 @@ under each observed counter state. MAP-04.2 adds a pending fine terrain edit
 (original PathCell_EditTerrainFlags 6f054000, no hierarchy publication) before
 a request and checks what the request's restoration publishes.
 """
-import argparse, hashlib, itertools, json, struct
+import argparse, hashlib, itertools, json, struct, sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from verify_wc3_pathing_numeric import initialize_runtime_scalars
 
 SHA = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 W = H = 64
@@ -52,7 +54,10 @@ def main():
     ap.add_argument('--edit-expected', type=Path, help='write the MAP-04.2 pending-edit cases as their own frozen JSON')
     ap.add_argument('--edit-reference', type=Path, help='compare MAP-04.2 pending-edit cases against frozen JSON')
     ap.add_argument('--engine-fixture', type=Path, help='export complete native cell/counter stages for engine tests')
+    ap.add_argument('--consumer-fixture', type=Path, help='export complete endpoint/waypoint counter lifetimes')
+    ap.add_argument('--consumer-only', action='store_true', help='run only the consumer export; requires --consumer-fixture')
     args = ap.parse_args()
+    if args.consumer_only and not args.consumer_fixture:ap.error('--consumer-only requires --consumer-fixture')
     binary = args.binary.read_bytes()
     if hashlib.sha256(binary).hexdigest() != SHA:
         ap.error('requires game.dll 1.27.1.7085')
@@ -221,6 +226,78 @@ def main():
         m.mem_write(system, saved_sys)
         m.mem_write(tilemap, saved_map)
         return result
+
+    def consumers():
+        # Complete original consumers, not an isolated increment/decrement
+        # snippet. Inputs are supplied spatial states, not public producers.
+        startup=initialize_runtime_scalars(m,stack,stop)
+        consumer_cases=[]
+        sep,mover,profile=0x10114000,0x10114100,0x10115000
+        saved_rect=RECTS['A']
+        observed=[]
+        def consumer_hook(uc,address,size,data):
+            observed.append(dict(counter=read(objects['A']+0x40)[0],endpoint_mode=read(system+0xd4)[0]))
+        for kind,cls,blocked,outer,absent in itertools.product(('endpoint','waypoint','blockers'),range(4),range(2),range(2),range(2)):
+            offset=(cls+1)//2
+            RECTS['A']=(16-offset,12-offset,16-offset+cls+1,12-offset+cls+1)
+            build(dict(present='A',link_order='ABC',occupancy=dict(A=outer,B=0,C=0)))
+            write(objects['A']+0x34,0x01000002)
+            for index in range(W*H):write(cells+index*4,read(cells+index*4)[0]&0xffffff)
+            blocked_x=13 if kind=='blockers' else 17
+            if blocked:write(cells+(16*W+blocked_x)*4,0x02ffffff)
+            set_path(None if absent else 'A',None,cls=cls)
+            write(system+0xa4,0x02000002);write(system+0xd4,0)
+            write(path+0x9c,0x02000002)
+            m.mem_write(source_ptr,struct.pack('<2f',12.25,16.75))
+            if kind=='endpoint':
+                write(sep+0x14,mover);write(mover+0x98,0 if absent else objects['A'])
+                write(mover+0xa8,profile);write(profile+0x9c,0x02000002)
+                m.mem_write(mover+0x90,struct.pack('<f',.25+.5*cls))
+                m.mem_write(goal_ptr,struct.pack('<2f',17.25,16.75))
+                entry,this,argument,probe=0x6f16ee80,sep,goal_ptr,0x6f149370
+            elif kind=='waypoint':
+                write(path+0x74,3)
+                m.mem_write(route_data,b''.join(struct.pack('<2f',x,16.75) for x in (20.25,18.25,16.25,12.25)))
+                write(0x6fd53a84,system);write(0x6fd53a80,cls)
+                entry,this,argument,probe=0x6f167bf0,path,source_ptr,0x6f168d30
+            else:
+                write(system+0xb8,0x10a10000);write(system+0xc0,0,32,0)
+                write(0x6fd53a84,system);write(0x6fd53a80,cls);write(0x6fd53a8c,mover)
+                write(mover+0xa8,path);write(path+0xa8,-1,-1)
+                m.mem_write(goal_ptr,struct.pack('<2f',20.25,16.75))
+                entry,this,argument,probe=0x6f166140,path,source_ptr,0x6f148ad0
+            observed.clear()
+            before=bytes(m.mem_read(system,0x100));before_map=bytes(m.mem_read(tilemap,0x100))
+            before_obj=bytes(m.mem_read(objects['A'],0x80))
+            h=m.hook_add(UC_HOOK_CODE,consumer_hook,begin=probe,end=probe)
+            m.ctl_flush_tb()
+            arguments=(argument,goal_ptr) if kind=='blockers' else (argument,)
+            result=run(entry,this,*arguments);m.hook_del(h);m.ctl_flush_tb()
+            count=read(system+0xc8)[0] if kind=='blockers' else None
+            after_counter=read(objects['A']+0x40)[0];after_mode=read(system+0xd4)[0]
+            assert observed and all(r['counter']==outer+(not absent) for r in observed),(kind,cls,blocked,outer,absent,observed)
+            assert all(r['endpoint_mode']==(kind=='endpoint') for r in observed)
+            assert after_counter==outer and after_mode==0
+            row=dict(kind=kind,cls=cls,blocked=bool(blocked),blocked_cell=[blocked_x,16],outer=outer,self_absent=bool(absent),
+                held=observed.copy(),result=result,count=count,after_counter=after_counter,after_mode=after_mode)
+            # Identical call without any observers, including predicate stamps.
+            final=bytes(m.mem_read(system,0x100))+bytes(m.mem_read(tilemap,0x100))+bytes(m.mem_read(objects['A'],0x80))
+            m.mem_write(system,before);m.mem_write(tilemap,before_map);m.mem_write(objects['A'],before_obj)
+            assert run(entry,this,*arguments)==result
+            assert final==bytes(m.mem_read(system,0x100))+bytes(m.mem_read(tilemap,0x100))+bytes(m.mem_read(objects['A'],0x80))
+            consumer_cases.append(row)
+        RECTS['A']=saved_rect
+        return dict(binary_sha256=SHA,startup=startup,inputs=dict(source=[12.25,16.75],
+            endpoint=[17.25,16.75],next_step=[20.25,16.75],waypoints=[[x,16.75] for x in (20.25,18.25,16.25,12.25)],
+            radius='.25+.5*cls',self_category='01000002',query_mask='02000002',payload='null/non-mover'),
+            scope='Complete16ee80/167bf0/166140 over supplied fine geometry;96 observer-free controls; '
+                  'non-mover collection payloads; no stubs.',cases=consumer_cases)
+
+    if args.consumer_only:
+        result=consumers()
+        args.consumer_fixture.write_text(json.dumps(result,sort_keys=True,separators=(',',':'))+'\n')
+        args.report.write_text(json.dumps(dict(passed=True,cases=len(result['cases']),binary_sha256=SHA),indent=1)+'\n')
+        return
 
     # ---------------- hooks (read-only observers) ----------------
     events = []
@@ -440,6 +517,8 @@ def main():
                                published_by_request=published, pending_after_request=diff(after_request, full)))
     for h in hooks:
         m.hook_del(h)
+    if args.consumer_fixture:
+        args.consumer_fixture.write_text(json.dumps(consumers(),sort_keys=True,separators=(',',':'))+'\n')
     payload = dict(version=1, binary_sha256=SHA, scope=__doc__.strip(), terrain={'%d,%d' % k: v for k, v in TERRAIN.items()},
                    rectangles=RECTS, rect_order='min_y,min_x,max_y,max_x half-open', window=WINDOW,
                    hierarchy_dims=[SIDE >> l for l in range(4)], fine_dims=[W, H],

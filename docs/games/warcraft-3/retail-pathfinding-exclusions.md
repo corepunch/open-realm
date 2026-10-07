@@ -168,3 +168,72 @@ The exact staged corpus validates369 entries and642 pins; its fresh strict
 was re-executed and the complete existing Frida captures/control markers were
 revalidated. Ghidra readback is retained separately from the Payoff130 snapshot
 in `retail-exclusion-scope-ghidra-1.27.json`.
+
+
+## Fine consumers hold captured self through their queries (Payoff148)
+
+Endpoint admission (`16ee80`), visible-waypoint selection (`167bf0`) and
+next-step blocker collection (`166140`) capture the self spatial record and
+increment its actual occupancy word. They restore that captured record on
+success and rejection; an existing outer depth survives. The path target stays
+published and eligible. Null self does not disable terrain or other-object
+queries. Endpoint admission also temporarily selects endpoint mode and restores
+it; waypoint and collector retain their inherited consumer mode.
+
+The engine replaces three query-local boolean overlays with counted holds of
+address-stable pooled records. It also removes the collector's incorrect
+null-self early return. Reads of the production raw-cell predicate now observe
+the same counter as nested consumers. Each hold/release is constant work, with
+no allocation, map scan, new saved field or change to authoritative membership.
+No throughput or frame-rate target acceptance is inferred.
+
+The complete original-code oracle executes all three functions after their
+registered scalar initializers. Its 96 supplied cases combine four footprint
+classes, clear/blocked terrain, outer depths zero/one and present/absent self.
+Every call is repeated without observers, comparing return values and complete
+fine/map/self prefixes, including stamps and restored mode/counter. Two complete
+exports match byte-for-byte. The plain frozen export has SHA256
+`f3393e78cf64f85fcc8551d5cf9e3b604f9d78f42fb095ac2151b13fcfaa800e`.
+`export_exclusion_consumers.py` copies native results into the engine header;
+it does not calculate expected route or admission policy.
+
+The initial 48-case engine scope regression fails 72 assertions with boolean
+overlays. The expanded native matrix exposes another 20 failures from null-self
+collection. The final test compares actual held counters, raw-cell visibility,
+endpoint outcomes, selected indices and blocker counts for all 96 cases.
+Additional fine-request checks cover exact/partial results, interval denial and
+FIFO denial: every exit restores counters and the complete hierarchy payload;
+pre-acquire denials never enter the scope. The first exact-exit fixture placed
+its target on the start perimeter and therefore correctly triggered target
+arrival; the corrected target is away from both requested routes. No production
+routing policy was changed to accommodate that fixture.
+
+Fresh validation also reconstructs the unchanged 45-request/18-edit exports,
+eight original request exits, all 12 static scope inventories and the complete
+retained Frida captures and repeat markers described above. There is no new
+live capture claim. Saved Ghidra notes and signatures are retained in
+`retail-exclusion-consumer-ghidra-1.27.json` and mirrored in
+`MapPathfinding.java`; the endpoint now has its instruction-verified thiscall
+ECX/stack+4/RET4 signature and unsigned footprint result.
+
+This advances MAP-04.2 without closing it or adding child tasks. Original
+`166140` holds self through moving-peer resolution as well as collection; this
+chunk certifies the collection adapter and non-mover/terrain native controls.
+The broader resolver lifecycle, Stop/embedded recovery, portal and group
+publication scopes retain their existing integration obligations. Supplied
+geometry and outer depths are not public producer reachability evidence.
+
+Logs, red builds and repeat exports: `/GitHub/wc3-analysis/runtime/payoff148/`.
+Full validation remains on the approximately twelve-implementation-commit
+cadence; Payoff147 was the last full checkpoint.
+
+Completed focused validation passes **452 test executions /6,899,192 assertions**
+across Classic/TFT pathfinding, repulsion policy and save/load. The additional
+Classic movement sweep passes **351 tests /5,191,707 assertions**; its TFT sweep
+is still running at this checkpoint and is not included in the completed totals.
+The initial `wc3_move.*` filter selected zero tests; those runs are explicitly
+excluded and were replaced with the actual `wc3_movement.*` suite. Seven Python
+evidence tests and22 staged corpus contract tests pass; the exact staged corpus
+validates369 entries/652 pins and its fresh strict `oracle-exclusions` entry
+passes. Production/test builds are warning-free. The first staged inventory
+attempts rejected stale pins; only the owned changed files were repinned.

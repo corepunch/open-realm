@@ -57,6 +57,8 @@ work closes no additional retail research tasks. See
 
 **240 done / 336 tasks; 96 remaining.**
 
+Payoff148 integrates counted endpoint/waypoint/blocker self scopes and null-self terrain collection, with 96 complete original consumer cases and request-exit regressions. MAP-04.2 remains open for resolver/recovery/portal/group composition; no new tasks. See [consumer scopes](retail-pathfinding-exclusions.md#fine-consumers-hold-captured-self-through-their-queries-payoff148).
+
 Payoff146 closes MAP-04.1: captured fine-record counters preserve aliases,
 outer exclusions and null-self target queries. All45 original fine/coarse
 scenarios match complete stage windows, counters/classes and final routes;

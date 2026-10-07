@@ -42,6 +42,7 @@
 #include "retail_adaptive_storage.h"
 #include "retail_coarse_scopes.h"
 #include "retail_exclusion_stages.h"
+#include "retail_exclusion_consumers.h"
 #include "retail_reconstruction.h"
 #include "retail_stale_route.h"
 #include "retail_route_consumers.h"
@@ -1702,8 +1703,97 @@ TEST(pathfinding, coarse_scope_restores_exact_partial_and_pre_acquire_denial_exi
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
 }
 
-void G_TestMoveFineScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);
+typedef struct { retailExclusionConsumer_t const *expected; edict_t *object; unsigned stages; } objectScopeTrace_t;
 unsigned G_TestMoveScopeCell(wc3FinePoint_t,uint8_t,edict_t const *);
+
+/* Observe the authoritative raw predicate at the consumer boundary, rather
+ * than its old query-local overlay. Retail holds only self, never the target. */
+static void check_object_scope_stage(void *data,moveScopeTrace_t const *scope) {
+    objectScopeTrace_t *trace=data;retailExclusionConsumer_t const *row=trace->expected;
+    T_EQ(scope->kind,row->kind);T_EQ(scope->stage,trace->stages++);
+    T_EQ(G_GetMoveSpatialObject(trace->object-g_edicts)->flags,scope->stage==1 ? row->held : row->outer);
+    T_EQ(G_GetMoveSpatialObject(scope->query->target-g_edicts)->flags,0);
+    if(scope->stage==1) {
+        wc3FineBox_t box=G_GetMoveSpatialObject(trace->object-g_edicts)->box;
+        T_EQ(G_TestMoveScopeCell(box.min,2,NULL),row->held ? 1 : 0);
+    }
+}
+
+/* Original complete calls provide the results and held counters for clear,
+ * blocked, null-self and already-held cases across all four footprint classes. */
+TEST(pathfinding, fine_consumers_hold_captured_self_and_restore_every_result) {
+    FOR_LOOP(i,96) {
+        retailExclusionConsumer_t const *row=retail_exclusion_consumers+i;
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        if(row->blocked)cells[16*64+row->block_x]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        vec2_t source={12.25f*32,16.75f*32},goal={20.25f*32,16.75f*32},fine={12.25f,16.75f},selected;
+        edict_t *unit=make_unit_at(source.x,source.y),*target=make_unit_at(960,960);
+        unit->collision=8+row->cls*16;target->collision=8;
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+        wc3RecordObject_t *self=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        self->flags=row->outer;
+        movePathQuery_t query={.geometry={&source,&goal,unit->collision,2},.mover=row->absent ? NULL : unit,
+            .target=target,.units=true,.fine=&fine};
+        objectScopeTrace_t trace={row,unit,0};G_TestMoveObjectScopeTrace(check_object_scope_stage,&trace);
+        if(row->kind==MOVE_SCOPE_ENDPOINT) {
+            float point[]={17.25f,16.75f};
+            T_EQ(G_UnitMovePathFinePointIsPathable(&query,point),row->result);
+        } else if(row->kind==MOVE_SCOPE_WAYPOINT) {
+            vec2_t points[]={{20.25f,16.75f},{18.25f,16.75f},{16.25f,16.75f},{12.25f,16.75f}};
+            moveFineRoute_t route={.points=points,.count=4,.index=3};
+            T_ASSERT(G_AdvanceUnitMoveFineRoute(&query,&route,&selected));T_EQ(route.index,row->result);
+        } else {
+            edict_t *items[32];float point[]={20.25f,16.75f};
+            T_EQ(G_CollectUnitMoveStepBlockers(&query,point,items),row->result);
+            if(row->result)T_NULL(items[0]); /* Original terrain token, independent of self identity. */
+        }
+        G_TestMoveObjectScopeTrace(NULL,NULL);T_EQ(trace.stages,3);T_EQ(self->flags,row->after);
+    }
+    reset_entities();setup_test_world();
+}
+
+void G_TestMoveFineScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);
+
+TEST(pathfinding, fine_scope_restores_exact_partial_and_pre_acquire_denial_exits) {
+    uint32_t old_counter=level.pathing_counter;
+    FOR_LOOP(exit,4) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64]={0};
+        cells[17*64+17]=cells[18*64+19]=4;
+        if(exit==1)for(unsigned y=54;y<64;y++)for(unsigned x=54;x<64;x++)cells[y*64+x]=0xff;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        vec2_t fine={18.25f,18.75f},end=exit==1 ? (vec2_t){58.25f,58.75f} : (vec2_t){12.25f,9.75f};
+        vec2_t source={fine.x*32,fine.y*32},goal={end.x*32,end.y*32},selected;
+        edict_t *unit=make_unit_at(source.x,source.y),*target=make_unit_at(40.25f*32,12.75f*32);
+        unit->collision=target->collision=48;
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(target);
+        wc3RecordObject_t *self=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        wc3RecordObject_t *other=wc3_records_owned(S_GetMoveFineSpatial(),target-g_edicts);
+        self->flags=1; /* Supplied outer depth must survive every request exit. */
+        uint32_t size=G_GetMoveAdaptiveStateSize();uint8_t *before=malloc(size),*after=malloc(size);
+        T_ASSERT(G_GetMoveAdaptiveState(before,size));
+        moveFineRoute_t route={0};
+        movePathQuery_t query={.geometry={&source,&goal,8,2},.mover=unit,.target=target,.units=true,
+            .fine=&fine,.fine_target=&end};
+        level.pathing_counter=old_counter+100;
+        if(exit==2)unit->movement.fine_request_time=level.pathing_counter;
+        if(exit==3)level.move_fine_budgets[S_MoveSchedulingClass(unit)].work=UINT32_MAX;
+        unsigned stages=0;G_TestMoveFineScopeTrace(count_coarse_scope_stage,&stages);
+        bool admitted=G_BuildUnitMoveLocalRoute(&query,&route,&selected);
+        G_TestMoveFineScopeTrace(NULL,NULL);
+        T_EQ(admitted,exit<2);T_EQ(stages,exit<2?6:0);
+        if(admitted)T_EQ(route.partial,exit==1);
+        T_EQ(self->flags,1);T_EQ(other->flags,0);
+        T_ASSERT(G_GetMoveAdaptiveState(after,size));T_ASSERT(!memcmp(before,after,size));
+        S_CancelUnitMoveFineRequest(unit);
+        free(route.points);free(before);free(after);
+    }
+    level.pathing_counter=old_counter;
+    S_ClearMoveFineRequests();reset_entities();setup_test_world();
+}
+
 typedef struct {
     retailExclusionCase_t const *expected;
     edict_t *objects[3];

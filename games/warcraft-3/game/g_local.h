@@ -3162,6 +3162,11 @@ typedef struct {
     vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
     uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
 } movePathQuery_t;
+#ifdef BZ_TESTS
+enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS };
+typedef struct { movePathQuery_t const *query; unsigned kind,stage; } moveScopeTrace_t;
+void G_TestMoveObjectScopeTrace(void (*)(void *,moveScopeTrace_t const *),void *);
+#endif
 void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
