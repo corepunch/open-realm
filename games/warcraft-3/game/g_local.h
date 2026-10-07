@@ -1664,6 +1664,13 @@ struct edict_s {
     unsummon_t *unsummon;
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
+    /* Awan owns autonomous decisions, but ordinary Move owns the actual route. */
+    uint32_t wander_next_time;
+    uint32_t wander_random_state;
+    edict_t *wander_goal; /* active move, only when owned by Awan */
+    edict_t *wander_waypoint; /* private, stable destination while Awan is installed */
+    uint32_t wander_goal_generation;
+    uint32_t waypoint_generation; /* increments whenever the waypoint ring reuses this edict */
     uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
     shadowMeld_t *shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */

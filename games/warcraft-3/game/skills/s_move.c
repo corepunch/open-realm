@@ -1011,6 +1011,9 @@ edict_t *Waypoint_add(vec2_t const *spot) {
     edict_t *waypoint;
     G_InitWaypoints();
     waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
+    /* A recycled waypoint must never be mistaken for an older Wander order. */
+    waypoint->waypoint_generation++;
+    if (!waypoint->waypoint_generation) waypoint->waypoint_generation = 1;
     level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
@@ -1607,6 +1610,10 @@ static void move_hold(edict_t *ent) {
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
     if (G_UnitStartNextQueuedOrder(ent)) return;
+    /* Before switching to the terminal Hold state (and A_MOVE_LEAVE),
+     * let an internal Wander Move return to idle. Ordinary orders retain
+     * their existing Hold behaviour. */
+    if (S_WanderRecoverBlockedMove(ent)) return;
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;
@@ -1759,6 +1766,9 @@ void order_move(edict_t *self, edict_t *target) {
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
     move_cancel_displacement(self);
+    /* Replacing a Move with another Move does not fire A_MOVE_LEAVE. */
+    self->wander_goal = NULL;
+    self->wander_goal_generation = 0;
     self->goalentity = target;
     self->attack_target_spawn_time = 0;
     self->movement.attackmove_waypoint = NULL;
