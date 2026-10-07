@@ -5394,6 +5394,57 @@ TEST(wc3_api, selection_limit_warns_once_for_unsupported_values) {
     T_ASSERT(strstr(diagnostic, "18") != NULL);
 }
 
+TEST(wc3_api, selection_limit_reduction_keeps_highest_priority_units) {
+    static UnitData_t hero_data, grunt_data;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    gameClient_t *client = &game.clients[0];
+    bool const started = level.started, scripts_started = level.scriptsStarted;
+    edict_t *units[WC3_SELECTION_MAX];
+    edict_t *ordered[WC3_SELECTION_MAX];
+    edict_t *hero;
+
+    reset_entities(); setup_test_world();
+    /* The real frame scheduler runs script events, so give it a live VM. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    selection_limit_original_cvar = old_cvar;
+    selection_limit_test_value = "24";
+    gi.CvarString = selection_limit_test_cvar;
+    client->ps.number = 0;
+    /* The Hero takes the highest edict index so an index-ordered trim would
+     * drop it first; Warcraft keeps the highest selection priority instead. */
+    FOR_LOOP(i, WC3_SELECTION_MAX - 1) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (float)i * 32.0f, 0);
+        T_NOT_NULL(units[i]->data.UnitData);
+        grunt_data = *units[i]->data.UnitData;
+        grunt_data.priority = 1;
+        units[i]->data.UnitData = &grunt_data;
+    }
+    hero = units[WC3_SELECTION_MAX - 1] = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 64.0f);
+    T_NOT_NULL(hero->data.UnitData);
+    hero_data = *hero->data.UnitData;
+    hero_data.priority = 6;
+    hero->data.UnitData = &hero_data;
+    FOR_LOOP(i, WC3_SELECTION_MAX) {
+        units[i]->s.player = 0;
+        units[i]->svflags |= SVF_MONSTER;
+        G_SelectEntity(client, units[i]);
+    }
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX), WC3_SELECTION_MAX);
+    T_ASSERT(ordered[0] == hero);
+
+    /* Lower the cap mid-game and let the real frame scheduler trim it. */
+    selection_limit_test_value = "12";
+    level.started = true; level.scriptsStarted = true;
+    globals.RunFrame();
+    level.started = started; level.scriptsStarted = scripts_started;
+
+    T_EQ(G_GetOrderedSelectedUnits(client, ordered, WC3_SELECTION_MAX), 12);
+    T_ASSERT(G_IsEntitySelected(client, hero));
+    T_ASSERT(ordered[0] == hero);
+    T_ASSERT(!G_IsEntitySelected(client, units[WC3_SELECTION_MAX - 2]));
+    gi.CvarString = old_cvar;
+}
+
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     gameClient_t *client = &game.clients[0];
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
