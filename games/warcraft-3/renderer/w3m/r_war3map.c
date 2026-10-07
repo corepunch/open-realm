@@ -543,11 +543,24 @@ void R_W3OpenTilesetArchive(uint8_t tileset) {
 
 bool R_GameAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size) {
     handle_t file;
+    char archive_asset[PATH_MAX];
+    cstring_t ext;
     int written;
 
     if (!w3_tileset_archive.archive || !asset || !*asset || !candidate || !candidate_size) return false;
-    if (!SFileOpenFileEx(w3_tileset_archive.archive, asset, SFILE_OPEN_FROM_MPQ, &file)) return false;
-    SFileCloseFile(file);
+    if (SFileOpenFileEx(w3_tileset_archive.archive, asset, SFILE_OPEN_FROM_MPQ, &file)) {
+        SFileCloseFile(file);
+    } else {
+        /* Object data often names replaceable images as .tga, while retail
+         * MPQs store the image as .blp. Keep the authored name in the
+         * candidate; R_ReadTextureFile performs the same conversion later. */
+        ext = strrchr(asset, '.');
+        if (!ext || strcasecmp(ext, ".tga")) return false;
+        written = snprintf(archive_asset, sizeof(archive_asset), "%.*s.blp", (int)(ext - asset), asset);
+        if (written <= 0 || (size_t)written >= sizeof(archive_asset) ||
+            !SFileOpenFileEx(w3_tileset_archive.archive, archive_asset, SFILE_OPEN_FROM_MPQ, &file)) return false;
+        SFileCloseFile(file);
+    }
     written = snprintf(candidate, candidate_size, "%s\\%s", w3_tileset_archive.name, asset);
     return written > 0 && (uint32_t)written < candidate_size;
 }
