@@ -101,7 +101,7 @@ static ability_t abilitylist[] = {
     { "ARal", CAbilityRally, AB_COMMAND },  /* Rally */
     { "AUbu", CAbilityBuild, AB_COMMAND },  /* Build (Undead) */
     { "Aalr", CAbilityPassive, AB_PASSIVE },  /* Alarm */
-    { "Aatk", CAbilityAttack, AB_COMMAND },  /* Attack */
+    { "Aatk", CAbilityAttack, AB_COMMAND | AB_INTRINSIC },  /* Attack */
     { "Afih", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Human) */
     { "Afin", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Night Elf) */
     { "Afio", CAbilityOnFireHuman, AB_PASSIVE },  /* On Fire (Orc) */

@@ -385,17 +385,23 @@ static bool actor_has_skill(edict_t const *ent, uint32_t code) {
     uint32_t count;
     uint32_t const *codes;
     if (g_unit_status_query && g_unit_status_query->unit == ent) {
-        if (!(g_unit_status_query->ability_membership & G_AbilityMembershipBit(code))) return false;
         codes = g_unit_status_query->abilities;
-        count = g_unit_status_query->ability_count;
-    } else return G_UnitHasAuthoredAbility(ent->data.UnitAbilities, code);
+        count = (g_unit_status_query->ability_membership & G_AbilityMembershipBit(code)) ?
+            g_unit_status_query->ability_count : 0;
+    } else {
+        if (G_UnitHasAuthoredAbility(ent->data.UnitAbilities, code)) return true;
+        count=0;codes=NULL;
+    }
     FOR_LOOP(i, count) {
 #ifdef BZ_TESTS
         G_TestRecordAuthoredMembershipVisit();
 #endif
         if (codes[i] == code) return true;
     }
-    return false;
+    abilityitem_t item=S_AbilityItem(code);
+    if (!item.ability || !(item.ability->flags&AB_INTRINSIC)) return false;
+    abilityCall_t call={.item=&item};
+    return S_AbilityMessage((edict_t *)ent,A_UNIT_OWNED,&call)!=0;
 }
 
 bool G_ActorHasAbilityCode(edict_t const *ent, uint32_t code) {

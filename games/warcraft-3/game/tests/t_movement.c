@@ -15537,6 +15537,113 @@ static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned c
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
 }
 
+/* Retail9d86f0: public creation/removal/timed life feed the actual captain
+ * admission, whose physical range remains a snapshot until replacement. */
+TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    float ranges[]={90,90,100,883,884,90,90,100};
+    float radius[]={31,31,32,32,32,31,31,32},speed=270,acquire=1200;
+    uint32_t masks[]={1,1,1,1,1,0,1,1};
+    uint32_t words[]={0x409b0000,0x40220000,0x419e0000,0x419e0000,
+        0x419e1999,0x404a0000,0x41258000,0x40240000};
+    char const *names[]={"hCA0","hCA1","HCA0","HCA1","HCA2","hCA2","hCA3","HCA3"};
+    unitModification_t mods[8][7];unitData_t types[8];
+    FOR_LOOP(i,8) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data="normal"};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=masks+i};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=FS_SLKKey(names[i]),.numbeOfModifications=7,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=8,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[128*128];memset(cells,0,sizeof(cells));
+    box2_t bounds={{-2048,-2048},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=level.pathing_msec=0;
+    char script[3000];int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\nendglobals\nfunction main takes nothing returns nothing\n");
+    FOR_LOOP(i,8)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'%s',%d,-976,90)\n",i,names[i],-1536+(int)i*128);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call UnitRemoveAbility(roster[6],'Aatk')\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    edict_t *units[8]={0};
+    FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,8)if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    FOR_LOOP(i,8)T_NOT_NULL(units[i]);
+    /* Use the existing spell-owned timed-life producer. The public
+     * UnitApplyTimedLife native is a stub, requiring a separate complete port. */
+    T_NOT_NULL(S_SpellApplyTimedLife(units[1],1,600));
+    T_NOT_NULL(S_SpellApplyTimedLife(units[7],1,600));
+    T_ASSERT(!G_ActorHasAbilityCode(units[6],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(unit_findstatus(units[1],MAKEFOURCC('B','T','L','F')));
+    T_ASSERT(!G_UnitIsHero(units[2])); /* Rawcode, rather than initialized Hero stats. */
+    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=8,.created={0,0,300}};
+    S_SetCaptainHomeActor(&captain,0,BOT_CAPTAIN_ATTACK+1);
+    FOR_LOOP(i,8) {
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
+    }
+    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    captain.home_actor=units[0]->movement.captain_home.roster_actor;
+    T_NOT_NULL(captain.home_actor);
+    /* The fixture source is not a saved map script. Use the same owner API
+     * that backs UnitAddAbility after restoring its logical removed state. */
+    T_ASSERT(G_ActorAddSkill(units[6],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(G_ActorHasAbilityCode(units[6],MAKEFOURCC('A','a','t','k')));
+    unit_expirestatus(units[1],unit_findstatus(units[1],MAKEFOURCC('B','T','L','F')));
+    FOR_LOOP(i,8) {
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
+    }
+    /* Existing ranges retain both changes; fresh admissions acquire new values. */
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),words[0]);
+    T_ASSERT(S_IssueCaptainHomeMove(units[6],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
+    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
+    /* The concrete Mirror Image producer supplies the illusion bit. Execute
+     * its effect directly because this fixture does not author its cast data. */
+    edict_t *roster[10]={0};memcpy(roster,units,sizeof(units));
+    unsigned sources[]={0,2};
+    abilityitem_t mirror=S_AbilityItem(MAKEFOURCC('A','O','m','i'));
+    abilityCall_t call={.item=&mirror};
+    FOR_LOOP(i,2) {
+        T_ASSERT(CAbilityMirrorImage(units[sources[i]],A_EXECUTE,&call));
+        edict_t *image=NULL;
+        FILTER_EDICTS(unit,unit->inuse && (unit->aiflags&AI_ILLUSION) && unit->owner==units[sources[i]])image=unit;
+        T_NOT_NULL(image);if(!image)continue;
+        roster[8+i]=image;
+        captain.units=roster;captain.units_count=9+i;
+        /* Prove the temporary early return skips a genuine siege roster. */
+        unitAttack_t *siege=S_AttackProfileWrite(units[0],0);
+        siege->type=ATK_SIEGE;siege->range=700;
+        T_ASSERT(S_IssueCaptainHomeMove(image,&captain));
+        T_ASSERT(captain.home_actor->movement.captain_actor_siege);
+        T_EQ(wc3_float_bits(move_find_group(image->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
+    }
+    T_ASSERT(WriteGame("/tmp/wc3-captain-producers.bin"));T_ASSERT(ReadGame("/tmp/wc3-captain-producers.bin"));
+    FOR_LOOP(i,2)if(roster[8+i])
+        T_EQ(wc3_float_bits(move_find_group(roster[8+i]->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
+    /* Native9d0650 skips a removed Attack object during roster refresh,
+     * independently of the still-retained immutable siege weapon profile. */
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(!S_UnitHasLongRangeSiegeAttack(units[0]));
+    T_ASSERT(S_IssueCaptainHomeMove(roster[8],&captain));
+    T_ASSERT(!captain.home_actor->movement.captain_actor_siege);
+    remove("/tmp/wc3-captain-producers.bin");
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+}
+
 /* Public AddAssault snapshots the roster property at each attach. */
 TEST(wc3_movement, public_captain_siege_roster_ranges) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);

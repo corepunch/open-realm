@@ -11544,3 +11544,55 @@ counters, Town/captain reactions, engagement guards and remaining exemption
 producers are not certified by these controls. Native player slot-state checks
 are instruction-backed; the public scene covers configured computer0 and
 neutral2/12/15, not all lobby or runtime controller mutations.
+
+
+## Captain ranges distinguish temporary units and removed Attack (Payoff154)
+
+The complete native9d86f0 body returns world50 for an illusion or BTLF
+**before** the Hero minimum and captain siege bonus. Its Hero test is the
+rawcode first character A..Z; initialized Hero stats are not an input.
+A missing Attack object yields300, while an existing object with disabled
+slots still yields70. Hero range883 clamps to600; range884 retains the
+truncated600.3999633789062 word44161999. The physical wrapper adds the
+mover collision and divides32.
+
+Attack now exposes intrinsic instance ownership through its registry flag and
+read-only A_UNIT_OWNED query. Generic ability membership still gives runtime
+removed/added entries precedence. Removing Aatk consequently hides retained
+immutable weapon defaults from fresh captain range calculations. Native9d0650
+also skips a null Attack object during its roster siege scan; the engine now
+does the same. Disabled weapons on an existing Attack continue to contribute.
+No instance field, allocation, save layout or shared-default mutation is added.
+
+The failing-first engine regression creates eight authored types through JASS
+CreateUnit, removes Attack through UnitRemoveAbility and admits actual physical
+captain groups. It checks captured range words, strict Hero boundaries,
+spell-owned timed life, removal/re-add and expiry, and three saves. The concrete
+Mirror Image effect creates two additional illusions; their fresh admission
+stays at world50 even with a siege roster. These effect calls bypass public
+cast admission because this fixture does not author Mirror Image cast data.
+Retained ranges survive status/weapon ownership changes and saves; a fresh
+admission acquires the new range. A second failing-first assertion verifies
+removed siege ownership at roster refresh.
+
+The strict [live verifier](../../../tools/ghidra/research/verify_captain_range_live.py)
+reconstructs both handoff scenes from four raw read-only Frida captures and two
+observer-free controls. Every normalized producer/range/roster field matches
+the frozen fixture; the public control streams contain1258 and1871 identical
+markers. The arithmetic model reproduces45 authored and45 physical range
+words. This verifies those captured contracts, not complete engine trajectories.
+
+GROUP-03.4.6.2.1.2 remains open for Attacks-Prevented counters, automatic
+temporary-unit captain admission and complete public departure/upgrade
+compositions. The engine UnitApplyTimedLife native is still a stub: this
+regression uses the existing spell-owned BTLF producer. Its native2185e0
+registration and48b930 specialized/default buff factory were recovered and
+saved in Ghidra for the subsequent port; arbitrary visible buff IDs must not
+be equated with the BTLF class. The saved mapper/readback also corrects the
+old zero temporary-range annotation.
+
+Validation: production/test builds pass. Classic and TFT movement, combat, unit
+and save suites run1750 tests with10,515,284 assertions. All37 captain/corpus
+Python checks pass, including15 captain checks, and the strict live contract
+passes in a fresh corpus output directory. This is the seventh implementation
+commit since the Payoff147 full-suite checkpoint; validation here is focused.

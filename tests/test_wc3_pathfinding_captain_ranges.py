@@ -62,4 +62,68 @@ class CaptainRanges(unittest.TestCase):
         self.assertIn(b'ua1r'+struct.pack('<II',0,600)+b'hCR1',data)
 
 
-if __name__=='__main__':unittest.main()
+import importlib.util
+import tempfile
+
+spec = importlib.util.spec_from_file_location('captain_range_live',
+    ROOT / 'tools/ghidra/research/verify_captain_range_live.py')
+live = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(live)
+
+
+class CaptainEvidenceTests(unittest.TestCase):
+    def capture(self, rows, mode='observe'):
+        with tempfile.TemporaryDirectory() as work:
+            path = Path(work) / 'capture.jsonl'
+            path.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            return live.capture_rows(path, mode)
+
+    def rows(self, mode='observe'):
+        result = [dict(event='metadata', task=live.TASK, sha256=live.HASH, mode=mode)]
+        if mode == 'observe':
+            result.append(dict(event='trace-end', installed=True))
+        result.append(dict(event='preload-file', complete=True))
+        return result
+
+    def test_installed_observation_and_uninstrumented_control(self):
+        self.assertEqual(len(self.capture(self.rows())), 3)
+        self.assertEqual(len(self.capture(self.rows('control'), 'control')), 2)
+
+    def test_completion_does_not_replace_observer_drain(self):
+        with self.assertRaisesRegex(ValueError, 'observer completion'):
+            self.capture([self.rows()[0], self.rows()[-1]])
+
+    def test_uninstalled_observer_fails(self):
+        rows = self.rows()
+        rows[1]['installed'] = False
+        with self.assertRaisesRegex(ValueError, 'observer completion'):
+            self.capture(rows)
+
+    def test_duplicate_metadata_fails(self):
+        rows = self.rows()
+        with self.assertRaisesRegex(ValueError, 'duplicated metadata'):
+            self.capture(rows + rows[:1])
+
+    def test_observed_control_fails(self):
+        with self.assertRaisesRegex(ValueError, 'control contains an observer'):
+            self.capture(self.rows('control') + [dict(event='authored-range')], 'control')
+
+    def test_capture_error_fails(self):
+        with self.assertRaisesRegex(ValueError, 'capture error'):
+            self.capture(self.rows() + [dict(type='error', description='read failed')])
+
+    def test_incomplete_public_scene_fails(self):
+        rows = self.rows()
+        rows[-1]['complete'] = False
+        with self.assertRaisesRegex(ValueError, 'incomplete public markers'):
+            self.capture(rows)
+
+    def test_wrong_binary_fails(self):
+        rows = self.rows()
+        rows[0]['sha256'] = '0' * 64
+        with self.assertRaisesRegex(ValueError, 'unsupported identity'):
+            self.capture(rows)
+
+
+if __name__ == '__main__':
+    unittest.main()

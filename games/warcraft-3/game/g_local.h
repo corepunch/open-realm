@@ -818,6 +818,7 @@ typedef enum {
 #define AB_TYPE_INIT (1u << 19) // explicit per-type initialization contract; direct init remains available
 #define AB_TYPE_UPDATE (1u << 20) // procedure declares type/state requirements for persistent updates
 #define AB_MOVE_TARGET_NO_WARP (1u << 21) // target ability excludes Way Gates from new group routes
+#define AB_INTRINSIC (1u << 22) // owner can expose an instance independently of the authored ability list
 #define AB_MOVE_SPEED_BONUS (1u << 18) // bit 18; receives the maximum move-speed bonus query
 
 /* Spell target types: maps to WarSmash's unit-target / point-target / no-target
@@ -956,6 +957,7 @@ typedef enum {
     A_TIMERS_REBUILD,   /* Reconstruct membership from restored authoritative unit state. */
     A_TARGET_ORDER_ADMIT, /* Registered/active owner validates before FIFO mutation; may intercept the current target. */
     A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
+    A_UNIT_OWNED,       /* Read-only intrinsic ownership query; no initialization or allocation. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 

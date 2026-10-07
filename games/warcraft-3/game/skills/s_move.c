@@ -4045,16 +4045,17 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
          * wrapper05a5c0 subsequently adds both physical radii and divides32.
          * A virtual captain has zero radius. The physical member stores this
          * result, including across save/load and later weapon changes.
-         * TODO GROUP-03.4.6.2.1: target-adjusted attack
-         * range eligibility and native unit5c.40000000 need their own original
-         * public producer captures. */
+         * Temporary units return50 before Hero/siege adjustment. Native Hero
+         * classification here tests the rawcode, independently of Hero stats. */
+        if ((unit->aiflags&AI_ILLUSION) || unit_findstatus(unit,MAKEFOURCC('B','T','L','F')))
+            return wc3_div(wc3_add(50,MAX(1,unit->collision)),32);
         float attack_range=0;
         bool armed=S_UnitAttackApproachRange(unit,&attack_range);
         float world=armed ?
             wc3_add(wc3_mul(attack_range,wc3_float(0x3f19999a)),70) : 300;
-        if (G_UnitIsHero(unit)) world=MAX(world,600);
+        uint32_t first=unit->class_id&0xffu;
+        if (first>='A' && first<='Z' && world<600) world=600;
         if (target->movement.captain_actor_siege) world=wc3_add(world,200);
-        if (unit_findstatus(unit,MAKEFOURCC('B','T','L','F'))) world=0;
         return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(world,MAX(1,unit->collision)),32));
     }
     float range=wc3_div(G_FollowStopRange(unit,target),32);

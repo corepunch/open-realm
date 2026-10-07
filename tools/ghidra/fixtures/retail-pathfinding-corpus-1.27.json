@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "137 executable original oracle contracts;378 total entries.",
+  "scope": "137 executable original oracle contracts;379 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -37510,6 +37510,219 @@
       "exclusions": [
         "Not all AI record lifetimes, per-ability AI-mode callbacks, propagation90/94 or Town/captain reactions. Not all lobby/controller mutations or complete engine trajectories. Generic capture wrapper records an unused builder; actual153 map producer/assets are independently pinned in the Ghidra evidence fixture."
       ]
+    },
+    {
+      "id": "live-captain-range-temporary-ownership",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_captain_range_live.py",
+        "--captures",
+        "{archive}/runtime/captain-range154/captures",
+        "--expected",
+        "tools/ghidra/fixtures/research/GROUP-03.4.6.2.1.2-expected.json",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "capture": "runtime/captain-range154/captures/f-observe-1-envC.jsonl",
+        "sha256": "258a3f1f50b48a75c2ff3f654b1682f2d08b113c1a1f5128e459788e51d52eee",
+        "bytes": 512843,
+        "metadata": {
+          "task": "GROUP-03.4.6.2.1.2",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+            "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+            "map": "a2419941a8d598f5057759f48b2b77c04535dd64e9abf56e195e3d9c9d024807"
+          },
+          "map": "Maps\\RS-G0346212-f.w3m",
+          "seconds": 260.0,
+          "continue_at": 30.0,
+          "display": ":99",
+          "remote": "127.0.0.1:27050",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "runtime/captain-range154/captures/f-observe-2-envB.jsonl",
+            "sha256": "87e8b923364cb06a32aaf9ecf020ba8a2867bea288f4dfda7b1458c6eae0afa5",
+            "bytes": 512842,
+            "metadata": {
+              "task": "GROUP-03.4.6.2.1.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "a2419941a8d598f5057759f48b2b77c04535dd64e9abf56e195e3d9c9d024807"
+              },
+              "map": "Maps\\RS-G0346212-f.w3m",
+              "seconds": 260.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range154/captures/f-control-1-envC.jsonl",
+            "sha256": "20a7e330917f5e29cf842e80f6ea550212c3f7f069e8894a74f790e941379341",
+            "bytes": 1185,
+            "metadata": {
+              "task": "GROUP-03.4.6.2.1.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "a2419941a8d598f5057759f48b2b77c04535dd64e9abf56e195e3d9c9d024807"
+              },
+              "map": "Maps\\RS-G0346212-f.w3m",
+              "seconds": 220.0,
+              "continue_at": 30.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range154/captures/g-observe-1-envB.jsonl",
+            "sha256": "0877e2b6f623b15e3cfb74c48cfe99a66b5cdfcc01750e52786d005be9d372d5",
+            "bytes": 741914,
+            "metadata": {
+              "task": "GROUP-03.4.6.2.1.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "a0ec9c0acdbc5dac48b5e044f215e32c2a979f3b319b2a14e83814722ff6a397"
+              },
+              "map": "Maps\\RS-G0346212-g.w3m",
+              "seconds": 260.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range154/captures/g-observe-2-envC.jsonl",
+            "sha256": "868becbeb491ba1cd7759de1f313c87a093d457aa6f95b02f7fee4f845b2532d",
+            "bytes": 741915,
+            "metadata": {
+              "task": "GROUP-03.4.6.2.1.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "a0ec9c0acdbc5dac48b5e044f215e32c2a979f3b319b2a14e83814722ff6a397"
+              },
+              "map": "Maps\\RS-G0346212-g.w3m",
+              "seconds": 260.0,
+              "continue_at": 30.0,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "runtime/captain-range154/captures/g-control-1-envB.jsonl",
+            "sha256": "61588f3c91b00c078049bb4199173a2cfcfc60ec867edd01628b55085eec2371",
+            "bytes": 1241,
+            "metadata": {
+              "task": "GROUP-03.4.6.2.1.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "GROUP-03.4.6.2.1.2_capture.py": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88",
+                "GROUP-03.4.6.2.1.2_observer.js": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724",
+                "map": "a0ec9c0acdbc5dac48b5e044f215e32c2a979f3b319b2a14e83814722ff6a397"
+              },
+              "map": "Maps\\RS-G0346212-g.w3m",
+              "seconds": 260.0,
+              "continue_at": 30.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          },
+          "capture_complete": false
+        }
+      ],
+      "report": "live-captain-range-temporary-ownership.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-policy",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "authored_calls": {
+          "equal": 45
+        },
+        "physical_ranges": {
+          "equal": 45
+        },
+        "scenes": {
+          "equal": {
+            "f": {
+              "repeats": 2,
+              "public_markers": 1258,
+              "authored_calls": 19
+            },
+            "g": {
+              "repeats": 2,
+              "public_markers": 1871,
+              "authored_calls": 26
+            }
+          }
+        }
+      },
+      "capture_complete": true,
+      "capture_failures": [],
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Reconstructed four complete raw read-only captain-range repeats and two public observer-free marker controls;45 authored/physical range words. Engine integrates temporary/illusion early range, strict rawcode Hero minimum, removed/re-added Attack ownership, siege object-presence guard and saved physical snapshots.",
+      "exclusions": [
+        "No complete engine/native trajectory parity claim. Attacks-Prevented counters, automatic temporary captain admission, public timed-life native factory and full departure/upgrade compositions remain open. Mirror Image engine regression calls the concrete effect directly rather than public cast admission."
+      ]
     }
   ],
   "fixtures": [
@@ -38408,7 +38621,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "19923eaf66b632606af06d706ad80ccc606f83a98aacaf55fb0ba64bca11c696"
+      "sha256": "a805499950c4189bada3369f53bd255e36b8895dd71a99ad1e57c74f3d7073a3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -39264,7 +39477,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "b40d7114da49649683b86a4c2a302d3231a166f296840f966a1bcdc1f977f567"
+      "sha256": "18f30caf1660789ec6d4cb429f1720ebf003e1f5343bfa7f6d88680b6d7a7f78"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -39708,7 +39921,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "2ee53462453d2ae66db975d2867ad45f4eee67526eff06c68c27c3e5a55b9699"
+      "sha256": "324868ff42546931550c033c57abfcaa69886b4fa06adee0fbf9d29f7f4ef9e3"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -39956,7 +40169,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "d59df038a33576b2df9506c868c93e09dc41879f549538f32e1fc2e7ce8a34c8"
+      "sha256": "3a586e228c6d9cb8ec193ba2ba058a57ce2c6cf06e92f5e1c871ac2f9722d18e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -40200,7 +40413,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "df25f23946487d6de318ae16a5e2794ed20658bcf8be51d2390ae1c78e7e445a"
+      "sha256": "7145e17008b930febcda387bb196d136030bb5cb165f8c25f368c93ead54adca"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -40212,11 +40425,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "d16cd538733dc87bb33607a17e12c37a0b6186ab70481f0b3dcf0e970bd517dd"
+      "sha256": "ae31e5d290c013e14cdf017ad688b3535bad413e1b8594975dfe75698f006ddf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "d175d096028362f71fdb8622e166a5ed321e3c873b25f2b9310fbf13a4c2fadc"
+      "sha256": "f907ddae496afdce24a277cc1f75479a428319c957ee480d910ade4411cc97b0"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -40224,11 +40437,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "20105f183ba88b1b882ef06b526fd8ca307de426e7e4e63f42a12a50fc2fea18"
+      "sha256": "ebb2a6db7f6f26d68643553aae4f325f05241b68df1656a4966e33338476b50a"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "2876ef17cf23a550c3f6656867c409ad41c350188e9e629697edb3bca70f58cb"
+      "sha256": "e544d5e17f5eef4747b96fa7fc2c2fb844a33949818c13661ba741148bd74306"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -40373,6 +40586,78 @@
     {
       "path": "tools/ghidra/fixtures/retail-attack-help-ai-ghidra-1.27.json",
       "sha256": "a1fde2b1a6c577cb118bdcbdcdec2986bfed6be2c28bec690feafb608257e9cc"
+    },
+    {
+      "path": "games/warcraft-3/game/skills/s_harvest_lumber.c",
+      "sha256": "97ae32b3d8a340f89c98939c745a6005b7fcb1410ad76ede04b8402513f64103"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_ranges.py",
+      "sha256": "f85fa13f29a4e6e6befca8827781e0a553ee6914d63b29cb7bd9e3f746602551"
+    },
+    {
+      "path": "tools/ghidra/research/verify_captain_range_live.py",
+      "sha256": "68a92978246a107ee8dc6b256c132ae9a875e7066dc3c225946e06ca424985c7"
+    },
+    {
+      "path": "tools/ghidra/research/verify_GROUP-03.4.6.2.1.2_model.py",
+      "sha256": "6d5202e6cf4b8bf0c931f1daab8d5d6ae19a35313f8eec878f84198b7055ca2f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-range-ghidra-1.27.json",
+      "sha256": "132ee687bd3e80702d585993708e8cbc6761106b81c4dce3347317ffc6c47a8c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.6.2.1.2-expected.json",
+      "sha256": "ceaf13b5dee8d701bd362e669362151677129e89ca6ff58561a11aca219c40b5"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.6.2.1.2-expected-f.json",
+      "sha256": "3fba4a928c7c8ea200b49dd35faec06349b74ade78280c8650bdabd81dea1c4c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/GROUP-03.4.6.2.1.2-expected-g.json",
+      "sha256": "a2beb3afc5ceba0e866486a0fed4d29fc4ff2bc48e002834bf7d0da27b6aa2b7"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_analyze.py",
+      "sha256": "0a75ed6c436618b49072a567fee6c8f391d2556a1293d994cc5260e0aa2a42cc"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_capture.py",
+      "sha256": "2944b0d042621ae83461cda94517ca2d111ce968668a4e4bd7a9567880de7d88"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_control_compare.py",
+      "sha256": "2cae252498affd9657d2622ae11efa37c837e4943371903765fa6a669b85754f"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_expected.py",
+      "sha256": "e1e59447f62fe8b379e678d714b731de4a6390dfddf0960301725ab31de13397"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_make_map.py",
+      "sha256": "39a83492766ce9d3dd39828465e5665bc561bf120069f568e042217a503dedbe"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_observer.js",
+      "sha256": "418b436f4d625e64e3d315242418566766a28675d0356247fb97ae40f9b56724"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_probe.ai",
+      "sha256": "4048f15e6e5ba1b2cce2668c4f33f771c3ddaf5b0708d40bfbed378d4c4afca3"
+    },
+    {
+      "path": "tools/frida/research/GROUP-03.4.6.2.1.2_probe.j",
+      "sha256": "73900f61278b3c5ad48d788be5c221b73a8692b38ac48994b746e6eb03b532d4"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.6.2.1.2/HANDOFF.md",
+      "sha256": "2d05ed7dab4e9d1d738ce789d0105bf44ad5219a3c938fa18b2e9e2656aa037a"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/GROUP-03.4.6.2.1.2/mapping-rows.txt",
+      "sha256": "06adcb0d1c4a346087b8749464c72b25f47c09c7d5a3140aaff5f41bed89c32f"
     }
   ]
 }

@@ -233,7 +233,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
  * Disabled siege weapons still contribute to the captain's retained flag.
  * The authored acquisition radius bounds the effective weapon range. */
 bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker) {
-    if (!attacker) return false;
+    if (!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k'))) return false;
     FOR_LOOP(slot,2) {
         unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
         if (profile->type==ATK_SIEGE && MIN(profile->range,attacker->runtime.acquisition_range)>600) return true;
@@ -244,16 +244,14 @@ bool S_UnitHasLongRangeSiegeAttack(edict_t const *attacker) {
 /* An existing profile with no enabled slots yields zero, not an absent Attack
  * object. Move uses that distinction for the private captain approach. */
 bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum) {
-    bool present=attacker && attacker->data.UnitWeapons && attacker->data.UnitWeapons->attacksEnabled;
     *maximum=0;
-    if (!attacker) return false;
+    if (!G_ActorHasAbilityCode(attacker,MAKEFOURCC('A','a','t','k'))) return false;
     FOR_LOOP(slot,2) {
         unitAttack_t const *profile=S_AttackProfileRead(attacker,slot);
-        present|=profile->type!=ATK_NONE;
         if (S_UnitAttackSlotEnabled(attacker,slot))
             *maximum=MAX(*maximum,MIN(profile->range,attacker->runtime.acquisition_range));
     }
-    return present;
+    return true;
 }
 
 /* Attack slots expose immutable defaults or the unit's owned override. Select the compatible slot
@@ -1340,6 +1338,11 @@ static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
 
 BZ_ABILITY_PROC(CAbilityAttack) {
     switch (msg) {
+    case A_UNIT_OWNED:
+        if (!ent) return false;
+        if (ent->data.UnitWeapons && ent->data.UnitWeapons->attacksEnabled) return true;
+        FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
+        return false;
     case A_UNIT_EVENT_MASK:
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING);
     case A_TIMERS_RESET:
