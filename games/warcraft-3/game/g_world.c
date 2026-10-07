@@ -802,6 +802,28 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
     return result;
 }
 
+/* Captain9d8c70 -> bridge0594f0 ->059590. This distance query has footprint
+ * class0 and its own5000-work budget. It excludes target, auxiliary source,
+ * then predicted source, preserving duplicates and restoration order. */
+bool G_CaptainMoveReachable(edict_t const *actor,edict_t const *source,edict_t const *target,
+                          vec2_t const *from,vec2_t const *to) {
+    if (!pathmap.width || !pathmap.height) return false;
+    unsigned lane=0;uint8_t mask=S_UnitMoveCoarseMask(actor);
+    while (lane<4 && move_acc_masks[lane]!=mask) lane++;
+    if (lane==4) gi.error("Captain: unsupported coarse mask %02x",mask);
+    move_acc_prepare();move_acc_enable_gates();move_spatial_sync();
+    FOR_LOOP(i,4) move_acc.maps[i].classes=move_acc_classes[lane][i];
+    edict_t const *objects[]={target ? target : actor,source ? source : actor,source ? source : actor};
+    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],true);
+    vec2_t a=move_grid_from_world(from->x,from->y),b=move_grid_from_world(to->x,to->y);
+    wc3AccRequest_t request={{wc3_mul(a.x,.5f),wc3_mul(a.y,.5f)},
+        {wc3_mul(b.x,.5f),wc3_mul(b.y,.5f)},1,BZ_WC3_GROUP_ACC_WORK};
+    wc3FineVector_t endpoint;
+    uint32_t result=wc3_acc_query_distance(&move_acc,&request,&endpoint);
+    FOR_LOOP(i,3) move_acc_object_rectangle(objects[i],false);
+    return result!=UINT32_MAX;
+}
+
 /* Observe changed game owners before querying; unrelated world objects never
  * participate in publication or fine-cell lookup. */
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {

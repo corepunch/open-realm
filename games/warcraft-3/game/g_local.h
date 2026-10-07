@@ -2428,6 +2428,7 @@ typedef struct {
     ARRAY(botGuardPost_t, guards);
     botMode_t mode;
     uint32_t flags;
+    bool town_initialized; /* Town policy survives independent AI script startup. */
     int32_t replacement_count;
     uint32_t hero_id;
     uint32_t hero_level;
@@ -2763,6 +2764,9 @@ void G_BotFillGuardPosts(player_t *);
 void G_BotReturnGuardPosts(player_t *);
 void G_BotHeroLevelUp(edict_t *);
 void G_BotInitPlayers(void);
+void G_BotTemporaryUnitReady(edict_t *);
+bool G_WriteCaptainState(FILE *);
+bool G_ReadCaptainState(FILE *);
 void G_BotUnitOwnerChanged(edict_t *);
 void G_BotUnitReady(edict_t *);
 bool G_BotPushCommand(player_t *, int32_t, int32_t);
@@ -3917,6 +3921,9 @@ bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 void S_IssueMoveOrder(edict_t *, edict_t *, uint32_t);
 bool S_IssueCaptainHomeMove(edict_t *, botCaptain_t const *);
+bool S_AdmitTemporaryCaptainUnit(edict_t *, botCaptain_t const *, edict_t *);
+void S_DetachCaptainUnit(edict_t *);
+bool G_CaptainMoveReachable(edict_t const *, edict_t const *, edict_t const *, vec2_t const *, vec2_t const *);
 void S_SetCaptainHomeActor(botCaptain_t *, uint32_t, uint32_t);
 void S_CaptainGoHome(botCaptain_t *);
 void S_ReleaseCaptainHomeActor(edict_t *);

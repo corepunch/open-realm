@@ -1108,6 +1108,11 @@ static void move_remove_captain_roster_member(edict_t *self) {
     }
 }
 
+void S_DetachCaptainUnit(edict_t *self) {
+    move_remove_captain_roster_member(self);
+    move_release_captain_reference(self);
+}
+
 void S_ReleaseCaptainHomeActor(edict_t *actor) {
     if (!actor) return;
     actor->movement.captain_actor_owned=false;
@@ -3974,6 +3979,52 @@ bool S_IssueCaptainHomeMove(edict_t *self, botCaptain_t const *captain) {
      * each recruit. The task retains an AI approach range plus mover radius,
      * independently of its later shared formation destination. */
     move_start_follow_group(self,captain->home_actor,true);
+    return true;
+}
+
+/* New temporary enrollment retires the old public task before the internal
+ * AI callback reissues Move. It does not emit another issued-order event. */
+bool S_AdmitTemporaryCaptainUnit(edict_t *self,botCaptain_t const *captain,edict_t *defense) {
+    edict_t *actor=captain->home_actor;
+    order_stop_cleanup(self);
+    if (!actor || ARRAY_COUNT(captain->units)>13) return false;
+    wc3GridPose_t source;unit_predicted_pose(actor,&source);
+    vec2_t from={source.world[0],source.world[1]},to=self->s.origin2;
+    bool follow=unit_is_flying(self) || G_CaptainMoveReachable(actor,NULL,self,&from,&to);
+    vec2_t point=captain->home;
+    if (!follow && !G_CaptainMoveReachable(actor,self,NULL,&to,&captain->home)) {
+        edict_t *fallback=defense;
+        if (fallback) {
+            point=fallback->s.origin2;
+            if (!G_CaptainMoveReachable(actor,self,fallback,&to,&point)) fallback=NULL;
+        }
+        /* Native058900 queries the committed fallback position. The
+         * predicted Captain pose above belongs only to reachability. */
+        if (!fallback) point=actor->s.origin2;
+    }
+    S_IssueMoveOrder(self,Waypoint_add(&point),G_OrderId("move"));
+    if (self->currentmove!=&move_move_walk) return false;
+    uint32_t count=ARRAY_COUNT(captain->units);
+    actor->movement.captain_actor_members=count;
+    actor->movement.captain_actor_siege=false;
+    FOR_LOOP(i,count) {
+        edict_t *member=captain->units[i];
+        if (S_UnitHasLongRangeSiegeAttack(member)) actor->movement.captain_actor_siege=true;
+        if (member==self || member->movement.captain_home.roster_actor==actor)
+            member->movement.captain_home.member_index=i;
+    }
+    self->movement.captain_home.actor=actor;
+    self->movement.captain_home.roster_actor=actor;
+    self->movement.captain_home.home=captain->home;
+    self->movement.captain_home.due=captain->created;
+    do wc3_clock_advance(&self->movement.captain_home.due,1,0);
+    while (self->movement.captain_home.due.epoch==level.pathing_clock.epoch ?
+        self->movement.captain_home.due.time<=level.pathing_clock.time :
+        (int32_t)(self->movement.captain_home.due.epoch-level.pathing_clock.epoch)<0);
+    self->movement.captain_home.active=follow;
+    self->movement.captain_home.entered=self->movement.captain_home.outer=false;
+    S_TrackMoveTimers(self);
+    if (follow) move_start_follow_group(self,actor,true);
     return true;
 }
 

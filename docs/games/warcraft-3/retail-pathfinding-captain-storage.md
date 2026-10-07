@@ -72,9 +72,13 @@ already belongs to the attack Captain. Other paths call `6803f0(unit,1)` then
 `693450`, which appends internal command `d0006`. Two complete public repeats
 and an observer-free control preserve all 90 markers: seven applications cause
 three new attachments, while duplicates do not attach or append an AI order.
-Both first and repeated applications retain the public Move head851986. Physical
-trajectories and disabled-policy behavior remain unverified; public head retention
-does not establish that motion continues. Failed/incomplete earlier captures are
+Both first and repeated applications retain the public Move query value851986.
+Payoff158 subsequently distinguishes identity: first/new enrollment replaces the
+head with another Captain-owned Move; duplicates retain the actual identities. Physical
+trajectories and disabled-policy behavior were outside Payoff157;
+[Payoff158](retail-pathfinding-captain-enrollment.md) integrates the observed
+enrollment/detachment policy. Numeric query retention alone does not establish
+that motion continues. Failed/incomplete earlier captures are
 preserved and do not count as parity evidence.
 
 The frozen contract is `tools/ghidra/fixtures/retail-captain-enrollment-live-1.27.json`.

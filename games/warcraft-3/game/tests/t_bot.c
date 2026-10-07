@@ -1427,7 +1427,13 @@ TEST(wc3_bot, remove_injuries_native_runs_in_player_bound_ai_vm) {
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
     T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 0);
-    T_NULL(injured->goalentity);
+    /* Script startup preserves Town membership, so RemoveInjuries now
+     * actually withdraws this member and admits its existing return policy. */
+    T_NOT_NULL(injured->goalentity);
+    if (injured->goalentity) {
+        T_FEQ(injured->goalentity->s.origin2.x,hall->s.origin2.x,0.001f);
+        T_FEQ(injured->goalentity->s.origin2.y,hall->s.origin2.y,0.001f);
+    }
     T_NULL(hall->goalentity);
 }
 

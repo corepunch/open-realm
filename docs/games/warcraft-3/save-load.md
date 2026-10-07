@@ -1,8 +1,14 @@
 # Warcraft III Save/Load
 
+Save132 adds logical Captain roster encounter order, actor references, authored
+home/creation phase and Town grouping policy. Physical Move indices remain an
+independent saved contract; backing allocations and private AI VM continuation
+are not serialized. Save131 and older formats are rejected. See
+[temporary Captain enrollment](retail-pathfinding-captain-enrollment.md).
+
 ## Contract
 
-Save131 adds independently constructed public timed-life records, retained deadlines,
+Save131 added independently constructed public timed-life records, retained deadlines,
 registration serials and paused remaining durations. Heap/pool indexes are rebuilt.
 Save130 and older layouts are rejected. See [timed-life ownership](retail-pathfinding-timed-life.md).
 
@@ -15,7 +21,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 131, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 132, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

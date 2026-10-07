@@ -1272,6 +1272,110 @@ static void G_BotCaptainAdd(botCaptain_t *captain, edict_t *unit) {
     ARRAY_COUNT(captain->units)=count+1;
 }
 
+/* Native9ccdb0 observes the Town policy before the new timed-life record is
+ * visible. The same-Captain early return preserves both order and task. */
+void G_BotTemporaryUnitReady(edict_t *unit) {
+    if (!unit || !(unit->aiflags&AI_TOWN_OWNED) || unit->s.player>=MAX_PLAYERS) return;
+    bot_t *bot=level.bots+unit->s.player;
+    botCaptain_t *captain=bot->captains+BOT_CAPTAIN_ATTACK;
+    bool enabled=(bot->flags&BOT_GROUP_TIMED_LIFE)!=0;
+    if (enabled) FOR_EACH_ARRAY(edict_t *, member,captain->units) if (*member==unit) return;
+    G_BotRemoveCaptainUnit(unit);
+    S_DetachCaptainUnit(unit);
+    if (!enabled) {order_stop_cleanup(unit);return;}
+    G_BotCaptainAdd(captain,unit);
+    if (captain->home_actor) {
+        if (!S_AdmitTemporaryCaptainUnit(unit,captain,bot->captains[BOT_CAPTAIN_DEFENSE].home_actor))
+            fprintf(stderr,"WC3 AI: temporary Captain movement rejected unit=%u\n",unit->s.number);
+    } else {
+        /* Default town-home construction remains GROUP-03.4. Do not invent
+         * a home from the unit's position or retain the unrelated old Move. */
+        order_stop_cleanup(unit);
+        fprintf(stderr,"WC3 AI: unresolved default temporary Captain home player=%u unit=%u\n",unit->s.player,unit->s.number);
+    }
+}
+
+/* Saved logical state uses entity indexes, never roster backing or VM pointers.
+ * Physical Move state independently persists the same actor/member references. */
+typedef struct {
+    vec2_t home,goal;
+    wc3Clock_t created;
+    uint32_t actor,count,home_set,full,state;
+} botCaptainSave_t;
+
+bool G_WriteCaptainState(FILE *file) {
+    bool seen[MAX_ENTITIES]={0};
+    FOR_LOOP(p,MAX_PLAYERS) {
+        bot_t const *bot=level.bots+p;
+        uint32_t policy[]={bot->flags,bot->town_initialized,bot->mode};
+        if (fwrite(policy,sizeof(policy),1,file)!=1) return false;
+        FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+            botCaptain_t const *captain=bot->captains+c;
+            botCaptainSave_t record={.home=captain->home,.goal=captain->goal,.created=captain->created,
+                .actor=captain->home_actor ? (uint32_t)(captain->home_actor-g_edicts)+1 : 0,
+                .count=ARRAY_COUNT(captain->units),.home_set=captain->home_set,.full=captain->full,.state=captain->state};
+            if (record.count>globals.num_edicts || (record.count && !captain->units) ||
+                (record.actor && (record.actor>globals.num_edicts || !captain->home_actor->inuse))) return false;
+            if (fwrite(&record,sizeof(record),1,file)!=1) return false;
+            FOR_LOOP(i,record.count) {
+                edict_t const *unit=captain->units[i];
+                if (!unit || unit<g_edicts || unit>=g_edicts+globals.num_edicts || !unit->inuse) return false;
+                uint32_t index=(uint32_t)(unit-g_edicts);
+                if (seen[index]) return false;
+                seen[index]=true;
+                if (fwrite(&index,sizeof(index),1,file)!=1) return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool G_ReadCaptainState(FILE *file) {
+    bool seen[MAX_ENTITIES]={0};
+    FOR_LOOP(p,MAX_PLAYERS) {
+        bot_t *bot=level.bots+p;
+        uint32_t policy[3];
+        if (fread(policy,sizeof(policy),1,file)!=1 || policy[0]>>16 || policy[1]>1 || policy[2]>BOT_MELEE) return false;
+        bot->flags=policy[0];bot->town_initialized=policy[1];bot->mode=policy[2];
+        FOR_LOOP(c,BOT_CAPTAIN_COUNT) {
+            botCaptainSave_t record;
+            if (fread(&record,sizeof(record),1,file)!=1 || record.count>globals.num_edicts ||
+                record.actor>globals.num_edicts || record.home_set>1 || record.full>1 || record.state>BOT_CAPTAIN_RETREATING ||
+                !isfinite(record.home.x) || !isfinite(record.home.y) || !isfinite(record.goal.x) || !isfinite(record.goal.y) ||
+                !isfinite(record.created.time) || !isfinite(record.created.span) || record.created.span<0) return false;
+            edict_t *actor=record.actor ? g_edicts+record.actor-1 : NULL;
+            if (actor && (!actor->inuse || !actor->movement.captain_actor_owned ||
+                actor->s.player!=p || actor->movement.captain_actor_type!=c+1)) return false;
+            botCaptain_t *captain=bot->captains+c;
+            /* Old arrays are process-owned, but old actor addresses already
+             * denote restored edicts here. Do not retire those new actors. */
+            gi.MemFree(captain->units_storage ? captain->units_storage : captain->units);
+            *captain=(botCaptain_t){.home=record.home,.goal=record.goal,.created=record.created,
+                .home_actor=actor,.home_set=record.home_set,.full=record.full,.state=record.state};
+            if (record.count) {
+                uint32_t capacity=32;
+                while (capacity<record.count) capacity*=2;
+                captain->units_storage=gi.MemAlloc(capacity*sizeof(*captain->units));
+                captain->units_capacity=capacity;
+                captain->units=captain->units_storage+capacity-record.count;
+                ARRAY_COUNT(captain->units)=record.count;
+            }
+            FOR_LOOP(i,record.count) {
+                uint32_t index;
+                if (fread(&index,sizeof(index),1,file)!=1 || index>=globals.num_edicts || !g_edicts[index].inuse || seen[index]) return false;
+                seen[index]=true;captain->units[i]=g_edicts+index;
+                edict_t const *roster=g_edicts[index].movement.captain_home.roster_actor;
+                /* Logical encounter order and the retained physical roster
+                 * are separate owners. Prepared Move admission may add a
+                 * physical member without changing this AI array. Move's
+                 * validator checks physical indices/counts independently. */
+                if (roster && roster!=actor) return false;
+            }
+        }
+    }
+    return true;
+}
+
 /* Captain requests reconcile totals by type, including retained assault recruits.
  * Repeated requests do not consume the same demand as additional units. */
 static bool G_BotCaptainFill(player_t *player, botCaptainType_t type, int32_t qty, uint32_t class_id) {
@@ -2065,6 +2169,10 @@ void G_BotInitPlayers(void) {
         if(client && client->jass.controller==1 && !client->jass.removed &&
            client->mapplayer && client->mapplayer->used)level.ai_owned_players|=1u<<i;
     }
+    FOR_LOOP(i,MAX_PLAYERS) if ((level.ai_owned_players&(1u<<i)) && !level.bots[i].town_initialized) {
+        level.bots[i].town_initialized=true;
+        if (i!=PLAYER_NEUTRAL_AGGRESSIVE) level.bots[i].flags|=BOT_GROUP_TIMED_LIFE;
+    }
     /* OpenRealm loads preplaced units before config. Publish the configured
      * membership before main can observe those units; no owned sequence changes. */
     FILTER_EDICTS(unit,unit->inuse)G_BotAdmitUnit(unit);
@@ -2152,7 +2260,15 @@ bool G_BotStart(player_t *player, cstring_t script, botMode_t mode) {
         return loaded;
     }
 
-    G_BotStop(playernum);
+    /* Native Town2d0 and Captain identities precede VM248. Starting the
+     * private script must not destroy the existing Town simulation state. */
+    if (bot->vm) jass_close(bot->vm);
+    bot->vm=NULL;bot->hero_levels=NULL;bot->stop_requested=false;
+    G_BotTraceClearWaits(playernum);
+    if (!bot->town_initialized) {
+        bot->town_initialized=true;
+        if (playernum!=PLAYER_NEUTRAL_AGGRESSIVE) bot->flags|=BOT_GROUP_TIMED_LIFE;
+    }
     /* AI VMs can start before map spawning, which previously left the shared JASS allocator unset. */
     G_InitJassHost();
     bot->vm = jass_newstate();

@@ -11713,6 +11713,25 @@ recruitment and complete reset. See [storage contract and remaining costs](retai
 The automatic temporary enrollment regression remains failing and is not claimed
 fixed by this representation change. Two complete retail repeats and an observer-free
 control now preserve90 public markers, seven applications and three new attachments.
-First and repeated applications retain the public Move head; internal AI order
-publication must not be treated as clearing that head. Physical enrollment travel
-and disabled-policy behavior remain open.
+First and repeated applications retain the public Move query value. Payoff158
+subsequently distinguishes the identities: a new enrollment replaces the head
+with another Captain-owned Move, while a duplicate preserves the identities.
+Payoff158 integrates the observed enrollment/detachment contract below; complete
+physical parity for that scene remains open.
+
+## Temporary enrollment captures pre-buff admission (Payoff158)
+
+The public timed-life factory now invokes Town Captain enrollment before the new
+buff becomes visible. First/new enabled enrollment replaces the old task with a
+Captain-owned Move; a same-Captain duplicate preserves its task; a disabled
+application detaches and Stops. Adaptive distance queries choose private Follow
+or point fallback independently of member index. The first verified private range
+is124, rather than the temporary50 selected after publication.
+
+Save132 retains logical roster encounter order and grouping policy independently
+of physical Move member indices. Private AI VM startup retains the existing Town
+and Captain state. Failing-first production regressions cover enrollment, cold
+load and committed fallback positions. Repeated retail captures/control, exact
+scope and focused validation are in [temporary Captain enrollment](retail-pathfinding-captain-enrollment.md).
+Default homes, guard inverse, full idle reissue and wider fallback/roster domains
+remain open; this integration does not close the whole private-range leaf.

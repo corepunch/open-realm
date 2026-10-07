@@ -119,6 +119,7 @@ static void TimedLifeKill(edict_t *unit) {
 }
 void S_ApplyTimedLife(edict_t *unit,uint32_t code,float duration) {
     if(!unit || !unit->inuse)return;
+    G_BotTemporaryUnitReady(unit);
     timedLife_t *life=TimedLifeAlloc();life->unit=unit;life->code=TimedLifeClass(code);
     life->deadline=TimedLifeClock();life->finite=duration>0;
     if(life->finite) {

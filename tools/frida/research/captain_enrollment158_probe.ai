@@ -1,0 +1,17 @@
+function main takes nothing returns nothing
+    call SetCampaignAI()
+    call CreateCaptains()
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call GroupTimedLife(true)
+    call Sleep(0.6)
+    call GroupTimedLife(false)
+    call Sleep(0.4)
+    call GroupTimedLife(true)
+    call Sleep(0.4)
+    call GroupTimedLife(false)
+    call Sleep(0.4)
+    call GroupTimedLife(true)
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction
