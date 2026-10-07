@@ -721,8 +721,12 @@ uint8_t G_GetBuildQueue(edict_t *ent, gameQueueItem_t *queue, uint8_t max_queue)
             }
         } else {
             cstring_t build_name = GetClassName(build->class_id);
+            /* Tiny Structures author their own construction clock; the
+             * progress bar used to run on the unit's buildTime instead. */
             duration = (build->revival && build->revival->reviving)
                 ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
+                : (build->construction && build->construction->duration_ms > 0.0f)
+                ? (uint32_t)build->construction->duration_ms
                 : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
                 int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
