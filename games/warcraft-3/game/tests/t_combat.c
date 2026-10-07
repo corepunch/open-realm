@@ -1678,8 +1678,10 @@ TEST(wc3_combat, bounty_requires_victim_flag_and_enemy_killer) {
     T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 109);
 }
 
-TEST(wc3_combat, bounty_clamps_to_resource_cap_and_uses_player_upkeep) {
-    static UnitBalance_t const bounty = { .goldBountyBase = 10, .maxHealth = 100.0f };
+/* Retail upkeep taxes only gold returned from mines; a kill bounty is credited
+ * in full, the same way Bundle of Gold / Lumber pickups bypass the tax. */
+TEST(wc3_combat, bounty_clamps_to_resource_cap_and_bypasses_upkeep) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 10, .lumberBountyBase = 5, .maxHealth = 100.0f };
     edict_t *killer, *victim;
     gameClient_t *receiver = game.clients, *owner = game.clients + 1;
 
@@ -1692,11 +1694,14 @@ TEST(wc3_combat, bounty_clamps_to_resource_cap_and_uses_player_upkeep) {
     owner->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
     receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 65532;
     receiver->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
+    receiver->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 40;
     G_AwardKillBounty(victim, killer);
     T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], USHRT_MAX);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 5);
     receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
     G_AwardKillBounty(victim, killer);
-    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 107);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 110);
+    T_EQ(receiver->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 10);
 }
 
 TEST(wc3_combat, grant_kill_xp_applies_receiving_player_handicap) {
