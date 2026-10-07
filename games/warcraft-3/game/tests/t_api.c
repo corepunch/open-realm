@@ -1017,6 +1017,34 @@ TEST(wc3_api, leaderboard_display_uses_client_slot_for_mapped_player) {
     T_ASSERT(!G_IsLeaderboardDisplayed(board, &game.clients[0].ps));
 }
 
+TEST(wc3_api, leaderboard_changes_dirty_stacked_multiboard_for_assigned_client) {
+    leaderboard_t *board;
+    uint32_t const client_bit = 1u << 1;
+
+    setup_test_world();
+    game.clients[0].ps.number = 1;
+    game.clients[1].ps.number = 0;
+    board = G_AllocLeaderboard();
+    T_NOT_NULL(board);
+
+    G_SetPlayerLeaderboard(0, board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+
+    level.multiboard_dirty_clients = 0;
+    G_MarkLeaderboardDirty(board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+    T_ASSERT(!(level.multiboard_dirty_clients & 1u));
+
+    level.multiboard_dirty_clients = 0;
+    G_SetLeaderboardDisplayed(board, &game.clients[1].ps, true);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+
+    level.multiboard_dirty_clients = 0;
+    G_FreeLeaderboard(board);
+    T_ASSERT(level.multiboard_dirty_clients & client_bit);
+    T_EQ(level.player_leaderboards[0], -1);
+}
+
 TEST(wc3_api, version_queries_accept_typed_handles) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
