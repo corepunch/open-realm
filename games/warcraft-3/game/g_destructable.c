@@ -23,6 +23,7 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
 }
 
 static void G_ApplyDestructableDeathPathing(edict_t *ent) {
+    S_RetireMoveRegions(ent);
     G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->death_pathtex
@@ -127,6 +128,7 @@ void G_ActivateScriptedDestructable(edict_t *ent,
 
     ent->health.value = ent->health.max_value;
 
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
     G_ApplyDestructableCreationPose(ent);
     G_DestructableStartAliveAnimation(ent, false);
@@ -453,6 +455,7 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
     if (!(ent->s.renderfx & RF_HIDDEN)) {
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     }
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_DestructableStartAliveAnimation(ent, birth);

@@ -15,6 +15,18 @@ SPEC.loader.exec_module(CATEGORIES)
 
 
 class CategoriesEvidence(unittest.TestCase):
+    def test_region_annotations_and_complete_production_composition(self):
+        payload = json.loads((CATEGORIES.FIXTURES / 'retail-widget-regions-ghidra-1.27.json').read_text())
+        self.assertEqual(CATEGORIES.verify_region_saved_evidence(payload), 7)
+        payload['rows'].pop()
+        with self.assertRaisesRegex(ValueError, 'not saved'):
+            CATEGORIES.verify_region_saved_evidence(payload)
+        frozen = json.loads((CATEGORIES.FIXTURES / 'research/FOOT-03.2-expected.json').read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            result = CATEGORIES.verify_region_producers(frozen, Path(directory))
+        self.assertEqual(result['engine_region_steps_per_build'], 112)
+        self.assertEqual(result['engine_region_optimizations'], ['O0', 'O2'])
+
     def test_cell_evidence_rejects_unsaved_or_incomplete_annotations(self):
         payload = json.loads((CATEGORIES.FIXTURES / 'retail-cell-consumers-ghidra-1.27.json').read_text())
         self.assertEqual(CATEGORIES.verify_cell_saved_evidence(payload), 7)

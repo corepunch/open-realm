@@ -10818,3 +10818,11 @@ stamps and clockwise lane/cell rebuild order now have test-first engine fixes.
 every map/object stamp; unchanged controlled Frida evidence remains verified.
 FOOT-03.2 owns actual sparse widget region publication/reference lifetimes. See
 [consumer integration and limits](retail-pathfinding-categories.md#payoff137-exact-raw-cell-consumer-eligibility).
+
+## Widget regions retain mixed lifetime history
+
+Payoff138 integrates actual sparse widget region producers with ordinary fine
+objects and all raw-cell consumers. Collection retirement emits no inverse
+links; inverse rasterization dirties cells and preserves distinct reference
+counts. Save122 retains sparse membership and cached raster inputs in owner save
+order. See [widget region evidence](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).

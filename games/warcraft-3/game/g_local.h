@@ -3237,6 +3237,18 @@ void S_PrepareMoveFineSpatial(void);
 void S_ClearMoveFineSpatial(void);
 void S_FreeMoveFineSpatial(void);
 void S_CompactMoveFineSpatial(void);
+void S_PublishMoveRegions(edict_t const *);
+void S_UnrasterMoveRegions(edict_t const *);
+void S_RetireMoveRegions(edict_t const *);
+struct wc3RegionCollection_s;
+struct wc3RegionCollection_s const *S_GetMoveRegions(uint32_t);
+typedef struct {
+    uint32_t width,height,turn,published;
+    float center[2];
+    uint8_t const *pixels;
+} moveRegionSave_t;
+void S_GetMoveRegionState(uint32_t,moveRegionSave_t *);
+bool S_LoadMoveRegions(uint32_t,uint32_t,moveRegionSave_t const *);
 bool G_UnitMovePathLineIsPathable(movePathQuery_t const *query);
 bool G_UnitMovePathFinePointIsPathable(movePathQuery_t const *query, float const fine[2]);
 bool G_MovePathPointIsPathable(pathAccelParams_t const *params);

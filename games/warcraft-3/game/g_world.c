@@ -7,6 +7,7 @@
 #include "../common/wc3_pathing_widget.h"
 #include "../common/wc3_pathing_records.h"
 #include "../common/wc3_pathing_cell.h"
+#include "../common/wc3_pathing_regions.h"
 
 typedef struct {
     int size;
@@ -37,6 +38,7 @@ static uint32_t move_spatial_width,move_spatial_height;
 static uint64_t *move_static_edges[4];
 static uint32_t move_edge_epoch=1,move_cell_epoch;
 static uint64_t *move_cell_lookup;
+static uint8_t *move_surface_terrain;
 
 static void move_invalidate_edges(void);
 typedef struct {
@@ -111,6 +113,7 @@ void G_RemoveMoveSpatialObject(edict_t const *ent) {
     if (ent) {
         S_RemoveMoveProximity(ent);
         move_remove_fine_spatial(ent);
+        S_RetireMoveRegions(ent);
     }
 }
 static wc3FineSearch_t move_fine;
@@ -125,6 +128,7 @@ static uint8_t *move_acc_markers;
 static uint8_t const move_acc_masks[4] = {2,4,0x40,0x80};
 typedef struct {
     wc3FineBox_t box;
+    vec2_t point;
     pathTex_t const *texture;
     uint64_t pixels;
     uint32_t birth, turn, flags;
@@ -212,7 +216,9 @@ static void move_cell_world_dimensions(float *, float *);
 #define PATH_JOB_RUN G_RunPathJob
 #define PATH_JOB_WAIT G_WaitPathJob
 #define CM_BakeStaticObstacles move_bake_static_masks
+#define PATH_SURFACE_CELL(index) (move_surface_terrain[index]&=~2u)
 #include "server/sv_routing.c"
+#undef PATH_SURFACE_CELL
 #undef CM_BakeStaticObstacles
 #undef PATHMAP_SETUP_COMPLETE
 #undef PATH_JOB_RUN
@@ -229,8 +235,17 @@ static void move_invalidate_edges(void) {
 /* Fine edge caching follows baked terrain, independently of the deliberately
  * delayed adaptive hierarchy. A terrain edit must invalidate fine admission. */
 static void CM_BakeStaticMasks(void) {
+    if(!pathmap.terrain || !pathmap.original)return;
+    move_surface_terrain=wc3_records_memory(move_surface_terrain,(size_t)pathmap.width*pathmap.height);
+    memcpy(move_surface_terrain,pathmap.terrain,(size_t)pathmap.width*pathmap.height);
     move_bake_static_masks();
     move_invalidate_edges();
+}
+
+static uint32_t move_terrain_word(wc3FinePoint_t pos) {
+    if(!is_valid_point(pos.x,pos.y))return UINT32_MAX;
+    uint32_t cell=(uint32_t)pos.y*pathmap.width+pos.x;
+    return (uint32_t)(move_surface_terrain ? move_surface_terrain[cell] : ((uint8_t const *)pathmap.terrain)[cell])<<24;
 }
 
 /* Use the bake's predicate for lifecycle invalidation, including dead rubble
@@ -341,6 +356,7 @@ void G_FreeMovePathCache(void) {
     FOR_LOOP(lane,4){free(move_static_edges[lane]);move_static_edges[lane]=NULL;}
     move_edge_epoch=1;
     free(move_cell_lookup);move_cell_lookup=NULL;move_cell_epoch=0;
+    free(move_surface_terrain);move_surface_terrain=NULL;
     move_spatial_width=move_spatial_height=0;
     memset(move_spatial_geometry,0,sizeof(move_spatial_geometry));
 }
@@ -395,7 +411,7 @@ static void move_acc_rebuild_rectangle_from(wc3FineBox_t box, bool clear, unsign
                 if (!clear) FOR_LOOP(corner,4) {
                     wc3FinePoint_t pos={x*2+corners[corner].x,y*2+corners[corner].y};
                     uint32_t mask=lane ? move_acc_masks[lane] : 6;
-                    bool allowed=is_pathable_node_original_flags(pos.x,pos.y,mask);
+                    bool allowed=!(move_terrain_word(pos)&(mask<<24));
                     wc3SpatialRecords_t *records=S_GetMoveFineSpatial();
                     if(allowed && records->cells) {
                         wc3CellQuery_t query={.mode=WC3_CELL_HIERARCHY,.mask=mask|mask<<24,
@@ -457,6 +473,7 @@ static moveStaticPathing_t move_static_pathing(edict_t const *ent) {
     unsigned width=transform.width,height=transform.height;
     if (!ent->pathtex) width=height=MAX(1,collision_radius_cells(ent->collision)*2);
     state.active=true; state.texture=ent->pathtex; state.birth=ent->spawn_time;
+    state.point=ent->s.origin2;
     state.turn=transform.turn; state.flags=entity_static_pathing_flags(ent);
     state.surface=entity_is_live_walkable_surface(ent);
     state.box=(wc3FineBox_t){{p.x-(int)width/2,p.y-(int)height/2},
@@ -476,6 +493,9 @@ static moveStaticPathing_t move_static_pathing(edict_t const *ent) {
 void G_FinishMovePathingInitialization(void) {
     CM_BakeStaticMasks();
     move_acc_prepare();
+    FOR_LOOP(i,globals.num_edicts)if(entity_blocks_static_pathing(g_edicts+i)) {
+        if(!S_GetMoveRegions(i)->count)S_PublishMoveRegions(g_edicts+i);
+    }
     move_acc_rebuild_rectangle((wc3FineBox_t){{0,0},{pathmap.width,pathmap.height}},false);
     FOR_LOOP(i,MAX_ENTITIES)
         move_static[i]=i<globals.num_edicts ? move_static_pathing(g_edicts+i) : (moveStaticPathing_t){0};
@@ -492,9 +512,14 @@ void CM_BakeStaticObstacles(void) {
         moveStaticPathing_t next=i<globals.num_edicts ? move_static_pathing(g_edicts+i) : (moveStaticPathing_t){0};
         moveStaticPathing_t *before=move_static+i;
         if (before->active==next.active && before->texture==next.texture && before->pixels==next.pixels &&
+            !memcmp(&before->point,&next.point,sizeof(next.point)) &&
             before->birth==next.birth && before->turn==next.turn && before->flags==next.flags && before->surface==next.surface &&
             before->box.min.x==next.box.min.x && before->box.min.y==next.box.min.y &&
-            before->box.max.x==next.box.max.x && before->box.max.y==next.box.max.y) continue;
+            before->box.max.x==next.box.max.x && before->box.max.y==next.box.max.y &&
+            (!next.active || S_GetMoveRegions(i)->count)) continue;
+        if(next.active)S_PublishMoveRegions(g_edicts+i);
+        else if(i<globals.num_edicts && (g_edicts[i].svflags&SVF_DEADMONSTER))S_RetireMoveRegions(g_edicts+i);
+        else if(i<globals.num_edicts)S_UnrasterMoveRegions(g_edicts+i);
         if (before->active) move_acc_rebuild_rectangle(before->box,false);
         if (next.active) move_acc_rebuild_rectangle(next.box,false);
         *before=next;
@@ -748,7 +773,7 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
 static void move_query_objects(moveFineGraph_t *graph, movePathQuery_t const *query, box2_t const *bounds) {
     (void)bounds;
     graph->query=NULL;
-    if (!query->units || !query->mover || (query->mover->aiflags & AI_FLYING)) return;
+    if (!query->units || !query->mover) return;
     move_spatial_sync();
     graph->query=query;
 }
@@ -759,6 +784,7 @@ static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const 
     moveFineGraph_t const *graph=data;
     wc3FineObject_t shape=move_cell_object(NULL,object);
     if(!(object->flags&WC3_RECORD_REGION)) {
+        if(!graph->query) {shape.mask=0;return shape;}
         edict_t const *ent=g_edicts+object->owner;
         if(ent==graph->query->mover || (graph->suppress_target && ent==graph->query->target))shape.flags|=1;
     }
@@ -769,16 +795,18 @@ static wc3FineObject_t move_fine_cell_object(void *data,wc3RecordObject_t const 
 static bool move_occupancy_cell(void const *data,wc3FinePoint_t pos) {
     moveFineGraph_t const *graph=data;
     if(!is_valid_point(pos.x,pos.y))return false;
-    if(!graph->query)return true;
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    if(!map->cells)return true;
     uint32_t target=WC3_RECORD_END,mask=graph->flags;
-    if(graph->has_target && graph->query->target)target=map->objects[graph->query->target-g_edicts];
+    if(graph->has_target && graph->query && graph->query->target)target=map->objects[graph->query->target-g_edicts];
     wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=mask|mask<<24,.target=target,.endpoint=graph->endpoint,
         .describe=move_fine_cell_object,.data=(void *)graph};
     wc3CellResult_t result=wc3_records_cell(map,pos,0,&query);
-    if(result.target_seen)*graph->target_hit=true;
-    if(!result.value && graph->rejection && result.blocker!=WC3_RECORD_END)
-        *graph->rejection=wc3_records_object(map,result.blocker)->box;
+    if(result.target_seen && graph->target_hit)*graph->target_hit=true;
+    if(!result.value && graph->rejection && result.blocker!=WC3_RECORD_END) {
+        wc3RecordObject_t const *object=wc3_records_object(map,result.blocker);
+        *graph->rejection=object->flags&WC3_RECORD_REGION ? (wc3FineBox_t){pos,{pos.x+1,pos.y+1}} : object->box;
+    }
     return result.value;
 }
 
@@ -787,7 +815,7 @@ static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
     /* Public placement can carry a real zero query after SetUnitPathing(false).
      * Generic routing normalizes its legacy zero before constructing this graph. */
     if (!is_valid_point(pos.x,pos.y) ||
-        (graph->flags && !is_pathable_node_original_flags(pos.x,pos.y,graph->flags))) {
+        (move_terrain_word(pos)&((uint32_t)graph->flags<<24))) {
         if (graph->rejection) *graph->rejection = (wc3FineBox_t){pos, {pos.x + 1, pos.y + 1}};
         return false;
     }
@@ -797,7 +825,7 @@ static bool move_cell_uncached(void const *data, wc3FinePoint_t pos) {
 /* Terrain-only admission can reuse a verdict. Dynamic predicates must execute
  * every time: their cell/object stamps also feed ordered maintenance. */
 static void move_begin_cell_query(moveFineGraph_t *graph) {
-    if(graph->query){graph->cell_epoch=0;return;}
+    if(graph->query || S_GetMoveFineSpatial()->records){graph->cell_epoch=0;return;}
     if(!move_cell_lookup) {
         move_cell_lookup=calloc((size_t)pathmap.width*pathmap.height,sizeof(*move_cell_lookup));
         if(!move_cell_lookup)gi.error("WC3 fine cell query: cannot allocate lookup");
@@ -811,7 +839,9 @@ static void move_begin_cell_query(moveFineGraph_t *graph) {
 
 static bool move_cell_ok(void const *data,wc3FinePoint_t pos) {
     moveFineGraph_t const *graph=data;
-    if(graph->query || !graph->cell_epoch || !is_valid_point(pos.x,pos.y))return move_cell_uncached(data,pos);
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    if(graph->query || !graph->cell_epoch || !is_valid_point(pos.x,pos.y) ||
+        (map->cells && (map->cells[(uint32_t)pos.y*map->width+pos.x]&WC3_RECORD_END)!=WC3_RECORD_END))return move_cell_uncached(data,pos);
     uint64_t *entry=move_cell_lookup+(uint32_t)pos.y*pathmap.width+pos.x;
     if((*entry>>32)!=graph->cell_epoch) {
         bool hit=false;
@@ -1177,10 +1207,9 @@ static void move_collector_emit(void *data,uint32_t id) {
 static bool move_collect_blocker_cell(void const *data,wc3FinePoint_t pos) {
     moveBlockerQuery_t *scan=(moveBlockerQuery_t *)data;
     uint32_t mask=scan->query->geometry.blocked_flags;
-    bool allowed=is_valid_point(pos.x,pos.y) && (!mask || is_pathable_node_original_flags(pos.x,pos.y,mask));
     wc3CellQuery_t query={.mode=WC3_CELL_COLLECT,.mask=mask|mask<<24,.target=WC3_RECORD_END,
         .describe=move_collector_object,.emit=move_collector_emit,.data=scan};
-    wc3_records_cell(S_GetMoveFineSpatial(),pos,allowed ? 0 : mask<<24,&query);
+    wc3_records_cell(S_GetMoveFineSpatial(),pos,is_valid_point(pos.x,pos.y) ? move_terrain_word(pos) : 0,&query);
     return true;
 }
 

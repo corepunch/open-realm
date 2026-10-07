@@ -1,5 +1,7 @@
 #include "g_local.h"
 #include "../common/wc3_pathing_records.h"
+#include "../common/wc3_pathing_regions.h"
+#include "../common/wc3_pathing_cell.h"
 #include <stdint.h>
 #ifdef BZ_TESTS
 #include "shared/test.h"
@@ -79,8 +81,9 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format121 retains both fine and proximity map/object stamps. */
-static uint32_t const save_version = 121;
+/* Format122 saves mixed ordinary/region identities in entity save order and
+ * actual compacted sparse region membership, not an enclosing rectangle. */
+static uint32_t const save_version = 122;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2187,41 +2190,108 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
     return true;
 }
 
-/* Original14d000 rebuilds ordinary memberships by prepending objects in load
- * order. Save logical rectangles, not movement-era per-cell publication ranks. */
+/* Transpose compacted region memberships once, O(cells+links+objects).
+ * Save/load must not scan the map separately for each tree or region. */
 static bool WriteMoveSpatial(FILE *f) {
     S_CompactMoveFineSpatial();
     wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
-    uint32_t count=0,search_stamp=G_GetMoveFineSearchStamp();
-    FOR_LOOP(i,globals.num_edicts)if(G_GetMoveSpatialObject(i))count++;
-    if(!SaveBytes(f,&map->query,sizeof(map->query)) || !SaveBytes(f,&search_stamp,sizeof(search_stamp)) ||
-        !SaveBytes(f,&count,sizeof(count)))return false;
+    uint32_t count=0,search_stamp=G_GetMoveFineSearchStamp(),total=0;
+    uint32_t *offset=calloc((size_t)map->raw_objects+1,sizeof(*offset)),*cells=NULL,*cursor=NULL;
+    if(!offset)gi.error("Move save: cannot allocate region offsets");
+    FOR_LOOP(i,map->raw_objects) {
+        wc3RecordObject_t const *object=wc3_records_object(map,i);
+        offset[i]=total;
+        if((object->flags&WC3_RECORD_REGION) && object->stamp!=UINT32_MAX)total+=object->refs;
+    }
+    offset[map->raw_objects]=total;
+    if(total) {
+        cells=wc3_records_memory(NULL,(size_t)total*sizeof(*cells));
+        cursor=wc3_records_memory(NULL,((size_t)map->raw_objects+1)*sizeof(*cursor));
+        memcpy(cursor,offset,((size_t)map->raw_objects+1)*sizeof(*cursor));
+        FOR_LOOP(cell,map->width*map->height) {
+            for(uint32_t link=map->cells[cell]&WC3_RECORD_END;link!=WC3_RECORD_END;link=map->links[link].next&WC3_RECORD_END) {
+                uint32_t id=map->links[link].payload;
+                if(wc3_records_object(map,id)->flags&WC3_RECORD_REGION)cells[cursor[id]++]=cell;
+            }
+        }
+    }
+    FOR_LOOP(i,globals.num_edicts)if(G_GetMoveSpatialObject(i) || S_GetMoveRegions(i)->count)count++;
+    bool success=SaveBytes(f,&map->query,sizeof(map->query)) && SaveBytes(f,&search_stamp,sizeof(search_stamp)) &&
+        SaveBytes(f,&count,sizeof(count));
     FOR_LOOP(i,globals.num_edicts) {
         wc3RecordObject_t const *object=G_GetMoveSpatialObject(i);
-        if(!object)continue;
-        if(!g_edicts[i].inuse || object->stamp==UINT32_MAX || !SaveBytes(f,&i,sizeof(i)) ||
-            !SaveBytes(f,&object->box,sizeof(object->box)) || !SaveBytes(f,&object->stamp,sizeof(object->stamp)))return false;
+        wc3RegionCollection_t const *regions=S_GetMoveRegions(i);
+        if(!object && !regions->count)continue;
+        uint32_t ordinary=object!=NULL;
+        if(!success || !g_edicts[i].inuse || !SaveBytes(f,&i,sizeof(i)) ||
+            !SaveBytes(f,&ordinary,sizeof(ordinary))) {success=false;break;}
+        if(object && (object->stamp==UINT32_MAX || !SaveBytes(f,&object->box,sizeof(object->box)) ||
+            !SaveBytes(f,&object->stamp,sizeof(object->stamp)))) {success=false;break;}
+        if(!SaveBytes(f,&regions->count,sizeof(regions->count))) {success=false;break;}
+        if(!regions->count)continue;
+        moveRegionSave_t state;S_GetMoveRegionState(i,&state);
+        uint32_t header[]={state.width,state.height,state.turn,state.published};
+        if(!SaveBytes(f,header,sizeof(header)) || !SaveBytes(f,state.center,sizeof(state.center)) ||
+            !SaveBytes(f,state.pixels,(size_t)state.width*state.height)) {success=false;break;}
+        FOR_LOOP(slot,regions->count) {
+            uint32_t id=regions->objects[slot],n=offset[id+1]-offset[id];
+            wc3RecordObject_t const *region=wc3_records_object(map,id);
+            if(region->stamp==UINT32_MAX || !SaveBytes(f,&region->stamp,sizeof(region->stamp)) ||
+                !SaveBytes(f,&n,sizeof(n)) || (n && !SaveBytes(f,cells+offset[id],(size_t)n*sizeof(*cells)))) {
+                success=false;break;
+            }
+        }
     }
-    return true;
+    free(offset);free(cursor);free(cells);return success;
 }
 
+/*14d000 restores each object in save order. New identities are stable and
+ * pointers, allocator slot IDs and movement-era publication ranks are absent. */
 static bool ReadMoveSpatial(FILE *f) {
-    uint32_t query,search_stamp,count,index,stamp;
+    uint32_t query,search_stamp,count,index,stamp;uint8_t *pixels=NULL;
     bool seen[MAX_ENTITIES]={0};
     G_ClearMoveSpatial();
     if(!LoadBytes(f,&query,sizeof(query)) || !LoadBytes(f,&search_stamp,sizeof(search_stamp)) || search_stamp>UINT16_MAX ||
         !LoadBytes(f,&count,sizeof(count)) || count>globals.num_edicts)return false;
     FOR_LOOP(i,count) {
-        wc3FineBox_t box;
-        if(!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] ||
-            !LoadBytes(f,&box,sizeof(box)) || !LoadBytes(f,&stamp,sizeof(stamp)) || stamp==UINT32_MAX ||
-            !G_LoadMoveSpatialObject(index,&box))goto failed;
-        wc3_records_owned(S_GetMoveFineSpatial(),index)->stamp=stamp;seen[index]=true;
+        uint32_t ordinary,region_count;
+        if(!LoadBytes(f,&index,sizeof(index)) || index>=globals.num_edicts || seen[index] || !g_edicts[index].inuse ||
+            !LoadBytes(f,&ordinary,sizeof(ordinary)) || ordinary>1)goto failed;
+        if(ordinary) {
+            wc3FineBox_t box;
+            if(!LoadBytes(f,&box,sizeof(box)) || !LoadBytes(f,&stamp,sizeof(stamp)) || stamp==UINT32_MAX ||
+                !G_LoadMoveSpatialObject(index,&box))goto failed;
+            wc3_records_owned(S_GetMoveFineSpatial(),index)->stamp=stamp;
+        }
+        if(!LoadBytes(f,&region_count,sizeof(region_count)) || region_count>4 ||
+            (region_count && region_count<3) || (!ordinary && !region_count))goto failed;
+        seen[index]=true;if(!region_count)continue;
+        moveRegionSave_t state={0};uint32_t header[4];
+        if(!LoadBytes(f,header,sizeof(header)) || !LoadBytes(f,state.center,sizeof(state.center)))goto failed;
+        state.width=header[0];state.height=header[1];state.turn=header[2];state.published=header[3];
+        uint64_t size=(uint64_t)state.width*state.height;
+        if(!size || size>(1u<<24) || state.turn>3 || state.published>1)goto failed;
+        pixels=wc3_records_memory(NULL,size);state.pixels=pixels;
+        if(!LoadBytes(f,pixels,size) || !S_LoadMoveRegions(index,region_count,&state))goto failed;
+        free(pixels);pixels=NULL;
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RegionCollection_t const *regions=S_GetMoveRegions(index);
+        FOR_LOOP(slot,region_count) {
+            uint32_t n,previous=0,id=regions->objects[slot];
+            if(!LoadBytes(f,&stamp,sizeof(stamp)) || stamp==UINT32_MAX || !LoadBytes(f,&n,sizeof(n)) ||
+                n>map->width*map->height || (!state.published && n))goto failed;
+            FOR_LOOP(cell,n) {
+                uint32_t position;
+                if(!LoadBytes(f,&position,sizeof(position)) || position>=map->width*map->height ||
+                    (cell && position<=previous))goto failed;
+                wc3_records_prepend(map,position,id,WC3_RECORD_INSERT);previous=position;
+            }
+            wc3_records_object(map,id)->stamp=stamp;
+        }
     }
-    S_GetMoveFineSpatial()->query=query;G_SetMoveFineSearchStamp(search_stamp);
-    return true;
+    S_GetMoveFineSpatial()->query=query;G_SetMoveFineSearchStamp(search_stamp);return true;
 failed:
-    G_ClearMoveSpatial();return false;
+    free(pixels);G_ClearMoveSpatial();return false;
 }
 
 static bool WriteMoveProximity(FILE *f) {
@@ -3280,19 +3350,53 @@ TEST(wc3_save, fine_spatial_rectangles_reject_invalid_records) {
         T_ASSERT(SaveBytes(file,&search_stamp,sizeof(search_stamp)));
         T_ASSERT(SaveBytes(file,&count,sizeof(count)));
         T_ASSERT(SaveBytes(file,&index,sizeof(index)));
+        T_ASSERT(SaveBytes(file,&(uint32_t){1},sizeof(uint32_t)));
         if(c!=8){T_ASSERT(SaveBytes(file,&box,sizeof(box)));T_ASSERT(SaveBytes(file,&stamp,sizeof(stamp)));}
-        if(c==6){T_ASSERT(SaveBytes(file,&index,sizeof(index)));T_ASSERT(SaveBytes(file,&box,sizeof(box)));T_ASSERT(SaveBytes(file,&stamp,sizeof(stamp)));}
+        T_ASSERT(SaveBytes(file,&(uint32_t){0},sizeof(uint32_t)));
+        if(c==6){T_ASSERT(SaveBytes(file,&index,sizeof(index)));T_ASSERT(SaveBytes(file,&(uint32_t){1},sizeof(uint32_t)));T_ASSERT(SaveBytes(file,&box,sizeof(box)));T_ASSERT(SaveBytes(file,&stamp,sizeof(stamp)));}
         rewind(file);T_ASSERT(!ReadMoveSpatial(file));
         T_EQ(G_GetMoveSpatialSerial(),0);
         fclose(file);
     }
     T_ASSERT(G_LoadMoveSpatialObject(unit->s.number,&good));
     FILE *file=tmpfile();T_NOT_NULL(file);
-    if(file){T_ASSERT(WriteMoveSpatial(file));T_EQ(ftell(file),sizeof(uint32_t)*5+sizeof(good));
+    if(file){T_ASSERT(WriteMoveSpatial(file));T_EQ(ftell(file),sizeof(uint32_t)*7+sizeof(good));
         G_ClearMoveSpatial();rewind(file);T_ASSERT(ReadMoveSpatial(file));
         T_EQ(G_GetMoveSpatialSerial(),1);
         T_EQ(G_GetMoveSpatialObject(unit->s.number)->stamp,1);fclose(file);}
     reset_entities();setup_test_world();
+}
+
+TEST(wc3_save, mixed_sparse_regions_reload_in_owner_order_and_retain_inverse_pixels) {
+    extern void CM_SetupTestPathmap(unsigned,unsigned,uint8_t const *);
+    extern void CM_SetupTestWorldBounds(box2_t const *);
+    FOR_LOOP(order,2) {
+        reset_entities();setup_test_world();uint8_t terrain[16*16]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,terrain);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),224,224);unit->svflags|=SVF_MONSTER;
+        unit->collision=31;unit->s.model=1;
+        edict_t *widget=G_Spawn();widget->s.origin2=(vec2_t){208,208};widget->s.model=1;
+        struct {uint16_t width,height;color32_t map[9];} texture={3,3,{
+            {255,0,255,255},{0,0,0,255},{255,0,255,255},
+            {0,0,0,255},{255,0,255,255},{0,0,0,255},
+            {255,0,255,255},{0,0,0,255},{255,0,255,255}}};
+        widget->pathtex=(pathTex_t *)&texture;
+        if(order){S_PublishMoveRegions(widget);G_PublishMoveSpatialObject(unit);}
+        else {G_PublishMoveSpatialObject(unit);S_PublishMoveRegions(widget);}
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();T_EQ(map->records,19);
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)continue;
+        T_ASSERT(WriteMoveSpatial(file));uint32_t stamp=map->query;
+        rewind(file);T_ASSERT(ReadMoveSpatial(file));fclose(file);T_EQ(map->query,stamp);T_EQ(map->records,19);
+        wc3RegionCollection_t const *regions=S_GetMoveRegions(widget-g_edicts);T_EQ(regions->count,3);
+        uint32_t head=map->cells[6*16+6]&WC3_RECORD_END;
+        T_EQ(map->links[head].payload,regions->objects[2]); /* widget saved after unit */
+        FOR_LOOP(i,3)T_EQ(wc3_records_object(map,regions->objects[i])->refs,5);
+        wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=0x02000002,.target=WC3_RECORD_END};
+        T_EQ(wc3_records_cell(map,(wc3FinePoint_t){6,5},0,&query).value,1); /* real hole */
+        T_EQ(wc3_records_cell(map,(wc3FinePoint_t){5,5},0,&query).value,0);
+        S_UnrasterMoveRegions(widget);T_EQ(map->records,34);wc3_records_compact(map,false);T_EQ(map->records,4);
+        reset_entities();setup_test_world();
+    }
 }
 
 TEST(wc3_save, fine_work_bound_rejects_unreachable_saved_wrap_state) {

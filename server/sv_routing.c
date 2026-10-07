@@ -644,8 +644,12 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                      * texture padding and must preserve the underlying river. */
                     if (walkable_surface) {
                         if (blocked) path_cell_add_flags(cell, ground_flags);
-                        else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y))
+                        else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y)) {
                             cell->nowalk = 0;
+#ifdef PATH_SURFACE_CELL
+                            PATH_SURFACE_CELL(px + py * pathmap.width);
+#endif
+                        }
                     } else {
                         if (blocked) path_cell_add_flags(cell, ground_flags);
                     }

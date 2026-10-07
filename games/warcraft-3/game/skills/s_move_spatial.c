@@ -1,9 +1,18 @@
 #include "../g_local.h"
 #include "../../common/wc3_pathing_proximity.h"
 #include "../../common/wc3_pathing_coordinates.h"
+#include "../../common/wc3_pathing_regions.h"
 
 static wc3ProximityMap_t move_proximity;
 static wc3SpatialRecords_t move_fine_spatial;
+typedef struct {
+    wc3RegionCollection_t collection;
+    uint8_t *pixels;
+    float center[2];
+    uint32_t width,height,turn;
+    bool published;
+} moveRegionState_t;
+static moveRegionState_t move_regions[MAX_ENTITIES];
 typedef struct {wc3Clock_t deadline;uint32_t sequence;bool active;} moveSpatialRequest_t;
 static moveSpatialRequest_t move_proximity_request,move_fine_request;
 
@@ -28,14 +37,94 @@ void S_PrepareMoveFineSpatial(void) {
     move_spatial_request(&move_fine_request);
 }
 void S_ClearMoveFineSpatial(void) {
+    FOR_LOOP(i,MAX_ENTITIES)free(move_regions[i].pixels);
+    memset(move_regions,0,sizeof(move_regions));
     wc3_records_clear(&move_fine_spatial);move_fine_request.active=false;
 }
 void S_FreeMoveFineSpatial(void) {
+    FOR_LOOP(i,MAX_ENTITIES)free(move_regions[i].pixels);
+    memset(move_regions,0,sizeof(move_regions));
     wc3_records_free(&move_fine_spatial);move_fine_request.active=false;
 }
 void S_CompactMoveFineSpatial(void) {
     if(move_fine_spatial.cells)wc3_records_compact(&move_fine_spatial,true);
 }
+
+wc3RegionCollection_t const *S_GetMoveRegions(uint32_t owner) {return &move_regions[owner].collection;}
+void S_GetMoveRegionState(uint32_t owner,moveRegionSave_t *out) {
+    moveRegionState_t const *state=move_regions+owner;
+    *out=(moveRegionSave_t){state->width,state->height,state->turn,state->published,
+        {state->center[0],state->center[1]},state->pixels};
+}
+bool S_LoadMoveRegions(uint32_t owner,uint32_t count,moveRegionSave_t const *in) {
+    if(owner>=globals.num_edicts || !g_edicts[owner].inuse || move_regions[owner].collection.count ||
+        count<3 || count>4 || in->published>1 || in->turn>3 || !in->width || !in->height ||
+        !isfinite(in->center[0]) || !isfinite(in->center[1]) ||
+        (uint64_t)in->width*in->height>(1u<<24))return false;
+    S_PrepareMoveFineSpatial();moveRegionState_t *state=move_regions+owner;
+    uint32_t size=in->width*in->height;
+    state->pixels=wc3_records_memory(NULL,size);memcpy(state->pixels,in->pixels,size);
+    state->width=in->width;state->height=in->height;state->turn=in->turn;state->published=in->published;
+    memcpy(state->center,in->center,sizeof(state->center));
+    wc3_regions_resize(&move_fine_spatial,&state->collection,owner,count);return true;
+}
+static void move_region_raster(moveRegionState_t const *state,uint32_t kind) {
+    box2_t bounds=CM_GetWorldBounds();
+    float minimum[2]={bounds.min.x,bounds.min.y},maximum[2]={bounds.max.x,bounds.max.y};
+    float center[2]={state->center[0],state->center[1]};
+    float cell[2]={(bounds.max.x-bounds.min.x)/move_fine_spatial.width,
+        (bounds.max.y-bounds.min.y)/move_fine_spatial.height};
+    /* Non-native synthetic grids retain the engine's documented scale. Real
+     * WPM maps take the original32-unit path without a conversion. */
+    FOR_LOOP(axis,2)if(cell[axis]!=32) {
+        center[axis]=wc3_mul(wc3_div(wc3_sub(center[axis],minimum[axis]),cell[axis]),32);
+        maximum[axis]=wc3_mul(wc3_div(wc3_sub(maximum[axis],minimum[axis]),cell[axis]),32);minimum[axis]=0;
+    }
+    wc3_regions_raster(&move_fine_spatial,&state->collection,state->width,state->height,state->pixels,
+        center,minimum,maximum,state->turn,kind);
+}
+void S_UnrasterMoveRegions(edict_t const *owner) {
+    moveRegionState_t *state=move_regions+(owner-g_edicts);
+    if(state->published) {move_region_raster(state,WC3_RECORD_REMOVE);state->published=false;}
+}
+/*650c00/063b40: retirement is distinct from inverse rasterization. Do not
+ * dirty a cell or add removal links; retained identities simply become dead. */
+void S_RetireMoveRegions(edict_t const *owner) {
+    moveRegionState_t *state=move_regions+(owner-g_edicts);
+    wc3_regions_resize(&move_fine_spatial,&state->collection,owner-g_edicts,0);
+    free(state->pixels);*state=(moveRegionState_t){0};
+}
+void S_PublishMoveRegions(edict_t const *owner) {
+    S_PrepareMoveFineSpatial();S_UnrasterMoveRegions(owner);
+    moveRegionState_t *state=move_regions+(owner-g_edicts);
+    pathTex_t const *texture=owner->pathtex;
+    pathTexTransform_t transform=CM_GetPathTexTransform(owner);
+    float cell=CM_PathCellWorldSize();
+    unsigned radius=MAX(1,(unsigned)ceilf(owner->collision/cell));
+    state->width=texture ? texture->width : radius*2;
+    state->height=texture ? texture->height : radius*2;state->turn=transform.turn;
+    uint32_t size=state->width*state->height;
+    state->pixels=wc3_records_memory(state->pixels,MAX(1,size));bool flight=false;
+    FOR_LOOP(i,size) {
+        color32_t pixel=texture ? texture->map[i] : (color32_t){0,0,255,255};
+        /* LoadTGA retains file BGRA bytes. Existing engine path textures also
+         * permit boolean red; authored blue marks item and building regions. */
+        state->pixels[i]=(pixel.b ? 0xc2 : 0)|(pixel.r ? 0x18 : 0)|(pixel.g>127 ? 4 : 0);
+        flight|=(state->pixels[i]&4)!=0;
+    }
+    wc3_regions_resize(&move_fine_spatial,&state->collection,owner-g_edicts,flight ? 4 : 3);
+    state->center[0]=owner->s.origin2.x;state->center[1]=owner->s.origin2.y;
+    /* Collision-only scenery retains the legacy integer-cell footprint. Its
+     * producer is not a texture callback and does not consume rotation. */
+    if(!texture) {
+        box2_t bounds=CM_GetWorldBounds();
+        float cx=(bounds.max.x-bounds.min.x)/pathmap.width,cy=(bounds.max.y-bounds.min.y)/pathmap.height;
+        state->center[0]=bounds.min.x+(floorf((owner->s.origin2.x-bounds.min.x)/cx)-radius)*cx+(state->width-1)*cx*.5f;
+        state->center[1]=bounds.min.y+(floorf((owner->s.origin2.y-bounds.min.y)/cy)-radius)*cy+(state->height-1)*cy*.5f;
+    }
+    move_region_raster(state,WC3_RECORD_INSERT);state->published=true;
+}
+
 typedef struct { vec2_t world,fine,published;float radius;bool valid,pose_valid; } moveProximityGeometry_t;
 static moveProximityGeometry_t move_proximity_geometry[MAX_ENTITIES];
 

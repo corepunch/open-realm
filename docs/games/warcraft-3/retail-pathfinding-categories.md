@@ -218,3 +218,69 @@ and preserving retire-versus-unraster reference counts is the next producer chun
 This closure establishes the consumer table, not the complete mixed static/dynamic
 publication lifecycle or a new 4096-unit performance acceptance. Region suppression
 scopes and full world flag-query producers retain their existing MAP/FOOT owners.
+
+## Payoff138 widget regions and mixed lifetimes
+
+FOOT-03.2 is closed with engine producer integration. Move now owns a small
+collection of stable pooled C2, item10, building08 and optional flight04 region
+identities for each static footprint. Rotated pixels prepend one link for every
+matching category, in native row/pixel/category order. Ordinary unit and item
+identities remain independent. Fine queries, segments, endpoints, collectors,
+category union and hierarchy all read the shared retained record map. Widget
+blockage no longer short-circuits those encounters through a merged terrain byte.
+Bridge support still modifies its independent terrain baseline; legacy flow
+fields retain their baked mask. Native32-unit geometry takes the direct software
+scalar path. Synthetic grids retain their existing scale.
+
+`063e50` clamps each raster sample before conversion; `22e9c0` uses
+(width−1)*16 and (height−1)*16 half-extents, software32 increments and a primary
+axis reset at each row. A collection retired through063b40 makes its objects
+immediately dead, adds no removal records and dirties no cells. Inverse raster
+through650a70 instead prepends removal records. Removing an ordinary owner adds
+its own inverse rectangle independently. Destructable death/restore and entity
+free retire old regions; position/footprint changes inverse-raster the retained
+previous pixels before publishing their replacements.
+
+The [FOOT-03.2 handoff](retail-pathfinding-handoffs/FOOT-03.2/HANDOFF.md) supplies
+16 original producer scenarios: two insertion orders, unit retire/move-away,
+widget retire/unraster and two removal orders. The verifier freshly executes
+unchanged original code, checks the frozen output, then repeats every seven-stage
+sequence through production C algorithms at-O0/-O2. All112 states per build match
+raw cell chains, per-object categories/flags/stamps/reference counts, map stamps,
+link counts/free counts/dirty bits, and every fine/perimeter/segment/endpoint/
+collector/union/hierarchy result. This includes the difference between five
+retained references per retired widget region after dirty-only compaction and
+zero after inverse rasterization. Two complete supplied Frida captures are
+validated against each other and the observer-free60-marker control;328 consumer
+checks remain exact. They are reused evidence, not newly recorded captures.
+
+The actual game regression reproduced18 failures before implementation. Engine
+regressions cover both insertion orders, all16 reference-count scenarios, real
+destructable death/restore and sparse save/load followed by inverse raster. Fractional moves within the
+same owner cell publish their changed pixel membership. A separate test-first
+flight adapter correction retains ordinary active stamps before category misses.
+Save122 stores compacted region cell memberships and cached normalized pixels,
+not pointers or an enclosing solid rectangle. Owners load in entity save order;
+ordinary objects precede that owner's region slots. Save transposes memberships
+once in O(cells+links+objects), rather than scanning the map per region. Older
+save versions are rejected under the repository's format policy.
+
+Ghidra's seven producer annotations are saved and exported in
+[retail-widget-regions-ghidra-1.27.json](../../../tools/ghidra/fixtures/retail-widget-regions-ghidra-1.27.json),
+with matching reproducible MapPathfinding rows. Authored resource flag/decoder
+inventory and unusual channel thresholds remain BASE-02.1; the native composed
+fixture supplies decoded category bytes. Existing engine TGA inputs retain their
+boolean red compatibility. Full layered bridge and uncommon public widget
+producer coverage remain their existing tasks. This chunk makes no new4096-unit
+performance or complete-map retail fidelity claim.
+
+Focused debug validation covers742 tests and8,011,707 assertions per Classic/TFT
+variant, including the complete349-test movement suite. Release producer,
+destructable, save, category and performance suites pass. The twelve-mover/4000
+scenery smoke measures approximately0.47ms per100ms simulation frame on this
+host. Five alternating old/new smoke captures have medians0.51/0.52ms;
+this difference is within run noise, and is not a4096-moving-unit benchmark. The strict fresh category corpus
+checks both original/model/C consumer matrices and composed region lifetimes;
+48 focused Python evidence/storage/corpus checks pass. Full repository validation
+remains at the user-authorized batch cadence, three implementation commits after
+the Payoff135 checkpoint.

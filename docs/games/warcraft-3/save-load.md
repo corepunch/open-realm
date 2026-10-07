@@ -1319,3 +1319,13 @@ in their Move member records. A malformed Boolean or a siege flag on a noncaptai
 actor is rejected. Focused creation/weapon-edit/withdrawal round trips and the
 prior114 format rejection test cover this change. See
 [captain range evidence](retail-pathfinding-engine.md#captain-approach-ranges-retain-the-siege-roster-snapshot).
+
+### Format122: sparse widget region ownership
+
+Fine-map persistence now writes ordinary and widget region identities together
+in entity save order. Region membership is the actual compacted set of cells,
+including holes; cached raster pixels/pose/rotation survive so the next inverse
+raster preserves its lifecycle. Stamps remain saved, maintenance restarts at the
+existing load boundary, and no process pointer or allocator slot ID is serialized.
+One linear transpose avoids per-tree full-map scans. Format121 saves are rejected.
+See [region evidence](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).

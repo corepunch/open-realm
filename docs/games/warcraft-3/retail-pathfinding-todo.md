@@ -55,7 +55,15 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**234 done / 336 tasks; 102 remaining.**
+**235 done / 336 tasks; 101 remaining.**
+Payoff138 closes FOOT-03.2: actual widget footprints now publish separate pooled
+C2/10/08/04 region identities alongside ordinary movers. Retirement and inverse
+rasterization retain different link/refcount histories. All16 mixed scenarios
+and112 states match original consumers, stamps and storage in-O0/-O2; Save122
+preserves sparse memberships and inverse-raster inputs in owner save order. See
+[widget regions](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).
+
+
 Payoff137 closes FOOT-03.1 with shared production raw-cell eligibility, native
 hierarchy49-link and lane/cell ordering, and test-first endpoint/collector
 regressions. Original/model/C results and every stamp match50112 cases per build.
@@ -584,7 +592,7 @@ Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers,
 ### FOOT-03 — Object query eligibility
 
 - [x] **FOOT-03.1** Build a tag/mask/flag/count truth table for fine search, hierarchy, segment checks and endpoint validation using BASE-02 object categories. Payoff137: shared production raw-cell traversal matches50112 original/model/C cases plus36 terrain cases per-O0/-O2, every object/map stamp, target flag and collector token. Actual engine suppression/activation,49/50 raw-link, full-vector suffix and clockwise hierarchy ordering regressions fail first, then pass. Saved seven-function Ghidra/mapper evidence and controlled Frida captures retained. Static region producer/reference lifetimes remain03.2. [Evidence and limits](retail-pathfinding-categories.md#payoff137-exact-raw-cell-consumer-eligibility). Research handoff: [FOOT-03.1](retail-pathfinding-handoffs/FOOT-03.1/HANDOFF.md).
-- [ ] **FOOT-03.2** Put two different eligible categories in one cell, then remove each in turn; assert query results and remaining reference counts at all four consumers.
+- [x] **FOOT-03.2** Put two different eligible categories in one cell, then remove each in turn; assert query results and remaining reference counts at all four consumers. Payoff138: actual Move-owned sparse collection/raster/retire producers match16 original mixed scenarios/112 states per-O0/-O2, all map/object stamps, consumers and reference counts. Engine insertion/removal permutations, destructable death/restore, fractional publication, flight stamps and Save122 sparse load pass. [Evidence and limits](retail-pathfinding-categories.md#payoff138-widget-regions-and-mixed-lifetimes).
 
 ### FOOT-04 — Start and goal policy
 

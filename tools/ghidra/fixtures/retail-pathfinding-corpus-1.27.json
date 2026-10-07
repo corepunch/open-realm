@@ -36131,6 +36131,21 @@
               "flight": 0
             }
           }
+        },
+        "engine_region_scenarios_per_build": {
+          "equal": 16
+        },
+        "engine_region_steps_per_build": {
+          "equal": 112
+        },
+        "engine_region_optimizations": {
+          "equal": [
+            "O0",
+            "O2"
+          ]
+        },
+        "region_saved_functions": {
+          "equal": 7
         }
       },
       "evidence": [
@@ -36139,8 +36154,8 @@
         "C",
         "L"
       ],
-      "scope": "Fresh original/model/production C eligibility in-O0/-O2, every cell/object stamp and terrain gate; original hierarchy-order witness; complete mixed-producer reconstruction and controlled Frida reanalysis. Actual engine endpoint/segment/collector/hierarchy regressions test consumer integration.",
-      "exclusions": "Actual sparse widget-region producers and mixed-category reference lifecycles remain FOOT-03.2; full building/construction/missile lifecycles and layered bridge/outside-map admission remain their existing tasks."
+      "scope": "Fresh original/model/production C eligibility in-O0/-O2, every cell/object stamp and terrain gate; original hierarchy-order witness; complete mixed-producer reconstruction and controlled Frida reanalysis. Actual engine endpoint/segment/collector/hierarchy regressions test consumer integration. Payoff138 production pooled collection/raster/retire composition:16 scenarios/112 states at-O0/-O2 including every map/object stamp, raw chains/counts, six query masks and all consumers; actual engine mixed lifetimes and Save122 sparse memberships.",
+      "exclusions": "Authored resource decoder/flag inventory and unusual channel thresholds (BASE02.1); full live building/construction/mine/ward/Way Gate and missile activity; full layered bridge and outside-map item constructor admission."
     },
     {
       "id": "oracle-spatial-storage",
@@ -37114,7 +37129,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "943c6c45fd3acd48677794bf4cb02719e5b0633e9e35fb515b29a00b8c409735"
+      "sha256": "11092d330b33cb58103e4a4226c7cfa65c5eb0fb2d51763ac693b371a25b220c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -38178,7 +38193,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "f42fc3cfc60c8d56d4a3de54de2eeeb22b006277f48863c237542a380035a534"
+      "sha256": "09214eff7ee8200ca58a4eb98aec563bde41b4222e474f33422ac2c36cafb9a9"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -38254,11 +38269,11 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_categories.py",
-      "sha256": "ca162c956b7a5eed997a862ca7b36bf8ada73476759f462e50011aebd23324dd"
+      "sha256": "d7a2a039d94a5753a684d78e5aa28b422d3b9015eb5e5f6153135c56149030af"
     },
     {
       "path": "tests/test_wc3_pathing_categories.py",
-      "sha256": "0336c01f6c36b5d590808c99370ca332164215ab956784de8a423993cdb8d5cb"
+      "sha256": "8e04852930a3273a5d31377a7e3b54acee90db72937507e5847b2716c1c7cb76"
     },
     {
       "path": "games/warcraft-3/game/tests/t_object_categories.c",
@@ -38382,7 +38397,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_fine_spatial.c",
-      "sha256": "ed7f99ffe7e84debf3b7ece4fa7c72d3ac32c9852346be1f936349ae5eb636a0"
+      "sha256": "aa072472221027dcefc820d07508e0bb62a687ee1d566c627361eca0e86bec36"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_cell.h",
@@ -38394,7 +38409,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-cell-consumers-ghidra-1.27.json",
-      "sha256": "a196fed4898df6f858c63ee4561f9dd4d0ea326cb9ce1544bbb60a1242be124f"
+      "sha256": "f325d14be23f8149026e8d146983604259ca30f13c2e3146b76c391324a1e9d6"
     },
     {
       "path": "tools/ghidra/fixtures/retail-cell-hierarchy-order-1.27.json",
@@ -38402,7 +38417,39 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "0dd0b314155ce901a19930791ac0bfe3f58b1f22f959644944df28011f3509cd"
+      "sha256": "fa6cca84ec595347f59a7e41e6488c44215b32186c610cecf2930dd794a7fb53"
+    },
+    {
+      "path": "games/warcraft-3/game/g_save.c",
+      "sha256": "dfdeea49306593338ad743f01fc30eff8464fc180d1cec3cb5c3ad91b5c346c1"
+    },
+    {
+      "path": "games/warcraft-3/game/g_destructable.c",
+      "sha256": "9a76232c84b07544c2173e0046655895ecd5d86644b11211f924e9f2b53ee9ac"
+    },
+    {
+      "path": "games/warcraft-3/game/g_local.h",
+      "sha256": "25a3a90adf0a3a61de9b10036be196c363e6b2eafb36c60346c3555e40228dde"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_regions.h",
+      "sha256": "f2c19848f8df57a6c8003f3f4b2eaa2f7d6fc3880f9fcdcbf3154041ef7e2a4c"
+    },
+    {
+      "path": "server/sv_routing.c",
+      "sha256": "ab7cbff08995612583eb6ffd5e0348bb224333df3fab155e16303adf90a7a5ea"
+    },
+    {
+      "path": "tools/ghidra/wc3_region_query_probe.c",
+      "sha256": "99ca0fcad74743d6ec0bcab51e77305fb45ba58d95e9314d9b00ae3cd8a6d416"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-widget-regions-ghidra-1.27.json",
+      "sha256": "5112e725c8283221bf9e3004410be689d9748fb59d2279cac3830ec68e778c09"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_destructable.c",
+      "sha256": "ad126acbf679bb98c95a011ce32831d3f18f7ac96ff7a94b2e50f5a2ef04493e"
     }
   ]
 }

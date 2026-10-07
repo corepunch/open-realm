@@ -3,6 +3,8 @@
 #include "../g_local.h"
 #include "../../common/wc3_pathing_segment.h"
 #include "../../common/wc3_pathing_records.h"
+#include "../../common/wc3_pathing_regions.h"
+#include "../../common/wc3_pathing_cell.h"
 
 void reset_entities(void);
 void setup_test_world(void);
@@ -55,7 +57,8 @@ static void fine_spatial_world(void) {
 }
 static edict_t *fine_spatial_unit(float x,float y,float radius) {
     edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),x*32,y*32);
-    unit->collision=radius;unit->s.model=1;G_PublishMoveSpatialObject(unit);return unit;
+    unit->collision=radius;unit->s.model=1;unit->svflags|=SVF_MONSTER;
+    G_PublishMoveSpatialObject(unit);return unit;
 }
 
 TEST(wc3_fine_spatial, retained_heads_and_retired_identity_survive_owner_slot_reuse) {
@@ -246,6 +249,107 @@ TEST(wc3_fine_spatial, hierarchy_rebuild_preserves_lane_and_clockwise_cell_stamp
     FOR_LOOP(i,4)T_EQ(objects[i]->stamp,1012+i);
     T_EQ(G_TestMovePathClass(2,0,4,4),1);T_EQ(G_TestMovePathClass(0x80,0,4,4),1);
     T_EQ(G_TestMovePathClass(0x40,0,4,4),1);T_EQ(G_TestMovePathClass(4,0,4,4),0);
+    reset_entities();setup_test_world();
+}
+
+typedef struct {uint16_t width,height;color32_t map[9];} fineSpatialTexture_t;
+static fineSpatialTexture_t fine_spatial_widget_texture={3,3,{
+    {255,0,255,255},{255,0,255,255},{255,0,255,255},
+    {255,0,255,255},{255,0,255,255},{255,0,255,255},
+    {255,0,255,255},{255,0,255,255},{255,0,255,255}}};
+static edict_t *fine_spatial_widget(void) {
+    edict_t *widget=G_Spawn();widget->class_id=MAKEFOURCC('L','T','c','r');
+    widget->s.origin2=(vec2_t){208,208};widget->s.model=1;
+    widget->pathtex=(pathTex_t *)&fine_spatial_widget_texture;
+    CM_BakeStaticObstacles();return widget;
+}
+
+/* FOOT-03.2 original collection producer: C2/10/08, nine pixels each.
+ * A unit remains a separate CA identity. Static pixels are not terrain. */
+TEST(wc3_fine_spatial, widget_and_unit_keep_distinct_categories_and_collector_order) {
+    FOR_LOOP(order,2) {
+        fine_spatial_world();edict_t *unit,*widget;
+        if(order){widget=fine_spatial_widget();unit=fine_spatial_unit(7,7,31);}
+        else {unit=fine_spatial_unit(7,7,31);widget=fine_spatial_widget();}
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();T_EQ(map->records,31);
+        unsigned count=0;FOR_LOOP(i,map->raw_objects) {
+            wc3RecordObject_t *object=wc3_records_object(map,i);
+            if(!(object->flags&WC3_RECORD_REGION))continue;
+            T_EQ(object->owner,widget-g_edicts);T_EQ(object->refs,9);count++;
+        }
+        T_EQ(count,3);
+        edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),176,208);
+        source->collision=0;vec2_t goal={208,208};
+        movePathQuery_t query={{&source->s.origin2,&goal,0,2},source,NULL,true};
+        edict_t *tokens[32];T_EQ(G_CollectUnitMoveStepBlockers(&query,NULL,tokens),2);
+        T_EQ(tokens[0],order ? unit : NULL);T_EQ(tokens[1],order ? NULL : unit);
+        query.geometry.blocked_flags=0x10;
+        T_ASSERT(!G_UnitMovePathFinePointIsPathable(&query,(float[]){6.5f,6.5f}));
+        G_RemoveMoveSpatialObject(widget);widget->pathtex=NULL;CM_BakeStaticObstacles();
+        T_EQ(map->records,31); /* Region retirement adds no removal records. */
+        T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,(float[]){6.5f,6.5f}));
+        T_EQ(G_TestMovePathClass(2,0,3,3),0); /* Unit alone never blocks hierarchy. */
+        G_RemoveMoveSpatialObject(unit);T_EQ(map->records,35);
+        wc3_records_compact(map,false);T_EQ(map->records,15);
+        S_CompactMoveFineSpatial();T_EQ(map->records,0);
+        reset_entities();setup_test_world();
+    }
+}
+
+/* Frozen FOOT-03.2: all16 insertion/removal combinations exercise the actual
+ * producer and distinct retire/inverse-raster paths, not fabricated flags. */
+TEST(wc3_fine_spatial, mixed_region_lifetimes_preserve_exact_reference_counts) {
+    FOR_LOOP(first,2)FOR_LOOP(move,2)FOR_LOOP(unraster,2)FOR_LOOP(remove_first,2) {
+        fine_spatial_world();edict_t *unit,*widget;
+        if(first){widget=fine_spatial_widget();unit=fine_spatial_unit(7,7,31);}
+        else {unit=fine_spatial_unit(7,7,31);widget=fine_spatial_widget();}
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RecordObject_t *a=wc3_records_owned(map,unit-g_edicts),*b[3];
+        wc3RegionCollection_t const *collection=S_GetMoveRegions(widget-g_edicts);
+        T_EQ(collection->count,3);
+        if(collection->count!=3){reset_entities();setup_test_world();continue;}
+        FOR_LOOP(i,3)b[i]=wc3_records_object(map,collection->objects[i]);
+        FOR_LOOP(removal,2) {
+            if(removal==remove_first) {
+                if(move){unit->s.origin2=(vec2_t){384,384};G_PublishMoveSpatialObject(unit);}
+                else G_RemoveMoveSpatialObject(unit);
+                T_EQ(a->refs,move ? 12 : 8);
+            } else {
+                if(unraster)S_UnrasterMoveRegions(widget);else S_RetireMoveRegions(widget);
+                FOR_LOOP(i,3){T_EQ(b[i]->refs,unraster ? 18 : 9);T_EQ(b[i]->stamp==UINT32_MAX,!unraster);}
+            }
+        }
+        T_EQ(map->records,31+(move ? 8 : 4)+(unraster ? 27 : 0));
+        wc3_records_compact(map,false);T_EQ(map->records,(unraster ? 0 : 15)+(move ? 4 : 0));
+        T_EQ(a->refs,move ? 4 : 0);FOR_LOOP(i,3)T_EQ(b[i]->refs,unraster ? 0 : 5);
+        S_CompactMoveFineSpatial();T_EQ(map->records,move ? 4 : 0);
+        FOR_LOOP(i,3)T_EQ(b[i]->refs,0);
+        reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_fine_spatial, fractional_widget_move_replaces_pixels_within_same_owner_cell) {
+    fine_spatial_world();
+    struct {uint16_t width,height;color32_t map[2];} texture={2,1,{{255,0,255,255},{255,0,255,255}}};
+    edict_t *widget=G_Spawn();widget->pathtex=(pathTex_t *)&texture;
+    widget->s.origin2=(vec2_t){264,208};CM_BakeStaticObstacles();
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();T_EQ(map->records,6);
+    widget->s.origin2.x=272;CM_BakeStaticObstacles();T_EQ(map->records,18);
+    wc3CellQuery_t query={.mode=WC3_CELL_FINE,.mask=0x02000002,.target=WC3_RECORD_END};
+    T_EQ(wc3_records_cell(map,(wc3FinePoint_t){7,6},0,&query).value,1);
+    T_EQ(wc3_records_cell(map,(wc3FinePoint_t){9,6},0,&query).value,0);
+    S_CompactMoveFineSpatial();T_EQ(map->records,6);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_fine_spatial, flight_query_stamps_active_ordinary_identity_before_category_miss) {
+    fine_spatial_world();edict_t *source=fine_spatial_unit(8.5f,9.5f,8);
+    source->aiflags|=AI_FLYING;edict_t *unit=fine_spatial_unit(9.5f,9.5f,8);
+    vec2_t goal={304,304};movePathQuery_t query={{&source->s.origin2,&goal,8,4},source,NULL,true};
+    wc3SpatialRecords_t *map=S_GetMoveFineSpatial();wc3RecordObject_t *object=wc3_records_owned(map,unit-g_edicts);
+    object->stamp=100;map->query=1000;
+    T_ASSERT(G_UnitMovePathFinePointIsPathable(&query,(float[]){9.5f,9.5f}));
+    T_EQ(map->query,1001);T_EQ(object->stamp,1001);
     reset_entities();setup_test_world();
 }
 #endif

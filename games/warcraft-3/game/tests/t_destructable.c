@@ -10,6 +10,7 @@
 #include "test.h"
 #include "../g_local.h"
 #include "retail_widget_overlap.h"
+#include "../../common/wc3_pathing_regions.h"
 
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
@@ -453,6 +454,25 @@ TEST(wc3_destructable, death_removes_alive_static_footprint) {
 
     G_KillDestructable(dest, NULL);
     T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+TEST(wc3_destructable, death_and_restore_retire_regions_without_inverse_links) {
+    uint8_t cells[8*8]={0};setup_test_pathmap(8,8,cells);
+    edict_t *dest=make_test_destructable(10,4,4);
+    one_cell_pathtex_t alive={1,1,{{255,0,255,255}}};
+    dest->pathtex=dest->destructable->alive_pathtex=(pathTex_t *)&alive;
+    dest->destructable->death_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    CM_BakeStaticObstacles();wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RegionCollection_t const *collection=S_GetMoveRegions(dest-g_edicts);
+    T_EQ(collection->count,3);T_EQ(map->records,3);
+    uint32_t ids[3];memcpy(ids,collection->objects,sizeof(ids));
+    T_ASSERT(G_KillDestructable(dest,NULL));T_EQ(map->records,4);
+    FOR_LOOP(i,3){T_EQ(wc3_records_object(map,ids[i])->stamp,UINT32_MAX);T_EQ(wc3_records_object(map,ids[i])->refs,1);}
+    uint32_t death=collection->objects[0];T_ASSERT(death!=ids[0]);
+    T_ASSERT(G_RestoreDestructable(dest,10,false));T_EQ(map->records,7);
+    T_EQ(wc3_records_object(map,death)->stamp,UINT32_MAX);
+    FOR_LOOP(word,(map->width*map->height+31)/32)T_EQ(map->dirty[word],0);
+    S_CompactMoveFineSpatial();T_EQ(map->records,3);
 }
 
 TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {

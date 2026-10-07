@@ -111,6 +111,102 @@ def verify_cell_saved_evidence(payload=None):
     return len(expected)
 
 
+def verify_region_saved_evidence(payload=None):
+    if payload is None:
+        payload = json.loads((FIXTURES / 'retail-widget-regions-ghidra-1.27.json').read_text())
+    expected = {'6f063e50', '6f22e9c0', '6f063b40', '6f064460', '6f652b40', '6f650a70', '6f650c00'}
+    if payload['binary_sha256'] != SHA or payload['unsaved'] or len(payload['rows']) != len(expected):
+        raise ValueError('region-producer Ghidra evidence is not saved for this target')
+    if {row['address'] for row in payload['rows']} != expected or any(
+            'Payoff138' not in row['comment'] or 'Payoff138' not in row['mapper_comment'] for row in payload['rows']):
+        raise ValueError('region-producer function inventory differs')
+    return len(expected)
+
+
+def verify_region_producers(frozen, root):
+    word = ctypes.c_uint32
+    names = ['A.unit', 'B.c2', 'B.10', 'B.08']
+    masks = dict(ground=0x02000002, flight=0x04000004, float=0x40000040,
+                 amph=0x80000080, build=0x08000008, item=0x10000010)
+    actions = {'insert unit': 1, 'insert widget': 2, 'remove unit by retire': 3,
+               'remove unit by move': 4, 'remove widget by retire': 5, 'remove widget by unraster': 6,
+               'dirty-cell compaction 14df20': 7, 'full compaction 14dfc0': 8}
+    fingerprints = []
+    for optimization in ('O0', 'O2'):
+        output = root / ('regions-' + optimization + '.so')
+        subprocess.run(['cc', '-' + optimization, '-shared', '-fPIC',
+                        str(HERE / 'wc3_region_query_probe.c'), '-o', str(output)], check=True)
+        library = ctypes.CDLL(str(output))
+        pointer = ctypes.c_void_p
+        library.region_create.restype = pointer
+        library.region_free.argtypes = [pointer]
+        library.region_action.argtypes = [pointer, word]
+        library.region_state.argtypes = [pointer, ctypes.POINTER(word)]
+        library.region_query.argtypes = [pointer, word, word, word, word, word, ctypes.POINTER(word)]
+        library.region_hierarchy.argtypes = [pointer, ctypes.POINTER(word)]
+        fingerprint = hashlib.sha256()
+        for scenario in frozen['scenarios']:
+            scene = library.region_create()
+            try:
+                for step in scenario['steps']:
+                    if step['step'] != 'empty':
+                        library.region_action(scene, actions[step['step']])
+                    out = (word * 64)()
+                    count = library.region_state(scene, out)
+                    chain = [[out[22 + i * 2], names[out[23 + i * 2]]] for i in range(out[21])]
+                    if (out[0], out[1], out[2], bool(out[3]), chain) != (
+                            step['map_records_b0'], step['link_count_88'], step['free_links'], step['dirty_C'], step['chain_C']):
+                        raise ValueError('production region storage differs: ' + repr((scenario, step['step'], list(out[:count]))))
+                    if 'map_stamp_b4_before_observation' in step and out[4] != step['map_stamp_b4_before_observation']:
+                        raise ValueError('production composed map stamp differs')
+                    for i, name in enumerate(names):
+                        obj = step['objects'][name]
+                        if list(out[5 + 4 * i:9 + 4 * i]) != [int(obj['w34'], 16), int(obj['w38'], 16), obj['refs3c'], int(obj['w40'], 16)]:
+                            raise ValueError('production region identity differs: ' + repr((step['step'], name)))
+
+                    def query(op, mask, cls=0, endpoint=0, exclude=0):
+                        tokens = (word * 40)()
+                        value = library.region_query(scene, op, mask, cls, endpoint, exclude, tokens)
+                        fingerprint.update(json.dumps([op, mask, cls, endpoint, exclude, value, list(tokens)]).encode())
+                        return value, list(tokens[:value]) if op == 5 else None
+
+                    for name, mask in masks.items():
+                        for mode in (0, 1):
+                            if query(0, mask, endpoint=mode)[0] != step['fine_search_cell_clear'][name]['mode' + str(mode)]:
+                                raise ValueError('production region fine query differs')
+                    for name, mask in masks.items():
+                        if query(1, mask)[0] != step['fine_perimeter_node7_6_class0'][name]:
+                            raise ValueError('production region perimeter differs: ' + repr((step['step'], name)))
+                    for key, op in (('segment_clear', 2), ('endpoint_footprint_clear_mode1', 3)):
+                        for name, mask in masks.items():
+                            for cls in (0, 1):
+                                if query(op, mask, cls, endpoint=int(op == 3))[0] != step[key][name]['class' + str(cls)]:
+                                    raise ValueError('production region footprint/segment differs: ' + repr((step['step'], key, name, cls)))
+                    for name, mask in masks.items():
+                        for exclude, key in enumerate(('no_bridge', 'unit_bridge')):
+                            if 1 - query(4, mask, endpoint=1, exclude=exclude)[0] != step['endpoint_point_query_blocked'][name][key]:
+                                raise ValueError('production region point query differs')
+                    _, tokens = query(5, masks['ground'])
+                    if ['A.mover' if token == 0 else 'null' for token in tokens] != step['collector_tokens_ground']:
+                        raise ValueError('production region collector differs')
+                    if query(6, 0)[0] != int(step['union_categories'], 16):
+                        raise ValueError('production region category union differs')
+                    classes = (word * 8)()
+                    library.region_hierarchy(scene, classes)
+                    for level in (0, 1):
+                        actual = dict(zip(('ground', 'amph', 'float', 'flight'), classes[4 * level:4 * level + 4]))
+                        if actual != step['hierarchy_after_full_rebuild']['level' + str(level)]:
+                            raise ValueError('production region hierarchy differs: ' + repr((step['step'], actual)))
+                    fingerprint.update(json.dumps(list(out[:count])).encode())
+            finally:
+                library.region_free(scene)
+        fingerprints.append(fingerprint.hexdigest())
+    if fingerprints[0] != fingerprints[1]:
+        raise ValueError('production region composition differs by optimization')
+    return dict(engine_region_scenarios_per_build=16, engine_region_steps_per_build=112,
+                engine_region_optimizations=['O0', 'O2'], engine_region_sha256=fingerprints[0])
+
+
 def verify_cell_consumers(binary, root):
     sys.path.insert(0, str(HERE / 'research'))
     spec = importlib.util.spec_from_file_location('foot031', HERE / 'research/verify_FOOT-03.1_eligibility.py')
@@ -210,6 +306,7 @@ def verify(binary):
             '--report', root / 'regions.json', '--expected', root / 'regions-expected.json')
         if digest((root / 'regions-expected.json').read_bytes()) != FROZEN['FOOT-03.2']:
             raise ValueError('complete original composed-producer freeze differs')
+        regions = verify_region_producers(json.loads((root / 'regions.json').read_text()), root)
         sys.path.insert(0, str(HERE.parent / 'frida/research'))
         import foot032_analyze
         control = foot032_analyze.preload_markers(root / 'control-first-preload.txt')
@@ -243,7 +340,9 @@ def verify(binary):
                     engine_terrain_cases_per_build=eligibility['engine_terrain_cases_per_build'],
                     cell_saved_functions=cell_saved,
                     hierarchy_order=eligibility['hierarchy_order'],
-                    exclusions=['Engine static-region producers and mixed static/dynamic reference-count lifecycles (FOOT-03.2).',
+                    **regions,
+                    region_saved_functions=verify_region_saved_evidence(),
+                    exclusions=['Authored resource decoder flags and unusual TGA channel thresholds (BASE-02.1).',
                                 'Full live building/construction/mine/ward/Way Gate and missile activity.',
                                 'Full layered bridge and outside-map item-constructor admission.'])
 
