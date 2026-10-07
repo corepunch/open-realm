@@ -1002,6 +1002,45 @@ TEST(wc3_spell, aura_targets_follow_source_team_alliances_and_neutral_mask) {
     free_slk_rows(rows);
 }
 
+/* Human02 and Human03 create these recipients under Player(PLAYER_NEUTRAL_PASSIVE).
+ * Keep their campaign regression tied to Devotion's stock friend/self mask. */
+static void devotion_aura_does_not_target_campaign_neutral(uint32_t hero_code, uint8_t owner, uint32_t unit_code) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Area3\"\nC;Y1;X5;K\"DataA3\"\nC;Y1;X6;K\"levels\"\n"
+        "C;Y2;X1;K\"AHad\"\nC;Y2;X2;K\"AHad\"\n"
+        "C;Y2;X3;K\"air,ground,friend,self,vuln,invu\"\n"
+        "C;Y2;X4;K900\nC;Y2;X5;K3\nC;Y2;X6;K3\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *devotion = make_hero(hero_code, 500, 200, 0, 0);
+    edict_t *recipient = alloc_test_unit(unit_code, 100, 0);
+    edict_t *friendly = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 120, 0);
+
+    ((mapInfo_t *)level.mapinfo)->players[owner].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[PLAYER_NEUTRAL_PASSIVE].playerType = kPlayerTypeNeutral;
+    devotion->s.player = friendly->s.player = owner;
+    devotion->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','a','d'), .level = 3);
+    recipient->s.player = PLAYER_NEUTRAL_PASSIVE;
+    recipient->targtype = friendly->targtype = TARG_GROUND;
+
+    T_FEQ(S_DevotionArmorBonus(friendly), 3.0f, 0.001f);
+    T_FEQ(S_DevotionArmorBonus(recipient), 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, human02_devotion_aura_excludes_neutral_sheep) {
+    devotion_aura_does_not_target_campaign_neutral(
+        MAKEFOURCC('H','u','t','h'), 9, MAKEFOURCC('n','s','h','e'));
+}
+
+TEST(wc3_spell, human03_devotion_aura_excludes_neutral_villagers) {
+    devotion_aura_does_not_target_campaign_neutral(
+        MAKEFOURCC('H','a','r','t'), 1, MAKEFOURCC('n','v','i','l'));
+}
+
 TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X6\n"
