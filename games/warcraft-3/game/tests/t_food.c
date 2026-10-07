@@ -317,6 +317,65 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     gi.FontIndex = saved_font;
 }
 
+/* Mirrors the server contract behind gi.Write: every field lands in one shared
+ * multicast buffer and only unicast/multicast drains it. A payload written
+ * without a following send therefore leaks into the next message any client
+ * receives, so the harness tracks the pending field count across sends. */
+typedef struct {
+    uint32_t pending, delivered, unicasts;
+    edict_t *viewer;
+} bountyTextBuffer_t;
+
+static bountyTextBuffer_t bounty_text_buffer;
+
+static void bounty_text_write(pfWriteType_t type, void const *value) {
+    (void)type; (void)value;
+    bounty_text_buffer.pending++;
+}
+
+static void bounty_text_unicast(edict_t *ent) {
+    bounty_text_buffer.unicasts++;
+    bounty_text_buffer.viewer = ent;
+    bounty_text_buffer.delivered = bounty_text_buffer.pending;
+    bounty_text_buffer.pending = 0;
+}
+
+TEST(wc3_food, bounty_text_for_unconnected_computer_player_leaves_no_payload_in_shared_buffer) {
+    static UnitBalance_t const bounty = { .goldBountyBase = 10, .maxHealth = 100.0f };
+    gameClient_t *human = game.clients, *computer = game.clients + 1;
+    edict_t *human_unit, *computer_unit;
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_unicast)(edict_t *) = gi.unicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+
+    setup_test_world();
+    human_unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    computer_unit = alloc_test_unit(MAKEFOURCC('n','k','o','b'), 128.0f, 0.0f);
+    human->ps.number = 0; computer->ps.number = 1;
+    /* Computer players never pass ClientBegin, so they are never connected. */
+    human->connected = true; computer->connected = false;
+    human_unit->s.player = 0; computer_unit->s.player = 1;
+    human_unit->data.UnitBalance = computer_unit->data.UnitBalance = &bounty;
+    human->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = computer->ps.stats[PLAYERSTATE_GIVES_BOUNTY] = 1;
+    memset(&bounty_text_buffer, 0, sizeof(bounty_text_buffer));
+    gi.Write = bounty_text_write; gi.unicast = bounty_text_unicast; gi.FontIndex = resource_gain_test_font;
+
+    /* The computer kills the human unit: gold is credited, but no client can show its text. */
+    G_AwardKillBounty(human_unit, computer_unit);
+    T_EQ(computer->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+    T_EQ(bounty_text_buffer.unicasts, 0);
+    T_EQ(bounty_text_buffer.pending, 0);
+
+    /* The human kills the computer unit: the recipient-local text is exactly one payload. */
+    G_AwardKillBounty(computer_unit, human_unit);
+    T_EQ(human->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+    T_EQ(bounty_text_buffer.unicasts, 1);
+    T_ASSERT(bounty_text_buffer.viewer == g_edicts);
+    T_EQ(bounty_text_buffer.delivered, 10);
+
+    gi.Write = saved_write; gi.unicast = saved_unicast; gi.FontIndex = saved_font;
+}
+
 TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
     gameClient_t *client = &game.clients[0];
     edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);

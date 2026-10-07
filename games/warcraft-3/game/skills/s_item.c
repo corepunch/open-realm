@@ -590,7 +590,7 @@ BZ_ABILITY_PROC(CAbilityItemLumber) {
     owner = G_GetPlayerClientByNumber(caster->s.player);
     if (!owner) return false;
     amount = S_SpellData(call->item->code, 1, 1); /* DataA / Lumber Given */
-    if (!(amount >= 0.0f || amount < 0.0f)) return false;
+    if (isnan(amount)) return false;
     balance = owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
     result = (uint32_t)MAX(0.0, MIN((double)USHRT_MAX, (double)balance + (double)amount));
     owner->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)result;

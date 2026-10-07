@@ -74,9 +74,18 @@ static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t
     float lifetime, fade_start, height;
     uint32_t color_bits, lifetime_ms, fade_start_ms, font_size;
     int32_t font;
+    edict_t *viewer = NULL;
 
     if (!source || amount <= 0 || !resource_text_style(resource_state, bounty, &style)) return;
     if (!gi.Write || !gi.multicast || !gi.FontIndex) return;
+    /* Decide the recipient before writing anything: gi.Write fills the shared
+     * server multicast buffer and only unicast/multicast drains it. Computer
+     * players never connect, so a bounty written for them used to stay in the
+     * buffer and leak into the next message sent to another client. */
+    if (recipient >= 0) {
+        viewer = G_GetPlayerEntityByNumber((uint32_t)recipient);
+        if (!viewer || !viewer->client || !viewer->client->connected) return;
+    }
 
     snprintf(field, sizeof(field), "%sTextColor", style.name);
     color = resource_text_color(field, style.fallback_color);
@@ -111,14 +120,9 @@ static void resource_gain_text(edict_t *source, uint32_t resource_state, int32_t
     gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_X });
     gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_Y });
 
-    if (recipient >= 0) {
-        edict_t *viewer = G_GetPlayerEntityByNumber((uint32_t)recipient);
-        if (viewer && viewer->client && viewer->client->connected && gi.unicast)
-            gi.unicast(viewer);
-    } else {
-        /* Existing mining/deposit presentation remains shared. */
-        gi.multicast(&origin, MULTICAST_ALL);
-    }
+    /* Existing mining/deposit presentation remains shared. */
+    if (viewer) gi.unicast(viewer);
+    else gi.multicast(&origin, MULTICAST_ALL);
 }
 
 void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount) {
