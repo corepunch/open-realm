@@ -1390,6 +1390,57 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, naga_production_buttons_have_distinct_command_card_cells) {
+    static uint32_t const producers[] = {
+        MAKEFOURCC('n','n','t','t'), MAKEFOURCC('n','n','s','g'), MAKEFOURCC('n','n','s','a')
+    };
+    static cstring_t const expected_trains[] = {
+        "nmpe,nnmg", "nmyr,nsnp,nhyc", "nnsw,nwgs"
+    };
+    gameClient_t *client;
+    gameCommandButton_t buttons[16];
+
+    setup_test_world();
+    client = &game.clients[0];
+    client->connected = true;
+    client->ps.number = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100000;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    for (uint32_t p = 0; p < ARRAY_COUNT(producers); p++) {
+        edict_t *producer = alloc_test_unit(producers[p], 0.0f, 0.0f);
+        UnitProfile_t const *profile = G_UnitProfile(producers[p]);
+        uint8_t count;
+        producer->s.player = client->ps.number;
+        T_STREQ(profile->trains, expected_trains[p]);
+        count = G_GetCommandButtons(producer, buttons, ARRAY_COUNT(buttons));
+
+        char expected[4][5] = {{0}};
+        uint32_t expected_count = 0;
+        cstring_t cursor = expected_trains[p];
+        while (*cursor && expected_count < ARRAY_COUNT(expected)) {
+            uint32_t n = 0;
+            while (*cursor && *cursor != ',' && n < 4) expected[expected_count][n++] = *cursor++;
+            if (*cursor == ',') cursor++;
+            if (n == 4) expected_count++;
+        }
+        for (uint32_t i = 0; i < expected_count; i++) {
+            bool found = false;
+            FOR_LOOP(j, count) {
+                if (!strcmp(buttons[j].command, expected[i])) {
+                    found = true;
+                    break;
+                }
+            }
+            T_ASSERT(found);
+        }
+        FOR_LOOP(i, count) FOR_LOOP(j, i) {
+            T_ASSERT(buttons[i].x != buttons[j].x || buttons[i].y != buttons[j].y);
+        }
+    }
+}
+
 TEST(wc3_building, setplayerabilityavailable_hides_human05_polymorph_command) {
     gameClient_t *client;
     edict_t *sorceress;

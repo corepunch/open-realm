@@ -306,6 +306,49 @@ static void G_AddCommandButton(edict_t *ent,
     }
 }
 
+/* Campaign Naga production rows reuse Buttonpos=0,0 for every trained unit.
+ * Keep the first authored occupant and move later colliding commands into
+ * free command-card cells so all production choices remain reachable. */
+static void G_ResolveNagaCommandButtonCollisions(edict_t *ent,
+                                                gameCommandButton_t *buttons,
+                                                uint8_t count) {
+    UnitData_t const *data;
+
+    if (!ent || !buttons || !count) return;
+    data = G_UnitData(ent->class_id);
+    if (WC3_RaceFromString(data->race) != RACE_NAGA) return;
+
+    FOR_LOOP(i, count) {
+        bool collision = false;
+        FOR_LOOP(j, i) {
+            if (buttons[i].x == buttons[j].x && buttons[i].y == buttons[j].y) {
+                collision = true;
+                break;
+            }
+        }
+        if (!collision) continue;
+
+        bool placed = false;
+        FOR_LOOP(y, 3) {
+            FOR_LOOP(x, 4) {
+                bool occupied = false;
+                FOR_LOOP(j, i) {
+                    if (buttons[j].x == x && buttons[j].y == y) {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+                buttons[i].x = (uint8_t)x;
+                buttons[i].y = (uint8_t)y;
+                placed = true;
+                break;
+            }
+            if (placed) break;
+        }
+    }
+}
+
 static bool G_IsImplementedAbility(cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
     return S_AbilityHasCommand(ability);
@@ -630,6 +673,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
     }
 
+    G_ResolveNagaCommandButtonCollisions(ent, buttons, count);
     return count;
 }
 
