@@ -12,6 +12,9 @@ apply the placement's initial-life percentage and visibility/pathing flags.
 Their maximum life, target type, model, selection radius, and alive/death
 pathing textures come from destructable object data.
 
+For HumanX06 elevator placement groups, trigger-driven height transitions,
+and DTep wall-blocker placement policy, see [Warcraft III elevators](elevators.md).
+
 Runtime state records whether the object is initialized, dead, solid at its
 placement, and currently contributing a static pathing footprint. Alive and
 death pathing resources are retained separately so the footprint can change at
