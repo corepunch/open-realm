@@ -43,7 +43,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 background music, `Music.slk`/skin lookup, `svc_music`, optional FFmpeg streaming | [docs/games/warcraft-3/music.md](docs/games/warcraft-3/music.md) |
 | WC3 MDX `EVTS` presentation events, `SND` sounds, `SPN` child models, `SPL`/`FPT` SplatData decals, `UBR` UberSplats, transient lifetimes | [docs/games/warcraft-3/mdx-event-objects.md](docs/games/warcraft-3/mdx-event-objects.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
-| WC3 critter wandering, `Awan` autonomous orders, fleeing, and retail uncertainty | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
+| WC3 critter wandering (`Awan`): idle scheduling, Move ownership events, flee, building clearance, save fields, scheduler-path tests | [docs/games/warcraft-3/critter-ai.md](docs/games/warcraft-3/critter-ai.md) |
 | WC3 attack damage math, runtime modifiers, armor/type multipliers, projectile impact timing | [docs/games/warcraft-3/attack-damage.md](docs/games/warcraft-3/attack-damage.md) |
 | WC3 group Attack, target chase, collision range, and remaining combat-movement gaps | [docs/games/warcraft-3/group-attack-chase-gaps.md](docs/games/warcraft-3/group-attack-chase-gaps.md) |
 | WC3 naval movement, FLOAT/AMPH water pathing, collision domains, bridge semantics | [docs/games/warcraft-3/naval-movement.md](docs/games/warcraft-3/naval-movement.md) |
