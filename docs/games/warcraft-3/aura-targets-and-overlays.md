@@ -9,7 +9,8 @@ the shared column to all four stored levels, then lets any per-rank column
 override it. A null rank mask means unrestricted targeting to
 `aura_allows_target`; losing RoC's shared mask therefore changes gameplay.
 
-For Human02, the generated `war3map.j` learns `AHad` three times for Arthas.
+For Human02, the generated `war3map.j` learns `AHad` three times for Uther
+(`Huth`, Player 9).
 The RoC `AHad` row has `targs=air,ground,friend,self,vuln,invu` and `Area3=900`.
 Before the shared-column correction, `G_AbilityLevel(AHad, 3)->targs` was null.
 `ability_audit` now uses the same schema mapping; its RoC rank-three line should
@@ -46,10 +47,15 @@ Aura relations are evaluated from the provider's owner: `friend`/`allies` apply
 to that player's own units and allied players, and `enemy`/`enemies` apply to
 their enemies. Neutral player slots are classified exclusively as neutral even
 when the default alliance table reports them as friendly. They receive an aura
-only when its authored mask includes `neutral`. The Human02 neutral sheep and
-the Human03 villagers are not recipients of Arthas's Devotion Aura in retail.
+only when its authored mask includes `neutral`. Human02's neutral sheep and
+Human03's neutral passive villagers are not recipients of Devotion Aura in retail.
 Neutral units remain distinct from static scenery; a mask can still explicitly
 include them.
+
+The map-script regressions mirror the authored cases: Human02's Uther (`Huth`) on
+Player 9 with level-three `AHad` versus Neutral Passive `nshe`, and Human03's
+`Hart` on Player 1 with level-three `AHad` versus Neutral Passive `nvil`. Each
+also checks a same-owner ground unit as a positive control.
 
 See [Regeneration Auras And Fountains](regeneration-auras.md) for the other aura
 families and [Adding Warcraft III Abilities](ability-implementation.md)
