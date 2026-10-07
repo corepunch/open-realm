@@ -332,6 +332,14 @@ typedef struct {
 } UberSplatData_t;
 
 /* =========================================================================
+ * TerrainArt\Water.slk (only the gameplay field; the renderer reads its own art columns)
+ * =========================================================================*/
+typedef struct {
+    uint32_t id;
+    float height; /* tiles the water surface sits relative to the W3E water level */
+} WaterData_t;
+
+/* =========================================================================
  * UnitAckSounds.slk
  * =========================================================================*/
 typedef struct {
@@ -488,6 +496,7 @@ bool G_AbilityHasUnitIdOverride(uint32_t id);
 cstring_t G_AbilityDataText(cstring_t name, cstring_t column);
 Doodads_t const *G_Doodad(uint32_t id);
 UberSplatData_t const *G_UberSplat(uint32_t id);
+WaterData_t const *G_WaterData(uint32_t id);
 UnitAckSounds_t const *G_UnitAckSound(cstring_t name);
 UnitAckSounds_t const *G_UnitCombatSound(cstring_t name);
 UnitAckSounds_t const *G_UISound(cstring_t name);

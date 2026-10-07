@@ -176,22 +176,26 @@ TEST(commands, command_registration) {
 }
 
 TEST(commands, save_path_adds_one_sav_extension) {
-    PATHSTR path;
+    PATHSTR path, home, expected;
 
     setup_command_tests();
-    FS_SetHomeDirectory("/tmp/openwarcraft3-save-path-test");
+    snprintf(home, sizeof(home), "%s", Test_TempPath("save-path-test"));
+    FS_SetHomeDirectory(home);
     FS_SavePath("quick", path, sizeof(path));
-    T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/quick.sav");
+    snprintf(expected, sizeof(expected), "%s/saves/quick.sav", home);
+    T_STREQ(path, expected);
     FS_SavePath("manual.SAV", path, sizeof(path));
-    T_STREQ(path, "/tmp/openwarcraft3-save-path-test/saves/manual.SAV");
+    snprintf(expected, sizeof(expected), "%s/saves/manual.SAV", home);
+    T_STREQ(path, expected);
 }
 
 /* Linux filenames preserve UTF-8 bytes; a quoted data directory may also contain spaces. */
 TEST(commands, media_paths_preserve_utf8_and_spaces) {
-    PATHSTR old_home, path, resolved;
-    cstring_t root = "build/tests/Téléchargements/Games WIP/ROC";
+    PATHSTR old_home, path, resolved, root;
     uint32_t size = 0;
     setup_command_tests();
+    /* Per-process root keeps the UTF-8/space components without sharing the file with a concurrent run. */
+    snprintf(root, sizeof(root), "%s", Test_TempPath("Téléchargements/Games WIP/ROC"));
     snprintf(old_home, sizeof(old_home), "%s", FS_HomePath());
     FS_SetHomeDirectory(root);
     FS_UserPath("audio-path-test.wav", path, sizeof(path));
@@ -223,7 +227,8 @@ TEST(commands, save_list_returns_newest_sav_basenames_first) {
     time_t now = time(NULL);
 
     setup_command_tests();
-    FS_SetHomeDirectory("/tmp/openwarcraft3-save-list-test");
+    /* A private home: the listing must not see saves written by a concurrent test run. */
+    FS_SetHomeDirectory(Test_TempPath("save-list-test"));
     FS_SavePath("Zulu", newer, sizeof(newer));
     FS_SavePath("alpha", older, sizeof(older));
     FS_UserPath("saves/ignored.txt", ignored, sizeof(ignored));
@@ -266,7 +271,7 @@ TEST(commands, delete_save_removes_named_save_file) {
     FILE *file;
 
     setup_command_tests();
-    FS_SetHomeDirectory("/tmp/openwarcraft3-save-delete-test");
+    FS_SetHomeDirectory(Test_TempPath("save-delete-test"));
     FS_SavePath("manual", path, sizeof(path));
     remove(path);
     file = fopen(path, "wb"); T_NOT_NULL(file); if (file) fclose(file);
@@ -275,18 +280,20 @@ TEST(commands, delete_save_removes_named_save_file) {
 }
 
 TEST(commands, config_path_uses_home_game_directory) {
-    PATHSTR path;
+    PATHSTR path, home, expected;
 
     setup_command_tests();
-    FS_SetHomeDirectory("/tmp/openwarcraft3-config-path-test");
+    snprintf(home, sizeof(home), "%s", Test_TempPath("config-path-test"));
+    FS_SetHomeDirectory(home);
     FS_ConfigPath("config.cfg", path, sizeof(path));
-    T_STREQ(path, "/tmp/openwarcraft3-config-path-test/config.cfg");
+    snprintf(expected, sizeof(expected), "%s/config.cfg", home);
+    T_STREQ(path, expected);
 }
 
 TEST(commands, config_loader_reports_missing_files) {
     setup_command_tests();
 
-    T_ASSERT(!Cvar_LoadConfig("/tmp/openwarcraft3-config-path-test/missing.cfg"));
+    T_ASSERT(!Cvar_LoadConfig(Test_TempPath("config-path-test/missing.cfg")));
     T_ASSERT(Cvar_LoadConfig("games/world-of-warcraft/share/config.cfg"));
     Cbuf_Execute();
 }

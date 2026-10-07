@@ -54,7 +54,7 @@ TEST(wc3_dialog, create_add_clear_destroy_retains_stable_handles) {
 }
 
 TEST(wc3_dialog, save_round_trip_restores_dialog_handles_and_visibility) {
-    cstring_t filename = "/tmp/openrealm-wc3-jass-dialog-save.bin";
+    cstring_t filename = Test_TempPath("wc3-jass-dialog-save.bin");
     jassDialog_t *dialog;
     jassDialogButton_t *button;
     uint32_t dialog_id, button_id;
@@ -392,7 +392,7 @@ TEST(wc3_dialog, jassdialog_command_rejects_bad_input) {
 
 /* A dialog action that sleeps across save/load resumes with its clicked dialog, button and player. */
 TEST(wc3_dialog, click_context_survives_save_in_sleeping_action) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-dialog-sleep-save.bin";
+    cstring_t filename = Test_TempPath("wc3-dialog-sleep-save.bin");
     jassDialog_t *dialog;
     jassDialogButton_t *button;
     setup_test_world();
@@ -442,7 +442,7 @@ TEST(wc3_dialog, click_context_survives_save_in_sleeping_action) {
 
 /* Q2 re-sends layouts from the client's first frame: load leaves the choice to ClientBegin, which sends it once. */
 TEST(wc3_dialog, load_restores_visible_dialog_once_on_client_begin) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-dialog-restore-save.bin";
+    cstring_t filename = Test_TempPath("wc3-dialog-restore-save.bin");
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     jassDialog_t *dialog;

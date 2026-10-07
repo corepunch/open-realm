@@ -287,7 +287,7 @@ TEST(wc3_waygate, jass_natives_preserve_destination_and_boolean_activation) {
 }
 
 TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-save.bin";
+    cstring_t filename = Test_TempPath("wc3-waygate-save.bin");
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
     uint32_t const gate_number = fix.gate->s.number;
     uint32_t const unit_number = fix.unit->s.number;
@@ -322,7 +322,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
 }
 
 TEST(wc3_save, rejects_invalid_waygate_entity_references) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
+    cstring_t filename = Test_TempPath("wc3-waygate-invalid-reference.bin");
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
     edict_t *target, *goal;
 

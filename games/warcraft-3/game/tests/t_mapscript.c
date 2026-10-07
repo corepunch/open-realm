@@ -81,7 +81,7 @@ TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
 }
 
 TEST(wc3_mapscript, read_scripts_war3map_j_when_root_absent) {
-    cstring_t path = "/tmp/openwarcraft3-mapscript-scripts.mpq";
+    cstring_t path = Test_TempPath("mapscript-scripts.mpq");
     handle_t archive;
 
     T_ASSERT(mapscript_pack_mpq(path, "scripts\\war3map.j", kMinimalMapScript));
@@ -97,7 +97,7 @@ TEST(wc3_mapscript, read_scripts_war3map_j_when_root_absent) {
 }
 
 TEST(wc3_mapscript, root_war3map_j_preferred_over_scripts) {
-    cstring_t path = "/tmp/openwarcraft3-mapscript-both.mpq";
+    cstring_t path = Test_TempPath("mapscript-both.mpq");
     handle_t archive;
     cstring_t root = "function config takes nothing returns nothing\nendfunction\n"
                   "function main takes nothing returns nothing\nendfunction\n"
@@ -123,7 +123,7 @@ TEST(wc3_mapscript, root_war3map_j_preferred_over_scripts) {
 }
 
 TEST(wc3_mapscript, missing_script_leaves_null_without_crash) {
-    cstring_t path = "/tmp/openwarcraft3-mapscript-missing.mpq";
+    cstring_t path = Test_TempPath("mapscript-missing.mpq");
     handle_t archive;
 
     T_ASSERT(mapscript_pack_mpq(path, NULL, NULL));

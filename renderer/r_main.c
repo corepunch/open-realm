@@ -290,26 +290,23 @@ static texture_t *R_LoadTexturePath(cstring_t textureFilename, bool *found) {
 }
 
 texture_t *R_LoadTexture(cstring_t textureFilename) {
-    PATHSTR scoped;
+    assetCandidates_t candidates;
     texture_t *texture;
     bool found = false;
-    bool has_scope;
 
     if (!textureFilename || !*textureFilename) return tr.texture[TEX_PLACEHOLDER];
-    has_scope = R_MapAssetCandidate(textureFilename, scoped, sizeof(scoped));
-    if (has_scope) {
-        texture = R_LoadTexturePath(scoped, &found);
-        if (found) return texture;
-    }
-    texture = R_LoadTexturePath(textureFilename, &found);
-    if (found) {
-        if (has_scope) R_CacheLoadedTexture(scoped, texture);
+    R_AssetCandidates(textureFilename, &candidates);
+    FOR_LOOP(i, candidates.count) {
+        texture = R_LoadTexturePath(candidates.path[i], &found);
+        if (!found) continue;
+        /* Later lookups of a map-scoped name must not search the archives again. */
+        if (i && candidates.scoped) R_CacheLoadedTexture(candidates.path[0], texture);
         return texture;
     }
     /* Missing registrations are resident too: repeated draw paths must not search every MPQ again. */
     fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
     R_CacheLoadedTexture(textureFilename, tr.texture[TEX_PLACEHOLDER]);
-    if (has_scope) R_CacheLoadedTexture(scoped, tr.texture[TEX_PLACEHOLDER]);
+    if (candidates.scoped) R_CacheLoadedTexture(candidates.path[0], tr.texture[TEX_PLACEHOLDER]);
     return tr.texture[TEX_PLACEHOLDER];
 }
 

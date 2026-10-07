@@ -111,6 +111,12 @@ void R_DrawMinimap(rect_t const *screen, cstring_t map) {
 }
 
 
+/* No archive layer between map imports and base data. */
+bool R_GameAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size) {
+    (void)asset; (void)candidate; (void)candidate_size;
+    return false;
+}
+
 void R_RegisterMap(cstring_t mapFileName) {
     Wow_RegisterMap(mapFileName);
 }

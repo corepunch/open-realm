@@ -370,9 +370,19 @@ static float CM_GetWar3MapVertexHeight(war3mapVertex_t const *vert) {
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
+static float cm_w3_water_height; /* Water.slk height (tiles) for the loaded tileset; set by the game. */
+
+void CM_W3SetWaterHeight(float slk_height) {
+    cm_w3_water_height = slk_height;
+}
+
+float CM_W3WaterHeight(void) {
+    return cm_w3_water_height;
+}
+
 static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const *vert) {
     if (!vert) return -FLT_MAX;
-    return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
+    return W3_WaterSurfaceHeight(vert->waterlevel, cm_w3_water_height);
 }
 
 /* war3map.w3r v5 stores editor regions.  Weather is one field on each region;
@@ -493,6 +503,7 @@ static void CM_W3ReleaseMapArchive(void) {
 
 static void CM_W3ClearMapData(void) {
     CM_W3ReleaseMapArchive();
+    cm_w3_water_height = 0;
     CM_W3FreeUnitOverrides(world.info.num_originalUnits, &world.info.originalUnits);
     CM_W3FreeUnitOverrides(world.info.num_userCreatedUnits, &world.info.userCreatedUnits);
     CM_W3FreeUnitOverrides(world.info.num_originalItems, &world.info.originalItems);

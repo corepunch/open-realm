@@ -208,7 +208,9 @@ the currently registered map as the renderer's generic map-asset scope, so ordin
 resolve with this order:
 
 1. `<current .w3m/.w3x>\<logical Warcraft asset path>`;
-2. the ordinary base-data path.
+2. `<tileset>.mpq\<logical path>` when the map's nested tileset archive contains it (cliffs, uber splats,
+   water frames; see [terrain-tiles-and-water.md](terrain-tiles-and-water.md#tileset-archives));
+3. the ordinary base-data path.
 
 The resolved scoped path is also the renderer cache key. This is required for consecutive maps that import
 different bytes under the same logical name; a `Textures\Foo.blp` cached for Human02 must not satisfy Human03's

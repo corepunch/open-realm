@@ -314,7 +314,7 @@ TEST(wc3_spell, ensnare_unrelated_flight_state_untouched) {
 
 /* Save/load mid-land resumes the descent after load. */
 TEST(wc3_save, ensnare_land_round_trips) {
-    cstring_t filename = "/tmp/openwarcraft3-ensnare-land.bin";
+    cstring_t filename = Test_TempPath("ensnare-land.bin");
     ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 1000; S_RunAbilityUpdates(fix.flyer);
@@ -331,7 +331,7 @@ TEST(wc3_save, ensnare_land_round_trips) {
 
 /* Save/load mid-rise resumes the ascent after load. */
 TEST(wc3_save, ensnare_rise_round_trips) {
-    cstring_t filename = "/tmp/openwarcraft3-ensnare-rise.bin";
+    cstring_t filename = Test_TempPath("ensnare-rise.bin");
     ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 2000; S_RunAbilityUpdates(fix.flyer);

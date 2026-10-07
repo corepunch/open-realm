@@ -493,8 +493,8 @@ TEST(wc3_ancient_root, root_morph_rejects_orders_until_authored_duration) {
 
 static void ancient_assert_morph_save_restore(bool rooted) {
     cstring_t filename = rooted ?
-        "/tmp/openwarcraft3-wc3-save-ancient-rooting.bin" :
-        "/tmp/openwarcraft3-wc3-save-ancient-uprooting.bin";
+        Test_TempPath("wc3-save-ancient-rooting.bin") :
+        Test_TempPath("wc3-save-ancient-uprooting.bin");
     edict_t *unit, *goal;
     uint32_t end_time;
 

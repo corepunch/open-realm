@@ -45,6 +45,10 @@ void Test_Register(test_t *t);
 int  Test_Run(const char *pattern);                 /* returns failure count */
 void Test_Fail(const char *func, const char *file, int line, const char *expr);
 void Test_SetBeforeEach(void (*fn)(void));
+/* Scratch file path private to this test process: <TMPDIR>/openwarcraft3-tests-<pid>/<name>. Concurrent suites
+ * (e.g. several worktrees running `make test`) never share a file. The directory and its files are removed at exit.
+ * The result lives in a 32-entry ring; copy it if a test needs more paths alive at once. */
+const char *Test_TempPath(const char *name);
 
 /* Per-test counters (reset by Test_Run before each test). */
 extern int test_asserts;

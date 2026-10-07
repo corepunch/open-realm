@@ -513,7 +513,7 @@ TEST(wc3_spell, authored_ghost_initializes_on_unit_spawn_event) {
 }
 
 TEST(wc3_save, ghost_runtime_invisibility_round_trips) {
-    cstring_t save = "/tmp/openwarcraft3-ghost-save.bin";
+    cstring_t save = Test_TempPath("ghost-save.bin");
     wardFix_t fix;
     abilityitem_t item = S_AbilityItem(MAKEFOURCC('A','g','h','o'));
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);

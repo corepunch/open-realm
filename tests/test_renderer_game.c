@@ -14,6 +14,8 @@
 #include "test.h"
 
 extern void R_TestUseProductionModelLoader(bool enabled);
+extern cstring_t R_TestLastTextureLoad(void);
+extern void R_TestSetTextureLoadResult(texture_t *texture);
 static uint32_t test_spn_render_count;
 static renderEntity_t test_spn_render_entity;
 static mat4_t test_spn_render_transform;
@@ -732,4 +734,114 @@ TEST(renderer_cursor, resolves_all_retail_modes) {
         T_ASSERT(cursor_drawn.skin == (i == 9 ? &color : NULL));
     }
     cursor_active_model = NULL; cursor_anim = NULL;
+}
+
+TEST(renderer_terrain, water_style_reads_tileset_row_from_water_slk) {
+    refImport_t saved_imports = ri;
+    texture_t texture = {0};
+    wc3WaterStyle_t const *style = R_WaterStyle();
+
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_renderer_archive));
+    if (!test_renderer_archive) return;
+    ri.FS_ReadFile = test_renderer_read; ri.FS_FreeFile = test_renderer_free;
+    ri.LoadSlk = test_renderer_load_slk; ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+    R_TestSetTextureLoadResult(&texture);
+
+    /* Stock TFT Outland row: the Abyss is an opaque black TeamColor surface 1.5 tiles down. */
+    R_LoadWaterStyle('O');
+    T_STREQ(R_TestLastTextureLoad(), "ReplaceableTextures\\TeamColor\\TeamColor00.blp");
+    T_EQ(style->num_frames, 1); T_ASSERT(style->frames[0] == &texture);
+    T_FEQ(style->height, -1.5f, 0.0001f); T_FEQ(style->frame_rate, 12.0f, 0.0001f);
+    T_EQ(style->shallow_min.r, 0); T_EQ(style->shallow_min.a, 255);
+    T_EQ(style->deep_max.b, 0); T_EQ(style->deep_max.a, 255);
+
+    R_LoadWaterStyle('L'); /* Non-stock cells prove each band, channel and frame is read from its column. */
+    T_STREQ(R_TestLastTextureLoad(), "TestUI\\Textures\\TestWater02.blp");
+    T_EQ(style->num_frames, 3); T_FEQ(style->frame_rate, 15.0f, 0.0001f);
+    T_FEQ(style->height, -0.7f, 0.0001f);
+    T_EQ(style->shallow_min.r, 1); T_EQ(style->shallow_min.g, 2); T_EQ(style->shallow_min.b, 3);
+    T_EQ(style->shallow_min.a, 4);
+    T_EQ(style->shallow_max.r, 101); T_EQ(style->shallow_max.a, 104);
+    T_EQ(style->deep_min.g, 202); T_EQ(style->deep_min.a, 204);
+    T_EQ(style->deep_max.b, 253); T_EQ(style->deep_max.a, 254);
+
+    R_LoadWaterStyle('X'); /* No frames: reported, and water is not drawn; the surface height still applies. */
+    T_EQ(style->num_frames, 0); T_NULL(R_WaterFrame(style, 1000));
+    T_FEQ(style->height, -0.7f, 0.0001f);
+    R_LoadWaterStyle('?'); /* No row for the tileset. */
+    T_EQ(style->num_frames, 0); T_EQ(style->deep_max.a, 0);
+
+    R_TestSetTextureLoadResult(NULL);
+    SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL;
+    ri = saved_imports;
+}
+
+TEST(renderer_terrain, water_frames_advance_at_texrate_and_wrap) {
+    texture_t frames[3] = {0};
+    wc3WaterStyle_t style = { .frames = { &frames[0], &frames[1], &frames[2] }, .num_frames = 3, .frame_rate = 15.0f };
+
+    T_ASSERT(R_WaterFrame(&style, 0) == &frames[0]);
+    T_ASSERT(R_WaterFrame(&style, 66) == &frames[0]);   /* 0.99 frames */
+    T_ASSERT(R_WaterFrame(&style, 67) == &frames[1]);   /* 1.005 frames */
+    T_ASSERT(R_WaterFrame(&style, 134) == &frames[2]);
+    T_ASSERT(R_WaterFrame(&style, 200) == &frames[0]);  /* 3 frames wrap to the first */
+    style.num_frames = 1; /* Outland's single Abyss frame never changes. */
+    T_ASSERT(R_WaterFrame(&style, 123456) == &frames[0]);
+    style.frame_rate = 0; style.num_frames = 3;
+    T_ASSERT(R_WaterFrame(&style, 123456) == &frames[0]);
+}
+
+TEST(renderer_terrain, tileset_archive_layers_between_map_imports_and_base_data) {
+    refImport_t saved_imports = ri;
+    assetCandidates_t candidates;
+    PATHSTR candidate;
+    void *buffer = NULL;
+    cstring_t const cliff = "ReplaceableTextures\\Cliff\\Cliff1.blp";
+
+    T_ASSERT(SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_renderer_archive));
+    if (!test_renderer_archive) return;
+    ri.FS_ReadFile = test_renderer_read; ri.FS_FreeFile = test_renderer_free;
+    ri.MemAlloc = test_renderer_alloc; ri.MemFree = test_renderer_free;
+
+    /* Retail resolves Outland's abyss cliffs from the nested O.mpq, not Lordaeron's base Cliff1. */
+    R_W3OpenTilesetArchive('O');
+    T_ASSERT(R_GameAssetCandidate(cliff, candidate, sizeof(candidate)));
+    T_STREQ(candidate, "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_ASSERT(test_renderer_read(candidate, &buffer) > 0); /* The FS resolves the layered path. */
+    test_renderer_free(buffer);
+    T_ASSERT(!R_GameAssetCandidate("ReplaceableTextures\\Cliff\\Cliff0.blp", candidate, sizeof(candidate)));
+
+    R_SetMapAssetScope("Maps\\Test.w3x"); /* Map imports outrank the tileset layer, which outranks base data. */
+    R_AssetCandidates(cliff, &candidates);
+    T_EQ(candidates.count, 3); T_ASSERT(candidates.scoped);
+    T_STREQ(candidates.path[0], "Maps\\Test.w3x\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_STREQ(candidates.path[1], "O.mpq\\ReplaceableTextures\\Cliff\\Cliff1.blp");
+    T_STREQ(candidates.path[2], cliff);
+    R_SetMapAssetScope(NULL);
+    R_AssetCandidates("ReplaceableTextures\\Cliff\\Cliff0.blp", &candidates);
+    T_EQ(candidates.count, 1); T_ASSERT(!candidates.scoped);
+
+    R_W3OpenTilesetArchive('Q'); /* No such tileset archive: reported, and nothing is layered. */
+    T_ASSERT(!R_GameAssetCandidate(cliff, candidate, sizeof(candidate)));
+
+    SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL;
+    ri = saved_imports;
+}
+
+TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
+    /* CliffTypes.slk writes "_" for "no upper tile"; R_CliffTileIsSet relies on the parsed ID having a zero byte. */
+    cstring_t slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"cliffID\"\nC;Y1;X2;K\"groundTile\"\nC;Y1;X3;K\"upperTile\"\n"
+        "C;Y2;X1;K\"CLdi\"\nC;Y2;X2;K\"Ldrt\"\nC;Y2;X3;K\"_\"\n"
+        "C;Y3;X1;K\"COrd\"\nC;Y3;X2;K\"Oaby\"\nC;Y3;X3;K\"Osmb\"\nE\n";
+    w3CliffType_t *rows = NULL;
+    uint32_t count = Stb_SlkLoadBuffer(slk, cliff_schema, (void **)&rows, sizeof(w3CliffType_t));
+    T_EQ(count, 2);
+    if (count == 2) {
+        T_EQ(rows[0].upperTile >> 24, 0);
+        T_EQ(rows[1].upperTile, MAKEFOURCC('O','s','m','b'));
+        T_EQ(rows[1].groundTile, MAKEFOURCC('O','a','b','y'));
+    }
+    FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
 }

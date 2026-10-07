@@ -5614,7 +5614,7 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
 }
 
 TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-save-queued-build.bin";
+    cstring_t filename = Test_TempPath("wc3-save-queued-build.bin");
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     vec2_t const point = { 512.0f, 64.0f };
     edict_t *clent;

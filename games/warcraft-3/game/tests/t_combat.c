@@ -2516,7 +2516,7 @@ TEST(wc3_combat, backswing_still_blocks_attack_after_cooldown_during_chase) {
 }
 
 TEST(wc3_combat, attack_chase_cooldown_and_target_survive_save_load) {
-    cstring_t filename = "/tmp/openwarcraft3-attack-chase-cooldown.bin";
+    cstring_t filename = Test_TempPath("attack-chase-cooldown.bin");
     edict_t *attacker;
     edict_t *target;
     float const cooldown_remaining = 0.73f;

@@ -259,7 +259,6 @@ enum {
 #ifdef USE_SHADOWMAPS
     TEX_SHADOWMAP,
 #endif
-    TEX_WATER,
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
@@ -423,6 +422,12 @@ model_t *R_LoadRegisteredModel(cstring_t modelFilename);
 void R_ReleaseRegisteredModel(model_t *model);
 void R_RegisterMapAssets(cstring_t mapFileName);
 bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size);
+typedef struct {
+    PATHSTR path[3]; /* ordered: map import (if scoped), game archive layer (if present), base path */
+    uint32_t count;
+    bool scoped;
+} assetCandidates_t;
+void R_AssetCandidates(cstring_t asset, assetCandidates_t *out);
 void R_SetMapAssetScope(cstring_t scope);
 void R_ShutdownModels(void);
 

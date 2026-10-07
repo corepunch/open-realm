@@ -3437,9 +3437,12 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
     T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
 }
 
+/* -0.75 tiles is a non-stock Water.slk height (-96 units) that keeps the encoded level exact. */
 static void set_uniform_test_water_height(float height) {
     war3mapVertex_t *vertices = (war3mapVertex_t *)world.map->vertices;
-    uint16_t const encoded = (uint16_t)(0x2000 + (height + WATER_HEIGHT_COR) * 4.0f);
+    uint16_t encoded;
+    CM_W3SetWaterHeight(-0.75f);
+    encoded = (uint16_t)(0x2000 + (height + 0.75f * TILE_SIZE) * 4.0f);
     uint32_t const count = world.map->width * world.map->height;
     FOR_LOOP(i, count) vertices[i].waterlevel = encoded;
 }
@@ -3486,6 +3489,37 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     M_CheckGround(unit);
 
     T_FEQ(unit->s.origin.z, 32.0f, 0.01f);
+}
+
+TEST(wc3_movement, tileset_water_slk_height_places_the_water_surface) {
+    cstring_t slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"waterID\"\nC;Y1;X2;K\"height\"\n"
+        "C;Y2;X1;K\"OSha\"\nC;Y2;X2;K-1.5\n"
+        "C;Y3;X1;K\"LSha\"\nC;Y3;X2;K-0.7\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved = G_SetSLKRows("WaterData", rows);
+    mapInfo_t info = { .mainGroundType = 'O' };
+    war3mapVertex_t *vertices;
+    float raw_level;
+
+    make_moving_unit(0.0f, 0.0f);
+    vertices = (war3mapVertex_t *)world.map->vertices;
+    FOR_LOOP(i, world.map->width * world.map->height) vertices[i].waterlevel = 0x2000 + 4 * 256;
+    raw_level = 256.0f;
+
+    /* Outland's Abyss surface sits 1.5 tiles below the authored W3E level; Lordaeron's 0.7. */
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_W3WaterHeight(), -1.5f, 0.0001f);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level - 192.0f, 0.01f);
+    info.mainGroundType = 'L';
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level - 89.6f, 0.01f);
+    info.mainGroundType = 'Q'; /* No row: reported, and the raw W3E level is used. */
+    G_ApplyTilesetWaterHeight(&info);
+    T_FEQ(CM_GetWaterHeightAtPoint(0.0f, 0.0f), raw_level, 0.01f);
+
+    G_SetSLKRows("WaterData", saved); free_slk_rows(rows);
 }
 
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
@@ -5017,7 +5051,7 @@ TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boar
 }
 
 TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
-    cstring_t const filename = "/tmp/openwarcraft3-wc3-entangle-lifecycle.bin";
+    cstring_t const filename = Test_TempPath("wc3-entangle-lifecycle.bin");
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
     edict_t *clent, *caster, *parent, *overlay;
     gameClient_t *client;
@@ -5305,7 +5339,7 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
 }
 
 TEST(wc3_movement, zeppelin_unload_moves_to_selected_point_before_ejecting) {
-    cstring_t filename = "/tmp/openwarcraft3-zeppelin-unload-point-save.bin";
+    cstring_t filename = Test_TempPath("zeppelin-unload-point-save.bin");
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
@@ -5445,7 +5479,7 @@ TEST(wc3_movement, cargo_unload_ability_removal_clears_pending_arrival) {
 }
 
 TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
-    cstring_t filename = "/tmp/openwarcraft3-cargo-unload-save.bin";
+    cstring_t filename = Test_TempPath("cargo-unload-save.bin");
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();

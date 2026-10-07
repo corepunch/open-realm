@@ -214,7 +214,7 @@ TEST(wc3_spell, anti_magic_shell_absorption_survives_save_load) {
         "C;Y2;X1;K\"Aam2\"\nC;Y2;X2;K\"Aams\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"air,ground,friend,self\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"90\"\nC;Y2;X8;K\"90\"\nC;Y2;X9;K\"300\"\nC;Y2;X10;K\"Bams,Bam2\"\nE\n";
-    cstring_t path = "/tmp/openwarcraft3-ams-save.bin";
+    cstring_t path = Test_TempPath("ams-save.bin");
     amsFix_t fix = ams_setup(slk, BZ_AAM2);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AAM2, fix.ally));
     T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 100));

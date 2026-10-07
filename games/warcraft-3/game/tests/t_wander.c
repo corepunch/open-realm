@@ -225,7 +225,7 @@ TEST(wc3_wander, idle_does_not_start_while_an_explicit_order_is_active) {
 }
 
 TEST(wc3_wander, active_goal_round_trips_with_generation) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-wander-goal.bin";
+    cstring_t filename = Test_TempPath("wc3-wander-goal.bin");
     edict_t *unit, *goal;
     vec2_t destination = {256.0f, 0.0f};
     reset_entities();
@@ -280,7 +280,7 @@ TEST(wc3_wander, private_destination_cannot_be_recycled_by_shared_ring) {
 }
 
 TEST(wc3_wander, stable_goal_survives_save_load) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-wander-private.bin";
+    cstring_t filename = Test_TempPath("wc3-wander-private.bin");
     edict_t *unit, *attacker, *goal;
     reset_entities();
     setup_test_world();
@@ -459,7 +459,7 @@ TEST(wc3_wander, repeated_damage_retargets_private_goal_without_leak) {
 }
 
 TEST(wc3_wander, saved_private_destination_continues_after_reload) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-wander-continue.bin";
+    cstring_t filename = Test_TempPath("wc3-wander-continue.bin");
     edict_t *unit, *attacker, *goal;
     reset_entities();
     setup_test_world();
@@ -538,7 +538,7 @@ TEST(wc3_wander, real_move_arrival_then_scheduler_rearms_wander) {
 }
 
 TEST(wc3_wander, save_load_move_reaches_goal_and_rearms) {
-    cstring_t filename = "/tmp/openwarcraft3-wc3-wander-arrival.bin";
+    cstring_t filename = Test_TempPath("wc3-wander-arrival.bin");
     edict_t *unit, *attacker, *goal;
     reset_entities();
     setup_test_world();

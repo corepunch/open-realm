@@ -293,6 +293,8 @@ static bool use_production_model_loader;
 extern model_t *R_TestProductionLoadModel(cstring_t filename);
 extern void R_TestProductionReleaseModel(model_t *model);
 void R_TestUseProductionModelLoader(bool enabled) { use_production_model_loader = enabled; }
+cstring_t R_TestLastTextureLoad(void) { return last_texture_load; }
+void R_TestSetTextureLoadResult(texture_t *texture) { texture_load_result = texture; }
 
 model_t *R_LoadModel(cstring_t filename) {
     load_count++;
@@ -2144,12 +2146,60 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
           .texDir = "ReplaceableTextures\\Cliff", .texFile = "Cliff1", .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" },
         { .id = MAKEFOURCC('C','V','d','i'), .groundTile = MAKEFOURCC('V','d','r','t'),
           .texDir = "ReplaceableTextures\\Cliff", .texFile = "Cliff0", .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" },
+        /* TFT Outland abyss cliff: the only row with both a low (groundTile) and high (upperTile) tile. */
+        { .id = MAKEFOURCC('C','O','r','d'), .groundTile = MAKEFOURCC('O','a','b','y'), .upperTile = MAKEFOURCC('O','s','m','b'),
+          .texDir = "ReplaceableTextures\\Cliff", .texFile = "Cliff1", .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" },
     };
-    FOR_LOOP(i, 2)
+    FOR_LOOP(i, 3)
         if (rows[i].id == id) return &rows[i];
     T_ASSERT(false); return NULL;
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
+
+static void test_tile_uv_cell(uint32_t width, uint32_t height, uint32_t tile, uint8_t variation,
+                              float u0, float v0, float u1, float v1) {
+    texture_t texture = { .width = width, .height = height };
+    war3mapVertex_t vertex = { .groundVariation = variation };
+    vertex_t geom[6] = {0};
+    SetTileUV(&vertex, tile, geom, &texture);
+    FOR_LOOP(i, 6) {
+        T_ASSERT(geom[i].texcoord.x > u0 && geom[i].texcoord.x < u1);
+        T_ASSERT(geom[i].texcoord.y > v0 && geom[i].texcoord.y < v1);
+    }
+}
+
+TEST(renderer_terrain, tile_atlas_cells_follow_texture_shape_not_pixel_size) {
+    /* HumanX04's Outland_Abyss.blp is a 64x64 4x4 atlas; a 64-pixel cell wrapped the whole atlas per tile. */
+    test_tile_uv_cell(64, 64, 5, 0, 0.25f, 0.25f, 0.5f, 0.5f);
+    test_tile_uv_cell(256, 256, 5, 0, 0.25f, 0.25f, 0.5f, 0.5f);
+    test_tile_uv_cell(64, 64, 15, 7, 0.75f, 0.75f, 1.0f, 1.0f); /* Square atlases have no variation half. */
+    /* Extended atlases keep the 16 full-tile variations on the right half at any resolution. */
+    test_tile_uv_cell(512, 256, 15, 3, 0.875f, 0.0f, 1.0f, 0.25f);
+    test_tile_uv_cell(128, 64, 15, 3, 0.875f, 0.0f, 1.0f, 0.25f);
+    test_tile_uv_cell(128, 64, 6, 0, 0.25f, 0.25f, 0.375f, 0.5f);
+}
+
+TEST(renderer_terrain, water_depth_color_follows_water_slk_bands) {
+    wc3WaterStyle_t const outland = {
+        .shallow_min = {0, 0, 0, 255}, .shallow_max = {0, 0, 0, 255},
+        .deep_min = {0, 0, 0, 255}, .deep_max = {0, 0, 0, 255},
+    };
+    wc3WaterStyle_t const custom = {
+        .shallow_min = {1, 2, 3, 4}, .shallow_max = {101, 102, 103, 104},
+        .deep_min = {201, 202, 203, 204}, .deep_max = {251, 252, 253, 254},
+    };
+    color32_t c;
+    FOR_LOOP(i, 4) {
+        c = R_WaterDepthColor(&outland, i * 0.3f); /* The Abyss is opaque black at every depth. */
+        T_EQ(c.r, 0); T_EQ(c.g, 0); T_EQ(c.b, 0); T_EQ(c.a, 255);
+    }
+    c = R_WaterDepthColor(&custom, -1.0f); T_EQ(c.r, 1); T_EQ(c.a, 4);
+    c = R_WaterDepthColor(&custom, 10.f / 128); T_EQ(c.g, 2); T_EQ(c.a, 4);
+    c = R_WaterDepthColor(&custom, 37.f / 128); T_EQ(c.r, 51); T_EQ(c.a, 54);
+    c = R_WaterDepthColor(&custom, 64.f / 128); T_EQ(c.b, 103); T_EQ(c.a, 104);
+    c = R_WaterDepthColor(&custom, 68.f / 128); T_EQ(c.r, 226); T_EQ(c.a, 229);
+    c = R_WaterDepthColor(&custom, 2.0f); T_EQ(c.g, 252); T_EQ(c.a, 254);
+}
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
 static uint32_t cliff_buffer_upload_count;
 static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) {
@@ -2526,6 +2576,40 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
         T_STREQ(last_texture_load, slot ? "ReplaceableTextures\\Cliff\\Cliff0.blp" : "ReplaceableTextures\\Cliff\\Cliff1.blp");
         FOR_LOOP(y, span) FOR_LOOP(x, span)
             T_EQ(verts[x+y*span].ground, y == 1 || y == 2 ? (slot ? 0 : 3) : 4);
+        R_FinishCliffs(); test_free((buffer_t *)layer->buffer); test_free(layer);
+        R_ResetCliffCache();
+    }
+    ri.FS_ReadFile = read_file; texture_load_result = saved; cliff_model = NULL; tr.world = NULL;
+}
+
+TEST(renderer_terrain, abyss_cliff_paints_low_corners_with_ground_and_high_corners_with_upper_tile) {
+    enum { span = SEGMENT_SIZE + 1 };
+    war3mapVertex_t verts[span * span];
+    /* HumanX04 palette order: Odrt, ..., Osmb (2), ..., Oaby (7). */
+    uint32_t grounds[] = { MAKEFOURCC('O','d','r','t'), MAKEFOURCC('O','d','t','r'), MAKEFOURCC('O','s','m','b'),
+        MAKEFOURCC('O','f','s','t'), MAKEFOURCC('O','l','g','b'), MAKEFOURCC('O','r','o','k'), MAKEFOURCC('O','f','s','l'),
+        MAKEFOURCC('O','a','b','y') };
+    uint32_t cliffs[] = { MAKEFOURCC('C','O','r','d') };
+    war3map_t map = { .tileset = 'O', .custom = 1, .width = span, .height = span, .vertices = verts,
+        .grounds = grounds, .num_grounds = 8, .cliffs = cliffs, .num_cliffs = 1 };
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
+    mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
+    mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
+    texture_t texture = {0}; texture_t *saved = texture_load_result;
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
+    reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
+    ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
+    FOR_LOOP(pass, 2) {
+        /* Pass 1 drops Osmb from the palette: high corners must keep their authored ground, never the abyss. */
+        grounds[2] = pass ? MAKEFOURCC('O','d','t','x') : MAKEFOURCC('O','s','m','b');
+        /* A two-level abyss cliff between row 1 (level 0) and row 2 (level 2), authored Odrt everywhere. */
+        FOR_LOOP(y, span) FOR_LOOP(x, span)
+            verts[x+y*span] = (war3mapVertex_t){ .level = y >= 2 ? 2 : 0, .cliff = 0, .ground = 0, .accurate_height = 8192 };
+        maplayer_t *layer = R_BuildMapSegmentCliffs(&map, 0, 0, 0);
+        T_NOT_NULL(layer);
+        FOR_LOOP(y, span) FOR_LOOP(x, span)
+            T_EQ(verts[x+y*span].ground, y == 1 ? 7 : y == 2 ? (pass ? 0 : 2) : 0);
         R_FinishCliffs(); test_free((buffer_t *)layer->buffer); test_free(layer);
         R_ResetCliffCache();
     }

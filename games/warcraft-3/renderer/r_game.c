@@ -57,6 +57,35 @@ static slkField_t const cliff_schema[] = {
     { NULL, 0, 0 },
 };
 
+typedef struct {
+    uint32_t id;
+    float height;
+    cstring_t texFile;
+    uint32_t numTex;
+    float texRate;
+    uint32_t color[4][4]; /* Smin, Smax, Dmin, Dmax; each R, G, B, A. */
+} w3WaterRow_t;
+
+#define WATER_COLOR_FIELDS(prefix, band) \
+    { prefix "_R", offsetof(w3WaterRow_t, color[band][0]), STB_SLK_INT }, \
+    { prefix "_G", offsetof(w3WaterRow_t, color[band][1]), STB_SLK_INT }, \
+    { prefix "_B", offsetof(w3WaterRow_t, color[band][2]), STB_SLK_INT }, \
+    { prefix "_A", offsetof(w3WaterRow_t, color[band][3]), STB_SLK_INT }
+
+static slkField_t const water_schema[] = {
+    { "", offsetof(w3WaterRow_t, id), STB_SLK_FOURCC },
+    { "height", offsetof(w3WaterRow_t, height), STB_SLK_FLOAT },
+    { "texFile", offsetof(w3WaterRow_t, texFile), STB_SLK_STR },
+    { "numTex", offsetof(w3WaterRow_t, numTex), STB_SLK_INT },
+    { "texRate", offsetof(w3WaterRow_t, texRate), STB_SLK_FLOAT },
+    WATER_COLOR_FIELDS("Smin", 0),
+    WATER_COLOR_FIELDS("Smax", 1),
+    WATER_COLOR_FIELDS("Dmin", 2),
+    WATER_COLOR_FIELDS("Dmax", 3),
+    { NULL, 0, 0 },
+};
+#undef WATER_COLOR_FIELDS
+
 static cstring_t modelNames[MODEL_COUNT] = {
     "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
 };
@@ -382,6 +411,67 @@ void R_LoadBlightTexture(uint8_t tileset) {
 
 texture_t const *R_BlightTexture(void) {
     return g_blight_texture;
+}
+
+static wc3WaterStyle_t g_water_style;
+
+static color32_t R_WaterRowColor(uint32_t const *rgba) {
+    return (color32_t){ .r = (uint8_t)MIN(rgba[0], 255), .g = (uint8_t)MIN(rgba[1], 255),
+                        .b = (uint8_t)MIN(rgba[2], 255), .a = (uint8_t)MIN(rgba[3], 255) };
+}
+
+/* Water.slk is the authoritative per-tileset water art: Outland's "OSha" row is an opaque black
+ * TeamColor surface (the Abyss), not the Lordaeron Water texture. Keyed by "<tileset>Sha". Frames resolve
+ * through the tileset archive layer, so Ashenvale's A.mpq water replaces the base frames. */
+void R_LoadWaterStyle(uint8_t tileset) {
+    w3WaterRow_t *rows = NULL;
+    w3WaterRow_t const *row = NULL;
+    uint32_t const id = MAKEFOURCC(tileset, 'S', 'h', 'a');
+    uint32_t count;
+
+    memset(&g_water_style, 0, sizeof(g_water_style));
+    count = ri.LoadSlk("TerrainArt\\Water.slk", water_schema, (void **)&rows, sizeof(w3WaterRow_t));
+    FOR_LOOP(i, count) if (rows[i].id == id) { row = &rows[i]; break; }
+    if (!row) {
+        fprintf(stderr, "WC3 renderer: no TerrainArt\\Water.slk row %cSha for tileset %c; water is not drawn\n",
+                tileset, tileset);
+        FS_SLKFreeRows(water_schema, rows, count, sizeof(w3WaterRow_t));
+        return;
+    }
+    g_water_style.height = row->height;
+    g_water_style.frame_rate = row->texRate;
+    g_water_style.shallow_min = R_WaterRowColor(row->color[0]);
+    g_water_style.shallow_max = R_WaterRowColor(row->color[1]);
+    g_water_style.deep_min = R_WaterRowColor(row->color[2]);
+    g_water_style.deep_max = R_WaterRowColor(row->color[3]);
+    if (!row->texFile || !row->texFile[0] || !row->numTex) {
+        fprintf(stderr, "WC3 renderer: Water.slk row %cSha has no texture frames; water is not drawn\n", tileset);
+    } else {
+        if (row->numTex > WC3_MAX_WATER_FRAMES)
+            fprintf(stderr, "WC3 renderer: Water.slk row %cSha has %u frames; animating the first %u\n",
+                    tileset, row->numTex, WC3_MAX_WATER_FRAMES);
+        g_water_style.num_frames = MIN(row->numTex, WC3_MAX_WATER_FRAMES);
+        FOR_LOOP(i, g_water_style.num_frames) {
+            PATHSTR path;
+            snprintf(path, sizeof(path), "%s%02u.blp", row->texFile, i);
+            g_water_style.frames[i] = R_LoadTexture(path);
+            if (!g_water_style.frames[i] || g_water_style.frames[i] == tr.texture[TEX_PLACEHOLDER])
+                fprintf(stderr, "WC3 renderer: failed to load water frame %s for tileset %c\n", path, tileset);
+        }
+    }
+    FS_SLKFreeRows(water_schema, rows, count, sizeof(w3WaterRow_t));
+}
+
+/* Water.slk texRate is frames per second over numTex frames (Warsmash advances index += texRate * dt). */
+texture_t const *R_WaterFrame(wc3WaterStyle_t const *style, uint32_t time_ms) {
+    uint64_t frame;
+    if (!style || !style->num_frames) return NULL;
+    frame = style->frame_rate > 0 ? (uint64_t)((double)time_ms * style->frame_rate / 1000.0) : 0;
+    return style->frames[frame % style->num_frames];
+}
+
+wc3WaterStyle_t const *R_WaterStyle(void) {
+    return &g_water_style;
 }
 
 typedef struct {
@@ -804,7 +894,6 @@ void R_LoadAssets(void) {
         tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
         tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
-    tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
 }
 
 void R_Init(void) {
