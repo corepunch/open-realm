@@ -1101,6 +1101,50 @@ TEST(wc3_slk, map_destructable_overrides_inherit_and_normalize_armor) {
     level.mapinfo = saved_mapinfo;
 }
 
+/* The pathing/occlusion fields use the DestructableMetaData.slk IDs boch, bflh, bwal, bonw and bonc. */
+TEST(wc3_slk, map_destructable_overrides_apply_pathing_and_occlusion_fields) {
+    static cstring_t const dest_slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"occH\"\nC;Y1;X3;K\"flyH\"\nC;Y1;X4;K\"walkable\"\nC;Y1;X5;K\"onWater\"\nC;Y1;X6;K\"onCliffs\"\n"
+        "C;Y2;X1;K\"LTbr\"\nC;Y2;X2;K0\nC;Y2;X3;K0\nC;Y2;X4;K0\nC;Y2;X5;K0\nC;Y2;X6;K0\nE\n";
+    uint32_t const base_id = MAKEFOURCC('L','T','b','r');
+    float occluder_height = 150.0f;
+    float fly_height = 32.0f;
+    uint32_t enabled = 1;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('b','o','c','h'), .type = mod_real, .data = &occluder_height },
+        { .modID = MAKEFOURCC('b','f','l','h'), .type = mod_real, .data = &fly_height },
+        { .modID = MAKEFOURCC('b','w','a','l'), .type = mod_int, .data = &enabled },
+        { .modID = MAKEFOURCC('b','o','n','w'), .type = mod_int, .data = &enabled },
+        { .modID = MAKEFOURCC('b','o','n','c'), .type = mod_int, .data = &enabled },
+    };
+    unitData_t original = {
+        .originalUnitID = base_id, .numbeOfModifications = 5, .modifications = mods
+    };
+    mapInfo_t mapinfo = { .num_originalDestructables = 1, .originalDestructables = &original };
+    slkTestData_t *rows;
+    slkTestData_t *saved_rows;
+    mapInfo_t const *saved_mapinfo;
+
+    setup_test_world();
+    saved_mapinfo = level.mapinfo;
+    level.mapinfo = &mapinfo;
+    rows = parse_slk_string(dest_slk);
+    saved_rows = G_SetSLKRows("DestructableData", rows);
+    G_SetMapUnitOverrides(&mapinfo);
+
+    T_EQ(G_DestructableData(base_id)->occluderHeight, 150.0f);
+    T_EQ(G_DestructableData(base_id)->flyHeight, 32.0f);
+    T_ASSERT(G_DestructableData(base_id)->walkable);
+    T_ASSERT(G_DestructableData(base_id)->onWater);
+    T_ASSERT(G_DestructableData(base_id)->onCliffs);
+
+    G_SetMapUnitOverrides(NULL);
+    G_SetSLKRows("DestructableData", saved_rows);
+    free_slk_rows(rows);
+    level.mapinfo = saved_mapinfo;
+}
+
 TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
     static const char slk_ui[] =
         "C;Y1;X1;K\"unitUIID\"\n"
