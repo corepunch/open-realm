@@ -2282,6 +2282,32 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     T_ASSERT(viewer->commands_dirty);
 }
 
+TEST(wc3_building, advanced_control_grant_and_revoke_dirty_viewer_card) {
+    gameClient_t *owner = &game.clients[0];
+    gameClient_t *viewer = &game.clients[1];
+    uint32_t const original = level.alliances[viewer->ps.number][owner->ps.number];
+    bool const was_connected = viewer->connected;
+    bool const was_dirty = viewer->commands_dirty;
+
+    viewer->connected = true;
+    level.alliances[viewer->ps.number][owner->ps.number] = (1u << ALLIANCE_PASSIVE) |
+        (1u << ALLIANCE_SHARED_CONTROL);
+    viewer->commands_dirty = false;
+
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(viewer->commands_dirty);
+    viewer->commands_dirty = false;
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(viewer->commands_dirty);
+    viewer->commands_dirty = false;
+    G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(!viewer->commands_dirty);
+
+    level.alliances[viewer->ps.number][owner->ps.number] = original;
+    viewer->connected = was_connected;
+    viewer->commands_dirty = was_dirty;
+}
+
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
     edict_t *clent = &g_edicts[0];
     gameClient_t *client = clent->client;

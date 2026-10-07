@@ -12,7 +12,8 @@ visible/selectable -> relationship presentation -> control authority
 
 - `G_UnitCanBeSelected(client, ent)` accepts a live `SVF_MONSTER` that is in use, not hidden, not `EF_NOT_SELECTABLE`, and actively visible through `G_FowPlayerCanHoverEntity`.
 - `G_SelectionRelation(viewer, ent)` returns friend, neutral, or enemy independently of command authority.
-- `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Reserved neutral owners use the same alliance table; their default state simply does not grant shared control.
+- `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant basic or advanced shared control, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Reserved neutral owners use the same alliance table; their default state simply does not grant shared control.
+- `G_UnitCanSpendResources` additionally requires advanced sharing for allied production, research, upgrades, construction, revival and their cancellation. See [Team Resources and Advanced Control](team-resources.md) for the covered command paths and known UI gaps.
 - Alliance state is directional, matching the JASS `SetPlayerAlliance(source, other, type, value)` contract. `G_SetPlayerAlliance` changes only `level.alliances[source][other]`; callers that want mutual alliance must set both directions. Friend/enemy tests use `ALLIANCE_PASSIVE` specifically—shared vision, shared XP, or shared-control bits by themselves do not make a hostile unit friendly.
 
 `G_InitPlayerAlliances()` establishes Warcraft's map-start defaults before map
@@ -270,7 +271,7 @@ The following are deliberately not inferred by the current implementation:
 - exact neutral-shop `Aneu` patron-selection button/indicator and persistent per-player patron state; the current deterministic nearby-patron purchase flow is documented in [Neutral Shops And Mercenary Camps](neutral-shops.md);
 - data-driven `SelectionCircle` relationship colours;
 - Neutral Passive critter-specific selection response rules;
-- exact retail behavior for `ALLIANCE_SHARED_ADVANCED_CONTROL`;
+- advanced-control UI controls, abandoned-player transitions, and retail Team Resources board layout;
 - `EVENT_PLAYER_UNIT_SELECTED`/`DESELECTED` currently reuse the generic player-unit owner-matching dispatcher. This is sufficient for own-unit campaign/tutorial selections such as Prologue02 Peons, but selecting a foreign unit should ultimately bind/match the selecting player rather than the selected unit's owner.
 
 Combat reaction remains a separate gap from relationship classification:

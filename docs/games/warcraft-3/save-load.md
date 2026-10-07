@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 65, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 66, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -30,6 +30,8 @@ Save compatibility is deliberately unsupported. Load only the current format ver
 The server's map-selection read checks both the format version and entity size before reloading a map. The state reader applies the same guards, validates the existing checksum and reference domains, and requires the current payload to end at the commit footer.
 
 Version 40 added the region registry and region/event context. Its rejection of version 39 saves was intentional; later versions follow the same exact-match policy.
+
+Version 70 persists multiboard display suppression by client slot. Older saves are rejected, following the normal no-migration policy.
 
 Version 67 adds `construction_t.duration_ms` so autonomous item-created Tiny Structures resume using their ability-authored build duration, independently of the unit's normal build time. Exact-version readers reject older layouts.
 

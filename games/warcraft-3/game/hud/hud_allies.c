@@ -207,6 +207,26 @@ static void AlliesBeginDraft(edict_t *ent) {
     draft->allied_victory = ent->client->ps.stats[PLAYERSTATE_ALLIED_VICTORY] != 0;
 }
 
+/* The stock Units checkbox represents whether unit control is granted at all.
+ * A map script can also grant advanced control independently, so a user turning
+ * Units off must revoke both control bits in the staged alliance matrix. */
+static uint16_t AlliesToggleDraftAlliance(uint16_t mask, PLAYERALLIANCE type) {
+    uint16_t const passive = (uint16_t)(1u << ALLIANCE_PASSIVE);
+    uint16_t const vision = (uint16_t)(1u << ALLIANCE_SHARED_VISION);
+    uint16_t const basic = (uint16_t)(1u << ALLIANCE_SHARED_CONTROL);
+    uint16_t const advanced = (uint16_t)(1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+
+    if (type == ALLIANCE_SHARED_CONTROL) {
+        if (mask & (basic | advanced)) return mask & (uint16_t)~(basic | advanced);
+        return mask | basic | passive | vision;
+    }
+    mask ^= (uint16_t)(1u << type);
+    if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_VISION) &&
+        !(mask & (uint16_t)(1u << type)))
+        mask &= (uint16_t)~(basic | advanced);
+    return mask;
+}
+
 static void AlliesSetCheckBox(frameDef_t *frame, bool checked, bool enabled, cstring_t command) {
     if (!frame) return;
     frame->CheckBox.Checked = checked;
@@ -247,7 +267,8 @@ static void AlliesPopulateSlot(AllianceSlot_t *slot, uint32_t target,
                       controls_enabled, command);
     snprintf(command, sizeof(command), "allies_toggle %u %u", (unsigned)target,
              (unsigned)ALLIANCE_SHARED_CONTROL);
-    AlliesSetCheckBox(slot->UnitsCheckBox, (mask & (1u << ALLIANCE_SHARED_CONTROL)) != 0,
+    AlliesSetCheckBox(slot->UnitsCheckBox, (mask & ((1u << ALLIANCE_SHARED_CONTROL) |
+                                                      (1u << ALLIANCE_SHARED_ADVANCED_CONTROL))) != 0,
                       controls_enabled, command);
 
     /* Resource trading remains intentionally inert until OpenRealm has an
@@ -310,21 +331,13 @@ void UI_ShowAllies(edict_t *ent) {
 void UI_AlliesToggle(edict_t *ent, uint32_t target, PLAYERALLIANCE type) {
     alliesDraft_t *draft = AlliesDraft(ent);
     uint32_t const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
-    uint32_t flag;
 
     if (!draft || !draft->active || player >= MAX_PLAYERS ||
         (level.setup.map_flags & (WC3_MAP_LOCK_ALLIANCE_CHANGES | WC3_MAP_ALLIANCE_CHANGES_HIDDEN)) ||
         !AlliesTargetAvailable(player, target)) return;
     if (type != ALLIANCE_PASSIVE && type != ALLIANCE_SHARED_VISION && type != ALLIANCE_SHARED_CONTROL) return;
 
-    flag = 1u << type;
-    draft->alliances[target] ^= flag;
-    if (type == ALLIANCE_SHARED_CONTROL && (draft->alliances[target] & flag)) {
-        draft->alliances[target] |= (1u << ALLIANCE_PASSIVE) | (1u << ALLIANCE_SHARED_VISION);
-    } else if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_VISION) &&
-               !(draft->alliances[target] & flag)) {
-        draft->alliances[target] &= ~(1u << ALLIANCE_SHARED_CONTROL);
-    }
+    draft->alliances[target] = AlliesToggleDraftAlliance(draft->alliances[target], type);
     AlliesWriteDraft(ent);
 }
 
@@ -349,6 +362,7 @@ void UI_AlliesAccept(edict_t *ent) {
             if (!target_client) continue;
             PLAYERALLIANCE const types[] = {
                 ALLIANCE_PASSIVE, ALLIANCE_SHARED_VISION, ALLIANCE_SHARED_CONTROL,
+                ALLIANCE_SHARED_ADVANCED_CONTROL,
             };
             FOR_LOOP(i, sizeof(types) / sizeof(types[0])) {
                 PLAYERALLIANCE const type = types[i];
@@ -366,3 +380,37 @@ void UI_AlliesCancel(edict_t *ent) {
     alliesDraft_t *draft = AlliesDraft(ent);
     if (draft) draft->active = false;
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+
+TEST(wc3_allies, units_checkbox_revokes_basic_and_advanced_control) {
+    uint16_t const passive = (uint16_t)(1u << ALLIANCE_PASSIVE);
+    uint16_t const vision = (uint16_t)(1u << ALLIANCE_SHARED_VISION);
+    uint16_t const basic = (uint16_t)(1u << ALLIANCE_SHARED_CONTROL);
+    uint16_t const advanced = (uint16_t)(1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    uint16_t mask = passive | vision | basic | advanced;
+
+    mask = AlliesToggleDraftAlliance(mask, ALLIANCE_SHARED_CONTROL);
+    T_EQ(mask, passive | vision);
+    mask = AlliesToggleDraftAlliance(mask, ALLIANCE_SHARED_CONTROL);
+    T_EQ(mask, passive | vision | basic);
+    mask = AlliesToggleDraftAlliance(passive | vision | advanced, ALLIANCE_SHARED_CONTROL);
+    T_EQ(mask, passive | vision);
+    mask = AlliesToggleDraftAlliance(passive | vision | basic, ALLIANCE_SHARED_CONTROL);
+    T_EQ(mask, passive | vision);
+}
+
+TEST(wc3_allies, removing_alliance_or_vision_revokes_both_control_levels) {
+    uint16_t const passive = (uint16_t)(1u << ALLIANCE_PASSIVE);
+    uint16_t const vision = (uint16_t)(1u << ALLIANCE_SHARED_VISION);
+    uint16_t const basic = (uint16_t)(1u << ALLIANCE_SHARED_CONTROL);
+    uint16_t const advanced = (uint16_t)(1u << ALLIANCE_SHARED_ADVANCED_CONTROL);
+    uint16_t const both = passive | vision | basic | advanced;
+
+    T_EQ(AlliesToggleDraftAlliance(both, ALLIANCE_PASSIVE), vision);
+    T_EQ(AlliesToggleDraftAlliance(both, ALLIANCE_SHARED_VISION), passive);
+    T_EQ(AlliesToggleDraftAlliance(passive | vision, ALLIANCE_PASSIVE), vision);
+    T_EQ(AlliesToggleDraftAlliance(passive | vision, ALLIANCE_SHARED_VISION), passive);
+}
+#endif

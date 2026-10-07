@@ -21,18 +21,19 @@ Multiboard (17): create/destroy, display, minimize/`IsMultiboardMinimized`, titl
 
 TextTag (10): create/destroy, text+height, color, `PosUnit`, velocity, visibility, permanent, lifespan, fadepoint.
 
-Other `common.txt` natives (`IsMultiboardDisplayed`, `MultiboardClear`, `SetTextTagPos`, …) are not registered yet.
+`IsMultiboardDisplayed` and `MultiboardSuppressDisplay` are registered. Other `common.txt` natives (`MultiboardClear`, `SetTextTagPos`, …) remain outstanding.
 
 ## Presentation Gaps
 
-- **Multiboard HUD:** simulation state and dirty bits exist (`multiboard_dirty_clients`). No FDF/`svc_layout` publisher yet — unlike leaderboards in [leaderboards.md](leaderboards.md).
+- **Multiboard HUD:** `hud_multiboard.c` now emits `svc_layout` for a displayed custom board (title, cell text/colors/icons, minimized title) or the automatic Team Resources display. Single-board ownership is per client; showing a custom board replaces the previous custom board. Suppression hides the presentation without changing requested visibility.
+- **Retail parity gaps:** stock multiboard FDF skin/geometry, cell width, UI minimize interaction, custom-board/Team Resources fallback ordering and leaderboard coexistence still need asset-driven verification. The current panel uses a conservative provisional layout.
 - **TextTag draw:** state is stored only. Live JASS texttags are **not** wired to `TE_FLOATING_TEXT` yet. Resource-gain labels remain a one-shot path ([resource-gain-text.md](resource-gain-text.md)).
 
 Do not widen `entityState_t` / `playerState_t` for either widget.
 
 ## Save/Load
 
-Save format version 28 persists multiboards, item views, and texttags (including `texttag.unit` via `F_EDICT`) and JASS handle identity through registry indexes.
+Save format version 66 persists multiboards, item views, and texttags (including `texttag.unit` via `F_EDICT`) and JASS handle identity through registry indexes, plus per-client suppression flags.
 
 ## Verification
 
@@ -43,3 +44,5 @@ make test-wc3-engine WC3_PATTERN='wc3_api.leaderboard*'
 ```
 
 Tests live in `games/warcraft-3/game/tests/t_multiboard.c`.
+
+Team Resources is a distinct engine-managed display; see [Team Resources and Advanced Shared Control](team-resources.md). No Team Resources publisher exists yet.

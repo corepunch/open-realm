@@ -528,6 +528,7 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
         return false;
     }
     builder = G_GetMainSelectedUnit(clent->client);
+    if (!G_UnitCanSpendResources(clent->client, builder)) return false;
     owner = builder ? G_GetPlayerClientByNumber(builder->s.player) : NULL;
     if (!owner || owner->ps.number != builder->s.player) {
 #ifdef WC3_DEBUG_MINING
@@ -613,6 +614,7 @@ void build_menu_selectlocation(edict_t *ent, uint32_t building_id) {
 
     if (!ent || !ent->client) return;
     worker = G_GetMainSelectedUnit(ent->client);
+    if (!G_UnitCanSpendResources(ent->client, worker)) return;
     owner = worker ? G_GetPlayerClientByNumber(worker->s.player) : NULL;
     if (!owner || owner->ps.number != worker->s.player || !G_WorkerCanBuild(worker, building_id)) return;
     state = G_GetBuildCommandState(owner, worker, building_id, reason, sizeof(reason));
@@ -645,7 +647,8 @@ void ui_builds(gameClient_t *client) {
     edict_t *ent = G_GetMainSelectedUnit(client);
     gameClient_t *owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
     cstring_t builds = ent ? G_UnitProfile(ent->class_id)->builds : NULL;
-    if (!ent || !owner || owner->ps.number != ent->s.player || !builds)
+    if (!G_UnitCanSpendResources(client, ent) || !owner ||
+        owner->ps.number != ent->s.player || !builds)
         return;
     PARSE_LIST(builds, build, parse_segment) {
         uint32_t building_id = 0;

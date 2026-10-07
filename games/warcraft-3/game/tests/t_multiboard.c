@@ -108,6 +108,54 @@ TEST(wc3_api, multiboard_display_uses_client_slot_for_mapped_player) {
     T_ASSERT(G_IsMultiboardMinimized(board, &game.clients[1].ps));
 }
 
+TEST(wc3_api, multiboard_one_visible_board_per_client_and_suppression) {
+    multiboard_t *first, *second;
+    player_t *saved = currentplayer;
+    setup_test_world();
+    first = G_AllocMultiboard();
+    second = G_AllocMultiboard();
+    T_ASSERT(first && second);
+    G_SetMultiboardDisplayed(first, &game.clients[0].ps, true);
+    G_SetMultiboardDisplayed(first, &game.clients[1].ps, true);
+    T_ASSERT(G_VisibleMultiboard(0) == first);
+    T_ASSERT(G_VisibleMultiboard(1) == first);
+    G_SetMultiboardDisplayed(second, &game.clients[0].ps, true);
+    T_ASSERT(G_VisibleMultiboard(0) == second);
+    T_ASSERT(G_VisibleMultiboard(1) == first);
+    T_ASSERT(!G_IsMultiboardDisplayed(first, &game.clients[0].ps));
+    G_SuppressMultiboardDisplay(&game.clients[0].ps, true);
+    T_NULL(G_VisibleMultiboard(0));
+    T_ASSERT(G_VisibleMultiboard(1) == first);
+    G_SuppressMultiboardDisplay(&game.clients[0].ps, false);
+    T_ASSERT(G_VisibleMultiboard(0) == second);
+    G_FreeMultiboard(second);
+    T_NULL(G_VisibleMultiboard(0));
+    T_ASSERT(G_VisibleMultiboard(1) == first);
+    currentplayer = saved;
+}
+
+TEST(wc3_api, multiboard_display_queries_and_suppress_native) {
+    player_t *saved = currentplayer;
+    setup_test_world();
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  multiboard mb = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set mb = CreateMultiboard()\n"
+        "  call MultiboardDisplay(mb, true)\n"
+        "  call BJassAssert(IsMultiboardDisplayed(mb), \"displayed\")\n"
+        "  call MultiboardSuppressDisplay(true)\n"
+        "  call BJassAssert(IsMultiboardDisplayed(mb), \"suppression keeps requested display\")\n"
+        "  call MultiboardSuppressDisplay(false)\n"
+        "  call MultiboardDisplay(mb, false)\n"
+        "  call BJassAssert(not IsMultiboardDisplayed(mb), \"hidden\")\n"
+        "endfunction\n"));
+    T_ASSERT(!level.multiboard_suppressed_clients);
+    currentplayer = saved;
+}
+
 TEST(wc3_api, texttag_natives_store_unit_anchor_and_style) {
     player_t *saved = currentplayer;
     texttag_t *tag;

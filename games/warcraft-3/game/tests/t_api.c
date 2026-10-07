@@ -5394,6 +5394,98 @@ TEST(wc3_api, control_is_separate_from_selection_and_honors_shared_control) {
     T_ASSERT(G_UnitCanControl(client, &neutral));
 }
 
+TEST(wc3_api, advanced_shared_control_limits_resource_spending) {
+    gameClient_t *client = &game.clients[0];
+    edict_t own = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 0 } };
+    edict_t ally = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    edict_t enemy = { .inuse = true, .svflags = SVF_MONSTER, .s = { .player = 2 } };
+    uint32_t saved_forward = level.alliances[0][1];
+    uint32_t saved_reverse = level.alliances[1][0];
+    uint32_t saved_enemy = level.alliances[0][2];
+    uint32_t saved_client_number = client->ps.number;
+    own.health.value = ally.health.value = enemy.health.value = 100.0f;
+    client->ps.number = 0;
+
+    /* Explicitly establish the fixture, regardless of earlier test state. */
+    level.alliances[0][1] = 0;
+    level.alliances[1][0] = 0;
+    level.alliances[0][2] = 0;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, false);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    T_ASSERT(G_UnitCanSpendResources(client, &own));
+    T_ASSERT(!G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &enemy));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(G_UnitCanSpendResources(client, &ally));
+
+    /* Advanced permission also grants ordinary orders on its own. */
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, false);
+    T_ASSERT(G_UnitCanControl(client, &ally));
+    T_ASSERT(G_UnitCanSpendResources(client, &ally));
+    T_EQ(G_SelectionRelation(0, &ally), SELECT_RELATION_FRIEND);
+
+    /* Sharing is directional; never accept the reverse grant. */
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(!G_UnitCanControl(client, &ally));
+    T_ASSERT(!G_UnitCanSpendResources(client, &ally));
+    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_ADVANCED_CONTROL, false);
+    /* A hostile owner stays unauthorized even with an advanced sharing bit. */
+    G_SetPlayerAlliance(test_player(0), test_player(2), ALLIANCE_SHARED_ADVANCED_CONTROL, true);
+    T_ASSERT(!G_UnitCanSpendResources(client, &enemy));
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, false);
+    level.alliances[0][1] = saved_forward;
+    level.alliances[1][0] = saved_reverse;
+    level.alliances[0][2] = saved_enemy;
+    client->ps.number = saved_client_number;
+    G_InvalidateAllUnitShortcuts();
+}
+
+/* Team Resources uses the same directional control grants as allied
+ * resource spending, but must not disclose an enemy's economy or show basic
+ * shared-control teammates.  Preserve the global alliance fixture. */
+TEST(wc3_api, team_resources_eligibility_requires_advanced_ally) {
+    uint32_t const forward = level.alliances[0][1];
+    uint32_t const reverse = level.alliances[1][0];
+    uint32_t const hostile = level.alliances[0][2];
+    uint32_t const neutral = level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE];
+
+    level.alliances[0][1] = 0;
+    level.alliances[1][0] = 0;
+    level.alliances[0][2] = 0;
+    level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE] = 0;
+    T_ASSERT(!G_CanViewTeamResources(0, 0));
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+    T_ASSERT(!G_CanViewTeamResources(MAX_PLAYERS, 1));
+    T_ASSERT(!G_CanViewTeamResources(0, MAX_PLAYERS));
+    T_ASSERT(!G_CanViewTeamResources(0, PLAYER_NEUTRAL_AGGRESSIVE));
+
+    level.alliances[0][1] = (1u << ALLIANCE_PASSIVE) |
+                            (1u << ALLIANCE_SHARED_CONTROL);
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+    level.alliances[0][1] |= 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    T_ASSERT(G_CanViewTeamResources(0, 1));
+    T_ASSERT(!G_CanViewTeamResources(1, 0));
+    /* An advanced control grant alone cannot turn a hostile owner into an ally. */
+    level.alliances[0][2] = 1u << ALLIANCE_SHARED_ADVANCED_CONTROL;
+    T_ASSERT(!G_CanViewTeamResources(0, 2));
+    level.alliances[0][1] &= ~(1u << ALLIANCE_PASSIVE);
+    T_ASSERT(!G_CanViewTeamResources(0, 1));
+
+    level.alliances[0][1] = forward;
+    level.alliances[1][0] = reverse;
+    level.alliances[0][2] = hostile;
+    level.alliances[0][PLAYER_NEUTRAL_AGGRESSIVE] = neutral;
+}
+
 TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
     entityState_t state = { .number = 7, .model = 11, .flags = EF_HOVER_HEALTH };
     edict_t ent = { .s = { .player = 3 } };
