@@ -51,6 +51,16 @@ uint32_t MultiboardDisplay(jass_t *j) {
     return 0;
 }
 
+uint32_t IsMultiboardDisplayed(jass_t *j) {
+    multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
+    return jass_pushboolean(j, G_IsMultiboardDisplayed(board, currentplayer));
+}
+
+uint32_t MultiboardSuppressDisplay(jass_t *j) {
+    G_SuppressMultiboardDisplay(currentplayer, jass_checkboolean(j, 1));
+    return 0;
+}
+
 uint32_t MultiboardMinimize(jass_t *j) {
     multiboard_t *board = jass_checkhandle(j, 1, "multiboard");
     bool minimize = jass_checkboolean(j, 2);

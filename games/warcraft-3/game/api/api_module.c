@@ -897,6 +897,8 @@ jassModule_t jass_funcs[] = {
     { "CreateMultiboard", CreateMultiboard },
     { "DestroyMultiboard", DestroyMultiboard },
     { "MultiboardDisplay", MultiboardDisplay },
+    { "IsMultiboardDisplayed", IsMultiboardDisplayed },
+    { "MultiboardSuppressDisplay", MultiboardSuppressDisplay },
     { "MultiboardMinimize", MultiboardMinimize },
     { "IsMultiboardMinimized", IsMultiboardMinimized },
     { "MultiboardSetTitleText", MultiboardSetTitleText },

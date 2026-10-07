@@ -1089,6 +1089,35 @@ void Get_Commands_f(edict_t *ent) {
     } else {
         count = G_GetCommandButtons(selected, buttons, 12);
     }
+    /* Resource-consuming buttons must agree with the authoritative advanced-
+     * sharing check. Ordinary orders and hero skill points remain usable with
+     * basic control; production, research, upgrades and revival do not. */
+    if (!G_UnitCanSpendResources(ent->client, selected)) {
+        UnitProfile_t const *profile = G_UnitProfile(selected->class_id);
+        FOR_LOOP(i, count) {
+            bool production = buttons[i].building_upgrade != 0 ||
+                              !strncmp(buttons[i].command, "revive:", 7) ||
+                              !strcmp(buttons[i].command, STR_CmdCancelBuild) ||
+                              (!strcmp(buttons[i].command, STR_CmdCancel) &&
+                               selected->build && selected->build->revival &&
+                               selected->build->revival->reviving);
+            if (profile && strlen(buttons[i].command) == 4) {
+                cstring_t const lists[] = {profile->trains, profile->researches,
+                                          profile->upgrade};
+                FOR_LOOP(j, 3) {
+                    if (!lists[j]) continue;
+                    PARSE_LIST(lists[j], item, parse_segment) {
+                        if (strlen(item) == 4 && !memcmp(item, buttons[i].command, 4)) {
+                            production = true;
+                            break;
+                        }
+                    }
+                    if (production) break;
+                }
+            }
+            if (production) buttons[i].disabled = 1;
+        }
+    }
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }
@@ -1514,6 +1543,13 @@ void G_RefreshResourceBar(edict_t *ent) {
         gold_rate   == ent->client->resourcebar.gold_rate   &&
         lumber_rate == ent->client->resourcebar.lumber_rate)
         return;
+
+    /* Allied Team Resources reads this player's economy; refresh eligible
+     * viewers on real changes, not on every frame. */
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS))
+        if (game.clients[i].connected &&
+            G_CanViewTeamResources(game.clients[i].ps.number, ps->number))
+            level.multiboard_dirty_clients |= 1u << i;
 
     UI_WriteStart(LAYER_CONSOLE);
     UI_WriteConsoleBackdrop(ent->client, food_u, food_c);

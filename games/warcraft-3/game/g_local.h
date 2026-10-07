@@ -1025,6 +1025,7 @@ typedef struct {
 #define MAX_GAMECACHE_STRING 256 // chars; shared string cap for gamecache and hashtable string slots
 #define WC3_LAYER_TIMERDIALOG LAYER_GAME_0
 #define WC3_LAYER_LEADERBOARD LAYER_GAME_1
+#define WC3_LAYER_MULTIBOARD LAYER_GAME_2
 #define MAX_EVENTS 1024 // handlers; region-event tokens allow safe reuse of retired handler slots
 #define MAX_QUESTS 256 // quests; fixed quest slots preserve stable pointers across removal
 #define MAX_QUESTITEMS 16 // items per quest; matches the practical quest objective display capacity
@@ -2192,6 +2193,7 @@ struct level_locals {
     uint32_t num_regions;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     uint32_t multiboard_dirty_clients;
+    uint32_t multiboard_suppressed_clients; /* serialized local display suppression */
     uint32_t timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
     int32_t timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
     int32_t timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
@@ -2583,6 +2585,11 @@ multiboard_t *G_AllocMultiboard(void);
 void G_FreeMultiboard(multiboard_t *board);
 void G_SetMultiboardDisplayed(multiboard_t *board, player_t *player, bool displayed);
 bool G_IsMultiboardDisplayed(multiboard_t const *board, player_t const *player);
+void G_SuppressMultiboardDisplay(player_t *player, bool suppress);
+bool G_IsMultiboardSuppressed(player_t const *player);
+multiboard_t *G_VisibleMultiboard(uint32_t client_index);
+void G_UpdateMultiboards(void);
+void UI_WriteMultiboard(edict_t *ent);
 void G_SetMultiboardMinimized(multiboard_t *board, player_t *player, bool minimized);
 bool G_IsMultiboardMinimized(multiboard_t const *board, player_t const *player);
 void G_MarkMultiboardDirty(multiboard_t const *board);
@@ -3188,6 +3195,8 @@ bool G_CycleSelectionSubgroup(gameClient_t *);
 void G_ResetSelectionFocus(gameClient_t *);
 bool G_UnitCanBeSelected(gameClient_t *, edict_t const *);
 bool G_UnitCanControl(gameClient_t *, edict_t const *);
+bool G_UnitCanSpendResources(gameClient_t *, edict_t const *);
+bool G_CanViewTeamResources(uint32_t viewer, uint32_t owner);
 selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent);
 edict_t *G_GetMainControllableUnit(gameClient_t *);
 void G_UpdateClientSelections(void);

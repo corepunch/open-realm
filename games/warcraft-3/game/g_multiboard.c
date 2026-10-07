@@ -59,6 +59,7 @@ void G_FreeMultiboard(multiboard_t *board) {
         multiboardItem_t *item = &level.multiboard_items[i];
         if (item->inuse && item->board == index) item->board = -1;
     }
+    level.multiboard_dirty_clients |= board->displayed_clients;
     memset(board, 0, sizeof(*board));
 }
 
@@ -66,7 +67,15 @@ void G_SetMultiboardDisplayed(multiboard_t *board, player_t *player, bool displa
     uint32_t mask;
     if (multiboard_index(board) < 0) return;
     mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
-    if (displayed) board->displayed_clients |= mask; else board->displayed_clients &= ~mask;
+    if (displayed) {
+        /* The multiboard slot belongs to the viewer, not to the board. A
+         * displayed map board replaces the previously visible board. */
+        FOR_LOOP(i, MAX_MULTIBOARDS) {
+            multiboard_t *other = &level.multiboards[i];
+            if (other != board && other->inuse) other->displayed_clients &= ~mask;
+        }
+        board->displayed_clients |= mask;
+    } else board->displayed_clients &= ~mask;
     level.multiboard_dirty_clients |= mask;
 }
 
@@ -76,6 +85,29 @@ bool G_IsMultiboardDisplayed(multiboard_t const *board, player_t const *player) 
     if (player) return board->displayed_clients & multiboard_client_mask(PLAYER_NUM(player));
     mask = multiboard_all_client_mask();
     return mask && (board->displayed_clients & mask) == mask;
+}
+
+void G_SuppressMultiboardDisplay(player_t *player, bool suppress) {
+    uint32_t mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
+    if (suppress) level.multiboard_suppressed_clients |= mask;
+    else level.multiboard_suppressed_clients &= ~mask;
+    level.multiboard_dirty_clients |= mask;
+}
+
+bool G_IsMultiboardSuppressed(player_t const *player) {
+    uint32_t mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
+    return mask && (level.multiboard_suppressed_clients & mask) == mask;
+}
+
+multiboard_t *G_VisibleMultiboard(uint32_t client_index) {
+    uint32_t mask;
+    if (client_index >= (uint32_t)game.max_clients || client_index >= MAX_CLIENTS) return NULL;
+    mask = 1u << client_index;
+    if (level.multiboard_suppressed_clients & mask) return NULL;
+    FOR_LOOP(i, MAX_MULTIBOARDS)
+        if (level.multiboards[i].inuse && (level.multiboards[i].displayed_clients & mask))
+            return &level.multiboards[i];
+    return NULL;
 }
 
 void G_SetMultiboardMinimized(multiboard_t *board, player_t *player, bool minimized) {

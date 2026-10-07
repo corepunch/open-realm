@@ -348,7 +348,8 @@ selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const *ent) {
     if (!G_PlayerTreatsPlayerAsAlly(viewer, owner)) {
         return SELECT_RELATION_ENEMY;
     }
-    if (alliances & (1 << ALLIANCE_SHARED_CONTROL)) {
+    if (alliances & ((1u << ALLIANCE_SHARED_CONTROL) |
+                     (1u << ALLIANCE_SHARED_ADVANCED_CONTROL))) {
         return SELECT_RELATION_FRIEND;
     }
     return SELECT_RELATION_NEUTRAL;
@@ -392,7 +393,36 @@ bool G_UnitCanControl(gameClient_t *client, edict_t const *ent) {
     }
     alliances = level.alliances[client->ps.number][owner];
     return G_PlayerTreatsPlayerAsAlly(client->ps.number, owner) &&
-           (alliances & (1 << ALLIANCE_SHARED_CONTROL)) != 0;
+           (alliances & ((1u << ALLIANCE_SHARED_CONTROL) |
+                         (1u << ALLIANCE_SHARED_ADVANCED_CONTROL))) != 0;
+}
+
+/* Full/advanced sharing is required to use another player's production,
+ * upgrades and research. Orders to an allied army require only basic control.
+ * Resource charges themselves remain owned by the producing unit's player. */
+/* Team Resources exposes the economy of an allied player who granted the
+ * viewer advanced control.  Read the directional viewer -> owner permissions,
+ * never the reverse edge.  A disconnected owner remains eligible when its
+ * existing advanced permission is retained; disconnects do not manufacture
+ * alliances and ordinary shared control does not reveal resources. */
+bool G_CanViewTeamResources(uint32_t viewer, uint32_t owner) {
+    if (viewer >= MAX_PLAYERS || owner >= PLAYER_NEUTRAL_AGGRESSIVE ||
+        viewer == owner)
+        return false;
+    return G_PlayerTreatsPlayerAsAlly(viewer, owner) &&
+           (level.alliances[viewer][owner] &
+            (1u << ALLIANCE_SHARED_ADVANCED_CONTROL)) != 0;
+}
+
+bool G_UnitCanSpendResources(gameClient_t *client, edict_t const *ent) {
+    uint32_t owner;
+
+    if (!G_UnitCanControl(client, ent)) return false;
+    owner = ent->s.player;
+    if (owner == client->ps.number) return true;
+    return owner < MAX_PLAYERS &&
+           (level.alliances[client->ps.number][owner] &
+            (1u << ALLIANCE_SHARED_ADVANCED_CONTROL)) != 0;
 }
 
 void G_UpdateClientSelections(void) {
@@ -676,7 +706,7 @@ void CMD_CancelCommand(edict_t *ent) {
         return;
     }
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
-        G_UnitCanControl(ent->client, producer)) {
+        G_UnitCanSpendResources(ent->client, producer)) {
         /* In-place upgrades and spawned construction are both cancelled by
          * the selected structure itself. Keep them ahead of queue cancellation
          * so CmdCancelBuild cannot fall through to unrelated producer state. */
@@ -1119,6 +1149,7 @@ CLIENTCOMMAND(Button) {
     }
     if (!G_UnitCanControl(client, producer)) return;
     if (!strncmp(classname, "revive:", 7)) {
+        if (!G_UnitCanSpendResources(client, producer)) return;
         char *end = NULL;
         unsigned long const number = strtoul(classname + 7, &end, 10);
         if (!end || *end || number >= globals.num_edicts) return;
@@ -1146,7 +1177,7 @@ CLIENTCOMMAND(Button) {
     } else {
         uint32_t class_id = 0;
 
-        if (strlen(classname) != 4) return;
+        if (!G_UnitCanSpendResources(client, producer) || strlen(classname) != 4) return;
         memcpy(&class_id, classname, sizeof(class_id));
         SP_TrainUnit(producer, class_id);
     }
@@ -1247,8 +1278,10 @@ CLIENTCOMMAND(Research) {
     }
     memcpy(&abilcode, classname, sizeof(abilcode));
     if (G_ProducerCanResearch(ent, abilcode)) {
+        if (!G_UnitCanSpendResources(client, ent)) return;
         G_QueueResearch(ent, abilcode);
     } else {
+        /* Hero skill points do not spend the owning player's gold/lumber. */
         G_HeroLearnSkill(ent, abilcode);
     }
     Get_Commands_f(clent);
@@ -1260,7 +1293,7 @@ CLIENTCOMMAND(Upgrade) {
     edict_t *ent = client ? G_GetMainSelectedUnit(client) : NULL;
     uint32_t unit_id = 0;
 
-    if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) return;
+    if (!G_UnitCanSpendResources(client, ent) || !classname || strlen(classname) != 4) return;
     memcpy(&unit_id, classname, sizeof(unit_id));
     G_StartBuildingUpgrade(ent, unit_id);
     Get_Commands_f(clent);
@@ -1870,7 +1903,7 @@ CLIENTCOMMAND(CancelTrain) {
     if (!end || *end || parsed > UINT_MAX) return;
     client = clent->client;
     producer = G_GetMainSelectedUnit(client);
-    if (!G_UnitCanControl(client, producer) || !producer->build || !producer->build->training) return;
+    if (!G_UnitCanSpendResources(client, producer) || !producer->build || !producer->build->training) return;
     index = (uint32_t)parsed;
     if (!G_CancelTrainingQueueItem(producer, index, true)) return;
     Get_Portrait_f(clent);
