@@ -15,6 +15,10 @@ static void test_wander_damage(edict_t *unit, edict_t *attacker) {
     S_UnitAbilityEventWithCall(unit, A_DAMAGED, &call);
 }
 
+static bool test_wander_blocked_move(edict_t *unit) {
+    return S_UnitAbilityEvent(unit, A_MOVE_BLOCKED);
+}
+
 TEST(wc3_wander, authored_ability_dispatches_innate_idle) {
     edict_t *unit;
     reset_entities();
@@ -361,11 +365,11 @@ TEST(wc3_wander, blocked_private_move_returns_idle_after_ownership_retirement) {
      * changing the in-flight target. Recovery must use the private goal. */
     S_UnitAbilityOrderAccepted(unit, "stop");
     T_NULL(unit->wander_goal);
-    T_ASSERT(S_WanderRecoverBlockedMove(unit));
+    T_ASSERT(test_wander_blocked_move(unit));
     T_ASSERT(!move_is_active_order_walk(unit));
     T_NULL(unit->goalentity);
     T_ASSERT(unit->wander_waypoint == goal && goal->inuse);
-    T_ASSERT(!S_WanderRecoverBlockedMove(unit));
+    T_ASSERT(!test_wander_blocked_move(unit));
     T_ASSERT(unit->wander_next_time > level.time);
     S_DisableAbility(unit, ID_AWAN);
     T_ASSERT(!goal->inuse);
@@ -384,7 +388,7 @@ TEST(wc3_wander, blocked_recovery_does_not_intercept_external_move) {
     T_NOT_NULL(unit->wander_waypoint);
     other = Waypoint_add(&destination);
     order_move(unit, other);
-    T_ASSERT(!S_WanderRecoverBlockedMove(unit));
+    T_ASSERT(!test_wander_blocked_move(unit));
     T_ASSERT(move_is_active_order_walk(unit));
     T_ASSERT(unit->goalentity == other);
     S_DisableAbility(unit, ID_AWAN);

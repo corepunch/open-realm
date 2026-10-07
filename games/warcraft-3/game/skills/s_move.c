@@ -1613,7 +1613,7 @@ static void move_hold(edict_t *ent) {
     /* Before switching to the terminal Hold state (and A_MOVE_LEAVE),
      * let an internal Wander Move return to idle. Ordinary orders retain
      * their existing Hold behaviour. */
-    if (S_WanderRecoverBlockedMove(ent)) return;
+    if (S_UnitAbilityEvent(ent, A_MOVE_BLOCKED)) return;
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;
