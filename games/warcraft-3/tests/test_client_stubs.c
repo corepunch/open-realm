@@ -160,7 +160,7 @@ cvar_t *Cvar_Set(cstring_t name, cstring_t value) {
 }
 
 void CL_ParseTEnt(sizeBuf_t *msg) { (void)msg; }
-void CL_BeginLoadingMap(cstring_t mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
+void CL_BeginLoadingMap(cstring_t mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = cl.num_modelless = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
 void CL_ReloadImageResources(void) {}
 void CL_Disconnect(cstring_t reason, bool notify) { (void)reason; (void)notify; cls.state = ca_disconnected; }

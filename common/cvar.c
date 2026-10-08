@@ -556,6 +556,7 @@ void Cvar_Init(void) {
     Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
     Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");
     Cvar_GetD("sv_cheats",        "0",                 0,            "enable cheat commands on this server");
+    Cvar_GetD("sv_rate",          "0",                 0,            "UDP client link in bytes/second; snapshots due while it drains are skipped; 0=unlimited");
     Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
     Cvar_GetD("com_frame_limit",  "0",                 0,            "exit after N main-loop iterations; 0=disabled");
 #ifdef WC3

@@ -343,8 +343,8 @@ void SV_WritePlayerstateToClient(clientFrame_t const *from, clientFrame_t const 
 }
 
 /* Queue the frame packet (svc_frame header + player state + entity list) on the
- * client's outgoing channel and remember which netchan packet will carry it, so
- * the acknowledgement of that packet tells us which frame the client now holds. */
+ * client's outgoing channel. On a lossless channel the client now holds it; over
+ * UDP SV_WriteFrameToClient records the packet that carried it. */
 void SV_QueueFrameForClient(client_t *client) {
     uint32_t const slot = (client->built_frames - 1) & UPDATE_MASK;
     clientFrame_t *frame = &client->frames[slot];
@@ -380,12 +380,6 @@ void SV_QueueFrameForClient(client_t *client) {
         client->lastframe = sv.framenum;
         client->delta_base.slot = slot;
         client->delta_base.ordinal = client->built_frames;
-    } else {
-        uint32_t const entry = (client->netchan.outgoing_sequence + 1) % (sizeof(client->sent_frames) / sizeof(*client->sent_frames));
-        client->sent_frames[entry].sequence = client->netchan.outgoing_sequence + 1;
-        client->sent_frames[entry].framenum = sv.framenum;
-        client->sent_frames[entry].slot = slot;
-        client->sent_frames[entry].ordinal = client->built_frames;
     }
 
     if (client->netchan.message.overflowed ||
@@ -402,20 +396,32 @@ void SV_QueueFrameForClient(client_t *client) {
     }
 }
 
-/* Queue and send this frame to the client. */
-void SV_WriteFrameToClient(client_t *client) {
+/* Queue and send this frame to the client; returns the bytes sent. Over UDP, remember the packet that carried the
+ * frame, so its acknowledgement says the client holds it. This was recorded before sending, against the packet's
+ * expected sequence, so a frame the netchan dropped (overflowed message) still became a delta base. */
+uint32_t SV_WriteFrameToClient(client_t *client) {
+    struct netchan *chan = &client->netchan;
+    uint32_t const sequence = chan->outgoing_sequence + 1;
     SV_QueueFrameForClient(client);
-    uint32_t const packet_bytes = client->netchan.message.cursize + NETCHAN_HEADER_SIZE;
-    Netchan_Transmit(NS_SERVER, &client->netchan);
-    /* Q2 "rate": the link stays busy until this packet has drained at the client's modem speed. */
-    uint32_t const rate = (uint32_t)Cvar_Integer("sv_rate", 0);
-    if (rate && Netchan_IsSequenced(&client->netchan))
-        client->rate_clear_msec = MAX(svs.realtime, client->rate_clear_msec) + (uint32_t)((uint64_t)packet_bytes * 1000 / rate);
+    uint32_t const bytes = Netchan_Transmit(NS_SERVER, chan);
+    if (Netchan_IsSequenced(chan) && chan->unreliable_sequence == sequence) {
+        typeof(*client->sent_frames) *sent = &client->sent_frames[sequence % (sizeof(client->sent_frames) / sizeof(*client->sent_frames))];
+        *sent = (typeof(*sent)){ .sequence = sequence, .framenum = sv.framenum, .slot = (client->built_frames - 1) & UPDATE_MASK,
+                                 .ordinal = client->built_frames };
+    }
+    return bytes;
 }
 
 /* True while a rate-limited client's link is still draining its previous snapshot (Q2 SV_RateDrop). */
 bool SV_ClientLinkBusy(client_t const *client) {
     return Netchan_IsSequenced(&client->netchan) && Cvar_Integer("sv_rate", 0) > 0 && svs.realtime < client->rate_clear_msec;
+}
+
+/* Forget which snapshots the client holds: the next one goes in full, and acknowledgements of packets sent so far
+ * (a previous session's, or deltas the client could not decode) no longer name a delta base. */
+void SV_ResetDeltaBase(client_t *client) {
+    client->lastframe = (uint32_t)-1;
+    memset(client->sent_frames, 0, sizeof(client->sent_frames));
 }
 
 /* The client acknowledged a packet: if it carried a snapshot, that snapshot is the new delta base. */

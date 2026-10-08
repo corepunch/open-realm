@@ -121,6 +121,10 @@ struct client_state {
      * MAX_CLIENT_ENTITIES slots every frame. */
     uint32_t active_entities[MAX_CLIENT_ENTITIES];
     uint32_t num_active;
+    /* Entities the snapshot carries without a model, for a looping sound or an event (SV_BuildClientFrame). With
+     * active_entities this is the whole snapshot, which frame history must rebuild and a full snapshot clears. */
+    uint32_t modelless_entities[MAX_CLIENT_ENTITIES];
+    uint32_t num_modelless;
     uint32_t time;
     struct {
         rect_t rect;

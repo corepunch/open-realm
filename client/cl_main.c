@@ -128,8 +128,13 @@ void CL_ClearState(void) {
 
     memset(&cl, 0, sizeof(struct client_state));
     CL_ControlGroupsReset();
+    CL_ResetFrameHistory();
 
     SZ_Clear (&cls.netchan.message);
+    /* A cleared session starts a new netchan session too. On client_connect the server has just restarted the slot's
+     * netchan (SV_Map rebuilds lobby slots, SV_DirectConnect a same-port reconnect); keeping the old sequence numbers
+     * made each side drop the other's packets as stale and deadlocked the UDP lobby-to-game start. */
+    Netchan_Reset(&cls.netchan);
 }
 
 /* Forward declarations for UI callbacks */
@@ -546,7 +551,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     SCR_BeginLoadingPlaque();
     /* New map baselines repopulate the compact active-entity list; drop any
      * stale entries from the previous map before they arrive. */
-    cl.num_active = 0;
+    cl.num_active = cl.num_modelless = 0;
     CL_ResetFrameHistory();
 }
 
@@ -1103,6 +1108,49 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
             T_STREQ(MSG_ReadString2(&cls.netchan.message), "new");
         }
     }
+    re.RegisterMap = old_register_map;
+    memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
+}
+
+/* A UDP lobby that starts its game, or a same-port reconnect, rebuilds the server's slot and netchan at sequence 0 and
+ * announces it with client_connect. The client must restart its own netchan there too: otherwise it drops every server
+ * packet as stale and the server drops its "new" as acknowledging packets never sent. */
+TEST(client_session, connection_reply_restarts_sequenced_netchan) {
+    static struct netchan server;
+    static uint8_t packet[MAX_MSGLEN];
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    netadr_t const host = { .type = NA_IP, .ip = { 127, 0, 0, 1 }, .port = 0x1234 };
+    uint8_t bytes[128];
+    sizeBuf_t oob = { .data = bytes, .maxsize = sizeof(bytes) }, msg = { .data = packet, .maxsize = sizeof(packet) };
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    re.RegisterMap = CL_TestRegisterMap;
+    cls.netchan.remote_address = host;
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    Netchan_Reset(&cls.netchan);
+    memset(&server, 0, sizeof(server));
+    server.remote_address = host;
+    SZ_Init(&server.message, server.message_buf, MAX_MSGLEN);
+    cls.state = ca_connected;
+    FOR_LOOP(i, 4) { /* the lobby: both ends advance their sequences */
+        MSG_WriteByte(&server.message, svc_nop);
+        msg.cursize = Netchan_BuildPacket(&server, packet, sizeof(packet));
+        T_ASSERT(Netchan_Process(&cls.netchan, &msg));
+        CL_ClientCommand("lobby_say hi");
+        msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
+        T_ASSERT(Netchan_Process(&server, &msg));
+    }
+    Netchan_Reset(&server); /* SV_Map / SV_DirectConnect rebuild the slot */
+    MSG_WriteLong(&oob, -1); MSG_WriteString(&oob, "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION));
+    CL_ConnectionlessPacket(&host, &oob);
+    msg.cursize = Netchan_BuildPacket(&cls.netchan, packet, sizeof(packet));
+    T_ASSERT(Netchan_Process(&server, &msg));
+    T_EQ(MSG_ReadByte(&msg), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(&msg), "new");
+    MSG_WriteByte(&server.message, svc_nop);
+    msg.cursize = Netchan_BuildPacket(&server, packet, sizeof(packet));
+    T_ASSERT(Netchan_Process(&cls.netchan, &msg));
     re.RegisterMap = old_register_map;
     memcpy(&cl, old_cl, sizeof(cl)); MemFree(old_cl); cls = old_cls;
 }

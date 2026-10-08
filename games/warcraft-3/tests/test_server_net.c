@@ -1841,16 +1841,10 @@ TEST(server_net, eos_game_rejects_new_connections_after_match_start) {
     T_EQ(svs.num_clients, 0);
 }
 
-static void stress_server_client(client_t *client) {
-    client->state = cs_spawned;
-    client->netchan.remote_address.type = NA_LOOPBACK;
-    SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
-}
-
 /* ---------------------------------------------------------------------------
- * Netchan: Quake 2 sequencing, acknowledgement and the reliable stream (NA_IP only)
+ * A scripted UDP client on a real socket that speaks the netchan and, as CL_ConnectionlessPacket does, restarts it
+ * at every client_connect.
  * ------------------------------------------------------------------------- */
-
 typedef struct {
     struct netchan chan;
     uint8_t packet[MAX_MSGLEN];
@@ -1863,6 +1857,137 @@ static testPeer_t *test_peer_create(void) {
     SZ_Init(&peer->chan.message, peer->chan.message_buf, sizeof(peer->chan.message_buf));
     return peer;
 }
+
+static void peer_send(int sock, testPeer_t *peer, unsigned short port, cstring_t command) {
+    struct sockaddr_in to = { .sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK), .sin_port = htons(port) };
+    if (command) { MSG_WriteByte(&peer->chan.message, clc_stringcmd); MSG_WriteString(&peer->chan.message, command); }
+    uint32_t const size = Netchan_BuildPacket(&peer->chan, peer->packet, MAX_MSGLEN);
+    if (size) (void)sendto(sock, peer->packet, size, 0, (struct sockaddr *)&to, sizeof(to));
+    usleep(20000); /* let the datagram reach the server socket before the caller runs SV_Frame */
+}
+
+typedef struct { uint32_t connects, accepted, stale; bool found; } peerDrain_t;
+
+/* Read everything the server has sent; found is set when an accepted packet contains the string `expect`. */
+static peerDrain_t peer_drain(int sock, testPeer_t *peer, cstring_t expect) {
+    static uint8_t buf[MAX_MSGLEN];
+    peerDrain_t out = { 0 };
+    int bytes;
+    while ((bytes = (int)recv(sock, buf, sizeof(buf), 0)) > 0) {
+        sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf), .cursize = (uint32_t)bytes };
+        if (bytes >= 4 && !memcmp(buf, "\xff\xff\xff\xff", 4)) {
+            if (bytes > 18 && !memcmp(buf + 4, "client_connect", 14)) { Netchan_Reset(&peer->chan); out.connects++; }
+            continue;
+        }
+        if (!Netchan_Process(&peer->chan, &msg)) { out.stale++; continue; }
+        out.accepted++;
+        if (expect && memmem(buf + msg.readcount, msg.cursize - msg.readcount, expect, strlen(expect) + 1)) out.found = true;
+    }
+    return out;
+}
+
+static int open_peer_socket(void) {
+    int const sock = open_client_socket();
+    struct timeval timeout = { .tv_usec = 100000 };
+    if (sock >= 0) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    return sock;
+}
+
+/* Lobby traffic is sequenced too. Starting the game rebuilds every client slot, so its netchan restarts at sequence 0;
+ * the client restarts its own on the client_connect that follows, and the startup exchange carries on. */
+TEST(server_net, udp_lobby_to_game_restarts_both_netchans) {
+    mapInfo_t info = { 0 };
+    testPeer_t *peer = test_peer_create();
+    peerDrain_t got;
+
+    NET_Shutdown();
+    test_client_stubs_set_cvar("game_port", "28070");
+    reset_server_state(4);
+    test_mapinfo = &info;
+    SV_StartLobby("Maps\\Melee\\Test.w3m");
+    SV_LobbySetConfig(2, 2, "Test");
+    SV_LobbySetSlot(0, &(lobbySlot_t){ .visible = true, .client = MAX_CLIENTS, .type = LOBBY_SLOT_HUMAN, .name = "Host" });
+    SV_LobbySetSlot(1, &(lobbySlot_t){ .visible = true, .client = MAX_CLIENTS, .map_player = 1, .type = LOBBY_SLOT_OPEN,
+                                       .team = 1, .color = 1, .name = "Open" });
+    int const sock = open_peer_socket();
+    T_ASSERT(sock >= 0); T_NOT_NULL(peer);
+    send_connect_oob(sock, 28070); pump_server_connects();
+    got = peer_drain(sock, peer, NULL);
+    T_EQ(got.connects, 1); T_EQ(got.stale, 0);
+    T_EQ(svs.num_clients, 2);
+    FOR_LOOP(i, 3) { /* lobby session: the setup is re-requested and every packet is acknowledged */
+        peer_send(sock, peer, 28070, "new");
+        SV_Frame(1000); drain_client_packets();
+        got = peer_drain(sock, peer, NULL);
+        T_ASSERT(got.accepted > 0); T_EQ(got.stale, 0);
+    }
+    T_ASSERT(svs.clients[1].netchan.incoming_sequence >= 3);
+
+    SV_Map("Maps\\Melee\\Test.w3m");
+    T_EQ(sv.state, ss_game);
+    drain_client_packets();
+    got = peer_drain(sock, peer, NULL);
+    T_EQ(got.connects, 1); T_EQ(got.stale, 0);
+    peer_send(sock, peer, 28070, "new");
+    SV_Frame(FRAMETIME); drain_client_packets();
+    T_EQ(svs.clients[1].netchan.incoming_sequence, 1); /* the server accepted "new" */
+    got = peer_drain(sock, peer, "configstrings");
+    T_ASSERT(got.found); T_EQ(got.stale, 0);
+
+    free(peer); close(sock);
+    SV_Shutdown(); NET_Shutdown();
+    test_mapinfo = NULL;
+}
+
+/* A client that reconnects from the same address gets client_connect again and restarts its netchan; the server must
+ * restart the slot's netchan with it, and forget which snapshots the old session acknowledged. */
+TEST(server_net, udp_same_port_reconnect_restarts_server_netchan) {
+    testPeer_t *peer = test_peer_create();
+    peerDrain_t got;
+
+    NET_Shutdown(); reset_server_state(2);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 50));
+    int const sock = open_peer_socket();
+    T_ASSERT(sock >= 0); T_NOT_NULL(peer);
+    send_connect_oob(sock, PORT_SERVER + 50); pump_server_connects();
+    T_EQ(peer_drain(sock, peer, NULL).connects, 1);
+    sv.state = ss_game;
+    FOR_LOOP(i, 3) { /* keepalives and their acknowledgements advance both sequences */
+        SV_Frame(1000);
+        T_ASSERT(peer_drain(sock, peer, NULL).accepted > 0);
+        peer_send(sock, peer, PORT_SERVER + 50, NULL);
+    }
+    SV_Frame(1000);
+    peer_drain(sock, peer, NULL);
+    T_ASSERT(svs.clients[0].netchan.incoming_sequence >= 3);
+    svs.clients[0].lastframe = 7;
+    FOR_LOOP(i, 8) svs.clients[0].sent_frames[i + 1] = (typeof(*svs.clients[0].sent_frames)){ .sequence = i + 1, .framenum = 7 };
+
+    send_connect_oob(sock, PORT_SERVER + 50); pump_server_connects(); /* same address, new session */
+    T_EQ(svs.num_clients, 1);
+    T_EQ(peer_drain(sock, peer, NULL).connects, 1);
+    T_EQ(svs.clients[0].lastframe, (uint32_t)-1);
+    peer_send(sock, peer, PORT_SERVER + 50, "configstrings");
+    SV_Frame(1000);
+    got = peer_drain(sock, peer, "baselines");
+    T_ASSERT(got.found); T_EQ(got.stale, 0);
+    peer_send(sock, peer, PORT_SERVER + 50, NULL); /* acknowledges the new session's packets */
+    SV_Frame(1000);
+    T_ASSERT(svs.clients[0].netchan.incoming_acknowledged > 0);
+    T_EQ(svs.clients[0].lastframe, (uint32_t)-1); /* old-session packets carried frame 7; these did not */
+
+    free(peer); close(sock); NET_Shutdown();
+}
+
+static void stress_server_client(client_t *client) {
+    client->state = cs_spawned;
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
+}
+
+/* ---------------------------------------------------------------------------
+ * Netchan: Quake 2 sequencing, acknowledgement and the reliable stream (NA_IP only)
+ * ------------------------------------------------------------------------- */
 
 /* Build the peer's next datagram into out; returns a message positioned at the start of the packet, or size 0. */
 static sizeBuf_t test_peer_send(testPeer_t *peer, uint8_t *out) {
@@ -1936,6 +2061,58 @@ TEST(netchan, bare_acknowledge_is_never_acknowledged_back) {
     free(server); free(client);
 }
 
+static struct { uint32_t count, size[4]; uint8_t data[4][16]; } captured;
+
+static void capture_hook(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
+    (void)netsrc; (void)to;
+    if (captured.count < 4) {
+        captured.size[captured.count] = (uint32_t)length;
+        memcpy(captured.data[captured.count], data, MIN((size_t)length, sizeof(*captured.data)));
+    }
+    captured.count++;
+}
+
+/* Loopback and EOS have no packet header. When the reliable stream and the message do not fit one packet together
+ * they go as two, reliable first, instead of neither (which grew the message until it overflowed). */
+TEST(netchan, lossless_streams_too_large_for_one_packet_go_as_two) {
+    testPeer_t *peer = test_peer_create();
+    T_NOT_NULL(peer);
+    if (!peer) return;
+    peer->chan.remote_address.type = NA_LOOPBACK;
+    sizeBuf_t *reliable = Netchan_Reliable(&peer->chan);
+    memset(SZ_GetSpace(reliable, 8 * 1024), 0xA1, 8 * 1024);
+    memset(SZ_GetSpace(&peer->chan.message, MAX_MSGLEN - 4 * 1024), 0xB2, MAX_MSGLEN - 4 * 1024);
+    memset(&captured, 0, sizeof(captured));
+    NET_SetPacketHook(capture_hook);
+    Netchan_Transmit(NS_SERVER, &peer->chan);
+    NET_SetPacketHook(NULL);
+    T_EQ(captured.count, 2);
+    T_EQ(captured.size[0], 8 * 1024); T_EQ(captured.data[0][0], 0xA1);
+    T_EQ(captured.size[1], MAX_MSGLEN - 4 * 1024); T_EQ(captured.data[1][0], 0xB2);
+    T_EQ(reliable->cursize, 0); T_EQ(peer->chan.message.cursize, 0);
+    free(peer);
+}
+
+/* The unreliable message (a snapshot) is never dropped to make room for the reliable stream: the reliable message
+ * waits for the next packet, which goes straight after. */
+TEST(netchan, snapshot_is_never_dropped_for_the_reliable_stream) {
+    testPeer_t *peer = test_peer_create();
+    T_NOT_NULL(peer);
+    if (!peer) return;
+    memset(SZ_GetSpace(Netchan_Reliable(&peer->chan), 12 * 1024), 0xA1, 12 * 1024);
+    memset(SZ_GetSpace(&peer->chan.message, MAX_MSGLEN - 6 * 1024), 0xB2, MAX_MSGLEN - 6 * 1024);
+    memset(&captured, 0, sizeof(captured));
+    NET_SetPacketHook(capture_hook);
+    Netchan_Transmit(NS_SERVER, &peer->chan);
+    NET_SetPacketHook(NULL);
+    T_EQ(captured.count, 2);
+    T_EQ(captured.size[0], NETCHAN_HEADER_SIZE + MAX_MSGLEN - 6 * 1024); T_EQ(captured.data[0][NETCHAN_HEADER_SIZE], 0xB2);
+    T_EQ(captured.size[1], NETCHAN_HEADER_SIZE + 12 * 1024); T_EQ(captured.data[1][NETCHAN_HEADER_SIZE], 0xA1);
+    T_EQ(peer->chan.unreliable_sequence, 1);
+    T_EQ(peer->chan.last_reliable_sequence, 2);
+    free(peer);
+}
+
 /* ---------------------------------------------------------------------------
  * Slow-link simulation (suite stress_net). The server talks to a modelled client over a 33.6 kbps link that adds
  * latency and jitter (so packets overtake each other) and drops packets, using the real server code and netchan.
@@ -1959,7 +2136,7 @@ static struct {
     char names[CS_MAX_NAMES / ENT_NAMES_PER_CS][MAX_PATHLEN];
     uint32_t names_set;
     bool got_frame[SIM_FRAME_HISTORY];
-    uint32_t frames_received, full_frames, bad_bases, dropped_by_netchan;
+    uint32_t frames_received, full_frames, bad_bases, dropped_by_netchan, largest_server_packet;
 } sim;
 
 static uint32_t sim_random(void) { sim.seed = sim.seed * 1664525u + 1013904223u; return sim.seed >> 8; }
@@ -1969,7 +2146,7 @@ static void sim_send_hook(NETSOURCE netsrc, int length, void const *data, netadr
     uint32_t const tx_ms = (uint32_t)((uint64_t)length * 1000 / MODEM_BYTES_PER_SEC);
     (void)to;
     sim.sent++;
-    if (!to_server) sim.server_bytes += length;
+    if (!to_server) sim.server_bytes += length, sim.largest_server_packet = MAX(sim.largest_server_packet, (uint32_t)length);
     if (sim_random() % 100 < sim.loss_percent) { sim.lost++; return; }
     FOR_LOOP(i, SIM_MAX_PACKETS) {
         simPacket_t *slot = &sim.packets[i];
@@ -2099,6 +2276,106 @@ TEST(server_net, udp_deltas_use_acknowledged_frames_and_configstrings_survive_lo
     T_ASSERT(sim.frames_received > TICKS / 2);
     T_ASSERT(sim.full_frames < sim.frames_received / 4); /* mostly small deltas, not a full resend per packet */
     T_STREQ(sim.names[0], "AllHeroes");
+    sim_end();
+}
+
+static void sim_run_until(uint32_t until_ms, bool ticks) {
+    for (; sim.now_ms < until_ms; sim.now_ms += 10) {
+        sim_deliver(&svs.clients[0]);
+        if (ticks && sim.now_ms % SIM_FRAME_MS == 0) sim_server_tick();
+    }
+}
+
+static void sim_command(client_t *client, cstring_t command) {
+    uint8_t buf[64];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    MSG_WriteString(&msg, command);
+    SV_ExecuteUserCommand(&msg, client);
+}
+
+static void sim_spawn_units(uint32_t units) {
+    FOR_LOOP(i, units) {
+        test_edicts[i + 1].inuse = true;
+        test_edicts[i + 1].s = (entityState_t){ .number = i + 1, .model = 1, .origin = { 64.0f + i * 32, 64, 0 } };
+    }
+}
+
+/* A client that cannot decode a delta asks for "nodelta": the next snapshot goes in full, and acknowledgements of
+ * packets sent before the request (whose snapshots the client may have discarded) no longer name a delta base. */
+TEST(server_net, nodelta_request_sends_full_frame_and_forgets_earlier_frames) {
+    client_t *client = &svs.clients[0];
+    sim_begin(4, 0, "0");
+    sim_spawn_units(4);
+    sim_run_until(1000, true);
+    T_ASSERT(client->lastframe != (uint32_t)-1);
+    sim_server_tick(); /* a delta, still in flight */
+    sim_command(client, "nodelta");
+    T_EQ(client->lastframe, (uint32_t)-1);
+    uint32_t const full = sim.full_frames;
+    sim_run_until(sim.now_ms + 1000, false); /* that delta arrives and is acknowledged */
+    T_EQ(client->lastframe, (uint32_t)-1);
+    sim_server_tick();
+    sim_run_until(sim.now_ms + 1000, false);
+    T_EQ(sim.full_frames, full + 1);
+    T_ASSERT(client->lastframe != (uint32_t)-1); /* the full frame's acknowledgement is the new base */
+    T_EQ(sim.bad_bases, 0);
+    sim_end();
+}
+
+/* A snapshot that overflowed the message is never transmitted, so it can never become a delta base. */
+TEST(server_net, overflowed_frame_is_not_sent_or_used_as_delta_base) {
+    client_t *client = &svs.clients[0];
+    sim_begin(4, 0, "0");
+    sim_spawn_units(4);
+    memset(SZ_GetSpace(&client->netchan.message, MAX_MSGLEN - 16), svc_nop, MAX_MSGLEN - 16);
+    sim_server_tick();
+    T_EQ(client->netchan.message.cursize, 0);
+    sim_run_until(500, false);
+    MSG_WriteByte(&sim.client->chan.message, clc_stringcmd); /* the client's next command acknowledges that packet */
+    MSG_WriteString(&sim.client->chan.message, "playerinfo");
+    Netchan_Transmit(NS_CLIENT, &sim.client->chan);
+    sim_run_until(1000, false);
+    T_EQ(client->netchan.incoming_acknowledged, client->netchan.outgoing_sequence);
+    T_EQ(sim.frames_received, 0);
+    T_EQ(client->lastframe, (uint32_t)-1);
+    sim_run_until(2000, true);
+    T_ASSERT(sim.frames_received > 0);
+    T_EQ(sim.bad_bases, 0);
+    sim_end();
+}
+
+/* A startup reply shares its datagram with any reliable message (live configstrings) due in the same packet; the
+ * two together, with the netchan header, must stay within BZ_SIGNON_SIZE. */
+TEST(server_net, udp_signon_reply_and_reliable_stream_fit_one_datagram) {
+    client_t *client = &svs.clients[0];
+    char value[MAX_PATHLEN];
+    sim_begin(0, 0, "0");
+    client->state = cs_connected;
+    FOR_LOOP(i, 20) {
+        snprintf(value, sizeof(value), "Units\\Human\\Footman\\Footman%02u_With_A_Long_Skin_Path.mdx", (unsigned)i);
+        SV_SetConfigString(CS_MODELS + 1 + i, value, (uint32_t)strlen(value) + 1);
+    }
+    SV_QueuePendingConfigStrings();
+    T_ASSERT(client->netchan.reliable.cursize > BZ_SIGNON_SIZE / 2);
+    sim_command(client, "configstrings");
+    T_ASSERT(sim.sent > 0);
+    T_ASSERT(sim.largest_server_packet <= BZ_SIGNON_SIZE);
+    sim_end();
+}
+
+/* sv_rate charges the link for every byte the snapshot packet carried, the reliable stream included. */
+TEST(server_net, rate_charges_reliable_bytes) {
+    client_t *client = &svs.clients[0];
+    char value[MAX_PATHLEN];
+    sim_begin(2, 0, "1000");
+    sim_spawn_units(2);
+    FOR_LOOP(i, 10) {
+        snprintf(value, sizeof(value), "Units\\Orc\\Grunt\\Grunt%02u.mdx", (unsigned)i);
+        SV_SetConfigString(CS_MODELS + 1 + i, value, (uint32_t)strlen(value) + 1);
+    }
+    sim_server_tick();
+    T_ASSERT(client->netchan.inflight_length > 0);
+    T_EQ(client->rate_clear_msec, sim.server_bytes); /* 1000 bytes/s: one millisecond per byte */
     sim_end();
 }
 

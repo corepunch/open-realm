@@ -73,6 +73,20 @@ void CL_RemoveActiveEntity(uint32_t index) {
     }
 }
 
+/* SV_BuildClientFrame sends an entity while it has a model, a looping sound or an event. */
+static bool CL_InSnapshot(entityState_t const *state) { return state->model || state->sound || state->event; }
+
+/* List an entity in modelless_entities exactly while the snapshot carries it without a model. */
+static void CL_ListModelless(uint32_t index) {
+    bool const member = !cl.ents[index].current.model && CL_InSnapshot(&cl.ents[index].current);
+    FOR_LOOP(i, cl.num_modelless) {
+        if (cl.modelless_entities[i] != index) continue;
+        if (!member) cl.modelless_entities[i] = cl.modelless_entities[--cl.num_modelless];
+        return;
+    }
+    if (member) cl.modelless_entities[cl.num_modelless++] = index;
+}
+
 /* Forget one entity entirely, exactly as a U_REMOVE does. */
 static void CL_ClearEntity(uint32_t nument) {
     centity_t *ent = &cl.ents[nument];
@@ -86,6 +100,7 @@ static void CL_ClearEntity(uint32_t nument) {
     memset(&ent->prev, 0, sizeof(ent->prev));
     ent->tint = COLOR32_WHITE;
     ent->tint_valid = false;
+    CL_ListModelless(nument);
 }
 
 /* Snapshots the client has applied, so a delta against an older acknowledged frame can be rebuilt after packet loss
@@ -99,6 +114,8 @@ typedef struct {
 } frameHistory_t;
 static frameHistory_t cl_frame_history[UPDATE_BACKUP];
 static uint32_t cl_frame_history_next; /* oldest slot, replaced first: frames arrive in increasing order */
+static bool cl_frame_discard;          /* the frame being parsed deltas against a frame not held: read past it */
+static bool cl_nodelta_requested;      /* "nodelta" sent; cleared once a full frame arrives */
 
 static frameHistory_t *CL_FindFrameHistory(int serverframe) {
     FOR_LOOP(i, UPDATE_BACKUP) {
@@ -113,18 +130,23 @@ void CL_ResetFrameHistory(void) {
         cl_frame_history[i] = (frameHistory_t){ 0 };
     }
     cl_frame_history_next = 0;
+    cl_frame_discard = cl_nodelta_requested = false;
     cl.frame.valid = false;
 }
 
+/* Keep every entity the snapshot carried. Saving only the model ones (active_entities) lost sound/event-only
+ * entities, so the next delta against a rebuilt frame decoded them from their spawn baselines. */
 static void CL_SaveFrameHistory(void) {
     frameHistory_t *slot = &cl_frame_history[cl_frame_history_next++ % UPDATE_BACKUP];
-    entityState_t *states = realloc(slot->entities, MAX(1u, cl.num_active) * sizeof(*states));
+    uint32_t const count = cl.num_active + cl.num_modelless;
+    entityState_t *states = realloc(slot->entities, MAX(1u, count) * sizeof(*states));
     if (!states) { slot->valid = false; return; }
     slot->entities = states;
-    slot->count = cl.num_active;
-    FOR_LOOP(i, cl.num_active) {
-        states[i] = cl.ents[cl.active_entities[i]].current;
-        states[i].number = cl.active_entities[i]; // the table index is the identity; do not trust the decoded copy
+    slot->count = count;
+    FOR_LOOP(i, count) {
+        uint32_t const number = i < cl.num_active ? cl.active_entities[i] : cl.modelless_entities[i - cl.num_active];
+        states[i] = cl.ents[number].current;
+        states[i].number = number; // the table index is the identity; do not trust the decoded copy
     }
     slot->playerstate = cl.playerstate;
     slot->serverframe = cl.frame.serverframe;
@@ -138,6 +160,7 @@ static bool CL_RestoreDeltaBase(int base) {
     frameHistory_t const *slot = base == -1 ? NULL : CL_FindFrameHistory(base);
     if (base != -1 && !slot) return false;
     while (cl.num_active) CL_ClearEntity(cl.active_entities[cl.num_active - 1]);
+    while (cl.num_modelless) CL_ClearEntity(cl.modelless_entities[cl.num_modelless - 1]);
     if (!slot) {
         memset(&cl.playerstate, 0, sizeof(cl.playerstate));
     } else {
@@ -150,6 +173,7 @@ static bool CL_RestoreDeltaBase(int base) {
             ent->presentation_generation++;
             if (!ent->presentation_generation) ent->presentation_generation++;
             CL_AddActiveEntity(state->number % MAX_CLIENT_ENTITIES);
+            CL_ListModelless(state->number % MAX_CLIENT_ENTITIES);
         }
     }
     cl.playerstate.client_ui_state = ui_state;
@@ -189,6 +213,10 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
         count++;
         centity_t *ent = &cl.ents[nument];
         entityState_t old = ent->current;
+        if (cl_frame_discard) { /* consume the update without applying it */
+            if (!(bits & (1u << U_REMOVE))) MSG_ReadDeltaEntity(msg, &old, nument, bits);
+            continue;
+        }
         if (bits & (1u << U_REMOVE)) {
             if (debug_entities && old.model) {
                 fprintf(stderr,
@@ -205,7 +233,9 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
             removed++;
             continue;
         }
-        if (!old.model) {
+        /* An entity new to the snapshot is encoded against its baseline, one already in it against its previous state.
+         * Testing the model alone sent sound/event-only entities back to their baseline on every delta. */
+        if (!CL_InSnapshot(&old)) {
             ent->current = ent->baseline;
         }
         ent->prev = ent->current;
@@ -220,6 +250,7 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
         } else if (old.model && !ent->current.model) {
             CL_RemoveActiveEntity(nument);
         }
+        CL_ListModelless(nument);
         if (ent->current.event)
             CL_EntityEvent(&ent->current);
         if (debug_entities) {
@@ -255,6 +286,11 @@ static void CL_ReadPacketEntities(sizeBuf_t *msg) {
         ent->serverframe = cl.frame.serverframe;
     }
     cl.num_entities = MAX_CLIENT_ENTITIES;
+    if (cl_frame_discard) {
+        cl_frame_discard = false;
+        return;
+    }
+    if (cl.frame.oldclientframe == -1) cl_nodelta_requested = false;
     if (cls.netchan.remote_address.type == NA_IP) CL_SaveFrameHistory();
     if (debug_entities > 1 && (added || removed || changed)) {
         fprintf(stderr,
@@ -317,6 +353,7 @@ static void CL_ParseBaseline(sizeBuf_t *msg) {
     if (cent->current.model) {
         CL_AddActiveEntity(index);
     }
+    CL_ListModelless(index);
 }
 
 static bool CL_EnsureTerrainMaskSize(uint32_t width, uint32_t height, vec2_t origin, float cell_size) {
@@ -398,11 +435,26 @@ void CL_ParseFrame(sizeBuf_t *msg) {
     cl.frame.oldclientframe = MSG_ReadLong(msg);
     cl.frame.valid = true;
     cl.time = cl.frame.servertime;
+    cl_frame_discard = false;
     /* The server deltas against the newest frame it saw acknowledged. If packets were lost that is older than the last
      * frame applied here, so rebuild that frame's state first. A first frame or a full snapshot (-1) starts empty. */
-    if (cl.frame.oldclientframe == -1 ? had_frame : (!had_frame || cl.frame.oldclientframe != previous_frame)) {
-        if (!CL_RestoreDeltaBase(cl.frame.oldclientframe))
-            fprintf(stderr, "CL_ParseFrame: delta base frame %d is not held (last applied %d)\n", cl.frame.oldclientframe, previous_frame);
+    if ((cl.frame.oldclientframe == -1 ? had_frame : (!had_frame || cl.frame.oldclientframe != previous_frame)) &&
+        !CL_RestoreDeltaBase(cl.frame.oldclientframe)) {
+        fprintf(stderr, "CL_ParseFrame: delta base frame %d is not held (last applied %d)\n", cl.frame.oldclientframe, previous_frame);
+        /* Lossless transports keep no history; their base is always the frame just applied. Over UDP the frame is
+         * undecodable (Q2 marks it invalid and asks for -1). Applying it onto the current state, as this used to,
+         * built a corrupt frame that was kept as a base and acknowledged. Read past its player state and entities
+         * instead, stay on the last good frame, and ask once, reliably, for a full one. */
+        if (Netchan_IsSequenced(&cls.netchan)) {
+            cl.frame.serverframe = previous_frame;
+            cl.frame.valid = had_frame;
+            cl_frame_discard = true;
+            if (!cl_nodelta_requested) {
+                MSG_WriteByte(Netchan_Reliable(&cls.netchan), clc_stringcmd);
+                MSG_WriteString(Netchan_Reliable(&cls.netchan), "nodelta");
+                cl_nodelta_requested = true;
+            }
+        }
     }
     
     if (cls.state != ca_active && cl.refresh_prepped) {
@@ -479,6 +531,11 @@ void CL_ParseFrame(sizeBuf_t *msg) {
 void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     uint32_t bits;
     uint32_t plnum = MSG_ReadPlayerBits(msg, &bits);
+    if (cl_frame_discard) { /* part of an undecodable frame: consume it only */
+        player_t skip = cl.playerstate;
+        MSG_ReadDeltaPlayerState(msg, &skip, plnum, bits);
+        return;
+    }
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     if (Cvar_Integer("ui_layout_debug", 0) >= 2) {
         static uint32_t last_timed_status = ~0u;
@@ -1343,6 +1400,7 @@ void CL_ParseServerMessage(sizeBuf_t *msg) {
         }
     }
 done:
+    cl_frame_discard = false; /* a discarded frame never reaches into the next message */
     return;
 }
 
@@ -1418,6 +1476,124 @@ TEST(client_frames, delta_against_older_acknowledged_frame_rebuilds_that_frame) 
     test_apply_frame(&msg);
     T_EQ(cl.num_active, 1);
     T_ASSERT(test_entity_is(9, 90)); T_ASSERT(!cl.ents[5].current.model);
+
+    CL_ResetFrameHistory();
+    cls = saved_cls;
+    memcpy(&cl, saved, sizeof(cl));
+    free(saved);
+}
+
+/* A delta whose base this client does not hold cannot be decoded. The frame is read past and dropped, never applied
+ * or kept as a base (the netchan acknowledges its packet regardless), and the client asks once for a full frame. */
+TEST(client_frames, delta_against_missing_frame_is_discarded_and_requests_full_frame) {
+    struct client_state *saved = malloc(sizeof(cl));
+    struct client_static saved_cls = cls;
+    uint8_t data[512];
+    sizeBuf_t msg, *reliable;
+    entityState_t const none = { 0 }, a1 = { .number = 5, .model = 1, .origin = { 10, 0, 0 } };
+
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    memcpy(saved, &cl, sizeof(cl));
+    memset(&cl, 0, sizeof(cl));
+    cls.netchan.remote_address.type = NA_IP;
+    reliable = Netchan_Reliable(&cls.netchan);
+    SZ_Clear(reliable);
+    CL_ResetFrameHistory();
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 1: full snapshot of entity 5 */
+    test_frame_header(&msg, 1, -1);
+    test_frame_entity(&msg, &none, 5, 10);
+    test_apply_frame(&msg);
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 3 (base 2): frame 2 never reached this client */
+    test_frame_header(&msg, 3, 2);
+    test_frame_entity(&msg, &a1, 5, 99); test_frame_entity(&msg, &none, 7, 30);
+    test_apply_frame(&msg);
+    T_EQ(msg.readcount, msg.cursize); /* read past, so later messages in the packet still parse */
+    T_EQ(cl.frame.serverframe, 1);
+    T_EQ(cl.num_active, 1);
+    T_ASSERT(test_entity_is(5, 10)); T_ASSERT(!cl.ents[7].current.model);
+    T_ASSERT(reliable->cursize > 0);
+    uint32_t const request = reliable->cursize;
+    reliable->readcount = 0;
+    T_EQ(MSG_ReadByte(reliable), clc_stringcmd);
+    T_STREQ(MSG_ReadString2(reliable), "nodelta");
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 4 (base 3): the discarded frame is no base either; no second request */
+    test_frame_header(&msg, 4, 3);
+    test_frame_entity(&msg, &a1, 5, 98);
+    test_apply_frame(&msg);
+    T_EQ(cl.frame.serverframe, 1);
+    T_ASSERT(test_entity_is(5, 10));
+    T_EQ(reliable->cursize, request);
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 5 (-1): the requested full frame */
+    test_frame_header(&msg, 5, -1);
+    test_frame_entity(&msg, &none, 5, 50);
+    test_apply_frame(&msg);
+    T_ASSERT(test_entity_is(5, 50));
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 6 (base 5): deltas resume */
+    test_frame_header(&msg, 6, 5);
+    test_frame_entity(&msg, &cl.ents[5].current, 5, 51);
+    test_apply_frame(&msg);
+    T_ASSERT(test_entity_is(5, 51));
+    T_EQ(cl.frame.serverframe, 6);
+
+    CL_ResetFrameHistory();
+    cls = saved_cls;
+    memcpy(&cl, saved, sizeof(cl));
+    free(saved);
+}
+
+/* A snapshot also carries entities that have only a looping sound or an event (SV_BuildClientFrame). Their deltas
+ * are against their previous state, which a rebuilt delta base must restore; a full frame drops them. */
+TEST(client_frames, entities_without_a_model_survive_delta_base_rebuild) {
+    struct client_state *saved = malloc(sizeof(cl));
+    struct client_static saved_cls = cls;
+    uint8_t data[512];
+    sizeBuf_t msg;
+    entityState_t const none = { 0 }, a1 = { .number = 5, .model = 1, .origin = { 10, 0, 0 } };
+    entityState_t s1 = { .number = 8, .sound = 3, .origin = { 40, 0, 0 } }, s2 = s1, s3 = s1;
+
+    T_NOT_NULL(saved);
+    if (!saved) return;
+    memcpy(saved, &cl, sizeof(cl));
+    memset(&cl, 0, sizeof(cl));
+    cls.netchan.remote_address.type = NA_IP;
+    CL_ResetFrameHistory();
+    s2.origin.x = 41; s3.origin.x = 42;
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 1: full snapshot, a unit and a sound-only emitter */
+    test_frame_header(&msg, 1, -1);
+    test_frame_entity(&msg, &none, 5, 10); MSG_WriteDeltaEntity(&msg, &none, &s1, false);
+    test_apply_frame(&msg);
+    T_EQ(cl.ents[8].current.sound, 3);
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 2 (base 1) */
+    test_frame_header(&msg, 2, 1);
+    test_frame_entity(&msg, &a1, 5, 11);
+    test_apply_frame(&msg);
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 3 (base 1): rebuild frame 1, then only the emitter's origin changes */
+    test_frame_header(&msg, 3, 1);
+    MSG_WriteDeltaEntity(&msg, &s1, &s2, false);
+    test_apply_frame(&msg);
+    T_EQ(cl.ents[8].current.sound, 3); T_FEQ(cl.ents[8].current.origin.x, 41, 0.01f);
+    T_ASSERT(test_entity_is(5, 10));
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 4 (base 3): an ordinary delta against the emitter's current state */
+    test_frame_header(&msg, 4, 3);
+    MSG_WriteDeltaEntity(&msg, &s2, &s3, false);
+    test_apply_frame(&msg);
+    T_EQ(cl.ents[8].current.sound, 3); T_FEQ(cl.ents[8].current.origin.x, 42, 0.01f);
+
+    SZ_Init(&msg, data, sizeof(data)); /* frame 5 (-1): a full snapshot without the emitter drops it */
+    test_frame_header(&msg, 5, -1);
+    test_frame_entity(&msg, &none, 5, 12);
+    test_apply_frame(&msg);
+    T_EQ(cl.ents[8].current.sound, 0);
 
     CL_ResetFrameHistory();
     cls = saved_cls;

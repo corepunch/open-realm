@@ -157,33 +157,65 @@ configstring payload at `MAX_PATHLEN`, each configstring now packs eight records
 
 ## Sequenced netchan, acknowledged deltas and rate (protocol 20)
 
-UDP (`NA_IP`) is lossy, so its in-game packets follow Quake 2's netchan. Loopback and EOS (which is reliable-ordered) are
-lossless and keep sending the bare message stream, so everything below applies to `NA_IP` only.
+UDP (`NA_IP`) is lossy, so its packets (lobby, startup and game) follow Quake 2's netchan. Loopback and EOS (which is
+reliable-ordered) are lossless: they carry no header, sequence or acknowledgement, and frames delta against the last one
+sent. They are not byte-identical to protocol 19, though: the reliable stream (live configstrings) rides in front of
+the message, and when the two do not fit one packet the reliable part goes alone first, then the message
+(`netchan.lossless_streams_too_large_for_one_packet_go_as_two`; it used to send neither and let the message grow until
+it overflowed). The rest of this section applies to `NA_IP`.
 
 - **Header.** Every in-game datagram starts with two 32-bit words: its own sequence number, whose top bit says the packet
   carries the reliable message, and the highest sequence it has received from the peer, whose top bit is the parity of the
   reliable messages received. `Netchan_Process` drops stale, duplicated or overtaken packets, and acknowledgements for packets
   never sent, so the game never parses the same unreliable data twice or out of order. Out-of-band packets (`-1` marker) are
   untouched.
-- **Two streams.** `netchan.message` is unreliable: snapshots, sounds, layouts are sent once. `netchan.reliable` is resent in every
-  packet until the peer acknowledges it. Live configstrings (`SV_QueuePendingConfigStrings`) use it, so a lost datagram can no
-  longer lose a unit name or image. One reliable batch is in flight at a time; a configstring that does not fit is retried
-  next frame.
+- **Sessions.** Every `client_connect` starts a new netchan session on both ends: the server rebuilds or resets the slot
+  (`SV_Map` -> `SV_RestoreLobbyClients` when a lobby starts its game, `SV_DirectConnect` for a repeated connect from the same
+  address, which also forgets the old session's delta bases via `SV_ResetDeltaBase`), and the client resets in
+  `CL_ClearState`, which `CL_ConnectionlessPacket` runs on that reply. Before this the client kept its lobby sequence
+  numbers, so after a UDP lobby started the game each side dropped the other's packets as stale and startup deadlocked
+  (`client_session.connection_reply_restarts_sequenced_netchan`, `server_net.udp_lobby_to_game_restarts_both_netchans`,
+  `server_net.udp_same_port_reconnect_restarts_server_netchan`).
+- **Two streams.** `netchan.message` is unreliable: snapshots, sounds, layouts are sent once. `netchan.reliable` is resent
+  whenever a later packet is acknowledged without it. Live configstrings (`SV_QueuePendingConfigStrings`) use it, so a lost
+  datagram can no longer lose a unit name or image; the client uses it for `nodelta`. One reliable batch is in flight at a
+  time; a configstring that does not fit is retried next frame. The message is never dropped to make room: a reliable
+  message that does not fit beside it waits, and `Netchan_Transmit` sends it in a second packet straight after. A message
+  that overflowed (truncated) is dropped with a log, as Quake 2 does, and `netchan.unreliable_sequence` then does not name
+  that packet.
+- **Datagram budget.** A startup reply plus whatever reliable message the same packet may carry (a new batch, or a resend of
+  the one in flight) plus the 8-byte header stays within `BZ_SIGNON_SIZE`: `SV_SignonLimit` subtracts the pending reliable
+  bytes from `SV_DatagramLimit`, and `SV_QueueConfigString` bounds a batch by `SV_DatagramLimit`
+  (`server_net.udp_signon_reply_and_reliable_stream_fit_one_datagram`). In-game snapshots are not bounded by it.
 - **Acknowledgements.** A peer that received data answers with at least a bare header-only packet. A bare acknowledge is never
   acknowledged back.
-- **Deltas against what the client holds.** The server records which snapshot each packet carried; when the client acknowledges
-  the packet, that snapshot becomes the delta base (`client->lastframe`), instead of "the last one sent". The `svc_frame`
+- **Deltas against what the client holds.** After sending, the server records which snapshot the packet carried, only if
+  the netchan really put the message in it (`unreliable_sequence`); when the client acknowledges the packet, that snapshot
+  becomes the delta base (`client->lastframe`), instead of "the last one sent". The `svc_frame`
   header names the base. The server keeps `UPDATE_BACKUP` snapshots per client, indexed by how many were built for it (a
   rate-limited client skips game frames), and sends a full snapshot (`-1`) when the base is more than `UPDATE_BACKUP - 3`
   snapshots old or its entities have left the ring. The client keeps its last `UPDATE_BACKUP` applied snapshots (entity table and
   player state) and, when the named base is not the one it just applied, rebuilds that base before applying the delta
-  (`CL_RestoreDeltaBase`); a full snapshot clears the entity table first.
-- **Rate.** `sv_rate` (bytes per second, default `0` = unlimited) models a client's link: after a snapshot is sent the client is
-  busy for `size / sv_rate`, and snapshots due in that window are skipped rather than queued. The next one deltas against what
-  the client acknowledged, so a slow client sees a lower update rate, not a growing backlog.
+  (`CL_RestoreDeltaBase`); a full snapshot clears the entity table first. "Entity table" means every entity the snapshot
+  carried: `SV_BuildClientFrame` also sends entities with only a looping sound or an event, which the client lists in
+  `cl.modelless_entities` beside the model ones in `cl.active_entities`, and a delta for an entity already in the
+  snapshot decodes from its current state, not its baseline, whether or not it has a model
+  (`client_frames.entities_without_a_model_survive_delta_base_rebuild`).
+- **Missing base.** If the named base is not held, the client reads past the frame (header, player state, entities) without
+  applying or saving it, stays on its last good frame, and queues one `nodelta` string command on its reliable stream. The
+  netchan still acknowledges that packet, so the server's `SV_NoDelta_f` -> `SV_ResetDeltaBase` sends the next snapshot in
+  full and forgets every earlier packet's snapshot as a base. It used to apply the delta onto whatever was current and keep
+  the corrupt result as a base (`client_frames.delta_against_missing_frame_is_discarded_and_requests_full_frame`,
+  `server_net.nodelta_request_sends_full_frame_and_forgets_earlier_frames`,
+  `server_net.overflowed_frame_is_not_sent_or_used_as_delta_base`). Lossless transports keep no history and never discard.
+- **Rate.** `sv_rate` (registered in `Cvar_Init`; bytes per second, default `0` = unlimited) models a client's link: after
+  `SV_SendClientDatagram` sends, the client is busy for `bytes / sv_rate`, counting every packet `Netchan_Transmit` sent
+  (headers and the reliable stream included), and snapshots due in that window are skipped rather than queued. The next one
+  deltas against what the client acknowledged, so a slow client sees a lower update rate, not a growing backlog
+  (`server_net.rate_charges_reliable_bytes`).
 
 Tests: `netchan.*` and `server_net.udp_deltas_use_acknowledged_frames_and_configstrings_survive_loss` (lossy link, default run),
-`client_frames.delta_against_older_acknowledged_frame_rebuilds_that_frame`, and the `stress_net.*` suite (`make test-stress`):
+the `client_frames.*` suite, and the `stress_net.*` suite (`make test-stress`):
 a 33.6 kbps link with latency, jitter that reorders packets and 8% loss, asserting every delta base is a frame the client
 holds and every unit name arrives.
 
@@ -301,8 +333,8 @@ remove the instrumentation and rebuild afterward.
 
 Reference implementations: [Quake II server sending](https://github.com/id-Software/Quake-2/blob/master/server/sv_send.c)
 (`SV_SendClientMessages`) and [startup commands](https://github.com/id-Software/Quake-2/blob/master/server/sv_user.c)
-(`SV_Configstrings_f`, `SV_Baselines_f`). These lifecycle rules use this engine's existing messages; the raw
-UDP transport is not Quake II's complete sequenced/reliable netchan implementation.
+(`SV_Configstrings_f`, `SV_Baselines_f`). These lifecycle rules use this engine's existing messages. Startup pages
+travel in the unreliable message, so the sequenced netchan above does not resend a lost page.
 
 Regression coverage lives in `games/warcraft-3/tests/test_server_net.c` (idle loopback/UDP keepalives,
 loading-time versus runtime updates, complete paged UDP configstrings/baselines) and `tests/test_net.c`

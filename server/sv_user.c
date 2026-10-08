@@ -87,6 +87,14 @@ void SV_Begin_f(client_t *cl, int argc, cstring_t *argv) {
     ge->ClientBegin(cl->edict);
 }
 
+/* The client could not decode a snapshot because it does not hold its delta base (Q2 sends -1 as its last frame).
+ * Send the next snapshot in full; the frames sent before this request may have been discarded too. */
+static void SV_NoDelta_f(client_t *cl, int argc, cstring_t *argv) {
+    (void)argc;
+    (void)argv;
+    SV_ResetDeltaBase(cl);
+}
+
 void SV_PlayerInfo_f(client_t *cl, int argc, cstring_t *argv) {
     uint32_t playernum;
 
@@ -164,6 +172,7 @@ ucmd_t ucmds[] = {
     { "baselines", SV_Baselines_f },
     { "playerinfo", SV_PlayerInfo_f },
     { "begin", SV_Begin_f },
+    { "nodelta", SV_NoDelta_f },
     { "disconnect", SV_Disconnect_f },
     { "lobby_say", SV_LobbySayClient_f },
     { NULL }
