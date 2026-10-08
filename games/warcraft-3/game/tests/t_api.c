@@ -8246,6 +8246,9 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject = find_test_unit(MAKEFOURCC('h','p','e','a'));
     target = find_test_unit(MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(subject); T_NOT_NULL(target);
+    /* This minimal Footman fixture has no collision value; retail's range
+     * candidate predicate requires a positive mover radius. */
+    target->collision=16;G_MarkMoveSpatialObject(target);
     subject->movetype = MOVETYPE_STEP;
     subject->stand = unit_stand;
     subject->birth = unit_birth;
@@ -8257,10 +8260,18 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject->health.max_value = 250.0f;
     unit_stand(subject);
     T_ASSERT(unit_issueorder(subject, "move", &destination));
-    api_run_move_entities(2);
+    /* Match the primary drain before each physical owner. A frame-end-only
+     * drain would predict an earlier listener from an already committed pose. */
+    G_BeginEntityFrame();level.scheduled_frame=true;
+    FOR_LOOP(i,3) {
+        wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+        G_RunTimersBeforePathOwner(&level.pathing_clock);M_RunScheduledThinks();
+    }
+    G_RunEntities();level.scheduled_frame=false;
     T_ASSERT(subject->s.origin2.x > 0.0f);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
-    T_ASSERT(level.events.write > level.events.read);
+    /* Range delivery is a primary-clock poll, independent of the movement pass. */
+    level.scheduled_frame=true;G_RunTimers();
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);

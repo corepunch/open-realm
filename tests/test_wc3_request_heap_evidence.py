@@ -4,8 +4,28 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/ghidra/research'))
 import verify_order179_requests as requests
+import verify_order180_ranges as ranges
 
 class RequestEvidenceTests(unittest.TestCase):
+    def test_range_claims_require_registration_rearm_release_and_repeat_ties(self):
+        frozen=json.loads((ROOT/ranges.EXPECTED).read_bytes())
+        self.assertEqual(ranges.claims(frozen),[])
+        for mutation in ('peer','start','peer-release','self-release','rearm','cancel','ties','repeat','control','pop'):
+            changed=copy.deepcopy(frozen);live=changed['live']['requests'];rows=live['rows']
+            if mutation=='peer':next(r for r in rows if r[0]=='X'and r[7]==45 and r[4]=='4037fffc')[6]='00010001'
+            elif mutation=='start':next(r for r in rows if r[0]=='Q'and r[8]==77)[-1]='40380000'
+            elif mutation in('peer-release','self-release'):
+                serial=80 if mutation=='peer-release'else 99
+                next(r for r in rows if r[0]=='Q'and r[8]==serial)[5]='00000000'
+            elif mutation=='rearm':rows.remove(next(r for r in rows if r[0]=='R'and r[7]==48 and r[4]=='406e6662'))
+            elif mutation=='cancel':next(r for r in rows if r[0]=='X'and r[7]==45 and r[4]=='403ffffc')[6]='00000001'
+            elif mutation=='ties':
+                a,b=[i for i,r in enumerate(rows)if r[0]=='X'and r[4]=='4067fffc'and r[6]=='00000001'];rows[a],rows[b]=rows[b],rows[a]
+            elif mutation=='repeat':live['repeat_equal']=False
+            elif mutation=='control':live['observer_equals_control']['requests-observe-2.jsonl']=False
+            else:live['ordercheck']['requests-observe-2.jsonl']['violations']=1
+            with self.subTest(mutation=mutation):self.assertTrue(ranges.claims(changed))
+
     def test_request_claims_require_keys_cancellation_reuse_repeat_and_control(self):
         frozen=json.loads((ROOT/requests.EXPECTED).read_bytes())
         self.assertEqual(requests.claims(frozen),[])

@@ -359,44 +359,6 @@ void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
     ent->movement.region_valid=true;
 }
 
-static void G_TouchTriggers(edict_t *ent) {
-    FOR_EACH_EVENT(evt) {
-        switch (evt->type) {
-            case EVENT_UNIT_IN_RANGE:
-                if (!G_EventSubjectIsCurrent(evt)) break;
-                if (ent == evt->subject) {
-                    edict_t *target;
-
-                    /* A unit-in-range event is symmetric for movement: the
-                     * registered subject may approach a target.  The
-                     * subject-side pass owns pairs where both units moved,
-                     * preventing duplicate publications. */
-                    FOR_LOOP(i, globals.num_edicts) {
-                        target = globals.edicts + i;
-                        if (!target->inuse || target == ent)
-                            continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) <= evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) > evt->range)
-                            continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
-                            G_PublishEventResponse(target, evt->type, evt);
-                        }
-                    }
-                } else if (evt->subject &&
-                           memcmp(&((edict_t *)evt->subject)->old_origin,
-                                  &((edict_t *)evt->subject)->s.origin2, sizeof(vec2_t)) == 0 &&
-                           Vector2_distance(&((edict_t *)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
-                           Vector2_distance(&((edict_t *)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
-                    G_PublishEventResponse(ent, evt->type, evt);
-                }
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 /* Explicit JASS position changes happen before G_RunEntities samples old_origin.
  * Evaluate the crossing here, then make the teleported position the next baseline. */
 void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
@@ -404,7 +366,6 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
     ent->old_origin = *old_position;
     G_UnitRegionPositionChanged(ent,&ent->s.origin2);
-    G_TouchTriggers(ent);
     if(ent->inuse && !G_IsDeferredFree(ent))ent->old_origin = ent->s.origin2;
 }
 
@@ -455,7 +416,6 @@ void G_RunEntities(void) {
             continue;
         if(!(level.scheduled_frame && ent->movement.clock_valid && ent->movement.pose_valid))
             G_UnitRegionPositionChanged(ent,&ent->s.origin2);
-        G_TouchTriggers(ent);
     }
 }
 

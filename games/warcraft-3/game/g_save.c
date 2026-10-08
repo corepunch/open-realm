@@ -83,7 +83,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format142 retains subscriber order and pending trigger release requests. */
-static uint32_t const save_version = 142;
+static uint32_t const save_version = 143;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -2962,6 +2962,7 @@ bool WriteGame(cstring_t filename) {
     if (!WriteMoveProximity(f)) { fprintf(stderr,"WC3 SaveGame: failed at proximity spatial history\n"); goto done; }
     if (!WriteMoveShared(f)) { fprintf(stderr,"WC3 SaveGame: failed at shared Move parameters\n"); goto done; }
     if (!WriteMoveGroups(f)) { fprintf(stderr,"WC3 SaveGame: failed at physical Move groups\n"); goto done; }
+    if (!G_WriteRangeListeners(f)) { fprintf(stderr,"WC3 SaveGame: failed at range listeners\n"); goto done; }
     /* After edicts: nested HT_HANDLE unit/item slots call G_LoadJassHandle, which
      * requires restored inuse bits. SV_Map runs main() first, so a pre-edict
      * resolve would see baseline slots and drop script-created units. */
@@ -3131,6 +3132,7 @@ bool ReadGame(cstring_t filename) {
     if (!ValidMoveFineRequests()) { fprintf(stderr,"WC3 LoadGame: invalid fine-request FIFO\n"); fclose(f); return false; }
     if (!ReadMoveShared(f)) { fprintf(stderr,"WC3 LoadGame: failed at shared Move parameters\n"); fclose(f); return false; }
     if (!ReadMoveGroups(f)) { fprintf(stderr,"WC3 LoadGame: failed at physical Move groups\n"); fclose(f); return false; }
+    if (!G_ReadRangeListeners(f)) { fprintf(stderr,"WC3 LoadGame: failed at range listeners\n"); fclose(f); return false; }
     if (!S_RestoreMoveCoarseRequests()) { fprintf(stderr,"WC3 LoadGame: invalid coarse-request FIFOs\n"); S_ClearMoveGroups(); fclose(f); return false; }
     if (!S_ValidateMoveShared()) {
         fprintf(stderr,"WC3 LoadGame: invalid shared Move references\n");
@@ -3900,8 +3902,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-139.bin",
         "/tmp/openwarcraft3-wc3-save-version-140.bin",
         "/tmp/openwarcraft3-wc3-save-version-141.bin",
+        "/tmp/openwarcraft3-wc3-save-version-142.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142 };
 
     reset_entities();
     setup_test_world();

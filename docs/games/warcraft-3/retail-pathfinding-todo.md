@@ -55,7 +55,9 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**254 done / 336 tasks; 82 remaining.**
+**255 done / 336 tasks; 81 remaining.**
+
+Payoff180 closes ORDER-05.2: range listeners now poll at their registration-phased primary deadlines, with stable repeat serials, popped-clock callback creation and three-stage peer/self releases. Indexed requests and linear stamped occupant reconciliation replace movement-wide scans and native quadratic lookup; ordered fine prediction, reverse entrants, filters, dense4096 removal and cold logical saves are covered. Fresh432 original cases and complete repeated/control Frida archives pass; Ghidra/mapper retain the recovered query/ABI evidence. See [range listener requests](retail-pathfinding-engine.md#range-listeners-poll-ordered-occupants-at-request-deadlines-payoff180).
 
 Payoff179 closes ORDER-05.1: unit removals now use an indexed deadline/unsigned-serial heap in the primary drain, with O(1) membership, O(log N) insertion/cancellation/pop and exact borrowed callback clocks. Twelve failing-first/production-path regressions, focused Classic/TFT suites, fresh 432 original-code cases and two complete repeated/control Frida archives pass. Ghidra layouts/ABIs and mapper are saved; repeating listeners and pending-clock persistence remain ORDER-05.2/03. See [unit release heap](retail-pathfinding-engine.md#unit-releases-join-the-primary-deadline-heap-payoff179).
 
@@ -1071,7 +1073,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 ### ORDER-05 — Deferred requests
 
 - [x] **ORDER-05.1** Populate the deferred heap with different/equal deadlines; assert pop/tie order, cancellation and wrapper reuse. Payoff179 integrates indexed unit releases with minimum-delay deadlines, unsigned serial keys, arbitrary cancellation, incarnation/reuse checks and popped-clock callback chaining in the primary drain. Twelve production regressions, focused Classic/TFT suites, fresh 432 original cases and two full repeated/control Frida captures pass; saved Ghidra layouts/eleven ABIs and mapper retain the contract. Native pool addresses are not engine identities; repeating listeners and clock persistence remain05.2/03. [Evidence](retail-pathfinding-engine.md#unit-releases-join-the-primary-deadline-heap-payoff179).
-- [ ] **ORDER-05.2** Schedule a repeating request and a callback that schedules/cancels another; assert invocation order and final heap/refcount state.
+- [x] **ORDER-05.2** Schedule a repeating request and a callback that schedules/cancels another; assert invocation order and final heap/refcount state. Payoff180 integrates registration-phased range polling, stable repeat serials, callback-created deadlines and three-stage trigger/registration/listener releases. Indexed requests and linear stamped occupants preserve predicted circle tests, Y/X traversal, reverse enters and swap-last reconciliation; production Classic/TFT regressions include dense4096 removal and cold saves. Fresh432 original cases and complete repeated/control Frida archives pass; saved Ghidra/mapper retain ten ABIs and the query prefix. Unobservable private cancelled nodes are eagerly removed; clock-wide persistence remains05.3. [Evidence](retail-pathfinding-engine.md#range-listeners-poll-ordered-occupants-at-request-deadlines-payoff180).
 - [ ] **ORDER-05.3** Restore or switch the request clock with pending deadlines; assert which callbacks fire and when without rebasing deadlines by assumption.
 
 ### ORDER-06 — Cancellation and interruption

@@ -47,7 +47,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 137, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 143, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -62,6 +62,15 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
+
+Version143 adds game-owned range-listener state after physical Move groups and
+before hashtables/JASS. Each live registration stores its event slot, repeating
+deadline/serial, release deadline/serial and phase, and retained
+unit-slot/incarnation/flag rows. Heap indexes, allocation capacity and scratch
+lookup stamps are rebuilt. `wc3_range_listeners` covers cold restoration of
+registration phase, retained occupants and a partially completed release chain;
+the incompatible-version test rejects142. The edict/network prefix is unchanged.
+See [range listener requests](retail-pathfinding-engine.md#range-listeners-poll-ordered-occupants-at-request-deadlines-payoff180).
 Quest objects and items are restored in place so the running JASS VM's light handles keep their object identity. Events use `MAX_EVENTS` fixed slots, quests use `MAX_QUESTS` slots, and each quest owns `MAX_QUESTITEMS` item slots; `inuse` marks lifecycle state without moving live pointers during removal. Event references use physical slot IDs, so retired region-event slots may leave holes; the loader checks that a referenced slot is in use instead of assuming active slots form a dense prefix. Map startup can recreate a region registration that the saved state had removed, and the saved event table restores that removal. Loading rejects a quest or item count mismatch instead of leaving those handles dangling. Loading completely reloads the saved map first, then applies state.
 
 The versioned layout retains the authoritative `level.timeofday` record and game-state event condition fields (`state`, `limitop`, `limitval`) and the client removal/pending-result fields used by victory/defeat presentation. Quest and event records are written by the recursive field schema. Counted descriptors write the count followed by the array prefix. Since version 13 the dynamic JASS group registry is written immediately after the level-field stream: every handle ordinal through `level.num_groups` writes `ggroup_t.inuse`, `num_units`, and that many `F_EDICT` indexes. Inactive holes remain serialized so higher live handle ordinals do not shift. Version 14 adds `GAMEEVENT.value`, the scalar callback payload used by research events, and pairs it with JASS snapshot format 3 so a sleeping callback preserves `JASSCONTEXT.eventValue` across save/load. Version 17 adds `GAMEEVENT.point` / `has_point` and pairs it with JASS snapshot format 4 so point-target spell response context survives unread event queues and yielded trigger coroutines. Version 77 appends a disabled-ability count and that many rawcodes after each client record and camera-target index. The list stores `SetPlayerAbilityAvailable(..., false)` state; capacity and pointer remain runtime allocations. The version-59 layout cannot be read by version 77 because its client-record boundary has no list count; version 77 saves are likewise rejected by older exact-version readers.

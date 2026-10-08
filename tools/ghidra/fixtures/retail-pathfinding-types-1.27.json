@@ -4830,6 +4830,66 @@
           "evidence": "Counted reference to the CScriptEventData (e.g. CPlayerUnitPointOrderEventData) set by 67aecf..67aeee, released with the packet. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
         }
       ]
+    },
+    {
+      "name": "WC3RangeQueryPrefix",
+      "length": 84,
+      "fields": [
+        {
+          "offset": 36,
+          "name": "min_y",
+          "type": "i32",
+          "evidence": "15f870 copies Rect_FloorToCellBounds.min_y to24;15fa80 outer coordinate. Signed clamp comparisons in15fa80 precede the unsigned bounded cell loops."
+        },
+        {
+          "offset": 40,
+          "name": "min_x",
+          "type": "i32",
+          "evidence": "15f870 copies min_x to28;15fa80 inner coordinate. Signed clamp comparisons in15fa80 precede the unsigned bounded cell loops."
+        },
+        {
+          "offset": 44,
+          "name": "max_y",
+          "type": "i32",
+          "evidence": "15f870/15fa80 exclusive clamped outer bound. Signed clamp comparisons in15fa80 precede the unsigned bounded cell loops."
+        },
+        {
+          "offset": 48,
+          "name": "max_x",
+          "type": "i32",
+          "evidence": "15f870/15fa80 exclusive clamped inner bound. Signed clamp comparisons in15fa80 precede the unsigned bounded cell loops."
+        },
+        {
+          "offset": 52,
+          "name": "map",
+          "type": "ptr:WC3SpatialMapPrefix",
+          "evidence": "15f870 proximity44+2c map;15eef0 selects stored map."
+        },
+        {
+          "offset": 64,
+          "name": "owner",
+          "type": "ptr:WC3MoverPrefix",
+          "evidence": "15f870 caches owner and predicts from its committed clock."
+        },
+        {
+          "offset": 68,
+          "name": "spatial",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "15f870 owner.proximity used to reach query map."
+        },
+        {
+          "offset": 72,
+          "name": "center",
+          "type": "WC3PathVector2",
+          "evidence": "15f870 stores predicted fine center48/4c at timer deadline."
+        },
+        {
+          "offset": 80,
+          "name": "radius",
+          "type": "WC3PathScalar",
+          "evidence": "15f870 copies requested fine radius;15eac0 adds candidate fine radius."
+        }
+      ]
     }
   ],
   "methods": [
@@ -15535,6 +15595,206 @@
           "name": "request",
           "type": "ptr:WC3TimerRequestPrefix",
           "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f053710",
+      "name": "SimClock_RearmAgentRequest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 05374a. ORDER-05.2: instruction-verified; oracle group 05.2 (verify_ORDER-05.1_request_heap.py); live order05 requests probe phases 3-4.",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15ecb0",
+      "name": "RangeListener_InitializeCanonical",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4. Constructor sets radius50 from initializer, flags54=0, wrapper4c|=190400, then starts default timer through15fe60. BSS globald53a68 is runtime-initialized: live captures show1s; file bytes0 do not establish a zero period. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "initial",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15ef40",
+      "name": "RangeListener_OnTimerSignal",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4. Packet+8 tag5e736967 clears54.bit1 then calls15f210 with the prior notification bit; this is the repeating region signal receiver. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15e610",
+      "name": "AgentWrapper_BeginOwnerBinding",
+      "returns": "void",
+      "convention": "__fastcall",
+      "evidence": "RET. Requires receiver30 and owner40; wrapper4c.bit80000 starts timer from authored period44 during owner binding. This explains the third public listener StartTimer; each creation consumes a serial. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:WC3AgentWrapperPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f15fc20",
+      "name": "RangeListener_RemoveOccupant",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4. Replace removed12-byte row with final row, then shrink from old_count-1. Stable compaction would change subsequent retained order. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15f4b0",
+      "name": "RangeListener_MarkRetainedIdentity",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET8. Linear search of only old_count rows64, comparing mover identity14/18 to both stored words; match sets row.flags|1 and returns1. Repeated candidates make native reconciliation quadratic; engine generation-stamped slot lookup reduces it to linear without deciding encounter order. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "mover",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        },
+        {
+          "name": "old_count",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15f100",
+      "name": "RangeListener_SaveState",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4. Base agent save, radius50, flags54, then serializes retained-row array header at58 using ECX stream/EDX array; identity/generation/flags are saved per12-byte row. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15eff0",
+      "name": "RangeListener_LoadState",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4. Inverse of15f100: agent requests, radius, flags, then retained-row array at58; process pointers reconstructed. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "region",
+          "type": "ptr:WC3RangeListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15f870",
+      "name": "RangeQuery_InitializePredictedOwner",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8. Cache owner40/spatial44 and predict center48/4c using temporary popped clock. Bounds24=minY,28=minX,2c=maxY,30=maxX; radius50 fine. Do not use finalized world coordinates. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "ptr:WC3RangeQueryPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "owner",
+          "type": "ptr:WC3MoverPrefix",
+          "storage": 4
+        },
+        {
+          "name": "radius",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15fa80",
+      "name": "RangeQuery_VisitCells",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8. Clamp integer bounds then iterate outer bounds[0] Y, inner bounds[1] X, using map3c stride and newest cell links through15f9b0. Widget05f010 X-then-Y order does not apply to this range query. Payoff180 ORDER-05.2: instruction-verified and implemented in game-owned range listener/Move spatial owner.",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "ptr:WC3RangeQueryPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "map",
+          "type": "ptr:WC3SpatialMapPrefix",
+          "storage": 4
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 8
         }
       ]
     }

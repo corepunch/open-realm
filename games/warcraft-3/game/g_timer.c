@@ -423,7 +423,9 @@ static void TimerDrain(float limit,bool before_owner) {
         bool releasing=G_NextTriggerRelease(&release,&release_sequence);
         wc3Clock_t unit_release;uint32_t unit_sequence;
         bool removing=G_NextUnitRelease(&unit_release,&unit_sequence);
-        if(!spatial && !timer && !owned && !releasing && !removing)break;
+        wc3Clock_t range;uint32_t range_sequence;
+        bool polling=G_NextRangeRequest(&range,&range_sequence);
+        if(!spatial && !timer && !owned && !releasing && !removing && !polling)break;
         float due=spatial ? maintenance.time : timer ? timer->scalar_deadline.time : FLT_MAX;
         uint32_t serial=spatial ? sequence : timer ? timer->scalar_sequence : UINT32_MAX;
         if(owned && ((!spatial && !timer) || ability.deadline.time<due ||
@@ -438,8 +440,15 @@ static void TimerDrain(float limit,bool before_owner) {
             (unit_release.time==due && unit_sequence<serial))) {
             due=unit_release.time;serial=unit_sequence;owned=false;spatial=false;releasing=false;
         } else removing=false;
+        if(polling && ((!spatial && !timer && !owned && !releasing && !removing) || range.time<due ||
+            (range.time==due && range_sequence<serial))) {
+            due=range.time;serial=range_sequence;owned=false;spatial=false;releasing=false;removing=false;
+        } else polling=false;
         if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
-        if(removing) {
+        if(polling) {
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=range;
+            G_FireRangeRequest();level.timer_clock=saved;
+        } else if(removing) {
             wc3Clock_t saved=level.timer_clock;level.timer_clock=unit_release;
             G_FireUnitRelease();level.timer_clock=saved;
         } else if(releasing) {
@@ -466,6 +475,7 @@ static void RunScalarTimers(wc3Clock_t const *before) {
         S_RebaseAbilityPrimaryTimers(now.span);
         G_RebaseTriggerReleases(now.span);
         G_RebaseUnitReleases(now.span);
+        G_RebaseRangeRequests(now.span);
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;

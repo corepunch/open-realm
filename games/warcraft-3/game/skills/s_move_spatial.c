@@ -195,14 +195,23 @@ static void move_proximity_context_candidate(void *data,uint32_t index) {
     moveProximityContext_t const *query=data;
     query->candidate(query->data,g_edicts+index);
 }
-void S_QueryMoveProximityContext(edict_t const *source,float const point[2],float radius,
-    void (*candidate)(void *,edict_t const *),void *data) {
+static void move_proximity_query_context(edict_t const *source,float const point[2],float radius,
+    void (*candidate)(void *,edict_t const *),void *data,bool x_first) {
     G_SyncMoveSpatial();move_proximity_prepare();
     moveProximityContext_t query={candidate,data};
     /* Widget queries05ce60/05f010 visit X then Y; separation's16f570
      * retains Y then X. Both consume the same publication history. */
     wc3_records_query_ordered(&move_proximity,wc3_proximity_bounds(point,radius),source ? (uint32_t)(source-g_edicts) : UINT32_MAX,
-        move_proximity_context_candidate,&query,true);
+        move_proximity_context_candidate,&query,x_first);
+}
+void S_QueryMoveProximityContext(edict_t const *source,float const point[2],float radius,
+    void (*candidate)(void *,edict_t const *),void *data) {
+    move_proximity_query_context(source,point,radius,candidate,data,true);
+}
+void S_QueryMoveRangeCandidates(edict_t const *source,float const point[2],float radius,
+    void (*candidate)(void *,edict_t const *),void *data) {
+    /*15f870 bounds24=minY/28=minX;15fa80 outer Y, inner X. */
+    move_proximity_query_context(source,point,radius,candidate,data,false);
 }
 
 void S_QueryMoveProximity(edict_t const *source,float const point[2],float radius,bool (*candidate)(edict_t const *)) {

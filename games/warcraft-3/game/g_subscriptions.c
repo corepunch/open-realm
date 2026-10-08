@@ -25,6 +25,7 @@ uint32_t G_TestSubscriberVisits(bool reset) {
 #endif
 
 void G_ResetEventSubscribers(void) {
+    G_ResetRangeListeners();
     subscribers_valid=releases_valid=false;event_depth=event_retired=release_count=0;
     memset(event_links,0,sizeof(event_links));
 }
@@ -194,6 +195,21 @@ bool G_NextTriggerRelease(wc3Clock_t *deadline, uint32_t *sequence) {
     return true;
 }
 
+void G_ReleaseEvent(event_t *event) {
+    uint32_t slot=event-level.events.handlers;
+    if(!event->inuse)return;
+    if(event->handle_generation==EVENT_HANDLE_GENERATION_MAX)event->generation_exhausted=true;
+    else event->handle_generation++;
+    if(event->variable){gi.MemFree((handle_t)event->variable);event->variable=NULL;}
+    event->inuse=false;
+    /* Reuse is delayed until the last observer has stopped reading links. */
+    if(event_depth) {
+        event_links[slot].retired=true;event_links[slot].retired_next=event_retired;
+        event_retired=slot+1;
+    } else SubscriberUnlink(slot);
+    G_TrackMoveRegionEvent(event);
+}
+
 void G_FireTriggerRelease(void) {
     trigger_t *trigger=level.triggers+release_heap[0];
     uint32_t slot=release_heap[--release_count],index=0;
@@ -210,18 +226,8 @@ void G_FireTriggerRelease(void) {
     for(uint32_t link=trigger_events[trigger-level.triggers];link;) {
         uint32_t event_slot=link-1;event_t *event=level.events.handlers+event_slot;
         link=event_links[event_slot].trigger_next;
-        if(event->inuse) {
-            if(event->handle_generation==EVENT_HANDLE_GENERATION_MAX)event->generation_exhausted=true;
-            else event->handle_generation++;
-        }
-        if(event->variable){gi.MemFree((handle_t)event->variable);event->variable=NULL;}
-        event->inuse=false;
-        /* Reuse is delayed until the last observer has stopped reading links. */
-        if(event_depth) {
-            event_links[event_slot].retired=true;event_links[event_slot].retired_next=event_retired;
-            event_retired=event_slot+1;
-        } else SubscriberUnlink(event_slot);
-        G_TrackMoveRegionEvent(event);
+        if(event->type==EVENT_UNIT_IN_RANGE)G_ReleaseRangeListener(event);
+        else G_ReleaseEvent(event);
     }
     DELETE_LIST(gTriggerAction_t,trigger->actions,gi.MemFree);
     DELETE_LIST(gTriggerCondition_t,trigger->conditions,gi.MemFree);

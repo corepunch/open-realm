@@ -1,0 +1,25 @@
+{
+  "layouts": [],
+  "methods": [
+    {
+      "address": "6f053710",
+      "name": "SimClock_RearmAgentRequest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 05374a. ORDER-05.2: instruction-verified; oracle group 05.2 (verify_ORDER-05.1_request_heap.py); live order05 requests probe phases 3-4.",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ]
+    }
+  ],
+  "globals": []
+}

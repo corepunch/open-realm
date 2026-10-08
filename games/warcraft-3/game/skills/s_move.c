@@ -1677,12 +1677,29 @@ static void move_repulse_init(edict_t *self) {
 }
 
 /* Predict from the committed fine pose without consuming its clock or velocity. */
-static void unit_predicted_pose_raw(edict_t const *self, wc3GridPose_t *pose) {
+static void unit_predicted_pose_at(edict_t const *self,wc3Clock_t const *clock,wc3GridPose_t *pose) {
     unit_grid_pose(self,pose);
     if (self->movement.clock_valid) {
         float velocity[2] = {self->movement.velocity.x,self->movement.velocity.y};
-        wc3_grid_step(pose,velocity,wc3_elapsed(&level.pathing_clock,&self->movement.pose_clock));
+        wc3_grid_step(pose,velocity,wc3_elapsed(clock,&self->movement.pose_clock));
     }
+}
+
+void S_PredictUnitFinePointAt(edict_t const *self,wc3Clock_t const *clock,float point[2]) {
+    wc3GridPose_t pose;
+    unit_grid_pose(self,&pose);
+    /* A spatial predicate consumes fine coordinates only. Preserve the step's
+     * scalar sequence without converting the predicted result back to world. */
+    if(self->movement.clock_valid) {
+        float velocity[2]={wc3_mul(self->movement.velocity.x,wc3_float(0x3d000000)),
+                           wc3_mul(self->movement.velocity.y,wc3_float(0x3d000000))};
+        wc3_integrate(pose.grid,velocity,wc3_elapsed(clock,&self->movement.pose_clock));
+    }
+    point[0]=pose.grid[0];point[1]=pose.grid[1];
+}
+
+static void unit_predicted_pose_raw(edict_t const *self,wc3GridPose_t *pose) {
+    unit_predicted_pose_at(self,&level.pathing_clock,pose);
 }
 
 static void unit_predicted_pose(edict_t const *self, wc3GridPose_t *pose) {

@@ -6,10 +6,11 @@ from pathlib import Path
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--binary',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--task',choices=('ORDER-05.1','ORDER-05.2'),default='ORDER-05.1')
     a=p.parse_args();assert not a.output.exists()
     subprocess.run([sys.executable,'tools/ghidra/research/verify_ORDER-05.1_request_heap.py',
         '--binary',str(a.binary),'--report',str(a.output),'--random','400',
-        '--expected','tools/ghidra/fixtures/research/ORDER-05.1-expected.json'],check=True)
+        '--expected',f'tools/ghidra/fixtures/research/{a.task}-expected.json'],check=True)
     r=json.loads(a.output.read_text());assert r['cases']==432 and r['mismatches']==0 and r['stats']['fault']==0
     r.update(passed=True,status='retail-agent-request-original',
         scope='Unmodified heap/queue/drain/cancel/rearm/clock instructions; deadline and unsigned serial keys, receiver callbacks and pool reuse.',

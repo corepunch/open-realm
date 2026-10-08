@@ -12343,3 +12343,96 @@ repeating range-listener phase/callback/release-chain integration stays
 ORDER-05.2. Pending request persistence, secondary-clock public producers and
 clock switching remain ORDER-05.3/SCHED-01. This change does not claim those
 lifetimes, arbitrary native allocator identity or complete retail fidelity.
+
+## Range listeners poll ordered occupants at request deadlines (Payoff180)
+
+`ORDER-05.2` now has an engine payoff: `TriggerRegisterUnitInRange` creates a
+repeating primary-clock request instead of asking every moving entity to scan
+range registrations. `g_range.c` owns the listener, retained identities and
+release requests; Move owns fine-position prediction and the spatial query.
+Neither the edict/network prefix nor the universal client changes.
+
+### Retail contract and implementation
+
+The prepared [ORDER-05.2 handoff](retail-pathfinding-handoffs/ORDER-05.2/HANDOFF.md)
+contains two complete repeated Frida observations and their observer-free control.
+The frozen 275-row callback/rearm window establishes these decisions:
+
+- Listeners start at their registration clock plus1/8s. Construction starts the
+  default timer, sets the requested period, then binds the owner and starts it
+  again. All three creation serials are retained even though the engine eagerly
+  removes the two unobservable cancelled private nodes.
+- A callback runs at its popped deadline, and rearm follows the callback using
+  software addition and the same unsigned serial. Late drains catch up one
+  period at a time. Equal-period listeners retain their creation order.
+- Destroying a tied peer suppresses its actions immediately. Its tied poll still
+  executes and rearms before trigger teardown schedules the second wrapper,
+  which schedules listener release, each minimum delay later. The final release
+  cancels polling. A self-destroying callback follows the same sequence.
+- A listener created by another listener's action uses that popped deadline;
+  it first polls one period later and follows its creator at subsequent ties.
+
+Further instruction inspection makes the occupant algorithm explicit. `15f870`
+predicts the owner at the temporary request clock; `15fa80` visits **Y then X**,
+and each cell supplies its newest links first. This differs from the ordinary
+widget query's X-then-Y policy. `15eac0` predicts eligible positive-radius movers
+and tests strict fine distance squared against the squared sum of requested
+radius and candidate collision radius. The source's collision is not added.
+Equality is outside; zero-radius candidates are excluded.
+
+`15f2a0` freezes the candidates, marks retained identity/generation rows, appends
+new identities, emits new entrants in reverse order, then reconciles old rows.
+`15fc20` removes a row by swapping in the final row. Filters run on new entrants;
+rejected occupants remain retained until departure. Callback mutations cannot
+change the already collected candidate set, but subsequent delivery resolves
+identities again. Public enter delivery is synchronous and does not depend on
+free space in the legacy queued-event ring.
+
+### Complexity and persistence
+
+An indexed heap over stable registration slots gives O(1) next-deadline lookup
+and O(log L) insertion/cancellation/pop for L listeners. Polling queries local
+spatial cells, not all edicts. Native `15f4b0` linearly searches old rows for
+every candidate; the engine replaces that quadratic reconciliation with a
+shared generation-stamped slot lookup, preserving encounter order. Building
+that lookup and reconciling K retained/C encountered occupants costs O(K+C),
+with amortized row growth. A listener with no new occupants allocates nothing.
+No row/pool address determines event order. Move returns predicted fine XY
+directly without computing an unused world-coordinate result.
+
+Game save143 writes logical poll/release clocks, unsigned serials, release
+phase and identity/generation/flag rows. It rebuilds heap placement and scratch
+stamps; capacity and process pointers are not serialized. Cold round-trips
+preserve both ordinary retained membership and a partly completed release
+chain; save142 is rejected. This does **not** close clock-wide primary/
+presentation persistence or public presentation producers in `ORDER-05.3`.
+The middle wrapper's exact retail class identity remains a research limitation;
+its observed request deadlines and release effects are preserved.
+
+### Verification and limits
+
+The initial engine fails7/13 assertions in the first three regressions. The
+implementation passes17 `wc3_range_listeners` tests/93 assertions in
+Classic and TFT, including registration phase, stationary occupants, callback
+creation/destruction, catch-up, predicted deadline, collision boundary, Y/X and
+reverse delivery, actual slot reuse, filtering, saturated queue, dense4096
+occupants/removal, and cold saves. The older API subject-movement fixture needed
+real timer-before-owner interleaving and a positive Footman collision: its
+minimal data row defaults to zero, which retail excludes. The expected callback
+remains required.
+
+Fresh execution of432 unmodified original request cases (32 named,400 seeded)
+reports zero mismatches/faults. `verify_order180_ranges.py` rebuilds the frozen
+fixture from the complete prepared archives:6230 records,1432 pops, zero order
+violations, exact repeat and both observer/control comparisons. It claims no
+new live launch. Negative evidence tests reject altered registration phase,
+release deadlines, cancel flags, callback/rearm order, repeat ties and controls.
+Saved Ghidra and the mapper retain ten ABIs and the new predicted range-query
+prefix, including the Y/X traversal and native quadratic lookup evidence.
+
+The full movement suite passes404 tests/6,195,436 assertions per edition,
+alongside351 API,17 subscriber,8 reentry,35 lifecycle,12 release and194 save
+tests. The staged snapshot passes32 corpus inventory and3 negative-evidence
+tests, with both new strict corpus entries passing. Production/test targets build. Full validation remains on the authorized12-commit
+cadence; this is implementation9/12 since the last full checkpoint. No overall
+IceCrown frame-budget acceptance or complete pathfinding parity is claimed.

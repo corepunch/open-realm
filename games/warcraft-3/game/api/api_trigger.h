@@ -434,14 +434,18 @@ uint32_t TriggerRegisterUnitInRange(jass_t *j) {
     trigger_t *whichTrigger = jass_checkhandle(j, 1, "trigger");
     edict_t *whichUnit = jass_checkhandle(j, 2, "unit");
     float range = jass_checknumber(j, 3);
-//    handle_t filter = jass_checkhandle(j, 4, "boolexpr");
+    jassFunc_t const *filter = jass_checkhandle(j, 4, "boolexpr");
     if (!whichTrigger || !whichUnit) {
         return jass_pushnullhandle(j, "event");
     }
     event_t *evt = G_MakeEvent(EVENT_UNIT_IN_RANGE);
+    if(!evt)return jass_pushnullhandle(j,"event");
     G_SetEventSubject(evt, whichUnit);
     G_SetEventTrigger(evt, whichTrigger);
     evt->range = range;
+    evt->filter = filter;
+    wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+    G_StartRangeListener(evt,&clock);
     QuestPeonStageLogRegistration(whichTrigger, EVENT_UNIT_IN_RANGE, evt->subject, "unit-in-range");
     return jass_pushlighthandle(j, evt, "event");
 }
