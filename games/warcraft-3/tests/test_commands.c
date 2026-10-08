@@ -280,7 +280,8 @@ TEST(commands, delete_save_removes_named_save_file) {
 }
 
 TEST(commands, config_path_uses_home_game_directory) {
-    PATHSTR path, home, expected;
+    PATHSTR path, home;
+    char expected[MAX_PATHLEN + sizeof("/config.cfg")];
 
     setup_command_tests();
     snprintf(home, sizeof(home), "%s", Test_TempPath("config-path-test"));

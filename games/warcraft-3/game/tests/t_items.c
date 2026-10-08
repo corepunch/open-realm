@@ -814,6 +814,7 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     static UnitBalance_t high_balance = { .level = 3 };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *picker, *near_low, *near_high, *third, *distant, *enemy, *rune;
+    uint32_t charges_before;
 
     setup_test_world();
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
@@ -826,9 +827,9 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
         T_ASSERT(G_AddItemToSlot(picker, held, slot));
     }
 
-#define MAKE_RES_CORPSE(var, x, player, balance) do { \
+#define MAKE_RES_CORPSE(var, x, owner_number, balance) do { \
     (var) = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (x), 0); \
-    (var)->s.player = (player); \
+    (var)->s.player = (owner_number); \
     (var)->svflags |= SVF_MONSTER | SVF_DEADMONSTER; \
     (var)->targtype = TARG_GROUND; \
     (var)->data.UnitData = &corpse_data; \
@@ -864,10 +865,11 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     /* With no eligible corpse, report failure and leave the rune on the ground. */
     rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
     rune->data.ItemData = &rune_data;
+    charges_before = rune->item->charges;
     T_ASSERT(!G_PickupItem(picker, rune));
     T_ASSERT(rune->item->in_world);
     T_ASSERT(!rune->item->pending_use_removal);
-    T_EQ(rune->item->charges, 1);
+    T_EQ(rune->item->charges, charges_before);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
