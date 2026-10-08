@@ -77,7 +77,12 @@ void SV_CreateBaseline(void) {
     memset(sv.baselines, 0, sizeof(entityState_t) * ge->max_edicts);
     FOR_LOOP(entnum, ge->num_edicts) {
         edict_t *svent = EDICT_NUM(entnum);
-        sv.baselines[entnum] = svent->s;
+        /* Entities hidden from signon are not sent in baseline pages. Keep
+         * their server baseline empty too, so a later snapshot add is encoded
+         * against the empty baseline the client actually has. */
+        if (!(svent->svflags & SVF_NOCLIENT)) {
+            sv.baselines[entnum] = svent->s;
+        }
         svent->s.number = entnum;
     }
 }
