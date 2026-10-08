@@ -1621,6 +1621,11 @@ uint32_t EnableWorldFogBoundary(jass_t *j) {
     //bool b = jass_checkboolean(j, 1);
     return 0;
 }
+uint32_t PlayModelCinematic(jass_t *j) {
+    cstring_t path = jass_checkstring(j, 1);
+    if (path && *path) gi.QueueModelCinematic(path);
+    return 0;
+}
 uint32_t PlayCinematic(jass_t *j) {
     cstring_t movieName = jass_checkstring(j, 1);
     PATHSTR path;

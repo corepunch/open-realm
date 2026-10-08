@@ -8464,4 +8464,30 @@ TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
     T_NE(state.name, 0);
 }
 
+/* Missing Warcraft natives must execute through the production JASS dispatcher. */
+TEST(wc3_api, alarm_and_ai_native_registration) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(not UnitIgnoreAlarmToggled(null), \"null alarm state\")\n"
+        "  call BJassAssert(not UnitIgnoreAlarm(null, true), \"invalid alarm unit\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, captain_ai_natives_accept_null_script_player) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetAmphibious()\n"
+        "  call DisablePathing()\n"
+        "  call TeleportCaptain(1.0, 2.0)\n"
+        "  call CaptainAttack(1.0, 2.0)\n"
+        "  call CaptainGoHome()\n"
+        "  call CaptainVsUnits(null)\n"
+        "  call CaptainVsPlayer(null)\n"
+        "  call ClearCaptainTargets()\n"
+        "  call ResetCaptainLocs()\n"
+        "  call BJassAssert(not CaptainAtGoal(), \"no captain\")\n"
+        "  call BJassAssert(not CaptainIsHome(), \"no captain\")\n"
+        "endfunction\n"));
+}
+
 #endif /* BZ_TESTS */

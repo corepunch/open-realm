@@ -972,6 +972,34 @@ TEST(wc3_game, attack_alert_is_remote_throttled_and_remembered) {
     gi.MinimapPing = saved_ping; gi.configstring = saved_configstring;
 }
 
+TEST(wc3_game, unit_ignore_alarm_suppresses_ping_without_changing_combat) {
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
+    edict_t *victim = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 2000.0f, 0.0f);
+    edict_t *attacker = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 2100.0f, 0.0f);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeComputer;
+    victim->s.player = 0; attacker->s.player = 1;
+    game.clients[0].connected = true;
+    game.clients[0].camera.state.position = (vec2_t){0.0f, 0.0f};
+    game.constants.attackNotifyRange = 1250.0f;
+    game.constants.attackNotifyDelay = 0.0f;
+    level.time = 1000;
+    alert_ping_count = 0;
+    gi.MinimapPing = alert_test_minimap_ping;
+    gi.configstring = alert_test_configstring;
+    victim->ignore_alarm = true;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 0);
+    T_ASSERT(!victim->paused);
+    T_ASSERT(!victim->invulnerable);
+    victim->ignore_alarm = false;
+    G_WC3_AttackAlert(victim, attacker);
+    T_EQ(alert_ping_count, 1);
+    gi.MinimapPing = saved_ping;
+    gi.configstring = saved_configstring;
+}
+
 TEST(wc3_game, attack_alert_shows_advisor_text_without_message_log_entry) {
     void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
@@ -3839,6 +3867,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
+    first->ignore_alarm = true;
     first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
     if (!first->sleep) first->sleep = G_AllocSleep();
@@ -3949,6 +3978,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
+    first->ignore_alarm = false;
     first->shared_vision = 0;
     first->projectile_reflected = false;
     first->sleep->can_sleep = false;
@@ -3994,6 +4024,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
     T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
+    T_ASSERT(g_edicts[first - g_edicts].ignore_alarm);
     T_ASSERT(g_edicts[first - g_edicts].sleep->can_sleep);
     T_ASSERT(g_edicts[first - g_edicts].sleep->sleeping);
     T_EQ(g_edicts[first - g_edicts].collision, 42.5f);

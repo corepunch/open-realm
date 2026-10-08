@@ -68,6 +68,130 @@ typedef struct {
 
 static clMovieState_t cl_movie;
 
+/* MDX cinematics render in an isolated scene, independently of FFmpeg. */
+typedef struct {
+    model_t *model;
+    uint32_t sequence, count, camera_count, duration;
+    uint32_t sequence_started, previous_ticks, generation;
+    bool active;
+    bool music_suspended;
+} clModelCinematic_t;
+
+static clModelCinematic_t cl_model_cinematic;
+static uint32_t cl_model_cinematic_generation;
+
+static bool CL_ModelCinematicSequence(uint32_t sequence) {
+    char name[24];
+    uint32_t duration;
+    snprintf(name, sizeof(name), "#%u", sequence);
+    if (!re.GetModelAnimationDuration(cl_model_cinematic.model, name, &duration)) return false;
+    cl_model_cinematic.sequence = sequence;
+    cl_model_cinematic.duration = MAX(1u, duration);
+    cl_model_cinematic.sequence_started = SDL_GetTicks();
+    cl_model_cinematic.previous_ticks = cl_model_cinematic.sequence_started;
+    return true;
+}
+
+static void CL_ModelCinematicClose(void) {
+    if (!cl_model_cinematic.active) return;
+    re.ReleaseEntityCameraEvents((uintptr_t)&cl_model_cinematic);
+    re.ReleaseModel(cl_model_cinematic.model);
+    if (cl_model_cinematic.music_suspended) CL_MusicResumeFromSuspend();
+    memset(&cl_model_cinematic, 0, sizeof(cl_model_cinematic));
+}
+
+bool CL_PlayModelCinematic(cstring_t path) {
+    modelInfo_t info;
+    model_t *model;
+    if (!path || !*path || cl_movie.active) return false;
+    if (cl_model_cinematic.active) CL_ModelCinematicClose();
+    model = re.LoadModel(path);
+    if (!model || !re.GetModelInfo(model, &info) || !info.sequenceCount || !info.cameraCount) {
+        if (model) re.ReleaseModel(model);
+        fprintf(stderr, "WC3 model cinematic: unable to load %s or find sequences/cameras\n", path);
+        CON_printf("Unable to play model cinematic: %s", path);
+        return false;
+    }
+    cl_model_cinematic.model = model;
+    cl_model_cinematic.count = info.sequenceCount;
+    cl_model_cinematic.camera_count = info.cameraCount;
+    cl_model_cinematic.generation = ++cl_model_cinematic_generation;
+    cl_model_cinematic.active = true;
+    /* BZ_COMPAT_GUESS: the Warsmash Arthas/Illidan viewer begins with sequence
+     * 1, but the original engine's generic start rule is undocumented. Start
+     * at 0 for non-specialised assets, and don't loop once the last ends. */
+    if (!CL_ModelCinematicSequence(0)) { CL_ModelCinematicClose(); return false; }
+    /* BZ_COMPAT_GUESS: isolate background gameplay music as for video movies;
+     * model event sounds are still emitted through the normal MDX renderer.
+     * Do not force an unverified Arthas/Illidan soundtrack here. */
+    if (!CL_MusicIsSuspended()) {
+        CL_MusicSuspend();
+        cl_model_cinematic.music_suspended = true;
+    }
+    S_StopAllSounds();
+    return true;
+}
+
+static void CL_ModelCinematicUpdateAt(uint32_t now) {
+    if (!cl_model_cinematic.active) return;
+    /* Use the SDL presentation clock while the server simulation is paused. */
+    while (cl_model_cinematic.active &&
+           now - cl_model_cinematic.sequence_started >= cl_model_cinematic.duration) {
+        uint32_t next_started = cl_model_cinematic.sequence_started + cl_model_cinematic.duration;
+        if (cl_model_cinematic.sequence + 1 >= cl_model_cinematic.count ||
+            !CL_ModelCinematicSequence(cl_model_cinematic.sequence + 1)) {
+            CL_ModelCinematicClose();
+            break;
+        }
+        /* Preserve overshoot when presentation frames are delayed. Resetting
+         * to 'now' would stretch every animation at a low frame rate. */
+        cl_model_cinematic.sequence_started = next_started;
+    }
+}
+
+static void CL_ModelCinematicUpdate(void) {
+    CL_ModelCinematicUpdateAt(SDL_GetTicks());
+}
+
+/* BZ_COMPAT_GUESS: sequence-to-camera correspondence matches the Warsmash
+ * Arthas/Illidan viewer. Clamp the camera for a model with fewer cameras. */
+static uint32_t CL_ModelCinematicCameraIndex(clModelCinematic_t const *cine) {
+    return cine->camera_count ? MIN(cine->sequence, cine->camera_count - 1) : 0;
+}
+
+static void CL_ModelCinematicDraw(void) {
+    clModelCinematic_t *cine = &cl_model_cinematic;
+    rect_t scene = re.GetUISceneRect();
+    renderEntity_t entity = {0};
+    viewDef_t view = {0};
+    char anim[64];
+    uint32_t elapsed;
+    if (!cine->active) return;
+    re.DrawFill(&scene, COLOR32_BLACK);
+    elapsed = MIN(cine->duration, SDL_GetTicks() - cine->sequence_started);
+    snprintf(anim, sizeof(anim), "#%u@%.8f", cine->sequence,
+             (float)elapsed / (float)cine->duration);
+    entity.model = cine->model;
+    entity.scale = 1.0f;
+    entity.instance_id = (uintptr_t)cine;
+    entity.generation = cine->generation;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR;
+    /* BZ_COMPAT_GUESS: the fight model pairs animation and camera indices. */
+    entity.camera_index = CL_ModelCinematicCameraIndex(cine);
+    if (!re.SetEntityAnimFrame(entity.model, anim, &entity)) return;
+    view.viewport = MAKE(rect_t, 0, 0, 1, 1);
+    view.scissor = view.viewport;
+    view.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                   RDF_USE_ENTITY_CAMERA | RDF_ISOLATED_PARTICLES;
+    view.num_entities = 1;
+    view.entities = &entity;
+    view.time = SDL_GetTicks();
+    view.deltaTime = view.time - cine->previous_ticks;
+    cine->previous_ticks = view.time;
+    re.RenderFrame(&view);
+}
+
+
 #ifdef BZ_FFMPEG
 static void CL_MovieReleaseFrames(void) {
     FOR_LOOP(i, CL_MOVIE_VIDEO_QUEUE) {
@@ -338,13 +462,21 @@ void CL_MovieInit(void) {
     Cmd_AddCommand("playmovie", CL_Movie_f);
 }
 
-void CL_MovieShutdown(void) {
-    Cmd_RemoveCommand("playmovie");
+/* Cancel presentation without unregistering the playmovie command. Called on
+ * disconnect, session replacement and client shutdown. Session pause and
+ * deferred actions remain owned by cl_main.c, not by this renderer. */
+void CL_MovieCancel(void) {
+    CL_ModelCinematicClose();
 #ifdef BZ_FFMPEG
     if (cl_movie.active) CL_MovieClose();
 #else
     memset(&cl_movie, 0, sizeof(cl_movie));
 #endif
+}
+
+void CL_MovieShutdown(void) {
+    Cmd_RemoveCommand("playmovie");
+    CL_MovieCancel();
 }
 
 bool CL_PlayMovie(cstring_t path) {
@@ -412,10 +544,11 @@ bool CL_PlayMovie(cstring_t path) {
 }
 
 bool CL_MovieActive(void) {
-    return cl_movie.active;
+    return cl_movie.active || cl_model_cinematic.active;
 }
 
 void CL_MovieUpdate(void) {
+    CL_ModelCinematicUpdate();
 #ifdef BZ_FFMPEG
     if (!cl_movie.active) return;
     CL_MoviePresentFrames();
@@ -437,6 +570,7 @@ void CL_MovieDraw(void) {
     float scene_aspect;
     float movie_aspect;
 
+    if (cl_model_cinematic.active) { CL_ModelCinematicDraw(); return; }
     if (!cl_movie.active) return;
     scene = re.GetUISceneRect();
     re.DrawFill(&scene, COLOR32_BLACK);
@@ -462,6 +596,10 @@ void CL_MovieDraw(void) {
 }
 
 bool CL_MovieKeyEvent(keyCode_t key, bool down) {
+    if (cl_model_cinematic.active) {
+        if (down && key == K_ESCAPE) CL_ModelCinematicClose();
+        return true;
+    }
     if (!cl_movie.active) return false;
     if (down && key == K_ESCAPE) {
 #ifdef BZ_FFMPEG
@@ -498,6 +636,72 @@ static rect_t CL_MovieTestScene(void) { return MAKE(rect_t, 0, 0, 0.8f, 0.6f); }
 static size2_t CL_MovieTestWindow(void) { return movie_test_window; }
 static void CL_MovieTestFill(rect_t const *rect, color32_t color) { (void)rect; (void)color; }
 static void CL_MovieTestFrame(drawCinematicFrame_t const *frame) { movie_test_rect = frame->screen; }
+/* Test the MDX scene's time/skip state machine without loading retail art or
+ * creating a graphics device. Keep every renderer callback and model state
+ * restored so this test cannot affect other client tests. */
+static uint32_t cinematic_test_model_releases, cinematic_test_event_releases;
+static bool CL_CinematicTestDuration(model_t const *model, cstring_t anim, uint32_t *duration) {
+    (void)model;
+    if (strcmp(anim, "#1") && strcmp(anim, "#2")) return false;
+    *duration = 100;
+    return true;
+}
+static void CL_CinematicTestReleaseModel(model_t *model) {
+    (void)model;
+    cinematic_test_model_releases++;
+}
+static void CL_CinematicTestReleaseEvents(uintptr_t id) {
+    (void)id;
+    cinematic_test_event_releases++;
+}
+TEST(client_movie, model_camera_index_never_exceeds_available_cameras) {
+    clModelCinematic_t cine = { .sequence = 5, .camera_count = 3 };
+    T_EQ(CL_ModelCinematicCameraIndex(&cine), 2u);
+    cine.sequence = 1;
+    T_EQ(CL_ModelCinematicCameraIndex(&cine), 1u);
+    cine.camera_count = 0;
+    T_EQ(CL_ModelCinematicCameraIndex(&cine), 0u);
+}
+TEST(client_movie, model_sequences_preserve_overshoot_and_stop_after_last) {
+    refExport_t saved_re = re;
+    clModelCinematic_t saved_model = cl_model_cinematic;
+    cinematic_test_model_releases = cinematic_test_event_releases = 0;
+    re.GetModelAnimationDuration = CL_CinematicTestDuration;
+    re.ReleaseModel = CL_CinematicTestReleaseModel;
+    re.ReleaseEntityCameraEvents = CL_CinematicTestReleaseEvents;
+    cl_model_cinematic = (clModelCinematic_t){
+        .model = (model_t *)(uintptr_t)1, .active = true,
+        .count = 3, .duration = 100, .sequence_started = 1000
+    };
+    CL_ModelCinematicUpdateAt(1250);
+    T_ASSERT(cl_model_cinematic.active);
+    T_EQ(cl_model_cinematic.sequence, 2u);
+    T_EQ(cl_model_cinematic.sequence_started, 1200u);
+    CL_ModelCinematicUpdateAt(1310);
+    T_ASSERT(!cl_model_cinematic.active);
+    T_EQ(cinematic_test_model_releases, 1u);
+    T_EQ(cinematic_test_event_releases, 1u);
+    re = saved_re;
+    cl_model_cinematic = saved_model;
+}
+TEST(client_movie, model_escape_releases_scene_once) {
+    refExport_t saved_re = re;
+    clModelCinematic_t saved_model = cl_model_cinematic;
+    cinematic_test_model_releases = cinematic_test_event_releases = 0;
+    re.ReleaseModel = CL_CinematicTestReleaseModel;
+    re.ReleaseEntityCameraEvents = CL_CinematicTestReleaseEvents;
+    cl_model_cinematic = (clModelCinematic_t){
+        .model = (model_t *)(uintptr_t)1, .active = true,
+        .count = 2, .duration = 100, .sequence_started = 1000
+    };
+    T_ASSERT(CL_MovieKeyEvent(K_ESCAPE, true));
+    T_ASSERT(!cl_model_cinematic.active);
+    CL_MovieCancel();
+    T_EQ(cinematic_test_model_releases, 1u);
+    T_EQ(cinematic_test_event_releases, 1u);
+    re = saved_re;
+    cl_model_cinematic = saved_model;
+}
 TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
     refExport_t saved_re = re;
     clMovieState_t saved_movie = cl_movie;

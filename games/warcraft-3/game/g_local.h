@@ -1731,6 +1731,7 @@ struct edict_s {
     edictAbilities_s abilities;
     uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
     avatar_t *avatar;
+    bool ignore_alarm; /* UnitIgnoreAlarm: suppress this unit's automatic attacked notifications */
     bool invulnerable;  // unit cannot take damage when true
     bool paused;        // unit AI and movement suspended when true
     bool stunned;       // unit AI and movement suspended by timed status
@@ -2070,9 +2071,21 @@ typedef enum {
     BOT_CAPTAIN_RETREATING,
 } botCaptainState_t;
 
+/* Transient captain orders: record the destination actually issued to each
+ * member, so amphibious planning cannot strand CaptainAtGoal at an
+ * unreachable original coordinate. Bot/AI VMs are not saved. */
+typedef struct {
+    edict_t *unit;
+    vec2_t destination;
+    bool partial;
+} botCaptainRoute_t;
+
 typedef struct {
     ARRAY(edict_t *, units);
+    ARRAY(botCaptainRoute_t, routes);
     vec2_t home, goal;
+    vec2_t position; /* TeleportCaptain logical control position, not world unit coordinates */
+    bool position_valid;
     uint32_t desired;
     uint32_t disadvantage_since; /* group-flee persistence timer; valid while disadvantage_active */
     bool disadvantage_active;
@@ -2117,6 +2130,8 @@ typedef enum {
     BOT_RANDOM_PATHS     = 1 << 13,
     BOT_DEFEND_PLAYER    = 1 << 14,
     BOT_HEROES_BUY_ITEMS = 1 << 15,
+    BOT_AMPHIBIOUS = 1 << 16, /* AI routing policy; never modifies unit movement domains */
+    BOT_DISABLE_PATHING = 1 << 17, /* AI policy only; never ignore collision in orders */
 } botFlag_t;
 
 typedef struct {
@@ -2447,6 +2462,15 @@ int32_t G_BotLastCommand(player_t *);
 int32_t G_BotLastData(player_t *);
 void G_BotPopCommand(player_t *);
 void G_BotSetCaptainHome(player_t *, int32_t, float, float);
+void G_BotTeleportCaptain(player_t *, float, float);
+void G_BotCaptainAttack(player_t *, float, float);
+void G_BotCaptainGoHome(player_t *);
+void G_BotCaptainVsPlayer(player_t *, player_t *);
+void G_BotCaptainVsUnits(player_t *, player_t *);
+void G_BotClearCaptainTargets(player_t *);
+void G_BotResetCaptainLocs(player_t *);
+bool G_BotCaptainAtGoal(player_t *);
+bool G_BotCaptainIsHome(player_t *);
 void G_BotSetStagePoint(player_t *, float, float);
 void G_BotShiftTownSpot(player_t *, float, float);
 bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);

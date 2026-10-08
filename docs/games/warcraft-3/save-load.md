@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 74, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 75, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -40,6 +40,8 @@ alias has been removed. Version 71 and earlier saves are rejected. The custom
 aura removal tests save both live effects, clear the runtime cache, restore,
 and remove the skill while a second provider continues supplying the glow.
 See [Aura Targets And Overlays](aura-targets-and-overlays.md).
+
+Version 75 includes the persistent `edict_t.ignore_alarm` per-unit flag and rejects version 74 saves. The existing `wc3_save.round_trip_edict_and_player_state` suite now checks suppression survives a save/load.
 
 Version 74 changes only the footer checksum to the word-wise `SaveChecksum`. Save and load streams also use a 1 MB stdio buffer. Version 73 and earlier saves are rejected.
 

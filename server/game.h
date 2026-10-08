@@ -60,6 +60,8 @@ struct game_import {
     void (*MenuAction)(cstring_t action, cstring_t arg);
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(cstring_t path);
+    /* JASS PlayModelCinematic: path only, client owns MDX playback/lifecycle. */
+    void (*QueueModelCinematic)(cstring_t path);
     void (*ClearWorld)(void);
     /* Keep the native window responsive during synchronous map loading without
      * advancing commands, client simulation, or server simulation. */

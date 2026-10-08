@@ -65,7 +65,16 @@ typedef struct {
 
 static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
-static PATHSTR cl_pending_movie;
+/* Queued in authored order: scripts can request a movie followed by a model
+ * scene (or vice versa) before the same deferred map transition. */
+#define CL_MAX_QUEUED_CINEMATICS 8
+static struct {
+    bool model;
+    PATHSTR path;
+} cl_cinematic_queue[CL_MAX_QUEUED_CINEMATICS];
+static uint32_t cl_cinematic_queue_count;
+static bool cl_cinematic_paused;
+static bool cl_cinematic_previous_pause;
 
 void Cmd_ForwardToServer(cstring_t text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
@@ -199,7 +208,10 @@ static void CL_SendDisconnect(void) {
     Netchan_Transmit(NS_CLIENT, &cls.netchan);
 }
 
+static void CL_CancelCinematicSession(void);
+
 static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
+    CL_CancelCinematicSession();
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
         return;
@@ -684,47 +696,125 @@ void MenuAction(cstring_t action, cstring_t arg) {
     cl_pending_menu_action = pending;
 }
 
-void CL_QueueMovie(cstring_t path) {
+static void CL_QueueCinematic(cstring_t path, bool model) {
     if (!path || !*path) return;
-    if (cl_pending_movie[0]) {
-        fprintf(stderr, "CL_QueueMovie: replacing pending movie %s with %s\n", cl_pending_movie, path);
+    if (cl_cinematic_queue_count >= CL_MAX_QUEUED_CINEMATICS) {
+        fprintf(stderr, "CL_QueueCinematic: queue full, rejecting %s\n", path);
+        return;
     }
-    snprintf(cl_pending_movie, sizeof(cl_pending_movie), "%s", path);
+    cl_cinematic_queue[cl_cinematic_queue_count].model = model;
+    snprintf(cl_cinematic_queue[cl_cinematic_queue_count].path,
+             sizeof(cl_cinematic_queue[cl_cinematic_queue_count].path), "%s", path);
+    cl_cinematic_queue_count++;
 }
+
+void CL_QueueMovie(cstring_t path) { CL_QueueCinematic(path, false); }
+void CL_QueueModelCinematic(cstring_t path) { CL_QueueCinematic(path, true); }
+
+/* The client owns the session pause and deferred transition. A presentation
+ * renderer may only start/stop its own asset, never change the game session. */
+static void CL_CancelCinematicSession(void) {
+    CL_MovieCancel();
+    cl_cinematic_queue_count = 0;
+    memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
+    if (cl_cinematic_paused && SV_IsActive())
+        SV_SetPaused(cl_cinematic_previous_pause);
+    cl_cinematic_paused = false;
+    cl_cinematic_previous_pause = false;
+}
+
+/* FIFO dequeue is independent of renderer initialization and is regression
+ * tested so two scenes queued in one JASS tick never overwrite one another. */
+static bool CL_PopCinematic(PATHSTR path, bool *model) {
+    if (!cl_cinematic_queue_count) return false;
+    *model = cl_cinematic_queue[0].model;
+    snprintf(path, sizeof(PATHSTR), "%s", cl_cinematic_queue[0].path);
+    cl_cinematic_queue_count--;
+    memmove(cl_cinematic_queue, cl_cinematic_queue + 1,
+            cl_cinematic_queue_count * sizeof(cl_cinematic_queue[0]));
+    return true;
+}
+
+/* Missing files are skipped, not allowed to hold a queued victory indefinitely. */
+static bool CL_StartNextCinematic(void) {
+    PATHSTR path;
+    bool model;
+    while (CL_PopCinematic(path, &model)) {
+        if (model ? CL_PlayModelCinematic(path) : CL_PlayMovie(path)) return true;
+    }
+    return false;
+}
+
+#ifdef BZ_TESTS
+TEST(client_cinematic, queued_movie_and_model_play_in_script_order) {
+    PATHSTR path;
+    bool model;
+    cl_cinematic_queue_count = 0;
+    CL_QueueMovie("Movies\\one.mpq");
+    CL_QueueModelCinematic("Doodads\\Cinematic\\scene.mdl");
+    CL_QueueMovie("Movies\\two.mpq");
+    T_EQ(cl_cinematic_queue_count, 3u);
+    T_ASSERT(CL_PopCinematic(path, &model));
+    T_ASSERT(!model);
+    T_STREQ(path, "Movies\\one.mpq");
+    T_ASSERT(CL_PopCinematic(path, &model));
+    T_ASSERT(model);
+    T_STREQ(path, "Doodads\\Cinematic\\scene.mdl");
+    T_ASSERT(CL_PopCinematic(path, &model));
+    T_ASSERT(!model);
+    T_STREQ(path, "Movies\\two.mpq");
+    T_ASSERT(!CL_PopCinematic(path, &model));
+}
+
+TEST(client_cinematic, queue_capacity_never_discards_existing_scenes) {
+    PATHSTR path;
+    bool model;
+    cl_cinematic_queue_count = 0;
+    FOR_LOOP(i, CL_MAX_QUEUED_CINEMATICS) CL_QueueMovie("movie.mpq");
+    CL_QueueModelCinematic("overflow.mdl");
+    T_EQ(cl_cinematic_queue_count, (uint32_t)CL_MAX_QUEUED_CINEMATICS);
+    FOR_LOOP(i, CL_MAX_QUEUED_CINEMATICS) {
+        T_ASSERT(CL_PopCinematic(path, &model));
+        T_STREQ(path, "movie.mpq");
+        T_ASSERT(!model);
+    }
+    T_ASSERT(!CL_PopCinematic(path, &model));
+}
+#endif
 
 static void CL_ProcessPendingMenuAction(void) {
     clPendingMenuAction_t pending;
 
     if (CL_MovieActive()) return;
-
-    if (cl_movie_deferred_action.type != CL_MENU_ACTION_NONE) {
+    if (cl_cinematic_paused) {
+        /* The previous scene completed/skipped. Keep the simulation frozen
+         * while the next queued scene starts; execute transition only at EOF. */
+        if (CL_StartNextCinematic()) return;
         pending = cl_movie_deferred_action;
         memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
-        if (SV_IsActive()) SV_SetPaused(false);
-        goto execute;
+        cl_cinematic_paused = false;
+        if (SV_IsActive()) SV_SetPaused(cl_cinematic_previous_pause);
+        cl_cinematic_previous_pause = false;
+        if (pending.type != CL_MENU_ACTION_NONE) goto execute;
     }
-    if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE) return;
+    if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE && !cl_cinematic_queue_count) return;
 
-    /* Clear first: the transition may initialize a new game module which can
-     * itself publish a later session action without being overwritten here. */
     pending = cl_pending_menu_action;
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
-
-    /* PlayCinematic is a session-boundary interposer: preserve the requested
-     * map/menu transition, freeze the outgoing simulation, then execute the
-     * transition only after the movie ends or is skipped. */
-    if (cl_pending_movie[0]) {
-        PATHSTR movie;
-        snprintf(movie, sizeof(movie), "%s", cl_pending_movie);
-        cl_pending_movie[0] = '\0';
+    if (cl_cinematic_queue_count) {
         cl_movie_deferred_action = pending;
+        cl_cinematic_paused = true;
+        cl_cinematic_previous_pause = SV_IsActive() && Cvar_Integer("paused", 0) != 0;
         if (SV_IsActive()) SV_SetPaused(true);
-        if (CL_PlayMovie(movie)) return;
-        if (SV_IsActive()) SV_SetPaused(false);
+        if (CL_StartNextCinematic()) return;
+        /* Every queued asset failed. Restore the original scheduler state and
+         * perform the authored transition rather than freezing the campaign. */
+        if (SV_IsActive()) SV_SetPaused(cl_cinematic_previous_pause);
+        cl_cinematic_previous_pause = false;
+        cl_cinematic_paused = false;
         pending = cl_movie_deferred_action;
         memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
     }
-
 execute:
     switch (pending.type) {
     case CL_MENU_ACTION_MAP:
@@ -1330,6 +1420,7 @@ void CL_Connect(cstring_t host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
+    CL_CancelCinematicSession();
     CL_SuspendMenu();
     cl_menu_life = CL_MENU_UNLOADED;
     FOR_LOOP(modelIndex, MAX_MODELS) {

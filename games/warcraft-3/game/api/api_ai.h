@@ -375,6 +375,20 @@ uint32_t SetSmartArtillery(jass_t *j) { return BotSetFlag(j, BOT_SMART_ARTILLERY
 uint32_t GroupTimedLife(jass_t *j) { return BotSetFlag(j, BOT_GROUP_TIMED_LIFE); }
 uint32_t SetNewHeroes(jass_t *j) { return BotSetFlag(j, BOT_NEW_HEROES); }
 uint32_t SetRandomPaths(jass_t *j) { return BotSetFlag(j, BOT_RANDOM_PATHS); }
+/* BZ_COMPAT_GUESS: Naga AI uses this as a routing policy. Physical movement
+ * remains governed by each unit's authored pathing type (land/float/amphibious).
+ * Campaign groups therefore retain their real amphibious access without
+ * accidentally granting water travel to ground-only units. */
+uint32_t DisablePathing(jass_t *j) {
+    bot_t *bot = BotState(j);
+    if (bot) bot->flags |= BOT_DISABLE_PATHING;
+    return 0;
+}
+uint32_t SetAmphibious(jass_t *j) {
+    bot_t *bot = BotState(j);
+    if (bot) bot->flags |= BOT_AMPHIBIOUS;
+    return 0;
+}
 uint32_t SetDefendPlayer(jass_t *j) { return BotSetFlag(j, BOT_DEFEND_PLAYER); }
 uint32_t SetHeroesBuyItems(jass_t *j) { return BotSetFlag(j, BOT_HEROES_BUY_ITEMS); }
 
@@ -536,6 +550,27 @@ uint32_t SetCaptainHome(jass_t *j) {
     G_BotSetCaptainHome(player, which, x, y);
     return 0;
 }
+uint32_t TeleportCaptain(jass_t *j) {
+    G_BotTeleportCaptain(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
+    return 0;
+}
+uint32_t CaptainAttack(jass_t *j) {
+    G_BotCaptainAttack(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
+    return 0;
+}
+uint32_t CaptainGoHome(jass_t *j) { G_BotCaptainGoHome(jass_getcontext(j)->playerState); return 0; }
+uint32_t CaptainVsPlayer(jass_t *j) {
+    G_BotCaptainVsPlayer(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "player"));
+    return 0;
+}
+uint32_t CaptainVsUnits(jass_t *j) {
+    G_BotCaptainVsUnits(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "player"));
+    return 0;
+}
+uint32_t ResetCaptainLocs(jass_t *j) { G_BotResetCaptainLocs(jass_getcontext(j)->playerState); return 0; }
+uint32_t ClearCaptainTargets(jass_t *j) { G_BotClearCaptainTargets(jass_getcontext(j)->playerState); return 0; }
+uint32_t CaptainAtGoal(jass_t *j) { return jass_pushboolean(j, G_BotCaptainAtGoal(jass_getcontext(j)->playerState)); }
+uint32_t CaptainIsHome(jass_t *j) { return jass_pushboolean(j, G_BotCaptainIsHome(jass_getcontext(j)->playerState)); }
 uint32_t SetStagePoint(jass_t *j) {
     player_t *player = jass_getcontext(j)->playerState;
     float x = jass_checknumber(j, 1), y = jass_checknumber(j, 2);

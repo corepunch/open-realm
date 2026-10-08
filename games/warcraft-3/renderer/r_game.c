@@ -2193,6 +2193,8 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
         return false;
     }
     memset(info, 0, sizeof(*info));
+    info->sequenceCount = (uint32_t)MAX(0, model->mdx->num_sequences);
+    FOR_EACH_LIST(mdxCamera_t, camera, model->mdx->cameras) info->cameraCount++;
 
     R_W3BuildModelTextureCache(model);
     if (model_texture_cache.model == model) {
@@ -2236,7 +2238,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     if (!entity || !entity->model || !entity->model->mdx || !viewdef) {
         return false;
     }
-    bool ok = MDLX_ExtractCamera(entity->model->mdx, entity->frame, aspect, &viewdef->viewProjectionMatrix,
+    bool ok = MDLX_ExtractCamera(entity->model->mdx, entity->frame, entity->camera_index, aspect, &viewdef->viewProjectionMatrix,
                                  &viewdef->lightMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
     return ok;
@@ -2251,7 +2253,14 @@ bool R_GetModelAnimationDuration(model_t const *model, cstring_t anim, uint32_t 
 
     if (!model || model->modeltype != ID_MDLX || !model->mdx || !anim || !*anim || !duration)
         return false;
-    seq = MDLX_FindSequenceByName(model->mdx, anim);
+    if (anim[0] == '#') {
+        char *end;
+        unsigned long index = strtoul(anim + 1, &end, 10);
+        if (end == anim + 1 || *end || index >= (unsigned long)model->mdx->num_sequences) return false;
+        seq = model->mdx->sequences + index;
+    } else {
+        seq = MDLX_FindSequenceByName(model->mdx, anim);
+    }
     if (!seq || seq->interval[1] < seq->interval[0]) return false;
     *duration = seq->interval[1] - seq->interval[0];
     return true;
