@@ -191,4 +191,124 @@ TEST(wc3_unit_releases, tied_timer_registered_after_removal_observes_released_id
     jass_callbyname(level.vm,"check",false);T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* Loading must reconstruct logical requests; retaining this process's side heap
+ * accidentally masks missing serialization on an ordinary warm round trip. */
+TEST(wc3_unit_releases, cold_save_restores_absolute_deadlines_serials_and_callback_order) {
+    T_ASSERT(releases_setup());wc3Clock_t saved,loaded;uint32_t serial,next;
+    T_ASSERT(G_NextUnitRelease(&saved,&serial));uint32_t sequence=level.timer_sequence;
+    cstring_t file="/tmp/wc3-request-release181.bin";T_ASSERT(WriteGame(file));
+    G_ResetDeferredFrees();T_ASSERT(!G_NextUnitRelease(&loaded,&next));
+    level.pathing_clock=(wc3Clock_t){.time=7,.epoch=2,.span=300};level.timer_sequence=900;
+    T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&loaded,&next));
+    T_EQ(wc3_float_bits(loaded.time),wc3_float_bits(saved.time));T_EQ(loaded.epoch,saved.epoch);
+    T_EQ(wc3_float_bits(loaded.span),wc3_float_bits(saved.span));T_EQ(next,serial);
+    T_EQ(level.pathing_clock.time,1);T_EQ(level.pathing_clock.epoch,0u);T_EQ(level.timer_sequence,sequence);
+    level.scheduled_frame=true;G_RunTimers();jass_callbyname(level.vm,"check_order",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!G_NextUnitRelease(&loaded,&next));remove(file);
+}
+
+TEST(wc3_unit_releases, load_discards_process_requests_absent_from_snapshot) {
+    reset_entities();setup_test_world();level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    edict_t *unit=G_Spawn();uint32_t slot=unit->s.number;
+    cstring_t file="/tmp/wc3-request-empty181.bin";T_ASSERT(WriteGame(file));
+    G_DeferFreeEdict(unit);T_ASSERT(G_IsDeferredFree(unit));T_ASSERT(ReadGame(file));
+    T_ASSERT(g_edicts[slot].inuse);T_ASSERT(!G_IsDeferredFree(g_edicts+slot));
+    level.scheduled_frame=true;G_RunTimers();T_ASSERT(g_edicts[slot].inuse);remove(file);
+}
+
+TEST(wc3_unit_releases, cold_restore_after_wrap_keeps_rebased_release_and_borrowed_clock) {
+    reset_entities();setup_test_world();level.pathing_clock=(wc3Clock_t){.time=300,.span=300};
+    edict_t *unit=G_Spawn();uint32_t slot=unit->s.number;G_DeferFreeEdict(unit);
+    G_RebaseUnitReleases(300);level.pathing_clock=(wc3Clock_t){.epoch=1,.span=300};
+    level.timer_clock=level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
+    wc3Clock_t before,after;uint32_t serial,next;T_ASSERT(G_NextUnitRelease(&before,&serial));
+    cstring_t file="/tmp/wc3-request-epoch181.bin";T_ASSERT(WriteGame(file));G_ResetDeferredFrees();
+    T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&after,&next));
+    T_EQ(wc3_float_bits(after.time),wc3_float_bits(before.time));T_EQ(after.epoch,1u);T_EQ(next,serial);
+    G_RunDeferredFrees();T_ASSERT(g_edicts[slot].inuse);
+    level.scheduled_frame=true;G_RunTimers();T_ASSERT(!g_edicts[slot].inuse);remove(file);
+}
+
+/* A real timer callback creates a release during the old-epoch span drain.
+ * The new request participates in the rebase and the remainder drain. */
+TEST(wc3_unit_releases, span_callback_release_rebases_once_before_owner_and_remainder_drains) {
+    reset_entities();setup_test_world();g_edicts[0].client=game.clients;
+    level.pathing_clock=(wc3Clock_t){.time=wc3_float(0x4395fffe),.span=300};
+    T_ASSERT(run_test_jass(
+        "globals\nunit u\ntimer child\nendglobals\n"
+        "function span_action takes nothing returns nothing\n"
+        "call RemoveUnit(u)\ncall TimerStart(child,0.125,false,null)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal timer t=CreateTimer()\n"
+        "set child=CreateTimer()\nset u=CreateUnit(Player(0),'hfoo',64.0,64.0,0.0)\n"
+        "call TimerStart(t,0.0,false,function span_action)\nendfunction\n"));
+    level.timers[0].scalar_deadline.time=300;G_RebuildTimerQueue();
+    wc3Clock_t target=level.pathing_clock;wc3_clock_advance(&target,wc3_float(0x3ba3d70a),0);
+    level.scheduled_frame=true;G_RunTimersBeforePathOwner(&target);G_RunTimers();
+    T_EQ(level.num_timers,2u);T_EQ(level.timers[1].scalar_deadline.epoch,1u);
+    T_EQ(wc3_float_bits(level.timers[1].scalar_deadline.time),0x3e000000u);
+    T_ASSERT(!find_test_unit(MAKEFOURCC('h','f','o','o')));T_ASSERT(!jass_rterror_pending(level.vm));
+}
+static abilityProc_t release_flush_parent;
+static uint32_t release_flush_trace;
+static wc3Clock_t release_flush_clock;
+static intptr_t release_flush_proc(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
+    if(msg==A_UNIT_REMOVE) {
+        release_flush_trace=release_flush_trace*10+unit->user_data;release_flush_clock=G_TimerQueryClock(NULL);
+    }
+    return release_flush_parent(unit,msg,call);
+}
+
+/* Observe the outgoing owner independently of saved JASS globals, which the
+ * load legitimately overwrites. The live fixture witnesses this teardown. */
+TEST(wc3_unit_releases, load_flushes_only_old_owner_requests_within_point_two_seconds) {
+    reset_entities();setup_test_world();g_edicts[0].client=game.clients;
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit u\nlocal integer i=1\nloop\nexitwhen i>3\n"
+        "set u=CreateUnit(Player(0),'hfoo',64.0*i,64.0,0.0)\n"
+        "call UnitAddAbility(u,'Adef')\ncall SetUnitUserData(u,i)\nset i=i+1\nendloop\nendfunction\n"));
+    cstring_t file="/tmp/wc3-request-flush181.bin";T_ASSERT(WriteGame(file));
+    ability_t const *defend=FindAbilityByClassname("Adef");T_NOT_NULL(defend);if(!defend)return;
+    release_flush_parent=defend->proc;release_flush_trace=0;
+    S_ReplaceAbilityProcedure(defend,release_flush_proc);
+    FILTER_EDICTS(unit,unit->class_id==MAKEFOURCC('h','f','o','o')) {
+        wc3Clock_t clock=level.pathing_clock;clock.time=unit->user_data==1 ? 1 : unit->user_data==2 ? 1.1f : 1.3f;
+        G_DeferFreeEdictAt(unit,&clock);
+    }
+    T_ASSERT(ReadGame(file));S_ReplaceAbilityProcedure(defend,release_flush_parent);
+    T_EQ(release_flush_trace,12u);T_EQ(wc3_float_bits(release_flush_clock.time),wc3_float_bits(wc3_add(1.1f,G_ClockMinimumDelay())));
+    wc3Clock_t due;uint32_t serial;T_ASSERT(!G_NextUnitRelease(&due,&serial));
+    uint32_t active=0;FILTER_EDICTS(unit,unit->class_id==MAKEFOURCC('h','f','o','o')) {active++;T_ASSERT(!G_IsDeferredFree(unit));}
+    T_EQ(active,3u);remove(file);
+}
+TEST(wc3_unit_releases, moving_clock_backwards_leaves_absolute_requests_pending) {
+    T_ASSERT(releases_setup());level.pathing_clock.time=.5f;level.scheduled_frame=true;G_RunTimers();
+    wc3Clock_t due;uint32_t serial;T_ASSERT(G_NextUnitRelease(&due,&serial));
+    T_EQ(wc3_float_bits(due.time),wc3_float_bits(wc3_add(1,G_ClockMinimumDelay())));
+    level.pathing_clock.time=1.5f;G_RunTimers();jass_callbyname(level.vm,"check_order",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!G_NextUnitRelease(&due,&serial));
+}
+
+/* These are malformed logical records, not corrupt-checksum fixtures; the
+ * owning reader must reject stale identities, duplicates and invalid clocks. */
+TEST(wc3_unit_releases, logical_reader_rejects_invalid_payload_and_drops_partial_heap) {
+    reset_entities();setup_test_world();edict_t *unit=G_Spawn();
+    FOR_LOOP(mode,8) {
+        FILE *file=tmpfile();T_NOT_NULL(file);if(!file)break;
+        uint32_t count=mode==0 ? MAX_ENTITIES+1 : mode==7 ? 2 : 1;
+        uint32_t fields[]={unit->s.number,unit->spawn_time,17};wc3Clock_t clock={.time=1,.span=300};
+        if(mode==1)fields[0]=globals.num_edicts;
+        if(mode==2)unit->inuse=false;
+        if(mode==3)fields[1]++;
+        if(mode==4)clock.time=NAN;
+        if(mode==5)clock.span=0;
+        if(mode==6)clock.span=INFINITY;
+        T_EQ(fwrite(&count,sizeof(count),1,file),1u);
+        FOR_LOOP(i,mode==7 ? 2 : 1) {
+            T_EQ(fwrite(fields,sizeof(fields),1,file),1u);T_EQ(fwrite(&clock,sizeof(clock),1,file),1u);
+        }
+        rewind(file);T_ASSERT(!G_ReadUnitReleases(file));wc3Clock_t due;uint32_t serial;
+        T_ASSERT(!G_NextUnitRelease(&due,&serial));unit->inuse=true;fclose(file);
+    }
+}
 #endif

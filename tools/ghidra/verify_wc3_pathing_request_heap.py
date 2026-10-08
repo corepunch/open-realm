@@ -6,7 +6,7 @@ from pathlib import Path
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--binary',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    p.add_argument('--task',choices=('ORDER-05.1','ORDER-05.2'),default='ORDER-05.1')
+    p.add_argument('--task',choices=('ORDER-05.1','ORDER-05.2','ORDER-05.3'),default='ORDER-05.1')
     a=p.parse_args();assert not a.output.exists()
     subprocess.run([sys.executable,'tools/ghidra/research/verify_ORDER-05.1_request_heap.py',
         '--binary',str(a.binary),'--report',str(a.output),'--random','400',

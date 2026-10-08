@@ -6,9 +6,9 @@
 bool run_test_jass(cstring_t);
 void setup_test_world(void);
 
-static bool range_setup(bool inside,bool mutate) {
+static bool range_setup_at(bool inside,bool mutate,float time) {
     reset_entities();setup_test_world();g_edicts[0].client=game.clients;
-    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    level.pathing_clock=(wc3Clock_t){.time=time,.span=300};
     char script[4096];snprintf(script,sizeof(script),
         "globals\nunit center\nunit entrant\ntrigger first\ntrigger peer\ntrigger child\n"
         "integer trace=0\ntimer follow\nendglobals\n"
@@ -44,6 +44,8 @@ static bool range_setup(bool inside,bool mutate) {
         inside ? "128.0" : "512.0");
     return run_test_jass(script);
 }
+
+static bool range_setup(bool inside,bool mutate) {return range_setup_at(inside,mutate,1);}
 
 /* The real primary drain looks one quantum ahead; these supplied frame clocks
  * put its target before or after the original registration deadline. */
@@ -252,5 +254,49 @@ TEST(wc3_range_listeners, full_legacy_queue_does_not_drop_primary_listener_callb
     T_ASSERT(range_setup(true,false));level.events.read=0;level.events.write=MAX_EVENT_QUEUE;
     range_advance(1.125f);range_check("check_pair");
     T_EQ(level.events.write,(uint32_t)MAX_EVENT_QUEUE);T_EQ(level.events.read,0u);
+}
+/* Labelled supplied-clock reproduction of the live wrap, retaining its exact
+ * last pre-wrap poll and software-truncated rearm words. */
+TEST(wc3_range_listeners, span_poll_rearms_before_rebase_and_keeps_live_retail_words) {
+    T_ASSERT(range_setup_at(true,false,wc3_float(0x4395efff)));
+    wc3Clock_t due;uint32_t serial,initial;T_ASSERT(G_NextRangeRequest(&due,&initial));
+    T_EQ(wc3_float_bits(due.time),0x4395ffffu);
+    range_advance(wc3_float(0x4395fffe));range_check("check_pair");
+    T_ASSERT(G_NextRangeRequest(&due,&serial));T_EQ(due.epoch,1u);T_EQ(serial,initial);
+    T_EQ(wc3_float_bits(due.time),0x3dfff000u);
+    /* Commit the quantum as G_RunFrame does after the merged request drain. */
+    wc3_clock_advance(&level.pathing_clock,wc3_float(0x3ba3d70a),0);
+    T_EQ(wc3_float_bits(level.pathing_clock.time),0x3ba10000u);
+    range_advance(wc3_float(0x3dfff000));range_check("check_pair");
+    T_ASSERT(G_NextRangeRequest(&due,&serial));T_EQ(serial,initial);
+    T_EQ(wc3_float_bits(due.time),0x3e7ff800u);T_EQ(due.epoch,1u);
+}
+
+TEST(wc3_range_listeners, cold_ui_load_keeps_absolute_retail_poll_deadline_and_serial) {
+    T_ASSERT(range_setup_at(true,false,wc3_float(0x41efffff)));
+    level.pathing_clock.time=wc3_float(0x41f05e1f);
+    wc3Clock_t before,after;uint32_t saved,serial;T_ASSERT(G_NextRangeRequest(&before,&saved));
+    T_EQ(wc3_float_bits(before.time),0x41f0ffffu);
+    cstring_t file="/tmp/wc3-request-range181.bin";T_ASSERT(WriteGame(file));G_ResetRangeListeners();
+    level.pathing_clock=(wc3Clock_t){.time=70,.epoch=1,.span=300};
+    T_ASSERT(ReadGame(file));T_ASSERT(G_NextRangeRequest(&after,&serial));
+    T_EQ(wc3_float_bits(level.pathing_clock.time),0x41f05e1fu);
+    T_EQ(wc3_float_bits(after.time),0x41f0ffffu);T_EQ(after.epoch,before.epoch);T_EQ(serial,saved);
+    range_advance(wc3_float(0x41f08000));range_check("check_empty");
+    range_advance(wc3_float(0x41f0ffff));range_check("check_pair");remove(file);
+}
+TEST(wc3_range_listeners, first_timer_allocated_in_callback_keeps_the_popped_clock) {
+    reset_entities();setup_test_world();g_edicts[0].client=game.clients;
+    level.pathing_clock=(wc3Clock_t){.time=1,.span=300};
+    T_ASSERT(run_test_jass("globals\ntimer first\nendglobals\n"
+        "function enter takes nothing returns nothing\nset first=CreateTimer()\n"
+        "call TimerStart(first,0.0,false,null)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "local unit a=CreateUnit(Player(0),'hfoo',64.0,64.0,0.0)\n"
+        "local unit b=CreateUnit(Player(0),'hpea',128.0,64.0,0.0)\n"
+        "call TriggerRegisterUnitInRange(t,a,150.0,null)\ncall TriggerAddAction(t,function enter)\nendfunction\n"));
+    range_advance(1.14f);T_EQ(level.num_timers,1u);
+    T_EQ(wc3_float_bits(level.timers[0].scalar_deadline.time),wc3_float_bits(wc3_add(1.125f,G_ClockMinimumDelay())));
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 #endif

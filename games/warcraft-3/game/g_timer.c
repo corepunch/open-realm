@@ -158,10 +158,8 @@ gtimer_t *G_AllocJassTimer(void) {
     if (level.num_timers >= MAX_TIMERS) return NULL;
     gtimer_t *timer = &level.timers[level.num_timers++];
     memset(timer, 0, sizeof(*timer)); timer->scalar_heap_index=-1;
-    if(level.num_timers==1) {
-        level.timer_clock_valid=false;level.timer_integer_top=0;level.timer_heap_count=0;level.timer_release_head=0;
-        memset(level.timer_integer_bits,0,sizeof(level.timer_integer_bits));
-    }
+    /* Allocating the first timer inside another request must retain its borrowed clock.
+     * Level initialization/load owns queue reset, not this unrelated allocation. */
     return timer;
 }
 
@@ -463,10 +461,9 @@ static void TimerDrain(float limit,bool before_owner) {
         else {TimerHeapRemove(timer);TimerFireScalar(timer);}
     }
 }
-static void RunScalarTimers(wc3Clock_t const *before) {
-    wc3Clock_t target=level.pathing_clock;
-    wc3_clock_advance(&target,wc3_float(0x3ba3d70a),0);
-    if(before && (before->epoch!=target.epoch ? (int32_t)(before->epoch-target.epoch)<0 : before->time<target.time))target=*before;
+/* Both ordinary advances and outgoing-owner teardown drain the old span
+ * before rebasing every surviving/new request, then drain the remainder. */
+static void RunRequestsTo(wc3Clock_t target,wc3Clock_t const *before) {
     wc3Clock_t now=G_TimerQueryClock(NULL);
     level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
     if(now.epoch!=target.epoch) {
@@ -482,8 +479,24 @@ static void RunScalarTimers(wc3Clock_t const *before) {
         }
     }
     level.timer_clock=target;
+    /* The owner limit can exceed the truncated5ms publication target by one word. */
     TimerDrain(before ? before->time : target.time,before!=NULL);
     if(!before)TimerReleasePending();
+}
+static void RunScalarTimers(wc3Clock_t const *before) {
+    wc3Clock_t target=level.pathing_clock;
+    wc3_clock_advance(&target,wc3_float(0x3ba3d70a),0);
+    if(before && (before->epoch!=target.epoch ? (int32_t)(before->epoch-target.epoch)<0 : before->time<target.time))target=*before;
+    RunRequestsTo(target,before);
+}
+
+/* Original053110 settles the outgoing owner by software0.2s before destruction.
+ * Keep the map/VM alive for callbacks; later requests are discarded by reset. */
+void G_FlushPrimaryRequests(void) {
+    if(!level.pathing_clock.span)return; /* No clock owner exists before first map initialization. */
+    wc3Clock_t target=G_TimerQueryClock(NULL);
+    wc3_clock_advance(&target,wc3_float(0x3e4ccccd),0);
+    RunRequestsTo(target,NULL);
 }
 /* Integer C producers keep their existing host-millisecond observation boundary. */
 static void RunIntegerTimers(void) {

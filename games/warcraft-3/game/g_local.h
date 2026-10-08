@@ -3832,6 +3832,9 @@ void G_RebaseUnitReleases(float);
 void G_TestFinishDeferredFrees(void);
 #endif
 void G_ResetDeferredFrees(void);
+bool G_WriteUnitReleases(FILE *);
+bool G_ReadUnitReleases(FILE *);
+void G_FlushPrimaryRequests(void);
 void G_ResetMoveRegionEvents(void);
 void G_TrackMoveRegionEvent(event_t const *);
 void G_ResetEventSubscribers(void);

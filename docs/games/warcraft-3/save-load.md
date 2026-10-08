@@ -47,7 +47,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 143, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 144, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -62,6 +62,16 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 - a `W3OK` commit footer and FNV-1a checksum over the complete preceding payload.
 
 `WriteGame()` removes the destination when any record or footer write fails. `ReadGame()` validates the commit footer, checksum, format, script identity, and quest/group/trigger/timer/event registry counts before mutating clients or entities. A truncated or rejected partial write therefore cannot become a loadable artifact or clear the live world. A header mismatch names the failing field and prints saved versus live counts; do not treat a generic `header mismatch` line as complete.
+
+Version144 adds a logical live-unit-release section immediately before the
+range listeners: count, then unit slot/incarnation, unsigned request serial and
+absolute deadline/time/epoch/span. Heap placement is rebuilt; no removal callback
+or serial allocation repeats. JASS handles to pending releases retain their live
+identity until that deadline. The incompatible-version test rejects143.
+Before replacing the old map or loading accepted state, the game drains its
+outgoing primary requests through software0.2s, then discards the remaining
+process requests. First timer allocation inside a borrowed callback no longer
+resets that callback clock. See [pending request clocks](retail-pathfinding-engine.md#pending-request-clocks-survive-wrap-and-load-payoff181).
 
 Version143 adds game-owned range-listener state after physical Move groups and
 before hashtables/JASS. Each live registration stores its event slot, repeating

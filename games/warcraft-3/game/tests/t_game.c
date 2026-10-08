@@ -6673,8 +6673,8 @@ TEST(wc3_save, rejects_script_identity_without_mutation) {
     remove(filename);
 }
 
-/* A unit removed before save has a stale edict pointer in its JASS global.
- * Save must succeed and the global must load back as null. */
+/* A fully released unit has a stale edict pointer in its JASS global. Pending
+ * releases retain the identity (wc3_unit_releases); finish the real drain here. */
 TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-stale-handle-save-test.bin";
     T_ASSERT(run_test_jass(
@@ -6688,6 +6688,9 @@ TEST(wc3_save, stale_unit_handle_becomes_null_after_load) {
         "function verify takes nothing returns nothing\n"
         "  call BJassAssert(killedUnit == null, \"stale handle should be null after load\")\n"
         "endfunction\n"));
+    edict_t *unit=find_test_unit(MAKEFOURCC('h','p','e','a'));T_NOT_NULL(unit);
+    if(!unit)return;
+    T_ASSERT(G_IsDeferredFree(unit));level.scheduled_frame=true;G_RunTimers();T_ASSERT(!unit->inuse);
     T_ASSERT(WriteGame(filename));
     T_ASSERT(ReadGame(filename));
     jass_callbyname(level.vm, "verify", false);

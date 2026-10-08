@@ -27,6 +27,15 @@ static void DeferredFreeDown(uint32_t index,uint32_t slot) {
     DeferredFreePut(index,slot);
 }
 
+/* Save/load inserts existing keys without retirement callbacks or new serials. */
+static void DeferredFreeInsert(uint32_t slot) {
+    uint32_t index=deferred_free_count++;
+    while(index && DeferredFreeLess(slot,deferred_free_heap[(index-1)/2])) {
+        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
+    }
+    DeferredFreePut(index,slot);
+}
+
 /* A trapped unit keeps its identity but is absent from normal world interaction. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
     return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
@@ -180,11 +189,7 @@ void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
         .sequence=++level.timer_sequence};
     deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
-    uint32_t index=deferred_free_count++;
-    while(index && DeferredFreeLess(slot,deferred_free_heap[(index-1)/2])) {
-        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
-    }
-    DeferredFreePut(index,slot);
+    DeferredFreeInsert(slot);
     /* Native694690 retires the order chain before returning from RemoveUnit;
      * deferred storage release must not keep its commands or physical task. */
     G_ClearUnitOrderQueue(ent);
@@ -238,6 +243,38 @@ void G_RunDeferredFrees(void) {
 void G_ResetDeferredFrees(void) {
     FOR_LOOP(i,deferred_free_count)deferred_frees[deferred_free_heap[i]].heap_index=0;
     deferred_free_count=0;
+}
+
+/* Persist live wrapper requests only. The heap and membership are derived;
+ * loading never calls RemoveUnit again or shifts an absolute saved deadline. */
+static bool DeferredFreeState(FILE *file,bool write) {
+    uint32_t count=deferred_free_count;
+    if((write ? fwrite(&count,sizeof(count),1,file) : fread(&count,sizeof(count),1,file))!=1 ||
+        count>MAX_ENTITIES)return false;
+    FOR_LOOP(i,count) {
+        uint32_t fields[3]={0};wc3Clock_t clock={0};
+        if(write) {
+            fields[0]=deferred_free_heap[i];deferred_free_t const *request=deferred_frees+fields[0];
+            fields[1]=request->spawn_time;fields[2]=request->sequence;clock=request->deadline;
+        }
+        if((write ? fwrite(fields,sizeof(fields),1,file) : fread(fields,sizeof(fields),1,file))!=1 ||
+            (write ? fwrite(&clock,sizeof(clock),1,file) : fread(&clock,sizeof(clock),1,file))!=1)return false;
+        uint32_t slot=fields[0];
+        if(slot>=globals.num_edicts || !g_edicts[slot].inuse || g_edicts[slot].spawn_time!=fields[1] ||
+            !isfinite(clock.time) || !isfinite(clock.span) || clock.span<=0 ||
+            (!write && deferred_frees[slot].heap_index))return false;
+        if(!write) {
+            deferred_frees[slot]=(deferred_free_t){.deadline=clock,.spawn_time=fields[1],.sequence=fields[2]};
+            DeferredFreeInsert(slot);
+        }
+    }
+    return true;
+}
+bool G_WriteUnitReleases(FILE *file) {return DeferredFreeState(file,true);}
+bool G_ReadUnitReleases(FILE *file) {
+    G_ResetDeferredFrees();
+    if(DeferredFreeState(file,false))return true;
+    G_ResetDeferredFrees();return false;
 }
 
 #ifdef BZ_TESTS

@@ -859,7 +859,7 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
 /* Release level owners while their map, metadata and actor addresses are
  * still valid. G_LoadMap calls this before replacing either world or rows. */
 void G_ReleaseLevel(void) {
-    CM_FinishPathJobs();
+    CM_FinishPathJobs();G_FlushPrimaryRequests();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearSaveRegistries();

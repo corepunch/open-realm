@@ -5,8 +5,45 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools/ghidra/research'))
 import verify_order179_requests as requests
 import verify_order180_ranges as ranges
+import verify_order181_clocks as clocks
 
 class RequestEvidenceTests(unittest.TestCase):
+    def test_clock_claims_require_exact_rebase_restore_and_continuation(self):
+        frozen=json.loads((ROOT/clocks.EXPECTED).read_bytes())
+        self.assertEqual(clocks.claims(frozen),[])
+        for mutation in('epoch','rebase','remainder','presentation','ties','saved','poll','release','clock','markers','rows','control','pop'):
+            changed=copy.deepcopy(frozen);wrap=changed['live']['wrap'];load=changed['live']['saveload']
+            if mutation=='epoch':wrap['rebase'][3][3]=2
+            elif mutation=='rebase':wrap['rebase'][3][5][0][0]='3e000000'
+            elif mutation=='remainder':wrap['near_span_primary'][-1][1]='3ba10001'
+            elif mutation=='presentation':wrap['near_span_presentation'][-1][2]=0
+            elif mutation=='ties':
+                a,b=[i for i,r in enumerate(wrap['around_primary_wrap'])if r[0]=='execute'and r[1]=='4395ffff']
+                rows=wrap['around_primary_wrap'];rows[a],rows[b]=rows[b],rows[a]
+            elif mutation=='saved':load['request_save'][0][1]='41f10000'
+            elif mutation=='poll':next(r for r in load['wrapper_load']if r[0]=='a91220')[1][2]=39
+            elif mutation=='release':next(r for r in load['wrapper_load']if r[0]=='a8099c')[2][0]='41f05e54'
+            elif mutation=='clock':load['load_clock'][1][1]['serial']=133
+            elif mutation=='markers':load['pre_continuation_vs_post_load_markers']['equal']=False
+            elif mutation=='rows':load['pre_continuation_vs_post_load_window_rows']['equal']=False
+            elif mutation=='control':load['control']['equal']=False
+            else:wrap['ordercheck']['violations']=1
+            with self.subTest(mutation=mutation):self.assertTrue(clocks.claims(changed))
+
+    def test_clock_teardown_requires_old_cancelled_pops_and_load_start_flush(self):
+        rows=[dict(event='settle-enter',seq=10,tick=640,clocks={'primary':{'timeW':'4281f482'}}),
+              dict(event='execute',seq=12,req={'deadlineW':'4281ffff','serial':38,'flags':'00010001'}),
+              dict(event='execute',seq=13,req={'deadlineW':'4281ffff','serial':41,'flags':'00010001'}),
+              dict(event='settle-leave',seq=15,clocks={'primary':{'timeW':'00000000'}}),
+              dict(event='game-load-enter',seq=20),dict(event='settle-enter',seq=21,tick=640,by='4cefc',clocks={})]
+        self.assertEqual(clocks.teardown_claims(rows),[])
+        for index,key,value in((1,'serial',99),(2,'deadlineW','4282ffff'),(2,'flags','00000001')):
+            changed=copy.deepcopy(rows);changed[index]['req'][key]=value
+            self.assertTrue(clocks.teardown_claims(changed))
+        for index in(0,1,2,3,4,5):
+            changed=copy.deepcopy(rows);changed.pop(index)
+            self.assertTrue(clocks.teardown_claims(changed))
+
     def test_range_claims_require_registration_rearm_release_and_repeat_ties(self):
         frozen=json.loads((ROOT/ranges.EXPECTED).read_bytes())
         self.assertEqual(ranges.claims(frozen),[])

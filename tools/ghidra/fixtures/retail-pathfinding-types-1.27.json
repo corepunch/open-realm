@@ -953,6 +953,18 @@
           "evidence": "2039d0/061320 reject nonzero\n2039d0/061320 reject nonzero\nORDER-05.1 (retired, ptr:WC3AgentRequest): Release request (15e0e0 idempotence guard); same field as WC3AgentWrapperPrefix.retired. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
+          "offset": 68,
+          "name": "period",
+          "type": "WC3PathScalar",
+          "evidence": "ORDER-05.3 15dec0/15dd30 save/load wrapper+44 verbatim before rebuilding current poll/release requests."
+        },
+        {
+          "offset": 72,
+          "name": "timer_event",
+          "type": "u32",
+          "evidence": "ORDER-05.3 15dec0/15dd30 save/load wrapper+48 event selector verbatim; live saved RA/RB absolute poll deadlines41f0ffff and stable serial38/41."
+        },
+        {
           "offset": 76,
           "name": "flags",
           "type": "u32",
@@ -1745,16 +1757,16 @@
           "evidence": "157610 invokes1cc4e0 owner seed"
         },
         {
-          "offset": 1336,
-          "name": "update_counter",
-          "type": "u32",
-          "evidence": "157610 initial400;15aa80 increment/wrap400;168910 interval consumer"
+          "offset": 20,
+          "name": "primary_requests",
+          "type": "WC3SimulationClockPrefix",
+          "evidence": "ORDER-05.3 15c490 loads primary header at owner+54..64; 053110 advances the clock at owner+14; live300-second wrap and UI load retain independent current time/epoch/span/flags/serial."
         },
         {
-          "offset": 1340,
-          "name": "separation_phase",
-          "type": "u32",
-          "evidence": "157610 initial0;15aa80 toggles0/1"
+          "offset": 104,
+          "name": "presentation_requests",
+          "type": "WC3SimulationClockPrefix",
+          "evidence": "ORDER-05.3 15c490 loads presentation header at owner+A8..B8; 053110 advances owner+68; presentation wraps independently and live UI load restores41f0af73 without touching primary41f05e1f."
         },
         {
           "offset": 564,
@@ -1803,6 +1815,18 @@
           "name": "adaptive_search",
           "type": "ptr:void",
           "evidence": "15ab60 original search factory14ec80; binds four hierarchy maps"
+        },
+        {
+          "offset": 1336,
+          "name": "update_counter",
+          "type": "u32",
+          "evidence": "157610 initial400;15aa80 increment/wrap400;168910 interval consumer"
+        },
+        {
+          "offset": 1340,
+          "name": "separation_phase",
+          "type": "u32",
+          "evidence": "157610 initial0;15aa80 toggles0/1"
         }
       ]
     },
@@ -7123,6 +7147,7 @@
       "name": "SimClock_AdvanceRequests",
       "returns": "u32",
       "convention": "__fastcall",
+      "evidence": "RET 05422e; EAX 1. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
       "parameters": [
         {
           "name": "increment",
@@ -7194,7 +7219,8 @@
       "address": "6f0521f0",
       "name": "SimClock_RebaseRequestDeadlines",
       "returns": "void",
-      "convention": "__fastcall",
+      "convention": "__thiscall",
+      "evidence": "RET 05222f. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
       "parameters": [
         {
           "name": "clock",
@@ -15794,6 +15820,154 @@
         {
           "name": "bounds",
           "type": "ptr:WC3PathIntegerRectangle",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f04f7e0",
+      "name": "SimClock_AdvanceRequestsBy",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET4 04f7ee. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "increment",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15dca0",
+      "name": "AgentRequest_Load",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "convention": "__fastcall",
+      "evidence": "RET4 15dd1c/15dd26. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "EDX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15de50",
+      "name": "AgentRequest_Save",
+      "returns": "void",
+      "convention": "__fastcall",
+      "evidence": "RET 15dea5/15deb1. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f15dd30",
+      "name": "AgentWrapper_LoadState",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 15dd99. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:WC3AgentWrapperPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15dec0",
+      "name": "AgentWrapper_SaveState",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 15df14. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:WC3AgentWrapperPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f15c490",
+      "name": "PathOwner_LoadHeaderAndClocks",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET8 15c626. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3PathOwnerCounterPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "companion",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f053110",
+      "name": "Simulation_FlushAndTeardown",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8 05344f. ORDER-05.3: instruction-verified; oracle group 05.3; live order05 wrap (300 s) and UI save/load probes.",
+      "parameters": [
+        {
+          "name": "config",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "progress",
+          "type": "ptr:void",
           "storage": 8
         }
       ]

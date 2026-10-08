@@ -58,7 +58,11 @@ TEST(wc3_movement, public_timed_life_matches_completed_retail_markers_and_saved_
         level.time+=FRAMETIME;globals.RunFrame();
         if(level.time==700) {
             T_ASSERT(WriteGame("/tmp/wc3-timedlife156-pause.bin"));
+            /* Teardown drains the discarded outgoing branch. This recorder
+             * compares the saved continuation; old-owner callbacks have their own regression. */
+            test_preload_marker=NULL;
             T_ASSERT(ReadGame("/tmp/wc3-timedlife156-pause.bin"));remove("/tmp/wc3-timedlife156-pause.bin");
+            test_preload_marker=TimedLifeMarker156;
         }
     }
     T_EQ(timedlife_marker_156,sizeof(timedlife_markers_156)/sizeof(*timedlife_markers_156));

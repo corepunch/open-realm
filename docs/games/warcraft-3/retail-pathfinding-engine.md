@@ -12436,3 +12436,64 @@ tests. The staged snapshot passes32 corpus inventory and3 negative-evidence
 tests, with both new strict corpus entries passing. Production/test targets build. Full validation remains on the authorized12-commit
 cadence; this is implementation9/12 since the last full checkpoint. No overall
 IceCrown frame-budget acceptance or complete pathfinding parity is claimed.
+
+## Pending request clocks survive wrap and load (Payoff181)
+
+ORDER-05.3 integrates the absolute pending-request contract into the engine.
+`g_utils.c` now saves live unit releases as slot/incarnation, unsigned serial and
+`wc3Clock_t` deadline. `ReadGame` discards the outgoing side heap and reconstructs
+the saved keys after edicts, without invoking retirement again, allocating new
+serials or shifting deadlines. A pending unit remains a valid serialized JASS
+identity until release; a fully released handle still becomes null.
+The format is144 (143 is rejected); network and edict layouts are unchanged.
+
+Ordinary and outgoing-owner drains share `RunRequestsTo`: drain through the old
+span, rebase every surviving/new request using software subtraction, then drain
+the remainder. `G_FlushPrimaryRequests` advances software0.2s before level
+replacement, game shutdown or accepted `ReadGame`, while map/VM state remains
+valid. Remaining outgoing requests are discarded. The outgoing owner is not
+advanced by gameplay frames during this lifecycle operation. Cold restoration
+keeps both the physical primary cursor and the completed/borrowed cursor already
+in the level schema. First JASS timer allocation no longer clears that borrowed
+cursor or unrelated queue state; only level initialization/load owns reset.
+
+The tests use real JASS CreateUnit/RemoveUnit/range/timer procedures, logical
+save/load, the production primary merge and actual release callbacks. Added
+coverage includes cold queues, exact keys and callback order, unsaved outgoing
+requests, a post-wrap save, backward/forward supplied clock changes, invalid and
+duplicate records, callback-created releases in a span drain, the old-owner0.2s
+flush, exact live poll/rearm words and a first timer created inside a range action.
+The older stale-handle fixture now explicitly finishes the primary release before
+saving: its prior immediate-null expectation conflated retirement with release.
+Pending-handle restoration has its own positive callback-order regression.
+The timed-life recorder excludes the discarded outgoing branch during load,
+then continues checking every frozen saved marker; old-owner callbacks are
+independently asserted by the release regression. Admission before a path-owner
+callback retains that owner's exact deadline as its limit, independently of the
+software-truncated five-millisecond publication target.
+
+Retail evidence is the frozen [ORDER-05.3 handoff](retail-pathfinding-handoffs/ORDER-05.3/HANDOFF.md).
+Fresh execution of432 original-code cases (32 named,400 seed5051) has zero
+mismatches/faults. `verify_order181_clocks.py` rebuilds the complete prepared wrap
+and UI-load archives:40,561 observed records,9,405 pops, no ordering violations,
+nine rebased requests, twelve restored requests,58 equal continuation markers
+and465 equal continuation request rows. Both observer-free controls agree.
+No new live launch is claimed. Its negative controls reject changed rebase,
+epoch/remainder, restored deadline/serial, outgoing cleanup and continuation data.
+
+Saved Ghidra and `MapPathfinding.java` retain nine explicit ABIs, clock fields
+embedded at owner+14/+68 and wrapper period/event fields at+44/+48. Native load
+restores primary41f05e1f, serial132 and RA/RB deadline41f0ffff, serials38/41;
+a pending release41f05e53/132 also survives. At the live300-second boundary,
+RA/RB fire at4395ffff and rearm43960fff before rebasing to3dfff000. The primary
+remainder is3ba10000; presentation wraps independently to3d394000.
+
+The game exposes one authoritative primary simulation request clock; no public
+presentation-request or pause producer is invented. Identity-sign switching,
+pause bit0 and independent queues are labelled forced-state original-code
+contracts. Live UI load after epoch1 remains unwitnessed; the engine regression
+for a post-wrap release is explicitly a supplied-clock case. These limits do not
+turn a primary saved deadline into a relative timeout or transfer it to another
+clock. Reports and failing/accepted logs are in
+`/GitHub/wc3-analysis/runtime/payoff181/`. Focused Classic/TFT suites are the
+chunk gate; full validation remains on the owner's approximately12-commit cadence.

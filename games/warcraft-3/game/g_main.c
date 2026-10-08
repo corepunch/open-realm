@@ -549,9 +549,11 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    CM_FinishPathJobs();
+    if(g_edicts)G_FlushPrimaryRequests();
+    G_ResetDeferredFrees();
     G_ResetAcquisitionPresence();
     S_ClearUnitEventPlans();
-    CM_FinishPathJobs();
     G_ShutdownPathWorker();
     G_FreeMovePathCache();
     if (g_edicts == NULL) {

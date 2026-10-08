@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "147 executable original oracle contracts;413 total entries.",
+  "scope": "148 executable original oracle contracts;415 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -44754,6 +44754,171 @@
           }
         }
       ]
+    },
+    {
+      "id": "oracle-pending-request-clocks",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_request_heap.py",
+        "--binary",
+        "{binary}",
+        "--task",
+        "ORDER-05.3",
+        "--output",
+        "{report}"
+      ],
+      "report": "clock-original181.json",
+      "expected_exit": 0,
+      "expected_status": "retail-agent-request-original",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 432
+        },
+        "mismatches": {
+          "equal": 0
+        }
+      },
+      "evidence": [
+        "O",
+        "S"
+      ],
+      "scope": "Fresh original clock wrap/independence/restore/switch instructions against frozen ORDER-05.3 and seeded request heap cases.",
+      "exclusions": [
+        "Controlled receivers, owner and preallocated blocks; Storm/CRT services supplied.",
+        "Presentation-request and pause producers are not public witnesses."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      }
+    },
+    {
+      "id": "live-pending-request-clocks",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_order181_clocks.py",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "clock-captures181.json",
+      "expected_exit": 0,
+      "expected_status": "retail-pending-request-clocks",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observed_captures": {
+          "equal": 2
+        },
+        "records": {
+          "equal": 40561
+        },
+        "observer_free_comparisons": {
+          "equal": 2
+        },
+        "pops": {
+          "equal": 9405
+        },
+        "violations": {
+          "equal": 0
+        },
+        "rebased_requests": {
+          "equal": 9
+        },
+        "restored_requests": {
+          "equal": 12
+        },
+        "continuation_markers": {
+          "equal": 58
+        },
+        "continuation_rows": {
+          "equal": 465
+        }
+      },
+      "evidence": [
+        "L",
+        "C",
+        "S"
+      ],
+      "scope": "Complete independent300-second wraps, UI load of absolute keys, old teardown and exact post-load continuation.",
+      "exclusions": [
+        "Prepared archives verified afresh; no new live launch.",
+        "Post-wrap UI load and public presentation requests are unobserved; pause/sign switch are forced-state original cases."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/ORDER-05.3/captures/wrap-observe-1.jsonl",
+        "sha256": "5c849d575b26911f529453678e153c69d4246ca6deff8a1a2144da2ec6c9ac33",
+        "bytes": 9573638,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "mode": "observe",
+          "source_sha256": {
+            "order_trace.py": "beb82075df6bf0cbd2594ba13fad75bb12fa5ad90b957e1f151ea27bc886c7ba",
+            "order05_observer.js": "c05f138c895eb8f1291d196f24bc7462dee7e7b57775e34dc93972db410604ea",
+            "order05_probe.j": "032c4aa1ec8bceb457266f4d289305beef8204f5aa13ca1dc82afbf785a5affc",
+            "map": "1e54be4092dab5d9f5fca5570d41875005801a34bbba6705a97c5df3ede3a92b"
+          },
+          "map": "Maps\\RS-ORDER-05-wrap.w3m",
+          "seconds": 540.0,
+          "continue_at": 70.0,
+          "continue_every": 5.0,
+          "display": ":99",
+          "remote": "127.0.0.1:27050",
+          "removed_before_launch": [],
+          "frida": "17.18.0",
+          "config": {
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "caps": {
+              "default": 200000
+            }
+          }
+        }
+      },
+      "additional_captures": [
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-05.3/captures/saveload-observe-1.jsonl",
+            "sha256": "b86bd556f4b38a7b980108ccc16d3449306e175fe4c5b4035fa9006dd45c057a",
+            "bytes": 2086411,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "source_sha256": {
+                "order_trace.py": "beb82075df6bf0cbd2594ba13fad75bb12fa5ad90b957e1f151ea27bc886c7ba",
+                "order05_observer.js": "c05f138c895eb8f1291d196f24bc7462dee7e7b57775e34dc93972db410604ea",
+                "order05_probe.j": "032c4aa1ec8bceb457266f4d289305beef8204f5aa13ca1dc82afbf785a5affc",
+                "map": "85e5f5c602760d53daa23fd9c9dba1706dbfbe48b63a76cbdefc8980b1d359c0"
+              },
+              "map": "Maps\\RS-ORDER-05-saveload.w3m",
+              "seconds": 330.0,
+              "continue_at": 70.0,
+              "continue_every": 0.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "removed_before_launch": [],
+              "frida": "17.18.0",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "caps": {
+                  "default": 200000
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -44819,7 +44984,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "282494b8fd7ad55eb07609511ee40d21dc4b23b105fe6a66a220587873de36c8"
+      "sha256": "4a95a819604823b7cbf66f24491f540331167953aba08b9018e7a1226b319b29"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -45652,7 +45817,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "04c47a450d2c9288506351742913d16f012a21ffe6b0cd668611e153dbfba940"
+      "sha256": "1d9b33d75ddee38d3523752b278d35fd54afffbd17abfb880d4079b395998909"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -46944,7 +47109,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "21d948f8ee1aa05dccdc28e4037c0f76c7f0ea1f9481f403d6bf1594966b50ee"
+      "sha256": "e13ed8c7f54665a4803f6905471faaf7a0968370e7adc95733eed08116aaa71d"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -46952,7 +47117,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "883e916332c334412596881291ec015558cef021c1125c3ef4641a2566a4c72f"
+      "sha256": "498a815a6c530b9d6f4bf8f58502ef67508e9306dbe9c17d34517b7b01e61879"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -47444,7 +47609,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "be3977fbadb131ff1b176d9a62559f681c9e279c663c1e494c76423c162f1a4c"
+      "sha256": "8c1d5ec708ae5202e23cb851269eb44ee5ab924eb9f7f2e69fb5b8cacd2c036a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -47452,19 +47617,19 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "c981ce47ae940cba34a1c1491c5224a1a16a3c656c8bee4a14cf794b82a325f4"
+      "sha256": "8e2f72809421282897c1a65d0cc8bcc393fb1144b14c6abbdf621697128e0c6b"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "b9acd4b063ce7d02606604a41a9f2ef7797354460deeb757dea9e076b94be174"
+      "sha256": "92a034d406b16f638823a63338e3cb7f188d70fbd7dbbf5c0866d7e3d83cec21"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "56496c7faa09faadf6d9c09eee31189cdc39af99cbd3c4b8894cf609843e1dcc"
+      "sha256": "cef547f8cd795a338707eef5e2a477bd7bb002c00be71424326e90f8567ba09c"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
-      "sha256": "c6947905803e3e7d0ffbc56e16bfc25d41493774e08c8b61248ab587bae90a18"
+      "sha256": "7a503c692bc1c3e91a79fec7fd75f9e4674fea81363596d2311c32a2bd5906c3"
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
@@ -47516,11 +47681,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "26d2d4ebb3f337e82e703e2cd7a9a18209dbffe0468e6b61d996c1e90d0e3d8f"
+      "sha256": "6a76cb167f3425447d4dfca1e0d485a7ac53f8db7ad1169e91acd8acb0eaf784"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "af453198e092b6b366b5394401f48bd2e13717c5ba80db0083a6e5ffc194c3d9"
+      "sha256": "45da3399782e30c8f7361e9bdb73fa208f37f1d87ee19bcbd35ac9bdf85d2781"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -47588,7 +47753,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "dace0d43e11fc865ba93871301c88ebb716515a936b60d71fbb7efcff13fb52d"
+      "sha256": "0fb1cc0fd774d161665d803b14cc68e329b13a2a21ae507e1854a4512174ca83"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -48756,7 +48921,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
-      "sha256": "7692acb1e1c8157fd2b4e0d77c200e10d8ad01f0062e1c7950fbdac365fd9739"
+      "sha256": "da7b75d96261386333ab2a5e3e712ee2bc91a0843c9eb14b5dfc8cb37fdfc687"
     },
     {
       "path": "games/warcraft-3/game/tests/t_waygate.c",
@@ -48764,7 +48929,7 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_request_heap.py",
-      "sha256": "bb3259dfe627c34e9e05f88a9791316cfaaceaab1edd8bfcf39efdc11ae8bf5c"
+      "sha256": "df540c03e0015a5f8bb5bffa83abbc24017c94c6823ecac0054358e3ff2193ab"
     },
     {
       "path": "tools/ghidra/research/verify_ORDER-05.1_request_heap.py",
@@ -48776,7 +48941,7 @@
     },
     {
       "path": "tests/test_wc3_request_heap_evidence.py",
-      "sha256": "ad6577d264f30e847b39672c912578a83fea397564f09fc871b6b1bede0e6b3a"
+      "sha256": "d190511050639f23899e846d3644563041fb691b48e966725dd535d3013dde17"
     },
     {
       "path": "tools/frida/research/order05_analyze.py",
@@ -48824,7 +48989,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_range_listeners.c",
-      "sha256": "f1eea1e6667e7dc671debf16afbd18a5c96ebed6e30ab7a600e1400c60d76b66"
+      "sha256": "81195d13830877806bad10fceec3cc2dc3468593ed1f1a8a048848027469e4b6"
     },
     {
       "path": "tools/ghidra/research/verify_order180_ranges.py",
@@ -48845,6 +49010,34 @@
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-05.2/mapping-rows.txt",
       "sha256": "f5ea3e928b66c85969bbaac76c00c898bf13fd948c08b897c630ac68698814f7"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_game.c",
+      "sha256": "3d58752d5bce85cb46f9eb79044adc4789bcf7f517b184fb4dd79d9fcc01e9bc"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_timed_life.c",
+      "sha256": "1d7f053c35895c723c6a63fb097ba23480ac49cc1ca90efcd3557aab6c8df5ec"
+    },
+    {
+      "path": "tools/ghidra/research/verify_order181_clocks.py",
+      "sha256": "bb0a28c50c22feb68fcb7ea3013e464bf55c9bdbf97b80e65a8333e85bea0a4a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ORDER-05.3-expected.json",
+      "sha256": "e1f4d270b2d02066a97463db04a90249c9954adc44e926c83f6252619ee89545"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-05.3/HANDOFF.md",
+      "sha256": "c4b3fba1566db177b2c391fb8a3cce25e791645104cb7c08f2e3d8932383a52b"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-05.3/types.json",
+      "sha256": "4612c6a3359e55b4294c9796f1fe3c42e065ec535d1a6c20422a59892ea7e190"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-05.3/mapping-rows.txt",
+      "sha256": "4844f4780ad73a3b8a61e9d777cd69b45e7837f0ffd81671da3d11d4a98f5c55"
     }
   ]
 }
