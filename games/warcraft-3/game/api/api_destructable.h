@@ -75,6 +75,8 @@ uint32_t EnumDestructablesInRect(jass_t *j) {
      * GroupEnumUnitsInRect + ForGroup; like GroupEnumUnitsInRect we ignore the
      * boolexpr filter (arg 2) for now. */
     extern edict_t *currentdestructable;
+    /* Actions may invoke this native recursively; preserve the outer enum
+     * widget so GetEnumDestructable/GetFilterDestructable keep their context. */
     edict_t *previousdestructable = currentdestructable;
     box2_t *r = jass_checkhandle(j, 1, "rect");
     jassFunc_t const *actionFunc = jass_checkcode(j, 3);

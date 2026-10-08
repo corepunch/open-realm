@@ -732,6 +732,8 @@ void S_MineOverlayBindPreplaced(void) {
         FOR_LOOP(j, globals.num_edicts) {
             edict_t *parent = &globals.edicts[j];
             float distance;
+            /* RemoveUnit defers the old mine's free until tick end, so it can
+             * still be inuse beside the newly spawned replacement here. */
             if (parent == overlay || !parent->inuse || G_IsDeferredFree(parent) ||
                 !S_GoldMineIsMine(parent) ||
                 goldmine_is_overlay_type(parent) || parent->s.player != PLAYER_NEUTRAL_PASSIVE) continue;
