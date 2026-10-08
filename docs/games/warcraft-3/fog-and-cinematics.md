@@ -316,3 +316,12 @@ The final complete repository suite passes, including 2,633 tests and
 dirty-plane, placement, membership or RNG mismatch was observed in these
 regressions and captures; this remains current-engine preservation evidence,
 not proof that all remaining retail fog/pathfinding differences are closed.
+
+## Fog modifier ownership and persistence
+
+Fog modifiers use stable game-owned records and borrowed JASS handles. Clearing
+a script reference does not stop an active modifier. Save135 retains each
+record and the active application order; restoration binds aliases to the same
+record before script execution resumes. It does not invoke Start again.
+Stopped records remain stopped, and destroyed handles save as null. See
+[Move target visibility](retail-pathfinding-target-visibility.md).

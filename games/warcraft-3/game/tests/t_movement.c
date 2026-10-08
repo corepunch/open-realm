@@ -84,6 +84,7 @@
 #include "retail_yield_composed163.h"
 #include "retail_dynamic_blocker163.h"
 #include "retail_target_approach164.h"
+#include "retail_target_fog166.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Helpers defined in t_utils.c */
@@ -17742,6 +17743,178 @@ TEST(wc3_movement, warp165_multi_member_denial_retains_layout_until_recovery) {
         T_ASSERT(changed);
     }
     reset_entities();setup_test_world();
+}
+
+
+/* TARGET-03: fog affects Move admission and arrival even for owned targets.
+ * Ordinary owner visits continue toward the last sampled point until arrival. */
+static void target166_setup(edict_t **unit, edict_t **target) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),672,256);
+    edict_t *units[]={*unit,*target};
+    FOR_LOOP(i,2) {
+        units[i]->svflags=SVF_MONSTER;units[i]->movetype=MOVETYPE_STEP;
+        units[i]->stand=unit_stand;units[i]->collision=31;unit_stand(units[i]);
+        units[i]->runtime.sight_radius.day=units[i]->runtime.sight_radius.night=2000;
+        S_SetUnitMoveSpeed(units[i],270);
+    }
+    G_GetPlayerClientByNumber(0)->ps.rdflags&=~RDF_NOFOG;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,*target));
+}
+
+static void target166_tick(void) {
+    level.pathing_counter++;wc3_clock_advance(&level.pathing_clock,.03f,0);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+}
+
+TEST(wc3_movement, target166_fogged_order_rejection_preserves_active_head_and_queue) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    vec2_t point={1280,1280};T_ASSERT(unit_issueorder(unit,"move",&point));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1536,1536},true,0,0));
+    edict_t *goal=unit->goalentity;umove_t const *move=unit->currentmove;
+    uint32_t group=unit->movement.group_id;
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
+    G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(!unit_issuetargetorder(unit,"move",target));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->goalentity,goal);T_EQ(unit->currentmove,move);
+    T_EQ(unit->movement.group_id,group);T_EQ(unit->order_queue.count,1);
+    T_ASSERT(!G_IssueUnitTargetOrder(unit,"move",target,true,0));T_EQ(unit->order_queue.count,1);
+    G_FogModifierStop(fog);G_FowUpdate();
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_EQ(unit->movement.follow_target,target);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static void target166_hidden_arrival(bool persistent) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {
+            target166_tick();moveGroup_t *group=move_unit_group(unit);
+            if(group && (group->flags&1))break;
+        }
+        T_NOT_NULL(move_unit_group(unit));
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
+    G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    uint32_t original=unit->movement.group_id,visits=0;
+    while(unit->current_order_id && visits<160) {target166_tick();visits++;}
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+    T_EQ(unit->movement.group_id,0);T_NULL(move_find_group(original));
+    T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+    T_ASSERT(visits>0 && visits<160);
+    G_FogModifierStop(fog);G_FowUpdate();
+    FOR_LOOP(i,20)target166_tick();
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target166_hidden_approach_ends_at_cached_arrival) {target166_hidden_arrival(false);}
+TEST(wc3_movement, target166_hidden_persistent_follow_ends_at_cached_arrival) {target166_hidden_arrival(true);}
+
+
+static unsigned target166_cursor;
+static bool target166_mismatch;
+static edict_t *target166_unit;
+static void target166_before(moveGroup_t const *group) {
+    if (target166_mismatch || group->count!=1 || group->members[0].unit!=target166_unit) return;
+    T_ASSERT(target166_cursor<sizeof(target166_fog)/sizeof(*target166_fog));
+    if (target166_cursor>=sizeof(target166_fog)/sizeof(*target166_fog)) return;
+    uint32_t const *row=target166_fog[target166_cursor];
+    moveFineRoute_t const *path=&target166_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(target166_unit->movement.fine_pose.x),wc3_float_bits(target166_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(target166_unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(target166_unit->movement.velocity.y,32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        target166_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        target166_unit->movement.wait_delay,target166_unit->movement.retry_count,group->flags&1};
+    FOR_LOOP(i,25) {
+        /* Unpublished empty-buffer destinations have no engine pointer identity. */
+        if ((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15))) continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"target166 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                target166_cursor,i,level.pathing_counter,actual[i],row[i]);
+            target166_mismatch=true;
+        }
+    }
+    target166_cursor++;
+}
+
+
+TEST(wc3_movement, target166_public_fog_follow_matches_retail_and_cold_save) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    float radius=31,speed=270,sight=1400,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','s','i','d'),.type=mod_real,.data=&sight},
+        {.modID=MAKEFOURCC('u','s','i','n'),.type=mod_real,.data=&sight}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','T','6','6'),
+        .numbeOfModifications=4,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    G_FowInit();G_FowConnectPlayer(0);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("type fogmodifier extends handle\nglobals\nunit a\nunit b\nfogmodifier fog\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==20 then\ncall FogEnable(true)\n"
+        "set a=CreateUnit(Player(0),'hT66',1344,288,0)\n"
+        "set b=CreateUnit(Player(15),'hT66',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",1568,1312)\nendif\n"
+        "if tick==25 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==80 then\nset fog=CreateFogModifierRadius(Player(0),FOG_OF_WAR_FOGGED,1568,800,900,false,true)\n"
+        "call FogModifierStart(fog)\nendif\n"
+        "if tick==90 then\ncall IssuePointOrder(b,\"move\",1568,288)\nendif\n"
+        "if tick==140 then\ncall DestroyFogModifier(fog)\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call SetTimeOfDayScale(0)\ncall SetFloatGameState(GAME_STATE_TIME_OF_DAY,12)\n"
+        "call SetPlayerAlliance(Player(0),Player(15),ALLIANCE_PASSIVE,true)\n"
+        "call SetPlayerAlliance(Player(15),Player(0),ALLIANCE_PASSIVE,true)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    target166_unit=NULL;target166_cursor=0;target166_mismatch=false;move_test_group_begin=target166_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/wc3-target166-fog.bin";
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass) {T_ASSERT(ReadGame(file));target166_cursor=210;}
+        while(level.time<14500 && !target166_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!target166_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent->s.player==0) {
+                target166_unit=ent;break;
+            }
+            if(!pass && !saved && target166_cursor==210) {T_ASSERT(WriteGame(file));saved=true;}
+        }
+        T_EQ(target166_cursor,sizeof(target166_fog)/sizeof(*target166_fog));
+        if(target166_mismatch)break;
+        T_NOT_NULL(target166_unit);
+        if(target166_unit) {
+            T_EQ(target166_unit->current_order_id,0);T_NULL(target166_unit->movement.follow_target);
+            T_EQ(target166_unit->movement.group_id,0);
+        }
+    }
+    move_test_group_begin=NULL;target166_unit=NULL;level.started=false;remove(file);
+    G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
 }
 
 #endif

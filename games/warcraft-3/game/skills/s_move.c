@@ -3277,12 +3277,9 @@ static uint32_t move_collect_selected(gameClient_t *client,
     return count;
 }
 
-void move_reset_progress(edict_t *self) {
-    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
-    S_TrackMoveTimers(self);
-    move_release_captain_reference(self);
-    self->movement.type_rebind_pending=false;
-    S_TrackMoveTimers(self);
+/* Native05a5c0 invalidates the retained local path before publishing a new
+ * target task. Keep allocated buffers, but discard their destinations/state. */
+static void move_reset_local_path(edict_t *self) {
     move_unlink_requests(self);
     /* Original166060 activates a replacement path with fresh7c/80 admission
      * timestamps. A previous follower's throttle must not delay its group leg. */
@@ -3294,10 +3291,22 @@ void move_reset_progress(edict_t *self) {
     self->movement.fine_route.count=self->movement.fine_route.adaptive_count=0;
     self->movement.fine_route.index=self->movement.fine_route.adaptive_index=UINT32_MAX;
     self->movement.fine_route.partial=false;
+    self->movement.fine_route.adaptive_goal=(vec2_t){wc3_float(0xc7fa0000),wc3_float(0xc7fa0000)};
     /* Replacement/internal approaches own a new group plan. Reusing the last
      * point Move's destination can strand an ability at its previous endpoint. */
     self->movement.fine_route.group_count=0;
     self->movement.fine_route.group_index=UINT32_MAX;
+    self->movement.wait_delay=self->movement.retry_count=0;
+    self->movement.wait_blocker=NULL;
+}
+
+void move_reset_progress(edict_t *self) {
+    self->movement.pause_order_id=0;self->movement.pause_resume_pending=false;
+    S_TrackMoveTimers(self);
+    move_release_captain_reference(self);
+    self->movement.type_rebind_pending=false;
+    S_TrackMoveTimers(self);
+    move_reset_local_path(self);
     self->movement.last_origin = self->s.origin2;
     self->movement.last_distance = -1;
     self->movement.blocked_frames = 0;
@@ -3311,10 +3320,7 @@ void move_reset_progress(edict_t *self) {
     self->movement.worker_avoid_heading = self->s.angle;
     self->movement.worker_avoid_blocked_frames = 0;
     self->movement.worker_avoid_active = false;
-    self->movement.wait_delay=0;
-    self->movement.retry_count=0;
     self->movement.point_forced_arrival=false;
-    self->movement.wait_blocker=NULL;
     move_detach_group(self);
     self->movement.group_id = 0;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
@@ -3602,6 +3608,26 @@ static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
     return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
+/* Native5fb940 checks world presence before visibility. Non-unit widgets
+ * return directly; owned/shared units still require their mode4 vision cell. */
+moveTargetResult_t S_MoveTargetStatus(edict_t const *self, edict_t const *target) {
+    if (!target || !target->inuse || (!target->movement.captain_actor_type && M_IsDead(target)))
+        return MOVE_TARGET_LOST;
+    bool hidden=G_IsDeferredFree(target) || !G_UnitIsWorldActive(target) ||
+        ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
+    if (!(target->svflags&SVF_MONSTER)) return hidden ? MOVE_TARGET_HIDDEN : MOVE_TARGET_VALID;
+    if (hidden) return S_CargoTransportForUnit(target) ? MOVE_TARGET_LOADED : MOVE_TARGET_HIDDEN;
+    if (target->movement.captain_actor_type) return MOVE_TARGET_VALID;
+    return self && G_FowPlayerCanTrackUnit(self->s.player,target) ? MOVE_TARGET_VALID : MOVE_TARGET_LOST;
+}
+
+/* Arrival retires the Follow parent before stand can activate a queued owner. */
+static void move_end_follow(edict_t *unit) {
+    unit->movement.follow_target=NULL;unit->movement.follow_target_spawn_time=0;
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    unit_stand(unit);
+}
+
 static bool follow_can_auto_attack(edict_t const *self) {
     if (!self || self->current_order_id == 851986 || !S_CargoAttacksEnabled(self) || S_AttackProfileRead(self, 0)->cooldown <= 0.0f ||
         (S_AttackProfileRead(self, 0)->damageBase <= 0 && S_AttackProfileRead(self, 0)->numberOfDice <= 0)) {
@@ -3757,6 +3783,7 @@ void order_follow(edict_t *self, edict_t *target) {
 }
 
 bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
+    if (S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
     order_follow(self, target);
     if (!self || self->goalentity != target || !move_is_following(self))
         return false;
@@ -4607,7 +4634,9 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     edict_t *unit=member->unit;
     wc3GridPose_t pose; unit_predicted_pose(unit,&pose);
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
-        .heading=unit->s.angle,.range=member->arrival_range ? member->arrival_range : wc3_float(0x3efae148),
+        /* Native16a790 temporarily replaces b0 with runtime .49 during
+         * unseen pursuit, then restores the retained authored arrival range. */
+        .heading=unit->s.angle,.range=!group->unseen_counter && member->arrival_range ? member->arrival_range : wc3_float(0x3efae148),
         .flags=member->forced_arrival ? 0x10000 : 0};
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */
@@ -4897,20 +4926,31 @@ static void move_run_group_updates(void) {
                 step.velocity.speed=wc3_mul(wc3_group_commit_speed(&speed),32);
             }
             wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
-            if (member->arrived && !group->route.group_index && !(group->flags&1)) finished[count++]=unit;
+            /* Native16c390 suppresses persistent completion for the first32
+             * hidden visits.5fa7a0/5ff8b0 validate when completion dispatches. */
+            if (member->arrived && !group->route.group_index &&
+                (!(group->flags&1) || group->unseen_counter>32))
+                finished[count++]=unit;
         }
         group->flags&=~0x10000u;
         move_group_update_refresh(group);
         if (!group->route.group_index) {
-            if (!(group->flags&1)) group->completion_counter++;
+            if (!(group->flags&1) || group->unseen_counter>32) group->completion_counter++;
         } else move_group_regroup(group);
         if (count) group->completion_counter=0;
         while (count) {
             edict_t *unit=finished[--count];
             if (unit->movement.group_id==group->id) {
                 edict_t *target=group->target;
+                if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
                 move_detach_group(unit); unit->movement.group_id=0;
-                if (target) move_start_follow_group(unit,target,true);
+                if (target) {
+                    if (S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) {
+                        move_reset_local_path(unit);
+                        move_start_follow_group(unit,target,true);
+                    }
+                    else move_end_follow(unit);
+                }
                 else {
                     edict_t *actor=unit->movement.captain_home.roster_actor;
                     /* Native9d8a90 reissues an idle roster member while
@@ -5070,6 +5110,16 @@ bool move_selectlocation(edict_t *clent, vec2_t const *location) {
 /* Follow loses its user head immediately even though RemoveUnit defers edict reclamation. */
 BZ_ABILITY_PROC(CAbilityMove) {
     switch (msg) {
+    case A_TARGET_ORDER_ADMIT: {
+        if (!call || !call->issued_target_order.order) return ABILITY_ORDER_UNHANDLED;
+        cstring_t order=call->issued_target_order.order;
+        if (strcmp(order,"move") && strcmp(order,"smart")) return ABILITY_ORDER_UNHANDLED;
+        edict_t *target=call->issued_target_order.target;
+        if (!target || !(target->svflags&SVF_MONSTER)) return ABILITY_ORDER_UNHANDLED;
+        /* Native5fbad0 refuses an unseen target before order-chain mutation.
+         * Apply to both immediate and Shift admission, preserving old owners. */
+        return S_MoveTargetStatus(ent,target)==MOVE_TARGET_VALID ? ABILITY_ORDER_UNHANDLED : ABILITY_ORDER_REJECTED;
+    }
     case A_UNIT_OWNED:
         return ent && (ent->data.UnitBalance || ent->movement.captain_actor_type) && !M_UnitMoveDisabled(ent);
     case A_UNIT_TYPE_INIT: return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_RUN_LOCAL;

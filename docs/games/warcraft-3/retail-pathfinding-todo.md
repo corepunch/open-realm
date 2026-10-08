@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **245 done / 336 tasks; 91 remaining.**
 
+Payoff166 implements Move/Smart fogged-target admission, hidden cached-point
+arrival, approach-to-Follow local-path invalidation and Save135 fog modifier
+ownership. The actual public engine scene matches238 raw retail owner states
+and28 saved continuation states; TARGET-03.1/03.2 remain open for wider policy
+producers and TargetLost compositions. See [target visibility](retail-pathfinding-target-visibility.md).
+
+
 Payoff165 closes FORM-04.2: retained warp-marker classification and admitted
 route-replacement counter resets are implemented alongside Payoff164's denied
 route owner. Actual public group/cold-save regressions and three complete

@@ -2839,6 +2839,12 @@ void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box);
 void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius);
+fogModifier_t *G_FogModifierCreate(void);
+bool G_FogModifierId(fogModifier_t const *mod, uint32_t *id);
+fogModifier_t *G_FogModifierById(uint32_t id);
+void G_FogModifierDestroy(fogModifier_t *mod);
+bool G_WriteFogModifiers(FILE *file);
+bool G_ReadFogModifiers(FILE *file);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);
@@ -3946,6 +3952,15 @@ void S_CaptainPointMove(botCaptain_t *, vec2_t const *, float);
 void S_ReleaseCaptainHomeActor(edict_t *);
 bool S_ValidateCaptainHomeActors(bool);
 bool S_IssueFollowOrder(edict_t *, edict_t *, uint32_t);
+/* Native5fb940 results; cargo/hidden are world-presence failures, not fog. */
+typedef enum {
+    MOVE_TARGET_VALID = 0,
+    MOVE_TARGET_LOADED = 0xa9,
+    MOVE_TARGET_HIDDEN = 0xaa,
+    MOVE_TARGET_UNSEEN = 0xba, /* Native5fbad0 order-time visibility refusal. */
+    MOVE_TARGET_LOST = 0xdd,
+} moveTargetResult_t;
+moveTargetResult_t S_MoveTargetStatus(edict_t const *, edict_t const *);
 bool move_is_active_order_walk(edict_t const *);
 void move_start_displacement(edict_t *, vec2_t const *);
 void move_cancel_displacement(edict_t *);

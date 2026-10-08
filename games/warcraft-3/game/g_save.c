@@ -82,8 +82,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format134 retains the coarse route's warp-marker classification state. */
-static uint32_t const save_version = 134;
+/* Format135 retains map-owned fog modifier identities and active write order. */
+static uint32_t const save_version = 135;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -192,6 +192,7 @@ typedef enum {
     JASS_HANDLE_WEATHER,
     JASS_HANDLE_LIGHTNING,
     JASS_HANDLE_REGION,
+    JASS_HANDLE_FOGMODIFIER,
 } jassHandleDomain_t;
 
 static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
@@ -216,6 +217,7 @@ static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_d
     { "weathereffect", JASS_HANDLE_WEATHER },
     { "lightning", JASS_HANDLE_LIGHTNING },
     { "region", JASS_HANDLE_REGION },
+    { "fogmodifier", JASS_HANDLE_FOGMODIFIER },
 };
 
 static field_t const timer_dialog_fields[] = {
@@ -1517,6 +1519,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         if (!G_HashtableIndex(value, id)) return false;
         return true;
     }
+    if (domain == JASS_HANDLE_FOGMODIFIER) return G_FogModifierId(value, id);
     if (domain == JASS_HANDLE_WEATHER) {
         gweather_t *effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
@@ -1582,6 +1585,7 @@ handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
         return id < MAX_LIGHTNING_EFFECTS && level.lightning_effects[id].inuse ? &level.lightning_effects[id] : NULL;
     if (domain == JASS_HANDLE_REGION)
         return G_RegionHandle(id);
+    if (domain == JASS_HANDLE_FOGMODIFIER) return G_FogModifierById(id);
     if (domain == JASS_HANDLE_EVENT) {
         event_t *event = EventById(id);
         return G_EventHandle(event);
@@ -2902,6 +2906,7 @@ bool WriteGame(cstring_t filename) {
     if (!WriteTerrainPathing(f)) { fprintf(stderr, "WC3 SaveGame: failed at terrain pathing state\n"); goto done; }
     if (!WriteMoveAdaptive(f)) { fprintf(stderr,"WC3 SaveGame: failed at adaptive publication state\n"); goto done; }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
+    if (!G_WriteFogModifiers(f)) { fprintf(stderr,"WC3 SaveGame: failed at fog modifiers\n"); goto done; }
     if (!WriteGroups(f)) goto done;
     FOR_LOOP(i, game.max_clients) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
@@ -3046,6 +3051,7 @@ bool ReadGame(cstring_t filename) {
     if (!ReadMoveAdaptive(f)) { fprintf(stderr,"WC3 LoadGame: failed at adaptive publication state\n"); fclose(f); return false; }
     if (!ReadBlight(f)) { fprintf(stderr, "WC3 LoadGame: failed at blight state\n"); fclose(f); return false; }
     G_ResetJassGroupDebug();
+    if (!G_ReadFogModifiers(f)) { fprintf(stderr,"WC3 LoadGame: failed at fog modifiers\n"); fclose(f); return false; }
     if (!ReadGroups(f, header.groups)) { fclose(f); return false; }
     /* Restore the Q2-style server tick before the next frame; all persisted deadlines use it. */
     gi.SetGameTime(level.time);
@@ -3850,8 +3856,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-130.bin",
         "/tmp/openwarcraft3-wc3-save-version-131.bin",
         "/tmp/openwarcraft3-wc3-save-version-132.bin",
+        "/tmp/openwarcraft3-wc3-save-version-134.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134 };
 
     reset_entities();
     setup_test_world();

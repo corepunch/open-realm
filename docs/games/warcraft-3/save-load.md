@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save135 retains stable game-owned fog modifier records and their active
+application order, including stopped and script-unreferenced records. JASS
+handles bind after registry restoration. Save134 and older layouts are
+rejected. See [Move target visibility](retail-pathfinding-target-visibility.md).
+
 Save134 adds the retained coarse-route warp-marker classification state for
 member and physical-group paths. Save133 and older formats are rejected. See
 [formation warp markers](retail-pathfinding-formation-warp.md).
@@ -29,7 +34,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 134, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 135, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

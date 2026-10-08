@@ -11787,3 +11787,17 @@ limits. Actual three-member public Move/server-frame/cold-save regressions
 fail before the fixes and pass afterward. Save134 retains the marker in both
 route owners. Full mixed-group trajectory equivalence remains FORM-05.1/05.2;
 see [formation warp markers](retail-pathfinding-formation-warp.md).
+
+
+## Move target visibility and cached arrival (Payoff166)
+
+Move/Smart refuse unseen unit targets before immediate/Shift queue mutation.
+Hidden pursuit retains its last sampled point, uses the retail temporary
+0.49-cell arrival range and persistent32-visit completion gate, then validates
+at approach/Follow completion. New target-task publication clears the old
+local route. The public timed-JASS engine scene matches238 raw retail owner
+states and28 continuation entries after a hidden-episode cold save. Save135
+restores game-owned fog modifier identities and active write order before VM
+handle binding. These regressions advance TARGET-03.1/03.2; broader policy
+producers and TargetLost compositions remain open. See
+[target visibility](retail-pathfinding-target-visibility.md).

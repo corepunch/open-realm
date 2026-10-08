@@ -2909,12 +2909,14 @@ TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
     setup_test_world();
     G_FowInit();
     G_FowConnectPlayer(0);
+    fogModifier_t *owned=G_FogModifierCreate();T_NOT_NULL(owned);if(!owned)return;
+    *owned=mod;
     index = test_fow_cell(0.0f, 0.0f);
 
-    G_FogModifierStart(&mod);
+    G_FogModifierStart(owned);
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 1);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
 
     /* The next normal update removes current sight but must retain the
      * exploration created synchronously by the short-lived modifier. */
@@ -2934,29 +2936,69 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
     setup_test_world();
     G_FowInit();
     G_FowConnectPlayer(0);
+    fogModifier_t *owned=G_FogModifierCreate();T_NOT_NULL(owned);if(!owned)return;
+    *owned=mod;
     index = test_fow_cell(0.0f, 0.0f);
 
-    G_FogModifierStart(&mod);
+    G_FogModifierStart(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 1);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 0);
 
-    mod.center.x = 256.0f;
+    owned->center.x = 256.0f;
     index = test_fow_cell(256.0f, 0.0f);
-    mod.state = WC3_FOG_STATE_FOGGED;
-    G_FogModifierStart(&mod);
+    owned->state = WC3_FOG_STATE_FOGGED;
+    G_FogModifierStart(owned);
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 1);
     T_EQ(level.fow.players[0].visible[index], 0);
-    mod.state = WC3_FOG_STATE_MASKED;
+    owned->state = WC3_FOG_STATE_MASKED;
     G_FowUpdate();
     T_EQ(level.fow.players[0].explored[index], 0);
     T_EQ(level.fow.players[0].visible[index], 0);
-    G_FogModifierStop(&mod);
+    G_FogModifierStop(owned);
+}
+
+TEST(wc3_api, fog_modifier_save_restores_aliases_stopped_and_unreferenced_active_records) {
+    reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
+    T_ASSERT(run_test_jass(
+        "type fogmodifier extends handle\n"
+        "globals\nfogmodifier first\nfogmodifier alias\nfogmodifier stopped\nendglobals\n"
+        "function verify takes nothing returns nothing\n"
+        "call BJassAssert(first == alias, \"fog aliases survive\")\n"
+        "call FogModifierStop(first)\ncall FogModifierStart(alias)\n"
+        "endfunction\n"
+        "function destroy takes nothing returns nothing\n"
+        "call DestroyFogModifier(first)\ncall FogModifierStart(alias)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\nlocal fogmodifier hidden\n"
+        "set first=CreateFogModifierRadius(Player(0),FOG_OF_WAR_VISIBLE,0,0,256,false,true)\n"
+        "set alias=first\ncall FogModifierStart(first)\n"
+        "set hidden=CreateFogModifierRadius(Player(0),FOG_OF_WAR_FOGGED,0,0,256,false,true)\n"
+        "call FogModifierStart(hidden)\nset hidden=null\n"
+        "set stopped=CreateFogModifierRadius(Player(0),FOG_OF_WAR_VISIBLE,0,0,256,false,true)\n"
+        "endfunction\n"));
+    uint32_t index=test_fow_cell(0,0); G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0); T_EQ(level.fow.players[0].explored[index],1);
+    cstring_t file="/tmp/wc3-fog166-registry.bin";
+    T_ASSERT(WriteGame(file));
+    jass_callbyname(level.vm,"verify",false);G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],1);
+    T_ASSERT(ReadGame(file)); G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    jass_callbyname(level.vm,"verify",false);G_FowUpdate();
+    T_ASSERT(!jass_rterror_pending(level.vm));T_EQ(level.fow.players[0].visible[index],1);
+    jass_callbyname(level.vm,"destroy",false);G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    /* A destroyed light handle is saved as null; the unreferenced hidden
+     * modifier remains game-owned and active through another cold restore. */
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));G_FowUpdate();
+    T_EQ(level.fow.players[0].visible[index],0);
+    remove(file);G_FowShutdown();reset_entities();setup_test_world();
 }
 
 TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {

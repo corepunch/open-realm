@@ -22,11 +22,22 @@ class CorpusTests(unittest.TestCase):
         self.entry=next(e for e in self.manifest['entries'] if e['id']=='oracle-grid')
         self.target=self.manifest['target']
 
+    def test_target_visibility_entry_keeps_controls_and_scope_limits(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-target-visibility-cached-arrival')
+        self.assertEqual(entry['expected_status'],'live-exact-target-visibility')
+        self.assertEqual(entry['checks']['raw_owner_rows'],dict(equal=238))
+        self.assertEqual(entry['checks']['hidden_visits'],dict(equal=754))
+        captures=[entry['inputs']]+[c['inputs'] for c in entry['additional_captures']]
+        self.assertEqual(sum(c['metadata']['mode']=='control' for c in captures),2)
+        self.assertEqual(sum(c['metadata']['mode']=='observe' for c in captures),4)
+        self.assertTrue(any('no new live' in x for x in entry['exclusions']))
+        self.assertTrue(any('this engine chunk' in x for x in entry['exclusions']))
+
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),138)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),132)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),133)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))

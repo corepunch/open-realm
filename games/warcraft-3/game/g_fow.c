@@ -1408,9 +1408,120 @@ static void G_FowReplayPrefixes(uint32_t player, uint32_t const *dirty, bool val
  * Direct state writes and started modifiers use the same three-state cell
  * contract. Modifiers are applied after unit sight so their state persists. */
 #define MAX_FOG_MODIFIERS 256 // handles; bounded active map-script fog modifiers
+#define MAX_SAVE_FOG_HANDLES 65536u // corrupt-save allocation bound; runtime records grow independently
 
 static fogModifier_t *g_fog_modifiers[MAX_FOG_MODIFIERS];
 static uint32_t g_num_fog_modifiers;
+
+/* The VM borrows these map-owned records. Clearing a script variable must not
+ * release a started modifier, and load must restore it before handle binding. */
+typedef struct {
+    fogModifier_t state;
+    uint32_t id;
+    bool inuse;
+} fogModifierRecord_t;
+
+static fogModifierRecord_t **fog_records;
+static uint32_t fog_record_count, fog_record_capacity;
+
+static void G_ClearFogModifierRegistry(void) {
+    FOR_LOOP(i, fog_record_count) gi.MemFree(fog_records[i]);
+    SAFE_DELETE(fog_records, gi.MemFree);
+    fog_record_count = fog_record_capacity = 0;
+    memset(g_fog_modifiers, 0, sizeof(g_fog_modifiers));
+    g_num_fog_modifiers = 0;
+}
+
+fogModifier_t *G_FogModifierCreate(void) {
+    if (fog_record_count == UINT32_MAX) return NULL;
+    if (fog_record_count == fog_record_capacity) {
+        uint32_t capacity = fog_record_capacity ? fog_record_capacity * 2 : 32;
+        if (capacity <= fog_record_capacity) return NULL;
+        fogModifierRecord_t **records = gi.MemAlloc((size_t)capacity * sizeof(*records));
+        if (!records) return NULL;
+        if (fog_record_count) memcpy(records, fog_records, (size_t)fog_record_count * sizeof(*records));
+        SAFE_DELETE(fog_records, gi.MemFree);
+        fog_records = records; fog_record_capacity = capacity;
+    }
+    fogModifierRecord_t *record = gi.MemAlloc(sizeof(*record));
+    if (!record) return NULL;
+    memset(record, 0, sizeof(*record)); record->inuse = true;
+    record->id = fog_record_count;
+    fog_records[fog_record_count++] = record;
+    return &record->state;
+}
+
+bool G_FogModifierId(fogModifier_t const *mod, uint32_t *id) {
+    fogModifierRecord_t const *record = (fogModifierRecord_t const *)mod;
+    if (!record || record->id >= fog_record_count || fog_records[record->id] != record || !record->inuse) return false;
+    *id = record->id;
+    return true;
+}
+
+fogModifier_t *G_FogModifierById(uint32_t id) {
+    return id < fog_record_count && fog_records[id]->inuse ? &fog_records[id]->state : NULL;
+}
+
+void G_FogModifierDestroy(fogModifier_t *mod) {
+    uint32_t id;
+    if (!G_FogModifierId(mod, &id)) return;
+    G_FogModifierStop(mod);
+    fog_records[id]->inuse = false;
+}
+
+/* Application order is authoritative: overlapping writes need not commute.
+ * Save the active IDs separately, including modifiers unreferenced by JASS. */
+bool G_WriteFogModifiers(FILE *file) {
+    if (fog_record_count > MAX_SAVE_FOG_HANDLES || fwrite(&fog_record_count, sizeof(fog_record_count), 1, file) != 1) return false;
+    FOR_LOOP(i, fog_record_count) {
+        uint32_t inuse = fog_records[i]->inuse;
+        if (fwrite(&inuse, sizeof(inuse), 1, file) != 1 ||
+            fwrite(&fog_records[i]->state, sizeof(fogModifier_t), 1, file) != 1) return false;
+    }
+    if (fwrite(&g_num_fog_modifiers, sizeof(g_num_fog_modifiers), 1, file) != 1) return false;
+    FOR_LOOP(i, g_num_fog_modifiers) {
+        uint32_t id;
+        if (!G_FogModifierId(g_fog_modifiers[i], &id) ||
+            fwrite(&id, sizeof(id), 1, file) != 1) return false;
+    }
+    return true;
+}
+
+bool G_ReadFogModifiers(FILE *file) {
+    uint32_t count, active;
+    if (fread(&count, sizeof(count), 1, file) != 1 || count > MAX_SAVE_FOG_HANDLES) return false;
+    G_ClearFogModifierRegistry();
+    FOR_LOOP(i, count) {
+        uint32_t inuse;
+        fogModifier_t *mod = G_FogModifierCreate();
+        if (!mod || fread(&inuse, sizeof(inuse), 1, file) != 1 || inuse > 1 ||
+            fread(mod, sizeof(*mod), 1, file) != 1) goto fail;
+        fog_records[i]->inuse = inuse;
+        /* Consumer policy validates player/state on application. Preserve
+         * even an inert authored value; load only validates membership. */
+        if (mod->started && !inuse) goto fail;
+    }
+    if (fread(&active, sizeof(active), 1, file) != 1 || active > MAX_FOG_MODIFIERS) goto fail;
+    FOR_LOOP(i, active) {
+        uint32_t id;
+        if (fread(&id, sizeof(id), 1, file) != 1) goto fail;
+        fogModifier_t *mod = G_FogModifierById(id);
+        if (!mod || !mod->started) goto fail;
+        FOR_LOOP(j, g_num_fog_modifiers) if (g_fog_modifiers[j] == mod) goto fail;
+        g_fog_modifiers[g_num_fog_modifiers++] = mod;
+    }
+    FOR_LOOP(i, count) {
+        fogModifier_t *mod = &fog_records[i]->state;
+        if (!mod->started) continue;
+        bool found = false;
+        FOR_LOOP(j, g_num_fog_modifiers) if (g_fog_modifiers[j] == mod) found = true;
+        if (!found) goto fail;
+    }
+    return true;
+fail:
+    G_ClearFogModifierRegistry();
+    return false;
+}
 
 static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const *mod);
 
@@ -1433,23 +1544,25 @@ static void G_FowApplyModifierImmediately(fogModifier_t const *mod) {
 }
 
 void G_FogModifierStart(fogModifier_t *mod) {
-    if (!mod) {
+    uint32_t id;
+    if (!G_FogModifierId(mod, &id)) {
         return;
     }
-    mod->started = true;
     FOR_LOOP(i, g_num_fog_modifiers) {
         if (g_fog_modifiers[i] == mod) {
             return;
         }
     }
     if (g_num_fog_modifiers < MAX_FOG_MODIFIERS) {
+        mod->started = true;
         g_fog_modifiers[g_num_fog_modifiers++] = mod;
         G_FowApplyModifierImmediately(mod);
     }
 }
 
 void G_FogModifierStop(fogModifier_t *mod) {
-    if (!mod) {
+    uint32_t id;
+    if (!G_FogModifierId(mod, &id)) {
         return;
     }
     mod->started = false;
@@ -1582,8 +1695,7 @@ void G_FowShutdown(void) {
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     SAFE_DELETE(level.fow.rim_cells, gi.MemFree);
     memset(&level.fow, 0, sizeof(level.fow));
-    memset(g_fog_modifiers, 0, sizeof(g_fog_modifiers));
-    g_num_fog_modifiers = 0;
+    G_ClearFogModifierRegistry();
     g_fow_blocker_hash = 0;
     g_fow_blocker_count = 0;
     g_fow_blockers_valid = false;
@@ -2233,5 +2345,35 @@ TEST(wc3_fow, unobstructed_ray_rows_emit_spans_without_cell_visits) {
     }
     T_EQ(fow_geometry_cells, cells);
     T_EQ(fow_geometry_spans - spans, 8 * 24);
+}
+
+TEST(wc3_fow, modifier_registry_rejects_duplicate_missing_and_truncated_active_ids) {
+    G_FowShutdown();
+    fogModifier_t *mod=G_FogModifierCreate();T_NOT_NULL(mod);if(!mod)return;
+    *mod=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.radius=64};
+    G_FogModifierStart(mod);
+    /* An unused handle can contain a state that the fog consumer ignores.
+     * Registry restoration must preserve it rather than invent admission. */
+    T_NOT_NULL(G_FogModifierCreate());
+    uint32_t id;T_ASSERT(G_FogModifierId(mod,&id));T_EQ(id,0);
+    FILE *valid=tmpfile();T_NOT_NULL(valid);if(!valid)return;
+    T_ASSERT(G_WriteFogModifiers(valid));long size=ftell(valid);
+    unsigned char *bytes=malloc(size);T_NOT_NULL(bytes);if(!bytes){fclose(valid);return;}
+    rewind(valid);T_EQ(fread(bytes,1,size,valid),(size_t)size);fclose(valid);
+    FOR_LOOP(case_id,4) {
+        FILE *bad=tmpfile();T_NOT_NULL(bad);if(!bad)break;
+        uint32_t active=case_id==0 ? 2 : case_id==1 ? 0 : 1;
+        uint32_t invalid=UINT32_MAX;
+        size_t prefix=(size_t)size-2*sizeof(uint32_t);
+        T_EQ(fwrite(bytes,1,prefix,bad),prefix);
+        T_EQ(fwrite(&active,sizeof(active),1,bad),1);
+        if(case_id!=1 && case_id!=3)T_EQ(fwrite(case_id==2 ? &invalid : &id,sizeof(id),1,bad),1);
+        if(case_id==0)T_EQ(fwrite(&id,sizeof(id),1,bad),1);
+        rewind(bad);T_ASSERT(!G_ReadFogModifiers(bad));T_NULL(G_FogModifierById(id));fclose(bad);
+    }
+    valid=tmpfile();T_NOT_NULL(valid);
+    if(valid){T_EQ(fwrite(bytes,1,size,valid),(size_t)size);rewind(valid);T_ASSERT(G_ReadFogModifiers(valid));
+        T_NOT_NULL(G_FogModifierById(id));T_EQ(g_num_fog_modifiers,1);fclose(valid);}
+    free(bytes);G_FowShutdown();
 }
 #endif
