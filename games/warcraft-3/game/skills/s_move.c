@@ -949,6 +949,10 @@ static movePathQuery_t move_route_query(edict_t *self, moveRoutePoint_t point) {
         wc3_float_bits(self->movement.pose_world.y)==wc3_float_bits(self->s.origin2.y) ?
         &self->movement.sampled_pose : NULL;
     moveGroupMember_t const *member=move_find_member(self);
+    /* A newly admitted cohort has no published layout yet. Advisory steering
+     * before its first owner visit must use the caller's destination rather
+     * than the zeroed member slot. The owner publishes slots before deciding. */
+    if (member && !move_unit_group(self)->initialized) member=NULL;
     edict_t *target=self->movement.captain_home.active ? self->movement.captain_home.actor : self->goalentity;
     /* A point-order waypoint carries coordinates, not a resolved group target. */
     if(target && (target->svflags&SVF_MOVE_WAYPOINT))target=NULL;
@@ -2192,6 +2196,7 @@ static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
 static void move_hold_goal_heading(edict_t *self) {
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
     moveGroupMember_t const *member=move_find_member(self);
+    if (member && !move_unit_group(self)->initialized) member=NULL;
     float x=member ? member->destination.x : wc3_grid_coordinate(self->goalentity->s.origin2.x,pose.origin[0],32);
     float y=member ? member->destination.y : wc3_grid_coordinate(self->goalentity->s.origin2.y,pose.origin[1],32);
     moveFineRoute_t const *route=&self->movement.fine_route;
@@ -2259,6 +2264,7 @@ static void move_retry_fine(edict_t *self) {
     moveFineRoute_t *route=&self->movement.fine_route;
     wc3GridPose_t pose; unit_predicted_pose(self,&pose);
     moveGroupMember_t const *member=move_find_member(self);
+    if (member && !move_unit_group(self)->initialized) member=NULL;
     vec2_t goal=move_retry_goal(route,member ? member->destination : route->points[0]);
     wc3RetryInput_t in={{pose.grid[0],pose.grid[1]},{goal.x,goal.y},1};
     /* TODO GROUP: engine cohorts supply members until the original group
@@ -4826,7 +4832,6 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     }
     member->speed=unit->movement.turn_blocked ? 0 : unit_effective_speed(unit);
     member->heading=unit->s.angle; unit->s.angle=old_angle;
-    if (member->speed>0) member->flags|=0x100000;
 }
 
 /* Original16a9bc mirrors the retained path after every decision, including
@@ -5013,6 +5018,11 @@ static void move_run_group_updates(void) {
         if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
             if (!(group->members[i].flags&0x300000)) move_deciding_excluded|=1u<<i;
         FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
+        /* Original16c250 publishes positive-request eligibility only for
+         * members excluded by the multi-member classification pass.
+         * Singleton and formation-bypass groups never enter that pass. */
+        FOR_LOOP(i,group->count) if ((move_deciding_excluded&(1u<<i)) && group->members[i].speed>0)
+            group->members[i].flags|=0x100000;
         move_deciding_group=NULL; move_deciding_excluded=0;
         float cap=FLT_MAX; bool share=!(group->flags&8);
         FOR_LOOP(i,group->count) {
@@ -5287,7 +5297,6 @@ BZ_ABILITY_PROC(CAbilityMove) {
               move_group_admission.point.y==ent->goalentity->s.origin2.y))
         {
             move_start_point_group(ent,&ent->goalentity->s.origin2,0);
-            move_unit_group(ent)->individual=!ent->movement.captain_home.roster_actor;
         }
         return true;
     case A_OWNER_BEGIN: move_update_fine_budget(); return true;

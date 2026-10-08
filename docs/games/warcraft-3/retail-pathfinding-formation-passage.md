@@ -91,6 +91,9 @@ assertions before the final-position assertions were added), final passage
 Classic/TFT and14 selected-order TFT tests(82,279 assertions). This is focused
 iteration validation, not a full repository checkpoint.
 
-FORM-05.1 remains open for complete engine replay of the independent-order
+Payoff170 closes FORM-05.1 with complete engine replay of the independent-order
 controls and remaining selected repeats. Wider policy flags, nontrivial layout
 prediction and selections above six retain their owning tasks.
+
+Follow-up: [selection and independent ownership](retail-pathfinding-formation-selection.md)
+compares both selected click phases with complete independent public singleton journeys.

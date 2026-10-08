@@ -11843,3 +11843,16 @@ creation. Both layouts and all92 passage regroup decisions retain their original
 timing. Ten archived captures validate2,491 regroup calls and23 O0/O2 layouts.
 See [selected passage](retail-pathfinding-formation-passage.md).
 Independent-control full journeys remain FORM-05.1.
+
+## Selected and independent point ownership (Payoff170)
+
+FORM-05.1 closes with both public selected click phases and independent JASS
+controls in the same mixed-unit scene. Independent admission now retains the
+physical singleton pipeline, replacing the separate entity walker. Native
+16c250 publishes row100000 only in its multi-member classification postpass;
+singleton and group200 bypasses retain their original row flags. Complete engine
+regressions compare2399 owner visits and5369 member commits; cold saves preserve
+1919 visits and4289 commits. Both selected phases keep their numerical differences.
+Saved Ghidra evidence and MapPathfinding.java cover the public point bridge,
+activation, owner and classification ABI. See
+[selection and independent ownership](retail-pathfinding-formation-selection.md).

@@ -39,11 +39,26 @@ class CorpusTests(unittest.TestCase):
         self.assertTrue(any('no new live' in x for x in entry['exclusions']))
         self.assertTrue(any('this engine chunk' in x for x in entry['exclusions']))
 
+    def test_selection_and_independent_move_require_complete_owner_streams(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-formation-selection-independent')
+        report={field:rule['equal'] for field,rule in entry['checks'].items()}
+        check_report(report,entry,self.target)
+        for field in ('scenes','owner_visits','member_commits','physical_groups',
+                      'saved_suffix_visits','saved_suffix_commits','independent_repeats'):
+            changed=dict(report);changed[field]-=1
+            with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+        changed=dict(report,passed=False)
+        with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+        captures=[entry['inputs']]+[c['inputs'] for c in entry['additional_captures']]
+        self.assertEqual(len(captures),10)
+        self.assertEqual(sum(c['metadata']['mode']=='control' for c in captures),2)
+        self.assertTrue(any('No new live' in x for x in entry['exclusions']))
+
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),139)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),136)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),137)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))

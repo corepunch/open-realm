@@ -42154,6 +42154,527 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-formation-selection-independent",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_formation170_selection.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-formation-selection170-1.27.json",
+        "--archive",
+        "{archive}/research",
+        "--header",
+        "games/warcraft-3/game/tests/fixtures/retail_formation_selection_170.h",
+        "--output",
+        "{report}"
+      ],
+      "report": "formation-selection170.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-selection-and-independent-move",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "scenes": {
+          "equal": 3
+        },
+        "owner_visits": {
+          "equal": 2399
+        },
+        "member_commits": {
+          "equal": 5369
+        },
+        "physical_groups": {
+          "equal": 8
+        },
+        "saved_suffix_visits": {
+          "equal": 1919
+        },
+        "saved_suffix_commits": {
+          "equal": 4289
+        },
+        "independent_repeats": {
+          "equal": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "scope": "Complete archived selected click phases and independent public controls connect all owner/member/route/regroup words to production Move, preserving newest-first physical singleton ownership and cold-save continuations.",
+      "exclusions": [
+        "Observed primary owner clocks and frozen WPM geometry are supplied; general clock admission and MPQ scene construction remain open.",
+        "Final owner clocks are inferred from verified six-5ms progression; raw commits contain pre-commit pose and decision inputs, not unobserved post-commit words.",
+        "Initial pre-owner age is normalized to the engine initialization convention.",
+        "Both selected click phases are preserved separately; observer-free selection control is bounded by its captured click timing differences.",
+        "No new live capture is claimed; existing complete Frida archives provide retail expectations.",
+        "Selections above six, wider policy flags, AI producers and membership mutation retain their owning tasks."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "research/FORM-05.1/captures/a-observe-1.jsonl",
+        "sha256": "c5f947d12cd18a33ede999e46a752d84af8880082ec7eee60d00d0c929ccb331",
+        "bytes": 2006831,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+            "map": "a92b367b11daed587595bd2f930bf0d73dfbc3bbbb5bfac6cf7d81766855e0cd"
+          },
+          "map": "Maps\\RS-FORM-05.1-a.w3m",
+          "seconds": 200.0,
+          "continue_at": 30,
+          "display": ":99",
+          "remote": "127.0.0.1:27050",
+          "env": "C",
+          "input": [
+            {
+              "tick": 30,
+              "pixel": [
+                560,
+                230
+              ],
+              "alt": false,
+              "shift": false,
+              "key": "move"
+            }
+          ],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "F05 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/a-observe-2.jsonl",
+            "sha256": "eabe177223b93c09655aab1ff37fdd25296909edb88193b401c297d4c2b71075",
+            "bytes": 2006734,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "a92b367b11daed587595bd2f930bf0d73dfbc3bbbb5bfac6cf7d81766855e0cd"
+              },
+              "map": "Maps\\RS-FORM-05.1-a.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/b-observe-1.jsonl",
+            "sha256": "aaf0930e7bcd4c604a0ca5c4a3c050de56364dcaf677733f8e88142862553843",
+            "bytes": 3335353,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "6d80cedb13f0631413012e71899ccdae25c46b88966412fcf59c8e5f47fb631f"
+              },
+              "map": "Maps\\RS-FORM-05.1-b.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/b-observe-2.jsonl",
+            "sha256": "c534aca1ce278142a72d9add6c1709adcf14b213321a9ee2e44f4e8cb79d066b",
+            "bytes": 3335287,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "map": "6d80cedb13f0631413012e71899ccdae25c46b88966412fcf59c8e5f47fb631f"
+              },
+              "map": "Maps\\RS-FORM-05.1-b.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/d-observe-1.jsonl",
+            "sha256": "361a49425f0a3cbf1d40c85f53f61158db356da2382f06f8608726b8657c34e2",
+            "bytes": 4465270,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/d-observe-2.jsonl",
+            "sha256": "e440db5f4191af4a07d3e161f5106f16076e58bea0e0f347cb18b65c137d1309",
+            "bytes": 4467775,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/a-control-1.jsonl",
+            "sha256": "a684d8591f172751e1df9d91c2b11d239b9ef0292b8bad7da6f5a74013782aa0",
+            "bytes": 1612,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "a92b367b11daed587595bd2f930bf0d73dfbc3bbbb5bfac6cf7d81766855e0cd"
+              },
+              "map": "Maps\\RS-FORM-05.1-a.w3m",
+              "seconds": 220.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": [
+                2.9
+              ],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/d-control-1.jsonl",
+            "sha256": "4586c26d8a3e842d788d6cad0241e8f692572e8134f44fe4e658ad48e11a9f33",
+            "bytes": 2014,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 220.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": [
+                2.9,
+                24.9
+              ],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.2/captures/a-observe-1.jsonl",
+            "sha256": "3d13861f2cc4fbdda9d74cfffdbe275b602588051294c3e58a781fa96cb180e1",
+            "bytes": 2008443,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form052_observer.js": "c330dcb123752d50c7fa5d6ff15c718ba80cdd6d8ce94b837c775646432215b7",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "a92b367b11daed587595bd2f930bf0d73dfbc3bbbb5bfac6cf7d81766855e0cd"
+              },
+              "map": "Maps\\RS-FORM-05.1-a.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.2/captures/d-observe-1.jsonl",
+            "sha256": "d390554bb6689eae882ac14cc60f740d86ae286b61422032f3cc1e752e723717",
+            "bytes": 4469929,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form052_observer.js": "c330dcb123752d50c7fa5d6ff15c718ba80cdd6d8ce94b837c775646432215b7",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -42219,7 +42740,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "dd2bc05bd4ab9f104aaf16b32842cab436ddc34628a5acee67f2a2be6427d3a1"
+      "sha256": "46b582c966746e0cc38ca09e6846f7cf1d050f19ca7c705be01cabf28240573a"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -43052,7 +43573,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "4034dfbd0b93430cb08753c2e0e0d77e8fc1068aac4c29732edbf9c6fe43b14c"
+      "sha256": "452b9fb2c43bbcf344c66b855e7f0ad749a4bfa42286cfc3e705fff3acabaa3e"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -43908,7 +44429,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "6e53a4b42f98a3e1ab348928f0228197db76f1b1aa5942d6a0c8ac0566718326"
+      "sha256": "9cd44d306af3f41215b1c587f3e4ccc32e9e58285eb96e89f5466ea5e46e1da5"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -44600,7 +45121,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "765fa3a881e8f3018e05bfff74f5dc5b8cb2c96d5851c01673b7fef4b805357f"
+      "sha256": "bd65757120f35291783827b7961b82e5eed3ef4dbb6cb4afaaf82ba923831601"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -44844,7 +45365,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "34031919fd313c07f9f9af923470c1ca3e2da1ab23bd6cf4ee1f4c1220ed7b4c"
+      "sha256": "993848693320d54e59744d67c7aea0bc9a51b1409202772d239403240612d85c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -44856,11 +45377,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "5da56d27456c2a80cbfcae5a2a45ee5d5b56c7cfcf2ee67b72d46e83a0e1320c"
+      "sha256": "7c17ed2bdcf91cba71d8840e320e136c56af247667c764131ba1cc0eae56ec1a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "a457b63dc7061e5743d9165a5ab85f3b363d8b8c666148e17fe75fdf576f4a4c"
+      "sha256": "60ff335c0b1cf65160a7c327d508dd3f71dfab5dfccbd7bae9619aafa5c23962"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -45621,6 +46142,18 @@
     {
       "path": "tools/frida/research/form05_probe.j",
       "sha256": "2f07b8f2c39a88deceee7558a3eb878a1baeb99612cb304bd95af285dfec20b6"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_formation_selection_170.h",
+      "sha256": "cbc1b5fe80296648229494a110f43bc48b481f818282679eb5a8b65eb4fd6464"
+    },
+    {
+      "path": "tools/ghidra/research/verify_formation170_selection.py",
+      "sha256": "4a232cb38594eb34bba56acf01be0bc4332e587b7d6367771d90f3b7b18afe84"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-formation-selection170-1.27.json",
+      "sha256": "02e928aea677fcd9cddae3db77050f1092593deb5162c0e79c33fa342a1369ec"
     }
   ]
 }

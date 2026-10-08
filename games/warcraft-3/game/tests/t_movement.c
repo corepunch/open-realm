@@ -87,6 +87,33 @@
 #include "retail_target_fog166.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
+/* Older small movement tests drive one controlled owner interval directly.
+ * Public point admission now owns a physical group, so its entity callback
+ * cannot stand in for that owner. Frozen clock fixtures keep their own time. */
+static void movement_test_tick(edict_t *unit) {
+    moveGroup_t const *group=move_unit_group(unit);
+    if (!group || group->individual) {
+        unit->currentmove->think(unit);
+        return;
+    }
+    bool scheduled=level.scheduled_think;
+    if (!scheduled) wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    level.scheduled_think=true;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    level.scheduled_think=scheduled;
+}
+
+/* Fine legs belong to the member; hierarchy legs belong to its physical owner. */
+static moveFineRoute_t const *movement_test_coarse_route(edict_t const *unit) {
+    moveGroup_t const *group=move_unit_group(unit);
+    return group && !group->individual ? &group->route : &unit->movement.fine_route;
+}
+
+static bool movement_test_forced_arrival(edict_t const *unit) {
+    moveGroupMember_t const *member=move_find_member(unit);
+    return member ? member->forced_arrival : unit->movement.point_forced_arrival;
+}
+
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -1119,10 +1146,10 @@ TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
     T_ASSERT(unit->movement.path.waypoint.x!=unit->goalentity->s.origin2.x);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
-    T_ASSERT(unit->movement.path.valid); T_ASSERT(route->group_index>0);
+    T_ASSERT(unit->movement.path.valid); T_ASSERT(movement_test_coarse_route(unit)->group_index>0);
     T_EQ(route->adaptive_index,0); /* The member routes to the group stage. */
     T_EQ(route->index,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
-    uint32_t continued[260][11],changes=0,prior=route->group_index;
+    uint32_t continued[260][11],changes=0,prior=movement_test_coarse_route(unit)->group_index;
     cstring_t file="/tmp/openwarcraft3-long-refills-save.bin"; T_ASSERT(WriteGame(file));
     FOR_LOOP(pass,2) {
         if (pass) T_ASSERT(ReadGame(file));
@@ -1131,11 +1158,11 @@ TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
             uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
                 wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
                 wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
-                wc3_float_bits(unit->s.angle),unit->current_order_id,route->adaptive_index,route->index,route->group_index};
+                wc3_float_bits(unit->s.angle),unit->current_order_id,route->adaptive_index,route->index,movement_test_coarse_route(unit)->group_index};
             if (pass) FOR_LOOP(j,11) T_EQ(row[j],continued[i][j]);
             else {
                 memcpy(continued[i],row,sizeof(row));
-                if (unit->current_order_id && route->group_index!=prior) { changes++; prior=route->group_index; }
+                if (unit->current_order_id && movement_test_coarse_route(unit)->group_index!=prior) { changes++; prior=movement_test_coarse_route(unit)->group_index; }
             }
             if (unit->current_order_id) {
                 movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,2},unit,NULL,true};
@@ -1608,7 +1635,8 @@ TEST(wc3_movement, retail_fine_route_first_point_is_not_skipped) {
 }
 
 
-/* Complete original controlled singleton wall trajectory; clock is advanced by the same1/32 producer input. */
+/* Complete original controlled singleton wall trajectory; adaptive routing is
+ * disabled in the original fixture, and clock advances use its 1/32 input. */
 TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
     static uint32_t const expected[34][6]={
         {0x408796e7u,0x407af0bau,0x40f2dc43u,0xc021ec63u,0x40bec3dcu,0x00000007u},
@@ -1667,13 +1695,14 @@ TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
         edict_t *unit=NULL;
         FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
         T_NOT_NULL(unit); if (!unit) return;
+        unit->movement.adaptive_disabled=true;
         unit_stand(unit); jass_callbyname(level.vm,"go",false);
         level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
-        unit->currentmove->think(unit);
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
         cstring_t file="/tmp/openwarcraft3-retail-fine-route-save.bin";
         FOR_LOOP(i,34) {
             level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
-            S_PublishMovement(unit); unit->currentmove->think(unit);
+            S_PublishMovement(unit);S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
             T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
             T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
             T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
@@ -1689,7 +1718,7 @@ TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
         T_NOT_NULL(unit->movement.fine_route.points);
         for (int i=12;i<34;i++) {
             level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
-            S_PublishMovement(unit); unit->currentmove->think(unit);
+            S_PublishMovement(unit);S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
             T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
             T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
             T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
@@ -1754,10 +1783,13 @@ TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
     edict_t *unit=NULL;
     FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
     T_NOT_NULL(unit); if (!unit) return;
+    /* The original controlled owner fixture uses path88=400000: no adaptive
+     * bit200000. Its stock/public admission profile is explicitly excluded. */
+    unit->movement.adaptive_disabled=true;
     unit->stand=unit_stand; unit->think=monster_think;
     unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
     unit_stand(unit); jass_callbyname(level.vm,"go",false);
-    level.scheduled_think=true; unit->currentmove->think(unit); level.scheduled_think=false;
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t file="/tmp/openwarcraft3-retail-primary-owner-route-save.bin";
     FOR_LOOP(pass,2) {
@@ -1817,7 +1849,7 @@ TEST(wc3_movement, public_pathing_toggle_keeps_occupancy_and_crosses_wall) {
      * terrain with query zero while the authored hierarchy lane stays ground. */
     unit_changeangle(unit); T_ASSERT(!unit->movement.flow_direct);
     T_ASSERT(unit->movement.path.valid);
-    T_EQ(unit->movement.fine_route.group_mask,2);
+    T_EQ(movement_test_coarse_route(unit)->group_mask,2);
     cstring_t file="/tmp/openwarcraft3-pathing-toggle-save.bin";
     T_ASSERT(WriteGame(file));
     uint32_t words[60][4]; bool crossed=false;
@@ -2055,7 +2087,8 @@ static void yield163_compare(uint32_t const *actual,uint32_t const *expected,uns
 }
 
 static void yield163_before(moveGroup_t const *group,edict_t *unit) {
-    if(group || !unit || yield163_mismatch)return;
+    if(group && group->count==1)unit=group->members[0].unit;
+    if(!unit || yield163_mismatch)return;
     if(!yield163_units[1] && unit!=yield163_units[0])yield163_units[1]=unit;
     T_ASSERT(yield163_cursor<yield163_count);if(yield163_cursor>=yield163_count)return;
     unsigned member=0;while(member<3 && yield163_units[member]!=unit)member++;
@@ -3643,8 +3676,8 @@ TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
             T_NOT_NULL(unit); if (!unit) break;
             birth=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
             steps[2]=pass==1 ? 81 : 159;
-            T_EQ(unit->movement.fine_route.group_count,6);
-            T_EQ(unit->movement.fine_route.group_index,pass==1 ? 1 : 0);
+            T_EQ(movement_test_coarse_route(unit)->group_count,6);
+            T_EQ(movement_test_coarse_route(unit)->group_index,pass==1 ? 1 : 0);
             T_EQ(unit->current_order_id,G_OrderId("move"));
         }
         while (level.time<30000) {
@@ -3669,8 +3702,8 @@ TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
             T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
             T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
             if (!pass && c==2 && (i==80 || i==158)) {
-                T_EQ(unit->movement.fine_route.group_count,6);
-                T_EQ(unit->movement.fine_route.group_index,i==80 ? 1 : 0);
+                T_EQ(movement_test_coarse_route(unit)->group_count,6);
+                T_EQ(movement_test_coarse_route(unit)->group_index,i==80 ? 1 : 0);
                 T_EQ(unit->movement.fine_route.count,i==80 ? 20 : 0);
                 T_EQ(unit->current_order_id,G_OrderId("move"));
                 T_EQ(wc3_float_bits(wc3_grid_coordinate(unit->goalentity->s.origin2.x,-7168,32)),0x4275f400u);
@@ -4524,7 +4557,7 @@ TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cach
     uint32_t generation = CM_BuildHeatmap(unit->goalentity);
     CM_ProcessPathJobs(4096);
     T_ASSERT(CM_ActivateCachedFlow(generation));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
     T_ASSERT(unit->movement.path.valid && unit->movement.fine_route.count);
     T_ASSERT(run_test_jass(
         "function wall takes boolean passable returns nothing\nlocal integer y=0\n"
@@ -4535,7 +4568,7 @@ TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cach
         "function main takes nothing returns nothing\ncall wall(false)\nendfunction\n"));
     T_ASSERT(!CM_ActivateCachedFlow(generation));
     for (unsigned frame=0;frame<15;frame++) {
-        level.time += FRAMETIME; unit->currentmove->think(unit); CM_ProcessPathJobs(4096);
+        level.time += FRAMETIME; movement_test_tick(unit); CM_ProcessPathJobs(4096);
         T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2,0));
     }
     T_ASSERT(fabsf(unit->s.origin2.y-176)>2);
@@ -4543,7 +4576,7 @@ TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cach
     jass_callbyname(level.vm,"clear",false);
     T_ASSERT(!jass_rterror_pending(level.vm));
     for (unsigned frame=0;frame<160 && unit->current_order_id;frame++) {
-        level.time += FRAMETIME; unit->currentmove->think(unit); CM_ProcessPathJobs(4096);
+        level.time += FRAMETIME; movement_test_tick(unit); CM_ProcessPathJobs(4096);
     }
     T_EQ(unit->current_order_id,0);
     /* Ordinary zero-range Move finishes inside the recovered0.49 fine-cell gate. */
@@ -4559,7 +4592,10 @@ TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
     vec2_t target = {-1800, 600};
     CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
     unit->unitinfo.MoveSpeed = 100;
-    T_ASSERT(unit_issueorder(unit, "move", &target));
+    /* The isolated constant-heading consumer has no physical group layout.
+     * Admit its private waypoint through the internal Move owner. */
+    order_move(unit,Waypoint_add(&target));
+    unit->current_order_id=G_OrderId("move");
     unit->movement.flow_direct = true;
     FOR_LOOP(i, 2) { unit->s.angle = .125f; unit_moveindirection(unit); }
     /* Third controlled constant-heading commit in retail-native-pose-1.27.json.
@@ -4662,11 +4698,11 @@ TEST(wc3_movement, stock_window_turns_before_close_goal_arrival) {
     unit->s.angle = 2;
     vec2_t const east = {10, 0};
     T_ASSERT(unit_issueorder(unit, "move", &east));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
     T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
     T_EQ(unit->s.angle, wc3_sub(2, 0.6f));
     T_EQ(unit->currentmove->proc, CAbilityMove);
-    FOR_LOOP(i, 4) unit->currentmove->think(unit);
+    FOR_LOOP(i, 4) movement_test_tick(unit);
     T_EQ(unit->s.origin2.x, 0);
     T_STREQ(unit->currentmove->animation, "stand");
 }
@@ -4735,7 +4771,8 @@ TEST(wc3_movement, public_speed_setter_uses_authored_limits_and_keeps_default) {
         T_FEQ(unit->data.UnitBalance->minSpeed, 173.f, .00001f);
         T_FEQ(unit->data.UnitBalance->maxSpeed, 389.f, .00001f);
         T_FEQ(unit_movedistance(unit), 17.3f, .001f);
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
+        movement_test_tick(unit);
         T_FEQ(unit->s.origin2.x, 337.3f, .001f);
         jass_callbyname(level.vm, "SetZeroSpeed", true); jass_runevents(level.vm);
         T_ASSERT(!jass_rterror_pending(level.vm));
@@ -4815,7 +4852,7 @@ TEST(wc3_movement, public_speed_drop_clamps_existing_velocity_before_next_think)
         T_ASSERT(!jass_rterror_pending(level.vm));
         T_NOT_NULL(unit->currentmove->think);
         if (!unit->currentmove->think) goto done;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         T_ASSERT(unit->movement.velocity.y > 300);
         vec2_t position = unit->s.origin2;
         uint32_t facing = wc3_float_bits(unit->s.angle);
@@ -4827,14 +4864,14 @@ TEST(wc3_movement, public_speed_drop_clamps_existing_velocity_before_next_think)
         T_ASSERT(WriteGame(file));
         uint32_t expected[8][4];
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
             expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
         }
         T_ASSERT(ReadGame(file));
         T_FEQ(Vector2_len(&unit->movement.velocity), 150, .01f);
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
             T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
         }
@@ -4901,6 +4938,7 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
     if (unit) {
         unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand; unit_stand(unit);
         jass_callbyname(level.vm, "BeginBootsMove", false);
+        movement_test_tick(unit);
         char const *phases[] = {"PickupBootsOne", "PickupBootsTwo", "RemoveBootsOne", "RemoveBootsTwo"};
         FOR_LOOP(i, sizeof(phases) / sizeof(*phases)) {
             jass_callbyname(level.vm, phases[i], false);
@@ -4910,9 +4948,10 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
                 jass_callbyname(level.vm, "PublishBootsSpeed", false);
                 jass_callbyname(level.vm, "BeginBootsMove", false);
                 T_ASSERT(!jass_rterror_pending(level.vm));
+                movement_test_tick(unit);
             }
             vec2_t before = unit->s.origin2;
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             T_FEQ(Vector2_distance(&unit->s.origin2, &before), i == 0 ? 27 : 33, .01f);
         }
         /* The last item has gone but its published cap remains until a setter.
@@ -4922,7 +4961,7 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
         T_ASSERT(WriteGame(file));
         uint32_t expected[8][4];
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
             expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
         }
@@ -4930,7 +4969,7 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
         T_EQ(unit->movement.flat_speed_bonus, 60);
         T_EQ(S_UnitMoveSpeed(unit), 270);
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
             T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
         }
@@ -4939,7 +4978,7 @@ TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps
         T_EQ(unit->movement.flat_speed_bonus, 0);
         T_FEQ(Vector2_len(&unit->movement.velocity), 270, .01f);
         vec2_t before = unit->s.origin2;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         T_FEQ(Vector2_distance(&unit->s.origin2, &before), 27, .01f);
         remove(file);
     }
@@ -5067,11 +5106,11 @@ TEST(wc3_movement, public_speed_zero_survives_save_and_resumes_identically) {
         T_ASSERT(!jass_rterror_pending(level.vm));
         T_NOT_NULL(unit->currentmove->think);
         if (!unit->currentmove->think) goto done;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         T_ASSERT(WriteGame(file));
         uint32_t expected[8][4];
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
             expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
         }
@@ -5080,7 +5119,7 @@ TEST(wc3_movement, public_speed_zero_survives_save_and_resumes_identically) {
         T_EQ(unit->unitinfo.MoveSpeed, 0); T_ASSERT(unit->unitinfo.move_flags & BZ_UNIT_SPEED_SET);
         T_EQ(S_UnitMoveSpeed(unit), 150); T_FEQ(unit_movedistance(unit), 15, .001f);
         FOR_LOOP(i, 8) {
-            unit->currentmove->think(unit);
+            movement_test_tick(unit);
             T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
             T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
         }
@@ -5149,11 +5188,11 @@ TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
     bool accepted = unit_issueorder(unit, "move", &goal);
     T_ASSERT(accepted);
     if (!accepted) return;
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
     T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
     T_EQ(unit->s.angle, 0.875f);
     T_EQ(unit->currentmove->proc, CAbilityMove);
-    FOR_LOOP(i, 8) unit->currentmove->think(unit);
+    FOR_LOOP(i, 8) movement_test_tick(unit);
     T_EQ(unit->s.origin2.x, 0);
     T_STREQ(unit->currentmove->animation, "stand");
 }
@@ -6442,7 +6481,7 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     unit->unitinfo.MoveSpeed = 190.0f;
     unit->s.angle = 0.0f;
     order_move(unit, Waypoint_add(&dest));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     T_EQ(unit->movement.flow_generation, 0);
     T_ASSERT(!unit->movement.flow_direct);
@@ -6452,7 +6491,7 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     T_ASSERT(unit->movement.turn_blocked);
     T_FEQ(Vector2_distance(&unit->s.origin2, &origin), 0, 0.001f);
     FOR_LOOP(i, 8) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         if (Vector2_distance(&unit->s.origin2, &origin) > 0.001f) break;
     }
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
@@ -6481,7 +6520,7 @@ TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
      * No stopped tick may drift away; the first admitted step must progress. */
     after = before;
     FOR_LOOP(frame, 16) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         after = Vector2_distance(&unit->s.origin2, &dest);
         T_ASSERT(after <= before);
         if (after < before) break;
@@ -6506,14 +6545,14 @@ TEST(wc3_movement, turn_lag_facing_must_agree_with_resolved_route_heading) {
     unit->unitinfo.MoveSpeed = 190.0f;
     unit->s.angle = 0.0f;
     order_move(unit, Waypoint_add(&dest));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     T_ASSERT(Vector2_dot(&(vec2_t){cosf(unit->s.angle), sinf(unit->s.angle)},
                          &(vec2_t){cosf(unit->movement.heading), sinf(unit->movement.heading)}) < 0.0f);
     T_ASSERT(unit->movement.turn_blocked);
     T_FEQ(unit->s.origin2.x, 320.0f, 0.001f);
     FOR_LOOP(frame, 16) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         T_ASSERT(unit->s.origin2.x <= 320.0f);
         if (unit->s.origin2.x < 320.0f) break;
     }
@@ -8284,7 +8323,9 @@ TEST(wc3_movement, group_point_request_twelve_boundary_matches_retail_layouts) {
         }
         for(uint32_t i=n;i<fixture->count;i++) {
             T_NE(units[i]->movement.group_id,0);
-            T_ASSERT(move_unit_group(units[i])->individual);
+            moveGroup_t const *retained=move_unit_group(units[i]);
+            T_ASSERT(!retained->individual);T_EQ(retained->count,1);
+            T_NE(retained->id,group->id);T_EQ(retained->members[0].unit,units[i]);
             T_EQ(units[i]->goalentity,old_goals[i]);T_EQ(units[i]->movement.velocity.x,64);
             T_ASSERT(units[i]->movement.clock_valid);
         }
@@ -8952,8 +8993,9 @@ TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
     T_NOT_NULL(unit->currentmove);
     T_NOT_NULL(unit->currentmove->think);
 
+    movement_test_tick(unit);
     float dist_before = M_DistanceToGoal(unit);
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
     float dist_after = M_DistanceToGoal(unit);
 
     T_ASSERT(dist_after < dist_before);
@@ -8970,7 +9012,7 @@ TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
     for (int i = 0; i < 10; i++) {
         if (!unit->currentmove || !unit->currentmove->think) break;
         if (strcmp(unit->currentmove->animation, "walk") != 0) break;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");
@@ -8981,8 +9023,9 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
     vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
+    movement_test_tick(unit);
     float x0 = unit->s.origin2.x;
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     /* Unit must have moved in the X direction. */
     T_ASSERT(unit->s.origin2.x > x0);
@@ -9006,7 +9049,7 @@ TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     order_move(unit, Waypoint_add(&dest));
 
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         CM_ProcessPathJobs(4096);
         int cx = (int)floorf(unit->s.origin.x / 32), cy = (int)floorf(unit->s.origin.y / 32);
         for (int y = cy - 1; y <= cy; y++) for (int x = cx - 1; x <= cx; x++)
@@ -9037,7 +9080,7 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     order_move(unit, Waypoint_add(&dest));
 
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         CM_ProcessPathJobs(4096);
         /* This mover covers class1's four cells, including its newly closer
          * reachable boundary. Check the fixture independently of routing. */
@@ -9191,7 +9234,7 @@ TEST(wc3_movement, unit_stops_inside_goal_arrival_range) {
     for (int i = 0; i < 20; i++) {
         if (!unit->currentmove || !unit->currentmove->think) break;
         if (strcmp(unit->currentmove->animation, "walk") != 0) break;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
     }
 
     /* Retail point Move stops within .49 fine cells without snapping. */
@@ -9905,7 +9948,9 @@ TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
     T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
     T_NE(replacement->movement.group_id, 0);
     T_NE(replacement->movement.group_id, first_group);
-    T_ASSERT(move_unit_group(replacement)->individual);
+    moveGroup_t const *fresh=move_unit_group(replacement);
+    T_ASSERT(!fresh->individual);T_EQ(fresh->count,1);
+    T_EQ(fresh->members[0].unit,replacement);T_EQ(fresh->members[0].spawn,replacement->spawn_time);
     S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
     T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),300,0.001f);
     T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
@@ -9957,7 +10002,9 @@ TEST(wc3_movement, group_survivor_reorder_after_member_reuse_reaches_new_goal) {
         T_ASSERT(unit_issueorder(survivor, "move", &new_goal));
         T_NE(survivor->movement.group_id, 0);
         T_NE(survivor->movement.group_id, old_group);
-        T_ASSERT(move_unit_group(survivor)->individual);
+        moveGroup_t const *fresh=move_unit_group(survivor);
+        T_ASSERT(!fresh->individual);T_EQ(fresh->count,1);
+        T_EQ(fresh->members[0].unit,survivor);T_EQ(fresh->members[0].spawn,survivor->spawn_time);
         T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
         T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
         for (int frame = 0; frame < 240 && move_is_active_order_walk(survivor); frame++) {
@@ -10006,9 +10053,9 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
         .max = { 1024.0f,  1024.0f}));
 
     T_ASSERT(unit_issueorder(unit, "move", &dest));
-    unit->currentmove->think(unit); /* admits the collision-sized route */
+    movement_test_tick(unit); /* admits the collision-sized route */
     CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit); /* keeps the public click and follows its partial route */
+    movement_test_tick(unit); /* keeps the public click and follows its partial route */
 
     T_STREQ(unit->currentmove->animation, "walk");
     T_ASSERT(!unit->movement.flow_unreachable);
@@ -10034,7 +10081,7 @@ TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         unit->s.origin2 = origin;
         unit->s.origin.x = origin.x;
         unit->s.origin.y = origin.y;
@@ -10243,7 +10290,7 @@ TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         unit->s.origin2 = jitter;
         unit->s.origin.x = jitter.x;
         unit->s.origin.y = jitter.y;
@@ -14004,15 +14051,15 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         }
         if(!pass && !mismatch)FOR_LOOP(i,saves)if(level.time==save_times[i]) {
             saved_steps[i]=steps;
-            if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!unit->movement.point_forced_arrival);}
-            if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+            if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!movement_test_forced_arrival(unit));}
+            if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(movement_test_forced_arrival(unit));}
             if(captain && !pair) {
                 edict_t *actor=unit->movement.captain_home.actor;
                 T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
                 if(actor){T_EQ(actor->collision,0);T_EQ(actor->movement.captain_actor_type,1);T_ASSERT(actor->svflags&SVF_NOCLIENT);}
                 T_EQ(unit->movement.captain_home.active,i<4);
                 if(i==6){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);}
-                if(i==7){T_EQ(unit->movement.retry_count,1);T_ASSERT(unit->movement.point_forced_arrival);}
+                if(i==7){T_EQ(unit->movement.retry_count,1);T_ASSERT(movement_test_forced_arrival(unit));}
             }
             if(pair) {
                 edict_t *actor=unit->movement.captain_home.actor;
@@ -14042,7 +14089,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
         }
     }
     T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
-    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);if(pair)T_EQ(peer->current_order_id,0);}
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!movement_test_forced_arrival(unit));T_ASSERT(!unit->movement.clock_valid);if(pair)T_EQ(peer->current_order_id,0);}
     if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
     fprintf(stderr,"Point goal case=%u exact commits=%u saved suffix commits=%u\n",goal_case,count,suffix_steps);
@@ -14082,7 +14129,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
             else {
                 if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
                 else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-                T_ASSERT(!unit->movement.point_forced_arrival);
+                T_ASSERT(!movement_test_forced_arrival(unit));
                 T_ASSERT(unit->current_order_id==(i ? G_OrderId("move") : 0));
             }
         }
@@ -14118,10 +14165,10 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     /* Author a separate cancellation/replacement from the naturally forced
      * saved state; a new command must not inherit its range override. */
     if(!captain && !mismatch)FOR_LOOP(i,2) {
-        T_ASSERT(ReadGame(files[blocked ? 2 : 3]));T_ASSERT(unit->movement.point_forced_arrival);
+        T_ASSERT(ReadGame(files[blocked ? 2 : 3]));T_ASSERT(movement_test_forced_arrival(unit));
         if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
         else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
-        T_ASSERT(!unit->movement.point_forced_arrival);
+        T_ASSERT(!movement_test_forced_arrival(unit));
     }
     FOR_LOOP(i,saves)remove(files[i]);
     move_test_motion_commit=NULL;follow_commit_trace=NULL;
@@ -14175,7 +14222,7 @@ TEST(wc3_movement, public_size2_passage_matches_original_fallback_and_failure) {
         }
         T_EQ(steps,sizeof(passage80_motion)/sizeof(*passage80_motion));
         T_ASSERT(!jass_rterror_pending(level.vm));
-        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->movement.point_forced_arrival);T_ASSERT(!unit->movement.clock_valid);}
+        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!movement_test_forced_arrival(unit));T_ASSERT(!unit->movement.clock_valid);}
         if(pass)suffix_steps+=steps-saved_steps[pass-1];
     }
     fprintf(stderr,"Passage native commits=%u saved suffix commits=%u\n",steps,suffix_steps);
@@ -17619,7 +17666,8 @@ TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
     uint32_t id=units[0]->movement.group_id;bool saved=false,loaded=false,laid_out=false;
     vec2_t retained_point={0},retained_offsets[3];
     warp165_before_state=(typeof(warp165_before_state)){.group=id};
-    FOR_LOOP(i,3)warp165_before_state.units[i]=units[i];move_test_group_begin=warp165_before;
+    FOR_LOOP(i,3)warp165_before_state.units[i]=units[i];
+    move_test_group_begin=warp165_before;
     unsigned marked=0,crossed=0;uint32_t seen_crossings=0;
     cstring_t file="/tmp/wc3-warp165.bin";
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
@@ -18303,6 +18351,7 @@ TEST(wc3_movement, target168_equal_deadline_bulk_heap_order_and_cancellation) {
 static unsigned formation169_visit,formation169_commit,formation169_regroup;
 static bool formation169_failed;
 static edict_t *formation169_units[6];
+static typeof(formation169_passage[0]) const *formation169_trace=formation169_passage;
 
 static void formation169_words(uint32_t const *actual,uint32_t const *expected,unsigned count,char const *stage) {
     if(formation169_failed)return;
@@ -18322,11 +18371,11 @@ static unsigned formation169_index(edict_t const *unit) {
 
 static void formation169_before(moveGroup_t const *group) {
     if(formation169_failed)return;
-    typeof(formation169_passage[0]) const *row=formation169_passage+formation169_visit;
+    typeof(formation169_passage[0]) const *row=formation169_trace+formation169_visit;
     uint32_t state[]={group->flags,group->age,group->completion_counter,group->cooldown,
         wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),wc3_float_bits(group->heading)};
     /* The engine initializes age on the first owner visit. */
-    if(!formation169_visit)state[1]=row->group[1];
+    if(!group->initialized)state[1]=row->group[1];
     formation169_words(state,row->group,7,"group");T_EQ(group->count,row->count);
     if(group->count!=row->count){formation169_failed=true;return;}
     FOR_LOOP(i,group->count) {
@@ -18344,7 +18393,7 @@ static void formation169_before(moveGroup_t const *group) {
 
 static void formation169_committing(moveGroup_t const *group,moveGroupMember_t const *m,moveGroupCommitTrace_t const *trace) {
     if(formation169_failed)return;
-    typeof(formation169_passage[0]) const *row=formation169_passage+formation169_visit;
+    typeof(formation169_passage[0]) const *row=formation169_trace+formation169_visit;
     T_ASSERT(formation169_commit<row->commits);if(formation169_commit>=row->commits){formation169_failed=true;return;}
     edict_t *u=m->unit;
     uint32_t words[]={formation169_index(u),group->flags,m->flags,wc3_float_bits(wc3_div(m->speed,32)),
@@ -18359,11 +18408,11 @@ static void formation169_committing(moveGroup_t const *group,moveGroupMember_t c
 static void formation169_routed(moveGroup_t const *group,edict_t *singleton) {
     T_ASSERT(!singleton);
     uint32_t words[]={1,1,!group->route.group_index,group->route.group_count,group->route.group_index};
-    formation169_words(words,formation169_passage[formation169_visit].route,5,"route");
+    formation169_words(words,formation169_trace[formation169_visit].route,5,"route");
 }
 
 static void formation169_regrouping(moveGroup_t const *group,uint32_t const *trace) {
-    formation169_words(trace,formation169_passage[formation169_visit].regroup,5,"regroup");
+    formation169_words(trace,formation169_trace[formation169_visit].regroup,5,"regroup");
     formation169_regroup++;
 }
 
@@ -18427,6 +18476,108 @@ TEST(wc3_movement, formation169_selected_public_passage_matches_complete_retail_
     }
     remove(file);move_test_group_begin=NULL;move_test_group_commit=NULL;
     move_test_group_route=NULL;move_test_group_regroup=NULL;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
+}
+
+#include "fixtures/retail_formation_selection_170.h"
+static unsigned formation170_cursor,formation170_limit;
+static bool formation170_active;
+static uint8_t const *formation170_first;
+
+static void formation170_completed(void) {
+    if(!formation170_active || formation169_failed)return;
+    T_EQ(formation169_commit,formation169_trace[formation169_visit].commits);
+    T_EQ(formation169_regroup,formation169_trace[formation169_visit].regroup[0]);
+    if(formation169_commit!=formation169_trace[formation169_visit].commits ||
+       formation169_regroup!=formation169_trace[formation169_visit].regroup[0])formation169_failed=true;
+}
+
+static void formation170_before(moveGroup_t const *group) {
+    formation170_completed();
+    T_ASSERT(formation170_cursor<formation170_limit);
+    if(formation170_cursor>=formation170_limit){formation169_failed=true;return;}
+    T_EQ(!group->initialized,formation170_first[formation170_cursor]);
+    formation169_visit=formation170_cursor++;formation169_commit=formation169_regroup=0;formation170_active=true;
+    formation169_before(group);
+}
+
+TEST(wc3_movement, formation170_public_selection_and_independent_orders_match_retail) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(scene,3) {
+        reset_entities();setup_test_world();level.move_fine_responsive=false;
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64)if(y<30 || y>33)FOR_LOOP(x,2)cells[y*64+28+x]=0xc6;
+        for(unsigned y=6;y<18;y++)for(unsigned x=50;x<62;x++)if(y<8 || y>=16 || x<52 || x>=60)cells[y*64+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        typeof(formation170_scenes[0]) const *input=formation170_scenes+scene;
+        level.pathing_clock=(wc3Clock_t){wc3_float(input->admission),0,300};level.pathing_counter=1149;
+        char script[2048];snprintf(script,sizeof(script),"globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,320.,832.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],100.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "call SetUnitAcquireRange(a[i],0.)\nset i=i+1\nendloop\n%s endfunction\n",
+            scene==2 ? "set i=0\nloop\nexitwhen i==6\ncall IssuePointOrder(a[i],\"move\",1600.,1024.)\nset i=i+1\nendloop\n" : "");
+        T_ASSERT(run_test_jass(script));unsigned count=0;
+        FILTER_EDICTS(u,u->inuse && u->class_id>=types[0].newUnitID && u->class_id<=types[3].newUnitID)
+            {if(count<6)formation169_units[count]=u;count++;}
+        T_EQ(count,6);
+        if(scene!=2) {
+            edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+            FOR_LOOP(i,6)G_SetEntitySelectionMask(formation169_units[i],1);
+            clent->client->menu.order_alt=false;
+            vec2_t point={wc3_mul(wc3_float(input->goal[0]),32),wc3_mul(wc3_float(input->goal[1]),32)};
+            T_ASSERT(move_selectlocation(clent,&point));
+        }
+        unsigned groups=0;
+        FOR_LOOP(g,ARRAY_COUNT(level.move_groups))if(level.move_groups[g] && level.move_groups[g]->inuse)groups++;
+        T_EQ(groups,input->groups);
+        formation169_failed=false;
+        FOR_LOOP(i,6) {
+            moveGroup_t *g=move_unit_group(formation169_units[i]);T_NOT_NULL(g);
+            if(g){T_ASSERT(!g->individual);if(g->individual)formation169_failed=true;}
+        }
+        formation169_trace=input->rows;formation170_limit=input->count;
+        formation170_first=input->first;
+        move_test_group_begin=formation170_before;move_test_group_commit=formation169_committing;
+        move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
+        cstring_t file="/tmp/wc3-formation170-selection.bin";unsigned saved_cursor=0;
+        FOR_LOOP(pass,2) {
+            formation170_cursor=pass ? saved_cursor : 0;formation170_active=false;
+            if(pass)T_ASSERT(ReadGame(file));
+            unsigned frame=0;
+            while(formation170_cursor<input->count && !formation169_failed) {
+                unsigned end=formation170_cursor;uint32_t clock=input->rows[end].clock;
+                while(end<input->count && input->rows[end].clock==clock)end++;
+                level.pathing_clock.time=wc3_float(clock);
+                level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+                formation170_completed();formation170_active=false;
+                T_EQ(formation170_cursor,end);if(formation170_cursor!=end)formation169_failed=true;
+                if(!pass && ++frame==60){T_ASSERT(WriteGame(file));saved_cursor=formation170_cursor;}
+            }
+            T_EQ(formation170_cursor,input->count);
+            if(formation169_failed)break;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            FOR_LOOP(i,6) {
+                edict_t const *u=formation169_units[i];char position[64];T_EQ(u->current_order_id,0);
+                snprintf(position,sizeof(position),"%.3f,%.3f",u->s.origin2.x,u->s.origin2.y);
+                T_STREQ(position,input->finish[i]);
+            }
+        }
+        remove(file);move_test_group_begin=NULL;move_test_group_commit=NULL;
+        move_test_group_route=NULL;move_test_group_regroup=NULL;formation169_trace=formation169_passage;
+    }
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
     reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
 }
