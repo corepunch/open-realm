@@ -1,5 +1,11 @@
 # Warcraft III Save/Load
 
+Save137 replaces the old Permanent Invisibility millisecond window with the
+scalar origin, slope and pending primary-timer deadline/serial/active state.
+The ability rebuilds derived heap membership after load; no timer pointer or
+callback address is serialized. Save136 and older layouts are rejected.
+See [exact fade publication](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
+
 Save136 retains Follow subscription identities and the global registration
 sequence. Target-specific lists are rebuilt in registration order after load;
 links and delivery snapshots are derived and never serialized. Missing,
@@ -41,7 +47,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 136, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 137, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
@@ -291,7 +297,7 @@ by the exact-version guard.
 Version 32 persists whether the map's `config()` phase completed before `main()`, so a restored map does not rerun that setup phase
 or lose the lifecycle state that gates authored player/team/color initialization. It also adds the WC3-owned mutable Blight cell plane immediately after the level-field stream and adds each unit's `blight_growth` alias/current-radius/next-update state to the raw `edict_t` contract. Load requires the saved Blight byte count to exactly match the freshly initialized map Blight grid and restores it before edicts/JASS state, so `SetBlight*` changes and `Abli` expansion progress survive without being reconstructed from nearby buildings. See [Blight](blight.md). Version 31 saves are rejected by the exact-version guard.
 
-Version 32 also adds `edict_s.permanent_invisibility_reveal_until`, the authoritative server-time deadline used by `Apiv` Permanent Invisibility after spawn, attack, or spell-cast reveal. The field is serialized explicitly in `edict_fields[]`; the expanded `edict_t` size and version reject older layouts rather than interpreting shifted entity state.
+Version32 introduced the historical `permanent_invisibility_reveal_until` millisecond deadline. Save137 removes that field and stores the scalar fade/request contract described above; older layouts are rejected rather than migrated.
 
 Version 33 adds the level-owned Warcraft lightning presentation registry (`next_lightning_id` plus active `LIGHTNINGEFFECT` records). Source/target positions, rawcode, colour, start time and optional expiration survive a save, so a live Chain Lightning bolt does not disappear or restart its lifetime merely because the game was reloaded.
 

@@ -11818,3 +11818,18 @@ repeated hide/cargo chains and subscribed approach/persistent calls. Current
 research launches failed before gameplay and are explicitly excluded. Wider
 TARGET-03 policy branches remain open; no task closure is inferred from this
 bounded integration. See [target-loss contract, tests and reproducers](retail-pathfinding-target-visibility.md#synchronous-world-presence-loss-payoff167).
+
+## Permanent Invisibility publishes before Follow loss (Payoff168)
+
+Apiv now owns pending fades through exact scalar primary timers and an indexed
+heap. Read queries consume the published state instead of reconstructing it from
+a rounded millisecond window. Publication precedes synchronous target-specific
+Follow delivery; neutral pursuit cancels, owner/shared vision retains it.
+Seven production regressions pass in Classic/TFT, including27 original listener
+chains,4,096 equal-deadline owners, cancellation, exact callback clock, rollover
+and cold save. Save137 stores logical fade/request state and rebuilds the heap.
+See [contracts, saved Ghidra evidence and commands](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
+
+This is implementation progress on TARGET-03.1/03.2. It does not close their
+overlapping contributors, wider detection/visibility producers or other target
+families. The existing245/336 completed count remains unchanged.

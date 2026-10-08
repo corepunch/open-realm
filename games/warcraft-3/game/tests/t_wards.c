@@ -683,13 +683,17 @@ TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
 	ward_done(&fix);
 }
 
+static void ward_run_scalar_timers(void) {
+    bool scheduled=level.scheduled_frame;level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+
 TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targets_until_detected) {
 	wardFix_t fix; vec2_t point = { 64, 0 };
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	level.time = 3000;
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	gi.LinkEntity(fix.caster); gi.LinkEntity(fix.enemy);
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
@@ -709,19 +713,21 @@ TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_
 	wardFix_t fix;
 	ward_setup(&fix);
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000;
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false;
 	S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 3000);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.deadline.time<3);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
-	level.time = 3000;
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(S_UnitHasInvisibilityState(fix.enemy));
 	S_PermanentInvisibilityReveal(fix.enemy);
-	T_EQ(fix.enemy->permanent_invisibility_reveal_until, 5000);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.enemy->permanent_invisibility_fade.request.deadline.time<5.01f);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!S_UnitHasInvisibilityState(fix.enemy));
-	level.time = 5000;
+	level.time = 5000; level.pathing_clock.time=5; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	ward_done(&fix);
 }
@@ -732,11 +738,12 @@ TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) 
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
-	level.time = 3000;
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.caster, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.caster));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
-	T_EQ(fix.caster->permanent_invisibility_reveal_until, 5000);
+	T_ASSERT(fix.caster->permanent_invisibility_fade.request.active);
+	T_ASSERT(fix.caster->permanent_invisibility_fade.request.deadline.time<5.01f);
 	T_ASSERT(!S_PermanentInvisibilityActive(fix.caster));
 	ward_done(&fix);
 }
@@ -747,8 +754,8 @@ TEST(wc3_spell, far_sight_detects_permanent_invisibility_only_for_its_viewers) {
 	G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
 	fix.caster->runtime.sight_radius.day = 256.0f;
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
-	level.time = 1000; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
-	level.time = 3000;
+	level.time = 1000; level.pathing_clock=(wc3Clock_t){1,0,300}; level.timer_clock_valid=false; S_UnitAbilityEvent(fix.enemy, A_UNIT_INIT);
+	level.time = 3000; level.pathing_clock.time=3; level.timer_clock_valid=false; ward_run_scalar_timers();
 	G_FowUpdate();
 	T_ASSERT(S_PermanentInvisibilityActive(fix.enemy));
 	T_ASSERT(!G_FowPlayerCanSeeEntity(0, fix.enemy));

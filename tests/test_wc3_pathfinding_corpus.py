@@ -17,8 +17,14 @@ from run_wc3_pathfinding_corpus import (DEFAULT_MANIFEST,load_manifest,check_rep
 
 
 class CorpusTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Repository inputs remain fixed during this suite. Verify all pins
+        # once; each test receives an independent manifest for mutations.
+        cls.frozen_manifest=load_manifest(DEFAULT_MANIFEST)
+
     def setUp(self):
-        self.manifest=load_manifest(DEFAULT_MANIFEST)
+        self.manifest=copy.deepcopy(self.frozen_manifest)
         self.entry=next(e for e in self.manifest['entries'] if e['id']=='oracle-grid')
         self.target=self.manifest['target']
 
@@ -35,9 +41,9 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),138)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),139)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),134)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),135)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -63,6 +69,19 @@ class CorpusTests(unittest.TestCase):
             changed=dict(report);changed[field]=value
             with self.assertRaises(ValueError):check_report(changed,entry,self.target)
         self.assertTrue(any('no new' in x.lower() for x in entry['exclusions']))
+
+    def test_invisibility_entries_keep_consumer_and_public_evidence_separate(self):
+        oracle=next(e for e in self.manifest['entries'] if e['id']=='oracle-invisibility-fade-listener')
+        self.assertEqual(oracle['checks']['cases'],dict(equal=27))
+        self.assertIn('--header',oracle['command'])
+        self.assertTrue(any('stand-ins' in x for x in oracle['exclusions']))
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-invisibility-target-loss')
+        report={field:rule['equal'] for field,rule in entry['checks'].items()}
+        check_report(report,entry,self.target)
+        for field,value in [('passed',False),('captures',5),('controls',1),('observed_repeats',1),('policy_events',5)]:
+            changed=dict(report);changed[field]=value
+            with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+        self.assertTrue(any('No new live' in x for x in entry['exclusions']))
 
     def test_yield_lifetime_requires_both_policies_and_identity_controls(self):
         entry=next(e for e in self.manifest['entries'] if e['id']=='live-moving-yield-identity-and-group-policy')

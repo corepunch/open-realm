@@ -185,6 +185,83 @@ pass17 cases and corpus tests30; the exact staged tree passes393 fixture contrac
 and a fresh strict target-loss archive run. The full repository checkpoint is
 not repeated for this chunk under the authorized validation cadence.
 
+## Delayed invisibility publication (Payoff168)
+
+`Apiv` now publishes Permanent Invisibility through its ability-owned primary
+timer, then delivers synchronous TargetLost to the existing Follow subscriber
+list. Queries read the published runtime bit; they no longer infer publication
+from a rounded millisecond deadline. Owner/shared-vision Follow survives;
+undetected neutral Follow cancels. Removing Apiv does not resume a canceled
+order.
+
+Original assembly establishes this chain:
+
+| Address | Contract |
+| --- | --- |
+| `631360` | Enable reads the authored level duration through `414ff0`, then calls `6696e0`. Its separate `414b50` flag branch remains outside this implementation. |
+| `6696e0` | Increment Unit+114 contribution count; only the first contribution constructs the fade. Zero duration calls `68b780` immediately. A positive isolated fade installs near-zero value `3a83126f`, reciprocal duration slope and an upward threshold-one listener. |
+| `161c30` | Cancel the previous listener request, check source/direction/slope, compute remaining crossing time and schedule at most four seconds ahead. Slope below `3556bf95` produces no request. The timer minimum is `38d1b717`. |
+| `1618a0`, `162250`, `162290` | Evaluate the clamped scalar using original elapsed-time arithmetic; accept strict distance below `3ba3d70a` (0.005), otherwise rearm. Remaining time uses native subtraction/division. |
+| `690490`, `68b780` | Listener event `d01d4` refreshes the unit. A nonzero contribution count publishes Unit+5c bit `01000000` before `651010(-1,-1)` TargetLost. |
+| `694b20` | Last contribution removal clears the bit before optional reveal notification. Zero-count refresh does not deliver inverse TargetLost. |
+
+The new engine heap contains only pending Apiv fades: next request O(1),
+insert/cancel O(log N), no allocations during visibility reads. Deadlines share
+the existing primary timer's deterministic serial ordering. Epoch rebasing
+changes pending deadlines while preserving the scalar's original epoch/time.
+Save137 retains origin, slope, deadline, serial and active state; heap links are
+derived and rebuilt after load. There is no new wire field.
+
+Evidence is split deliberately. The delivered TARGET-03.2 Frida archives contain
+two exact observed repeats of stock Apiv scenes3/4/5, plus the prerequisite
+six-capture repeat/control/provenance checks. `verify_target168_live.py` verifies
+deferred publication, synchronous validation and retained/canceled public heads
+until the scene's explicit Stop, then checks Stop clears the order. These are
+reused complete captures, not a new live launch.
+
+`verify_target168_fade.py` executes complete original listener consumers and
+shipped CRT/static initializers for27 controlled duration/origin cases. It
+checks frozen request/publication words and the production test header. Timer
+wrapper ownership and the event receiver are explicit stand-ins; this is not a
+claim of complete public modifier construction or full scene trajectories.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/research/verify_target168_fade.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --fixture tools/ghidra/fixtures/retail-invisibility-fade168-1.27.json \
+  --header games/warcraft-3/game/tests/retail_fade168.h --output /tmp/fade168.json
+python tools/ghidra/research/verify_target168_live.py \
+  --expected tools/ghidra/fixtures/retail-invisibility-loss168-1.27.json \
+  --visibility tools/ghidra/fixtures/retail-target-visibility166-1.27.json \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --header games/warcraft-3/game/tests/retail_target_fog166.h --output /tmp/loss168.json
+```
+
+Failing-first tests initially exposed14 missing publication/cancellation
+assertions; expanded deadline cases exposed158 failures and the tiny-slope case
+three more. Seven final production regressions pass19,540 assertions per
+Classic/TFT, covering public ability mutation in approach and persistent Follow,
+all27 listener chains, cold save, exact public timer delivery, cancellation,
+reveal restart, epoch rollover and4,096 equal-deadline/canceled owners.
+Neighboring spell401, game151, unit127, combat188 and API351 tests pass in both
+modes. The earlier full Classic movement run passed401 tests/5,673,883 assertions;
+the final epoch/slope additions were checked with the focused runs. Full repo
+validation remains on the authorized batch cadence.
+
+The neighboring ability-dispatch suite also exposed three global timer messages
+incorrectly accepted with a unit owner. The timer hooks now reject unit-directed
+calls, matching Move's global-maintenance contract.
+
+Ghidra annotations, two partial scalar/listener layouts, Unit+114 and eight
+assembly-verified ABIs are saved and mirrored in the mapper/type schema. Raw
+assembly, readback, red/green logs and verifier reports are retained under
+`/GitHub/wc3-analysis/runtime/payoff168/`.
+
+This advances TARGET-03.1/03.2 without closing their full scopes. Overlapping
+contributors, Ghost/buff/Shadow Meld publication, arbitrary reveal/level-change
+composition, negative/exceptional fades, detection/global policy producers and
+presentation alpha remain required. No new TODO leaves are introduced.
+
 ## Remaining scope
 
 The full archived policy matrix is research evidence, not a claim that this

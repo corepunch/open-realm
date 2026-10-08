@@ -18107,4 +18107,194 @@ TEST(wc3_movement, target167_direct_follower_release_unlinks_subscription) {
     G_FowShutdown();reset_entities();setup_test_world();
 }
 
+/* Public Apiv mutation must publish its state before delivering TargetLost;
+ * ownership/shared vision retain the Follow while an undetected viewer loses it. */
+static void target168_invisibility(unsigned policy,bool persistent) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"0\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    if(policy)target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    if(policy==2)level.alliances[PLAYER_NEUTRAL_PASSIVE][0]|=1u<<ALLIANCE_SHARED_VISION;
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function add takes nothing returns nothing\ncall UnitAddAbility(target,'Apiv')\nendfunction\n"
+        "function undo takes nothing returns nothing\ncall UnitRemoveAbility(target,'Apiv')\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {target166_tick();if(move_unit_group(unit) && (move_unit_group(unit)->flags&1))break;}
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    uint32_t counter=level.pathing_counter,group=unit->movement.group_id;
+    move_follow_visits=0;jass_callbyname(level.vm,"add",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(S_PermanentInvisibilityActive(target));
+    T_EQ(level.pathing_counter,counter);T_EQ(move_follow_visits,1);
+    if(policy==1) {
+        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);T_EQ(unit->current_order_id,0);
+        T_NULL(unit->movement.follow_target);T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);
+    } else {
+        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_VALID);T_EQ(unit->movement.follow_target,target);
+        T_EQ(unit->movement.group_id,group);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    }
+    move_follow_visits=0;jass_callbyname(level.vm,"add",false);T_EQ(move_follow_visits,0);
+    jass_callbyname(level.vm,"undo",false);T_ASSERT(!S_PermanentInvisibilityActive(target));
+    T_EQ(unit->current_order_id,policy==1 ? 0 : G_OrderId("smart"));
+    T_EQ(move_follow_visits,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_public_invisibility_approach_policy) {
+    FOR_LOOP(policy,3)target168_invisibility(policy,false);
+}
+TEST(wc3_movement, target168_public_invisibility_persistent_policy) {
+    FOR_LOOP(policy,3)target168_invisibility(policy,true);
+}
+
+#include "retail_fade168.h"
+/* The owner uses native scalar-listener deadlines, not integer milliseconds
+ * or the next entity update. These are complete original consumer chains. */
+TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
+    FOR_LOOP(n,sizeof(retail_fade168)/sizeof(*retail_fade168)) {
+        retailFade168_t const *row=retail_fade168+n;
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target->s.player=PLAYER_NEUTRAL_PASSIVE;
+        level.pathing_clock.time=wc3_float(row->origin);level.timer_clock_valid=false;
+        char slk[512];snprintf(slk,sizeof(slk),"ID;PWXL;N;E\n"
+            "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+            "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"%.9g\"\nE\n",wc3_float(row->duration));
+        slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        move_follow_visits=0;T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,0);
+        FOR_LOOP(i,row->count) {
+            abilityTimerRequest_t next={0};
+            bool found=S_NextAbilityPrimaryTimer(&next);T_ASSERT(found);
+            if(!found)break;
+            T_EQ(next.proc,CAbilityPermanentInvisibility);
+            T_EQ(wc3_float_bits(next.deadline.time),row->requests[i][2]);
+            T_EQ(unit->current_order_id,G_OrderId("smart"));
+            level.pathing_clock=next.deadline;level.timer_clock_valid=false;
+            abilityCall_t call={.primary_timer=&next};next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+            T_EQ(move_follow_visits,i+1==row->count ? 1 : 0);
+        }
+        T_EQ(S_PermanentInvisibilityActive(target),row->count!=0);T_EQ(move_follow_visits,row->count ? 1 : 0);
+        T_EQ(unit->current_order_id,row->count ? 0 : G_OrderId("smart"));
+        T_EQ(unit->movement.follow_target,row->count ? NULL : target);
+        abilityTimerRequest_t next={0};T_ASSERT(!S_NextAbilityPrimaryTimer(&next));
+        T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,row->count ? 1 : 0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+static wc3Clock_t target168_loss_clock;
+static void target168_run_timers(void) {
+    bool scheduled=level.scheduled_frame;level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+static void target168_loss_observe(edict_t *unit) {
+    (void)unit;target168_loss_clock=G_TimerQueryClock(NULL);
+}
+
+TEST(wc3_movement, target168_pending_fade_cold_save_and_exact_public_timer_delivery) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    cstring_t file="/tmp/wc3-target168-fade.bin";
+    T_ASSERT(WriteGame(file));S_ResetAbilityTimers();reset_entities();
+    T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+id-1;target=g_edicts+other-1;
+    T_NOT_NULL(unit);T_NOT_NULL(target);
+    if(!unit || !target)return;
+    T_ASSERT(target->permanent_invisibility_fade.request.active);
+    T_EQ(target->permanent_invisibility_fade.request.sequence,request.sequence);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(request.deadline.time));
+    T_EQ(unit->movement.follow_target,target);T_ASSERT(!S_PermanentInvisibilityActive(target));
+    move_follow_visits=0;target168_loss_clock=(wc3Clock_t){0};move_test_target_lost=target168_loss_observe;
+    level.pathing_clock.time=wc3_sub(request.deadline.time,.02f);level.timer_clock_valid=false;target168_run_timers();
+    T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    level.pathing_clock.time=request.deadline.time;level.timer_clock_valid=false;target168_run_timers();
+    move_test_target_lost=NULL;T_EQ(move_follow_visits,1);T_EQ(unit->current_order_id,0);
+    T_EQ(wc3_float_bits(target168_loss_clock.time),wc3_float_bits(request.deadline.time));
+    T_ASSERT(S_PermanentInvisibilityActive(target));
+    target168_run_timers();T_EQ(move_follow_visits,1);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_pending_fade_cancellation_reveal_and_slot_release) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"3.25\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t first=target->permanent_invisibility_fade.request;
+    level.pathing_clock.time=1;level.timer_clock_valid=false;S_PermanentInvisibilityReveal(target);
+    T_EQ(invisibility_count,1);T_ASSERT(target->permanent_invisibility_fade.request.sequence>first.sequence);
+    T_ASSERT(target->permanent_invisibility_fade.request.deadline.time>first.deadline.time);
+    move_follow_visits=0;T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
+    T_EQ(invisibility_count,0);T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    level.pathing_clock.time=10;level.timer_clock_valid=false;target168_run_timers();T_EQ(move_follow_visits,0);
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));T_EQ(invisibility_count,1);
+    G_DeferFreeEdict(target);T_EQ(invisibility_count,0);
+    T_NULL(unit->movement.follow_target);T_EQ(unit->current_order_id,0);
+    level.pathing_clock.time=20;level.timer_clock_valid=false;target168_run_timers();T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_pending_fade_rebases_without_changing_origin) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    level.pathing_clock=(wc3Clock_t){299.999f,0,300};level.timer_clock_valid=false;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
+    wc3Clock_t origin=target->permanent_invisibility_fade.origin;
+    move_follow_visits=0;target168_run_timers();T_EQ(move_follow_visits,0);
+    T_EQ(target->permanent_invisibility_fade.request.deadline.epoch,1);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.request.deadline.time),
+         wc3_float_bits(wc3_sub(request.deadline.time,300)));
+    T_EQ(target->permanent_invisibility_fade.request.sequence,request.sequence);
+    T_EQ(target->permanent_invisibility_fade.origin.epoch,origin.epoch);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+    level.pathing_clock=target->permanent_invisibility_fade.request.deadline;
+    target168_run_timers();T_EQ(move_follow_visits,1);T_EQ(unit->current_order_id,0);
+    T_ASSERT(S_PermanentInvisibilityActive(target));T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_equal_deadline_bulk_heap_order_and_cancellation) {
+    reset_entities();setup_test_world();level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_clock_valid=false;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"0.5\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *units[4096];uint32_t sequences[4096];
+    FOR_LOOP(i,4096) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+        T_ASSERT(G_ActorAddSkill(units[i],MAKEFOURCC('A','p','i','v')));
+        sequences[i]=units[i]->permanent_invisibility_fade.request.sequence;
+    }
+    T_EQ(invisibility_count,4096);
+    FOR_LOOP(i,4096)if(i%3==1)T_ASSERT(G_ActorRemoveSkill(units[i],MAKEFOURCC('A','p','i','v')));
+    FOR_LOOP(i,4096) {
+        if(i%3==1) {T_ASSERT(!S_PermanentInvisibilityActive(units[i]));continue;}
+        abilityTimerRequest_t next={0};T_ASSERT(S_NextAbilityPrimaryTimer(&next));
+        T_EQ(next.sequence,sequences[i]);T_EQ(invisibility_heap[0],units[i]);
+        level.pathing_clock=next.deadline;abilityCall_t call={.primary_timer=&next};
+        next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);T_ASSERT(S_PermanentInvisibilityActive(units[i]));
+    }
+    T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+}
+
 #endif

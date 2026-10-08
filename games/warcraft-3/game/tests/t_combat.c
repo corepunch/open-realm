@@ -2950,7 +2950,6 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
     target->s.renderfx &= ~RF_HIDDEN;
 
     source->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    source->permanent_invisibility_reveal_until = 0;
     attack_melee_cooldown(target);
     T_FEQ(target->wait, 0.8f, 0.001f);
 

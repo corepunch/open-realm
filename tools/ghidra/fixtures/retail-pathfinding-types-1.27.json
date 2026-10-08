@@ -791,6 +791,12 @@
           "evidence": "695090 Unit60 bit1 forces category high nibble15; remaining flag meanings undefined"
         },
         {
+          "offset": 276,
+          "name": "nInvisibility_contribution_count",
+          "type": "i32",
+          "evidence": "Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions; only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified separately; overlapping full-owner composition remains open. Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not infer inverse TargetLost or automatic Follow resumption."
+        },
+        {
           "offset": 372,
           "name": "internal_head",
           "type": "WC3PathIdentity",
@@ -4113,6 +4119,108 @@
           "name": "retained_duration",
           "type": "WC3PathScalar",
           "evidence": "532fa0 loads buff+ac and schedules only when positive."
+        }
+      ]
+    },
+    {
+      "name": "WC3InvisibilityLinearScalarPrefix",
+      "length": 136,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 76,
+          "name": "scalar_flags",
+          "type": "u32",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 112,
+          "name": "origin_time",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 116,
+          "name": "origin_epoch",
+          "type": "u32",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 120,
+          "name": "origin_value",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 124,
+          "name": "slope",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 128,
+          "name": "lower",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 132,
+          "name": "upper",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        }
+      ]
+    },
+    {
+      "name": "WC3InvisibilityListenerPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 48,
+          "name": "receiver",
+          "type": "ptr:void",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 64,
+          "name": "scalar",
+          "type": "ptr:WC3InvisibilityLinearScalarPrefix",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 80,
+          "name": "threshold",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
+        },
+        {
+          "offset": 84,
+          "name": "direction",
+          "type": "u32",
+          "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
         }
       ]
     }
@@ -13223,6 +13331,143 @@
         }
       ],
       "evidence": "Payoff167 complete original function assembly: ECX owner, two stack parameters, RET8; subscriptions at d01a4/d01a2, task renewal clears before registering."
+    },
+    {
+      "address": "6f6696e0",
+      "name": "Unit_AddInvisibilityContribution",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "fade",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions; only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified separately; overlapping full-owner composition remains open."
+    },
+    {
+      "address": "6f694b20",
+      "name": "Unit_RemoveInvisibilityContribution",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "fade",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not infer inverse TargetLost or automatic Follow resumption."
+    },
+    {
+      "address": "6f631360",
+      "name": "CAbilityPermInvis_OnEnable",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff168: ECX PermInvis ability, plain RET. Capture Unit30; query authored level50 through414ff0 (profile level stride68, scalar+8), then6696e0(Unit,&fade). Independently query414b50 (scalar+20) and ToInteger; zero sets unit1e8+20 bit10000000 and ability20 bit80. Extra behavior is not yet claimed as an engine pathfinding closure."
+    },
+    {
+      "address": "6f68b780",
+      "name": "CUnit_RefreshInvisibility",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff168: ECX Unit, plain RET. Read114 contribution count after clearing modifier/listener handles128/12c. Nonzero sets5c01000000 BEFORE651010(Unit,-1,-1), synchronous Follow validation. Zero count does not emit TargetLost. Public Apiv delayed loss: two exact raw observed repeats, scenes3/4/5, cancel undetected neutral but retain own/shared-vision Follow; existing controls/provenance checked."
+    },
+    {
+      "address": "6f161c30",
+      "name": "FloatListener_RearmCrossingRequest",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InvisibilityListenerPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff168: ECX FloatListener canonical, plain RET. Stop prior request; scalar source at40 must exist and not have4f bit1. Require absolute slope>=cd5478, with direction54=1/up or0/down.162290 computes remaining scalar crossing; positive or tolerated zero schedules min(remaining,RuntimeFour), via15d6f0 minimum delay. Complete consumer native27 chains, shipped CRT decimal tolerance initializer included; wrapper scheduling is an explicit witness stand-in. Final witness includes the positive2,000,000-second fade: native slope deadzone word3556bf95 suppresses requests at all three clock origins; no publication is fabricated."
+    },
+    {
+      "address": "6f1618a0",
+      "name": "FloatListener_EvaluateCrossing",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InvisibilityListenerPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff168: ECX FloatListener, plain RET. Evaluate clamped scalar78 + slope7c * Mover_GetElapsedTime(source).162250 strict tolerance detects crossing; on hit StopTimer then emit scalar-listener signal through receiver30 virtual20. Otherwise161c30 re-arms. Complete27 native chains frozen; no integer-millisecond polling in engine. Final witness includes the positive2,000,000-second fade: native slope deadzone word3556bf95 suppresses requests at all three clock origins; no publication is fabricated."
+    },
+    {
+      "address": "6f162250",
+      "name": "FloatListener_IsNearThreshold",
+      "returns": "u8",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InvisibilityListenerPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "value",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff168: ECX listener, stack4 scalar pointer, RET4. Return abs(Math_Subtract(input,listener50)) < runtime d53a70. Registered initializer003d00 parses shipped string a91c00=0.005 through070de0 (runtime word3ba3d70a). Strict comparison verified in complete scalar listener chains."
+    },
+    {
+      "address": "6f162290",
+      "name": "LinearScalar_TimeToThreshold",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:WC3InvisibilityLinearScalarPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "threshold",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff168: ECX linear scalar, stack4 output and stack8 threshold scalar pointer, RET8. Threshold must lie between80/84; evaluate clamped78 +7c*elapsed; native Divide(threshold-value,slope7c) writes output. Outside threshold returnsRuntimeMinusOne. Complete consumer chains retain exact software-float words."
     }
   ],
   "globals": [

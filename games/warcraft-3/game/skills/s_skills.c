@@ -448,7 +448,7 @@ static ability_t abilitylist[] = {
     { "Agho", CAbilityGhost, AB_PASSIVE },  /* Ghost */
     { "Aeth", CAbilityGhostVisible, AB_PASSIVE },  /* Ghost */
     { "Amin", CAbilityLandMine, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Mine - exploding */
-    { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT },  /* Permanent Invisibility */
+    { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE | AB_TYPE_INIT | AB_PRIMARY_TIMER },  /* Permanent Invisibility */
     { "Awan", CAbilityWander, AB_PASSIVE },  /* Wander */
     /* Aarm is registered with the explicit regeneration family below. */
     { "Asid", CAbilitySellItem, AB_PASSIVE },  /* Sell Items */
@@ -1265,7 +1265,7 @@ static intptr_t unit_dispatch_authored_abilities_execute(edict_t *ent, abilityMs
     bool handled = false;
     if (!ent) return ABILITY_ORDER_UNHANDLED;
     if (fresh && (ent->abilstatus || ent->shadowmeld || ent->blight_growth || ent->sleep ||
-        ent->waygate || ent->permanent_invisibility_reveal_until || ARRAY_COUNT(ent->abilities.added) || ARRAY_COUNT(ent->abilities.removed))) fresh = false;
+        ent->waygate || ent->permanent_invisibility_fade.request.active || ARRAY_COUNT(ent->abilities.added) || ARRAY_COUNT(ent->abilities.removed))) fresh = false;
     if (fresh) FOR_LOOP(i, MAX_HERO_ABILITIES) if (ent->heroabilities[i].level) { fresh = false; break; }
 #ifdef BZ_TESTS
     if (unit_events_force_uncached)
@@ -2096,7 +2096,7 @@ static intptr_t fresh_unknown_initializer(edict_t *ent, abilityMsg_t msg, abilit
     T_NOT_NULL(ent); T_EQ(msg, A_UNIT_INIT); T_NOT_NULL(call);
     fresh_unknown_calls++;
     ent->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    ent->permanent_invisibility_reveal_until = 19;
+    ent->permanent_invisibility_fade.request.active = true;
     return false;
 }
 TEST(wc3_ability_dispatch, fresh_init_preserves_unknown_callback_mutations) {
@@ -2117,7 +2117,7 @@ TEST(wc3_ability_dispatch, fresh_init_preserves_unknown_callback_mutations) {
     T_EQ(fresh_unknown_calls, 2);
     T_EQ(memcmp(&original, &fresh, sizeof(fresh)), 0);
     T_EQ(fresh.runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE, 0);
-    T_EQ(fresh.permanent_invisibility_reveal_until, 0);
+    T_EQ(fresh.permanent_invisibility_fade.request.active, 0);
     S_ReplaceAbilityProcedure(move, saved_move);
     InitAbilities();
     /* A cold plan must not query the replacement either. */

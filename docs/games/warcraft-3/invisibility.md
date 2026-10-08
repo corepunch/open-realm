@@ -26,7 +26,7 @@ See [Shadow Meld](shadowmeld.md) for the separate `Ashm`/`Ahid` night/stationary
 
 ## Current ownership
 
-- `Apiv` Permanent Invisibility owns its authored transition/reveal window and is consumed by the shared viewer-relative visibility query.
+- `Apiv` Permanent Invisibility owns an authored scalar fade and primary-timer publication. Viewer-relative queries read the published state; synchronous TargetLost is delivered after publication. See [exact fade scheduling](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
 - `Aivs` temporary Invisibility and `AIvi` Item Temporary Invisibility apply the authored AbilityData `BuffID`; the status stores its applying ability rawcode so detection, break, expiry, and overlap cleanup recognize custom buff IDs. `RF_HIDDEN` remains its presentation state.
 - `AOwk`/`ANwk` Wind Walk owns `BOwk`. `BOwk.data` stores the applying ability rawcode so aliases keep their own authored Data C/cooldown and survive save/load.
 - `Agho` Ghost caches persistent invisibility in `unit->runtime.flags`; detector coverage reveals it per viewer without removing the Ghost state. Like the repository's other gameplay-invisible states, Ghost is excluded by the shared aura-active predicate.
@@ -60,7 +60,7 @@ Tests use deliberately non-stock Dur/HeroDur values so this path cannot pass by 
 
 ## Save/load
 
-No new edict pointer or callback field is introduced. Ghost uses an existing persisted `runtime.flags` bit, and Wind Walk uses the already-persisted `heroabilitystatus_t.data` field for applying-ability identity. Focused save/load tests cover both semantics so future serializer changes cannot silently drop them.
+Ghost uses a persisted `runtime.flags` bit, and Wind Walk uses the persisted `heroabilitystatus_t.data` applying-ability identity. Save137 stores Permanent Invisibility's scalar origin, slope and pending primary request; its heap membership is rebuilt. No edict pointer or C callback is added. Focused save/load tests cover pending fade and these other semantics.
 
 ## Planned compatibility decisions for unresolved retail details
 

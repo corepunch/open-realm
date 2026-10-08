@@ -1903,7 +1903,11 @@ struct edict_s {
     unsummon_t *unsummon;
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
-    uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
+    struct {
+        wc3Clock_t origin;
+        abilityPrimaryTimer_t request;
+        float slope;
+    } permanent_invisibility_fade;
     shadowMeld_t *shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */

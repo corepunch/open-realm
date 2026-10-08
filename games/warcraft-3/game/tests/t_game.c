@@ -5360,7 +5360,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     far_sight->think = far_sight_think; far_sight->s.player = 3;
     far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
     unit->spawn_time = 2468; mine->spawn_time = 369; chain->spawn_time = 1357;
-    unit->permanent_invisibility_reveal_until = 97531;
+    unit->permanent_invisibility_fade.origin=(wc3Clock_t){17.25f,3,300};
+    unit->permanent_invisibility_fade.slope=.25f;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
     if (!chain->channel) chain->channel = G_AllocChannel();
@@ -5396,12 +5397,14 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel->owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = S_SetMoveGoal(chain_marker, &chain_marker->goalentity, NULL);
-    unit->permanent_invisibility_reveal_until = 0; unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade)); unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
     unit->stand = mine->stand = idle->stand = tree->stand = NULL;
     unit->birth = tree->birth = NULL; unit->die = tree->die = NULL; tree->pain = NULL; effect->prethink = NULL;
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->stand == unit_stand && unit->birth == unit_birth && unit->die == unit_die && unit->think == monster_think);
-    T_EQ(unit->permanent_invisibility_reveal_until, 97531);
+    T_EQ(unit->permanent_invisibility_fade.origin.time,17.25f);
+    T_EQ(unit->permanent_invisibility_fade.origin.epoch,3);T_EQ(unit->permanent_invisibility_fade.origin.span,300);
+    T_EQ(unit->permanent_invisibility_fade.slope,.25f);
     T_ASSERT(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE);
     T_ASSERT(mine->think == blight_mine_think && mine->stand == unit_stand);
     T_ASSERT(!idle->think && idle->stand == unit_stand);

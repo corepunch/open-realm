@@ -263,7 +263,6 @@ TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
     fix.unit->vertex_color_set = true;
 
     fix.unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    fix.unit->permanent_invisibility_reveal_until = 0;
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 70);
 

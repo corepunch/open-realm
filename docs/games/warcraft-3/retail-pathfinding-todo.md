@@ -57,6 +57,15 @@ work closes no additional retail research tasks. See
 
 **245 done / 336 tasks; 91 remaining.**
 
+Payoff168 advances TARGET-03.1/03.2 with ability-owned scalar Apiv publication
+and synchronous TargetLost. Seven production regressions integrate27 original
+listener chains, delayed own/neutral/shared-vision policy, cold save, epoch
+rollover, cancellation and4,096 equal-deadline fades. Complete delivered Frida
+repeats verify the public publisher separately. Broader contributor/visibility
+policies remain open; no additional leaves or closure claims.
+See [fade publication](retail-pathfinding-target-visibility.md#delayed-invisibility-publication-payoff168).
+
+
 Payoff167 implements synchronous ShowUnit/Cargo TargetLost, target-specific ordered
 Follow subscriptions, task-handoff renewal and Save136 registration identity.
 Two repeated retail producer chains and failing-first production regressions cover

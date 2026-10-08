@@ -1088,7 +1088,6 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
     source->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    source->permanent_invisibility_reveal_until = 0;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
     source->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
@@ -1096,7 +1095,6 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
     target->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    target->permanent_invisibility_reveal_until = 0;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
     target->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
@@ -5494,7 +5492,6 @@ TEST(wc3_spell, earthquake_retail_mask_is_enemy_only_and_reaches_invisible_units
     enemy_building->health.value = enemy_building->health.max_value = 500;
     hidden_enemy->health.value = hidden_enemy->health.max_value = 500;
     hidden_enemy->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    hidden_enemy->permanent_invisibility_reveal_until = 0;
 
     level.time = 0;
     T_ASSERT(S_UnitIsInvisibleToPlayer(hidden_enemy, 0));
