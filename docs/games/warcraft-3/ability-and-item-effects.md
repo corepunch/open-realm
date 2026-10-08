@@ -154,7 +154,7 @@ Speed-family powerups are a deliberate exception to inventory-slot insertion: `A
 Rune of Shielding (`rsps`/`ANse`) grants authored `BuffID` (`BNss` in TFT) to eligible
 nearby allies within authored `Area`. The status is an untimed, nonstacking
 one-use shield. `S_TryBlockSpellShield` consumes it on supported hostile
-unit-target spell resolution, including Thunder Bolt/Fire Bolt impacts, while
+unit-target spell resolution, including Thunder Bolt, Fire Bolt, and Death Coil impacts, while
 Ensnare, Web, Finger of Death, beneficial spells, and point/area spells bypass it.
 `ANss` Amulet recharge is still TODO; additional custom missile impact paths and
 persistent buff TargetArt ownership remain separate coverage gaps.

@@ -245,6 +245,21 @@ static edict_t *review_thinker(edict_t *caster) {
     return NULL;
 }
 
+/* AHdr accepts enemy and friend targets. An enemy cast must still be blocked,
+ * and the committed blocked cast must not leave its channel active. */
+TEST(wc3_ability_lifecycle, spell_shield_blocks_hostile_mixed_target_channel) {
+    edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
+    slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
+    unit_addstatus(enemy, "BNss", 1);
+
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
+    T_EQ(G_UnitStatusLevel(enemy, FS_SLKKey("BNss")), 0);
+    T_ASSERT(!S_SpellIsChanneling(caster));
+    T_NULL(review_thinker(caster));
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 /* Stock AHfs starts burning promptly; DataA is damage per full-damage pulse, not a 15-second delay. */
 TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100);

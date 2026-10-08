@@ -462,7 +462,7 @@ Automatic acquisition/use is implemented for the supported Speed (`AIsp`/`AIsa`/
 Rune of Shielding (`rsps`, `ANse`) shares this slot-free pickup/use lifecycle.
 It applies a permanent one-charge `BNss` buff to eligible nearby allies and
 consumes even if none qualify. The shared hostile unit-target spell guard consumes
-the shield once (including for bolts at impact). It does not grant the Amulet's
+the shield once, including for Thunder Bolt, Fire Bolt, and Death Coil missiles at impact. It does not grant the Amulet's
 `ANss` cooldown/rearming ability; physical nets and point/area/beneficial spells
 remain unaffected.
  Still missing are general automatic `powerup` acquisition/use beyond that supported family, `cooldownID`/`ignoreCD`

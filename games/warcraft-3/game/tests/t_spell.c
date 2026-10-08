@@ -3416,6 +3416,16 @@ TEST(wc3_spell, death_coil_uses_projectile_and_rejects_self_or_full_health_ally)
     if (missile) missile->currentmove->endfunc(missile);
     T_FEQ(enemy->health.value, 400, 0.001f);
 
+    /* Mixed friend/enemy target masks still block enemy Death Coil at impact. */
+    unit_addstatus(enemy, "BNss", 1);
+    T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy)); missile = NULL;
+    FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
+    T_NOT_NULL(missile);
+    T_EQ(G_UnitStatusLevel(enemy, MAKEFOURCC('B','N','s','s')), 1);
+    if (missile) missile->currentmove->endfunc(missile);
+    T_FEQ(enemy->health.value, 400, 0.001f);
+    T_EQ(G_UnitStatusLevel(enemy, MAKEFOURCC('B','N','s','s')), 0);
+
     /* A reused target edict must not let an in-flight coil affect a new incarnation. */
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUdc"), enemy)); missile = NULL;
     FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }

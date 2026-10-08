@@ -407,8 +407,9 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
     if (ability->proc == CAbilityEnsnare || ability->proc == CAbilityWeb ||
         ability->proc == CAbilityFingerOfDeath) return false;
     row = G_AbilityLevel(code, S_SpellLevel(caster, code));
-    if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL) ||
-        S_SpellTargetHasToken(row->targs, "friend", NULL)) return false;
+    /* Mixed masks (for example Death Coil and Siphon Mana) have hostile and
+     * friendly branches. The target's actual relationship selects the branch. */
+    if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL)) return false;
     status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
     if (!status) return false;
     unit_expirestatus(target, status);
@@ -419,7 +420,8 @@ bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
 
 bool S_SpellShieldImpactDeferred(uint32_t code) {
     ability_t const *ability = S_SpellAbilityForCode(code);
-    return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt);
+    return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt ||
+                       ability->proc == CAbilityDeathCoil);
 }
 
 /* The authored targs mask without the unit-target visibility rule: area effects reach
