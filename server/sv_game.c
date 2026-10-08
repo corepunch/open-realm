@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <SDL2/SDL.h>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -176,6 +177,7 @@ void SV_InitGameProgs(void) {
     import.SavePath = FS_SavePath;
     import.ListSaves = FS_ListSaves;
     import.DeleteSave = FS_DeleteSave;
+    import.Milliseconds = SDL_GetTicks;
 
     ge = GetGameAPI(&import);
     ge->Init();

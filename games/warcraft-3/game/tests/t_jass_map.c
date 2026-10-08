@@ -898,7 +898,7 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
         "  call SetPlayerHandicapXPBJ(Player(0), 300.0)\n"
         "  call SetPlayerOnScoreScreen(Player(0), true)\n"
         "  call BJassAssert(GetPlayerName(Player(0)) == \"Jaina\", \"player name\")\n"
-        "  call BJassAssert(IsPlayerRacePrefSet(Player(0), RACE_PREF_HUMAN), \"human pref\")\n"
+        "  call BJassAssert(not IsPlayerRacePrefSet(Player(0), RACE_PREF_HUMAN), \"human pref replaced\")\n"
         "  call BJassAssert(IsPlayerRacePrefSet(Player(0), RACE_PREF_RANDOM), \"random pref\")\n"
         "  call BJassAssert(not IsPlayerRacePrefSet(Player(0), RACE_PREF_ORC), \"orc absent\")\n"
         "  call BJassAssert(not GetPlayerSelectable(Player(0)), \"race locked\")\n"

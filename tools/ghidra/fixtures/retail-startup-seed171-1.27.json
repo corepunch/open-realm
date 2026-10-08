@@ -1,0 +1,281 @@
+{
+  "provenance": "tools/ghidra/fixtures/research/NUM-04.5-expected.json",
+  "provenance_sha256": "36eac994ffd2912c698f542677564423435d8c024e79892270ff89debb6ac5be",
+  "scenes": [
+    {
+      "name": "mixed-observe-1",
+      "locked": true,
+      "setup_seed": 81434830,
+      "owner": [
+        3946970562,
+        277349488
+      ],
+      "races": [
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        3,
+        3,
+        4,
+        4,
+        1,
+        4
+      ],
+      "query": [
+        2130728302,
+        929,
+        1057225604
+      ],
+      "race_draws": 4
+    },
+    {
+      "name": "fixed-observe-1",
+      "locked": true,
+      "setup_seed": 81476501,
+      "owner": [
+        3292812501,
+        548955360
+      ],
+      "races": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "query": [
+        371411726,
+        449,
+        1057532330
+      ],
+      "race_draws": 0
+    },
+    {
+      "name": "triad-observe-1",
+      "locked": true,
+      "setup_seed": 77115558,
+      "owner": [
+        4273436052,
+        209508436
+      ],
+      "races": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "query": [
+        0,
+        0,
+        0
+      ],
+      "race_draws": 8
+    },
+    {
+      "name": "mixed-unlockedB-observe-1",
+      "locked": false,
+      "setup_seed": 82172056,
+      "owner": [
+        4160792303,
+        1486880788
+      ],
+      "races": [
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        3,
+        1,
+        4,
+        2,
+        1,
+        1
+      ],
+      "query": [
+        735845865,
+        -290,
+        1000795904
+      ],
+      "race_draws": 4
+    },
+    {
+      "name": "mixed-unlockedB-observe-2",
+      "locked": false,
+      "setup_seed": 82215974,
+      "owner": [
+        2707349937,
+        2824099852
+      ],
+      "races": [
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        3,
+        3,
+        4,
+        1,
+        1,
+        3
+      ],
+      "query": [
+        436079602,
+        -575,
+        1061012322
+      ],
+      "race_draws": 4
+    }
+  ],
+  "captures": {
+    "NUM-04.5/triad-observe-1": {
+      "sha256": "934b6620d311649c86af70ed81c90341d3f226dcfa89188522a5dfee16c55283",
+      "bytes": 1008573,
+      "complete": true
+    },
+    "NUM-04.5/mixed-observe-1": {
+      "sha256": "f6ade2541445b367e8626d29848e4acd952ae77504f5ceaf54002455dbb0e87a",
+      "bytes": 156647,
+      "complete": true
+    },
+    "NUM-04.5/mixed-observe-3": {
+      "sha256": "31fb0af223e42d9910bdd4bbcc3ac0133b16f8252540c4309785d22b7722ad66",
+      "bytes": 158347,
+      "complete": true
+    },
+    "NUM-04.5/mixed-observe-2": {
+      "sha256": "61d46f527b8335e382c17718a7b502312bd102b2285f8c0758ee324134ee6c73",
+      "bytes": 36831,
+      "complete": false
+    },
+    "NUM-04.5/fixed-observe-1": {
+      "sha256": "16a7bdd4217afabdcef52fafebaa973c48d8ba5512d9152f09ff60c09cf31328",
+      "bytes": 155443,
+      "complete": true
+    },
+    "NUM-04.5/fixed-observe-2": {
+      "sha256": "529b17bbd30b358c0b873bc90bedf6b381aef85a621d3b8d60b738c7af64982e",
+      "bytes": 157614,
+      "complete": true
+    },
+    "NUM-04.5/mixed-unlocked-observe-1": {
+      "sha256": "c6b52bb50a50ae9d6875eeff79404180fa35c010dff43ae644038a83555aeb17",
+      "bytes": 158586,
+      "complete": true
+    },
+    "NUM-04.5/mixed-unlocked-observe-2": {
+      "sha256": "af02e28b18002875393f278a246287d9081c3164704ec578676b7f45bce98c04",
+      "bytes": 158589,
+      "complete": true
+    },
+    "NUM-04.5/mixed-unlockedB-observe-1": {
+      "sha256": "4f725f84dba662e61744c0ed4b9b9d9dcc5967806b691dccd2fc81a48fd94b59",
+      "bytes": 158748,
+      "complete": true
+    },
+    "NUM-04.5/mixed-unlockedB-observe-2": {
+      "sha256": "af872c18e8f8bc047a91c7e1a05f44857ec55c296264dba9a6d652db0f5921a2",
+      "bytes": 161325,
+      "complete": true
+    }
+  },
+  "preloads": {
+    "NUM-04.5/triad-observe-1": {
+      "sha256": "13f65cd9608428dba878493d4949b18d78e7cdc1a3c0c62545b262cb672c28a4",
+      "bytes": 290649
+    },
+    "NUM-04.5/mixed-observe-1": {
+      "sha256": "6b6549e2d524c3ffa42d316c949f7309cfb17cde85290d07e1ad786c3cc87b77",
+      "bytes": 48700
+    },
+    "NUM-04.5/mixed-observe-3": {
+      "sha256": "3ad392fec73a4a13d5492bcf808b3ecc1cc718eab090e1901b32c029be4499d5",
+      "bytes": 48701
+    },
+    "NUM-04.5/mixed-control-1": {
+      "sha256": "026c8dfa562d7843c4e7408741b821a78591da77a89c5c59a74611f2a8e5ea58",
+      "bytes": 48700
+    },
+    "NUM-04.5/fixed-observe-1": {
+      "sha256": "58f9f19482967407df54d7171a6e443d9fcb159759385a1aa65bdcad5a8ade24",
+      "bytes": 48698
+    },
+    "NUM-04.5/fixed-observe-2": {
+      "sha256": "b7eb9595a1120812f4a1dc01f41c222e02c6b1022599fc921be0962f4de69048",
+      "bytes": 48700
+    },
+    "NUM-04.5/fixed-control-1": {
+      "sha256": "933e121c658095ac3e0a936547ef98b386af7c7c1d1d0b7d9b1672a597fd5431",
+      "bytes": 48630
+    },
+    "NUM-04.5/mixed-unlocked-observe-1": {
+      "sha256": "0f03dd58c089f9a0a55c85f8a7a35fd6f257b7da1579dd3bbc1e0bd4997b7f9a",
+      "bytes": 48701
+    },
+    "NUM-04.5/mixed-unlocked-observe-2": {
+      "sha256": "c908f784221f6a04003cfc57d63344e739fac9c8f73e113138380a380a27c147",
+      "bytes": 48701
+    },
+    "NUM-04.5/mixed-unlocked-control-1": {
+      "sha256": "b519d4b4b3f6f3a9b1bb4f1e7b7cae4ec35a735eddfa25dbf019dedd4e5d57b9",
+      "bytes": 48701
+    },
+    "NUM-04.5/mixed-unlockedB-observe-1": {
+      "sha256": "acedb2b02207883f6ada4c4034a326868e9cc30ac32f657d0bde5da1af30f027",
+      "bytes": 48702
+    },
+    "NUM-04.5/mixed-unlockedB-observe-2": {
+      "sha256": "db7287607e5ce8f54e2d5bf9cafb28b81c83dcfdf06a05de4cbd747f8ed82a59",
+      "bytes": 48625
+    },
+    "SEP-02.2/triad-control-1": {
+      "sha256": "64ed8a8f2a074ea71148a39655d27aa2cfeb635695232c2f4a965e510e9d4252",
+      "bytes": 290650
+    }
+  },
+  "controls": [
+    [
+      "NUM-04.5/mixed-control-1",
+      "NUM-04.5/mixed-observe-1"
+    ],
+    [
+      "NUM-04.5/mixed-control-1",
+      "NUM-04.5/mixed-observe-3"
+    ],
+    [
+      "NUM-04.5/fixed-control-1",
+      "NUM-04.5/fixed-observe-1"
+    ],
+    [
+      "NUM-04.5/fixed-control-1",
+      "NUM-04.5/fixed-observe-2"
+    ]
+  ],
+  "exclusions": [
+    "Network/replay seed transport and observer payload78 remain assembly-only.",
+    "45 purpose-stream consumers and legacy srand side effect remain NUM-04.6.",
+    "One incomplete observed loading run is retained explicitly, never counted as completed movement.",
+    "Unlocked observer-free capture failed to complete; no observer-free unlocked equality claim."
+  ]
+}

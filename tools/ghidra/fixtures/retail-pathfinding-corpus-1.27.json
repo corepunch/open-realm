@@ -42675,6 +42675,680 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-map-startup-seed",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_startup171_seed.py",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "startup-seed171.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-map-startup",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 10
+        },
+        "complete_captures": {
+          "equal": 9
+        },
+        "profiles": {
+          "equal": 5
+        },
+        "owner_draws": {
+          "equal": 1611
+        },
+        "stream_draws": {
+          "equal": 530
+        },
+        "observer_free_comparisons": {
+          "equal": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "scope": "Actual engine map loading reproduces boot/fixed/unlocked owner and race/JASS words through first movement and cold saves. Raw archives verify every modeled owner and45-stream draw without claiming stream consumer migration.",
+      "exclusions": [
+        "Network/replay seed transport and observer payload78 remain assembly-only.",
+        "45 purpose-stream consumers and legacy srand side effect remain NUM-04.6.",
+        "One incomplete observed loading run is retained explicitly, never counted as completed movement.",
+        "Unlocked observer-free capture failed to complete; no observer-free unlocked equality claim."
+      ],
+      "capture_complete": true,
+      "capture_failures": [
+        "NUM-04.5/mixed-observe-2: gameplay incomplete at loading screen; installed trace still ended cleanly."
+      ],
+      "inputs": {
+        "capture": "research/NUM-04.5/captures/triad-observe-1/capture.jsonl",
+        "sha256": "934b6620d311649c86af70ed81c90341d3f226dcfa89188522a5dfee16c55283",
+        "bytes": 1008573,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "mode": "observe",
+          "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "map": "Maps\\RS-SEP-02.2-triad.w3m",
+          "map_sha256": "80bfb0e15af66af880a5063baa788ef8715ea9708446578f438063b1f8f3b4a9",
+          "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+          "observer_sha256": "a1bdbab92a23ec169428581b8d0b3253868ca9c603c725d1a57b4344f403fb9e",
+          "frida": "17.18.0",
+          "seconds": 45.0,
+          "key_at": [
+            10.0,
+            18.0
+          ],
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "config": {
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "markerPrefixes": [
+              "PATHSEP"
+            ],
+            "detailCap": 150000,
+            "sepSamples": 3
+          },
+          "argv": [
+            "tools/frida/research/NUM-04.5_trace.py",
+            "observe",
+            "--data",
+            "/run/media/lofcz/ssd_external/Games/w3-research2",
+            "--map",
+            "Maps\\RS-SEP-02.2-triad.w3m",
+            "--preload-name",
+            "sepres-triad.txt",
+            "--marker-prefix",
+            "PATHSEP",
+            "--remote",
+            "127.0.0.1:27049",
+            "--x11-display",
+            ":98",
+            "--seconds",
+            "45",
+            "--key-at",
+            "10",
+            "18",
+            "--output",
+            "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/triad-observe-1"
+          ],
+          "started": "2026-10-07T07:09:00"
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-observe-1/capture.jsonl",
+            "sha256": "f6ade2541445b367e8626d29848e4acd952ae77504f5ceaf54002455dbb0e87a",
+            "bytes": 156647,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 40.0,
+              "key_at": [
+                10.0,
+                18.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "40",
+                "--key-at",
+                "10",
+                "18",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-observe-1"
+              ],
+              "started": "2026-10-07T08:20:57"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-observe-3/capture.jsonl",
+            "sha256": "31fb0af223e42d9910bdd4bbcc3ac0133b16f8252540c4309785d22b7722ad66",
+            "bytes": 158347,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-observe-3"
+              ],
+              "started": "2026-10-07T08:26:12"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-observe-2/capture.jsonl",
+            "sha256": "61d46f527b8335e382c17718a7b502312bd102b2285f8c0758ee324134ee6c73",
+            "bytes": 36831,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 40.0,
+              "key_at": [
+                10.0,
+                18.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "40",
+                "--key-at",
+                "10",
+                "18",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-observe-2"
+              ],
+              "started": "2026-10-07T08:23:42"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/fixed-observe-1/capture.jsonl",
+            "sha256": "16a7bdd4217afabdcef52fafebaa973c48d8ba5512d9152f09ff60c09cf31328",
+            "bytes": 155443,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-fixed.w3m",
+              "map_sha256": "03ab71bf4ee047b6e897f8b3eb46d81e0a0a8824a50a922c2d84d2e461b3e872",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 40.0,
+              "key_at": [
+                10.0,
+                18.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-fixed.w3m",
+                "--preload-name",
+                "numrng-fixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "40",
+                "--key-at",
+                "10",
+                "18",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/fixed-observe-1"
+              ],
+              "started": "2026-10-07T08:21:39"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/fixed-observe-2/capture.jsonl",
+            "sha256": "529b17bbd30b358c0b873bc90bedf6b381aef85a621d3b8d60b738c7af64982e",
+            "bytes": 157614,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-fixed.w3m",
+              "map_sha256": "03ab71bf4ee047b6e897f8b3eb46d81e0a0a8824a50a922c2d84d2e461b3e872",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-fixed.w3m",
+                "--preload-name",
+                "numrng-fixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/fixed-observe-2"
+              ],
+              "started": "2026-10-07T08:26:58"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-unlocked-observe-1/capture.jsonl",
+            "sha256": "c6b52bb50a50ae9d6875eeff79404180fa35c010dff43ae644038a83555aeb17",
+            "bytes": 158586,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-unlocked-observe-1"
+              ],
+              "started": "2026-10-07T08:27:45"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-unlocked-observe-2/capture.jsonl",
+            "sha256": "af02e28b18002875393f278a246287d9081c3164704ec578676b7f45bce98c04",
+            "bytes": 158589,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research2",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27049",
+                "--x11-display",
+                ":98",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-unlocked-observe-2"
+              ],
+              "started": "2026-10-07T08:28:32"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-unlockedB-observe-1/capture.jsonl",
+            "sha256": "4f725f84dba662e61744c0ed4b9b9d9dcc5967806b691dccd2fc81a48fd94b59",
+            "bytes": 158748,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research3",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27050",
+                "--x11-display",
+                ":99",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-unlockedB-observe-1"
+              ],
+              "started": "2026-10-07T08:33:17"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/NUM-04.5/captures/mixed-unlockedB-observe-2/capture.jsonl",
+            "sha256": "af872c18e8f8bc047a91c7e1a05f44857ec55c296264dba9a6d652db0f5921a2",
+            "bytes": 161325,
+            "metadata": {
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "mode": "observe",
+              "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "map": "Maps\\RS-NUM-04.5-mixed.w3m",
+              "map_sha256": "18ff2d40eb6ad344f1df586c4f35e22230900c4b11bc5ab31f28fa10e2fb20b2",
+              "controller_sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b",
+              "observer_sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a",
+              "frida": "17.18.0",
+              "seconds": 45.0,
+              "key_at": [
+                10.0,
+                18.0,
+                24.0
+              ],
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+              "config": {
+                "timestamp": 1481263518,
+                "imageSize": 15130624,
+                "markerPrefixes": [
+                  "NUMRNG"
+                ],
+                "detailCap": 150000,
+                "sepSamples": 3
+              },
+              "argv": [
+                "/run/media/lofcz/ssd_external/GitHub/open-realm/tools/frida/research/NUM-04.5_trace.py",
+                "observe",
+                "--data",
+                "/run/media/lofcz/ssd_external/Games/w3-research3",
+                "--map",
+                "Maps\\RS-NUM-04.5-mixed.w3m",
+                "--preload-name",
+                "numrng-mixed.txt",
+                "--marker-prefix",
+                "NUMRNG",
+                "--remote",
+                "127.0.0.1:27050",
+                "--x11-display",
+                ":99",
+                "--seconds",
+                "45",
+                "--key-at",
+                "10",
+                "18",
+                "24",
+                "--output",
+                "/GitHub/wc3-analysis/reports/pathfinding-1.27/research/NUM-04.5/captures/mixed-unlockedB-observe-2"
+              ],
+              "started": "2026-10-07T08:34:04"
+            }
+          },
+          "capture_complete": true,
+          "gameplay_complete": true
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -42740,7 +43414,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "46b582c966746e0cc38ca09e6846f7cf1d050f19ca7c705be01cabf28240573a"
+      "sha256": "434b6e72e55c9fb2c87c48b7bd6ab12ebceebcdad0b943e318953c8800800b8e"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -43573,7 +44247,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "452b9fb2c43bbcf344c66b855e7f0ad749a4bfa42286cfc3e705fff3acabaa3e"
+      "sha256": "3ae0712b9a2fc95160566dc365ad609fc3bfa26e1e2c1e639adc9ba52158e9c5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -44865,7 +45539,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "03b6de6414eec9f8bf0ddfa3eaf96281b4179bb72960502ff6d3aa8fc68363a6"
+      "sha256": "0e3798a6ab2556cabab60978e1672227bf2e23f4552c31c433a191aacdf3569f"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -44873,7 +45547,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "650c7036abb34fc4b248164c1907634e9bb0b32a0d011cf79dfad8236c8f669f"
+      "sha256": "d51b5d90395183960db4ee18bd5ff68051c8fbf2c99c11c95258db3f2058244b"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -44925,7 +45599,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "0ed29d3455ba6e9c999d690203cf3e315529921c2c41a99d7e950633bfcb3807"
+      "sha256": "7f755542cbba8b318e8d8991633309610d5d6f4be7279e5e82c2698408fa2db9"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -45121,7 +45795,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "bd65757120f35291783827b7961b82e5eed3ef4dbb6cb4afaaf82ba923831601"
+      "sha256": "c4e6990c8d7b2558b5993e558f6705a4b4d0f192a547a0ec71c5d438bd7ee2e4"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -45365,7 +46039,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "993848693320d54e59744d67c7aea0bc9a51b1409202772d239403240612d85c"
+      "sha256": "d8367a70c4dee6a9dc33e2a3b47a3eca732054ee00606b1b6185788dcf1b03ff"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -45377,11 +46051,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "7c17ed2bdcf91cba71d8840e320e136c56af247667c764131ba1cc0eae56ec1a"
+      "sha256": "ddeecccf1a0e8e9c5594e10613d8c836b7de99a18e44a8c3223242aa43ef3044"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "60ff335c0b1cf65160a7c327d508dd3f71dfab5dfccbd7bae9619aafa5c23962"
+      "sha256": "3a6551f05c62112b785dacb449c2ee20f96966c6968e2cb017146dff0e13a8f4"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -45437,7 +46111,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "c29f211ee5ab46644013ca111b21f07eaae8d1cd9dc78c488b67931ebcf3d21c"
+      "sha256": "b85c4df184137f3d1ba59cea303b83c64f4c00481d5d884573e18c9be38096c1"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
@@ -45509,7 +46183,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "056d8acd2ecb730c4520c856ba75bf5246ef895a0a96be1956782ffa4c2ce8aa"
+      "sha256": "58603210639b616099f7a306847f5c72efe5bf954dc2ba6698686ae39285cf6d"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -46154,6 +46828,118 @@
     {
       "path": "tools/ghidra/fixtures/retail-formation-selection170-1.27.json",
       "sha256": "02e928aea677fcd9cddae3db77050f1092593deb5162c0e79c33fa342a1369ec"
+    },
+    {
+      "path": "server/game.h",
+      "sha256": "29afb39b519cd626797ea5c0af5f10f0483d5af5ba08cf0cb0fd71df66ed03a8"
+    },
+    {
+      "path": "server/sv_game.c",
+      "sha256": "feb6ca9650fca10d5c824a8de8962179af452e848095083e8b91091759085aee"
+    },
+    {
+      "path": "games/warcraft-3/game/api/api_player.h",
+      "sha256": "2a5150f684e0ed1b7bdf9f5b177ef837c7373f6ee417d706f4d36a4b1c2e305a"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_api.c",
+      "sha256": "d9666c63eeeb9a9fc1389f3dfd25782c0bdc4df42933421aabcb562d7f884cf5"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_collision.c",
+      "sha256": "70b61e429dac1dea209c8fa86c863b88117a02da58a52e0e5057b340e0da7319"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_jass_map.c",
+      "sha256": "ee7bea9d528451c3b951de0f695f99828be0705bf57215dec58626e27bbb6fa3"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_spell.c",
+      "sha256": "91c690be012bf6504609e4a9ec07b0490dbe30bbcbd96ca72c0057c0d3391111"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_map_random.c",
+      "sha256": "ab7b518a565bea9d293ed9439e59f1797ad405b86807033d9b0988c568ce1d15"
+    },
+    {
+      "path": "games/warcraft-3/tests/test_commands.c",
+      "sha256": "32110b95fb3f217b39f06936f1ead495fcd927c3548c105203d3d1df5a74d1c4"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_startup_seed_171.h",
+      "sha256": "0b224381489caff1ff6f46d3168bca99abbd79c61305aaeef0c30e4b31d31653"
+    },
+    {
+      "path": "games/warcraft-3/tests/fixtures/make_pathing_seed_maps.py",
+      "sha256": "75907289ff72411d4718d1b3140809e12aa17ac9689685b20d8173fea4884a4f"
+    },
+    {
+      "path": "tools/ghidra/research/verify_startup171_seed.py",
+      "sha256": "9f195408cab7f9ce49ef390c2b06c579e420870a557e1d01c7444792daeeed91"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-startup-seed171-1.27.json",
+      "sha256": "b5393b184f9943fc9ce4db92bd196f3d3a6e97c0f8c9a7c96c164e7ee14c5210"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/NUM-04.5-expected.json",
+      "sha256": "36eac994ffd2912c698f542677564423435d8c024e79892270ff89debb6ac5be"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_startup.py",
+      "sha256": "195179b31d4d17e11bb3d32bead470d138f92d1f88f5b1599b1b535b947e5e95"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-startup-seed.md",
+      "sha256": "5cf3309e927d1562dd53503f064b4d980ddfa080f23a5932bc099f0c5c322d9b"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Maps/Test/PathingSeedMixed.w3m",
+      "sha256": "1a10ab8a4b6fceaa117f913ab389b9f49f0d8ab8b187da99ed549dfc9b9897c4"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Maps/Test/PathingSeedFixed.w3m",
+      "sha256": "38bf6cd511cec18b67650f3d78832039ebd0a5f6bd35da1f31b4e454717a32ee"
+    },
+    {
+      "path": "games/warcraft-3/tests/resources-src/Maps/Test/PathingSeedTriad.w3m",
+      "sha256": "50f42d8d3a2cff783834bf4133962eba9e4b4322a2c71e17958667855a88febf"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.5_analyze.py",
+      "sha256": "8d1aa8d95b6088ff9d4b5ff51b88e62fb1f2749fc1132cf6522e8b8e96cf93d0"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.5_expected.py",
+      "sha256": "4e18e375f1da1d084740473c671e2ab2f6b59fd7a2e852e42075a9e608007b30"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.5_make_map.py",
+      "sha256": "14cffa64953aac696f0a160ea54b996b3255d81de62a38743578eb752109f407"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.5_rng_observer.js",
+      "sha256": "828cfe41f1ffe55d874be18795213df6bce87cd7c617e6d2d121f82c7700da5a"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.5_trace.py",
+      "sha256": "7d0ce61068077b6feb68506f1f83cce77b75e85f9d61af8a206a203e106ea77b"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.5/HANDOFF.md",
+      "sha256": "c166aeaa9fa0461fed3b2d1b70a0b3764019747551d25ee998795ff39c15bf37"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.5/mapping-rows.txt",
+      "sha256": "036c3786ce4561c6b04d5eb2b795b55b8e1b44ecbfa02bcad589230bfafabadb"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.5/proposed-docs.md",
+      "sha256": "cc2ac8792c6e1dc85cf891a90899b65036a8f860588690e9bde9d606cf2de5a1"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.5/types.json",
+      "sha256": "12f5256e5bb1311c389d0f2b6896f074f1101bcd958fe8cd6d4022eb985b2267"
     }
   ]
 }

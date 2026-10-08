@@ -11856,3 +11856,18 @@ regressions compare2399 owner visits and5369 member commits; cold saves preserve
 Saved Ghidra evidence and MapPathfinding.java cover the public point bridge,
 activation, owner and classification ABI. See
 [selection and independent ownership](retail-pathfinding-formation-selection.md).
+
+## Map startup seed and race resolution
+
+Payoff171 closes NUM-04.5 by wiring the actual loader to the recovered local
+seed producer: owner boot69707365, config, default fixed-seed preference,
+stored host setup word, locked77617233 or unlocked record word,12 logical
+player races, then main and first movement. SetPlayerRacePreference replaces
+bits rather than retaining stale Random20; local client-slot remapping does
+not reorder race draws. Save138 retains the setup record and flags without
+restamping on load. Five startup profiles match frozen owner/race/JASS words
+through actual map loading and saved continuation. Ten archived observations
+reconstruct1611 owner and530 separate-stream draws, retaining one incomplete
+capture and four complete locked observer-free comparisons. The45 purpose
+streams remain NUM-04.6; observer payload78 and network/replay transport remain
+assembly-only. See [startup seeding](retail-pathfinding-startup-seed.md).

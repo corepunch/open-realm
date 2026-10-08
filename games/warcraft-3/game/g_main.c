@@ -1002,7 +1002,7 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
-    G_InitLockedMapRandom();
+    G_InitMapRandom();
 
     /*
      * war3map.doo objects already exist in OpenRealm before generated

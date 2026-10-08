@@ -368,6 +368,12 @@ TEST(pathfinding, constructed_negative_uneven_maps_match_retail_corners_padding_
     reset_entities(); setup_test_world();
 }
 
+/* Advance physical public Move at the owner boundary, before animation. */
+static void pathfinding_step_move_owner(void) {
+    wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    M_RunScheduledThinks();
+}
+
 TEST(wc3_pathfinding, point_move_stops_in_range_without_snapping) {
     vec2_t target = {138.f, 128.f};
     reset_entities();
@@ -377,7 +383,7 @@ TEST(wc3_pathfinding, point_move_stops_in_range_without_snapping) {
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &target));
     T_EQ(unit->current_order_id, 851986);
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
     T_FEQ(unit->s.origin2.x, 128.f, .00001f);
     T_FEQ(unit->s.origin2.y, 128.f, .00001f);
     T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
@@ -398,14 +404,14 @@ TEST(wc3_pathfinding, point_move_arrival_heading_is_stricter_than_propwindow) {
     unit->s.angle = .21f;
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &target));
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
     T_EQ(unit->current_order_id, 851986);
     T_FEQ(unit->s.origin2.x, 128.f, .00001f);
     T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
     T_ASSERT(unit->s.angle < .21f);
     for (int tick = 0; tick < 50 && unit->current_order_id; tick++) {
         level.time += FRAMETIME;
-        unit->currentmove->think(unit);
+        pathfinding_step_move_owner();
     }
     T_EQ(unit->current_order_id, 0);
     /* Original vector heading for (.3125, 0) is 3ba9540a, a small
@@ -426,16 +432,17 @@ TEST(wc3_pathfinding, point_move_arrival_commits_previous_velocity_then_stops) {
     unit->unitinfo.MoveSpeed = 100.f;
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &target));
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
+    pathfinding_step_move_owner();
     T_EQ(unit->current_order_id, 851986);
     T_FEQ(unit->s.origin2.x, 138.f, .001f);
     level.time += FRAMETIME;
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
     T_EQ(unit->current_order_id, 0);
     T_FEQ(unit->s.origin2.x, 148.f, .001f);
     T_FEQ(unit->movement.velocity.x, 0.f, .00001f);
     level.time += FRAMETIME;
-    if (unit->currentmove->think) unit->currentmove->think(unit);
+    if (unit->currentmove->think) pathfinding_step_move_owner();
     T_FEQ(unit->s.origin2.x, 148.f, .001f);
     level.time = old_time;
     reset_entities();
@@ -453,10 +460,11 @@ TEST(wc3_pathfinding, point_move_arrival_replays_saved_velocity_and_queued_succe
     unit->unitinfo.MoveSpeed = 100.f; unit->svflags |= SVF_MONSTER;
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &target));
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
+    pathfinding_step_move_owner();
     T_ASSERT(G_IssueUnitPointOrder(unit, "move", &next, true, 0, 0));
     T_ASSERT(WriteGame(file));
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
     float expected[5] = {unit->s.origin2.x, unit->s.origin2.y, unit->s.angle,
                          unit->movement.velocity.x, unit->movement.velocity.y};
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
@@ -465,7 +473,7 @@ TEST(wc3_pathfinding, point_move_arrival_replays_saved_velocity_and_queued_succe
     T_FEQ(unit->goalentity->s.origin2.x, next.x, .00001f);
     T_ASSERT(ReadGame(file));
     T_EQ(G_UnitQueuedOrderCount(unit), 1);
-    unit->currentmove->think(unit);
+    pathfinding_step_move_owner();
     float actual[5] = {unit->s.origin2.x, unit->s.origin2.y, unit->s.angle,
                        unit->movement.velocity.x, unit->movement.velocity.y};
     T_EQ(memcmp(actual, expected, sizeof(actual)), 0);
@@ -525,7 +533,8 @@ TEST(wc3_pathfinding, world_cell_boundary_keeps_original_side_and_point_words) {
     unit->collision = 0; unit->unitinfo.MoveSpeed = 100; unit->s.angle = M_PI;
     gi.LinkEntity(unit);
     T_ASSERT(unit_issueorder(unit, "move", &(vec2_t){160, 528}));
-    level.time += FRAMETIME; unit->currentmove->think(unit);
+    level.time += FRAMETIME; pathfinding_step_move_owner();
+    pathfinding_step_move_owner();
     T_ASSERT(unit->s.origin2.x < before.x);
     T_EQ(unit->current_order_id, G_OrderId("move"));
     reset_entities(); setup_test_world();
@@ -2076,7 +2085,8 @@ TEST(wc3_pathfinding, retail_collision_classes_fit_their_cardinal_corridors) {
             T_ASSERT(unit_issueorder(unit, "move", &target));
             T_FEQ(unit->goalentity->s.origin.x, target.x, 0.001f);
             T_FEQ(unit->goalentity->s.origin.y, target.y, 0.001f);
-            unit->currentmove->think(unit);
+            pathfinding_step_move_owner();
+            pathfinding_step_move_owner();
             T_ASSERT(unit->s.origin.y > from.y);
         }
     }
@@ -2595,7 +2605,7 @@ TEST(wc3_pathfinding, class_sized_long_field_reaches_winding_corridor_and_invali
     unit->s.angle = 0.f;
     for (int tick = 0; tick < 8; tick++) {
         level.time += FRAMETIME;
-        unit->currentmove->think(unit);
+        pathfinding_step_move_owner();
         int x = (int)floorf(unit->s.origin.x), y = (int)floorf(unit->s.origin.y);
         T_ASSERT(x > 0 && x < WIDTH && y > 0 && y < HEIGHT);
         T_EQ(cells[(y - 1) * WIDTH + x - 1] | cells[(y - 1) * WIDTH + x] |

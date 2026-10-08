@@ -2544,6 +2544,7 @@ struct level_locals {
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
         uint32_t teams, players, game_types, game_type, map_flags;
+        uint32_t random_seed; /* One host setup stamp; never read wall time from movement. */
         uint32_t placement, speed, difficulty, default_difficulty, resource_density, creature_density;
         uint32_t forced_start_locations;
         struct {
@@ -2892,7 +2893,7 @@ void G_ResetUnitResources(void);
 void G_BindEntityRuntime(edict_t *);
 void G_ReleaseLevel(void);
 void G_SpawnEntities(void);
-void G_InitLockedMapRandom(void);
+void G_InitMapRandom(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif

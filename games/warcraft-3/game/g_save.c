@@ -82,8 +82,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format137 retains scalar Permanent Invisibility fades and pending requests. */
-static uint32_t const save_version = 137;
+/* Format138 retains the setup seed and seed-selection flags. */
+static uint32_t const save_version = 138;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -507,6 +507,8 @@ static field_t const move_coarse_request_fields[] = {
 static field_t const level_fields[] = {
     F(level_locals, framenum, F_INT),
     F(level_locals, time, F_INT),
+    F(level_locals, setup.random_seed, F_INT),
+    F(level_locals, setup.map_flags, F_INT),
     F(level_locals, repulse_head, F_EDICT, 0, FIELD_NONE),
     F(level_locals, repulse_phase, F_INT),
     F(level_locals, pathing_random.sum, F_INT),

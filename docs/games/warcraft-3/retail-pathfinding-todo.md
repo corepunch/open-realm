@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**247 done / 336 tasks; 89 remaining.**
+**248 done / 336 tasks; 88 remaining.**
+
+Payoff171 closes NUM-04.5: production map loading now initializes the boot owner,
+selects the fixed or stored host setup seed, replaces race preferences and
+resolves12 logical players before main. Five locked/unlocked profiles match
+native query/RNG words through first movement and save/load;1611 archived owner
+draws and530 separate-stream draws verify without mismatches. See
+[startup seeding](retail-pathfinding-startup-seed.md). NUM-04.6 remains open.
 
 Payoff170 closes FORM-05.1: public independent Move now uses physical singleton
 owners, and positive-request eligibility is published only by multi-member
@@ -819,7 +826,7 @@ Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed
 - [x] **NUM-04.2** Repeat original interleaving retains48 ordered draws and the full state/motion stream; engine matches1361 commits,830 separation visits,91 retries and12667 saved suffix commits; [payoff101](retail-pathfinding-engine.md#shared-retry-and-overlap-draws-preserve-complete-movement).
 - [x] **NUM-04.3** Port the two-word owner generator and exact overlap-direction words.1,408 complete original/C calls and11 seed prefixes, saved Ghidra state/prototypes; [engine payoff17](retail-pathfinding-engine.md#deterministic-owner-random-state-reaches-public-natives).
 - [x] **NUM-04.4** Port public seeded integer/real query consumers and save/load continuation. Actual compiled JASS550 original-word assertions plus saved next results; full-width crash and reversed/near-equal bounds covered; Save65.
-- [ ] **NUM-04.5** Recover map/default seed production and initialization order before the first pathfinding consumer; compare actual actor-startup state.
+- [x] **NUM-04.5** Recover map/default seed production and initialization order before the first pathfinding consumer; compare actual actor-startup state. Payoff171 integrates actual default locked and stored-host unlocked seeding, native race preference replacement and logical player order. Five map-load profiles match initial owner/race/JASS words, first movement and saved continuation; ten retail observations reconstruct1611 owner/530 purpose-stream draws. See [startup seeding](retail-pathfinding-startup-seed.md).
 - [ ] **NUM-04.6** Recover693710's45 separate unit streams and their TLS producer; replace remaining legacy seed side effects with owned saved states. Do not merge audio/ability streams into the path owner by assumption.
 
 

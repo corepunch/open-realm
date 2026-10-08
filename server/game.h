@@ -111,6 +111,9 @@ struct game_import {
     uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */
     bool (*DeleteSave)(cstring_t rel);
+    /* Host clock for session setup only. Store its result before simulation;
+     * deterministic gameplay must use the stored setup value or GetTime. */
+    uint32_t (*Milliseconds)(void);
 };
 
 struct client;

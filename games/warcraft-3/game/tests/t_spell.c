@@ -4274,13 +4274,15 @@ TEST(wc3_spell, movement_statuses_change_actual_steps_and_expire) {
         T_FEQ(unit_movedistance(unit), step, 0.001f);
         if (!cohort) {
             T_ASSERT(unit_issueorder(unit, "move", &(vec2_t){1536, 0}));
+            M_RunScheduledThinks(); /* Initial owner commits velocity before the first step. */
             vec2_t before = unit->s.origin2;
-            unit->currentmove->think(unit);
+            wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0); M_RunScheduledThinks();
             T_FEQ(Vector2_distance(&unit->s.origin2, &before), step, 0.002f);
             level.time+=2001; unit_updatestatuses(unit);
             T_EQ(G_UnitStatusLevel(unit,kind==0 ? MAKEFOURCC('B','c','r','i') : MAKEFOURCC('B','b','l','o')),0);
             T_FEQ(unit_movedistance(unit),20,0.001f);
-            before=unit->s.origin2; unit->currentmove->think(unit);
+            M_RunScheduledThinks(); /* Refresh the expired status before advancing its pose. */
+            before=unit->s.origin2; wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0); M_RunScheduledThinks();
             T_FEQ(Vector2_distance(&unit->s.origin2,&before),20,0.002f);
         } else {
             vec2_t before;

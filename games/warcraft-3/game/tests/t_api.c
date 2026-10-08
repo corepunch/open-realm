@@ -33,6 +33,17 @@ bool run_test_jass_error(cstring_t src, cstring_t expected);
 extern player_t *currentplayer;
 void unit_die(edict_t *self, edict_t *attacker);
 void unit_build(edict_t *self, uint32_t class_id);
+/* Public point orders use the scheduled physical owner. Prime its velocity,
+ * then advance it before testing the entity-owned region/range observations. */
+static void api_run_move_entities(unsigned ticks) {
+    G_BeginEntityFrame();level.scheduled_frame=true;
+    FOR_LOOP(i,ticks) {
+        wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+        M_RunScheduledThinks();
+    }
+    G_RunEntities();level.scheduled_frame=false;
+}
+
 static edict_t *find_test_unit(uint32_t class_id);
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
@@ -1009,7 +1020,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     S_SetUnitMoveSpeed(mover,400); /* Cross the first32-unit region cell in this one-step test. */
     T_ASSERT(unit_issueorder(mover, "move", &destination));
 
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(mover->s.origin2.x >= 32.0f);
     T_ASSERT(mover->s.origin2.x < 64.0f);
     G_RunEvents();
@@ -2108,7 +2119,7 @@ TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
     FOR_LOOP(i, 10) {
         if (leaving->s.origin2.x >= 224.0f) break;
         level.time += FRAMETIME;
-        G_RunEntities();
+        api_run_move_entities(1);
         G_RunEvents();
         jass_runevents(level.vm);
     }
@@ -8245,7 +8256,7 @@ TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     subject->health.max_value = 250.0f;
     unit_stand(subject);
     T_ASSERT(unit_issueorder(subject, "move", &destination));
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(subject->s.origin2.x > 0.0f);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     T_ASSERT(level.events.write > level.events.read);
@@ -8309,7 +8320,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     target->unitinfo.MoveSpeed = 1000.0f;
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0);
     T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
@@ -8354,7 +8365,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
     subject->health.value = subject->health.max_value = 250.0f; unit_stand(subject);
     T_ASSERT(unit_issueorder(subject, "move", &destination));
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
-    G_RunEntities();
+    api_run_move_entities(2);
     T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
 }
@@ -8394,7 +8405,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
-    G_RunEntities();
+    api_run_move_entities(2);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;

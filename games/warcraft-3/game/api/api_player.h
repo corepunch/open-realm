@@ -69,7 +69,10 @@ uint32_t SetPlayerTaxRate(jass_t *j) {
 uint32_t SetPlayerRacePreference(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t *pref = jass_checkhandle(j, 2, "racepreference");
-    if (player && pref) PLAYER_CLIENT(player)->jass.race_pref |= *pref;
+    /* 213f30 replaces the preference, preserving only the existing flag40. */
+    if (player && pref)
+        PLAYER_CLIENT(player)->jass.race_pref =
+            (PLAYER_CLIENT(player)->jass.race_pref & 0x40u) | (*pref & ~0x40u);
     return 0;
 }
 uint32_t SetPlayerRaceSelectable(jass_t *j) {

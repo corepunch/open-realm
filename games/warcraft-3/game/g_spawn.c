@@ -767,14 +767,14 @@ static uint32_t G_MapControl(mapPlayer_t const *player) {
     }
 }
 
-/* Original29e300 locked-seed branch precedes1e9dd0 race resolution and main().
- * TODO NUM-04.5: unlocked/lobby seed and observer payload78 production are still unverified. */
-void G_InitLockedMapRandom(void) {
-    if (!(level.setup.map_flags&0x8000u)) return; /* MAP_LOCK_RANDOM_SEED, original common.j value. */
-    wc3_random_seed(&level.pathing_random,0x77617233u);
+/* 29e300 selects the fixed word or the stored setup record; 1e9dd0 resolves
+ * exactly12 preferences before main. No gameplay consumer reads host time. */
+void G_InitMapRandom(void) {
+    uint32_t seed = level.setup.map_flags & 0x8000u ? 0x77617233u : level.setup.random_seed;
+    wc3_random_seed(&level.pathing_random,seed);
     static uint32_t const prefs[]={0,1,2,8,4,16}; /* a93c84/a93c88; preference bits by resolved race. */
     FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
-        gameClient_t *client=game.clients+i;
+        gameClient_t *client=G_GetPlayerClientByNumber(i);
         uint32_t pref=client->jass.race_pref&~0x40u;
         client->ps.race=0;
         if (pref&0x20) client->ps.race=(wc3_random_next(&level.pathing_random)>>30)+1;
@@ -908,6 +908,8 @@ void G_SpawnEntities(void) {
     level.pathing_msec = level.time;
     level.pathing_clock.span = 300;
     level.pathing_counter = BZ_WC3_PATH_OWNER_START;
+    /* 157610's owner exists with this seed while config() is evaluated. */
+    wc3_random_seed(&level.pathing_random,0x69707365u);
     S_InitMoveFineScheduler();
 
     level.mapinfo = mapinfo;
@@ -1005,6 +1007,12 @@ void G_SpawnEntities(void) {
         if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
     }
 
+    /* Local test-map startup applies the WorldEdit fixed-seed preference
+     * (default on) after config, then stamps a setup record once (2a46a0).
+     * An explicit seed lets diagnostics reproduce a captured host record. */
+    if (atoi(gi.CvarString("wc3_lock_random_seed", "1"))) level.setup.map_flags |= 0x8000u;
+    cstring_t setup_seed = gi.CvarString("wc3_random_seed", "");
+    level.setup.random_seed = *setup_seed ? (uint32_t)strtoul(setup_seed, NULL, 0) : gi.Milliseconds();
     G_BotInitPlayers();
     UI_Init();
     CM_BakeStaticObstacles();

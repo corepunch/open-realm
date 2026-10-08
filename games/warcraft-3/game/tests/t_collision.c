@@ -99,6 +99,12 @@ TEST(wc3_collision, push_entity_negative_distance_moves_back) {
     T_FEQ(ent->s.origin2.x, 70.0f, 0.01f);
 }
 
+/* Physical point-Move ownership is advanced independently of animation. */
+static void collision_step_move_owner(void) {
+    wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    M_RunScheduledThinks();
+}
+
 /* Step a unit's move-order think loop for up to `frames`, stopping early once
  * it leaves the walk state.  Tracks the closest it ever came to `other` so a
  * test can assert the mover never penetrated another unit's collision circle. */
@@ -107,7 +113,7 @@ static float run_move_tracking_min_dist(edict_t *mover, edict_t *other, int fram
     for (int i = 0; i < frames; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         if (other) {
             float d = dist2(&mover->s.origin2, &other->s.origin2);
             if (d < min_dist) min_dist = d;
@@ -211,7 +217,7 @@ TEST(wc3_collision, overlapped_units_separate_on_move) {
     unit_issueorder(a, "move", &dest);
     for (int i = 0; i < 5; i++) {
         if (!a->currentmove || strcmp(a->currentmove->animation, "walk") != 0) break;
-        a->currentmove->think(a);
+        collision_step_move_owner();
     }
 
     T_ASSERT(dist2(&a->s.origin2, &b->s.origin2) > d0);  /* separated */
@@ -260,13 +266,13 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
         mover->unitinfo.MoveSpeed=200;
         vec2_t dest={300,0}; T_ASSERT(unit_issueorder(mover,"move",&dest));
         /* Commit requester motion before introducing the encounter. */
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         T_ASSERT(mover->movement.velocity.x>0);
-        edict_t *blocker=make_collision_unit(45,0,16);
+        edict_t *blocker=make_collision_unit(200,0,16);
         blocker->unitinfo.MoveSpeed=pass ? 300 : 100;
-        T_ASSERT(unit_issueorder(blocker,"move",&dest)); blocker->currentmove->think(blocker);
+        T_ASSERT(unit_issueorder(blocker,"move",&dest)); collision_step_move_owner();
         T_ASSERT(blocker->movement.velocity.x>0);
-        blocker->s.origin2=(vec2_t){45,0}; gi.LinkEntity(blocker);
+        S_SetUnitAxisPosition(blocker,0,45); gi.LinkEntity(blocker);
         unit_changeangle(mover);
         if (pass) {
             T_EQ(mover->movement.wait_delay,4); T_EQ(mover->movement.wait_blocker,blocker);
@@ -282,13 +288,13 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
             T_ASSERT(mover->movement.fine_route.adaptive_count>0);
         }
         level.time+=FRAMETIME;
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         if (pass) {
             T_EQ(mover->movement.wait_delay,3); T_EQ(mover->movement.velocity.x,0);
         } else {
             /* The pinned peer still occupies the step: assigning its wait does
              * not itself grant collision admission or prove caller retry. */
-            T_EQ(mover->movement.wait_delay,0); T_EQ(blocker->movement.wait_delay,20);
+            T_EQ(mover->movement.wait_delay,0); T_EQ(blocker->movement.wait_delay,19); /* Peer owner also ran once. */
             T_ASSERT(mover->current_order_id!=0);
         }
     }
@@ -363,7 +369,7 @@ TEST(wc3_collision, fast_unit_cannot_jump_through) {
     vec2_t prev = mover->s.origin2;
     for (int i = 0; i < 10; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         T_ASSERT(seg_dist(&prev, &mover->s.origin2, &blocker->s.origin2) >= rr - 1.0f);
         prev = mover->s.origin2;
     }

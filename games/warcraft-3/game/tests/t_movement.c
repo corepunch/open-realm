@@ -2150,7 +2150,7 @@ TEST(wc3_movement, public_composed_yield_matches_retail_owner_streams) {
         level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
         level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
         level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
-        G_InitLockedMapRandom();
+        G_InitMapRandom();
         char script[1900];unsigned base=c==4 ? 4 : c>=2 ? 2 : 0;
         snprintf(script,sizeof(script),"globals\nunit array u\ninteger tick=0\nendglobals\n"
             "function on_tick takes nothing returns nothing\nset tick=tick+1\nif tick==100 then\n"
@@ -2219,7 +2219,7 @@ TEST(wc3_movement, public_dynamic_blockers_match_retail_owner_streams) {
         level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
         level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
         level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
-        G_InitLockedMapRandom();
+        G_InitMapRandom();
         char script[2200];
         snprintf(script,sizeof(script),"globals\nunit mover\nunit blocker\ninteger tick=0\nendglobals\n"
             "function terrain takes boolean walk returns nothing\nlocal integer i=0\nlocal integer j=0\n"
@@ -13489,7 +13489,7 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     uint32_t old_flags=level.setup.map_flags,old_prefs[12];
     level.setup.map_flags|=0x8000u;
     FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;game.clients[i].jass.race_pref=i<4 ? 1 : 32;}
-    G_InitLockedMapRandom();
+    G_InitMapRandom();
     T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
     level.setup.map_flags=old_flags;
     FOR_LOOP(i,12)game.clients[i].jass.race_pref=old_prefs[i];

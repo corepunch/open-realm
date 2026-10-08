@@ -4223,6 +4223,30 @@
           "evidence": "Payoff168 complete original1618a0/161c30/162290 and inherited161040 clock consumer; fields not listed remain undefined."
         }
       ]
+    },
+    {
+      "name": "WC3GameSetupRecord",
+      "length": 18,
+      "fields": [
+        {
+          "offset": 4,
+          "name": "slotCount",
+          "type": "u32",
+          "evidence": "2a1170 reads +4 as count and walks 9-byte rows from +8; 29e300 sets it zero before 96c8c0 fills it"
+        },
+        {
+          "offset": 8,
+          "name": "slots",
+          "type": "ptr:u8",
+          "evidence": "2a1170 9-byte stride rows (+0 id, +2 status, +3 flag); 29e300 copies row bytes"
+        },
+        {
+          "offset": 12,
+          "name": "randomSeed",
+          "type": "u32",
+          "evidence": "29e300 [ebp-0x3c50] (record at [ebp-0x3c5c]) seeds owner/streams when mapflag 0x8000 is clear; 2a46a0 stamps GetTickCount at +0x24 of the lobby (record at +0x18); NUM-04.5 live equality in 9/9 probed startups"
+        }
+      ]
     }
   ],
   "methods": [
@@ -13506,6 +13530,118 @@
         }
       ],
       "evidence": "Payoff170 FORM-05.1: assembly16c281/16c290 sends count1 or group80.200 directly to member steps at16c362, bypassing classification, temporary spatial exclusion and positive-request row28.100000 publication. The multi-member postpass16c325 tests row28.300000 before16c34c marks positive row20; StepMember itself never writes100000. Complete independent public JASS controls retain row flags0 while moving. Engine must publish eligibility in the classification owner, not the common member decision."
+    },
+    {
+      "address": "6f71d580",
+      "name": "WorldEditPref_GetBool",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "useDefault",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f71d5d0",
+      "name": "WorldEditPref_GetDword",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "index",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "useDefault",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f2a46a0",
+      "name": "GameLobby_StampSeedAndBroadcast",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "lobby",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f96c8c0",
+      "name": "GameSetupRecord_Deserialize",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "record",
+          "type": "ptr:WC3GameSetupRecord",
+          "storage": "ECX"
+        },
+        {
+          "name": "blob",
+          "type": "ptr:u16",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f2a0c80",
+      "name": "GameSetup_ApplyDescriptor",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "descriptor",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f2e2850",
+      "name": "LoadFile_StartPendingFile",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "frame",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f213f30",
+      "name": "Jass_SetPlayerRacePreference",
+      "returns": "void",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "preference",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff171: JASS cdecl stack4 player handle, stack8 race preference, plain RET. Resolve player through1ede10; replace player+25c by ((old ^ requested)&0x40)^requested. Preserve old bit40 only; all other bits come from requested. OR accumulation leaves stale RANDOM20 and consumes extra startup owner draws. Production native now replaces preferences; real map-load regressions cover mixed/fixed/8-random rosters and local slot remap."
     }
   ],
   "globals": [
@@ -13886,6 +14022,18 @@
       "name": "CaptainAI_SiegeRangeThreshold600",
       "type": "WC3PathScalar",
       "evidence": "Payoff121 repeated public authored siege/normal and delivery controls: damage enumf4=3 is siege; delivery enumdc=2 missile is independent. Original9d72f0/4984a0 complete instructions; native range599/600/601 yields0/0/1 with acquire1000. Disabled siege700 still qualifies; retained physical ranges and signed roster withdrawals observed."
+    },
+    {
+      "address": "6fce50b4",
+      "name": "LoadFile_GameFlags",
+      "type": "u32",
+      "evidence": "2e2850 or 0x8000 / and ~0x8000 from WorldEditPref_GetBool(0x6a); NUM-04.5 live descriptor +0x34 0x02008000"
+    },
+    {
+      "address": "6fd69b10",
+      "name": "LoadFile_PendingPath",
+      "type": "u8",
+      "evidence": "2e2850 tests first byte, copies with Storm strcpy and clears it"
     }
   ]
 }
