@@ -452,7 +452,17 @@ bool NET_CompareAdr(netadr_t const *a, netadr_t const *b) {
 
 // Route a packet to the loopback buffer or the UDP socket depending on
 // the destination address type — the core of the Quake 2 network model.
+static void (*net_packet_hook)(NETSOURCE netsrc, int length, void const *data, netadr_t to);
+
+void NET_SetPacketHook(void (*hook)(NETSOURCE netsrc, int length, void const *data, netadr_t to)) {
+    net_packet_hook = hook;
+}
+
 void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
+    if (net_packet_hook) {
+        net_packet_hook(netsrc, length, data, to);
+        return;
+    }
     switch (to.type) {
     case NA_LOOPBACK:
         NET_SendLoopPacket(netsrc, length, data);
@@ -480,12 +490,96 @@ int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     return NET_GetUDPPacket(netsrc, from, msg);
 }
 
-void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
-    if (netchan->message.cursize == 0)
-        return;
-    NET_SendPacket(netsrc, (int)netchan->message.cursize,
-                   netchan->message_buf, netchan->remote_address);
+bool Netchan_IsSequenced(struct netchan const *netchan) {
+    return netchan->remote_address.type == NA_IP;
+}
+
+sizeBuf_t *Netchan_Reliable(struct netchan *netchan) {
+    if (!netchan->reliable.data) SZ_Init(&netchan->reliable, netchan->reliable_buf, sizeof(netchan->reliable_buf));
+    return &netchan->reliable;
+}
+
+/* Start a new session on this channel; buffers and the remote address stay as they are. */
+void Netchan_Reset(struct netchan *netchan) {
+    netchan->inflight_length = 0;
+    netchan->outgoing_sequence = netchan->incoming_sequence = netchan->incoming_acknowledged = 0;
+    netchan->last_reliable_sequence = netchan->dropped = 0;
+    netchan->reliable_sequence = netchan->incoming_reliable_sequence = netchan->incoming_reliable_acknowledged = 0;
+    netchan->ack_owed = false;
+    if (netchan->reliable.data) SZ_Clear(&netchan->reliable);
+}
+
+#define NETCHAN_RELIABLE_BIT (1u << 31)
+
+/* Assemble the next datagram for this channel into out. Returns its size, or 0 when there is nothing to send. */
+uint32_t Netchan_BuildPacket(struct netchan *netchan, uint8_t *out, uint32_t out_size) {
+    sizeBuf_t send;
+    sizeBuf_t *reliable = Netchan_Reliable(netchan);
+    bool send_reliable = false;
+
+    SZ_Init(&send, out, out_size);
+    if (!Netchan_IsSequenced(netchan)) {
+        /* The peer receives every packet exactly once and in order, so the reliable stream rides in front. */
+        if (reliable->cursize + netchan->message.cursize > out_size) return 0;
+        SZ_Write(&send, reliable->data, reliable->cursize);
+        SZ_Write(&send, netchan->message_buf, netchan->message.cursize);
+        reliable->cursize = netchan->message.cursize = 0;
+        return send.cursize;
+    }
+
+    /* The peer dropped the in-flight reliable message if a later packet was acknowledged without it. */
+    if (netchan->inflight_length && netchan->incoming_acknowledged > netchan->last_reliable_sequence &&
+        netchan->incoming_reliable_acknowledged != netchan->reliable_sequence) send_reliable = true;
+    if (!netchan->inflight_length && reliable->cursize) {
+        memcpy(netchan->inflight_buf, reliable->data, reliable->cursize);
+        netchan->inflight_length = reliable->cursize;
+        reliable->cursize = 0;
+        netchan->reliable_sequence ^= 1;
+        send_reliable = true;
+    }
+    if (!send_reliable && !netchan->message.cursize && !netchan->ack_owed) return 0;
+
+    MSG_WriteLong(&send, (int)((++netchan->outgoing_sequence & ~NETCHAN_RELIABLE_BIT) | (send_reliable ? NETCHAN_RELIABLE_BIT : 0)));
+    MSG_WriteLong(&send, (int)((netchan->incoming_sequence & ~NETCHAN_RELIABLE_BIT) |
+                               ((uint32_t)netchan->incoming_reliable_sequence << 31)));
+    if (send_reliable) {
+        SZ_Write(&send, netchan->inflight_buf, netchan->inflight_length);
+        netchan->last_reliable_sequence = netchan->outgoing_sequence;
+    }
+    if (send.cursize + netchan->message.cursize <= send.maxsize) SZ_Write(&send, netchan->message_buf, netchan->message.cursize);
     netchan->message.cursize = 0;
+    netchan->ack_owed = false;
+    return send.cursize;
+}
+
+void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
+    static uint8_t packet[MAX_MSGLEN];
+    uint32_t const size = Netchan_BuildPacket(netchan, packet, sizeof(packet));
+    if (size) NET_SendPacket(netsrc, (int)size, packet, netchan->remote_address);
+}
+
+bool Netchan_Process(struct netchan *netchan, sizeBuf_t *msg) {
+    uint32_t sequence, acknowledge;
+    bool reliable_message, reliable_acknowledge;
+
+    msg->readcount = 0;
+    if (msg->cursize < NETCHAN_HEADER_SIZE) return false;
+    sequence = (uint32_t)MSG_ReadLong(msg);
+    acknowledge = (uint32_t)MSG_ReadLong(msg);
+    reliable_message = (sequence & NETCHAN_RELIABLE_BIT) != 0;
+    reliable_acknowledge = (acknowledge & NETCHAN_RELIABLE_BIT) != 0;
+    sequence &= ~NETCHAN_RELIABLE_BIT;
+    acknowledge &= ~NETCHAN_RELIABLE_BIT;
+    if (sequence <= netchan->incoming_sequence) return false; // duplicate, or overtaken by a newer packet
+    if (acknowledge > netchan->outgoing_sequence) return false; // acknowledges a packet we never sent
+    netchan->dropped = sequence - (netchan->incoming_sequence + 1);
+    if (netchan->inflight_length && reliable_acknowledge == netchan->reliable_sequence) netchan->inflight_length = 0;
+    netchan->incoming_sequence = sequence;
+    if (acknowledge > netchan->incoming_acknowledged) netchan->incoming_acknowledged = acknowledge;
+    netchan->incoming_reliable_acknowledged = reliable_acknowledge;
+    if (reliable_message) netchan->incoming_reliable_sequence ^= 1;
+    netchan->ack_owed = msg->cursize > NETCHAN_HEADER_SIZE; // a bare acknowledge is never acknowledged back
+    return true;
 }
 
 void SZ_Init(sizeBuf_t *buf, uint8_t *data, uint32_t length) {

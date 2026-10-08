@@ -61,6 +61,7 @@ typedef enum {
 } connstate_t;
 
 struct frame {
+    bool valid;               /* a snapshot has been applied since the session began */
     int serverframe;
     int servertime;
     int oldclientframe;
@@ -197,6 +198,7 @@ void CL_UpdateConfigString(uint32_t index, cstring_t olds);
 void CL_RestartRefresh(void);
 // cl_parse.c
 void CL_ParseServerMessage(sizeBuf_t *msg);
+void CL_ResetFrameHistory(void);
 void CL_AddActiveEntity(uint32_t index);
 void CL_RemoveActiveEntity(uint32_t index);
 

@@ -312,10 +312,10 @@ TEST_JOBS ?= 16
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
 
-# Slow-link (33.6 kbps) stress tests; kept off the default `make test` critical path.
+# Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
-test-stress: test-server-net-stress
-$(eval $(call test_schema,test-server-net-stress,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c client/cl_canvas.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c server/sv_ents.c server/sv_parse.c server/sv_user.c common/net.c common/msg.c,-lsheet -lshared -lm -lz $(NET_LIBS),'stress_net.*'))
+test-stress: $(BIN_DIR)/test_server_net$(EXE_EXT) | $(TEST_JUNIT_DIR)
+	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-stress.xml" TEST_JUNIT_SUITE="test-stress" $(BIN_DIR)/test_server_net 'stress_net.*'
 
 $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
