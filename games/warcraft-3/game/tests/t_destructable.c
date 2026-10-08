@@ -1204,21 +1204,22 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         T_STREQ(valid->animation_request, "stand alternate");
         T_STREQ(valid->queued_animation, "stand");
         T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
+        T_STREQ(missing->animation_request, "death alternate");
+        T_NULL(missing->animation);
+        T_ASSERT(!missing->animation_override);
         T_NOT_NULL(valid->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
             T_ASSERT(valid->animation_override);
             valid->s.frame = valid->animation->interval[1] - 1;
-            G_RunDestructableAnimation(valid);
+            /* Exercise the live per-frame dispatch, not only the queue helper. */
+            G_RunEntities();
             T_STREQ(valid->animation_request, "stand");
             T_STREQ(valid->queued_animation, "");
             T_NOT_NULL(valid->animation);
             if (valid->animation) T_EQ(valid->s.frame, valid->animation->interval[0]);
         }
-        T_STREQ(missing->animation_request, "death alternate");
-        T_NULL(missing->animation);
-        T_ASSERT(!missing->animation_override);
     }
 
     G_SetSLKRows("DestructableData", saved);
