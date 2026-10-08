@@ -2940,6 +2940,7 @@ TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
 
 TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
     vec2_t pos = { 0.20f, 0.10f };
+    UI_LoadHudMessage(); // geometry comes from the authored template, not from an earlier test
     FRAMEDEF frame = MessageFrame(&pos, "Runtime message");
     T_FEQ(frame.Width, 0.30f, 0.001f);
     T_FEQ(frame.Height, 0.145f, 0.001f);
@@ -2952,6 +2953,7 @@ TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
 
 TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
     vec2_t pos = { -1.0f, UI_BASE_HEIGHT + 1.0f };
+    UI_LoadHudMessage(); // the fallback anchor is the authored template, not state from an earlier test
     FRAMEDEF frame = MessageFrame(&pos, "Authored position");
     T_FEQ(frame.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);

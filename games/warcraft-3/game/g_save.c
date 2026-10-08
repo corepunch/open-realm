@@ -86,7 +86,9 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 71 persists local Team Resources collapse state. */
 /* Version 72 persists the source/recipient role of Hero aura effects. */
 /* Version 73 persists mutable destructable occluder levels and queued animation names. */
-static uint32_t const save_version = 73;
+/* Version 74 replaces the byte-wise FNV footer checksum with the word-wise SaveChecksum. */
+static uint32_t const save_version = 74;
+#define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -987,27 +989,54 @@ static uint32_t SaveHash(uint32_t hash, void const *data, size_t size) {
     return hash;
 }
 
+/* Footer checksum: four independent 64-bit FNV-style lanes over native words. Saves are raw native
+ * structs already, so native byte order costs no portability; the lanes keep multiplies pipelined. */
+typedef struct { uint64_t lane[4]; } saveChecksum_t;
+
+static void SaveChecksumInit(saveChecksum_t *sum) {
+    FOR_LOOP(i, 4) sum->lane[i] = 0xcbf29ce484222325ull + i;
+}
+
+/* Callers feed whole buffers; only the final call may end on a partial 32-byte block. */
+static void SaveChecksumUpdate(saveChecksum_t *sum, void const *data, size_t size) {
+    uint8_t const *bytes = data;
+    uint64_t word[4];
+    for (; size >= sizeof(word); size -= sizeof(word), bytes += sizeof(word)) {
+        memcpy(word, bytes, sizeof(word));
+        FOR_LOOP(i, 4) sum->lane[i] = (sum->lane[i] ^ word[i]) * 0x100000001b3ull;
+    }
+    while (size--) sum->lane[0] = (sum->lane[0] ^ *bytes++) * 0x100000001b3ull;
+}
+
+static uint32_t SaveChecksumFinal(saveChecksum_t const *sum) {
+    uint64_t hash = sum->lane[0];
+    for (int i = 1; i < 4; i++) hash = (hash ^ sum->lane[i]) * 0x100000001b3ull;
+    return (uint32_t)(hash ^ (hash >> 32));
+}
+
 /* A committed checksum rejects truncation and corruption before ReadGame mutates live state. */
 static bool WriteFooter(FILE *f) {
-    uint8_t bytes[4096];
+    static uint8_t bytes[1u << 16]; // multiple of the 32-byte checksum block
     long payload;
-    uint32_t checksum = 2166136261u;
+    saveChecksum_t checksum;
     saveFooter_t footer;
+    SaveChecksumInit(&checksum);
     if (fflush(f) || (payload = ftell(f)) < 0 || fseek(f, 0, SEEK_SET)) return false;
     while (payload > 0) {
         size_t size = MIN((size_t)payload, sizeof(bytes));
         if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); payload -= (long)size;
+        SaveChecksumUpdate(&checksum, bytes, size); payload -= (long)size;
     }
-    footer = (saveFooter_t){ checksum, save_commit };
+    footer = (saveFooter_t){ SaveChecksumFinal(&checksum), save_commit };
     return fseek(f, 0, SEEK_END) == 0 && SaveBytes(f, &footer, sizeof(footer));
 }
 
 static bool ReadFooter(FILE *f) {
-    uint8_t bytes[4096];
+    static uint8_t bytes[1u << 16]; // multiple of the 32-byte checksum block
     long payload;
-    uint32_t checksum = 2166136261u;
+    saveChecksum_t checksum;
     saveFooter_t footer;
+    SaveChecksumInit(&checksum);
     if (fseek(f, 0, SEEK_END) || (payload = ftell(f)) < (long)sizeof(footer)) return false;
     payload -= sizeof(footer);
     if (fseek(f, payload, SEEK_SET) || !LoadBytes(f, &footer, sizeof(footer)) || footer.commit != save_commit ||
@@ -1015,9 +1044,9 @@ static bool ReadFooter(FILE *f) {
     for (long remaining = payload; remaining > 0;) {
         size_t size = MIN((size_t)remaining, sizeof(bytes));
         if (fread(bytes, 1, size, f) != size) return false;
-        checksum = SaveHash(checksum, bytes, size); remaining -= (long)size;
+        SaveChecksumUpdate(&checksum, bytes, size); remaining -= (long)size;
     }
-    return checksum == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
+    return SaveChecksumFinal(&checksum) == footer.checksum && fseek(f, 0, SEEK_SET) == 0;
 }
 
 /* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
@@ -2079,6 +2108,7 @@ static bool ReadPools(FILE *f) {
 
 bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
+    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
         .max_clients = game.max_clients, .script_identity = level.vm ? jass_programidentity(level.vm) : 0,
@@ -2127,6 +2157,7 @@ done:
 
 bool ReadGame(cstring_t filename) {
     FILE *f = fopen(filename, "rb");
+    if (f) setvbuf(f, NULL, _IOFBF, SAVE_STREAM_BUFFER);
     saveHeader_t header = { 0 };
     bool current_nonregion_event_slots[MAX_EVENTS] = { 0 };
     uint32_t index;
@@ -2396,7 +2427,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));

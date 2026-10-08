@@ -28,6 +28,47 @@ After incremental binaries and parallel suite execution:
 
 The final runs passed all 17 suite summaries. The default run processes about 1,235 tests per 5 seconds, exceeding the 1,000-tests-per-5-seconds target. With `TEST_JOBS=16`, throughput is about 1,457 tests per 5 seconds. Compared with the repeatable pre-change run, default wall time improved by 80%.
 
+## October 2026 Regression
+
+Steady-state `make test` on the same 8-core M1 (4 performance + 4 efficiency cores), measured at historical commits:
+
+| Commit | Date | Tests | Wall time |
+| --- | --- | ---: | ---: |
+| `b1e69ec2c` | 2026-08-28 | 1,408 | 3.7 s |
+| `22abe18d0` | 2026-10-01 | 5,416 | 32.6 s |
+| `445891148` | 2026-10-08 | 6,198 | 47.0–57.6 s |
+| `445891148` + this change | 2026-10-08 | 6,198 | 17.9–21.7 s |
+
+The WC3 engine suite grew from about 500 to 2,480 tests and ran twice (classic, then TFT) in one serial
+recipe, about 19 s per pass. More than half of each pass was `wc3_save`: every round trip writes and rereads a
+5.8 MB save, and the footer checksum hashed it one byte at a time.
+
+The fix:
+
+- `test-wc3-engine` runs each data variant as `WC3_TEST_SHARDS` (default 4) round-robin shards through
+  `TEST_SHARD=index/count`. Each shard writes `test-wc3-engine-<variant>-<index>.xml`. More shards did not help on
+  the M1 because the efficiency cores run the engine tests about half as fast.
+- The save footer checksum hashes 64-bit words in four lanes, and save streams use a 1 MB stdio buffer.
+  Save version 74.
+- `test-core` builds a persistent binary, and the Python audits run inside the parallel phase.
+
+Sharding exposed three tests that depended on HUD state left by earlier tests. Each one now resets or loads the
+HUD it asserts against. When adding tests, check order independence with a few shard counts:
+
+```sh
+for i in 0 1 2 3 4 5 6; do TEST_SHARD=$i/7 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test '*'; done
+```
+
+`TEST_SLOW_MS=<ms>` prints every test at or above that wall time and the run total:
+
+```sh
+TEST_SLOW_MS=50 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_*' 2>&1 | grep SLOW
+```
+
+Remaining cost: each save round trip still writes and rereads about 5.8 MB even for a small test world, and
+`G_PoolsReset`/`__bzero` show up in every test's reset. A breakdown of which records make up the file is the next
+step. Shrinking it would cut both disk traffic and `wc3_save` time.
+
 ## Diagnostic Workflow
 
 ### GitHub Actions jobs that never start

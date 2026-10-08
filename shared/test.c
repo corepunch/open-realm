@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #ifdef _WIN32
 #include <direct.h>
 #include <process.h>
@@ -208,8 +209,20 @@ static int Test_NameMatches(const char *name, const char *pattern) {
     return !strcasecmp(name, pattern);
 }
 
+static double Test_NowMs(void) {
+    struct timespec ts;
+
+    timespec_get(&ts, TIME_UTC);
+    return (double)ts.tv_sec * 1000.0 + (double)ts.tv_nsec / 1.0e6;
+}
+
 int Test_Run(const char *pattern) {
     const char *junit_path = getenv("TEST_JUNIT");
+    const char *slow_env = getenv("TEST_SLOW_MS");
+    double slow_ms = slow_env && slow_env[0] ? atof(slow_env) : -1.0; // report tests at or above this wall time
+    double run_start = Test_NowMs();
+    const char *shard_env = getenv("TEST_SHARD"); // "index/count": run every count-th matching test, for parallel processes
+    int shard_index = 0, shard_count = 1, matched = 0;
     const char *junit_suite = getenv("TEST_JUNIT_SUITE");
     FILE *junit_body = NULL;
     int total_failures = 0;
@@ -224,18 +237,30 @@ int Test_Run(const char *pattern) {
     }
     test_junit_body = junit_body;
 
+    if (shard_env && (sscanf(shard_env, "%d/%d", &shard_index, &shard_count) != 2 ||
+                      shard_count < 1 || shard_index < 0 || shard_index >= shard_count)) {
+        fprintf(stderr, "warning: ignoring malformed TEST_SHARD=%s (expected index/count)\n", shard_env);
+        shard_index = 0;
+        shard_count = 1;
+    }
+
     fprintf(stderr, "=== running tests: %s ===\n", pattern ? pattern : "*");
     for (test_t *t = test_head; t; t = t->next) {
         int before;
+        double start, elapsed;
 
         if (!Test_NameMatches(t->name, pattern)) continue;
+        if (matched++ % shard_count != shard_index) continue;
         test_failures = 0;
         test_asserts = 0;
         before = total_failures;
         test_current_name = t->name;
         if (junit_body) Test_JUnitBeginCase(junit_body, t);
+        start = Test_NowMs();
         if (test_before_each) test_before_each();
         t->fn();
+        elapsed = Test_NowMs() - start;
+        if (slow_ms >= 0.0 && elapsed >= slow_ms) fprintf(stderr, "  SLOW %8.1f ms  %s\n", elapsed, t->name);
         if (junit_body) fputs("  </testcase>\n", junit_body);
         test_current_name = NULL;
         total_failures += test_failures;
@@ -249,6 +274,7 @@ int Test_Run(const char *pattern) {
     fprintf(stderr, "=== %d/%d assertions passed in %d test(s)",
             total_asserts - total_failures, total_asserts, ran);
     if (total_failures) fprintf(stderr, ", %d failed", total_failures);
+    if (slow_ms >= 0.0) fprintf(stderr, " in %.0f ms", Test_NowMs() - run_start);
     fprintf(stderr, " ===\n");
 
     if (junit_body) {
