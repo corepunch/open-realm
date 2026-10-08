@@ -3915,6 +3915,18 @@
           "name": "damage_bonus1",
           "type": "i32",
           "evidence": "same, weapon 1"
+        },
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "ORDER-01.10: 49ea0c MOV EDI,[EBX+30] owner unit (055cc0 fallback when null); live observer read ability+30 at every 49a5f0 dispatch and matched the unit pointers bound by GetUnitCurrentOrder 2039dc for all subjects."
+        },
+        {
+          "offset": 108,
+          "name": "task_target",
+          "type": "WC3PathIdentity",
+          "evidence": "ORDER-01.10: 49e510 (d0168) writes canonical target identity 6c/70 (or -1/-1); 493ff0 tests 6c&70!=-1 to choose acquisition rearm period."
         }
       ]
     },
@@ -14175,6 +14187,227 @@
         {
           "name": "output",
           "type": "ptr:WC3PathScalar",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49a5f0",
+      "name": "CAbilityAttack_Dispatch",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49a980",
+      "name": "Attack_CreateTasksFromOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49af00",
+      "name": "Attack_CreateAttackGroundTasks",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49b0f0",
+      "name": "Attack_CreateAttackOnceTasks",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49e990",
+      "name": "Attack_HandleOrderCompleteTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49ed50",
+      "name": "Attack_HandleCleanupTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49e510",
+      "name": "Attack_HandleTargetTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f49e6b0",
+      "name": "Attack_HandleTimerWaitTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f49ea80",
+      "name": "Attack_HandleReactionDelayTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f493ff0",
+      "name": "Attack_OnAcquireScanTimer",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f207160",
+      "name": "Jass_DispatchTargetOrder",
+      "returns": "u32",
+      "convention": "__cdecl",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "reserved",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "order_id",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 20
+        }
+      ]
+    },
+    {
+      "address": "6f690930",
+      "name": "OrderImmediate_Create",
+      "returns": "ptr:WC3OrderPrefix",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "command",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "owner",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
           "storage": 4
         }
       ]

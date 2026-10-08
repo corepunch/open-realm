@@ -17,6 +17,7 @@ static cstring_t const repair_orders[] = { "repair", "repairon", "repairoff", NU
 static cstring_t const renew_orders[] = { "renew", "renewon", "renewoff", NULL };
 static cstring_t const restoration_orders[] = { "restoration", "restorationon", "restorationoff", NULL };
 static cstring_t const move_orders[] = { "move", "smart", NULL };
+static cstring_t const attack_orders[] = { "attack", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
 static cstring_t const entangle_orders[] = {
@@ -26,7 +27,7 @@ static cstring_t const entangle_orders[] = {
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND | AB_ENGINE_EVENTS | AB_QUEUEABLE },  // Stop command policy
     { STR_CmdMove, CAbilityMove, AB_COMMAND | AB_ENGINE_EVENTS },  // Move — engine command and target death policy
-    { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
+    { STR_CmdAttack, CAbilityAttack, AB_COMMAND | AB_ENGINE_EVENTS | AB_PRIMARY_TIMER, SPELL_TARGET_NONE, attack_orders },
     { "BTLF", CAbilityTimedLife, AB_ENGINE_EVENTS | AB_PRIMARY_TIMER },
     { STR_CmdAttackGround, CAbilityAttackGround, AB_COMMAND },  // Attack Ground — artillery engine command
     { STR_CmdBuild, CAbilityBuild, AB_COMMAND, SPELL_TARGET_NONE, build_orders },  // Build — engine command and queued-order owner

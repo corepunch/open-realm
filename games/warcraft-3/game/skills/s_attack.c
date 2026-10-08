@@ -1375,7 +1375,32 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         FOR_LOOP(slot,2)if(S_AttackProfileRead(ent,slot)->type!=ATK_NONE)return true;
         return false;
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_ORDER_ACCEPTED);
+    case A_TARGET_ORDER_ADMIT: {
+        if (!ent || !call || !call->issued_target_order.order ||
+            strcmp(call->issued_target_order.order,"attack")) return ABILITY_ORDER_UNHANDLED;
+        if (S_UnitPolymorphed(ent) || S_UnitIsCycloned(ent)) return ABILITY_ORDER_REJECTED;
+        edict_t *target=call->issued_target_order.target;
+        if (!target || !target->inuse) return ABILITY_ORDER_REJECTED;
+        /* Original207160 converts before admission. A queued order therefore
+         * owns this position snapshot, never the rejected target's identity. */
+        if (target->invulnerable || !S_AttackCanTarget(ent,target)) {
+            if (!call->issued_target_order.point) return ABILITY_ORDER_REJECTED;
+            *call->issued_target_order.point=target->s.origin2;
+            return ABILITY_ORDER_POINT;
+        }
+        return ABILITY_ORDER_UNHANDLED;
+    }
+    case A_ORDER_ACCEPTED:
+        /* Public identity belongs to the accepted user head. Acquisition and
+         * retaliation call order_attack directly and retain the existing head. */
+        if (!ent || !call || !call->order || !ent->currentmove) return false;
+        if ((!strcmp(call->order,"attack") && ent->currentmove->proc==CAbilityAttack) ||
+            (!strcmp(call->order,"attackground") && ent->currentmove->proc==CAbilityAttackGround)) {
+            ent->current_order_id=G_OrderId(call->order);
+            return true;
+        }
+        return false;
     case A_TIMERS_RESET:
         attack_help_queries_reset();
         attack_cap_count=0;memset(attack_cap_positions,0,sizeof(attack_cap_positions));return true;

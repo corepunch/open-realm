@@ -43416,6 +43416,424 @@
         "The incomplete mixed-observe-2 gameplay trace remains explicitly incomplete.",
         "No new retail runtime capture; existing ten observed startups and four complete locked controls reused."
       ]
+    },
+    {
+      "id": "live-attack-order-ownership",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_attack173_orders.py",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "attack-order173.json",
+      "expected_exit": 0,
+      "expected_status": "retail-attack-order-evidence",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 10
+        },
+        "observer_free_comparisons": {
+          "equal": 4
+        },
+        "records": {
+          "equal": 6604
+        },
+        "markers": {
+          "equal": 6614
+        },
+        "semantic_claims": {
+          "equal": 15
+        }
+      },
+      "evidence": [
+        "L",
+        "C",
+        "S"
+      ],
+      "scope": "Complete archived ownership decisions/scalars reconstructed. Engine integrates admission snapshots/public heads/native/frame/FIFO/save subset; ORDER-01.10 stays open.",
+      "exclusions": [
+        "No new live retail capture; prepared readonly Frida research is replayed.",
+        "Queue observations have no observer-free control and different input landing ticks.",
+        "Attack Once, swing/target-loss timers, non-artillery Attack Ground and exact combat numerics remain unimplemented by this chunk."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-q1-observe-1-envB.jsonl",
+        "sha256": "0727ea6de2a17c2976e06410d77c477ebe4685283347985822a3b060923ac2ce",
+        "bytes": 957635,
+        "metadata": {
+          "task": "ORDER-01.10",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+            "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+            "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+            "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+            "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+            "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+            "order0110_ui_input.exe": "eb9ecea94b91e95b1a38ff72d84b100e72b77b2c063088c2da8a474d1117b014",
+            "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+            "map": "56da30999a6ee81383d58abfe3d153a54f59b1361eface1a2812e30b26af7a6a"
+          },
+          "map": "Maps\\RS-ORDER-01.10-q1.w3m",
+          "variant": "q",
+          "seconds": 190.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "input": [
+            {
+              "tick": 5,
+              "pixel": [
+                700,
+                330
+              ],
+              "key": "attack",
+              "shift": true
+            },
+            {
+              "tick": 155,
+              "pixel": [
+                700,
+                330
+              ],
+              "key": "move",
+              "shift": true
+            }
+          ],
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624
+        }
+      },
+      "additional_captures": [
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-q1-observe-2-envB.jsonl",
+            "sha256": "661703be4675f5928365b3f0e076918426723e768e8219bf360768eda196950a",
+            "bytes": 950941,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "order0110_ui_input.exe": "eb9ecea94b91e95b1a38ff72d84b100e72b77b2c063088c2da8a474d1117b014",
+                "order0110_ui_input.c": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399",
+                "map": "56da30999a6ee81383d58abfe3d153a54f59b1361eface1a2812e30b26af7a6a"
+              },
+              "map": "Maps\\RS-ORDER-01.10-q1.w3m",
+              "variant": "q",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [
+                {
+                  "tick": 5,
+                  "pixel": [
+                    700,
+                    330
+                  ],
+                  "key": "attack",
+                  "shift": true
+                },
+                {
+                  "tick": 155,
+                  "pixel": [
+                    700,
+                    330
+                  ],
+                  "key": "move",
+                  "shift": true
+                }
+              ],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3a-observe-1-envB.jsonl",
+            "sha256": "d717d9418434505b6b4ba74046fd3b4dd2c5da0440af346a21527a2b673ab7b2",
+            "bytes": 1012590,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "c863954636b1ce0031783503de03da177e1c7d5e5e5d5117f58444bac72fc267"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3a.w3m",
+              "variant": "a",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3a-observe-2-envC.jsonl",
+            "sha256": "fc9a3a3d7cadff699446bd51544814ad35466b45aa9f1ee82603ad3b18100146",
+            "bytes": 1059660,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "c863954636b1ce0031783503de03da177e1c7d5e5e5d5117f58444bac72fc267"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3a.w3m",
+              "variant": "a",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3b-observe-1-envB.jsonl",
+            "sha256": "774d376537b438e91f076f6531fbca653004bb7bc0e0226714d53b7abf850015",
+            "bytes": 1037911,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "0387071ad29d217b4563d712d81277dfcb1bad4b93c8f85354ab1c66ce4455c3"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3b.w3m",
+              "variant": "b",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3b-observe-2-envC.jsonl",
+            "sha256": "381125c719d2ce224a15a21fae172353a9de948d10f40ec75f7f9509fd6b1c82",
+            "bytes": 1041886,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "0387071ad29d217b4563d712d81277dfcb1bad4b93c8f85354ab1c66ce4455c3"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3b.w3m",
+              "variant": "b",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3c-observe-1-envB.jsonl",
+            "sha256": "6accc1c7cb2a93b2b2ffee547e8e04311752f8d047c5baa55cc2fc22a8d34fad",
+            "bytes": 964929,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "5070f56dad4ed3dd41e23f2a4199cf039df10c856f18ec5f30843fd44259827f"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3c.w3m",
+              "variant": "c",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3c-observe-2-envC.jsonl",
+            "sha256": "ba9f1053a81921e274b89395b1df5b1aeadd41b8085e5a274320a3a64f14994f",
+            "bytes": 1030567,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "5070f56dad4ed3dd41e23f2a4199cf039df10c856f18ec5f30843fd44259827f"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3c.w3m",
+              "variant": "c",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3d-observe-1-envB.jsonl",
+            "sha256": "9066a4c044d3eb210b5cd2f148fcc192cc05dfeda34d2283e120888198d9548f",
+            "bytes": 1496962,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "e1cf55c246601e26dc1247e8bffed428174b66c3e0d9ca19f22292d85629d151"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3d.w3m",
+              "variant": "d",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        },
+        {
+          "capture_complete": true,
+          "inputs": {
+            "capture": "research/ORDER-01.10/captures/RS-ORDER-01.10-v3d-observe-2-envB.jsonl",
+            "sha256": "c4fbf890dfc03be4ef02fce924b1f1929235d50031dfb5ceb9c55e46112fcd25",
+            "bytes": 1546842,
+            "metadata": {
+              "task": "ORDER-01.10",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "order0110_capture.py": "9ecf528febb3f56fe090cc9c0cc8674c96c13c643527f44e7de99914320c98f6",
+                "order0110_observer.js": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709",
+                "order0110_make_map.py": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52",
+                "order0110_probe.j": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375",
+                "order0110_queue_probe.j": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af",
+                "order0118_probe.j": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5",
+                "map": "e1cf55c246601e26dc1247e8bffed428174b66c3e0d9ca19f22292d85629d151"
+              },
+              "map": "Maps\\RS-ORDER-01.10-v3d.w3m",
+              "variant": "d",
+              "seconds": 190.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "input": [],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624
+            }
+          }
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -43481,7 +43899,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "95f46db9117484fd93b54b7c60a47d5eb1f249e95ea7216116891b582a73d14b"
+      "sha256": "97578ec18409edda02d0029dbf4ac677f712f7944e0d15e435a718f6cb3c0558"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -44314,7 +44732,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "fcf06eba9cba168b6f8e2993164eb2163d6681936a4081e13d481ce07b5c7724"
+      "sha256": "0348f107a3f10bd1a5c96ce4c3c9dde441b4580eb7624b92cca146cf81576df4"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -45614,7 +46032,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "bc0fefd0b1d0569093c51c4dc4bda9c3d0644987e1e3c94badfa0e8874e7f00d"
+      "sha256": "ca6a999004b832b1157c2eaac0f0723126324f4bc82535bda907ec075116eae8"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -46106,7 +46524,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "dfce0a495faaed080c0e8492ea93713fad9e4e057a9b798d733aa6923fecdd43"
+      "sha256": "98e604765fc306dea551910b2905d7ce33832ac38055ee7ad2fffdd7f44b5f4a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -46118,11 +46536,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "c9cffbecf8aa8b0f420eee26bc3b43d7ea32daf242302eeb59f44812992eb29a"
+      "sha256": "789682a09d011705b583723e58f0edeac1eac62bce43dd6ae794a1992be50de2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "6103a65363514c2198c77db777b0f1142153db746dc9e13f753acab070ba36c8"
+      "sha256": "417adcb68475682206e1b45611bdfbef594e774d09192d3a7976dc94c3d89577"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -46130,11 +46548,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "6f109abd9071a599aefcdb6a23316633c9aec98c6631832d4131b4d5324c12b1"
+      "sha256": "ac529dd90a3ec3dfceedcab4dd50778007c9a0a3f23ed64be2ceec677610527d"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "319ef46d645beb6703c68de71a47447f104cfef7b3ebe640a3abe4dcdd9e25ce"
+      "sha256": "82dedbceb32af7cdbda11da2db513fbd0678a122308bd388aafc165b0e92db53"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -47067,6 +47485,94 @@
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.6/types.json",
       "sha256": "3bcaa31a3ed39fc945d52bb82468bba99db434d5e67dd1e49cd878a78c3c2574"
+    },
+    {
+      "path": "games/warcraft-3/game/m_unit.c",
+      "sha256": "dae356aa111f9afab61f0a4e9883ededb4aca768e18c9b6d59bb2469c1890f49"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_attack_orders.c",
+      "sha256": "f6b6abe2af26caca0d48d8fd184a54724ca7112f1d7a80fee2c4ccbcdac20eba"
+    },
+    {
+      "path": "tools/ghidra/research/verify_attack173_orders.py",
+      "sha256": "7310216243db267904cf7771716d92a4dfba366cc35ffa4842f262a2efdb6aa7"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_attack_orders.py",
+      "sha256": "727e9790a5dda8799f58f36c032eb40df9aba89aaf7f8d3ad66444a6f1e21de1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ORDER-01.10-expected.json",
+      "sha256": "e6fecc75b2cb04f2df2630eeff9e0b21e21207a6d246804c2c5ab31a000d8b2d"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF-addendum.md",
+      "sha256": "eaa4939dac36e441b82017c4e4068e0dbd90a99d96ab6f27002411a3de615b3d"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md",
+      "sha256": "9e7dd84508b0a61006c9033e1cdb33768a90171cb71179341fc7b519fb3ea123"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/mapping-rows.txt",
+      "sha256": "23d3e081dfae57bc47670152f157abb847644382af44c44381121edea3aa5cfc"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/proposed-docs.md",
+      "sha256": "eac1f79813e9c33b19b0e9c6fc3368a3ab73d179429de28db148fcf64c5d2e00"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-01.10/types.json",
+      "sha256": "6dd81b94b144b63ddc0cf5d2367cbe0cf32824f022bda5ad7629f2325e46d5a2"
+    },
+    {
+      "path": "tools/frida/research/order0110_capture.py",
+      "sha256": "457faf80a5df53a054a2f8523b9ebda160954ca4296b22dd78b8511908dc07ec"
+    },
+    {
+      "path": "tools/frida/research/order0110_expected.py",
+      "sha256": "d88e0961914871c8c03e1006fd804dbaf2bbca6c1d751968056c76e63479581a"
+    },
+    {
+      "path": "tools/frida/research/order0110_make_map.py",
+      "sha256": "85aa8cb0cd3ba3b58ffe466bbf0db17b9b10ae046ddac6c32a89cd4731a29f52"
+    },
+    {
+      "path": "tools/frida/research/order0110_observer.js",
+      "sha256": "691859d9eba5c32badf2f4e9c26bde26acc43cc9f700aba9321cba81d9e5c709"
+    },
+    {
+      "path": "tools/frida/research/order0110_probe.j",
+      "sha256": "87471eef01406ec8db57951d57cbe5eb58b625856547b6b2404a6a9e15062375"
+    },
+    {
+      "path": "tools/frida/research/order0110_queue_probe.j",
+      "sha256": "1283e9bfc7faf330a990df8b6bd6adb644998d4f3deb18b926ed028cbac995af"
+    },
+    {
+      "path": "tools/frida/research/order0110_queue_probe_b.j",
+      "sha256": "b197abc046e10296262a81be651cf5d3ee6353206fd95ba78481866f95d164df"
+    },
+    {
+      "path": "tools/frida/research/order0110_summarize.py",
+      "sha256": "64c8b61e31ecd755d64e4e3872131ea26d30a320fcd4193d10ef21287810e3db"
+    },
+    {
+      "path": "tools/frida/research/order0110_ui_input.c",
+      "sha256": "4928162d577a67069303fb247341b7176222912ae079d5d9782dda7d45aa3399"
+    },
+    {
+      "path": "tools/frida/research/order0110_verify.py",
+      "sha256": "298d9fe693e68c459b14107a455c4c2ae41cee1d37a4c549dfa86416b34628bd"
+    },
+    {
+      "path": "tools/frida/research/order0118_probe.j",
+      "sha256": "5009fbb228d05ea12ce82c14ceb9631b991faa3c6d0d756a019fcd977cf12fc5"
+    },
+    {
+      "path": "tools/frida/research/order0118_probe_b.j",
+      "sha256": "a0e74e0f763ae8162c2b16b73bc202e4f787163b05a92f8e0f73daae15988879"
     }
   ]
 }

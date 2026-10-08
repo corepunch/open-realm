@@ -924,12 +924,15 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     {
         ability_t const *owner = FindAbilityByOrder(order);
         abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
-        abilityCall_t call = {.issued_target_order = {target, order, queue}};
+        vec2_t point;
+        abilityCall_t call = {.issued_target_order = {target, order, queue, &point}};
         intptr_t result = ABILITY_ORDER_UNHANDLED;
         if (owner) result = owner->proc(self, A_TARGET_ORDER_ADMIT, &call);
         if (result == ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc != active))
             result = active(self, A_TARGET_ORDER_ADMIT, &call);
         if (result == ABILITY_ORDER_REJECTED) return false;
+        if (result == ABILITY_ORDER_POINT)
+            return G_IssueUnitPointOrder(self,order,&point,queue,issuer_player,0);
         if (result == ABILITY_ORDER_INTERCEPTED) {
             unit_publish_target_order(self, order, target, issuer_player);
             return true;

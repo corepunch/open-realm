@@ -11887,3 +11887,43 @@ draws verify without claiming a full engine combat transcript. Broader ability
 consumer/timer migrations are excluded from this ownership/seed-side-effect
 closure. Saved Ghidra/mapper/types also correct attack attachment jitter to
 base multiplied by the stream2 fraction. See [purpose ownership and limits](retail-pathfinding-purpose-random.md).
+
+
+## Attack user-head admission and point snapshots
+
+Payoff173 integrates the first ORDER-01.10 ownership chunk. `CAbilityAttack`
+now publishes registry-resolved Attack/Attack Ground IDs only after accepted
+user-order activation. Direct automatic `order_attack` changes the combat task
+without changing the public head. The same acceptance hook runs when the generic
+FIFO activates an order, so both Move → Attack Move and Attack Move → Move
+handoffs expose the newly activated command. Stop and death retire the head;
+restoring a save retains the active head and pending point snapshot.
+
+Retail `207160` queries target position before admission. Attack against an air
+unit outside the weapon mask, an invulnerable unit, itself or a corpse converts
+to point Attack Move. The Attack admission hook returns `ABILITY_ORDER_POINT`
+with the captured coordinates; the generic producer forwards through normal
+point admission/publication. Shift queues therefore own a point rather than the
+rejected target's identity, and later target movement cannot alter that goal.
+This does not add a per-unit allocation or a target scan: normalization is a
+constant-time query at order issue, using the existing point/FIFO storage.
+
+The original task-producing `49a980` belongs to Attack. `5fe1a0` expands issued
+Patrol and is now named `Move_ExpandIssuedPatrol` in the saved Ghidra project and
+mapper; its old Attack Move name was incorrect. Public `2039d0` reads user-head
+`order+24`, never the internal Attack task parameter `d000f`.
+
+`wc3_attack_orders.*` drives compiled JASS natives, actual simulation frames,
+accepted artillery Attack Ground, automatic combat, both queued handoffs,
+invalid-target snapshots, game saves, death and entity reuse. The source archive
+is rebuilt by `research/verify_attack173_orders.py`: ten observed captures,
+four observer-free controls, all6604 raw records and6614 marker emissions,
+including complete normalized task decisions. No new retail capture was needed;
+the prepared Frida captures and Ghidra assembly were consumed directly.
+
+ORDER-01.10 remains open. Attack Once, delayed target-loss retirement at swing
+completion, reaction/acquisition timers and non-artillery Attack Ground are not
+implemented by this chunk. Retail attack/save numerical parity is not inferred
+from engine round trips. The queue witness has no observer-free control and
+its input landing ticks differ; see the [handoff](retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md)
+and [probe addendum](retail-pathfinding-handoffs/ORDER-01.10/HANDOFF-addendum.md).

@@ -1022,6 +1022,7 @@ typedef enum {
     ABILITY_ORDER_REJECTED,
     ABILITY_ORDER_ACCEPTED,
     ABILITY_ORDER_INTERCEPTED, /* Accepted by the current owner without replacing its public head or queue. */
+    ABILITY_ORDER_POINT, /* Owner converts a target order to its captured point before admission. */
 } abilityOrderResult_t;
 
 struct ability_call_s {
@@ -1038,7 +1039,7 @@ struct ability_call_s {
         groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
-        struct { edict_t *target; cstring_t order; bool queued; } issued_target_order; /* Issuer target admission/dispatch. */
+        struct { edict_t *target; cstring_t order; bool queued; vec2_t *point; } issued_target_order; /* Issuer target admission/dispatch; optional conversion output. */
         cstring_t classname;
         uint32_t level;
         bool enabled;
