@@ -106,6 +106,9 @@ Haunted and Entangled mines instead use `edict.mineoverlay.parent` plus the pare
 ordinary mine while it exists, but never copies its `resources`; death or `RemoveUnit` restores the parent. Normal `isBuildOn`
 construction binds an Undead overlay to the exact mine found by authoritative placement. `Aent` creates the authored Night Elf
 resulting UnitID at the target mine and starts the autonomous Night Elf construction clock without attaching a Wisp.
+When a map script removes a neutral mine before creating a Haunted Mine, `RemoveUnit` defers freeing that edict until the current
+tick ends. Preplaced overlay binding skips deferred mines and creates a live parent at the same location, preserving the replacement's
+gold and allowing Haunted Mine death to restore a working ordinary mine.
 
 Undead Acolytes use `Aaha` rather than conventional Harvest. `Abgm` DataC and DataD define the number and radius of fixed ring slots.
 An Acolyte walks into ability range, selects the nearest free slot, snaps to its deterministic ring point, remains visible in
