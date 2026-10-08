@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "151 executable original oracle contracts;423 total entries.",
+  "scope": "152 executable original oracle contracts;424 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -46197,6 +46197,58 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-shared-growth",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_shared_growth.py",
+        "--binary",
+        "{binary}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-shared-growth189-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "shared-growth189.json",
+      "expected_exit": 0,
+      "expected_status": "bounded-original-shared-growth",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "owners": {
+          "equal": 129
+        },
+        "block_size": {
+          "equal": 64
+        },
+        "block_bytes": {
+          "equal": 3076
+        },
+        "growth_allocations": {
+          "equal": 3
+        },
+        "reuse_allocations": {
+          "equal": 0
+        },
+        "final_live": {
+          "equal": 0
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Original owner/registry constructors,129 shared factories through three64-element raw pool blocks, two-group radius mutation/departure, references/publication and exact reverse-release reuse.",
+      "exclusions": [
+        "Only Storm storage imports replaced; allocation failure is not injected.",
+        "Group/member registry bindings supplied; separate repeated public mixed13 Captain journeys cover public admission/lifecycle.",
+        "Engine derived index preserves logical IDs and traversal; it does not emulate retail raw object addresses."
+      ]
     }
   ],
   "fixtures": [
@@ -46262,7 +46314,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "3a6d0198f4bed8d62040d73c645fd206388329fd536e73a99c560adf5f55fa48"
+      "sha256": "b656f418d41d8ddf97907a0b0b57ee461cb8fcda9c44e9dd164cfd97a8cc2535"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -47095,7 +47147,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "98dd165b37d15afebcc01c48b57b85f97b68188a7294686ce875b1a7cee4757b"
+      "sha256": "c26d08162c68b00e6f3670766c09d007be1b637e2ec0dd44dc6e10429a044abc"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -47951,7 +48003,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "2f1d5c060e91e3ad0bb079f838917d052af3dc78c6a38413c231f51aa50ad2f1"
+      "sha256": "6ba05536bbcb1bc0862e970f4df6d580ca82ff3b88a2ffd677e8568950f83963"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -48387,7 +48439,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "20491a61c19a09942007b473b0695303931d4f3256cbb52c06ea6f877a00f023"
+      "sha256": "c2e1ad744cdbc4868565ece41891e64162fa71feb60d677f4f4b39ae6d11079d"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -48395,7 +48447,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "774786883df1e98cb018d51661cd7fdc5fc75205217bc5476cf9e84be0f56333"
+      "sha256": "a3ab58d830ba21a8bd0d1d423e4d787df20727c90621c38c54c15dc3b9b19b29"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -48643,7 +48695,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "79ef7aec363d9c6b2a90c154b1ec745ee8ca62778847c097df109712abd5ab8c"
+      "sha256": "fe29f8b2fa5c2b387dc1ec3b66df23eba5b2701d781c7d75fd3fdfb30eef3075"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -48887,7 +48939,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "7e1a55213a1072764744916bcf17eefcaa7d730b31d47971784091eb059dcda2"
+      "sha256": "255fad4ec2f50fc7bdb8e7ab58187706fe18f2234ead84738c21298f75a65720"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -48899,11 +48951,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "abe6c2ec51419438c41ebbce7b8aed47e603ff7d17711dbb97fa955256d2fbd5"
+      "sha256": "be160351f5ac4c169dafa6882f41c24e28ea9414731338fb1b3b2b954223a413"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "4857969c8d9e87a91e2e09aa5cdcd6bc57ee127ef6f1868ed196f5867e680db3"
+      "sha256": "12fd6b692943bc53bb45615727a2040eee5d76cd82ddcf68ed4f1d7ff8ae8af8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50520,6 +50572,22 @@
     {
       "path": "tools/ghidra/fixtures/retail-portal-ghidra188-1.27.json",
       "sha256": "5f8ebd4151d684b85ba659771a22e4d4c6b04edc516f636d74c6be5121d38c59"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_shared_growth.py",
+      "sha256": "573fc587baaf26ba3f2d213852f7e0abcc64e643e8984b0628624e8e4e590d54"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-growth189-1.27.json",
+      "sha256": "59215e0c2804532e1e1f8eb345d6d83a32a57fd1be5b6adde20bcbe6695c6002"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_shared_growth.py",
+      "sha256": "a394701e52cbdc25a1b8cc7916a72ac5b6d24ab5a75e98517379acaa5011c845"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-shared-ghidra189-1.27.json",
+      "sha256": "d60cc16db0300bbd8e9370becaeba64ff03fc998a66ef92014e1e469e379fa34"
     }
   ]
 }

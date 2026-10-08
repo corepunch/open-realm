@@ -1,0 +1,118 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "layouts": [
+    {
+      "name": "WC3PathPoolPrefix",
+      "length": 32,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "element_size",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 4,
+          "name": "elements_per_block",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 8,
+          "name": "raw_live_count",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 12,
+          "name": "block_head",
+          "type": "ptr:void",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 16,
+          "name": "raw_free_head",
+          "type": "ptr:void",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f155490",
+      "name": "PathShared_Allocate",
+      "returns": "ptr:WC3PathSharedPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:WC3PathPoolPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "zero_fill",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+    },
+    {
+      "address": "6f06a320",
+      "name": "ObjectPool_AllocateElement",
+      "returns": "ptr:void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:WC3PathPoolPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "zero_fill",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "debug_file",
+          "type": "ptr:u8",
+          "storage": 8
+        },
+        {
+          "name": "debug_line",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+    }
+  ],
+  "records": [
+    {
+      "address": "6f155490",
+      "name": "PathShared_Allocate",
+      "evidence": "Payoff189 GROUP-03.3: thiscall ECX owner+658 pool, stack4 zero-fill flag, RET4/EAX payload pointer. Constructed free list+14 is preferred; otherwise06a320 raw allocator and14fd70 payload constructor. Original owner157a59.. initializes stride48/block64. Complete original owner/registry constructors plus129 factories cross three raw blocks of3076bytes. All old payloads remain intact, live count+18 reaches129. Zero-reference16c220 release then129 factories reuse exact reversed release order without Storm allocation; final live0. Engine geometric pool keeps logical identities, uses a derived hash slot index and lowest-free hint for lookup/allocation; neither determines publication order.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16c220",
+      "name": "PathShared_PublishAndReset",
+      "evidence": "Payoff189 GROUP-03.3: original grown shared owner receives both group references through16d890; publish prior speed/reset radius,16e1f0 observes larger member growing1.75 to3.25 then ignores its invalid group ownership on departure, radius returns.75. Both physical16c940 reads see the same raw words in each phase; removing both refs then publication returns the object to its pool. Engine keeps this ordered aggregate while replacing repeated owner lookup and nested reference validation with a derived index. Cold saves retain logical fields; no index/pointer serialization.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16e1f0",
+      "name": "PathGroup_AccumulateSharedRadius",
+      "evidence": "Payoff189 GROUP-03.3: growth oracle composes this actual registry-resolving radius collector over two supplied valid group/member bindings to a shared payload in the second of three64-object pool blocks. Radius mutation and largest-owner departure reproduce both physical consumers exactly. Supplied bindings are explicitly separate from existing repeated public mixed13 Captain journeys; no new gameplay callback reachability is claimed.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f154460",
+      "name": "PathShared_ReturnToPool",
+      "evidence": "Payoff189 GROUP-03.3:129 complete zero-reference releases return preceding four-byte payload headers to constructed free list+14. Subsequent129 factory calls consume exact LIFO sequence, raw backing remains three64-element blocks and no new Storm call occurs. Reference publication and pool reclaim are separate phases; engine preserves next-owner prepass retirement and generation non-reuse despite its optimized derived index.",
+      "readback_matches": true
+    }
+  ]
+}

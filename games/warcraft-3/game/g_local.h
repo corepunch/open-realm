@@ -3276,6 +3276,7 @@ bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(
 edict_t *S_UnitTargetApproachReceiver(edict_t const *);
 void S_CancelUnitTargetApproach(edict_t *);
 moveShared_t *S_FindMoveShared(uint64_t);
+bool S_RebuildMoveShared(void);
 bool S_ValidateMoveShared(void);
 uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
 bool S_AdmitUnitMoveFineRequest(edict_t *unit);

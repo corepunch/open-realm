@@ -2435,8 +2435,8 @@ static bool ReadMoveShared(FILE *f) {
             *(uint8_t const *)&shared->inuse!=1 || !shared->id || shared->id>level.next_move_shared_id ||
             !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
             !isfinite(shared->radius) || shared->radius<0) goto failed;
-        FOR_LOOP(j,i) if (level.move_shared[j].id==shared->id) goto failed;
     }
+    if(!S_RebuildMoveShared())goto failed;
     return true;
 failed:
     S_ClearMoveGroups();
@@ -3658,6 +3658,42 @@ TEST(wc3_save, rejects_invalid_fine_request_graphs) {
         second->inuse=true;
     }
     S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+extern uint64_t S_TestMoveSharedLookupSteps(bool);
+TEST(wc3_save, shared189_unordered_owner_lookup_and_cold_restore_scale_linearly) {
+    reset_entities();setup_test_world();S_ClearMoveGroups();
+    uint64_t old_id=level.next_move_shared_id;level.next_move_shared_id=65536;
+    unsigned const count=1024;
+    level.move_shared=calloc(count,sizeof(*level.move_shared));T_NOT_NULL(level.move_shared);
+    ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=count;
+    FOR_LOOP(i,count)level.move_shared[i]=(moveShared_t){.id=10000+(i*37)%count,
+        .inuse=true,.speed=100+i,.next_speed=200+i,.radius=i%4*16+8};
+    FOR_LOOP(pass,2) {
+        T_ASSERT(S_ValidateMoveShared());
+        S_TestMoveSharedLookupSteps(true);
+        FOR_LOOP(i,count)T_EQ(S_FindMoveShared(level.move_shared[i].id),level.move_shared+i);
+        T_NULL(S_FindMoveShared(0));T_NULL(S_FindMoveShared(9999));T_NULL(S_FindMoveShared(65536));
+        uint64_t work=S_TestMoveSharedLookupSteps(true);
+        fprintf(stderr,"shared189 owners=%u lookup steps=%llu\n",count,(unsigned long long)work);
+        T_ASSERT(work<=8*count);
+        FOR_LOOP(i,count) {
+            T_EQ(level.move_shared[i].id,10000+(i*37)%count);
+            T_EQ(level.move_shared[i].speed,100+i);T_EQ(level.move_shared[i].next_speed,200+i);
+            T_EQ(level.move_shared[i].radius,i%4*16+8);
+        }
+        uint64_t id=level.move_shared[count-1].id;
+        level.move_shared[count-1].id=level.move_shared[0].id;
+        T_ASSERT(!S_ValidateMoveShared());level.move_shared[count-1].id=id;T_ASSERT(S_ValidateMoveShared());
+        if(!pass) {
+            FILE *file=tmpfile();T_NOT_NULL(file);
+            if(file) {
+                T_ASSERT(WriteMoveShared(file));S_ClearMoveGroups();rewind(file);T_ASSERT(ReadMoveShared(file));
+                T_EQ(ARRAY_COUNT(level.move_shared),count);fclose(file);
+            }
+        }
+    }
+    S_ClearMoveGroups();level.next_move_shared_id=old_id;reset_entities();setup_test_world();
 }
 
 TEST(wc3_save, rejects_invalid_shared_move_payloads) {

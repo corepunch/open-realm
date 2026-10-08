@@ -491,13 +491,93 @@ static void move_update_fine_budget(void) {
     }
 }
 
-moveShared_t *S_FindMoveShared(uint64_t id) {
-    if (!id) return NULL;
-    FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
-        moveShared_t *shared=level.move_shared+i;
-        if (shared->inuse && shared->id==id) return shared;
+#ifdef BZ_TESTS
+static uint64_t move_shared_lookup_steps;
+uint64_t S_TestMoveSharedLookupSteps(bool reset) {
+    uint64_t steps=move_shared_lookup_steps;
+    if(reset)move_shared_lookup_steps=0;
+    return steps;
+}
+#define MOVE_SHARED_LOOKUP_STEP() (move_shared_lookup_steps++)
+#else
+#define MOVE_SHARED_LOOKUP_STEP() ((void)0)
+#endif
+
+/* Derived slot index, never saved or used to choose owner traversal order.
+ * Slots survive backing-array growth; cold load reconstructs the index.
+ * Empty hash entries are zero, occupied entries are slot+1. */
+static uint32_t *move_shared_index;
+static uint32_t move_shared_index_capacity,move_shared_index_used,move_shared_first_free;
+static moveShared_t const *move_shared_index_data;
+static uint32_t move_shared_index_count;
+
+static uint32_t move_shared_hash(uint64_t id) {
+    /* SplitMix64 finalizer: disperse both words of monotonic saved identities. */
+    id=(id^(id>>30))*UINT64_C(0xbf58476d1ce4e5b9);
+    id=(id^(id>>27))*UINT64_C(0x94d049bb133111eb);
+    return (uint32_t)(id^(id>>31));
+}
+
+static bool move_shared_insert(uint32_t slot) {
+    uint64_t id=level.move_shared[slot].id;
+    if(!id)return false;
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(id)&mask;
+    while(move_shared_index[index]) {
+        if(level.move_shared[move_shared_index[index]-1].id==id)return false;
+        index=(index+1)&mask;
     }
-    return NULL;
+    move_shared_index[index]=slot+1;move_shared_index_used++;
+    return true;
+}
+
+bool S_RebuildMoveShared(void) {
+    uint32_t count=ARRAY_COUNT(level.move_shared),capacity=16;
+    if(count>UINT32_MAX/2 || (count && !level.move_shared))return false;
+    while(capacity<count*2) {
+        if(capacity>UINT32_MAX/2)return false;
+        capacity*=2;
+    }
+    if(capacity!=move_shared_index_capacity) {
+        uint32_t *index=calloc(capacity,sizeof(*index));
+        if(!index)return false;
+        free(move_shared_index);move_shared_index=index;move_shared_index_capacity=capacity;
+    } else memset(move_shared_index,0,capacity*sizeof(*move_shared_index));
+    move_shared_index_used=0;move_shared_first_free=count;
+    move_shared_index_data=NULL;move_shared_index_count=0;
+    FOR_LOOP(i,count) {
+        if(level.move_shared[i].inuse) {if(!move_shared_insert(i))return false;}
+        else move_shared_first_free=MIN(move_shared_first_free,i);
+    }
+    move_shared_index_data=level.move_shared;move_shared_index_count=count;
+    return true;
+}
+
+static bool move_prepare_shared_index(void) {
+    return move_shared_index && move_shared_index_data==level.move_shared &&
+        move_shared_index_count==ARRAY_COUNT(level.move_shared) ? true : S_RebuildMoveShared();
+}
+
+moveShared_t *S_FindMoveShared(uint64_t id) {
+    if(!id || !move_prepare_shared_index())return NULL;
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(id)&mask;
+    for(;;index=(index+1)&mask) {
+        MOVE_SHARED_LOOKUP_STEP();
+        uint32_t slot=move_shared_index[index];if(!slot)return NULL;
+        moveShared_t *shared=level.move_shared+slot-1;
+        if(shared->id==id)return shared->inuse ? shared : NULL;
+    }
+}
+
+static void move_shared_erase(uint32_t slot) {
+    uint32_t mask=move_shared_index_capacity-1,index=move_shared_hash(level.move_shared[slot].id)&mask;
+    while(move_shared_index[index]!=slot+1)index=(index+1)&mask;
+    move_shared_index[index]=0;move_shared_index_used--;
+    /* Reinsert the following cluster so no tombstones accumulate under churn. */
+    for(index=(index+1)&mask;move_shared_index[index];index=(index+1)&mask) {
+        uint32_t displaced=move_shared_index[index]-1;
+        move_shared_index[index]=0;move_shared_index_used--;move_shared_insert(displaced);
+    }
+    move_shared_first_free=MIN(move_shared_first_free,slot);
 }
 
 static moveShared_t *move_group_shared(moveGroup_t const *group) {
@@ -510,7 +590,8 @@ static moveShared_t *move_group_shared(moveGroup_t const *group) {
 /* Reference0 is reclaimed in the next owner prepass, as original16c220 does. */
 static uint64_t move_alloc_shared(void) {
     if (level.next_move_shared_id==UINT64_MAX) gi.error("Move: shared owner identity exhausted");
-    uint32_t slot=0;
+    if(!move_prepare_shared_index())gi.error("Move: cannot index shared parameter owners");
+    uint32_t slot=move_shared_first_free;
     while(slot<ARRAY_COUNT(level.move_shared) && level.move_shared[slot].inuse) slot++;
     if (slot==ARRAY_COUNT(level.move_shared)) {
         if (slot==level.move_shared_capacity) {
@@ -524,10 +605,18 @@ static uint64_t move_alloc_shared(void) {
     }
     moveShared_t *shared=level.move_shared+slot;
     *shared=(moveShared_t){.id=++level.next_move_shared_id,.inuse=true,.speed=FLT_MAX,.next_speed=FLT_MAX};
+    if(move_shared_index_used>=move_shared_index_capacity/2) {
+        if(!S_RebuildMoveShared())gi.error("Move: cannot grow shared parameter index");
+    } else {
+        if(!move_shared_insert(slot))gi.error("Move: duplicate shared parameter identity");
+        move_shared_index_data=level.move_shared;move_shared_index_count=ARRAY_COUNT(level.move_shared);
+    }
+    move_shared_first_free=slot+1;
     return shared->id;
 }
 
 bool S_ValidateMoveShared(void) {
+    if(!S_RebuildMoveShared())return false;
     FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
         moveShared_t const *shared=level.move_shared+i;
         if (*(uint8_t const *)&shared->inuse>1) return false;
@@ -535,29 +624,31 @@ bool S_ValidateMoveShared(void) {
         if (!shared->id || shared->id>level.next_move_shared_id ||
             !isfinite(shared->speed) || shared->speed<0 || !isfinite(shared->next_speed) || shared->next_speed<0 ||
             !isfinite(shared->radius) || shared->radius<0) return false;
-        FOR_LOOP(j,i) if (level.move_shared[j].inuse && level.move_shared[j].id==shared->id) return false;
-        uint32_t references=0;
-        FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
-            moveGroup_t const *group=level.move_groups[g];
-            if (group->inuse && group->shared_id==shared->id) references++;
-        }
-        if (references!=shared->references) return false;
     }
+    uint32_t count=ARRAY_COUNT(level.move_shared);
+    uint32_t *references=count ? calloc(count,sizeof(*references)) : NULL;
+    if(count && !references)return false;
+    bool valid=true;
     FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
         moveGroup_t const *group=level.move_groups[g];
-        if (group->inuse && group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
+        if(!group->inuse || !group->shared_id)continue;
+        moveShared_t const *shared=S_FindMoveShared(group->shared_id);
+        if(!shared){valid=false;break;}
+        references[shared-level.move_shared]++;
     }
-    return true;
+    FOR_LOOP(i,count)if(level.move_shared[i].inuse && references[i]!=level.move_shared[i].references)valid=false;
+    free(references);return valid;
 }
 
 /* Publish the previous speed accumulator, then collect all bound groups'
  * live mover radii before any physical owner routes. Original15aa80 orders
  *16c220 for shared owners,16e1f0 for groups, and only then16c570 movement. */
 static void move_update_shared(void) {
+    if(!move_prepare_shared_index())gi.error("Move: invalid shared parameter index");
     FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
         moveShared_t *shared=level.move_shared+i;
         if (!shared->inuse) continue;
-        if (!shared->references) {memset(shared,0,sizeof(*shared));continue;}
+        if (!shared->references) {move_shared_erase(i);memset(shared,0,sizeof(*shared));continue;}
         shared->speed=shared->next_speed; shared->next_speed=FLT_MAX; shared->radius=0;
     }
     FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
@@ -607,6 +698,8 @@ void S_ClearMoveGroups(void) {
     ARRAY_COUNT(level.move_groups)=level.move_group_capacity=0;
     free(level.move_shared); level.move_shared=NULL;
     ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=0;
+    free(move_shared_index);move_shared_index=NULL;move_shared_index_capacity=move_shared_index_used=0;
+    move_shared_index_data=NULL;move_shared_index_count=move_shared_first_free=0;
 }
 
 /* Swap removal preserves the original surviving-row order contract. */

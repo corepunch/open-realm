@@ -16469,6 +16469,54 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
 }
 
+TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reuse) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.pathing_phase=0;level.pathing_due=false;level.started=true;
+    char script[1800];int length=snprintf(script,sizeof(script),"function main takes nothing returns nothing\n");
+    FOR_LOOP(i,13)length+=snprintf(script+length,sizeof(script)-length,
+        "call CreateUnit(Player(0),'hRTE',%d,%d,90)\n",-352+(int)(i%4)*64,-352+(int)(i/4)*64);
+    snprintf(script+length,sizeof(script)-length,"endfunction\n");T_ASSERT(run_test_jass(script));
+    player_t *player=G_GetPlayerByNumber(0);G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,-256,-256);G_BotInitAssault(player);
+    T_ASSERT(G_BotAddAssault(player,13,MAKEFOURCC('h','R','T','E')));
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    FOR_LOOP(i,400) {
+        if(captain->entered_members==13)break;
+        level.time+=30;globals.RunFrame();
+    }
+    T_EQ(captain->entered_members,13);T_EQ(ARRAY_COUNT(captain->units),13);
+    if(captain->entered_members!=13){level.started=false;G_BotStop(0);reset_entities();setup_test_world();return;}
+    uint64_t before=level.next_move_shared_id;
+    FOR_LOOP(i,129)S_CaptainPointMove(captain,&(vec2_t){-600+(float)i*4,-900},200);
+    uint64_t id=level.next_move_shared_id;T_EQ(id-before,129);T_ASSERT(ARRAY_COUNT(level.move_shared)>=129);
+    T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+    moveShared_t const *shared=S_FindMoveShared(id);T_NOT_NULL(shared);if(shared)T_EQ(shared->references,2);
+    /* Empty physical owners retire at their normal owner boundary, before save. */
+    level.time+=30;globals.RunFrame();level.time+=30;globals.RunFrame();
+    T_ASSERT(WriteGame("/tmp/wc3-shared189-growth.bin"));T_ASSERT(ReadGame("/tmp/wc3-shared189-growth.bin"));
+    captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    edict_t *largest=captain->units[0];float old_radius=largest->collision;largest->collision=63;
+    level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared){T_EQ(shared->radius,63);T_EQ(shared->references,2);}
+    largest->collision=95;level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared)T_EQ(shared->radius,95);
+    FOR_LOOP(i,129)if(before+i+1!=id)T_NULL(S_FindMoveShared(before+i+1));
+    T_ASSERT(unit_issueimmediateorder(largest,"stop"));
+    level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared)T_EQ(shared->radius,old_radius);
+    FOR_EACH_ARRAY(edict_t *,member,captain->units)
+        T_ASSERT(unit_issueimmediateorder(*member,"stop"));
+    level.time+=30;globals.RunFrame();level.time+=30;globals.RunFrame();
+    T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
+    unsigned high_water=ARRAY_COUNT(level.move_shared);
+    S_CaptainPointMove(captain,&(vec2_t){400,-900},200);
+    T_NOT_NULL(S_FindMoveShared(level.next_move_shared_id));T_EQ(ARRAY_COUNT(level.move_shared),high_water);
+    T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
+    remove("/tmp/wc3-shared189-growth.bin");level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and_save) {
     G_BotStop(0);reset_entities();setup_test_world();
     T_ASSERT(run_test_jass(

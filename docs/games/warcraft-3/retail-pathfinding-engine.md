@@ -12953,3 +12953,69 @@ red/green engine logs and saved Ghidra assembly/decompilation/readback are under
 ABI fixture retain the three saved portal contracts. MAP-04.2 stays open for
 its remaining group publication/rectangle-list/stale-identity and broader
 notification/reentrancy lifetimes; this chunk creates no new leaves.
+
+### Shared parameter growth and indexed ownership (Payoff189)
+
+GROUP-03.3 is implemented and closed. Move retains the shared owner's logical
+identity, previous-speed publication, all-group live-radius aggregation and
+next-owner reclamation. A derived open-addressed slot index replaces linear
+owner lookup; a lowest-free hint preserves allocation's existing slot choice.
+The index stores slot numbers, survives backing-array relocation and is rebuilt
+on cold load. It never selects group traversal order or enters the save stream.
+Duplicate identity and reference validation now takes expected O(N + G) work,
+instead of nested owner/group scans. Network and save146 contracts are unchanged.
+
+The regression `wc3_save.shared189_unordered_owner_lookup_and_cold_restore_scale_linearly`
+uses 1,024 permuted owner identities. Before the fix, both warm lookup and cold
+restore require 526,848 record inspections and fail the work bound. After the
+fix, each requires 1,532 probes; all 10,259 assertions pass. This measures the
+registry operation, not total pathfinding time or frame-budget compliance.
+
+`wc3_movement.shared189_captain_pool_growth_radius_departure_and_saved_reuse`
+creates thirteen recruits through JASS, admits them through the actual Captain
+home timers and issues 129 successive shared Captain point orders. The registry
+grows while old bindings await their normal owner visits. After those visits,
+full WriteGame/ReadGame preserves the live two-group binding. Changing a member's
+collision radius to 63 then 95 publishes both maxima; public Stop removes it
+from aggregation, restoring the other members' radius. Stopping the remaining
+members reclaims the owner at the next prepass. A fresh order reuses the retained
+capacity with a fresh identity; the previous identity remains absent. Classic
+and TFT each pass 167 assertions. Saving occurs after empty physical groups
+retire normally; this is not a claim about unbounded pending-order save limits.
+
+The native oracle executes original owner/registry constructors and the shared
+factory `155490`, including raw allocator `06a320` and payload constructor
+`14fd70`. The owner initializes its pool at +658 with stride48/block64. All129
+payloads survive three 3,076-byte raw blocks. A payload in the second block
+receives two references through original `16d890`. Original `16c220` publishes
+speed and clears radius; `16e1f0` aggregates radii 0.75/1.75, then 0.75/3.25,
+then ignores the departing larger mover's invalid ownership. Both original
+`16c940` consumers receive the identical raw radius each time. Removing both
+references and releasing all129 objects returns them to the constructed pool;
+129 subsequent factories consume the exact reverse release sequence without
+another Storm allocation. Final live count is zero. Only Storm storage imports
+are serviced by the emulator; group/member registry bindings are supplied and
+are explicitly separate from public factory/admission evidence.
+
+The existing repeated/control Frida mixed13 journeys supply that public
+coverage. All23 `wc3_movement.public_captain*` tests remain exact in Classic and
+TFT (2,606,567 assertions each), including saved continuations, largest-member
+Stop and both-binding cleanup. The195-test save suite passes37,905 assertions
+in each mode. Full-suite validation follows the authorized batch cadence.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_shared_growth.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --fixture tools/ghidra/fixtures/retail-shared-growth189-1.27.json \
+  --output /tmp/shared-growth.json
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_shared_growth.py'
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_movement.shared189*'
+build/bin/openwarcraft3-tests -data build/tests -tft +dedicated 1 +test 'wc3_movement.shared189*'
+```
+
+Saved Ghidra comments, raw pool fields and explicit factory/allocator ABIs are
+reproducible through `MapPathfinding.java` and the type fixture. The compact
+saved readback is `retail-shared-ghidra189-1.27.json`; native repeats, red/green
+engine logs and full Ghidra readbacks remain in
+`/GitHub/wc3-analysis/runtime/payoff189`. No recovery from Storm allocation
+failure, public callback mutation or wider Captain producer closure is claimed.

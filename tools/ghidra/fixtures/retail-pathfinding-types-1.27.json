@@ -725,6 +725,36 @@
       "length": 32,
       "fields": [
         {
+          "offset": 0,
+          "name": "element_size",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 4,
+          "name": "elements_per_block",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 8,
+          "name": "raw_live_count",
+          "type": "u32",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 12,
+          "name": "block_head",
+          "type": "ptr:void",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
+          "offset": 16,
+          "name": "raw_free_head",
+          "type": "ptr:void",
+          "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+        },
+        {
           "offset": 20,
           "name": "free_header",
           "type": "ptr:void",
@@ -16264,6 +16294,54 @@
         }
       ],
       "evidence": "Payoff187: thiscall ECX path, stack4 target fine record, RET4; store atpath+a4. The target record remains independent of the absent group self. Original16ce10 supplies the target region before a group coarse request. Fresh read-only region boundaries and archived full ground-to-air pursuit pin this distinction; member path captures its own self separately."
+    },
+    {
+      "address": "6f155490",
+      "name": "PathShared_Allocate",
+      "returns": "ptr:WC3PathSharedPrefix",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:WC3PathPoolPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "zero_fill",
+          "type": "u32",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+    },
+    {
+      "address": "6f06a320",
+      "name": "ObjectPool_AllocateElement",
+      "returns": "ptr:void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:WC3PathPoolPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "zero_fill",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "debug_file",
+          "type": "ptr:u8",
+          "storage": 8
+        },
+        {
+          "name": "debug_line",
+          "type": "u32",
+          "storage": 12
+        }
+      ],
+      "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
     }
   ],
   "globals": [
