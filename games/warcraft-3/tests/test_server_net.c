@@ -211,6 +211,24 @@ static void reset_server_state(int max_players) {
     reset_test_gi();
 }
 
+TEST(server_net, hidden_entity_baseline_matches_what_signon_sends) {
+    reset_server_state(3);
+    test_edicts[0].s = (entityState_t){ .number = 0, .model = 7, .origin = { 1, 2, 3 } };
+    test_edicts[1].s = (entityState_t){ .number = 1, .model = 8, .origin = { 4, 5, 6 } };
+    test_edicts[1].svflags = SVF_NOCLIENT;
+    test_edicts[2].s = (entityState_t){ .number = 2, .model = 9, .origin = { 7, 8, 9 } };
+
+    SV_CreateBaseline();
+
+    T_EQ(sv.baselines[0].model, 7);
+    T_EQ(sv.baselines[1].model, 0);
+    T_FEQ(sv.baselines[1].origin.x, 0, 0.001f);
+    T_EQ(sv.baselines[2].model, 9);
+    T_EQ(test_edicts[1].s.number, 1);
+    MemFree(sv.baselines);
+    sv.baselines = NULL;
+}
+
 TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
     client_t *client;
 
