@@ -355,7 +355,7 @@ void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip);
 void R_BindTexture(texture_t const *texture, uint32_t unit);
 void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);
-void R_DrawWaterEntityOverlays(void);
+void R_DrawSupportedEntityOverlays(void);
 void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, line3_t const *line, vec3_t *intersection);
