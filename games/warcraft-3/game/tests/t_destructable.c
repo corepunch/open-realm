@@ -1187,6 +1187,9 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         "  set validDest = CreateDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
         "  set missingDest = CreateDestructable('B004', 128.0, 64.0, 0.0, 1.0, 0)\n"
         "  call SetDestructableAnimation(validDest, \"stand alternate\")\n"
+        "  call QueueDestructableAnimation(validDest, \"stand\")\n"
+        "  call SetDestructableOccluderHeight(validDest, 256.0)\n"
+        "  call BJassAssert(GetDestructableOccluderHeight(validDest) == 256.0, \"elevator height not retained\")\n"
         "  call SetDestructableAnimation(missingDest, \"death alternate\")\n"
         "endfunction\n"));
 
@@ -1199,11 +1202,19 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
     T_NOT_NULL(valid); T_NOT_NULL(missing);
     if (valid && missing) {
         T_STREQ(valid->animation_request, "stand alternate");
+        T_STREQ(valid->queued_animation, "stand");
+        T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
         T_NOT_NULL(valid->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
             T_ASSERT(valid->animation_override);
+            valid->s.frame = valid->animation->interval[1] - 1;
+            G_RunDestructableAnimation(valid);
+            T_STREQ(valid->animation_request, "stand");
+            T_STREQ(valid->queued_animation, "");
+            T_NOT_NULL(valid->animation);
+            if (valid->animation) T_EQ(valid->s.frame, valid->animation->interval[0]);
         }
         T_STREQ(missing->animation_request, "death alternate");
         T_NULL(missing->animation);

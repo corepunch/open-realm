@@ -131,13 +131,22 @@ uint32_t GetDestructableMaxLife(jass_t *j) {
     return jass_pushnumber(j, d ? (float)d->health.max_value : 0);
 }
 uint32_t SetDestructableOccluderHeight(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    //(void)jass_checknumber(j, 2);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    float const height = jass_checknumber(j, 2);
+    if (G_IsDestructable(d)) {
+        d->destructable->occluder_height = height;
+        if (height > 0.0f || d->targtype == TARG_TREE)
+            d->s.flags |= EF_FOW_BLOCKER;
+        else
+            d->s.flags &= ~EF_FOW_BLOCKER;
+        G_FowMarkBlockersDirty();
+        gi.LinkEntity(d);
+    }
     return 0;
 }
 uint32_t GetDestructableOccluderHeight(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, 0);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    return jass_pushnumber(j, G_IsDestructable(d) ? d->destructable->occluder_height : 0.0f);
 }
 uint32_t DestructableRestoreLife(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
@@ -147,19 +156,20 @@ uint32_t DestructableRestoreLife(jass_t *j) {
     return 0;
 }
 uint32_t QueueDestructableAnimation(jass_t *j) {
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    //cstring_t whichAnimation = jass_checkstring(j, 2);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    cstring_t const animation = jass_checkstring(j, 2);
+    if (G_IsDestructable(d) && animation)
+        strlcpy(d->queued_animation, animation, sizeof(d->queued_animation));
     return 0;
 }
 uint32_t SetDestructableAnimation(jass_t *j) {
     edict_t *d = jass_checkhandle(j, 1, "destructable");
     cstring_t animation = jass_checkstring(j, 2);
     if (G_IsDestructable(d) && animation) {
+        d->queued_animation[0] = '\0';
         G_SetUnitAnimation(d, animation);
-        if (d->animation) {
-            d->animation_override = true;
-            d->s.frame = d->animation->interval[0];
-        }
+        d->animation_override = d->animation != NULL;
+        if (d->animation) d->s.frame = d->animation->interval[0];
     }
     return 0;
 }

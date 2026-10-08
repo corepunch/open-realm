@@ -197,6 +197,7 @@ void G_RunEntity(edict_t *ent) {
     G_RunConstructionFrame(ent);
     G_RunBuildingUpgradeFrame(ent);
     if (world_active) SAFE_CALL(ent->think, ent);
+    if (world_active) G_RunDestructableAnimation(ent);
     /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */

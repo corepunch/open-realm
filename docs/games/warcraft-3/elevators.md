@@ -24,8 +24,11 @@ from deck height.
 `ChangeElevatorHeight` transition pairs from Blizzard.j are 2->1 birth,
 3->1 birth third, 1->2 death, 3->2 birth second, 1->3 death third, and 2->3
 death second. It queues stand, stand second, or stand third at the target.
-MDX transition clips have the non-looping sequence flag. Destructables need
-their own animation clock because they do not own the unit movement callback.
+MDX transition clips have the non-looping sequence flag. Destructables use a JASS-owned animation clock rather than the unit movement callback.
+Non-looping transitions hold at their final pose until the queued Stand variant
+takes over. Gameplay unit support uses the mutable occluder offset immediately;
+renderer mesh conformance may raise a unit further but must not lower the
+authoritative game altitude. Ordinary bridge support remains unchanged.
 
 Asset findings from local retail archives: DTrx and DTrf both resolve to
 `Doodads/Cinematic/ElevatorPuzzle/ElevatorPuzzle.mdx`; its TEXS entries are

@@ -162,6 +162,8 @@ typedef struct {
     float radius;
     float splatsize;
     float ground_offset; /* current altitude above an authored ground/support surface */
+    float ground_snapshot_z; /* authoritative current snapshot Z, before client interpolation */
+    bool ground_snapshot_valid;
 #ifndef USE_SHADOWMAPS
     texture_t const *shadow;
     rect_t shadow_rect;

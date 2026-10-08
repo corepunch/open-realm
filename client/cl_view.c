@@ -307,6 +307,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_SELECTION_CIRCLE_ON_WATER) re.flags |= RF_SELECTION_CIRCLE_ON_WATER;
     re.radius = ent->current.radius;
     re.ground_offset = ent->current.ground_offset;
+    re.ground_snapshot_z = ent->current.origin.z;
+    re.ground_snapshot_valid = true;
     re.tint_valid = ent->tint_valid;
     re.tint = ent->tint_valid ? ent->tint : COLOR32_WHITE;
     re.number = ent->current.number;
