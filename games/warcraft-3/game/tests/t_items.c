@@ -803,11 +803,11 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
         "ID;PWXL;N;EBB;Y3;X6\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"Area1\"\n"
-        "C;Y2;X1;K\"AIrs\"\nC;Y2;X2;K\"AIrs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X1;K\"APrl\"\nC;Y2;X2;K\"AHre\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"140\"\n"
-        "C;Y3;X1;K\"AIrr\"\nC;Y3;X2;K\"AIrs\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X1;K\"APrr\"\nC;Y3;X2;K\"AHre\"\nC;Y3;X3;K\"1\"\n"
         "C;Y3;X4;K\"3\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"140\"\nE\n";
-    static ItemData_t rune_data = { .abilList = "AIrr", .powerup = true,
+    static ItemData_t rune_data = { .abilList = "APrr", .powerup = true,
                                     .usable = true, .perishable = true };
     static UnitData_t corpse_data = { .deathType = UNIT_DEATH_TYPE_RAISE };
     static UnitBalance_t low_balance = { .level = 1 };
@@ -846,8 +846,8 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
 
     T_ASSERT(G_UnitIsRaisableCorpse(near_low));
     T_ASSERT(G_UnitIsRaisableCorpse(near_high));
-    T_EQ(FindAbilityForCommand("AIrs")->proc, CAbilityItemResurrection);
-    T_EQ(FindAbilityForCommand("AIrr")->proc, CAbilityItemResurrection);
+    T_EQ(FindAbilityForCommand("APrl")->proc, CAbilityItemResurrection);
+    T_EQ(FindAbilityForCommand("APrr")->proc, CAbilityItemResurrection);
     rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
     rune->data.ItemData = &rune_data;
     T_ASSERT(G_PickupItem(picker, rune));
