@@ -2,7 +2,8 @@
 """Reconstruct ORDER-01.10 from complete archived retail observations and controls.
 
 This verifies the evidence for public Attack ownership. Engine tests certify the
-integrated admission/head subset; the remaining swing/Attack Once tasks stay open.
+integrated public-head contract, including saved swing completion, Attack Once
+and non-artillery Ground holding. Full combat numerics remain outside this scope.
 """
 import argparse
 import hashlib
@@ -83,9 +84,10 @@ def verify(expected, archive):
     return dict(passed=True, status='retail-attack-order-evidence', binary_sha256=BINARY_SHA,
                 captures=captures, observer_free_comparisons=controls, records=records,
                 markers=markers_count, semantic_claims=len(claims.CLAIMS),
-                scope='Admission snapshots and public-head engine subset; ORDER-01.10 remains open.',
+                scope='Public-head admission, approach, committed swing/one-shot retirement, Ground hold and saved FIFO ownership.',
                 exclusions=['Queue captures have no observer-free control and different input landing ticks.',
-                            'Retail swing timing, Attack Once and non-artillery Attack Ground are not certified engine parity.'])
+                            'Complete approach/stat rescaling, point Attack Once admission and projectile-line damage geometry are not certified.',
+                            'Engine save/reuse tests preserve the contract; no new retail UI save/load capture.'])
 
 
 def main():

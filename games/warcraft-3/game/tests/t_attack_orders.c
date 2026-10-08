@@ -4,6 +4,7 @@
 #include "jass/jass.h"
 #include "../../common/wc3_pathing_speed.h"
 #include "retail_attack_swing174.h"
+#include "retail_attack_ground175.h"
 
 bool run_test_jass(cstring_t source);
 void setup_test_world(void);
@@ -20,6 +21,12 @@ static edict_t *attack_orders_setup(void) {
         "function attack takes nothing returns nothing\n"
         " call BJassAssert(IssueTargetOrder(actor,\"attack\",enemy),\"Attack admitted\")\n"
         " call BJassAssert(GetUnitCurrentOrder(actor)==OrderId(\"attack\"),\"Attack head\")\nendfunction\n"
+        "function once takes nothing returns nothing\n"
+        " call BJassAssert(IssueTargetOrder(actor,\"attackonce\",enemy),\"Attack Once admitted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(actor)==OrderId(\"attackonce\"),\"Attack Once head\")\nendfunction\n"
+        "function ground takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(actor,\"attackground\",600.0,64.0),\"Ground admitted\")\n"
+        " call BJassAssert(GetUnitCurrentOrder(actor)==OrderId(\"attackground\"),\"Ground head\")\nendfunction\n"
         "function point takes nothing returns nothing\n"
         " call BJassAssert(IssuePointOrder(actor,\"attack\",384.0,64.0),\"Attack Move admitted\")\n"
         " call BJassAssert(GetUnitCurrentOrder(actor)==OrderId(\"attack\"),\"Attack Move head\")\nendfunction\n"
@@ -281,5 +288,208 @@ TEST(wc3_attack_orders, loss_before_damage_point_has_no_swing_wait) {
     attack_orders_call("attack");
     T_ASSERT(!actor->attack_swing.active);
     G_DeferFreeEdict(enemy); T_NULL(actor->goalentity); T_EQ(actor->current_order_id,0);
+}
+
+static edict_t *attack_orders_once(void) {
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return NULL;
+    S_AttackProfileWrite(actor,0)->targetsAllowed |= WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(actor,0)->backswingPoint=.47f;
+    enemy->s.origin.x=enemy->s.origin2.x=128; gi.LinkEntity(enemy);
+    attack_orders_call("once");
+    FOR_LOOP(i,160) {
+        if (enemy->health.value<5000) break;
+        attack_orders_frames(1);
+    }
+    T_ASSERT(enemy->health.value<5000);
+    return actor;
+}
+
+TEST(wc3_attack_orders, once_retires_after_one_swing_then_automatic_attack_has_no_head) {
+    edict_t *actor=attack_orders_once(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    float health=enemy->health.value;
+    T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    T_FEQ(enemy->health.value,health,0);
+    attack_orders_frames(3); T_EQ(actor->current_order_id,0); T_NULL(actor->goalentity);
+    T_FEQ(enemy->health.value,health,0);
+    T_ASSERT(actor->attack_cooldown_active);
+    order_attack(actor,enemy); T_EQ(actor->current_order_id,0);
+    attack_orders_frames(20); T_ASSERT(enemy->health.value<health); T_EQ(actor->current_order_id,0);
+}
+
+TEST(wc3_attack_orders, once_queue_and_saved_swing_keep_their_head) {
+    edict_t *actor=attack_orders_once(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    float health=enemy->health.value;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
+    T_EQ(actor->current_order_id,G_OrderId("attackonce")); T_EQ(actor->order_queue.count,1);
+    cstring_t save="/tmp/wc3-attack-once175.bin";
+    T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
+    attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("move"));
+    T_EQ(actor->order_queue.count,0); T_FEQ(enemy->health.value,health,0);
+}
+
+TEST(wc3_attack_orders, once_replacement_and_target_removal_do_not_repeat_damage) {
+    edict_t *actor=attack_orders_once(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    float health=enemy->health.value;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},false,0,0));
+    attack_orders_frames(8); T_EQ(actor->current_order_id,G_OrderId("move"));
+    T_FEQ(enemy->health.value,health,0);
+    actor=attack_orders_once();enemy=attack_orders_enemy();if (!actor || !enemy) return;
+    G_DeferFreeEdict(enemy); T_NULL(actor->goalentity); T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    attack_orders_frames(3); T_EQ(actor->current_order_id,0);
+}
+
+TEST(wc3_attack_orders, non_artillery_ground_approaches_authored_range_and_holds_fifo) {
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;Y2;X2;D0\n"
+        "C;X1;Y1;K\"unitWeaponID\"\nC;X2;K\"weapsOn\"\n"
+        "C;X1;Y2;K\"hfoo\"\nC;X2;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("UnitWeapons",rows);
+    edict_t *actor=attack_orders_setup();
+    if (!actor) { G_SetSLKRows("UnitWeapons",old); free_slk_rows(rows); return; }
+    S_AttackProfileWrite(actor,0)->weapon=WPN_NORMAL;
+    S_AttackProfileWrite(actor,0)->range=137;
+    attack_orders_call("ground");
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
+    attack_orders_frames(32);
+    vec2_t position=actor->s.origin2;
+    T_ASSERT(Vector2_distance(&position,&(vec2_t){600,64})<=137);
+    T_ASSERT(position.x>400); T_EQ(actor->current_order_id,G_OrderId("attackground"));
+    T_EQ(actor->order_queue.count,1);
+    attack_orders_frames(32);
+    T_FEQ(actor->s.origin2.x,position.x,0); T_FEQ(actor->s.origin2.y,position.y,0);
+    T_EQ(actor->current_order_id,G_OrderId("attackground")); T_EQ(actor->order_queue.count,1);
+    FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) T_ASSERT(false);
+    cstring_t save="/tmp/wc3-attack-ground175.bin";
+    T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
+    T_EQ(actor->current_order_id,G_OrderId("attackground")); T_EQ(actor->order_queue.count,1);
+    attack_orders_frames(4); T_EQ(actor->current_order_id,G_OrderId("attackground"));
+    T_FEQ(actor->s.origin2.x,position.x,0);
+    T_ASSERT(unit_issueimmediateorder(actor,"stop")); T_EQ(actor->current_order_id,0); T_EQ(actor->order_queue.count,0);
+    G_SetSLKRows("UnitWeapons",old); free_slk_rows(rows);
+}
+TEST(wc3_attack_orders, ground_slot_matches_complete_original_selector) {
+    edict_t *actor=attack_orders_setup(); if (!actor) return;
+    UnitWeapons_t weapons={0};actor->data.UnitWeapons=&weapons;
+    actor->abilstatus=(heroabilitystatus_t *)G_AllocUnitStatus();
+    unitStatusStorage_t *status=(unitStatusStorage_t *)actor->abilstatus;
+    unsigned index=0;
+    FOR_LOOP(enabled,4) FOR_LOOP(counters,8) FOR_LOOP(first,9) FOR_LOOP(second,9) FOR_LOOP(special,2) {
+        weapons.attacksEnabled=enabled;
+        FOR_LOOP(i,3) status->attack_prevention[i]=(counters>>i)&1;
+        FOR_LOOP(slot,2) {
+            unitAttack_t *profile=S_AttackProfileWrite(actor,slot);
+            profile->weapon=slot ? second : first;
+            profile->targetsAllowed=special ? WC3_TARGET_FLAG_TREE : WC3_TARGET_FLAG_AIR;
+        }
+        unsigned selected=retail_attack_ground_slots[index++];
+        T_EQ(attack_ground_slot(actor),selected);
+        T_EQ(attack_ground_profile(actor),S_AttackProfileRead(actor,selected));
+    }
+    T_EQ(index,sizeof(retail_attack_ground_slots));
+}
+
+TEST(wc3_attack_orders, ground_uses_second_weapon_geometry_damage_and_delivery) {
+    edict_t *actor=attack_orders_setup(); if (!actor) return;
+    UnitWeapons_t weapons={.attacksEnabled=3,.attack2={.areaTargets=WC3_TARGET_FLAG_TREE}};
+    actor->data.UnitWeapons=&weapons;
+    S_AttackProfileWrite(actor,0)->weapon=WPN_NORMAL;
+    S_AttackProfileWrite(actor,0)->range=10;
+    unitAttack_t *profile=S_AttackProfileWrite(actor,1);
+    *profile=*S_AttackProfileRead(actor,0);
+    profile->type=ATK_SIEGE;profile->weapon=WPN_ARTILLERY;profile->range=600;
+    profile->damageBase=73;profile->damagePoint=.1f;profile->projectile.speed=900;
+    attack_orders_call("ground");
+    actor->currentmove->think(actor);
+    T_STREQ(actor->currentmove->animation,"attack range");
+    actor->wait=.01f;actor->currentmove->think(actor);
+    edict_t *missile=NULL;
+    FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) missile=unit;
+    T_NOT_NULL(missile);
+    if (missile) {
+        T_EQ(missile->damage,73);T_FEQ(missile->velocity,.9f,0);
+        T_ASSERT(missile->aiflags&AI_PROJECTILE_FIXED_TARGET);
+        T_NOT_NULL(missile->artillery);
+        if (missile->artillery) {
+            T_EQ(missile->artillery->attack_type,ATK_SIEGE);
+            T_EQ(missile->artillery->area_targets,WC3_TARGET_FLAG_TREE);
+        }
+        T_FEQ(missile->channel->origin.x,600,0);
+    }
+    T_EQ(actor->current_order_id,G_OrderId("attackground"));
+}
+
+TEST(wc3_attack_orders, once_retires_at_projectile_launch_recovery_before_impact) {
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();if (!actor || !enemy) return;
+    unitAttack_t *profile=S_AttackProfileWrite(actor,0);
+    profile->targetsAllowed|=WC3_TARGET_FLAG_AIR;profile->weapon=WPN_MISSILE;
+    profile->range=512;profile->backswingPoint=.47f;profile->projectile.speed=1;
+    attack_orders_call("once");
+    edict_t *missile=NULL;
+    FOR_LOOP(i,80) {
+        attack_orders_frames(1);
+        FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) missile=unit;
+        if (missile) break;
+    }
+    T_NOT_NULL(missile);T_FEQ(enemy->health.value,5000,0);
+    T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
+    attack_orders_frames(3);T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    attack_orders_frames(3);T_EQ(actor->current_order_id,G_OrderId("move"));
+    T_FEQ(enemy->health.value,5000,0);
+    unsigned count=0;FILTER_EDICTS(unit,unit->owner==actor && unit->movetype==MOVETYPE_FLYMISSILE) count++;
+    T_EQ(count,1);
+}
+
+TEST(wc3_attack_orders, once_death_and_rejection_do_not_publish_or_reuse_the_head) {
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();if (!actor || !enemy) return;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},false,0,0));
+    T_ASSERT(!G_IssueUnitTargetOrder(actor,"attackonce",enemy,false,0));
+    T_EQ(actor->current_order_id,G_OrderId("move"));
+    actor=attack_orders_once();if (!actor) return;
+    attack_orders_call("kill");T_EQ(actor->current_order_id,0);
+    G_FreeEdict(actor);level.time+=1001;attack_orders_call("recreate");
+    attack_orders_frames(8);T_EQ(actor->current_order_id,0);T_ASSERT(!actor->attack_swing.active);
+}
+
+TEST(wc3_attack_orders, ground_pause_replacement_and_death_preserve_order_ownership) {
+    edict_t *actor=attack_orders_setup();if (!actor) return;
+    S_AttackProfileWrite(actor,0)->weapon=WPN_NORMAL;
+    attack_orders_call("ground");actor->paused=true;
+    attack_orders_frames(8);T_FEQ(actor->s.origin2.x,64,0);
+    T_EQ(actor->current_order_id,G_OrderId("attackground"));
+    actor->paused=false;attack_orders_frames(8);T_ASSERT(actor->s.origin2.x>64);
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},false,0,0));
+    attack_orders_frames(4);T_EQ(actor->current_order_id,G_OrderId("move"));
+    attack_orders_call("ground");attack_orders_call("kill");T_EQ(actor->current_order_id,0);
+}
+TEST(wc3_attack_orders, once_saved_approach_commits_one_hit_then_starts_queued_move) {
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;Y2;X2;D0\n"
+        "C;X1;Y1;K\"unitWeaponID\"\nC;X2;K\"weapsOn\"\n"
+        "C;X1;Y2;K\"hfoo\"\nC;X2;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("UnitWeapons",rows);
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) { G_SetSLKRows("UnitWeapons",old);free_slk_rows(rows);return; }
+    S_AttackProfileWrite(actor,0)->targetsAllowed|=WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(actor,0)->backswingPoint=.47f;
+    attack_orders_call("once");
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},true,0,0));
+    attack_orders_frames(4);T_FEQ(enemy->health.value,5000,0);
+    cstring_t save="/tmp/wc3-attack-once-approach175.bin";
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+    T_EQ(actor->current_order_id,G_OrderId("attackonce"));
+    FOR_LOOP(i,160) {
+        if (actor->current_order_id==G_OrderId("move")) break;
+        attack_orders_frames(1);
+    }
+    T_EQ(actor->current_order_id,G_OrderId("move"));T_EQ(actor->order_queue.count,0);
+    T_FEQ(enemy->health.value,4999,0);
+    attack_orders_frames(8);T_FEQ(enemy->health.value,4999,0);
+    G_SetSLKRows("UnitWeapons",old);free_slk_rows(rows);
 }
 #endif

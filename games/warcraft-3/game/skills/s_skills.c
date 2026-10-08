@@ -17,7 +17,7 @@ static cstring_t const repair_orders[] = { "repair", "repairon", "repairoff", NU
 static cstring_t const renew_orders[] = { "renew", "renewon", "renewoff", NULL };
 static cstring_t const restoration_orders[] = { "restoration", "restorationon", "restorationoff", NULL };
 static cstring_t const move_orders[] = { "move", "smart", NULL };
-static cstring_t const attack_orders[] = { "attack", NULL };
+static cstring_t const attack_orders[] = { "attack", "attackonce", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
 static cstring_t const entangle_orders[] = {
@@ -1526,6 +1526,16 @@ bool S_UnitAbilityMoveArrive(edict_t *ent) {
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, edict_t *target) {
     abilityCall_t call = MAKE(abilityCall_t, .issued_target_order = { target, order });
     if (!issuer || !order || !target || !target->inuse) return ABILITY_ORDER_UNHANDLED;
+    /* Intrinsic command owners are registered independently of authored SLK
+     * ability lists. Dispatch their concrete order before authored fallback. */
+    ability_t const *owner=FindAbilityByOrder(order);
+    if (owner && (owner->flags&AB_ENGINE_EVENTS)) {
+        abilityitem_t item={.ability=owner};
+        call.item=&item;
+        abilityOrderResult_t result=S_AbilityMessage(issuer,A_ISSUED_TARGET_ORDER,&call);
+        if (result!=ABILITY_ORDER_UNHANDLED) return result;
+        call.item=NULL;
+    }
     return (abilityOrderResult_t)unit_dispatch_authored_abilities(
         issuer, A_ISSUED_TARGET_ORDER, &call, true, false, false);
 }

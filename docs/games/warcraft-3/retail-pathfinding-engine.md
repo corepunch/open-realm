@@ -11982,3 +11982,58 @@ Attack Ground. Rescaling live timers when the effective attack speed changes
 (`495ef0`), exact damage-point/cooldown timing and wider paused/stat policies
 are not certified by this integration. Focused Classic/TFT checks pass841 tests
 and447,738 assertions per schema. No full-repository suite was repeated here.
+
+## Attack Once and ordinary Attack Ground ownership (Payoff175)
+
+`ORDER-01.10` closes the public-head lifecycle contract. Attack Once (`attackonce`)
+is registered with the flat Attack command owner and resolved through `G_OrderId`;
+its native/user identity is never an internal task code. Retail `49b0f0` sets the
+one-shot flag then uses the ordinary Attack approach. `49a390` retires it at swing
+completion, after giving an already pending timer-wait task precedence. The engine
+uses the saved Attack finishing move introduced by Payoff174 after one damage
+commit or projectile launch. A living target remains attached until that completion;
+semantic target removal can detach it earlier without changing the deadline. The
+completion starts a retained parent or the next queued user order. Weapon readiness
+remains independent, and later automatic combat has head zero.
+
+Retail also accepts a Footman's Attack Ground. The two observed `v3d/10` repeats
+and observer-free control approach the point and retain head851984 without damage
+until Stop. The engine now gives every eligible weapon the same point approach,
+then holds non-ground-delivery weapons without damage rolls or projectile allocation.
+The hold reevaluates live range and weapon state, so replacement, pause, save/load
+and authored profile changes use the existing owning ability transitions.
+
+`494350` selects the first **enabled** artillery or missile-line slot, otherwise
+slot0. `49e730` stores that slot, reads its effective range and retains the Ground
+point task. The old engine assumed slot0 throughout Ground. Range, damage,
+projectile and area-target readers now agree on the selected shared or overridden
+profile. The complete original selector and its original enabled-slot predicates
+run with no substitutions across5,184 constructed combinations: two weapon kinds,
+authored enable masks, counted prevention and ordinary/special target masks.
+`retail_attack_ground175.h` checks every native result against the actual engine.
+Second-slot artillery additionally exercises the production delivery path with
+non-stock damage73, range600, speed900 and its own area mask.
+
+The first four new actual-native/frame regressions fail against the previous
+implementation (25 failed assertions), then pass. The expanded suite covers saved
+approach and swing, one-hit FIFO handoff, ranged launch before impact, removal,
+replacement, rejected target orders, death/reuse, ordinary Ground's saved holding
+and pause. The save test installs a real SLK row and resumes through the normal
+load rebind; no fixture-only pointer is restored manually. Save140 is unchanged.
+The heap and scalar producer from Payoff174 are reused; this adds neither a global
+unit scan nor new per-instance allocation for one-shot/holding state.
+
+The frozen live capture verifier still reconstructs all10 observed captures and
+four observer-free controls (6,604 records/6,614 markers/15 ownership claims).
+Ghidra saves and reads back `Attack_SelectGroundWeaponSlot` (`494350`) and
+`Attack_HandleGroundPointTask` (`49e730`), including explicit ECX/stack/RET ABIs,
+plus integrated comments on the existing one-shot/ground/completion owners.
+`MapPathfinding.java` and the canonical type manifest preserve that evidence.
+
+This closes **public ownership**, not complete combat numerical fidelity. Full
+approach boundaries and visibility/target policy remain TARGET-01/02/03; scalar
+caller composition remains NUM-01.17; complete weapon-upgrade composition remains
+the open captain producer scope. Complete live stat-change rescaling, point-form
+Attack Once admission and missile-line impact geometry are not certified by these
+captures. Engine save/reuse regressions are not a new retail UI save/load witness.
+The prepared Frida evidence is replayed, not represented as a new live capture.

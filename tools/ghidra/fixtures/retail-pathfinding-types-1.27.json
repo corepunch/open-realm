@@ -14457,6 +14457,39 @@
         }
       ],
       "evidence": "Payoff174: complete original x86 listing, ECX ability and plain RET, no stack arguments; saved/read back explicit storage."
+    },
+    {
+      "address": "6f494350",
+      "name": "Attack_SelectGroundWeaponSlot",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff175: complete original x86 listing and explicit storage saved/read back; plain RET selector, RET4 ground point task."
+    },
+    {
+      "address": "6f49e730",
+      "name": "Attack_HandleGroundPointTask",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff175: complete original x86 listing and explicit storage saved/read back; plain RET selector, RET4 ground point task."
     }
   ],
   "globals": [

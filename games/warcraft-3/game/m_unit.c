@@ -519,6 +519,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "stop", 851972, 0 },
     { "attack", 851983, 0 },
     { "attackground", 851984, 0 },
+    { "attackonce", 851985, 0 },
     { "move", 851986, 0 },
     { "patrol", WC3_ORDER_ID_PATROL, 0 },
     { "holdposition", 851993, 0 },
@@ -873,8 +874,8 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     if (!self || !order || !point) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
-    /* Attack Ground is an artillery firing order, not movement. Keep the exact
-     * clicked point and allow immobile artillery to accept it. */
+    /* The Attack owner keeps the exact clicked point, including range-hold
+     * orders on ordinary weapons and in-range immobile artillery. */
     if (!strcmp(order, "attackground")) return S_OrderAttackGround(self, point);
     if (self->aiflags & AI_IMMOBILE) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;

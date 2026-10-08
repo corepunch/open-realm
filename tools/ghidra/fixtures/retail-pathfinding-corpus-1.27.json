@@ -43456,11 +43456,12 @@
         "C",
         "S"
       ],
-      "scope": "Complete archived ownership decisions/scalars reconstructed. Engine integrates admission snapshots/public heads/native/frame/FIFO/save subset; ORDER-01.10 stays open.",
+      "scope": "Complete archived public ownership decisions/scalars reconstructed. Payoffs173..175 integrate heads/admission/committed swing/Attack Once/Ground hold/native/frame/FIFO/save ownership.",
       "exclusions": [
         "No new live retail capture; prepared readonly Frida research is replayed.",
         "Queue observations have no observer-free control and different input landing ticks.",
-        "Attack Once, swing/target-loss timers, non-artillery Attack Ground and exact combat numerics remain unimplemented by this chunk."
+        "Complete approach/stat rescaling, point Attack Once admission and projectile-line damage geometry are not certified.",
+        "Engine save/reuse regressions are not a new retail UI save/load capture."
       ],
       "capture_complete": true,
       "inputs": {
@@ -43874,6 +43875,42 @@
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
       }
+    },
+    {
+      "id": "oracle-attack-ground-slot",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_attack_ground_slot.py",
+        "--binary",
+        "{binary}",
+        "--expected",
+        "tools/ghidra/fixtures/research/attack175-ground-slot.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "attack-ground-slot175.json",
+      "expected_exit": 0,
+      "expected_status": "retail-attack-ground-slot",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 5184
+        }
+      },
+      "evidence": [
+        "O",
+        "S"
+      ],
+      "scope": "Complete original494350 and original enabled-slot callees, no stand-ins;5184 constructed inputs compared to actual engine selector. Ground native/frame/save and second-slot delivery regressions.",
+      "exclusions": [
+        "Not complete projectile-line impact, point Attack Once admission or live stat-change rescaling parity."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      }
     }
   ],
   "fixtures": [
@@ -43939,7 +43976,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "9c6b0dffb686433d4ceb7e118d5f544efa812ba295fa6e3f9a8c2c9801431a69"
+      "sha256": "5c0dc24fced9f5a2f4709db8bb0c7ed3186c0f5453910f6b3cd2cb8aaec74124"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -44772,7 +44809,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "a73b38bd91a205223a4b3322fd0f61557ec6bbd2325e6f12c4856bc697956568"
+      "sha256": "1521550d551b6e7f5ceecb4235cddaeaa0f0ed1d3da8f121789514041a60cf8b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -46564,7 +46601,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "b11a5b2e68ca97b67f1bcb813d4acc1cb8fbe7de5e230c17ec7b33434a2bf4eb"
+      "sha256": "48446de1fcc073a50587e3fa0c9afa43b326ead8ec301b3777fb386948dc0cc8"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -46576,11 +46613,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ef9addb7dfff66b9e87f685388da15c36f2c19140f3fc893a9b662903be14ede"
+      "sha256": "b3dbb69553eee14f44d0194bdd5eaed8fc42027fe0fd4b227c3372aaa1a6a122"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "2d6dbb384397fa1b31e3ab91c9ff1d3fe8b0b5e0d4871693ba44e4928ca1cd50"
+      "sha256": "b04aa7af67495ff059d916927e41c3129a7e4eeb3f787a8427f1dd294a77d21f"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -46588,11 +46625,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "72b31b1fac624966556c80e9f9df73fdd8129d7b5d91be8a279b23a2d43671f4"
+      "sha256": "a295de229bfa4443dbfc05490606f6d1055b837e7a4f58633303d011ec858c98"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "82dedbceb32af7cdbda11da2db513fbd0678a122308bd388aafc165b0e92db53"
+      "sha256": "508039c43db3b8a88bca331a1edd612a942d4acc50bbdbd52d522022b4ca5434"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -47528,15 +47565,15 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "dae356aa111f9afab61f0a4e9883ededb4aca768e18c9b6d59bb2469c1890f49"
+      "sha256": "cb00bf960aa93d9d40dfabca97d38269e448f1b4dff2a443366219a46f8c7e22"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
-      "sha256": "8d4b3bc360beb81689f735e1af3fd8b24bac115672658e67fc517ecd0156a05a"
+      "sha256": "474a7117892919fb3a43f007d0bd046ceac3b5fc3bcb7ad1b0e3e0d0305817dd"
     },
     {
       "path": "tools/ghidra/research/verify_attack173_orders.py",
-      "sha256": "7310216243db267904cf7771716d92a4dfba366cc35ffa4842f262a2efdb6aa7"
+      "sha256": "ba4de80dbcedd19052045c3a4d61da9bf5d1b3a152122a6919c617e1b71a2eb9"
     },
     {
       "path": "tests/test_wc3_pathfinding_attack_orders.py",
@@ -47633,6 +47670,22 @@
     {
       "path": "tests/test_wc3_pathfinding_attack_swing.py",
       "sha256": "6fcbaaadcb86ab4fbd8a2e95e187017a9e7590a767c89e80e9e57825416c40ff"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_attack_ground175.h",
+      "sha256": "def1d7e1053dfc5d342736d273f1b5c8dc90f3d3a047dd62b2f50ae0d64580a1"
+    },
+    {
+      "path": "tools/ghidra/research/verify_attack175_ground_slot.py",
+      "sha256": "45bb9c3967a5797e95aa08206d313e84f643c9dec689e6c08adbd5a8aa6eb6f2"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_attack_ground_slot.py",
+      "sha256": "f23e377631e896f3ea0de831053d4b9f8a06af5ed02a6f395a1a0a0a6fb70100"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/attack175-ground-slot.json",
+      "sha256": "5f22222bf3430314ce3373f4fcce61e357917ecec90f22335d08674d52c8d12d"
     }
   ]
 }

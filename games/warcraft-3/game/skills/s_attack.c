@@ -39,7 +39,9 @@ static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
 static umove_t attack_move_finish = { "stand ready", NULL, NULL, CAbilityAttack };
 static void attack_resume_after_combat(edict_t *attacker);
+static void attack_finish_after_combat(edict_t *attacker, edict_t const *target, cstring_t reason);
 static void attack_set_cooldown(edict_t *ent, float seconds);
+static unitAttack_t const *attack_ground_profile(edict_t const *ent);
 
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
@@ -130,7 +132,8 @@ static void attack_primary_fire(void) {
         attack_swing_cancel(unit);
         /* Replacement orders, death and slot reuse cannot inherit completion. */
         if (unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit) &&
-            unit->currentmove==&attack_move_finish) attack_resume_after_combat(unit);
+            unit->currentmove==&attack_move_finish)
+            attack_finish_after_combat(unit,unit->goalentity,"swing_complete");
         break;
     default: attack_cap_cancel(unit); break;
     }
@@ -288,6 +291,8 @@ bool S_UnitAttackApproachRange(edict_t const *attacker,float *maximum) {
 /* Attack slots expose immutable defaults or the unit's owned override. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
+    if (attacker && attacker->currentmove && attacker->currentmove->proc==CAbilityAttackGround)
+        return attack_ground_profile(attacker);
     uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     if (attacker && target && target->destructable && target->targtype == TARG_TREE) {
         if (S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return S_AttackProfileRead(attacker, 0);
@@ -730,6 +735,17 @@ static bool attack_animation_can_finish(edict_t const *ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
 
+/* The public one-shot head owns completion, independent of the target's life.
+ * At a committed hit retain the target until d01b2; target loss may detach it
+ * earlier through the same finishing state. No second swing can begin. */
+static bool attack_hold_once(edict_t *ent, umove_t const *move, edict_t const *target) {
+    if (ent->currentmove!=move || ent->goalentity!=target || ent->current_order_id!=G_OrderId("attackonce"))
+        return false;
+    unit_setmove(ent,&attack_move_finish);
+    ent->wait=0;
+    return true;
+}
+
 static void attack_set_backswing_deadline(edict_t *ent) {
     uint32_t duration = (uint32_t)ceilf(MAX(0.0f, ACTIVE_ATTACK(ent)->backswingPoint /
                                                       attack_speed_divisor(ent)) * 1000.0f);
@@ -763,6 +779,7 @@ static void damage_target(edict_t *ent) {
     attack_set_backswing_deadline(ent);
     attack_swing_begin(ent);
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
+    if (attack_hold_once(ent,move,target)) return;
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
      * not resolve a usable attack sequence. Their damage-point timer still
@@ -782,6 +799,7 @@ static void throw_missile(edict_t *ent) {
         return;
     }
     edict_t *other = ent->goalentity;
+    umove_t const *move=ent->currentmove;
     /* Roll at launch, but defer target armor/type mitigation until impact so
      * armor or defense changes while the projectile is in flight are honored. */
     int damage = (int)ai_rolldamage1(ent, 1);
@@ -803,10 +821,12 @@ static void throw_missile(edict_t *ent) {
         .attack = atk,
         .area_targets = ent->data.UnitWeapons ? (atk == S_AttackProfileRead(ent, 1) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
+    if (attack_hold_once(ent,move,other)) return;
     /* See damage_target(): if the model has no finite attack sequence there
      * will be no animation-end callback to start recovery, so do it at the
      * projectile launch point instead. */
-    if (S_AttackCanTarget(ent, ent->goalentity) && !attack_animation_can_finish(ent))
+    if (ent->currentmove==move && ent->goalentity==other &&
+        S_AttackCanTarget(ent,other) && !attack_animation_can_finish(ent))
         attack_ranged_cooldown(ent);
 //    gi.WriteByte (svc_temp_entity);
 //    gi.WriteByte(TE_MISSILE);
@@ -1179,15 +1199,31 @@ void attack_ranged(edict_t *self) {
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
-/* ---- Attack Ground --------------------------------------------------------
- * Warsmash exposes Attack Ground for ARTILLERY weapons. The order keeps the
- * clicked point authoritative, walks a mobile siege unit into its normal
- * min/max range band, and snapshots that same point into each projectile at
- * the damage point. */
+/* Original494350 prefers the first enabled artillery/line slot and falls
+ * back to slot0. Ordinary weapons retain the same approach/point head, but
+ * have no ground-delivery operation. This is weapon policy, not a unit list. */
+static unsigned attack_ground_slot(edict_t const *ent) {
+    FOR_LOOP(slot,2) {
+        weaponType_t weapon=S_AttackProfileRead(ent,slot)->weapon;
+        if (S_UnitAttackSlotEnabled(ent,slot) && (weapon==WPN_ARTILLERY || weapon==WPN_MLINE)) return slot;
+    }
+    return 0;
+}
+
+static unitAttack_t const *attack_ground_profile(edict_t const *ent) {
+    return S_AttackProfileRead(ent,attack_ground_slot(ent));
+}
+
+static bool attack_ground_fires(edict_t const *ent) {
+    weaponType_t weapon=attack_ground_profile(ent)->weapon;
+    return S_UnitAttackSlotEnabled(ent,attack_ground_slot(ent)) &&
+           (weapon==WPN_ARTILLERY || weapon==WPN_MLINE);
+}
+
 static bool attack_ground_valid(edict_t const *ent) {
     return ent && ent->inuse && !M_IsDead((edict_t *)ent) &&
-           S_UnitAttackSlotEnabled(ent, 0) && S_AttackProfileRead(ent, 0)->type != ATK_NONE &&
-           S_AttackProfileRead(ent, 0)->weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
+           ((S_UnitAttackSlotEnabled(ent,0) && S_AttackProfileRead(ent,0)->type!=ATK_NONE) ||
+            (S_UnitAttackSlotEnabled(ent,1) && S_AttackProfileRead(ent,1)->type!=ATK_NONE)) && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }
 
@@ -1196,7 +1232,7 @@ static float attack_ground_distance(edict_t const *ent) {
 }
 
 static bool attack_ground_out_of_range(edict_t const *ent) {
-    return !ent || attack_ground_distance(ent) > S_AttackProfileRead(ent, 0)->range;
+    return !ent || attack_ground_distance(ent) > attack_ground_profile(ent)->range;
 }
 
 static bool attack_ground_too_close(edict_t const *ent) {
@@ -1207,6 +1243,7 @@ static bool attack_ground_too_close(edict_t const *ent) {
 static void attack_ground_walk(edict_t *ent);
 static void attack_ground_ranged(edict_t *ent);
 static void attack_ground_cooldown(edict_t *ent);
+static umove_t attack_ground_move_hold;
 
 static void attack_ground_stop(edict_t *ent) {
     if (!ent) return;
@@ -1223,18 +1260,19 @@ static void throw_artillery_ground(edict_t *ent) {
     vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if (!attack_ground_fires(ent)) { unit_setmove(ent,&attack_ground_move_hold); return; }
     impact = ent->channel->origin;
     damage = (int)ai_rolldamage1(ent, 1);
     M_GetEntityMatrix(&ent->s, &matrix);
-    origin = Matrix4_multiply_vector3(&matrix, &S_AttackProfileRead(ent, 0)->origin);
+    origin = Matrix4_multiply_vector3(&matrix, &attack_ground_profile(ent)->origin);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .fixed_target = &impact,
-        .speed = S_AttackProfileRead(ent, 0)->projectile.speed,
-        .model = S_AttackProfileRead(ent, 0)->projectile.model,
+        .speed = attack_ground_profile(ent)->projectile.speed,
+        .model = attack_ground_profile(ent)->projectile.model,
         .damage = damage,
-        .attack = S_AttackProfileRead(ent, 0),
-        .area_targets = ent->data.UnitWeapons ? ent->data.UnitWeapons->attack1.areaTargets : 0,
+        .attack = attack_ground_profile(ent),
+        .area_targets = ent->data.UnitWeapons ? (attack_ground_slot(ent) ? ent->data.UnitWeapons->attack2.areaTargets : ent->data.UnitWeapons->attack1.areaTargets) : 0,
     });
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttackGround &&
         !attack_animation_can_finish(ent))
@@ -1253,6 +1291,15 @@ static void ai_attack_ground_cooldown(edict_t *ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
     else unit_runwait(ent, attack_ground_ranged);
+}
+
+/* A non-ground weapon keeps the point order until replacement. Recheck the
+ * live profile so a weapon rebind neither fires the old slot nor loses the head. */
+static void ai_attack_ground_hold(edict_t *ent) {
+    if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
+    if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
+    else if (attack_ground_fires(ent)) attack_ground_ranged(ent);
+    else unit_changeangle(ent);
 }
 
 static void ai_attack_ground_walk(edict_t *ent) {
@@ -1275,6 +1322,7 @@ static void ai_attack_ground_walk(edict_t *ent) {
 static umove_t attack_ground_move_walk = { "walk", ai_attack_ground_walk, NULL, CAbilityAttackGround };
 static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
 static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
+static umove_t attack_ground_move_hold = { "stand ready", ai_attack_ground_hold, NULL, CAbilityAttackGround };
 
 static void attack_ground_walk(edict_t *ent) {
     unit_setmove(ent, &attack_ground_move_walk);
@@ -1283,16 +1331,17 @@ static void attack_ground_walk(edict_t *ent) {
 static void attack_ground_cooldown(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     unit_setmove(ent, &attack_ground_move_cooldown);
-    ent->wait = MAX(0.0f, MAX(S_AttackProfileRead(ent, 0)->cooldown - S_AttackProfileRead(ent, 0)->damagePoint,
-                               S_AttackProfileRead(ent, 0)->backswingPoint) / divisor);
+    ent->wait = MAX(0.0f, MAX(attack_ground_profile(ent)->cooldown - attack_ground_profile(ent)->damagePoint,
+                               attack_ground_profile(ent)->backswingPoint) / divisor);
     if (ent->wait <= 0.0f) attack_ground_ranged(ent);
 }
 
 static void attack_ground_ranged(edict_t *ent) {
+    if (!attack_ground_fires(ent)) { unit_setmove(ent,&attack_ground_move_hold); ent->wait=0; return; }
     float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
-    ent->wait = S_AttackProfileRead(ent, 0)->damagePoint / divisor;
+    ent->wait = attack_ground_profile(ent)->damagePoint / divisor;
     if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
 }
 
@@ -1425,10 +1474,12 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_AUTO_COMBAT_START,A_COMBAT_ALERT,A_ALLY_COMBAT_ALERT,A_UNIT_REMOVE,A_UNIT_REMOVING,A_ORDER_ACCEPTED);
     case A_TARGET_ORDER_ADMIT: {
         if (!ent || !call || !call->issued_target_order.order ||
-            strcmp(call->issued_target_order.order,"attack")) return ABILITY_ORDER_UNHANDLED;
+            (strcmp(call->issued_target_order.order,"attack") &&
+             strcmp(call->issued_target_order.order,"attackonce"))) return ABILITY_ORDER_UNHANDLED;
         if (S_UnitPolymorphed(ent) || S_UnitIsCycloned(ent)) return ABILITY_ORDER_REJECTED;
         edict_t *target=call->issued_target_order.target;
         if (!target || !target->inuse) return ABILITY_ORDER_REJECTED;
+        if (!strcmp(call->issued_target_order.order,"attackonce")) return ABILITY_ORDER_UNHANDLED;
         /* Original207160 converts before admission. A queued order therefore
          * owns this position snapshot, never the rejected target's identity. */
         if (target->invulnerable || !S_AttackCanTarget(ent,target)) {
@@ -1438,11 +1489,16 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         }
         return ABILITY_ORDER_UNHANDLED;
     }
+    case A_ISSUED_TARGET_ORDER:
+        if (!call || !call->issued_target_order.order || strcmp(call->issued_target_order.order,"attackonce"))
+            return ABILITY_ORDER_UNHANDLED;
+        return S_OrderAttack(ent,call->issued_target_order.target) ? ABILITY_ORDER_ACCEPTED : ABILITY_ORDER_REJECTED;
     case A_ORDER_ACCEPTED:
         /* Public identity belongs to the accepted user head. Acquisition and
          * retaliation call order_attack directly and retain the existing head. */
         if (!ent || !call || !call->order || !ent->currentmove) return false;
-        if ((!strcmp(call->order,"attack") && ent->currentmove->proc==CAbilityAttack) ||
+        if (((!strcmp(call->order,"attack") || !strcmp(call->order,"attackonce")) &&
+             ent->currentmove->proc==CAbilityAttack) ||
             (!strcmp(call->order,"attackground") && ent->currentmove->proc==CAbilityAttackGround)) {
             ent->current_order_id=G_OrderId(call->order);
             return true;
