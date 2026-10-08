@@ -10,10 +10,11 @@ Each frame the renderer executes the following passes in order:
 R_RenderFogOfWar   → update fog-of-war render targets
 R_RenderShadowMap  → depth-only pass into RT_DEPTHMAP
 R_RenderView       → colour pass: ground + cliffs, then entities,
-                     then water (alpha) + particles
+                     then water depth/color, transparent MDX geosets,
+                     supported selection overlays + particles
 ```
 
-`R_DrawWorld` is called in both the shadow-map and the colour passes. It iterates every `MAPSEGMENT` and draws its `GROUND` and `CLIFF` layers. `R_DrawAlphaSurfaces` is called only in the colour pass and draws only the `WATER` layers, after depth-writing has been turned off.
+`R_DrawWorld` is called in both the shadow-map and the colour passes. It iterates every `MAPSEGMENT` and draws its `GROUND` and `CLIFF` layers. `R_DrawAlphaSurfaces` is called only in the colour pass; it establishes water depth, blends water color, emits lightning/weather, and then draws transparent MDX geosets.
 
 ## Data Loading
 
@@ -49,7 +50,7 @@ Each segment stores a `BOX3 bbox` used for frustum culling in `R_DrawSegment`. I
 
 `R_DrawSegment` receives a bitmask that selects which layer types to draw. When the first layer in the linked list is being drawn, blending is **disabled** (opaque base pass). All subsequent layers within the same segment draw with `GL_SRC_ALPHA / GL_ONE_MINUS_SRC_ALPHA` blending so that higher ground textures alpha-blend over lower ones at tile boundaries.
 
-Because `MAPLAYERTYPE_WATER` is masked out of `R_DrawWorld` and handled separately in `R_DrawAlphaSurfaces`, water tiles are always composited on top of everything else after depth-writing is disabled (`glDepthMask(GL_FALSE)`).
+Because `MAPLAYERTYPE_WATER` is masked out of `R_DrawWorld` and handled separately in `R_DrawAlphaSurfaces`, the water pass first writes water depth with color writes disabled, then alpha-blends the water color without depth writes. Opaque geometry above the water can occlude it; the depth prepass also hides transparent MDX fragments below the water surface. `R_DrawAlphaSurfaces` then renders the MDX blended geosets and per-instance translucent geosets over the water. Particle rendering and water/deck-supported selection, hover, and indicator overlays follow that pass so they remain visible at their authored support height.
 
 ## Ground Layers (`r_war3map_ground.c`)
 
