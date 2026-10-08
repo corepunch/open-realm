@@ -876,6 +876,94 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     free_slk_rows(rows);
 }
 
+/* TFT Rune of Shielding: stock zero-duration BNss is an armed charge, not
+ * timed immunity; target enumeration uses authored Area and flags. */
+TEST(wc3_items, shielding_rune_arms_eligible_allies_with_full_inventory) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"BuffID1\"\nC;Y1;X5;K\"Area1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y1;X7;K\"Dur1\"\n"
+        "C;Y2;X1;K\"ANse\"\nC;Y2;X2;K\"ANse\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"BNss\"\nC;Y2;X5;K\"110\"\n"
+        "C;Y2;X6;K\"ground,air,friend,self\"\nC;Y2;X7;K\"0\"\nE\n";
+    static ItemData_t data = { .abilList = "ANse", .powerup = true, .usable = true, .perishable = true };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *ally, *enemy, *outside, *rune;
+    uint32_t const shield = MAKEFOURCC('B','N','s','s');
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    picker = make_item_test_inventory_unit(0, 0);
+    ally = make_item_test_inventory_unit(60, 0);
+    enemy = make_item_test_inventory_unit(80, 0);
+    outside = make_item_test_inventory_unit(200, 0);
+    picker->s.player = ally->s.player = outside->s.player = 0;
+    enemy->s.player = 1;
+    picker->svflags |= SVF_MONSTER; ally->svflags |= SVF_MONSTER;
+    enemy->svflags |= SVF_MONSTER; outside->svflags |= SVF_MONSTER;
+    picker->targtype = ally->targtype = enemy->targtype = outside->targtype = TARG_GROUND;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32 + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+    T_EQ(FindAbilityForCommand("ANse")->proc, CAbilitySpellShieldAoe);
+    rune = make_item_test_world_item(MAKEFOURCC('r','s','p','s'), 32, 0);
+    rune->data.ItemData = &data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_EQ(G_UnitStatusLevel(picker, shield), 1);
+    T_EQ(G_UnitStatusLevel(ally, shield), 1);
+    T_EQ(G_UnitStatusLevel(enemy, shield), 0);
+    T_EQ(G_UnitStatusLevel(outside, shield), 0);
+    T_EQ(unit_findstatus(ally, shield)->duration_ms, 0);
+    T_ASSERT(rune->item->pending_use_removal);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* Reapplication refreshes a single charge rather than stacking. */
+    rune = make_item_test_world_item(MAKEFOURCC('r','s','p','s'), 32, 0);
+    rune->data.ItemData = &data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_EQ(G_UnitStatusLevel(ally, shield), 1);
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* An enemy-only negative unit spell consumes exactly one charge. The same
+ * guard must leave beneficial spells and physical nets untouched. */
+TEST(wc3_items, shielding_rune_intercepts_hostile_unit_spells_only) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y4;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"targs1\"\n"
+        "C;Y2;X1;K\"Acri\"\nC;Y2;X2;K\"Acri\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"enemy,ground\"\n"
+        "C;Y3;X1;K\"Ablo\"\nC;Y3;X2;K\"Ablo\"\nC;Y3;X3;K\"1\"\nC;Y3;X4;K\"friend,ground\"\n"
+        "C;Y4;X1;K\"Aens\"\nC;Y4;X2;K\"Aens\"\nC;Y4;X3;K\"1\"\nC;Y4;X4;K\"enemy,ground\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *caster, *victim;
+    uint32_t const shield = MAKEFOURCC('B','N','s','s');
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    caster = make_item_test_inventory_unit(0, 0);
+    victim = make_item_test_inventory_unit(50, 0);
+    caster->s.player = 1; victim->s.player = 0;
+    caster->svflags |= SVF_MONSTER; victim->svflags |= SVF_MONSTER;
+    caster->targtype = victim->targtype = TARG_GROUND;
+    unit_addstatus(victim, "BNss", 1);
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','b','l','o'), victim));
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','e','n','s'), victim));
+    T_EQ(G_UnitStatusLevel(victim, shield), 1);
+    T_ASSERT(S_TryBlockSpellShield(caster, MAKEFOURCC('A','c','r','i'), victim));
+    T_EQ(G_UnitStatusLevel(victim, shield), 0);
+    T_ASSERT(!S_TryBlockSpellShield(caster, MAKEFOURCC('A','c','r','i'), victim));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X8\n"

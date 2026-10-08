@@ -151,6 +151,15 @@ inventory click
 
 Speed-family powerups are a deliberate exception to inventory-slot insertion: `AIsp`/`AIsa`/`APsa` resolve directly against the acquiring unit, use authored `Area`/`Dur`/`HeroDur`/`BuffID`/target-mask data, and retain the consumed item handle until queued pickup/use events release it. The active status drives movement to `Misc.MaxUnitSpeed` (including `war3mapMisc.txt` overrides) for its lifetime. `AIlu` Bundle of Lumber grants the authored `DataA` directly to the acquiring player (including negative custom-map amounts) without harvesting upkeep. `AIha` Healing Runes and `AImr`/`APmr`/`APmg` Mana Runes share that slot-free pickup/use lifecycle and apply authored immediate AoE healing or mana restoration to valid friendly units without requiring wounded or mana-depleted recipients. The `APrl`/`APrr` Resurrection Runes inherit Resurrection data from `AHre` and use authored `DataA`/`Area` to revive the requested number of nearby friendly ordinary corpses at full life, preferring higher-level corpses and then nearer equal-level corpses; Heroes retain altar revival and structures remain excluded. When no eligible corpse is nearby, they report the failed use and remain in the world. Other unsupported powerup families are not auto-consumed.
 
+Rune of Shielding (`rsps`/`ANse`) grants authored `BuffID` (`BNss` in TFT) to eligible
+nearby allies within authored `Area`. The status is an untimed, nonstacking
+one-use shield. `S_TryBlockSpellShield` consumes it on supported hostile
+unit-target spell resolution, including Thunder Bolt/Fire Bolt impacts, while
+Ensnare, Web, Finger of Death, beneficial spells, and point/area spells bypass it.
+`ANss` Amulet recharge is still TODO; additional custom missile impact paths and
+persistent buff TargetArt ownership remain separate coverage gaps.
+
+
 Failed uses do not publish use-item events and do not consume a charge. For example, a single-target healing item used on a full-health target returns failure; the `AIha` area-healing powerup follows the separate behavior described above. Targeted item commands preserve the source item and its spawn generation while the shared spell path walks into range, so cancellation, a rejected target, or a stale/moved item cannot consume a charge accidentally.
 
 `G_ConsumeItemCharge` remains the ordinary charge helper. `G_CompleteItemUse` adds event-context lifetime semantics: when a successful use consumes the final charge of a perishable item, the item leaves the carrier immediately but its handle remains valid until queued use-item events and any sleeping JASS response coroutine are finished. This is required for retail-style `GetManipulatedItem()` conditions such as Orc08's Soul Gem trigger. Non-perishable items decrement to zero and remain present.
