@@ -55,7 +55,15 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**251 done / 336 tasks; 85 remaining.**
+**252 done / 336 tasks; 84 remaining.**
+
+Payoff177 closes ORDER-03.1 with synchronous indexed issued-order subscribers,
+append-ranked iteration, insertion cutoffs and immediate DestroyTrigger
+suppression followed by ordered primary-clock cleanup. Actual native
+forward/reverse mutation, reuse/save and scaling regressions pass alongside 627
+fresh original cases and complete archived Frida controls/repeat. Nested Stop,
+death and removal composition stays in ORDER-03.2. See
+[synchronous subscribers](retail-pathfinding-engine.md#synchronous-issued-order-subscribers-and-deferred-trigger-cleanup-payoff177).
 
 Payoff176 closes ORDER-01.18. Short Patrol retires synchronously; leg completion
 admits queued Move before its return, and queued Patrol rotates with its captured
@@ -1041,7 +1049,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 
 ### ORDER-03 — Callback mutation
 
-- [ ] **ORDER-03.1** Insert/remove a subscription while dispatching to multiple subscribers; assert delivery order, iterator and reference counts.
+- [x] **ORDER-03.1** Insert/remove a subscription while dispatching to multiple subscribers; assert delivery order, iterator and reference counts. Payoff177 integrates synchronous indexed issued-order families, saved append ranks/cutoffs, immediate destroy suppression/counters and ordered primary-clock cleanup. Seventeen failing-first native/registration/save/scaling regressions pass in Classic/TFT; fresh 627 original cases verify complete native delivery/reference/pool semantics, and five complete archived Frida logs retain controls/repeat. Stable engine registry slots replace native pool pointers; nested Stop/death/removal remain ORDER-03.2. [Evidence](retail-pathfinding-engine.md#synchronous-issued-order-subscribers-and-deferred-trigger-cleanup-payoff177).
 - [ ] **ORDER-03.2** Destroy an order or unit from a subscriber, then perform nested dispatch; assert depth/unwind and payload lifetime with no stale callback.
 
 ### ORDER-04 — Reference reclamation

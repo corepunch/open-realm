@@ -755,6 +755,12 @@
           "evidence": "1eef90 balanced handle references; complete point-order lifecycle oracle"
         },
         {
+          "offset": 8,
+          "name": "event_table",
+          "type": "ptr:WC3AgentEventTable",
+          "evidence": "Agent+8 read by 071dc0/0728c0/0720a0/071d00 (all agents incl. CUnit). ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
           "offset": 12,
           "name": "identity",
           "type": "WC3PathIdentity",
@@ -4625,6 +4631,109 @@
           "evidence": "Original5fccc0 writes1 when queued command is neitherd0016 nord0017; actual32 calls."
         }
       ]
+    },
+    {
+      "name": "WC3AgentEventTable",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "dispatch_depth",
+          "type": "u8",
+          "evidence": "072180 inc / 071d90 dec around 071e00; depth 0 gates unlink, depth 1 gates dispatcher tombstone reclamation. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 1,
+          "name": "bucket_count",
+          "type": "u8",
+          "evidence": "0717f0 init 4; 071a90 doubles while <64; index = event & (n-1). ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 2,
+          "name": "event_count",
+          "type": "u16",
+          "evidence": "072170 +1 / 071d80 -1: distinct events with a live callback; 071bd0 zeroes. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 4,
+          "name": "buckets",
+          "type": "ptr:ptr:WC3AgentEventNode",
+          "evidence": "Array of circular-list TAIL pointers; pools 6fd3ccf8+0x14*log2(n/4). ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        }
+      ]
+    },
+    {
+      "name": "WC3AgentEventNode",
+      "length": 16,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "next",
+          "type": "ptr:WC3AgentEventNode",
+          "evidence": "Circular singly linked; tail.next = head. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 4,
+          "name": "event",
+          "type": "u32",
+          "evidence": "Matched against dispatch event. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 8,
+          "name": "callback",
+          "type": "ptr:void",
+          "evidence": "Counted reference (+4); 0 = tombstone or dispatcher stack sentinel. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        },
+        {
+          "offset": 12,
+          "name": "remapped_event",
+          "type": "u32",
+          "evidence": "071f09 copies into packet+8 before the callback vtable+0C call. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures."
+        }
+      ]
+    },
+    {
+      "name": "WC3TriggerEventsPrefix",
+      "length": 100,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "Agent callbacks use virtual0c; 298d20 receiver."
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "Agent dispatch071dc0 pins +4; callback references remain unpinned."
+        },
+        {
+          "offset": 8,
+          "name": "event_table",
+          "type": "ptr:WC3AgentEventTable",
+          "evidence": "Common Agent event table +8 in0720a0/071dc0."
+        },
+        {
+          "offset": 88,
+          "name": "evaluations",
+          "type": "u32",
+          "evidence": "Original299c93 increments before enabled predicate056a40 and conditions296de0."
+        },
+        {
+          "offset": 92,
+          "name": "executions",
+          "type": "u32",
+          "evidence": "Original299cad increments after both gates and before2979f0 synchronous actions."
+        },
+        {
+          "offset": 96,
+          "name": "running_executions",
+          "type": "u32",
+          "evidence": "Original298d65 decrements on event80274 and clamps at zero."
+        }
+      ],
+      "scope": "Partial verified prefix; enabled storage starts+64 outside this100-byte layout and is intentionally undefined."
     }
   ],
   "methods": [
@@ -14559,6 +14668,412 @@
         }
       ],
       "evidence": "Payoff176: original full listing ECX Move, stack4 event, RET4; repair inferred scalar ABI and save/read back."
+    },
+    {
+      "address": "6f0725b0",
+      "name": "Agent_RegisterEventSubscriber",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET0C via 0725d0; 0725b3 push1 call 0720a0, jmp 0725d0. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "remapped_event",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f0728c0",
+      "name": "Agent_UnregisterEventSubscriber",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8 (0728d1 / 0729e9); agent+8 null returns. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f071dc0",
+      "name": "Agent_DispatchEvent",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET8 071dee/071df5; EAX from 071e00 or 0. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f071e00",
+      "name": "EventTable_Dispatch",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET8 071fa3; EAX = [ebp-10] any-handler-nonzero flag. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3AgentEventTable",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f071d00",
+      "name": "Agent_ClearEventSubscribers",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Plain RET 071d36. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f071bd0",
+      "name": "EventTable_ClearOrTombstone",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Plain RET 071cf3; SETZ depth==0. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3AgentEventTable",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f071a90",
+      "name": "EventTable_GrowIfDense",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Plain RET 071b73. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3AgentEventTable",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f0720a0",
+      "name": "Agent_GetEventTable",
+      "returns": "ptr:WC3AgentEventTable",
+      "convention": "__thiscall",
+      "evidence": "RET4 072115/07212b. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "create",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f0717f0",
+      "name": "EventTable_Init",
+      "returns": "ptr:WC3AgentEventTable",
+      "convention": "__thiscall",
+      "evidence": "Plain RET 071812; EAX=ECX. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3AgentEventTable",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f071da0",
+      "name": "Agent_DispatchPacket",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET4 071db0; calls vtable+14(packet+8, packet). ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f06a3c0",
+      "name": "ObjectPool_FreeElement",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET0C 06a3d2; element.next = free head +10; +8 live -1 (LIFO). ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "pool",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "element",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "tag",
+          "type": "u32",
+          "storage": 8
+        },
+        {
+          "name": "line",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f27d1f0",
+      "name": "CUnitEventReg_OnEvent",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET4 27d20c/27d32a. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "registration",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f298d20",
+      "name": "CTriggerWar3_OnEvent",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET4; 298d4e wrapper+20 != 0 -> return 0. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "trigger",
+          "type": "ptr:WC3TriggerEventsPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f299c90",
+      "name": "CTriggerWar3_Fire",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Plain RET 299cba. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "trigger",
+          "type": "ptr:WC3TriggerEventsPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f27aa90",
+      "name": "CUnitEventReg_Init",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET10 27ab60. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "registration",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "trigger",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "unit",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "filter",
+          "type": "ptr:void",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f27a530",
+      "name": "CPlayerEventReg_InitUnitEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET10 27a5ec. ORDER-03.1: instruction-verified 0725d0/0728e0/071e00/071bd0/071a90; Unicorn oracle 627 cases (verify_ORDER-03.1_subscriber_dispatch.py) and live JASS unit-event captures. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "registration",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "trigger",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "player",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "filter",
+          "type": "ptr:void",
+          "storage": 16
+        }
+      ]
+    },
+    {
+      "address": "6f072190",
+      "name": "Agent_HasEventSubscriber",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET4 0721a5/0721ab; 0721d0(event,0). ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f0721d0",
+      "name": "EventTable_HasSubscriber",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "RET8 072284/072292. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "table",
+          "type": "ptr:WC3AgentEventTable",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f67c230",
+      "name": "Unit_FireIssuedPointOrderEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4; ECX saved 67c25b, stack4 67c260. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py. Payoff177: original627 cases, archived controls/repeat and actual indexed synchronous native/save/scaling regressions; saved/readback ABI.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

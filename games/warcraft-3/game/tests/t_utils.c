@@ -72,6 +72,7 @@ void reset_entities(void) {
     G_ResetWaypointCache();
     level.waypoints=(typeof(level.waypoints)){0};
     G_ResetMoveRegionEvents();
+    G_ResetEventSubscribers();
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
     /* Existing movement fixtures compare exact retail admission clocks.
@@ -164,6 +165,7 @@ static void reset_test_state(void) {
      * before wiping level; otherwise the next frame follows orphaned owners. */
     S_ClearMoveGroups();
     S_ClearMoveFineRequests();
+    G_ResetEventSubscribers();
     G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();

@@ -566,6 +566,7 @@ static void G_ShutdownGame(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearJassGroupRegistry();
     G_ClearRegionRegistry();
+    G_ResetEventSubscribers();
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
@@ -1322,7 +1323,10 @@ gameEvent_t *G_PublishEvent(edict_t *edict, EVENTTYPE type) {
 
 void G_PublishEventResponse(edict_t *edict, EVENTTYPE type, event_t *response_to) {
     gameEvent_t *event = G_PublishEvent(edict, type);
-    if (event) event->responseTo = response_to;
+    if (event) {
+        event->responseTo = response_to;
+        event->response_sequence = response_to ? response_to->registration_sequence : 0;
+    }
 }
 
 void G_PublishSummonEvents(edict_t *summoner, edict_t *summoned) {

@@ -124,6 +124,8 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
 }
 
 static void G_ExecuteEvent(gameEvent_t *evt) {
+    if(evt->responseTo && (!evt->responseTo->inuse ||
+        evt->response_sequence!=evt->responseTo->registration_sequence))return;
     edict_t *subject = evt->edict;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;

@@ -56,9 +56,9 @@ class CorpusTests(unittest.TestCase):
 
     def test_inventory_covers_oracles_archives_and_native_differences(self):
         entries=self.manifest['entries']
-        self.assertEqual(sum(e['kind']=='oracle' for e in entries),143)
+        self.assertEqual(sum(e['kind']=='oracle' for e in entries),144)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),140)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),141)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))

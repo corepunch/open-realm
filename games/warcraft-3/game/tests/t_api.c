@@ -2046,7 +2046,7 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
         }
     }
     T_NOT_NULL(handler);
-    G_PublishEvent(entering, EVENT_GAME_ENTER_REGION)->responseTo = handler;
+    G_PublishEventResponse(entering, EVENT_GAME_ENTER_REGION, handler);
     G_RunEvents();
     jass_runevents(level.vm);
     jass_callbyname(level.vm, "verifyEnter", true);
@@ -4845,8 +4845,8 @@ TEST(wc3_api, immediate_order_publishes_order_event_context) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
-/* Publishing another order before dispatch, or inside an action, must not
- * rewrite the issued order captured for conditions and queued actions. */
+/* Synchronous nested orders finish before the outer native returns, while
+ * each condition/action keeps its own immutable submitted payload. */
 TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -4861,11 +4861,11 @@ TEST(wc3_api, issued_order_context_is_frozen_across_replacement_and_reentry) {
         "  local real x = 192.0\n"
         "  local real y = 64.0\n"
         "  local location p\n"
-        "  if index == 2 then\n"
+        "  if index == 3 then\n"
         "    set id = OrderId(\"smart\")\n"
         "    set x = 256.0\n"
         "    set y = 96.0\n"
-        "  elseif index == 3 then\n"
+        "  elseif index == 2 then\n"
         "    set x = 320.0\n"
         "    set y = 128.0\n"
         "  endif\n"
@@ -8325,7 +8325,8 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
-    T_ASSERT(level.events.write > level.events.read);
+    /* Issued Move delivery is synchronous; no unrelated queued order remains. */
+    T_EQ(level.events.write, level.events.read);
     for (uint32_t i = level.events.read; i < level.events.write; i++) {
         gameEvent_t *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (queued->type == EVENT_UNIT_IN_RANGE && queued->responseTo == rangeEvent)

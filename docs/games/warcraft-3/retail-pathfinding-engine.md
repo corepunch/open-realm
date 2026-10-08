@@ -12103,3 +12103,77 @@ and `MapPathfinding.java` retain these mappings.
 The closure does not certify unit-target Patrol, disabled Move gates, exact leg
 numerics or a new retail UI save/load capture. Those broader producer, route and
 persistence scopes remain separate; no proposed handoff follow-up IDs were added.
+
+## Synchronous issued-order subscribers and deferred trigger cleanup (Payoff177)
+
+`IssuePointOrder`, immediate orders and target orders deliver player subscribers
+before unit subscribers inside the issuing native. Each pass snapshots its
+registration cutoff, rather than iterating a mutable global registry in slot
+order. A callback's newly appended registration is visible to a nested pass and
+the next call, but not to the current pass. Both subscriber-family presence
+queries happen before either family runs (`67c230`); creating the first unit
+registration from a player callback therefore affects the next order only.
+The immutable stack packet owns the submitted point, order ID and target through
+both deliveries; nested replacement does not rewrite the outer callback's data.
+
+`g_subscriptions.c` owns derived owner/event chains and per-trigger cleanup
+chains. Registrations carry a monotonically increasing saved rank, so reusing a
+low registry slot does not move its callback ahead of older registrations.
+Cold restore rebuilds the chains in rank order once. Warm dispatch visits the
+selected hash bucket and matching subscribers, not `MAX_EVENTS`: the regression
+with three subscribers and 900 unrelated registrations visits exactly three
+entries. Storage remains flat and game-owned; no per-order allocation is needed.
+The native event table's circular lists, stack sentinels, distinct-event count,
+reference increments and pool layout are evidence about behavior, not a required
+engine allocation strategy. Stable registry slots and deferred entity release
+provide the engine's lifetime protection; retired event slots cannot be reused
+while any synchronous pass is traversing their links.
+
+`DestroyTrigger` immediately suppresses further delivery, including a later
+subscriber in the same pass. Its current action continues. Counter queries on
+a destroyed handle return zero; live triggers count evaluation before their
+enabled/condition gate and execution after it. Physical registration/action
+cleanup is a primary-clock request using the existing minimum delay and global
+request sequence. A timer callback schedules from its fired deadline, not the
+outer frame drain limit: a 0.002 callback can enqueue and drain cleanup at 0.0021
+within the same 0.005 advance. A min-heap merges it with timers, spatial maintenance and
+ability requests by deadline/sequence. Cleanup visits the trigger's own
+registrations; it does not scan every registration. Released action lists and owned variable-name strings are
+cleared, and event handle generations advance. Deferred non-order events also
+retain their registration rank, preventing an old queued response from reaching
+a different subscriber after a slot is reused. Save142 preserves these ranks,
+queued identities, counters and pending release deadlines/serials; derived
+chains/heaps are rebuilt. Format141 is rejected under the existing save policy.
+Generic deferred event producers retain their existing scheduling contract.
+
+Evidence and validation:
+
+- Fresh unmodified original register/unregister/dispatch/clear/growth/pool
+  execution: 627 cases (27 named, 600 seeded), 0 mismatches, 2,185 deliveries,
+  361 nested dispatches,230 callback destructions and 150 growths. Supplied agent,
+  callback and external Storm/CRT allocator bodies are explicitly controlled
+  inputs; no `game.dll` instruction is replaced.
+- Five complete archived Frida logs (three observed, two controls), 10,283 rows,
+  three observer/control comparisons and one normalized forward repeat are
+  rebuilt against the pinned expected fixture. Physical CUnit destructor timing
+  is explicitly excluded from that repeat. This is archived evidence, not a new
+  live run. Frozen forward/reverse mutation decisions are tested in actual JASS
+  native calls, including self-destruction counts and the next cleanup drain.
+- Failing-first regressions cover synchronous delivery, insertion cutoff,
+  later/self suppression, nested payloads, family prechecks, slot reuse,
+  pending/cold save reconstruction, queued-response identity, other-event growth,
+  deadline rebasing/tie order and dispatch scaling. All 17 tests pass
+  979 assertions in each Classic/TFT fixture. Focused API/save/order/Move
+  regressions and strict fresh corpus entries remain the acceptance gates.
+- Ghidra saves/readbacks contain 8-byte `WC3AgentEventTable`, 16-byte
+  `WC3AgentEventNode`, 100-byte `WC3TriggerEventsPrefix` with verified counters,
+  unit+8 table pointer and 19 explicit receiver/stack ABIs.
+  `MapPathfinding.java` and the canonical type schema carry the same evidence.
+
+[Research handoff](retail-pathfinding-handoffs/ORDER-03.1/HANDOFF.md),
+[original oracle](../../../tools/ghidra/verify_wc3_pathing_order_subscriptions.py),
+[archive verifier](../../../tools/ghidra/research/verify_order177_subscribers.py).
+ORDER-03.2 remains open for nested Stop head retirement, synchronous death,
+removal admission and complete unit/order destruction composition. This chunk
+does not claim the remaining trigger-condition/action-list/sleep policies or
+physical destructor timing have been certified against retail.

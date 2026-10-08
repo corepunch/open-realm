@@ -128,6 +128,7 @@ handle_t jass_alloc(long size);
 void jass_free(handle_t ptr);
 jassContext_t const *jass_getcontext(jass_t *j);
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
+bool jass_dispatchtriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 jass_t *jass_getroot(jass_t *j);
 bool jass_isrunning(jass_t *j);
 bool jass_context_references_entity(jass_t *j, edict_t const *ent);

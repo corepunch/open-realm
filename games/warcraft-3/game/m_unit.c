@@ -681,12 +681,9 @@ void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *p
                 (cstring_t)&self->class_id, debug_order ? debug_order : "",
                 (unsigned)order_id, point->x, point->y);
     }
-    G_PublishEventWithPoint(&(gameEventPointParams_t){
+    G_DispatchOrderEvents(&(gameEventPointParams_t){
         .edict = self, .type = EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
-        .value = order_id, .point = point });
-    G_PublishEventWithPoint(&(gameEventPointParams_t){
-        .edict = self, .type = EVENT_UNIT_ISSUED_POINT_ORDER,
-        .value = order_id, .point = point });
+        .value = order_id, .point = point }, EVENT_UNIT_ISSUED_POINT_ORDER);
 }
 
 void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
@@ -694,8 +691,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
     issued_order_point_valid[self->s.number] = false;
-    G_PublishEventWithValue(self, EVENT_PLAYER_UNIT_ISSUED_ORDER, NULL, order_id);
-    G_PublishEventWithValue(self, EVENT_UNIT_ISSUED_ORDER, NULL, order_id);
+    G_DispatchOrderEvents(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER);
 }
 
 static void unit_publish_target_order(edict_t *self, cstring_t order,
@@ -713,8 +710,8 @@ static void unit_publish_target_order(edict_t *self, cstring_t order,
                 (unsigned)order_id, target ? (unsigned)target->s.number : 0u,
                 target ? (cstring_t)&target->class_id : "----");
     }
-    G_PublishEventWithValue(self, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, target, order_id);
-    G_PublishEventWithValue(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target, order_id);
+    G_DispatchOrderEvents(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER);
 }
 
 bool G_UnitHasActiveOrder(edict_t const *self) {

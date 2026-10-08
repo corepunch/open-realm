@@ -1175,6 +1175,7 @@ typedef struct gameevent_s {
     vec2_t point;
     bool has_point;
     event_t *responseTo;
+    uint64_t response_sequence; /* Pins a registration across deferred delivery/reuse. */
 } gameEvent_t;
 
 typedef struct {
@@ -1318,6 +1319,9 @@ struct gtrigger_s {
     gTriggerAction_t *actions;
     gTriggerCondition_t *conditions;
     bool disabled;
+    bool destroyed, release_pending;
+    uint32_t evaluations, executions, release_sequence;
+    wc3Clock_t release_deadline;
 };
 
 struct gtimer_s {
@@ -2272,6 +2276,7 @@ struct gevent_s {
     bool inuse;
     uint32_t handle_generation;
     uint8_t generation_exhausted;
+    uint64_t registration_sequence;
 };
 
 typedef struct {
@@ -2290,6 +2295,7 @@ typedef struct {
     event_t handlers[MAX_EVENTS];
     gameEvent_t queue[MAX_EVENT_QUEUE];
     uint32_t write, read;
+    uint64_t registration_sequence;
 } levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -3013,6 +3019,7 @@ void G_HeroSaveLoadAuditFrame(void);
 void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size);
 struct jass_context;
 wc3Clock_t G_TimerQueryClock(struct jass_context const *);
+float G_ClockMinimumDelay(void);
 float G_TimerRemainingScalar(gtimer_t const *, wc3Clock_t const *);
 float G_TimerElapsedScalar(gtimer_t const *, wc3Clock_t const *);
 void G_TimerStartScalarAt(gtimer_t *, float, bool, struct jass_function const *, wc3Clock_t const *);
@@ -3817,6 +3824,15 @@ void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 void G_ResetMoveRegionEvents(void);
 void G_TrackMoveRegionEvent(event_t const *);
+void G_ResetEventSubscribers(void);
+void G_TrackEventSubscriber(event_t *);
+void G_SetEventTrigger(event_t *, trigger_t *);
+bool G_EventSlotAvailable(event_t const *);
+void G_DispatchOrderEvents(gameEventPointParams_t const *, EVENTTYPE);
+void G_TriggerRequestDestroy(trigger_t *, wc3Clock_t const *);
+bool G_NextTriggerRelease(wc3Clock_t *, uint32_t *);
+void G_FireTriggerRelease(void);
+void G_RebaseTriggerReleases(float);
 event_t *G_MakeEvent(EVENTTYPE);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);

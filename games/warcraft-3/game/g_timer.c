@@ -85,7 +85,7 @@ static uint32_t TimerMillis(float seconds) {
 /* Registered002170 initializes the segment quantum to120, independently of
  * the primary clock's300-second epoch. Getter operation order is observable. */
 static float TimerSegment(void) {return wc3_float(0x42f00000);}
-static float TimerMinimum(void) {return wc3_float(0x38d1b717);}
+float G_ClockMinimumDelay(void) {return wc3_float(0x38d1b717);}
 float G_TimerRemainingScalar(gtimer_t const *timer,wc3Clock_t const *clock) {
     if(!timer)return 0;
     if(!timer->scalar_timing)return G_TimerRemaining(timer)/1000.0f;
@@ -120,7 +120,7 @@ static void TimerPrepare(gtimer_t *timer,float timeout,wc3Clock_t const *clock) 
     timer->scalar_residual=wc3_modulo(timeout,TimerSegment());
     timer->scalar_segmented=timer->scalar_segments!=0;
     timer->scalar_period=timer->scalar_segmented ? TimerSegment() : timer->scalar_residual;
-    if(timer->scalar_period<TimerMinimum())timer->scalar_period=TimerMinimum();
+    if(timer->scalar_period<G_ClockMinimumDelay())timer->scalar_period=G_ClockMinimumDelay();
     timer->scalar_deadline=*clock;
     timer->scalar_deadline.time=wc3_add(clock->time,timer->scalar_period);
     timer->scalar_sequence=++level.timer_sequence;
@@ -372,7 +372,7 @@ static void TimerFireScalar(gtimer_t *timer) {
             timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);TimerHeapInsert(timer);return;
         }
         if(timer->scalar_residual>=0) {
-            timer->scalar_segmented=false;timer->scalar_period=MAX(timer->scalar_residual,TimerMinimum());
+            timer->scalar_segmented=false;timer->scalar_period=MAX(timer->scalar_residual,G_ClockMinimumDelay());
             timer->scalar_deadline.time=wc3_add(due.time,timer->scalar_period);
             timer->scalar_sequence=++level.timer_sequence;TimerHeapInsert(timer);return;
         }
@@ -419,15 +419,25 @@ static void TimerDrain(float limit,bool before_owner) {
                 (maintenance.time==timer->scalar_deadline.time && sequence<timer->scalar_sequence));
         abilityTimerRequest_t ability;
         bool owned=S_NextAbilityPrimaryTimer(&ability);
-        if(!spatial && !timer && !owned)break;
+        wc3Clock_t release;uint32_t release_sequence;
+        bool releasing=G_NextTriggerRelease(&release,&release_sequence);
+        if(!spatial && !timer && !owned && !releasing)break;
         float due=spatial ? maintenance.time : timer ? timer->scalar_deadline.time : FLT_MAX;
         uint32_t serial=spatial ? sequence : timer ? timer->scalar_sequence : UINT32_MAX;
         if(owned && ((!spatial && !timer) || ability.deadline.time<due ||
             (ability.deadline.time==due && ability.sequence<serial))) {
             due=ability.deadline.time;serial=ability.sequence;
         } else owned=false;
+        if(releasing && ((!spatial && !timer && !owned) || release.time<due ||
+            (release.time==due && release_sequence<serial))) {
+            due=release.time;serial=release_sequence;owned=false;spatial=false;
+        } else releasing=false;
         if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
-        if(owned) {
+        if(releasing) {
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=release;
+            G_FireTriggerRelease();level.timer_clock=saved;
+        }
+        else if(owned) {
             wc3Clock_t saved=level.timer_clock;level.timer_clock=ability.deadline;
             abilityCall_t call={.primary_timer=&ability};
             ability.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);level.timer_clock=saved;
@@ -445,6 +455,7 @@ static void RunScalarTimers(wc3Clock_t const *before) {
         TimerDrain(now.span,false);
         S_RebaseMoveSpatialMaintenance(now.span);
         S_RebaseAbilityPrimaryTimers(now.span);
+        G_RebaseTriggerReleases(now.span);
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;

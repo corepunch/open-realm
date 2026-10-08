@@ -878,6 +878,7 @@ void G_ReleaseLevel(void) {
     S_ResetWaygateCache();
     G_ResetWaypointCache();
     G_ResetMoveRegionEvents();
+    G_ResetEventSubscribers();
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     G_ResetHeroPassiveCaches();

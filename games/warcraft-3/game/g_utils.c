@@ -174,12 +174,14 @@ void G_RunDeferredFrees(void) {
 void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
 
 event_t *G_MakeEvent(EVENTTYPE type) {
-    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse && !level.events.handlers[i].generation_exhausted) {
+    FOR_LOOP(i, MAX_EVENTS) if (G_EventSlotAvailable(level.events.handlers+i)) {
         event_t *evt = &level.events.handlers[i];
         uintptr_t generation = evt->handle_generation;
         memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
         evt->inuse = true; evt->type = type;
-        G_TrackMoveRegionEvent(evt);
+        if(level.events.registration_sequence==UINT64_MAX)gi.error("WC3: event registration sequence exhausted");
+        evt->registration_sequence=++level.events.registration_sequence;
+        G_TrackEventSubscriber(evt);G_TrackMoveRegionEvent(evt);
         return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
@@ -190,12 +192,14 @@ void G_SetEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = subject ? subject->spawn_time : 0;
     evt->subject_spawn_tracked = subject != NULL;
+    G_TrackEventSubscriber(evt);
 }
 
 void G_SetPlayerEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = 0;
     evt->subject_spawn_tracked = false;
+    G_TrackEventSubscriber(evt);
 }
 
 bool G_EventSubjectIsCurrent(event_t *evt) {

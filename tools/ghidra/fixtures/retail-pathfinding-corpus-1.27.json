@@ -44054,6 +44054,122 @@
           "imageSize": 15130624
         }
       }
+    },
+    {
+      "id": "oracle-order-subscriber-mutation",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_order_subscriptions.py",
+        "--binary",
+        "{binary}",
+        "--output",
+        "{report}"
+      ],
+      "report": "order-subscriber177.json",
+      "expected_exit": 0,
+      "expected_status": "retail-order-subscriber-original",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "cases": {
+          "equal": 627
+        },
+        "mismatches": {
+          "equal": 0
+        }
+      },
+      "evidence": [
+        "O",
+        "S"
+      ],
+      "scope": "Complete original subscriber register/unregister/dispatch/clear/growth/pool routines; delivery/remaps/depth/count/references/destruction/live pools.",
+      "exclusions": [
+        "Supplied agents, callback/handler bodies and external Storm/memset implementations; no original instruction replaced.",
+        "Engine stable registry-slot storage differs from native pointer pools."
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      }
+    },
+    {
+      "id": "live-order-subscriber-mutation",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_order177_subscribers.py",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "order-subscriber-capture177.json",
+      "expected_exit": 0,
+      "expected_status": "retail-order-subscriber-dispatch",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 5
+        },
+        "records": {
+          "equal": 10283
+        },
+        "observer_free_comparisons": {
+          "equal": 3
+        },
+        "matched_repeats": {
+          "equal": 1
+        },
+        "public_claims": {
+          "equal": 10
+        }
+      },
+      "evidence": [
+        "L",
+        "C",
+        "S"
+      ],
+      "scope": "Full archived forward/reverse synchronous mutation scenes, original iterator/reference observations, immediate destroy guard and deferred release; actual engine native/save/scaling integration.",
+      "exclusions": [
+        "No new live capture; prepared readonly Frida evidence revalidated.",
+        "Physical CUnit destructor timing excluded from normalized repeat.",
+        "Nested Stop/death/removal and complete payload destruction remain ORDER-03.2."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/ORDER-03.1/captures/forward-observe-1.jsonl",
+        "sha256": "32842306bc2a5f114c716d24bc9e90377e3f4a08f54d7ab57e7744c71620ea05",
+        "bytes": 3630028,
+        "metadata": {
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "mode": "observe",
+          "source_sha256": {
+            "order_trace.py": "beb82075df6bf0cbd2594ba13fad75bb12fa5ad90b957e1f151ea27bc886c7ba",
+            "order03_observer.js": "1e048c044f2c59653e0bfc72af3b188191bebbdd19e0b947085afbf053b9e1c8",
+            "order03_probe.j": "051bb467cf8dd7b0a2498991bc3af3dc5a97cebb2f47bd55f96b9cba515fbdd3",
+            "map": "0b891b79821692fdb9047c00c44e044ae797414994472cb9be2c8a4e28c55408"
+          },
+          "map": "Maps\\RS-ORDER-03.1-forward.w3m",
+          "seconds": 110.0,
+          "continue_at": 70.0,
+          "continue_every": 5.0,
+          "display": ":99",
+          "remote": "127.0.0.1:27050",
+          "removed_before_launch": [],
+          "frida": "17.18.0",
+          "config": {
+            "timestamp": 1481263518,
+            "imageSize": 15130624,
+            "caps": {
+              "default": 200000
+            }
+          }
+        }
+      }
     }
   ],
   "fixtures": [
@@ -44119,7 +44235,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "e7c0f286501c649cfdfe5810efe39aefeb411fddb8d72f6494780c2d5da3fab1"
+      "sha256": "fcd07f0256eda4653282141bb3fe2eede948ce706e5731af107e86e9fde1ee0c"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -44952,7 +45068,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7f9f02fee7a89533121cc68cfa632242e7d3b84d7f84d9f13427d5e02d3f06ec"
+      "sha256": "02c9f416e1f7449dee330dbf385b517e016b3d2e41dd37a305dcab94fa1849f5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -46244,7 +46360,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ca571cf8c0253ea148b62faf9678e6d48bf6c5d53f186882569e1e9835f92e74"
+      "sha256": "37c892f296199e335ed2d588d5794ff832df1c535db4111f02c9abcd8e7faa3b"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -46252,7 +46368,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "941130b8153b9b854a6f83c58d07b54fdb6765d2cad18a3dd06eda0cf953dc85"
+      "sha256": "dcfc183dbd5796d9613cb2f09aa0dd5c49d3ddbfd031dacc67dd4f18d8cc11f9"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -46744,7 +46860,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "49bbf4aaab6eb6178297966600d0b2c380a7dd16c78a9f7ae482b57dfed9fc1f"
+      "sha256": "170a8a71379c21aba102d84c389af657342acf3739e06b92300e395367b59328"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -46756,15 +46872,15 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "01077ebcf7e0adc55712887d691b028bf47981fdf9b6737797924a3947d2ac2d"
+      "sha256": "b20a85bcbfb93eeda6258af2632e09b9a13ba8efc260a18d9bb79b3d0ecc6908"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "b669cf9543aea6a4e316855dddb1274cce558399365ac6b303e11eb74198fa5c"
+      "sha256": "9b633ebcb0900e3b988013dd1e421c591122d5ac5a7ce716aaf38a6e60f8c5b9"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
-      "sha256": "67bf2db191a3ec463cd9794aa9cb083a289628b424ac427cb15bfaf1db0cbd98"
+      "sha256": "bb30783d29d9c6192f9580fbd88a83221a0410da4d4b056b16a21a12f7472637"
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
@@ -46816,11 +46932,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_main.c",
-      "sha256": "b85c4df184137f3d1ba59cea303b83c64f4c00481d5d884573e18c9be38096c1"
+      "sha256": "f0bfe59e6a233976211b7a40c129755aa7f2e61713086eadbb9dfa79d5f4a778"
     },
     {
       "path": "games/warcraft-3/game/g_utils.c",
-      "sha256": "4e0bf31cebbf553d03d7a03529d4ded95a86313f500cfb0ab181d7a640a5aff5"
+      "sha256": "bfb4052d995c68b5561f903958f7aaceeca91f1af5d8042669512533e4417a84"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_attack_help.py",
@@ -46888,7 +47004,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "d55cbc5a1d50b7dc55f9c514870b80326f25daf33c983fdfda3789140d50804e"
+      "sha256": "dace0d43e11fc865ba93871301c88ebb716515a936b60d71fbb7efcff13fb52d"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -47548,7 +47664,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_api.c",
-      "sha256": "d9666c63eeeb9a9fc1389f3dfd25782c0bdc4df42933421aabcb562d7f884cf5"
+      "sha256": "3d94f858f7e36c4bffb2e4ae9b5923edeefd535451328ecdfc1086c9aa6dd04b"
     },
     {
       "path": "games/warcraft-3/game/tests/t_collision.c",
@@ -47708,7 +47824,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "36b2937de4c433fad0f7a0b3c88b354562e240c20a620b644af9f6d529b4e6e5"
+      "sha256": "fd93705c172ee2d402955683ab01a153423aa5d3509c689707acca0760132790"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -47832,7 +47948,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_utils.c",
-      "sha256": "f26a681b49fc845d9fd207161b7df4ff7fd54ebc3ce46d75e81a46cc9abb6f69"
+      "sha256": "b358ffb41d6fee6c3643d079eae26ae3129ea1c0afdc3fbff98efa491f0abce4"
     },
     {
       "path": "games/warcraft-3/game/skills/s_patrol.c",
@@ -47881,6 +47997,86 @@
     {
       "path": "tests/test_wc3_pathfinding_patrol_orders.py",
       "sha256": "d21aac73d3c9ee7ee6bbfbe20870f14c2855e72fd61fe2625ff2a3f7fe3f01ed"
+    },
+    {
+      "path": "games/warcraft-3/game/g_subscriptions.c",
+      "sha256": "47cf340a94a3631475f432e4eaedaa404e5d06fda29175298c22c4ceb1b06ace"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_order_subscribers.c",
+      "sha256": "84d9848cd392636f91b22d5aa3c37e41e9d4c2c13bf678a197f6d1bad5aea0f8"
+    },
+    {
+      "path": "games/warcraft-3/game/g_events.c",
+      "sha256": "c8f6c893aa6f0774056d87d7481b05bdd09562fe7df5193995441d917847da3a"
+    },
+    {
+      "path": "games/warcraft-3/game/api/api_trigger.h",
+      "sha256": "83cf2d80e8ca3a469792103a13234a64ed97efee9bc835c745524fd8aba58323"
+    },
+    {
+      "path": "games/warcraft-3/jass/jass.h",
+      "sha256": "f3b86f5a42623d0928003f58666d25475cf4a8515e8d59b07304214d84b7b4c2"
+    },
+    {
+      "path": "games/warcraft-3/jass/jdo.c",
+      "sha256": "ee28fa0096a4055b617f363160a11e8eb784a34bfe1420c87a74c19e4fa315fa"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_order_subscriptions.py",
+      "sha256": "56e4bae0bd8bf2e1a613e82b96ba1e201776a047b2745ee2fa3bcbbf1c9787d2"
+    },
+    {
+      "path": "tools/ghidra/research/verify_order177_subscribers.py",
+      "sha256": "f4f748742a6e611ae03ced8af10ee27d875de7d2e3f5953c7ac3bd341c084c8b"
+    },
+    {
+      "path": "tools/ghidra/research/verify_ORDER-03.1_subscriber_dispatch.py",
+      "sha256": "7b78891cfd7f9fdac527c56fd7e6533cbd72e1c9fbdeb54e6a40f7a6c40bb55f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/ORDER-03.1-expected.json",
+      "sha256": "595cd7ed40c60ac8a0eb9a203bb471152a36acf3ec9d587ac0587c1af60c7ed9"
+    },
+    {
+      "path": "tools/frida/research/order03_expected.py",
+      "sha256": "85ddb504ade61c6c9809d8c032ac387dd2f9d58aef5149ea5e3836bf8e8a8c83"
+    },
+    {
+      "path": "tools/frida/research/order03_analyze.py",
+      "sha256": "cc1f4700d055526bbdefcc52afab4e682212c47ccb28d8555b6dd725c3df12a0"
+    },
+    {
+      "path": "tools/frida/research/order03_make_map.py",
+      "sha256": "ff1a2a7d216511c77b299e50f7815c14ad49f239af927c6f7bc220e7aaf20040"
+    },
+    {
+      "path": "tools/frida/research/order03_observer.js",
+      "sha256": "1e048c044f2c59653e0bfc72af3b188191bebbdd19e0b947085afbf053b9e1c8"
+    },
+    {
+      "path": "tools/frida/research/order03_probe.j",
+      "sha256": "051bb467cf8dd7b0a2498991bc3af3dc5a97cebb2f47bd55f96b9cba515fbdd3"
+    },
+    {
+      "path": "tools/frida/research/order03_runs.sh",
+      "sha256": "13c158527c275de43f41d9f50dbba4edfe9746eafe10cdcf86d4f1e2ec80f6c7"
+    },
+    {
+      "path": "tools/frida/research/order_trace.py",
+      "sha256": "beb82075df6bf0cbd2594ba13fad75bb12fa5ad90b957e1f151ea27bc886c7ba"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-03.1/HANDOFF.md",
+      "sha256": "beb8387cc5e11978b6323b38442ff81e0d47f3faffd8b73b84a47a899d600f98"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/ORDER-03.1/types.json",
+      "sha256": "a9ef796b62953e26f5b5591afaa9127d96d4b5d041726a105ca4fbf994653f3f"
+    },
+    {
+      "path": "tests/test_wc3_order_subscriber_evidence.py",
+      "sha256": "a65686af3834073b3be529770c2abd16e3ee1f4b6ddf45f2da38f7ce2410d6a2"
     }
   ]
 }

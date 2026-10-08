@@ -1299,11 +1299,18 @@ void jass_executetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
     jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit }, true);
 }
 
-static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+static bool jass_firetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
+    if (!params->trigger || params->trigger->destroyed) return false;
+    params->trigger->evaluations++;
     if (!jass_evaluatetriggercontext(j, params))
         return false;
-    jass_executetriggercontext(j, params, false);
+    params->trigger->executions++;
+    jass_executetriggercontext(j, params, immediate);
     return true;
+}
+
+static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    return jass_firetriggercontext(j, params, false);
 }
 
 bool jass_calltriggerwithvalue(jass_t *j,
@@ -1323,6 +1330,15 @@ bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *eve
         .point = event->has_point ? &event->point : NULL, .has_point = event->has_point,
         .region = event->responseTo && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
             ? event->responseTo->region : NULL });
+}
+
+/* Issued orders own one immutable packet for the complete synchronous pass.
+ * Coroutine contexts copy its scalar payload before a callback can nest. */
+bool jass_dispatchtriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event) {
+    return jass_firetriggercontext(j, &(jassTriggerContextParams_t){
+        .trigger=trigger,.unit=event->edict,.source=event->source,
+        .type=event->type,.value=event->value,.point=event->has_point ? &event->point : NULL,
+        .has_point=event->has_point }, true);
 }
 
 bool jass_calltriggerwithtimer(jass_t *j, trigger_t *trigger, handle_t timer) {
