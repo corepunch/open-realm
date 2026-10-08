@@ -12037,3 +12037,69 @@ the open captain producer scope. Complete live stat-change rescaling, point-form
 Attack Once admission and missile-line impact geometry are not certified by these
 captures. Engine save/reuse regressions are not a new retail UI save/load witness.
 The prepared Frida evidence is replayed, not represented as a new live capture.
+
+## Patrol leg completion admits queued successors (Payoff176)
+
+`ORDER-01.18` closes the point-Patrol/combat/queued-leg composition. Issued Patrol
+expands only at scalar squared distance10000 or greater (`5fe1a0`, constant
+`6fd6fb28` initialized by`013530`). The engine uses separate retail scalar
+subtract/multiply/add operations. Short orders remain accepted, retire synchronously
+to head0 and produce no motion; the boundary100 creates active851991. The gate
+applies to single-point activation, never to an already retained two-point return.
+
+At leg arrival, retail `5fff70`/d0175 appends the reversed order **before** the
+current head completes. Previously the engine swapped its waypoint immediately,
+starving every queued command behind Patrol. `s_patrol.c` now places the return
+behind existing FIFO successors and invokes the ordinary completion dispatch.
+With an empty FIFO, the append/pop pair has no successor to reorder: the engine
+reuses the retained endpoints directly, without queue or waypoint allocation. A
+failing-first100-frame regression proves that this path leaves sparse FIFO storage
+unallocated; ownership notifications still run at the same leg boundary.
+A newly activated Patrol captures its origin at activation. `5fcc70`/`5fccc0` then
+rotates it behind any queued non-Patrol order; subsequent rotations preserve both
+endpoints. Thus a queued Move executes before the return, and multiple routes can
+alternate without recapturing their origins.
+
+The FIFO stores `point` plus a pointer-free `continuation`. The owner interprets
+its payload through the flat registered Patrol procedure. The sparse arena keeps
+ring storage stable and reserves one physical entry beyond the existing engine
+user limit16, so a full user FIFO cannot silently lose its return. This is an
+engine capacity guarantee, not a newly claimed retail queue limit. Append/pop are
+O(1); only leg admission checks the bounded pending FIFO. No entity discovery scan
+or per-leg allocation is added. Move group-ID reconstruction now reads only Move
+payloads; a reproduced regression showed that a Patrol payload kind otherwise
+incorrectly reserved Move identity1.
+
+Actual automatic acquisition and damage retain851991. Enemy removal waits for any
+committed swing, then resumes the **same** retained leg; pending Move still waits
+for that leg's arrival. Both ordinary arrival and the existing generic blocked-leg
+completion append the same return policy. Exact physical retry geometry stays in
+MOVE/ROUTE, and the blocked regression explicitly supplies the existing watermark
+at that decision boundary rather than claiming a new retail trajectory.
+
+Save141 retains the extra scalar pair and physical reserved slot. Tests restore a
+rotated FIFO during Move and an active Attack sub-behavior during Patrol, including
+retained endpoint identity, public head and eventual leg handoff. The existing
+wrapped-FIFO, construction and prior-format rejection tests cover the shared storage
+change. Two older lifecycle expectations also required correction to the already
+integrated Payoffs173/174 contracts: dead-target Attack accepts a point snapshot,
+and a committed animationless hit resumes Follow at swing completion. The wider
+frame check exposed a test-isolation bug: per-test teardown wiped `level` without
+releasing the retained physical Move owner list. The harness now clears both
+physical owners and fine requests before wiping level state. The existing Patrol
+collision-radius check now inspects the retained leg that owns the route rather
+than its copied input waypoint.
+
+Evidence: the initial four public/native/frame regressions fail10 assertions before
+the fix. Original `5fccc0` executes all32 classifier inputs without substitutions.
+The strict capture verifier reconstructs4 complete observations and one
+observer-free control (9,672 records/9,676 markers). Only the no-input threshold/
+combat scene has matched repeats; the two queued-input runs are separate single
+witnesses and are never presented as identical runs. Ghidra saves five owner
+functions, the8-byte `WC3PatrolQueueScanPrefix` and three explicit ABIs, including
+repair of the formerly malformed inferred `5fe1a0` prototype. The canonical schema
+and `MapPathfinding.java` retain these mappings.
+
+The closure does not certify unit-target Patrol, disabled Move gates, exact leg
+numerics or a new retail UI save/load capture. Those broader producer, route and
+persistence scopes remain separate; no proposed handoff follow-up IDs were added.

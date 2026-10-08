@@ -750,6 +750,9 @@ struct client_s {
  * training/research queue. Targets are retained by edict number + spawn_time
  * so a recycled slot cannot silently retarget an old queued command. */
 #define MAX_UNIT_ORDER_QUEUE 16
+/* One reserved slot lets an active looping order append its continuation
+ * before retiring its head, even when every user FIFO slot is occupied. */
+#define UNIT_ORDER_STORAGE_CAPACITY (MAX_UNIT_ORDER_QUEUE + 1)
 #define UNIT_ORDER_NAME_SIZE 20 // bytes; fits the 17-byte longest stock order name plus NUL; bounds queued order strings
 
 /* Retail command identities: issued Patrol becomes a two-endpoint order on
@@ -770,6 +773,7 @@ typedef struct {
     char order[UNIT_ORDER_NAME_SIZE];
     unitOrderTargetType_t target_type;
     vec2_t point;
+    vec2_t continuation; /* Owned two-point orders retain their other endpoint. */
     /* Entity-target orders identify their gameplay target here. Queued Build
      * orders instead identify their owner-only Construction Site Indicator so
      * queue teardown can remove presentation without storing process pointers. */
@@ -782,7 +786,7 @@ typedef struct {
 } unitOrder_t;
 
 typedef struct {
-    unitOrder_t entries[MAX_UNIT_ORDER_QUEUE];
+    unitOrder_t entries[UNIT_ORDER_STORAGE_CAPACITY];
 } unitOrderStorage_t;
 
 typedef struct {
@@ -3837,6 +3841,7 @@ bool G_TransformUnitType(edict_t *, uint32_t);
 bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
 bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
+bool G_AppendUnitOrder(edict_t *, unitOrder_t const *);
 bool G_UnitHasActiveOrder(edict_t const *);
 void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cstring_t);
 void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);

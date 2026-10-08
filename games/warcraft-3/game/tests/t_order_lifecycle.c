@@ -156,9 +156,11 @@ TEST(wc3_order_lifecycle, explicit_attack_replaces_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
     T_ASSERT(unit->movement.follow_target == ally);
     G_SetHealth(enemy, 0);
-    T_ASSERT(!unit_issuetargetorder(unit, "attack", enemy));
-    T_ASSERT(unit->movement.follow_target == ally);
-    T_ASSERT(unit->goalentity == ally);
+    /* Native207160 accepts this as a point Attack Move snapshot. */
+    T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
+    T_NULL(unit->movement.follow_target);
+    T_NOT_NULL(unit->movement.attackmove_waypoint);
+    T_FEQ(unit->goalentity->s.origin2.x, enemy->s.origin2.x, 0);
     G_SetHealth(enemy, enemy->health.max_value);
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     T_Damage(enemy, unit, (int)enemy->health.value);
@@ -228,6 +230,7 @@ TEST(wc3_order_lifecycle, patrol_head_differs_from_issued_command_through_combat
 
 TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(500, 0);
     edict_t *enemy = review_order_unit(20, 1);
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
@@ -237,6 +240,13 @@ TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     unit->currentmove->think(unit);
     unit->currentmove->think(unit);
     T_ASSERT(M_IsDead(enemy));
+    /* The committed hit retains Follow through its independent swing wait;
+     * no animation-end callback is required to resume it. */
+    T_EQ(unit->movement.follow_target, ally);
+    T_ASSERT(unit->attack_swing.active);
+    T_NULL(unit->goalentity);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    FOR_LOOP(i, 8) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(unit->goalentity == ally);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
 }

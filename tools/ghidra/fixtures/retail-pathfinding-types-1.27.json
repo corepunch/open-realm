@@ -4607,6 +4607,24 @@
           "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
         }
       ]
+    },
+    {
+      "name": "WC3PatrolQueueScanPrefix",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "head",
+          "type": "ptr:WC3OrderPrefix",
+          "evidence": "Original5fccc0 compares ECX candidate to [EDX]; complete32 calls."
+        },
+        {
+          "offset": 4,
+          "name": "found_non_patrol",
+          "type": "u32",
+          "evidence": "Original5fccc0 writes1 when queued command is neitherd0016 nord0017; actual32 calls."
+        }
+      ]
     }
   ],
   "methods": [
@@ -14490,6 +14508,57 @@
         }
       ],
       "evidence": "Payoff175: complete original x86 listing and explicit storage saved/read back; plain RET selector, RET4 ground point task."
+    },
+    {
+      "address": "6f5fcc70",
+      "name": "Move_HasQueuedNonPatrolOrder",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f5fccc0",
+      "name": "Move_TestQueuedPatrolOrder",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "scan",
+          "type": "ptr:WC3PatrolQueueScanPrefix",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Payoff176: complete original callback32 cases, no substitutions; explicit ECX/EDX and plain RET saved/read back."
+    },
+    {
+      "address": "6f5fe1a0",
+      "name": "Move_ExpandIssuedPatrol",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:WC3MoveSpeedPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff176: original full listing ECX Move, stack4 event, RET4; repair inferred scalar ABI and save/read back."
     }
   ],
   "globals": [
@@ -14906,6 +14975,12 @@
       "name": "CRandData_vftable",
       "type": "ptr:void",
       "evidence": "RTTI .?AVCRandData@@; written by 65c7c0"
+    },
+    {
+      "address": "6fd6fb28",
+      "name": "Patrol_MinimumDistanceSquared",
+      "type": "WC3PathScalar",
+      "evidence": "ORDER-01.18: initializer 6f013530 MOV EDX,2710; MOV ECX,6fd6fb28; JMP 070d80 (integer->scalar 10000.0). 5fe2e4 MOVSS/COMISS: issued Patrol expands only when dist2(unit,point) >= this. Live: 60 and 99.99 units -> head 0 at issue; exactly 100 -> 851991."
     }
   ]
 }

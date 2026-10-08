@@ -160,6 +160,10 @@ void setup_test_world(void) {
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
     S_ResetAbilityTimers();
+    /* Physical Move owners also retain process-local links. Release them
+     * before wiping level; otherwise the next frame follows orphaned owners. */
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
     G_ResetUnitAbilityCodes();
     G_ResetSpawnCache();
     S_ResetWaygateCache();

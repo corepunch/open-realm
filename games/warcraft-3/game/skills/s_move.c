@@ -3570,6 +3570,13 @@ static float move_active_group_speed(edict_t const *self) {
     return slowest;
 }
 
+/* Queue payloads belong to their registered owner. A Patrol payload kind
+ * must not reserve a numerically equal Move request identity. */
+static uint32_t move_queued_group_id(unitOrder_t const *order) {
+    ability_t const *owner=order->owner_context ? FindAbilityByOrder(order->order) : NULL;
+    return owner && owner->proc==CAbilityMove ? order->owner_context : 0;
+}
+
 static uint32_t move_allocate_group_id(void) {
     if (!move_group_id_bound_valid) {
         FOR_LOOP(i,globals.num_edicts) {
@@ -3581,8 +3588,8 @@ static uint32_t move_allocate_group_id(void) {
             move_group_id_bound=MAX(move_group_id_bound,unit->movement.group_id);
             move_group_id_bound=MAX(move_group_id_bound,unit->movement.previous_request_id);
             FOR_LOOP(q,unit->order_queue.count) {
-                unsigned slot=(unit->order_queue.head+q)%MAX_UNIT_ORDER_QUEUE;
-                move_group_id_bound=MAX(move_group_id_bound,unit->order_queue.entries[slot].owner_context);
+                unsigned slot=(unit->order_queue.head+q)%UNIT_ORDER_STORAGE_CAPACITY;
+                move_group_id_bound=MAX(move_group_id_bound,move_queued_group_id(&unit->order_queue.entries[slot]));
             }
         }
         FOR_LOOP(i,ARRAY_COUNT(level.move_groups))
@@ -3602,8 +3609,8 @@ static uint32_t move_allocate_group_id(void) {
             edict_t const *unit=g_edicts+i;
             if (!unit->inuse) continue;
             FOR_LOOP(q,unit->order_queue.count) {
-                unsigned slot=(unit->order_queue.head+q)%MAX_UNIT_ORDER_QUEUE;
-                if (unit->order_queue.entries[slot].owner_context==level.next_move_group_id) used=true;
+                unsigned slot=(unit->order_queue.head+q)%UNIT_ORDER_STORAGE_CAPACITY;
+                if (move_queued_group_id(&unit->order_queue.entries[slot])==level.next_move_group_id) used=true;
             }
             if (used || unit->movement.group_id == level.next_move_group_id ||
                     unit->movement.previous_request_id == level.next_move_group_id) {
@@ -4359,7 +4366,7 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
         if (!G_QueueUnitOrder(unit,request->order,UNIT_ORDER_TARGET_POINT,request->point,NULL,
                 request->issuer_player,0,0)) continue;
         unitOrderQueue_t *queue=&unit->order_queue;
-        unsigned slot=(queue->head+queue->count-1)%MAX_UNIT_ORDER_QUEUE;
+        unsigned slot=(queue->head+queue->count-1)%UNIT_ORDER_STORAGE_CAPACITY;
         queue->entries[slot].owner_context=context;
         unit->movement.previous_request_id=context;
         if (!active) G_UnitStartNextQueuedOrder(unit);

@@ -3099,6 +3099,9 @@ TEST(wc3_pathfinding, patrol_requests_collision_sized_route) {
     edict_t *wp = make_waypoint(8.0f, 5.0f);
     unit->collision = 1.0f;
     order_patrol(unit, wp);
+    /* Patrol captures a value pair; its retained leg owns routing state. */
+    wp = unit->movement.patrol_target;
+    T_NOT_NULL(wp);
     T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
     unit_changeangle(unit);
 

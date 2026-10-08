@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**250 done / 336 tasks; 86 remaining.**
+**251 done / 336 tasks; 85 remaining.**
+
+Payoff176 closes ORDER-01.18. Short Patrol retires synchronously; leg completion
+admits queued Move before its return, and queued Patrol rotates with its captured
+origin. Actual acquisition/damage/loss resume the same leg. Sparse FIFO storage
+reserves its continuation and saves both endpoints; unqueued reversal allocates
+nothing. Complete4-capture/one-control reconstruction and failing-first native/
+frame/queue/save regressions pass. See [Patrol leg completion](retail-pathfinding-engine.md#patrol-leg-completion-admits-queued-successors-payoff176).
 
 Payoff175 closes ORDER-01.10's public Attack ownership contract. Attack Once
 approaches, commits once and retires at the saved swing deadline; ordinary Attack
@@ -1024,7 +1031,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 
 - [x] **ORDER-01.17** Extend01.15 target loss through temporary automatic-combat ownership, direct free/death, callback reentrant removal, generation-safe target/subject reuse and save before deferred drain. Payoff123: seven-case complete retail repeats match1,455 public records each; actual RemoveUnit virtual84/6882e0/688300/651010 and death caller stacks prove loss publication. Move ignores automatic acquisition, Smart retains combat until enemy loss, healthy parents resume and nested replacement survives unwind. Seven engine regressions reproduce stale reuse/acquisition/ownership/save failures, then preserve pending activation, actual callback/frame cleanup and Save117. Empty physical owners drop borrowed targets in constant time. Full combat trajectory/timing remains01.10. [Evidence](retail-pathfinding-engine.md#follow-target-loss-preserves-temporary-combat-ownership).
 
-- [ ] **ORDER-01.18** Compose Patrol automatic acquisition, actual damage, enemy loss and endpoint resume while preserving public head851991, then interrupt/reject/save/reuse during combat. Recover original d0175 endpoint progression/arrival and blocked-route policy, including queued-origin capture timing; compare complete original decisions with the owning engine ability. ORDER-01.9 no-enemy reversal does not certify these branches.
+- [x] **ORDER-01.18** Compose point Patrol automatic acquisition/damage/enemy loss and same-leg resume while retaining public851991; preserve rejection/replacement/death and saved combat/rotated FIFO. Payoff176 implements issued-point expansion threshold, originald0175 return append and5fcc70 queued rotation with activation-time origin. Pending Move runs at leg end; full user FIFO keeps its reserved return; unqueued reversals allocate nothing. Failing-first actual native/frame/full-FIFO/save regressions,4 complete observed captures/one control and32 complete native classifier calls pass. Exact route timing, unit-target Patrol, disabled Move and new retail UI save captures are outside this point ownership composition; no handoff-proposed IDs added. [Evidence](retail-pathfinding-engine.md#patrol-leg-completion-admits-queued-successors-payoff176).
 
 ### ORDER-02 — User/internal queues
 

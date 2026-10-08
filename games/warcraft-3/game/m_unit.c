@@ -722,34 +722,32 @@ bool G_UnitHasActiveOrder(edict_t const *self) {
            !move_is_terminal_hold(self);
 }
 
+/* Internal continuations have the same FIFO representation and observation
+ * order as user commands, with one reserved physical slot. */
+bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {
+    if (!self || !order || !unit_order_name_valid(order->order)) return false;
+    unitOrderQueue_t *queue=&self->order_queue;
+    if (queue->count>=UNIT_ORDER_STORAGE_CAPACITY) return false;
+    if (!queue->entries) queue->entries=G_AllocUnitOrders()->entries;
+    unsigned slot=(queue->head+queue->count)%UNIT_ORDER_STORAGE_CAPACITY;
+    queue->entries[slot]=*order;queue->count++;
+    return true;
+}
+
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
-    unitOrderQueue_t *queue;
-    unitOrder_t *queued;
-    uint32_t slot;
-
-    if (!self || !unit_order_name_valid(order)) return false;
-    queue = &self->order_queue;
-    if (queue->count >= MAX_UNIT_ORDER_QUEUE) return false;
-    if (!queue->entries) queue->entries = G_AllocUnitOrders()->entries;
-    slot = (queue->head + queue->count) % MAX_UNIT_ORDER_QUEUE;
-    queued = &queue->entries[slot];
-    memset(queued, 0, sizeof(*queued));
-    snprintf(queued->order, sizeof(queued->order), "%s", order);
-    queued->target_type = target_type;
-    queued->issuer_player = issuer_player;
-    queued->order_id = order_id;
-    queued->group_speed = group_speed;
-    if (point) queued->point = *point;
+    if (!self || !unit_order_name_valid(order) || self->order_queue.count>=MAX_UNIT_ORDER_QUEUE) return false;
+    unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
+                        .order_id=order_id,.group_speed=group_speed};
+    snprintf(queued.order,sizeof(queued.order),"%s",order);
+    if (point) queued.point=*point;
     if (target) {
-        uint32_t const number = target->s.number;
-        if (number >= globals.num_edicts || globals.edicts + number != target) return false;
-        queued->target_number = number;
-        queued->target_spawn_time = target->spawn_time;
+        uint32_t number=target->s.number;
+        if (number>=globals.num_edicts || globals.edicts+number!=target) return false;
+        queued.target_number=number;queued.target_spawn_time=target->spawn_time;
     }
-    queue->count++;
-    return true;
+    return G_AppendUnitOrder(self,&queued);
 }
 
 static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
@@ -760,7 +758,7 @@ static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
     if (!queue->count) return false;
     *out = queue->entries[queue->head];
     memset(&queue->entries[queue->head], 0, sizeof(queue->entries[queue->head]));
-    queue->head = (queue->head + 1) % MAX_UNIT_ORDER_QUEUE;
+    queue->head = (queue->head + 1) % UNIT_ORDER_STORAGE_CAPACITY;
     queue->count--;
     if (!queue->count) queue->head = 0;
     return true;
@@ -772,7 +770,7 @@ void G_ClearUnitOrderQueue(edict_t *self) {
     if (!self) return;
     queue = &self->order_queue;
     FOR_LOOP(i, queue->count) {
-        uint32_t const slot = (queue->head + i) % MAX_UNIT_ORDER_QUEUE;
+        uint32_t const slot = (queue->head + i) % UNIT_ORDER_STORAGE_CAPACITY;
         S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
     }
     if (queue->entries) memset(queue->entries, 0, sizeof(unitOrderStorage_t));
