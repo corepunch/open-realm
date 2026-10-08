@@ -5,6 +5,16 @@
 #include "renderer/r_shader.h"
 #include "renderer/r_trail.h"
 
+/* Keep MDX translucent layers out of the pre-water scene pass. Opaque
+ * materials with per-instance alpha move to the alpha pass as well. */
+static inline bool MDLX_RenderPhaseIncludesPass(render_phase_t phase,
+                                                bool blended_pass,
+                                                bool translucent_instance) {
+    if (phase == RENDER_PHASE_LIGHTS) return true;
+    if (phase == RENDER_PHASE_ALPHA) return blended_pass || translucent_instance;
+    return !blended_pass && !translucent_instance;
+}
+
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
 #define MDX_TEXTURE_RECORD_SIZE (sizeof(uint32_t) + MDX_TEXTURE_PATH_LENGTH + sizeof(uint32_t))
