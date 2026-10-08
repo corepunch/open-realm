@@ -3947,7 +3947,7 @@ void order_follow_resume(edict_t *self) {
     S_SetMoveGoal(self, &self->goalentity, target);
     self->movement.holding_position = false;
     move_reset_progress(self);
-    bool physical=!(self->aiflags&AI_FLYING) && !(target->aiflags&AI_FLYING) && !G_UnitIsStructure(target);
+    bool physical=!G_UnitIsStructure(target);
     unit_setmove(self, physical ? &follow_move_walk : &follow_move_legacy);
     if (physical) {
         self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
@@ -3956,8 +3956,9 @@ void order_follow_resume(edict_t *self) {
         move_start_follow_group(self,target,false);
         unit_setanimation(self,"stand");
     }
-    /* TODO TARGET-02.1: flight and structure-footprint approach producers retain
-     * their existing traversal pending full native physical-owner evidence. */
+    /* Native5fd270 chooses physical target tasks for nonstructures regardless
+     * of either mover's flight lane. Structure-footprint producers remain
+     * TARGET-02.1 on the existing traversal. */
 }
 
 void order_follow(edict_t *self, edict_t *target) {
@@ -4897,8 +4898,11 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
         if (member->flags&0x200000) move_unlink_requests(unit);
         return;
     }
-    if (member->flags&0x200000) {
-        /* Original16fd90 turns a held member with stop1 and cancels its
+    if (arrival.in_range || (member->flags&0x200000)) {
+        /* Original16fbd0/16fd90 turn an in-range or held member with stop1
+         * before replacing its destination, retiring only scheduler work.
+         * A persistent target refresh must retain its cached route while
+         * the arrival-facing gate completes. The same early branch cancels its
          * pending scheduler records; it does not run a fresh local route. */
         float x=wc3_sub(member->destination.x,pose.grid[0]),y=wc3_sub(member->destination.y,pose.grid[1]);
         unit_turn_toward(unit,wc3_vector_heading(x,y));
@@ -4926,16 +4930,15 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     vec2_t direction;
     /* Native arrival can stop translation before its angular gate completes.
      * In-range/forced members turn without another path or retry request. */
-    uint32_t progress=arrival.in_range ? 0 : move_group_advance_endpoint(group,member,&pose,&direction);
+    uint32_t progress=move_group_advance_endpoint(group,member,&pose,&direction);
     if (progress==2) {
         /* Native returns the consumed fine point, including a zero vector.
          * 16fbd0 passes stop1 for every nonzero Path_Advance status. */
         unit->movement.heading=wc3_vector_heading(direction.x,direction.y);
         unit_turn_toward(unit,unit->movement.heading);
         unit->movement.turn_blocked=true;
-    } else if (arrival.in_range || progress) {
+    } else if (progress) {
         unit_turn_toward(unit,wc3_vector_heading(x,y)); unit->movement.turn_blocked=true;
-        if (arrival.in_range) move_unlink_requests(unit);
     } else {
         if ((route_result=unit_accel_direction(unit,(moveRoutePoint_t){&group->goal,unit->collision,MOVE_AVOID_GENERIC},&direction))) {
             progress=move_group_advance_endpoint(group,member,&pose,&direction);

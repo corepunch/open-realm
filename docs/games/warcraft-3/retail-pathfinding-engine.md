@@ -12750,3 +12750,104 @@ air/structure/point spells and arbitrary target-family motion are not claimed;
 they remain in the existing command/target and supported-input work. The moving
 target scene is a repeated retail contract witness; the engine's exact50-row
 motion comparison specifically covers the stationary-target scene.
+
+## Flying Follow shares physical target ownership (Payoff186)
+
+`Move_CreateTasksFromOrder` (`5fd270`) constructs the ordinary approach and
+persistent target tasks for a nonstructure target regardless of either mover's
+flight lane. Move now uses the same physical groups, ordered owner visits,
+visibility sampling, target refresh, route caches and cancellation for air and
+ground Follow. The movement profile selects fine/coarse collision masks and
+support height; a second legacy air traversal no longer decides these orders.
+Structure-target footprint approaches retain their existing implementation.
+
+The complete public TARGET-02.1 scene5 exposed two additional general defects:
+
+- Fine construction suppressed target-region termination for flying movers.
+  Native `166e90` passes the captured target into the fine query independently
+  of collision lane. `1489a0` observes its identity before suppression and
+  collision-mask filtering. Removing the flight exception changes the first
+  route from35 to the native33 points and fixes its initial heading.
+- A refreshed destination cleared cached routes while an in-range member was
+  still turning toward the target. Native `16fbd0` handles the arrival predicate's
+  in-range output before destination replacement. The engine now turns and
+  unlinks scheduler work at that early boundary, preserving both cached routes.
+  At counter4704 the native fine11/coarse2 tables therefore remain intact.
+
+These are shared algorithms; neither the route nor the movement trace is
+hardcoded into production. No save-layout or network change is needed.
+
+### Target order versus ability approach (BASE-01.3)
+
+The completed three-scene Payoff185 probe contrasts public target Move and
+Holy Light with the same stock-shaped caster/target radii32/31. Both resolve
+and retain the target's canonical identity through `5fc640` → `05a5c0`; neither
+turns it into a point-only destination. The retained identity feeds visibility,
+refresh and fine target-region termination.
+
+| Producer | Authored range | Captured fine range | Canonical group policy | Completion owner |
+|---|---:|---:|---|---|
+| Public target Move, internal `d0173` | `FollowRange=300` | `(300+32+31)/32=11.34375` | `0x1801` (persistent1, speed policy800, target bookkeeping1000) | Move retains Follow |
+| Holy Light, `438680` → internal `d0174` | unbuffered authored `Rng=800` | `(800+32+31)/32=26.96875` | `0x1000` (nonpersistent) | Spell completes its pending cast |
+
+`417f90` supplies the spell's unbuffered range; `41d1f0` → `05b580` performs its
+predicted collision-edge admission test before creating the approach. The
+physical setup adds the world radii before conversion, while the read-only
+admission predicate converts the scalar before adding fine radii. Payoffs184/
+185 preserve both sequences. Smart's approach-to-persistent transition adds
+bits1/800 without changing its public Smart head; the full ground and flying
+trajectories verify that transition. Cargo Drop target policy adds bit10 to
+these captured group policies and disables coarse Way Gate edges, as established
+by [Payoff149](retail-pathfinding-target-warp.md). Unrelated flags remain in
+FORM-01.3; this closes the requested single target-order/ability comparison,
+not every command producer in BASE-01.
+
+### Evidence and regression
+
+Two complete read-only Frida captures of `RS-TARGET-02.1-a.w3m` agree on every
+word of617 active flying-Follow owner states:93 approach and524 persistent.
+An observer-free control matches all2,085 public markers across the nine-scene
+probe. The engine executes the scene's public JASS creation, moving target,
+Smart order, reversals and Stop from clock0 through actual server frames. It
+matches all617 raw pose/velocity/range, group destination/countdown/timestamps
+and member cache/index/retry states. Unpublished empty-buffer destination
+coordinates have no initialized engine counterpart and are skipped until the
+corresponding route storage exists; their native words remain in the fixture.
+The test then repeats the467-state suffix after a
+cold load. Three air/ground combinations also cover physical ownership, lane
+selection, movement, save/load and Stop cleanup.
+
+The last raw native group visit after Stop retains a stale member slot whose
+mover group identity is `ffffffff/ffffffff`. It has no active movement owner;
+the exporter excludes it by identity, rather than treating table count as
+membership. Empty old-group visits during handoff are likewise excluded. Their
+raw records remain in the byte-preserved captures. The regression's Stop checks
+cover synchronous public retirement; a stale table slot is not extra movement.
+
+The probe reads `GetUnitX(target)` for each reversing order. Replacing it with
+the initial X reproduced the early journey but diverged later by12 scalar ULPs.
+The final regression retains the original producer instead of weakening the
+word comparisons. Its authored Gryphon/Footman movement parameters are supplied
+through custom fixture types; it does not claim that the entire stock unit's
+combat, resources or presentation are reproduced.
+
+`follow186_air_members_and_targets_use_physical_owners` fails all three owner
+checks before implementation. The full native trajectory separately exposes
+the initial target-termination and in-range cache-retention errors. Test data is
+`tests/fixtures/retail_flying_follow186.h`; the read-only exporter/verifier is
+`tools/frida/research/target186_engine_fixture.py`. Recheck the archive:
+
+```sh
+python3 tools/frida/research/target186_engine_fixture.py \
+  --expected tools/ghidra/fixtures/retail-flying-follow186-1.27.json \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --header games/warcraft-3/game/tests/fixtures/retail_flying_follow186.h \
+  --output /tmp/flying-follow186.json
+python3 -m unittest discover -s tests -p test_wc3_pathfinding_flying_follow.py
+```
+
+Ghidra saves/readbacks and `MapPathfinding.java` retain all three task/endpoint/
+arrival contracts. Existing layouts and prototypes suffice; no speculative
+fields are introduced. TARGET-02.1 and FORM-01.3 retain their broader existing
+scopes. Point/structure/flying-caster spell approaches, air blocker yielding,
+stock-type rebind lifetimes and wider target families are not closed here.

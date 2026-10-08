@@ -55,7 +55,16 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**257 done / 336 tasks; 79 remaining.**
+**258 done / 336 tasks; 78 remaining.**
+
+Payoff186 closes BASE-01.3 and advances TARGET-02.1: air/ground Follow now
+shares physical target ownership. Native flying pursuit exposes and fixes independent target-region
+termination and in-range cached-route retention. Two Frida repeats/control,
+617 raw engine owner states and467 saved continuation states agree; three lane
+compositions cover native orders/save/Stop. Ghidra/mapper preserve the contracts.
+The completed target-Move/Holy-Light comparison records range, retained target
+identity and persistence/routing flags. No new leaves or broader closure claim.
+See [flying Follow](retail-pathfinding-engine.md#flying-follow-shares-physical-target-ownership-payoff186).
 
 Payoff185 closes TARGET-01.3: actual ground Holy Light captures its authored
 range in Move's physical target owner, without per-frame spell polling. Three
@@ -645,7 +654,7 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 
 - [ ] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI.
 - [ ] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path.
-- [ ] **BASE-01.3** Trace one target order and one ability approach; record the differences in range, target identity and routing flags.
+- [x] **BASE-01.3** Payoffs184/185/186 trace public target Move and Holy Light through the shared physical target producer. The authored300/800 ranges become11.34375/26.96875 fine with radii32/31; both retain canonical target identity, while persistent target policy1801 contrasts with spell approach1000. Actual engine orders/receiver completion, exact ground/air motion, cancellation and cold saves pass; other command/formation producers keep their existing scopes. See [producer comparison](retail-pathfinding-engine.md#target-order-versus-ability-approach-base-013).
 - [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
 - [x] **BASE-01.5** Split public SetUnitX/Y geometry from01.4: recover predicted world query, both-axis fine reprojection and unchanged velocity/facing/order; port committed-pose writes through Move and prove the next step/save resumes. Evidence: [axis-position writes](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step),576 complete original writes plus576 following Move commits, repeated40 native calls/40 queries/eight writes with actual clocks,32 reproduced engine word failures followed by128 passing native/Move/save checks. Public between-frame clock prediction remains NUM-02.3; SetUnitPosition Stop/placement and other forced writers remain01.4.
 - [x] **BASE-01.6** Split ordinary public SetUnitPosition/Loc Stop and scalar writes from01.4: retire Move/Patrol and queued/group state before placement; retain captured fine/world words and stationary save/load. Evidence: [forced-position Stop reaches the engine](retail-pathfinding-engine.md#forced-position-stop-reaches-the-engine), repeated28 public calls/60 queries/four Stop and placement pairs,99 motion/velocity decisions,167 actual native/frame/save assertions. Live Loc wrapper, blocked/overlapping placement, gold-mine/cargo/dead actors and other forced writers remain01.4/FOOT-04.

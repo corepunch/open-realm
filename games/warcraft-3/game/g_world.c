@@ -1589,9 +1589,10 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     graph.suppress_target=true;
     bool target_hit = false;
     edict_t const *object = input->target;
-    /* A suppressed target still terminates fine expansion at its region.
+    /* A suppressed target still terminates fine expansion at its region,
+     * independently of the mover's collision lane (native166e90/1489a0).
      * Native category2 captains have radius0 but retain one fine cell. */
-    if (input->units && (!input->mover || !(input->mover->aiflags & AI_FLYING)) && object && object->inuse &&
+    if (input->units && object && object->inuse &&
         move_has_spatial_record(object)) {
         graph.has_target = true;
         graph.target = object;
