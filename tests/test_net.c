@@ -148,8 +148,9 @@ static void capture_sprite(drawSprite_t const *sprite) {
 
 TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     uiFrame_t frame = { .stat = UI_STAT_CONTEXT_NAME };
-    uint32_t const entnum = 7, name = 3;
+    uint32_t const entnum = 7, name = ENT_NAMES_PER_CS + 1;
     uint32_t const ni = name - 1;
+    uint32_t const cs_index = CS_GENERAL + ni / ENT_NAMES_PER_CS;
 
     test_client_stubs_init();
     SCR_ClearLayer(NULL, LAYER_WORLD_HOVER);
@@ -157,8 +158,8 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
     cl.ents[entnum].current = (entityState_t){
         .model = 1, .name = name, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
     };
-    memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
-    snprintf(cl.configstrings[CS_GENERAL] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
+    memset(cl.configstrings[cs_index], 0, sizeof(cl.configstrings[cs_index]));
+    snprintf(cl.configstrings[cs_index] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
 
     T_STREQ(SCR_GetStringValue(&frame), "Footman");
 }
