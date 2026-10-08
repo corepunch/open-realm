@@ -551,6 +551,53 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
     return true;
 }
 
+/* TFT Resurrection Runes (AIrs / AIrr): DataA is the maximum number of
+ * nearby friendly ordinary corpses to restore and Area is the search radius.
+ * Match the shared Resurrection spell's corpse policy: Heroes keep their altar
+ * revival lifecycle, structures are not eligible, and higher-level corpses are
+ * preferred before lower-level corpses with distance breaking equal-level ties.
+ * A valid powerup is consumed even when no raisable corpse is present. */
+static bool item_resurrection_preferred(edict_t const *candidate, edict_t const *current, edict_t const *caster) {
+    int32_t candidate_level, current_level;
+
+    if (!current) return true;
+    candidate_level = G_CorpseUnitLevel(candidate);
+    current_level = G_CorpseUnitLevel(current);
+    if (candidate_level != current_level) return candidate_level > current_level;
+    return Vector2_distance(&candidate->s.origin2, &caster->s.origin2) <
+           Vector2_distance(&current->s.origin2, &caster->s.origin2);
+}
+
+BZ_ABILITY_PROC(CAbilityItemResurrection) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code, count = 0, limit;
+    bool raised_invulnerable;
+
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    if (!caster || !row || !(row->area >= 0.0f)) return false;
+    limit = (uint32_t)MAX(0.0f, S_SpellData(code, 1, 1)); /* DataA / Number of Corpses Raised */
+    raised_invulnerable = S_SpellData(code, 1, 2) != 0.0f; /* DataB / Raised Units Are Invulnerable */
+
+    while (count < limit) {
+        edict_t *selected = NULL;
+        FILTER_EDICTS(target, G_UnitIsRaisableCorpse(target) && !G_UnitIsHero(target) &&
+                     !G_UnitIsStructure(target) && S_SpellIsFriend(caster, target) &&
+                     Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+            if (item_resurrection_preferred(target, selected, caster)) selected = target;
+        }
+        if (!selected) break;
+        G_ReviveCorpse(selected, 1.0f);
+        if (raised_invulnerable) selected->invulnerable = true;
+        G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
+        count++;
+    }
+    return true;
+}
+
 /* Chest of Gold / Gold Coins. DataA is the authored gold grant; a powerup
  * executes on its actual picker rather than on a local client's selection.
  * Resource pickups grant their full amount and do not pass through the
