@@ -5442,10 +5442,11 @@ TEST(wc3_save, queued_event_reference_round_trips_after_region_slot_retirement) 
         "  set watchedRegion = CreateRegion()\n"
         "  call TriggerRegisterEnterRegion(watchedTrigger, watchedRegion, null)\n"
         "  set watchedUnit = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
-        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), 0.0)\n"
+        "  call TriggerRegisterUnitStateEvent(watchedTrigger, watchedUnit, ConvertUnitState(0), ConvertLimitOp(1), 50.0)\n"
         "  call RemoveRegion(watchedRegion)\n"
         "  call SetWidgetLife(watchedUnit, 100.0)\n"
-        "  call SetWidgetLife(watchedUnit, 0.0)\n"
+        /* Keep the event nonlethal so only the state-limit response is queued. */
+        "  call SetWidgetLife(watchedUnit, 50.0)\n"
         "endfunction\n"));
     T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(!level.events.handlers[0].inuse);

@@ -533,4 +533,46 @@ TEST(wc3_api, texttag_natives_store_unit_anchor_and_style) {
     T_ASSERT(!level.texttags[1].inuse);
     currentplayer = saved;
 }
+
+TEST(wc3_save, texttag_presentation_state_round_trips) {
+    PATHSTR filename;
+    edict_t *unit;
+    texttag_t *tag;
+
+    strlcpy(filename, Test_TempPath("wc3-texttag-presentation-save.bin"), sizeof(filename));
+    setup_test_world();
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 200.0f);
+    tag = G_AllocTextTag();
+    T_NOT_NULL(unit);
+    T_NOT_NULL(tag);
+    if (!unit || !tag) return;
+    tag->has_text = true;
+    tag->has_position = true;
+    tag->generation = 19;
+    tag->unit = unit;
+    tag->height = 0.024f;
+    tag->height_offset = 40.0f;
+    tag->lifespan = 2.0f;
+    tag->fadepoint = 1.0f;
+    strlcpy(tag->text, "150!", sizeof(tag->text));
+    T_ASSERT(WriteGame(filename));
+
+    tag->has_text = false;
+    tag->has_position = false;
+    tag->generation = 0;
+    tag->unit = NULL;
+    T_ASSERT(ReadGame(filename));
+
+    tag = level.texttags;
+    T_ASSERT(tag->inuse);
+    T_ASSERT(tag->has_text);
+    T_ASSERT(tag->has_position);
+    T_EQ(tag->generation, 19u);
+    T_STREQ(tag->text, "150!");
+    T_NOT_NULL(tag->unit);
+    if (tag->unit) T_EQ(tag->unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_FEQ(tag->height, 0.024f, 0.0001f);
+    T_FEQ(tag->height_offset, 40.0f, 0.001f);
+    remove(filename);
+}
 #endif
