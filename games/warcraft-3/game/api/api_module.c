@@ -459,6 +459,7 @@ jassModule_t jass_funcs[] = {
     { "DestructableRestoreLife", DestructableRestoreLife },
     { "QueueDestructableAnimation", QueueDestructableAnimation },
     { "SetDestructableAnimation", SetDestructableAnimation },
+    { "SetDestructableAnimationSpeed", SetDestructableAnimationSpeed },
     { "ShowDestructable", ShowDestructable },
     { "CreateItem", CreateItem },
     { "RemoveItem", RemoveItem },

@@ -1174,7 +1174,7 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         "E\n";
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *saved;
-    edict_t *valid = NULL, *missing = NULL;
+    edict_t *valid = NULL, *missing = NULL, *fast = NULL;
 
     setup_test_world();
     saved = G_SetSLKRows("DestructableData", rows);
@@ -1182,15 +1182,31 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         "globals\n"
         "  destructable validDest = null\n"
         "  destructable missingDest = null\n"
+        "  destructable fastDest = null\n"
         "endglobals\n"
         "function main takes nothing returns nothing\n"
         "  set validDest = CreateDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
         "  set missingDest = CreateDestructable('B004', 128.0, 64.0, 0.0, 1.0, 0)\n"
+        "  set fastDest = CreateDestructable('B004', 192.0, 64.0, 0.0, 1.0, 0)\n"
         "  call SetDestructableAnimation(validDest, \"stand alternate\")\n"
         "  call QueueDestructableAnimation(validDest, \"stand\")\n"
+        "  call SetDestructableAnimationSpeed(validDest, 0.0)\n"
+        "  call SetDestructableAnimationSpeed(null, 2.0)\n"
         "  call SetDestructableOccluderHeight(validDest, 256.0)\n"
         "  call BJassAssert(GetDestructableOccluderHeight(validDest) == 256.0, \"elevator height not retained\")\n"
         "  call SetDestructableAnimation(missingDest, \"death alternate\")\n"
+        "  call SetDestructableAnimationSpeed(missingDest, 2.0)\n"
+        "  call SetDestructableAnimation(fastDest, \"stand alternate\")\n"
+        "  call SetDestructableAnimationSpeed(fastDest, 2.0)\n"
+        "endfunction\n"
+        "function halfSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, 0.5)\n"
+        "endfunction\n"
+        "function resetSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, 1.0)\n"
+        "endfunction\n"
+        "function negativeSpeed takes nothing returns nothing\n"
+        "  call SetDestructableAnimationSpeed(validDest, -1.0)\n"
         "endfunction\n"));
 
     FOR_LOOP(i, globals.num_edicts) {
@@ -1198,20 +1214,37 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
         if (!G_IsDestructable(ent) || ent->class_id != MAKEFOURCC('B', '0', '0', '4')) continue;
         if (ent->s.origin2.x == 64.0f) valid = ent;
         if (ent->s.origin2.x == 128.0f) missing = ent;
+        if (ent->s.origin2.x == 192.0f) fast = ent;
     }
-    T_NOT_NULL(valid); T_NOT_NULL(missing);
-    if (valid && missing) {
+    T_NOT_NULL(valid); T_NOT_NULL(missing); T_NOT_NULL(fast);
+    if (valid && missing && fast) {
         T_STREQ(valid->animation_request, "stand alternate");
         T_STREQ(valid->queued_animation, "stand");
+        T_FEQ(valid->animation_speed, 0.0f, 0.001f);
+        T_FEQ(missing->animation_speed, 2.0f, 0.001f);
+        T_FEQ(fast->animation_speed, 2.0f, 0.001f);
         T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
         T_STREQ(missing->animation_request, "death alternate");
         T_NULL(missing->animation);
         T_ASSERT(!missing->animation_override);
         T_NOT_NULL(valid->animation);
+        T_NOT_NULL(fast->animation);
         if (valid->animation) {
             T_STREQ(valid->animation->name, "Stand Alternate");
             T_EQ(valid->s.frame, valid->animation->interval[0]);
             T_ASSERT(valid->animation_override);
+            /* A frozen clip must remain in place through the real scheduler. */
+            G_RunEntities();
+            T_EQ(valid->s.frame, valid->animation->interval[0]);
+            if (fast->animation)
+                T_EQ(fast->s.frame, fast->animation->interval[0] + (uint32_t)(FRAMETIME * 2.0f));
+            T_STREQ(valid->queued_animation, "stand");
+            jass_callbyname(level.vm, "halfSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 0.5f, 0.001f);
+            G_RunEntities();
+            T_EQ(valid->s.frame, valid->animation->interval[0] + (uint32_t)(FRAMETIME * 0.5f));
             valid->s.frame = valid->animation->interval[1] - 1;
             /* Exercise the live per-frame dispatch, not only the queue helper. */
             G_RunEntities();
@@ -1219,6 +1252,15 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
             T_STREQ(valid->queued_animation, "");
             T_NOT_NULL(valid->animation);
             if (valid->animation) T_EQ(valid->s.frame, valid->animation->interval[0]);
+            T_FEQ(valid->animation_speed, 0.5f, 0.001f); /* queued clip preserves the multiplier */
+            jass_callbyname(level.vm, "negativeSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 0.0f, 0.001f);
+            jass_callbyname(level.vm, "resetSpeed", true);
+            jass_runevents(level.vm);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(valid->animation_speed, 1.0f, 0.001f);
         }
     }
 
