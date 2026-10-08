@@ -2238,8 +2238,15 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     if (!entity || !entity->model || !entity->model->mdx || !viewdef) {
         return false;
     }
-    bool ok = MDLX_ExtractCamera(entity->model->mdx, entity->frame, entity->camera_index, aspect, &viewdef->viewProjectionMatrix,
-                                 &viewdef->lightMatrix);
+    mdxCameraView_t const view = {
+        .model = entity->model->mdx,
+        .frame = entity->frame,
+        .camera_index = entity->camera_index,
+        .aspect = aspect,
+        .output = &viewdef->viewProjectionMatrix,
+        .light = &viewdef->lightMatrix,
+    };
+    bool ok = MDLX_ExtractCamera(&view);
     Matrix4_identity(&viewdef->textureMatrix);
     return ok;
 }
