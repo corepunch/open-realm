@@ -1,0 +1,90 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "layouts": [
+    {
+      "name": "WC3PathPrefix",
+      "length": 184,
+      "fields": [
+        {
+          "offset": 160,
+          "name": "self_region",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "Payoff187: thiscall ECX path, stack4 fine spatial region, RET4 at168b6d; sole code caller170ad4 Mover_EnsureOwnedPath. Store region in path+a0. Path_Construct initializesa0 NULL; PathGroup_Activate creates its own path and never installs a member self. Two new read-only bounded Follow repeats observe1239 group boundaries/40 group coarse requests with self NULL, versus33 member coarse requests with nonnull self; two setter calls originate170ad9. No writes/game calls by observer. Engine separates borrowed route-source pose from the path self exclusion."
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f168b60",
+      "name": "Path_SetSelfRegion",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "region",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff187: thiscall ECX path, stack4 fine spatial region, RET4 at168b6d; sole code caller170ad4 Mover_EnsureOwnedPath. Store region in path+a0. Path_Construct initializesa0 NULL; PathGroup_Activate creates its own path and never installs a member self. Two new read-only bounded Follow repeats observe1239 group boundaries/40 group coarse requests with self NULL, versus33 member coarse requests with nonnull self; two setter calls originate170ad9. No writes/game calls by observer. Engine separates borrowed route-source pose from the path self exclusion."
+    },
+    {
+      "address": "6f168bd0",
+      "name": "Path_SetTargetRegion",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "region",
+          "type": "ptr:WC3FineTargetPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff187: thiscall ECX path, stack4 target fine record, RET4; store atpath+a4. The target record remains independent of the absent group self. Original16ce10 supplies the target region before a group coarse request. Fresh read-only region boundaries and archived full ground-to-air pursuit pin this distinction; member path captures its own self separately."
+    }
+  ],
+  "records": [
+    {
+      "address": "6f168b60",
+      "name": "Path_SetSelfRegion",
+      "evidence": "Payoff187: thiscall ECX path, stack4 fine spatial region, RET4 at168b6d; sole code caller170ad4 Mover_EnsureOwnedPath. Store region in path+a0. Path_Construct initializesa0 NULL; PathGroup_Activate creates its own path and never installs a member self. Two new read-only bounded Follow repeats observe1239 group boundaries/40 group coarse requests with self NULL, versus33 member coarse requests with nonnull self; two setter calls originate170ad9. No writes/game calls by observer. Engine separates borrowed route-source pose from the path self exclusion.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f168bd0",
+      "name": "Path_SetTargetRegion",
+      "evidence": "Payoff187: thiscall ECX path, stack4 target fine record, RET4; store atpath+a4. The target record remains independent of the absent group self. Original16ce10 supplies the target region before a group coarse request. Fresh read-only region boundaries and archived full ground-to-air pursuit pin this distinction; member path captures its own self separately.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f169840",
+      "name": "PathGroup_Activate",
+      "evidence": "Payoff187: Path_Create(&group3c,context0,activate1) retains constructor a0=NULL. Group route source selection/prediction is independent of path ownership; no168b60 call installs a borrowed member region. Fresh two observed repeats and observer-free control use public ground Smart toward a moving Gryphon: all1239 group16ce10 boundaries have selfNULL. Existing group/target flags and cached path timings are unchanged.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f166c30",
+      "name": "Path_RequestAcceleratedRoute",
+      "evidence": "Payoff187: self rectangle exclusion reads path+a0; a group-owned path leaves itNULL, despite16ce10 borrowing a member for prediction. The targeta4 is independently cleared/rebuilt. Engine previously cleared the source member on every group route; public ground-following-air first persistent route had10 versus retail12 coarse points. Correct ownership matches616 raw follower states,621 target pose/velocity states and466 saved follower suffix states, without a flight-specific branch.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16fe20",
+      "name": "Mover_CommitSpeedAndHeading",
+      "evidence": "Payoff187: public ground-to-air pursuit raw mover80 records negative zero80000000 at6171 while y retains negative speed. Retail velocity remains in fine units. Engine world-storage adapters must preserve zero signs rather than call Software Multiply on zero; its scalar Multiply behavior remains unchanged. The complete original trace, including zero sign, now matches and survives cold save.",
+      "readback_matches": true
+    }
+  ]
+}

@@ -3261,6 +3261,7 @@ typedef struct {
     vec2_t const *fine_target; /* Exact member destination; world projection can lose these bits. */
     uint8_t coarse_mask; /* Authored hierarchy lane; zero derives an explicit geometry query. */
     bool no_warp; /* Captured group policy10 excludes Way Gate edges on new coarse requests. */
+    bool group_path; /* A group borrows a source member; its path has no self exclusion. */
 } movePathQuery_t;
 #ifdef BZ_TESTS
 enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS };

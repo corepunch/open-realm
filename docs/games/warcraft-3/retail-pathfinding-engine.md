@@ -12851,3 +12851,48 @@ arrival contracts. Existing layouts and prototypes suffice; no speculative
 fields are introduced. TARGET-02.1 and FORM-01.3 retain their broader existing
 scopes. Point/structure/flying-caster spell approaches, air blocker yielding,
 stock-type rebind lifetimes and wider target families are not closed here.
+
+## Group routes borrow poses, not self exclusions (Payoff187)
+
+The complete public ground-following-air Smart pursuit exposed a missing ownership
+boundary. `PathGroup_Activate169840` creates a separate path whose constructor
+initializes `path+a0` to null. `PathGroup_RequestSharedRoute16ce10` borrows a
+member's predicted source pose, but never installs that member's spatial region
+as the group's self exclusion. `Path_SetSelfRegion168b60` has one code caller,
+`Mover_EnsureOwnedPath170aa0`; member paths receive their own region. The target
+region at `path+a4` is independent of either source pose or self exclusion.
+
+The engine previously excluded the borrowed source member for group coarse
+searches. In the walled ground-to-air scene, its first persistent Follow route
+had ten coarse points where retail had twelve. Move now marks group-owned
+queries explicitly, and the world owner excludes self only for member paths.
+Target exclusion, self-before-target restoration order, admission and publication
+remain at their original boundaries. This applies to every group route; there is
+no unit-type or ground/air exception.
+
+Two new bounded, read-only Frida repeats record 1,239 group boundaries and 73
+coarse requests each. All forty group requests have null self; all thirty-three
+member requests have a nonnull self. Both self setters return to `170ad9`, the
+member-owned producer. The observer-free control and both observed runs agree
+on all 211 public markers. Saved Ghidra annotations, the `WC3PathPrefix+a0`
+spatial pointer and explicit setter ABIs preserve this evidence.
+
+The original TARGET-02.1 scene7 repeats supply the full numerical regression:
+616 active follower states (202 approach and 414 persistent), 621 target
+pose/velocity states, public direction reversals and Stop. The fixture supplies
+Gryphon's authored turn rate0.4 and propulsion window61, rather than inheriting
+the test base unit's values. The native mover velocity at owner counter6171
+retains `0x80000000` for X while Y is moving. Software Multiply canonicalizes
+zero, so the engine's fine/world **storage adapters** now preserve existing zero
+signs; retail scalar arithmetic itself is unchanged. The regression compares
+these bits rather than discarding them.
+
+Actual JASS orders and normal server frames match every initialized raw field;
+a cold save repeats the 466-state follower suffix and its target continuation.
+Uninitialized group destinations and absent member adaptive-buffer destinations
+remain unpublished; detached native member slots after Stop are excluded by their
+invalid group identity. The strict corpus verifies raw repeats, public controls,
+fixture derivation and the new region ownership stream. It does not certify full
+stock combat/presentation, structure or spell perimeters, arbitrary target families,
+visibility/loss compositions or reentrant/portal exclusion scopes. TARGET-02.1
+and MAP-04.2 retain those broader scopes and remain open.

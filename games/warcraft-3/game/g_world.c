@@ -784,18 +784,20 @@ static void move_trace_coarse_scope(unsigned stage,movePathQuery_t const *input)
 /*166c30 owns one complete synchronous scope. Admission precedes this call;
  * every search result restores self then target before its caller can return.
  * Publication belongs to the fine-object owner, independent of the category
- * used by the selected query. Restoration re-reads the published rectangles. */
+ * used by the selected query. Group paths have no self; borrowing a member
+ * pose does not acquire its exclusion. Restoration re-reads the rectangles. */
 static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_t const *request,
                                     moveCoarseRequest_t *admission) {
     move_spatial_sync();
-    move_acc_object_rectangle(input->mover,true);
+    edict_t const *self=input->group_path ? NULL : input->mover;
+    move_acc_object_rectangle(self,true);
     move_trace_coarse_scope(0,input);
     move_acc_object_rectangle(input->target,true);
     move_trace_coarse_scope(1,input);
     uint32_t result=wc3_acc_route(&move_acc,request,move_acc_points);
     move_trace_coarse_scope(2,input);
     if(admission)S_ChargeMoveCoarseRequest(admission,move_acc.work.pops);
-    move_acc_object_rectangle(input->mover,false);
+    move_acc_object_rectangle(self,false);
     move_trace_coarse_scope(3,input);
     move_acc_object_rectangle(input->target,false);
     move_trace_coarse_scope(4,input);

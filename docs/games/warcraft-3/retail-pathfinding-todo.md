@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **258 done / 336 tasks; 78 remaining.**
 
+Payoff187 advances TARGET-02.1 and MAP-04.2: group coarse paths now borrow a
+member pose without acquiring its self exclusion. Complete ground-to-air pursuit
+matches616 follower states,621 target states and466 saved follower suffix states,
+including signed-zero velocity. Fresh Frida repeats/control verify1239 group
+boundaries,40 group/33 member coarse requests and the sole self-region producer;
+saved Ghidra layouts/ABIs and mapper preserve the distinction. Wider scopes
+remain open; no new leaves or broader closure claim. See [group path ownership](retail-pathfinding-engine.md#group-routes-borrow-poses-not-self-exclusions-payoff187).
+
 Payoff186 closes BASE-01.3 and advances TARGET-02.1: air/ground Follow now
 shares physical target ownership. Native flying pursuit exposes and fixes independent target-region
 termination and in-range cached-route retention. Two Frida repeats/control,

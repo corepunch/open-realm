@@ -455,6 +455,12 @@
           "evidence": "168c40/05c7e0 stock mask publication"
         },
         {
+          "offset": 160,
+          "name": "self_region",
+          "type": "ptr:WC3SpatialPrefix",
+          "evidence": "Payoff187: thiscall ECX path, stack4 fine spatial region, RET4 at168b6d; sole code caller170ad4 Mover_EnsureOwnedPath. Store region in path+a0. Path_Construct initializesa0 NULL; PathGroup_Activate creates its own path and never installs a member self. Two new read-only bounded Follow repeats observe1239 group boundaries/40 group coarse requests with self NULL, versus33 member coarse requests with nonnull self; two setter calls originate170ad9. No writes/game calls by observer. Engine separates borrowed route-source pose from the path self exclusion."
+        },
+        {
           "offset": 164,
           "name": "fine_target",
           "type": "ptr:WC3FineTargetPrefix",
@@ -16219,6 +16225,44 @@
         }
       ],
       "evidence": "Payoff185 TARGET-01.3: complete owned-window live Holy Light producer on flat no-wall arena. Three observed runs match591 raw physical owner visits and376 public markers; observer-free control matches all public markers. 438680 receives authored800 from417f90(buffer0), invokes41d1f0 outside, then submits nonpersistent5fc640.05a5c0 captures (800+32+31)/32=26.96875 fine; target Move instead uses300 and persistent1, range11.34375. Engine public Holy Light matches all50 observed committed fine poses/velocities and stop (676.1099,310.8699), with no per-frame spell range poll. Save146 retains ability-owned completion receiver and captured range; Stop/replacement/removal cancel. Present target-perimeter fallback, air/structure/point spells and complete spell effect/cast timeline remain excluded. Saved packet ABI is ECX spell prefix plus stack4 CScriptEventPacket*,RET4, from instruction-checked assembly; producer returns void, handlers EAX result. HolyBolt60a530 delegates4259e0 except d01bf deferred effect."
+    },
+    {
+      "address": "6f168b60",
+      "name": "Path_SetSelfRegion",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "region",
+          "type": "ptr:WC3SpatialPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff187: thiscall ECX path, stack4 fine spatial region, RET4 at168b6d; sole code caller170ad4 Mover_EnsureOwnedPath. Store region in path+a0. Path_Construct initializesa0 NULL; PathGroup_Activate creates its own path and never installs a member self. Two new read-only bounded Follow repeats observe1239 group boundaries/40 group coarse requests with self NULL, versus33 member coarse requests with nonnull self; two setter calls originate170ad9. No writes/game calls by observer. Engine separates borrowed route-source pose from the path self exclusion."
+    },
+    {
+      "address": "6f168bd0",
+      "name": "Path_SetTargetRegion",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "path",
+          "type": "ptr:WC3PathPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "region",
+          "type": "ptr:WC3FineTargetPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff187: thiscall ECX path, stack4 target fine record, RET4; store atpath+a4. The target record remains independent of the absent group self. Original16ce10 supplies the target region before a group coarse request. Fresh read-only region boundaries and archived full ground-to-air pursuit pin this distinction; member path captures its own self separately."
     }
   ],
   "globals": [

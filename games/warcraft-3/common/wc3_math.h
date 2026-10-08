@@ -565,23 +565,29 @@ static inline bool wc3_velocity_cap(wc3Velocity_t *v) {
     return true;
 }
 
+/* Velocity storage changes units, not retail arithmetic. Software Multiply
+ * canonicalizes zero; preserve the original zero sign at this adapter boundary. */
+static inline float wc3_velocity_scale(float value, float scale) {
+    return (wc3_float_bits(value)&0x7fffffffu) ? wc3_mul(value,scale) : value;
+}
+
 static inline bool wc3_velocity_cap_world(wc3Velocity_t *v) {
     wc3Velocity_t grid = *v;
-    for (unsigned i = 0; i < 2; i++) grid.vel[i] = wc3_mul(grid.vel[i], wc3_float(0x3d000000));
+    for (unsigned i = 0; i < 2; i++) grid.vel[i] = wc3_velocity_scale(grid.vel[i], wc3_float(0x3d000000));
     grid.limit = wc3_mul(grid.limit, wc3_float(0x3d000000));
     if (!wc3_velocity_cap(&grid)) return false;
-    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(grid.vel[i], wc3_float(0x42000000));
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_velocity_scale(grid.vel[i], wc3_float(0x42000000));
     return true;
 }
 
 /* Engine velocities are world units; retail16fe20 measures its guards in32-unit fine cells. */
 static inline void wc3_velocity_update_world(wc3Velocity_t *v) {
     float speed = v->speed, limit = v->limit;
-    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], wc3_float(0x3d000000));
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_velocity_scale(v->vel[i], wc3_float(0x3d000000));
     v->speed = wc3_mul(speed, wc3_float(0x3d000000));
     v->limit = wc3_mul(limit, wc3_float(0x3d000000));
     wc3_velocity_update(v);
-    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_mul(v->vel[i], wc3_float(0x42000000));
+    for (unsigned i = 0; i < 2; i++) v->vel[i] = wc3_velocity_scale(v->vel[i], wc3_float(0x42000000));
     v->speed = speed; v->limit = limit;
 }
 

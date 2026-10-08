@@ -4820,7 +4820,7 @@ static bool move_group_route(moveGroup_t *group) {
     vec2_t from={pose.world[0],pose.world[1]},fine={pose.grid[0],pose.grid[1]},point;
     movePathQuery_t query={.geometry={&from,&group->goal,group->radius,M_UnitStaticPathingFlags(source)},
         .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source),
-        .no_warp=(group->flags&0x10u)!=0};
+        .no_warp=(group->flags&0x10u)!=0,.group_path=true};
     uint32_t revision=group->route.group_revision;
     bool cached=group->route.group_count && group->route.group_index<group->route.group_count;
     bool rebuilt;
