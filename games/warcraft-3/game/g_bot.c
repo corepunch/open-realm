@@ -1478,9 +1478,8 @@ void G_BotTeleportCaptain(player_t *player, float x, float y) {
     captain->position_valid = true;
 }
 
-/* BZ_COMPAT_GUESS: SetAmphibious enables a per-member route preflight,
- * but must not change a unit's authored movement mask.  A partial destination
- * is the closest reachable waypoint, NOT the original common captain goal. */
+/* Choose a reachable per-unit waypoint for AI orders without changing authored movement masks.
+ * BZ_COMPAT_GUESS: partial destinations can finish an order short of the common goal. */
 static vec2_t G_BotCaptainRoutePoint(bot_t const *bot, edict_t const *unit,
                                    vec2_t const *goal, bool *partial) {
     vec2_t reachable;
