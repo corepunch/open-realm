@@ -12,7 +12,7 @@ extern player_t *currentplayer;
 
 #define MB_MAX_LAYOUTS 16 // svc_layout messages one test captures
 #define MB_MAX_TEXTS 64   // FT_STRING texts one test captures
-#define TT_MAX_FIELDS 20 // one texttag update and remove packet capture
+#define TT_MAX_FIELDS 20 // fields; captures the 17-field update and 5-field removal packets
 
 typedef struct {
     pfWriteType_t types[TT_MAX_FIELDS];
