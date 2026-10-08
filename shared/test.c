@@ -195,11 +195,13 @@ void Test_Fail(const char *func, const char *file, int line, const char *expr) {
     }
 }
 
-/* Case-insensitive glob: "*" matches all, a trailing "*" is a prefix match,
+/* Case-insensitive glob: "*" matches all (except stress_ suites), a trailing "*" is a prefix match,
  * otherwise an exact name match. */
 static int Test_NameMatches(const char *name, const char *pattern) {
     size_t len;
 
+    /* Slow-link stress suites only run when asked for by name. */
+    if (!strncasecmp(name, "stress_", 7) && strncasecmp(pattern ? pattern : "", "stress_", 7)) return 0;
     if (!pattern || !pattern[0] || !strcmp(pattern, "*")) return 1;
     len = strlen(pattern);
     if (pattern[len - 1] == '*') return !strncasecmp(name, pattern, len - 1);

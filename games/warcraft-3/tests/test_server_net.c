@@ -1824,3 +1824,177 @@ TEST(server_net, eos_game_rejects_new_connections_after_match_start) {
     SV_DirectConnect(&remote, "\\name\\Late");
     T_EQ(svs.num_clients, 0);
 }
+
+/* ---------------------------------------------------------------------------
+ * Stress tests (suite stress_net). Skipped by the default `*` run because they
+ * model a slow link; run them with `make test-stress`.
+ * ------------------------------------------------------------------------- */
+
+/* Virtual-time FIFO link between server and client: serializes each packet at a
+ * 33.6 kbps modem rate, then adds one-way latency and a deterministic jitter. */
+#define LINK_BYTES_PER_SEC 4200u // 33.6 kbps
+#define LINK_LATENCY_MS 150u
+#define LINK_JITTER_MS 100u
+#define LINK_MAX_PACKETS 256
+
+typedef struct {
+    uint8_t *data[LINK_MAX_PACKETS];
+    uint32_t size[LINK_MAX_PACKETS], deliver_ms[LINK_MAX_PACKETS];
+    uint32_t count, next, wire_free_ms, last_deliver_ms, seed, bytes;
+} slowLink_t;
+
+static void slow_link_collect(slowLink_t *link, uint32_t now_ms) {
+    static uint8_t packet[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
+    netadr_t from;
+
+    while (NET_GetPacket(NS_CLIENT, &from, &msg) > 0) {
+        uint32_t const index = link->count++, size = msg.cursize;
+        uint32_t const start = MAX(now_ms, link->wire_free_ms);
+        T_ASSERT(index < LINK_MAX_PACKETS);
+        if (index >= LINK_MAX_PACKETS) return;
+        link->seed = link->seed * 1664525u + 1013904223u;
+        link->wire_free_ms = start + (uint32_t)((uint64_t)size * 1000 / LINK_BYTES_PER_SEC);
+        link->deliver_ms[index] = MAX(link->last_deliver_ms, link->wire_free_ms + LINK_LATENCY_MS + (link->seed >> 16) % LINK_JITTER_MS);
+        link->last_deliver_ms = link->deliver_ms[index];
+        link->data[index] = malloc(size);
+        memcpy(link->data[index], packet, size);
+        link->size[index] = size;
+        link->bytes += size;
+        msg.cursize = 0;
+    }
+}
+
+static void slow_link_free(slowLink_t *link) {
+    FOR_LOOP(i, link->count) free(link->data[i]);
+}
+
+static void stress_server_client(client_t *client) {
+    client->state = cs_spawned;
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
+}
+
+TEST(stress_net, every_unit_name_survives_map_start_over_modem) {
+    enum { SLOTS = CS_MAX_NAMES / ENT_NAMES_PER_CS };
+    static char client_cs[SLOTS][MAX_PATHLEN];
+    char expected[CS_MAX_NAMES][ENT_NAME_SLOT_SIZE], pool[MAX_PATHLEN];
+    slowLink_t link = { .seed = 1 };
+    uint32_t received = 0, last_arrival_ms = 0;
+
+    reset_server_state(1);
+    sv.state = ss_game;
+    svs.num_clients = 1;
+    stress_server_client(&svs.clients[0]);
+    NET_Config(false);
+    NET_ClearLoopPackets(NS_CLIENT);
+
+    /* Mirror G_UnitNameConfigstring: every name rewrites its packed slot, and
+     * names fill the whole pool at map start before the first flush. */
+    FOR_LOOP(i, CS_MAX_NAMES) {
+        uint32_t const slot = i / ENT_NAMES_PER_CS, sub = i % ENT_NAMES_PER_CS;
+        snprintf(expected[i], sizeof(expected[i]), "Hero %03u of the Lordaeron Vanguard", (unsigned)i);
+        entity_name_pool_prepare(pool, sub ? sv.configstrings[CS_GENERAL + slot] : NULL);
+        entity_name_slot_store(pool, sub, expected[i]);
+        SV_SetConfigString(CS_GENERAL + slot, pool, sizeof(pool));
+    }
+    SV_QueuePendingConfigStrings();
+    T_ASSERT(!svs.clients[0].netchan.message.overflowed);
+    Netchan_Transmit(NS_SERVER, &svs.clients[0].netchan);
+    slow_link_collect(&link, 0);
+    T_ASSERT(link.count > 0);
+
+    for (uint32_t now = 0; link.next < link.count; now++) {
+        while (link.next < link.count && link.deliver_ms[link.next] <= now) {
+            sizeBuf_t msg = { .data = link.data[link.next], .maxsize = link.size[link.next], .cursize = link.size[link.next] };
+            while (msg.readcount < msg.cursize) {
+                T_EQ(MSG_ReadByte(&msg), svc_configstring);
+                uint32_t const index = (uint32_t)MSG_ReadShort(&msg) - CS_GENERAL;
+                T_ASSERT(index < SLOTS);
+                if (index >= SLOTS) break;
+                MSG_ReadStringN(&msg, client_cs[index], sizeof(client_cs[index]));
+                entity_name_pool_decode(client_cs[index]);
+                received++;
+            }
+            last_arrival_ms = link.deliver_ms[link.next++];
+        }
+    }
+
+    T_EQ(received, SLOTS);
+    FOR_LOOP(i, CS_MAX_NAMES) {
+        cstring_t const name = client_cs[i / ENT_NAMES_PER_CS] + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE;
+        T_ASSERT(entity_name_slot_equals(name, expected[i]));
+    }
+    /* The modem, not the simulation, bounds how long a full name table takes. */
+    T_ASSERT(last_arrival_ms >= (uint32_t)((uint64_t)link.bytes * 1000 / LINK_BYTES_PER_SEC));
+    printf("[STRESS] %u names: %u bytes, last configstring after %u ms on a 33.6 kbps link\n",
+           (unsigned)CS_MAX_NAMES, (unsigned)link.bytes, (unsigned)last_arrival_ms);
+    slow_link_free(&link);
+}
+
+TEST(stress_net, mass_spawn_snapshots_stay_ordered_over_modem) {
+    enum { UNITS = 900, FRAMES = 24 };
+    static gameClient_t player = { .ps.number = 0 };
+    static uint8_t sent_frames[FRAMES][MAX_MSGLEN];
+    uint32_t sent_size[FRAMES] = { 0 }, delivered = 0, last_arrival_ms = 0;
+    slowLink_t link = { .seed = 7 };
+    client_t *client;
+
+    T_ASSERT(UNITS < MAX_PACKET_ENTITIES);
+    reset_server_state(1);
+    sv.state = ss_game;
+    svs.num_clients = 1;
+    svs.num_client_entities = MAX_PACKET_ENTITIES * UPDATE_BACKUP;
+    svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
+    svs.next_client_entities = 0;
+    client = &svs.clients[0];
+    stress_server_client(client);
+    client->edict = &test_edicts[0];
+    client->edict->client = &player;
+    client->lastframe = (uint32_t)-1;
+    test_ge.num_edicts = UNITS + 1;
+    test_edicts[0].inuse = true;
+    NET_Config(false);
+    NET_ClearLoopPackets(NS_CLIENT);
+
+    /* Buildings and units appear in waves (as a JASS trigger spawning them would), then everything keeps moving. */
+    FOR_LOOP(frame, FRAMES) {
+        uint32_t const alive = MIN((uint32_t)UNITS, (uint32_t)(frame + 1) * (UNITS / 6));
+        FOR_LOOP(i, alive) {
+            edict_t *unit = &test_edicts[i + 1];
+            unit->inuse = true;
+            unit->s = (entityState_t){ .number = i + 1, .class_id = MAKEFOURCC('h','f','o','o'), .model = 1 + i % 40,
+                                       .player = 0, .origin = { 64.0f + (i % 30) * 48.0f + frame, 64.0f + (i / 30) * 48.0f, 0 } };
+        }
+        sv.framenum = frame + 1;
+        sv.time = (frame + 1) * 100;
+        SV_BuildClientFrame(client);
+        SV_WriteFrameToClient(client);
+        T_ASSERT(!client->netchan.message.overflowed);
+        slow_link_collect(&link, frame * 100);
+        T_EQ(link.count, frame + 1);
+        sent_size[frame] = link.size[frame];
+        memcpy(sent_frames[frame], link.data[frame], link.size[frame]);
+    }
+
+    /* Frames must arrive intact and in order; an in-flight frame never overtakes its predecessor. */
+    for (uint32_t now = 0, expect = 1; link.next < link.count; now++) {
+        while (link.next < link.count && link.deliver_ms[link.next] <= now) {
+            uint32_t const i = link.next;
+            sizeBuf_t msg = { .data = link.data[i], .maxsize = link.size[i], .cursize = link.size[i] };
+            T_EQ(link.size[i], sent_size[i]);
+            T_ASSERT(!memcmp(link.data[i], sent_frames[i], sent_size[i]));
+            T_EQ(MSG_ReadByte(&msg), svc_frame);
+            T_EQ((uint32_t)MSG_ReadLong(&msg), expect++);
+            T_ASSERT(link.deliver_ms[i] >= last_arrival_ms);
+            last_arrival_ms = link.deliver_ms[link.next++];
+            delivered++;
+        }
+    }
+    T_EQ(delivered, FRAMES);
+    T_EQ(client->frames[FRAMES & UPDATE_MASK].num_entities, UNITS);
+    printf("[STRESS] %u units over %u frames: %u bytes, snapshot backlog drains after %u ms (%.1f s of game time)\n",
+           (unsigned)UNITS, (unsigned)FRAMES, (unsigned)link.bytes, (unsigned)last_arrival_ms, FRAMES * 0.1f);
+    slow_link_free(&link);
+    SAFE_DELETE(svs.client_entities, MemFree);
+}
