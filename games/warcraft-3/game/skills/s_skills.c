@@ -353,8 +353,9 @@ static ability_t abilitylist[] = {
     { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
-    { "AIrs", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Lesser Resurrection */
-    { "AIrr", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Greater Resurrection */
+    // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
+    { "APrl", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Lesser Resurrection */
+    { "APrr", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Greater Resurrection */
     // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
     { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
     { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */
@@ -1056,11 +1057,20 @@ ability_t const *FindAbilityByClassname(cstring_t classname) {
  * Only rawcodes belong in the SLK resolver: passing CmdBuild through FS_SLKKey
  * truncates it to CmdB and loses the registered build command. */
 ability_t const *FindAbilityForCommand(cstring_t classname) {
+    ability_t const *ability;
+
     if (!classname || !*classname) {
         return NULL;
     }
     if (strlen(classname) != 4) {
         return FindAbilityByClassname(classname);
+    }
+    /* Prefer a concrete rawcode registration before following AbilityData's
+     * `code` alias. Some item abilities inherit a spell's data (for example
+     * APrl/APrr from AHre) but have their own runtime class and pickup flags. */
+    ability = FindAbilityByClassname(classname);
+    if (ability) {
+        return ability;
     }
     return FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
 }

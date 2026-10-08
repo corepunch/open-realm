@@ -551,7 +551,7 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
     return true;
 }
 
-/* TFT Resurrection Runes (AIrs / AIrr): DataA is the maximum number of
+/* TFT Resurrection Runes (APrl / APrr): DataA is the maximum number of
  * nearby friendly ordinary corpses to restore and Area is the search radius.
  * Match the shared Resurrection spell's corpse policy: Heroes keep their altar
  * revival lifecycle, structures are not eligible, and higher-level corpses are
