@@ -81,12 +81,15 @@ working compatibility approximations, not proven retail algorithms.
   Existing effect sounds stop when the scene starts; the model's own events
   remain active. **BZ_COMPAT_GUESS:** audio isolation mirrors movie playback;
   no special `FinalCinematic.mp3` soundtrack is assumed.
-- If JASS requests a map/menu transition after starting playback, that
-  transition is performed when playback ends or is skipped, mirroring the
-  existing `PlayCinematic` movie interposer. A bounded FIFO queue preserves
-  up to eight authored movie/model requests in order, without silently
-  replacing one type with the other. Overflow reports a diagnostic and
-  rejects the new request while preserving prior items.
+- Model scenes may start without a pending map/menu transition. `PlayCinematic`
+  movie files wait for a session transition so a call made during `Next_Level_Prep`
+  cannot interrupt the rest of the map's scripted ending. When both types are
+  queued, model scenes play before unlock movies, preserving FIFO order within
+  each type. This handles UndeadX08's `OutroX` unlock followed by its
+  `ArthasIllidanFight.mdl` ending scene. A bounded queue holds up to eight
+  requests; overflow reports a diagnostic and rejects the new request while
+  preserving prior items. The session transition runs after all eligible scenes
+  finish or are skipped.
 - Disconnect and shutdown cancel active playback, clear deferred transitions
   and restore the session's prior pause state. A missing/unloadable asset is
   skipped so it cannot permanently suppress a pending victory or map change.
