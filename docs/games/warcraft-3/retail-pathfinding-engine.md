@@ -12497,3 +12497,43 @@ turn a primary saved deadline into a relative timeout or transfer it to another
 clock. Reports and failing/accepted logs are in
 `/GitHub/wc3-analysis/runtime/payoff181/`. Focused Classic/TFT suites are the
 chunk gate; full validation remains on the owner's approximately12-commit cadence.
+
+## Blink publishes target loss after relocating (Payoff182)
+
+`CAbilityBlink` now commits its admitted destination, opens a synchronous
+world-hidden validation window, sends TargetLost through the target's existing
+ordered subscriptions, then closes the window before destination presentation.
+Move retains visible Follow owners and their cached route/refresh state. A
+fogged destination cancels the Follow head before the next movement owner.
+The window bypasses hidden/cargo rejection only; it never bypasses null, death,
+detection or fog. The callback work visits this target's subscribers without
+scanning unrelated entities or allocating an additional observer registry.
+
+Seven failing-first production regressions cover post-commit observation,
+retained visible pursuit, synchronous fog cancellation, hidden-state rejection
+outside the window, nested Blink, callback-time cold saves and death. An inner
+Blink clears the same unit bit; it does not restore an outer nesting state.
+Save145 omits the runtime window even when saving inside a callback and rejects
+Save144. Ordinary `S_SpellCommitRelocation` does not invent a Blink notification.
+
+The original90-case oracle runs complete `4c95c0`, `651010` and `5fb940` bodies.
+It preserves all unrelated widget flags, checks the actual stack TargetLost
+packet and validates64 unit/non-unit/dead/hidden/transient/cargo/visibility
+combinations plus null. Position admission, virtual event delivery/dead/type
+queries and visibility are explicit controlled boundaries. These cases do not
+claim complete spell timing or numerical placement parity.
+
+The complete prepared public TARGET-03.2 observations and observer-free controls
+are verified afresh. Blink's order is issued at owner7957; execution notifies at
+7968 with widget20.800000 and validation0, while Smart remains active. This
+proves the public producer separately from the controlled original oracle;
+the new engine regressions cover the notification semantics, not that complete
+retail cast timeline. No new live capture is claimed. TARGET-03.1/03.2 remain
+open for their unidentified global/reveal producers and wider compositions.
+
+Assembly corrects an important handoff ABI omission: `4c9648` is **RET8**, with
+two stack words unused by this body. The saved Ghidra prototype and mapper
+record these words explicitly. `WC3BlinkPointPrefix` retains owner Unit at30 and
+software destination scalars atf8/100. Existing comments remain preserved.
+See [the target visibility document](retail-pathfinding-target-visibility.md#blink-notification-window-payoff182)
+for reproduction and evidence boundaries.

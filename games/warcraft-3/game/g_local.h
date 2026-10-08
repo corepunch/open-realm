@@ -1968,6 +1968,7 @@ struct edict_s {
     bool stunned;       // unit AI and movement suspended by timed status
     bool no_pathing;    // own query disabled; occupancy category remains active
     bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
+    bool target_loss_transient; /* Blink's synchronous validation window; never saved. */
     uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     sleep_t *sleep;
     channel_t *channel;

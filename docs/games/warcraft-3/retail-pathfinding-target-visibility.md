@@ -274,3 +274,56 @@ gates also remains outside this singleton implementation.
 See [remaining task scopes](retail-pathfinding-todo.md),
 [target refresh](retail-pathfinding-target-delays.md), and
 [save/load](save-load.md).
+
+## Blink notification window (Payoff182)
+
+Blink had relocated the caster without emitting retail's TargetLost. Visible
+Follow happened to survive, but a Blink into fog left the old pursuit active
+until later owner work. `blink_execute` now publishes its destination before
+notifying the existing target-specific subscriber list. It closes the temporary
+world-hidden exception before destination art; the old route and target-refresh
+countdown stay retained when validation succeeds.
+
+Native `4c95c0` copies software scalar words atf8/100, queries support/admission,
+invokes Unit virtual180, sets widget20.800000 at4c9622, calls complete651010,
+clears800000 at4c9634, then publishes relocation completion through6510b0.
+The flag is a shared unit bit: nested Blink clears it without restoring an
+outer value. `5fb940` still rejects death/null and performs flags0/mode4 detection
+and fog. Non-unit widgets never receive this unit-only exception.
+
+`target_loss_transient` is a runtime field. Save145 clears it in the copied
+serialized edict and again on load, leaving the live callback unchanged. A save
+inside the Blink notification resumes with ordinary validation. Save144 is
+explicitly rejected. Presentation/network state has no new field.
+
+The handoff's plain-return assumption was incomplete: assembly4c9648 is RET8.
+The two unused stack words, owner30 and scalarf8/100 layout are now typed,
+saved and read back in Ghidra, with the mapper and schema synchronized.
+
+Verification:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_blink.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --fixture tools/ghidra/fixtures/retail-blink-validation182-1.27.json \
+  --output /tmp/blink-original182.json
+python3 tools/ghidra/research/verify_target182_blink.py \
+  --expected tools/ghidra/fixtures/retail-target-visibility166-1.27.json \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --header games/warcraft-3/game/tests/retail_target_fog166.h \
+  --output /tmp/blink-live182.json
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+  build/bin/openwarcraft3-tests -data build/tests +dedicated 1 \
+  +test 'wc3_movement.target182_*'
+```
+
+The90-case original oracle executes the full Blink, event-packet construction
+and Move validation bodies, with position admission, virtual receivers/dead/type
+queries and visibility as controlled boundaries. It does not establish whole
+spell timing, full fog policy or placement parity. The archive verifier rebuilds
+all22 prepared loss/reacquisition scenes from four complete Frida observations,
+compares two observer-free controls and checks the reachable Blink notification
+at7968 after public issue7957. No new retail run occurred in this chunk.
+Seven production regressions cover actual public Blink dispatch, retained and
+cancelled Follow, nested callback clearing and a callback-time cold save.
+The wider visibility TODOs remain open; no new TODOs are introduced.

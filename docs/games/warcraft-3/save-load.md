@@ -1,5 +1,10 @@
 # Warcraft III Save/Load
 
+Save145 excludes the synchronous Blink target-loss validation window from saved
+edicts, including saves initiated during notification callbacks. The live bit
+remains unchanged while writing; loaded units use ordinary target validation.
+Save144 is rejected. See [Blink notification](retail-pathfinding-target-visibility.md#blink-notification-window-payoff182).
+
 Save137 replaces the old Permanent Invisibility millisecond window with the
 scalar origin, slope and pending primary-timer deadline/serial/active state.
 The ability rebuilds derived heap membership after load; no timer pointer or

@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **256 done / 336 tasks; 80 remaining.**
 
+Payoff182 advances TARGET-03.1/03.2 with Blink-owned post-relocation TargetLost,
+world-hidden validation windows, nested-clear behavior and Save145 runtime
+exclusion. Seven production regressions and90 fresh original cases pass; complete
+prepared Frida repeats/control streams verify the public Blink producer.
+The saved Ghidra/mapper now preserve its RET8 ABI and destination scalar layout.
+No new leaves or closure claims. See [Blink notification](retail-pathfinding-engine.md#blink-publishes-target-loss-after-relocating-payoff182).
+
 Payoff181 closes ORDER-05.3: live unit-release deadlines/serials and JASS identities now survive cold load, outgoing primary owners drain software0.2s before replacement, and callback-created first timers retain popped clocks. Exact live wrap/load words, production persistence/release regressions, fresh432 original cases and full prepared wrap/UI-load control archives pass; saved Ghidra/mapper retain clock/wrapper fields and nine ABIs. See [pending request clocks](retail-pathfinding-engine.md#pending-request-clocks-survive-wrap-and-load-payoff181).
 
 Payoff180 closes ORDER-05.2: range listeners now poll at their registration-phased primary deadlines, with stable repeat serials, popped-clock callback creation and three-stage peer/self releases. Indexed requests and linear stamped occupant reconciliation replace movement-wide scans and native quadratic lookup; ordered fine prediction, reverse entrants, filters, dense4096 removal and cold logical saves are covered. Fresh432 original cases and complete repeated/control Frida archives pass; Ghidra/mapper retain the recovered query/ABI evidence. See [range listener requests](retail-pathfinding-engine.md#range-listeners-poll-ordered-occupants-at-request-deadlines-payoff180).

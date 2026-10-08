@@ -3752,7 +3752,8 @@ moveTargetResult_t S_MoveTargetStatus(edict_t const *self, edict_t const *target
     bool hidden=G_IsDeferredFree(target) || !G_UnitIsWorldActive(target) ||
         ((target->s.renderfx&RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(target));
     if (!(target->svflags&SVF_MONSTER)) return hidden ? MOVE_TARGET_HIDDEN : MOVE_TARGET_VALID;
-    if (hidden) return S_CargoTransportForUnit(target) ? MOVE_TARGET_LOADED : MOVE_TARGET_HIDDEN;
+    if (hidden && !target->target_loss_transient)
+        return S_CargoTransportForUnit(target) ? MOVE_TARGET_LOADED : MOVE_TARGET_HIDDEN;
     if (target->movement.captain_actor_type) return MOVE_TARGET_VALID;
     return self && G_FowPlayerCanTrackUnit(self->s.player,target) ? MOVE_TARGET_VALID : MOVE_TARGET_LOST;
 }

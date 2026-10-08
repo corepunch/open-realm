@@ -4914,6 +4914,30 @@
           "evidence": "15f870 copies requested fine radius;15eac0 adds candidate fine radius."
         }
       ]
+    },
+    {
+      "name": "WC3BlinkPointPrefix",
+      "length": 260,
+      "fields": [
+        {
+          "offset": 48,
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "Blink4c95e8 resolves owned Unit, fallback055cc0 when null."
+        },
+        {
+          "offset": 248,
+          "name": "destination_x",
+          "type": "WC3PathScalar",
+          "evidence": "4c95d1 loads software scalar word atf8 before position commit."
+        },
+        {
+          "offset": 256,
+          "name": "destination_y",
+          "type": "WC3PathScalar",
+          "evidence": "4c95da loads software scalar word at100 before position commit."
+        }
+      ]
     }
   ],
   "methods": [
@@ -15968,6 +15992,30 @@
         {
           "name": "progress",
           "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f4c95c0",
+      "name": "CAbilityBlink_MoveCaster",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "Payoff182: original4c95c0 copies f8/100 into scalar locals, commits relocation via Unit virtual180, sets widget20.800000 at4c9622, calls651010(Unit,-1,-1), clears the same bit at4c9634, then publishes relocation completion6510b0. RET8 at4c9648, despite no reads of the two stack arguments: record unused words, not plain RET. Actual original90 controlled body/packet/validation cases match, and complete public TARGET03 archives retain Smart across reachable Blink.",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3BlinkPointPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "unused0",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "unused1",
+          "type": "u32",
           "storage": 8
         }
       ]

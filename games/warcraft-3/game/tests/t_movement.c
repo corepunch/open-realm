@@ -18586,4 +18586,151 @@ TEST(wc3_movement, formation170_public_selection_and_independent_orders_match_re
     reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
 }
 
+
+/* Native4c95c0 commits the Blink destination before publishing TargetLost.
+ * The temporary800000 window only bypasses world-hidden validation. */
+static struct {
+    edict_t *target;
+    vec2_t destination;
+    uint32_t count, action;
+    bool nested;
+    moveTargetResult_t status;
+} target182;
+
+static void target182_observe(edict_t *unit) {
+    target182.count++;
+    T_EQ(wc3_float_bits(target182.target->s.origin2.x),wc3_float_bits(target182.destination.x));
+    T_EQ(wc3_float_bits(target182.target->s.origin2.y),wc3_float_bits(target182.destination.y));
+    if(target182.action==1 || target182.action==2)G_SetEntityHidden(target182.target,true);
+    target182.status=S_MoveTargetStatus(unit,target182.target);
+    if(target182.action==2) {
+        T_ASSERT(target182.target->target_loss_transient);
+        T_ASSERT(WriteGame("/tmp/wc3-target182-window.bin"));
+        T_ASSERT(target182.target->target_loss_transient); /* Saving does not mutate the live window. */
+    }
+    if(target182.action==3 && !target182.nested) {
+        target182.nested=true;target182.destination.y+=64;
+        spellTarget_t point={.type=SPELL_TARGET_POINT,.point=target182.destination};
+        abilityitem_t item={.code=MAKEFOURCC('A','E','b','l'),.ability=FindAbilityByClassname("AEbl")};
+        abilityCall_t call={.item=&item,.target=&point};
+        T_ASSERT(item.ability->proc(target182.target,A_EXECUTE,&call));
+        T_ASSERT(!target182.target->target_loss_transient);
+        G_SetEntityHidden(target182.target,true);
+    }
+    if(target182.action==4) {
+        target182.target->health.value=0;
+        target182.status=S_MoveTargetStatus(unit,target182.target);
+    }
+}
+
+static slkTestData_t *target182_setup(edict_t **unit,edict_t **target,slkTestData_t **old) {
+    target166_setup(unit,target);
+    char const slk[]="ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\nC;X4;K\"Cool1\"\n"
+        "C;X5;K\"Rng1\"\nC;X6;K\"DataA1\"\nC;X7;K\"DataB1\"\nC;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"AEbl\"\nC;X2;K\"AEbl\"\nC;X3;K0\nC;X4;K0\nC;X5;K2000\n"
+        "C;X6;K2000\nC;X7;K0\nC;X8;K1\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk);*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(G_ActorAddSkill(*target,MAKEFOURCC('A','E','b','l')));
+    (*target)->mana.value=1000;
+    T_ASSERT(unit_issuetargetorder(*unit,"move",*target));
+    target182=(typeof(target182)){.target=*target,.destination={672,768}};
+    move_follow_visits=0;move_test_target_lost=target182_observe;
+    return rows;
+}
+
+static void target182_finish(slkTestData_t *rows,slkTestData_t *old) {
+    move_test_target_lost=NULL;G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target182_blink_notifies_after_commit_and_preserves_visible_route) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){target182_finish(rows,old);return;}
+    uint64_t rank=unit->movement.follow_sequence;
+    uint32_t counter=level.pathing_counter;int32_t refresh=group->target_refresh;
+    vec2_t cached=group->goal;uint32_t id=group->id;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(move_follow_visits,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->movement.follow_target,target);
+    T_EQ(unit->movement.follow_sequence,rank);T_EQ(unit->movement.group_id,id);
+    T_EQ(group->target_refresh,refresh);T_EQ(group->goal.x,cached.x);T_EQ(group->goal.y,cached.y);
+    T_EQ(level.pathing_counter,counter);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_to_fog_cancels_synchronously) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog){target182_finish(rows,old);return;}
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center=target182.destination,.radius=100};
+    G_FogModifierStart(fog);T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_LOST);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_EQ(unit->movement.group_id,0);
+    G_FogModifierStop(fog);G_FowUpdate();target166_tick();
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_window_bypasses_only_hidden_state) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=1;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
+    move_test_target_lost=NULL;S_UnitTargetLost(target);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_plain_relocation_does_not_synthesize_blink_loss) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    S_SpellCommitRelocation(target,&target182.destination);
+    T_EQ(target182.count,0);T_EQ(move_follow_visits,0);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    target182_finish(rows,old);
+}
+
+
+TEST(wc3_movement, target182_blink_window_is_not_restored_by_nested_blink) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,1024);
+    second->svflags=SVF_MONSTER;second->movetype=MOVETYPE_STEP;second->stand=unit_stand;
+    unit_stand(second);S_SetUnitMoveSpeed(second,270);
+    T_ASSERT(unit_issuetargetorder(second,"move",target));
+    target182.action=3;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,4);T_EQ(move_follow_visits,4);
+    T_EQ(unit->current_order_id,0);T_EQ(second->current_order_id,0);
+    T_NULL(unit->movement.follow_target);T_NULL(second->movement.follow_target);
+    T_ASSERT(!target->target_loss_transient);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_callback_save_does_not_persist_validation_window) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=2;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_ASSERT(!target->target_loss_transient);move_test_target_lost=NULL;
+    S_ResetAbilityTimers();T_ASSERT(ReadGame("/tmp/wc3-target182-window.bin"));
+    remove("/tmp/wc3-target182-window.bin");
+    T_ASSERT(!target->target_loss_transient);T_ASSERT(target->s.renderfx&RF_HIDDEN);
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    S_UnitTargetLost(target);T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_window_does_not_bypass_dead_target) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=4;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_LOST);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    T_ASSERT(!target->target_loss_transient);
+    target182_finish(rows,old);
+}
+
 #endif
