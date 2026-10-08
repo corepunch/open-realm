@@ -450,6 +450,11 @@ shared mutation clamps subtraction at zero and refreshes the owner's command
 state. `SetHeroXP`, `AddHeroXP`, and `SetHeroLevel` share the raise-only Hero XP
 transition; every crossed level publishes both `EVENT_PLAYER_HERO_LEVEL` and
 `EVENT_UNIT_HERO_LEVEL`, and `GetLevelingUnit()` resolves to that Hero.
+`UnitStripHeroLevel` uses a separate level-loss transition, clamps to level 1,
+reconciles XP/attributes/points/learned ranks, and returns whether the level
+changed. The engine's `SetHeroLevelBJ` entry routes decreases to this native.
+Retail skill-rank tie-break order and unusual scripted point budgets remain
+unverified; see the [Hero progression contract](../../docs/games/warcraft-3/hero-abilities.md).
 `GetUnitAbilityLevel` reads the runtime learned rank. Generic runtime ability
 addition/removal/level mutation remains separate work because OpenRealm does
 not yet own a general per-unit dynamic ability collection.
