@@ -1285,6 +1285,16 @@ void R_DrawAlphaSurfaces(void) {
     _W3M_DrawAlphaSurfaces();
     R_LightningDraw();
     R_WeatherEmit();
+
+    /* MDX blended geosets must composite over water. Opaque geosets were
+     * already rendered during the ordinary entity pass; RENDER_PHASE_ALPHA
+     * selects only transparent model layers and the alpha of tinted units. */
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *entity = tr.viewDef.entities + i;
+        if ((entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX)
+            continue;
+        R_RenderModel(entity);
+    }
 }
 
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {

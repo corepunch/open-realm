@@ -10,8 +10,16 @@
 #define MDLX_DrawSpriteInstance R_TestCursorSprite
 #define MDLX_FindSequenceByName R_TestCursorSequence
 #define MDLX_TraceWalkableSurface R_TestWalkableSurfaceTrace
+#define MDLX_SetEntityAnimationFrame R_TestSetEntityAnimationFrame
+#define _W3M_DrawAlphaSurfaces R_TestWaterAlphaSurfacePass
+#define R_LightningDraw R_TestLightningDraw
+#define R_WeatherEmit R_TestWeatherEmit
 #include "../games/warcraft-3/renderer/r_game.c"
 #undef MDLX_TraceWalkableSurface
+#undef MDLX_SetEntityAnimationFrame
+#undef _W3M_DrawAlphaSurfaces
+#undef R_LightningDraw
+#undef R_WeatherEmit
 
 /* Keep the selection-ring production path in this headless test translation
  * unit. The renderer imports below record whether it requests terrain-conformed
@@ -41,6 +49,7 @@ static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
 static float test_walkable_hit_z;
+static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
     wc3SplatData_t splat = { .name = "EmptySplat", .blend_mode = "0", .sound = "NULL" };
@@ -227,7 +236,16 @@ void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4
     test_spn_render_count++;
     test_spn_render_entity = *entity;
     test_spn_render_transform = *transform;
+    if (tr.render_phase == RENDER_PHASE_ALPHA) {
+        test_unit_alpha_order = ++test_alpha_draw_order;
+    }
 }
+
+void R_TestWaterAlphaSurfacePass(void) {
+    test_water_alpha_order = ++test_alpha_draw_order;
+}
+void R_TestLightningDraw(void) {}
+void R_TestWeatherEmit(void) {}
 
 void R_RenderRectSplatUV(rectSplatParams_t const *params) {
     test_splat_count++;
@@ -259,6 +277,11 @@ bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *li
     if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
     hit->z = test_walkable_hit_z;
     return true;
+}
+
+bool R_TestSetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity) {
+    (void)model; (void)anim; (void)entity;
+    return false;
 }
 
 TEST(renderer_game, water_supported_selection_ring_is_flat_at_water_surface) {
@@ -339,6 +362,28 @@ TEST(renderer_game, bridge_supported_selection_ring_uses_walkable_surface_height
 
     tr.viewDef.entities = saved_entities;
     tr.viewDef.num_entities = saved_num_entities;
+}
+
+TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
+    mdxModel_t mdx = { 0 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+    render_phase_t saved_phase = tr.render_phase;
+
+    test_alpha_draw_order = test_water_alpha_order = test_unit_alpha_order = 0;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+    tr.render_phase = RENDER_PHASE_ALPHA;
+    R_DrawAlphaSurfaces();
+
+    T_ASSERT(test_water_alpha_order > 0);
+    T_ASSERT(test_unit_alpha_order > test_water_alpha_order);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
+    tr.render_phase = saved_phase;
 }
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {

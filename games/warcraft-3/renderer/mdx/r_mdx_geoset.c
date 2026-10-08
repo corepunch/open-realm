@@ -575,6 +575,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
         BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
         BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)
     };
+    bool const translucent_instance = tint.w < 1.0f - EPSILON;
     uint32_t geosetCount = 0;
     uint32_t drawCount = 0;
     mdxGeosetDrawOrder_t stackDrawOrder[MDLX_STACK_DRAW_ORDER];
@@ -587,12 +588,14 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
             continue;
         }
         material = MDLX_GetMaterialAtIndex(geoset, model);
-        if (MDLX_MaterialHasPass(material, false)) {
+        if (MDLX_RenderPhaseIncludesPass(tr.render_phase, false, translucent_instance) &&
+            MDLX_MaterialHasPass(material, false)) {
             MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, false);
         }
     }
 
-    if (geosetCount == 0) {
+    if (geosetCount == 0 ||
+        !MDLX_RenderPhaseIncludesPass(tr.render_phase, true, translucent_instance)) {
         return;
     }
 
@@ -893,9 +896,14 @@ void MDX_RenderModel(renderEntity_t const *entity,
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
     MDLX_RenderGeosets(entity, model);
-    
-    MDLX_RenderParticleEmitters(entity, model, transform);
-    MDLX_RenderRibbonEmitters(entity, model, transform);
+
+    if (tr.render_phase == RENDER_PHASE_ALPHA) {
+        MDLX_RenderRibbonEmitters(entity, model, transform);
+    } else {
+        /* Particle emitters enqueue particles; the particle renderer draws
+         * them after water. Do not enqueue a second copy in the alpha pass. */
+        MDLX_RenderParticleEmitters(entity, model, transform);
+    }
 
     if ((entity->flags & RF_NO_FOGOFWAR) && tr.world) {
         R_Call(glActiveTexture, GL_TEXTURE2);

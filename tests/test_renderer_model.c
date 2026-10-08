@@ -27,6 +27,16 @@ static bool backdrop_repeat;
 static uint32_t backdrop_calls, backdrop_opaque_calls;
 static size2_t backdrop_size = {256, 64};
 
+TEST(renderer_model, mdx_transparent_layers_run_after_water_and_tinted_opaque_layers_move_too) {
+    T_ASSERT(MDLX_RenderPhaseIncludesPass(RENDER_PHASE_SOLID, false, false));
+    T_ASSERT(!MDLX_RenderPhaseIncludesPass(RENDER_PHASE_SOLID, true, false));
+    T_ASSERT(!MDLX_RenderPhaseIncludesPass(RENDER_PHASE_SOLID, false, true));
+    T_ASSERT(!MDLX_RenderPhaseIncludesPass(RENDER_PHASE_ALPHA, false, false));
+    T_ASSERT(MDLX_RenderPhaseIncludesPass(RENDER_PHASE_ALPHA, true, false));
+    T_ASSERT(MDLX_RenderPhaseIncludesPass(RENDER_PHASE_ALPHA, false, true));
+    T_ASSERT(MDLX_RenderPhaseIncludesPass(RENDER_PHASE_LIGHTS, false, false));
+}
+
 /* Capture the real shader source submission without requiring a window in the unit suite. */
 static void BZ_TestShaderSource(GLuint shader, GLsizei count, GLchar const *const *strings, GLint const *lengths) {
     size_t used = 0;

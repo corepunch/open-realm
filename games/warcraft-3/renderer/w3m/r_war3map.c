@@ -928,6 +928,19 @@ void _W3M_DrawAlphaSurfaces(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
+    /* Establish the translucent water plane in depth before drawing alpha
+     * unit geosets. That lets fragments above water pass and fragments below
+     * water remain occluded, while the following color pass still blends. */
+    R_Call(glDepthMask, GL_TRUE);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthFunc, GL_LEQUAL);
+    R_Call(glColorMask, GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    R_Call(glDisable, GL_BLEND);
+    R_SetAlphaKeyState(false);
+    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments)
+        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
+    R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
