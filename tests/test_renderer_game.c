@@ -9,7 +9,9 @@
 #define R_ReleaseModel R_TestProductionReleaseModel
 #define MDLX_DrawSpriteInstance R_TestCursorSprite
 #define MDLX_FindSequenceByName R_TestCursorSequence
+#define MDLX_TraceWalkableSurface R_TestWalkableSurfaceTrace
 #include "../games/warcraft-3/renderer/r_game.c"
+#undef MDLX_TraceWalkableSurface
 
 /* Keep the selection-ring production path in this headless test translation
  * unit. The renderer imports below record whether it requests terrain-conformed
@@ -38,6 +40,7 @@ static float test_flat_splat_z;
 static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
+static float test_walkable_hit_z;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
     wc3SplatData_t splat = { .name = "EmptySplat", .blend_mode = "0", .sound = "NULL" };
@@ -251,6 +254,13 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
     test_flat_splat_z = z;
 }
 
+bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
+    (void)line;
+    if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
+    hit->z = test_walkable_hit_z;
+    return true;
+}
+
 TEST(renderer_game, water_supported_selection_ring_is_flat_at_water_surface) {
     model_t model = { 0 };
     renderEntity_t entity = {
@@ -273,7 +283,7 @@ TEST(renderer_game, water_supported_selection_ring_is_flat_at_water_surface) {
     R_RenderSelectedCircle(&entity, (vec2_t const *)&entity.origin, false);
     T_EQ(test_splat_count, 0);
     T_EQ(test_flat_splat_count, 0);
-    R_DrawWaterEntityOverlays();
+    R_DrawSupportedEntityOverlays();
 
     T_EQ(test_splat_count, 0);
     T_EQ(test_flat_splat_count, 1);
@@ -299,6 +309,36 @@ TEST(renderer_game, ordinary_selected_ring_still_uses_terrain_conforming_path) {
     T_EQ(test_flat_splat_count, 0);
     T_FEQ(test_splat_origin.x, entity.origin.x, 0.001f);
     T_FEQ(test_splat_origin.y, entity.origin.y, 0.001f);
+}
+
+TEST(renderer_game, bridge_supported_selection_ring_uses_walkable_surface_height) {
+    model_t bridge_model = { 0 }, unit_model = { 0 };
+    renderEntity_t entities[] = {
+        { .origin = { 64.0f, 96.0f, 40.0f }, .model = &bridge_model,
+          .flags = RF_GROUND_SURFACE },
+        { .origin = { 64.0f, 96.0f, 0.0f }, .model = &unit_model,
+          .flags = RF_SELECTED | RF_GROUND_CONFORM, .radius = 12.0f, .ground_offset = 8.0f },
+    };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_hit_z = 77.0f;
+    R_ConformGroundSurfaces(&view);
+    T_ASSERT(entities[1].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    tr.viewDef.entities = entities;
+    tr.viewDef.num_entities = 2;
+    R_DrawSupportedEntityOverlays();
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 1);
+    T_FEQ(test_flat_splat_z, 78.0f, 0.001f);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
 }
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {

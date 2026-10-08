@@ -1337,6 +1337,8 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
         float authored_support = 0.0f;
         bool found_surface = false;
 
+        ent->flags &= ~RF_GROUND_SURFACE_SUPPORT;
+
         if (!(ent->flags & RF_GROUND_CONFORM) || (ent->flags & RF_HIDDEN) ||
             (ent->flags & RF_GROUND_SURFACE) || !ent->model) {
             continue;
@@ -1354,8 +1356,10 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
             }
         }
 
-        if (found_surface)
+        if (found_surface) {
             ent->origin.z = authored_support + ent->ground_offset;
+            ent->flags |= RF_GROUND_SURFACE_SUPPORT;
+        }
     }
 }
 
