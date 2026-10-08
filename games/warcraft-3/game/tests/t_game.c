@@ -6016,6 +6016,33 @@ TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_jass, coroutine_keeps_loop_index_changed_before_sleep) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer bj_forLoopAIndex = 1\n"
+        "  integer resumedLoopIndex = 0\n"
+        "endglobals\n"
+        "function LoopAction takes nothing returns nothing\n"
+        "  set bj_forLoopAIndex = bj_forLoopAIndex + 1\n"
+        "  call TriggerSleepAction(0.0)\n"
+        "  set resumedLoopIndex = bj_forLoopAIndex\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call LoopAction()\n"
+        "endfunction\n"
+        "function verifyLoopYield takes nothing returns nothing\n"
+        "  call BJassAssert(resumedLoopIndex == 0, \"loop action continued before resume\")\n"
+        "endfunction\n"
+        "function verifyLoopResume takes nothing returns nothing\n"
+        "  call BJassAssert(resumedLoopIndex == 2, \"loop index changed before yield was lost on resume\")\n"
+        "endfunction\n"));
+    jass_callbyname(level.vm, "verifyLoopYield", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyLoopResume", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_jass, sleep_in_boolean_expression_resumes_condition_and_branch) {
     T_ASSERT(run_test_jass(
         "globals\n"
