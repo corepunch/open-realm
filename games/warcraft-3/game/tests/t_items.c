@@ -861,11 +861,13 @@ TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot)
     T_EQ(rune->item->charges, 0);
     T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
 
-    /* A supported resurrection rune is still consumed when no corpse qualifies. */
+    /* With no eligible corpse, report failure and leave the rune on the ground. */
     rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
     rune->data.ItemData = &rune_data;
-    T_ASSERT(G_PickupItem(picker, rune));
-    T_ASSERT(rune->item->pending_use_removal);
+    T_ASSERT(!G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->in_world);
+    T_ASSERT(!rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 1);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

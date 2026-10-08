@@ -556,7 +556,7 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
  * Match the shared Resurrection spell's corpse policy: Heroes keep their altar
  * revival lifecycle, structures are not eligible, and higher-level corpses are
  * preferred before lower-level corpses with distance breaking equal-level ties.
- * A valid powerup is consumed even when no raisable corpse is present. */
+ * With no eligible corpse, report the failed use and leave the rune in-world. */
 static bool item_resurrection_preferred(edict_t const *candidate, edict_t const *current, edict_t const *caster) {
     int32_t candidate_level, current_level;
 
@@ -589,7 +589,14 @@ BZ_ABILITY_PROC(CAbilityItemResurrection) {
                      Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
             if (item_resurrection_preferred(target, selected, caster)) selected = target;
         }
-        if (!selected) break;
+        if (!selected) {
+            if (!count) {
+                G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
+                                      "Cantfindfriendlycorpse", "There are no corpses of friendly units nearby.");
+                return false;
+            }
+            break;
+        }
         G_ReviveCorpse(selected, 1.0f);
         if (raised_invulnerable) selected->invulnerable = true;
         G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, selected, NULL, true);
