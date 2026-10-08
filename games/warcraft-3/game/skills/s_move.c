@@ -1874,13 +1874,37 @@ void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     self->movement.worker_avoid_blocked_frames = blocked;
 }
 
+#ifdef BZ_TESTS
+static void (*move_recovery_trace)(void *,unsigned,edict_t const *);
+static void *move_recovery_trace_data;
+void S_TestMoveRecoveryTrace(void (*trace)(void *,unsigned,edict_t const *),void *data) {
+    move_recovery_trace=trace;move_recovery_trace_data=data;
+}
+static void move_trace_recovery(unsigned stage,edict_t const *self) {
+    if(move_recovery_trace)move_recovery_trace(move_recovery_trace_data,stage,self);
+}
+#else
+#define move_trace_recovery(stage,self) ((void)0)
+#endif
+
 /* Stop's bounded recovery uses the native fine pose; a world round trip loses low bits. */
 void S_RecoverStoppedUnitPosition(edict_t *self) {
+    G_PublishMoveSpatialObject(self);
+    move_trace_recovery(0,self);
+    /*170080 captures this pooled record once. Keep its counter held through
+     *05c820's publication; moving links does not change the held identity. */
+    wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),self-g_edicts);
+    if(record)record->flags++;
+    move_trace_recovery(1,self);
     wc3GridPose_t pose; unit_grid_pose(self,&pose);
     vec2_t fine={pose.grid[0],pose.grid[1]}, admitted;
-    if (!G_FindUnitMoveRecoveryPosition(self,&fine,&admitted)) return;
-    float point[2]={admitted.x,admitted.y};
-    wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
+    if (G_FindUnitMoveRecoveryPosition(self,&fine,&admitted)) {
+        float point[2]={admitted.x,admitted.y};
+        wc3_grid_place_fine(&pose,point); unit_commit_pose(self,&pose);
+    }
+    move_trace_recovery(2,self);
+    if(record)record->flags--;
+    move_trace_recovery(3,self);
 }
 
 /* Portal movement keeps the order, route buffers and current velocity. */

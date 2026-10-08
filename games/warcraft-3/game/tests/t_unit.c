@@ -14,6 +14,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 
 /* Forward declarations for functions in m_unit.c without a public header. */
 void unit_stand(edict_t *self);
@@ -1827,21 +1828,26 @@ TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
 }
 
-TEST(wc3_unit, die_publishes_death_event) {
-    reset_test_entities();
+TEST(wc3_unit, die_dispatches_death_event_synchronously) {
+    reset_entities();
+    setup_test_world();
     edict_t *ent = make_unit(0, 0);
     memset(level.events.queue, 0, sizeof(level.events.queue));
     memset(level.events.handlers, 0, sizeof(level.events.handlers));
 
+    T_ASSERT(run_test_jass("globals\ninteger deaths=0\nendglobals\n"
+        "function died takes nothing returns nothing\n"
+        "call BJassAssert(IsUnitType(GetDyingUnit(),UNIT_TYPE_DEAD),\"death state committed before delivery\")\n"
+        "set deaths=deaths+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_DEATH,null)\n"
+        "call TriggerAddAction(t,function died)\nendfunction\n"
+        "function check takes nothing returns nothing\n"
+        "call BJassAssert(deaths==1,\"death delivered synchronously once\")\nendfunction\n"));
+    G_SetHealth(ent, 0);
     unit_die(ent, NULL);
-    bool found = false;
-    for (int i = 0; i < MAX_EVENT_QUEUE; i++) {
-        if (level.events.queue[i].type == EVENT_UNIT_DEATH) {
-            found = true;
-            break;
-        }
-    }
-    T_ASSERT(found);
+    jass_callbyname(level.vm, "check", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 static bool unit_datagram_tint(edict_t *client_ent, uint32_t entity_number, color32_t *out) {

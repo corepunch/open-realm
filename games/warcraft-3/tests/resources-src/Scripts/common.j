@@ -480,6 +480,7 @@ globals
     constant limitop GREATER_THAN_OR_EQUAL = ConvertLimitOp(3)
     constant limitop GREATER_THAN = ConvertLimitOp(4)
     constant limitop NOT_EQUAL = ConvertLimitOp(5)
+    constant unittype UNIT_TYPE_DEAD = ConvertUnitType(1)
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
     constant unittype UNIT_TYPE_FLYING = ConvertUnitType(3)
     constant unittype UNIT_TYPE_GROUND = ConvertUnitType(4)

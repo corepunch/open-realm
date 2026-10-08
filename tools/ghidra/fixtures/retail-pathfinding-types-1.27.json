@@ -8030,7 +8030,7 @@
       "name": "Mover_RecoverEmbeddedFinePoint",
       "returns": "u32",
       "convention": "__thiscall",
-      "evidence": "Instruction RET14/RET1c and repeated public Stop recovery query/commit controls (payoff27).",
+      "evidence": "Instruction RET14/RET1c and repeated public Stop recovery query/commit controls (payoff27). Payoff183: complete original170080 controlled-boundary matrix48 cases confirms every clear/admitted/exhausted result preserves captured self occupancy40 across149370 and14a1e0 AND05c820 publication. INC170133 and DEC1701d2 bracket publication1701c4; restored pointer is ESI captured from mover98 before any callback, not re-read identity. Endpoint mode is1 only for initial149370, restored before placement; result1 means source blocked including placement failure. Existing public Stop repeats and prepared MAP04.2 live LIFO scopes are independently reverified. Move engine now holds the pooled record through native fine-pose commit; no full arbitrary notification reentrancy claim. RET14hex confirmed1701e6.",
       "parameters": [
         {
           "name": "mover",
@@ -9894,7 +9894,8 @@
           "type": "ptr:u32",
           "storage": 8
         }
-      ]
+      ],
+      "evidence": " Payoff183 scope distinction:05ca50 outer bridge exclusion surrounds171340, while inner170080 captures and holds its own self record through placement and05c820 publication. Engine integrates inner hold lifetime without claiming complete outer bridge notification/reentrancy equivalence. Prepared MAP04.2 live scopes show24 stop and24 embedded scopes per capture, nested LIFO. Broader unresolved notification exits remain MAP04.2."
     },
     {
       "address": "6f9d8d50",

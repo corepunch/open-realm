@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **256 done / 336 tasks; 80 remaining.**
 
+Payoff183 advances MAP-04.2: Stop recovery holds the captured spatial counter
+through fine-pose publication and restores it on clear/admitted/exhausted exits.
+The public production regression fails16 assertions before the fix; all156 pass
+afterward, alongside48 fresh original exit cases. Saved Ghidra/mapper evidence
+preserves the captured-pointer lifetime. No new leaves or broad closure claim.
+See [embedded recovery](retail-pathfinding-engine.md#embedded-recovery-holds-its-spatial-record-through-publication-payoff183).
+
 Payoff182 advances TARGET-03.1/03.2 with Blink-owned post-relocation TargetLost,
 world-hidden validation windows, nested-clear behavior and Save145 runtime
 exclusion. Seven production regressions and90 fresh original cases pass; complete

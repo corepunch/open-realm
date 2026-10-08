@@ -410,7 +410,7 @@ TEST(wc3_destructable, tree_requires_explicit_attack) {
     T_ASSERT(attacker->goalentity == dest);
 }
 
-TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
+TEST(wc3_destructable, explicit_attack_converts_disallowed_destructable_to_point) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
@@ -418,8 +418,15 @@ TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
     S_AttackProfileWrite(attacker, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
-    T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
-    T_ASSERT(attacker->goalentity == NULL);
+    /*207160 snapshots an invalid explicit Attack target's point before
+     *admission. Smart still rejects; Attack owns a point head, not the widget. */
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_NOT_NULL(attacker->goalentity);
+    T_ASSERT(attacker->goalentity != dest);
+    T_NULL(attacker->combatentity);
+    T_EQ(attacker->current_order_id,G_OrderId("attack"));
+    T_EQ(attacker->goalentity->s.origin2.x,dest->s.origin2.x);
+    T_EQ(attacker->goalentity->s.origin2.y,dest->s.origin2.y);
 }
 
 TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
@@ -434,14 +441,18 @@ TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
     T_ASSERT(attacker->goalentity == dest);
 }
 
-TEST(wc3_destructable, dead_remains_reject_attack_orders) {
+TEST(wc3_destructable, dead_remains_reject_smart_and_convert_explicit_attack_to_point) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(1.0f, 32.0f, 0.0f);
 
     G_KillDestructable(dest, attacker);
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
-    T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_NOT_NULL(attacker->goalentity);
+    T_ASSERT(attacker->goalentity != dest);
+    T_NULL(attacker->combatentity);
+    T_EQ(attacker->current_order_id,G_OrderId("attack"));
 }
 
 TEST(wc3_destructable, death_removes_alive_static_footprint) {

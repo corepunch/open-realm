@@ -115,6 +115,13 @@ static void crowd_sample(cstring_t marker) {
     if(!match){fprintf(stderr,"Public sample unit%u tick%u %.4f/%.4f != %.4f/%.4f\n",unit,tick,x,y,expected->x,expected->y);crowd_trace.failed=true;}
 }
 
+static unsigned crowd_outgoing_samples;
+static void crowd_outgoing_sample(cstring_t marker) {
+    /* ReadGame's outgoing0.2s request drain runs the OLD map's timers. These
+     * records are teardown observations, not restored-journey samples. */
+    if(!strncmp(marker,"PATHSEP tick=",13))crowd_outgoing_samples++;
+}
+
 static void crowd_journey(bool ground,bool saved) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     reset_entities();setup_test_world();G_FreeMovePathCache();
@@ -160,7 +167,13 @@ static void crowd_journey(bool ground,bool saved) {
         }
         if(found==crowd_trace.unit_count) {move_test_repulse=crowd_visit;move_test_repulse_pair=crowd_pair;move_test_repulse_endpoint=crowd_endpoint;move_test_retry=crowd_retry;}
         level.time+=5;globals.RunFrame();
-        if(saved && level.time==(ground ? 12995u : 6995u) && !crowd_trace.failed) {T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));}
+        if(saved && level.time==(ground ? 12995u : 6995u) && !crowd_trace.failed) {
+            T_ASSERT(WriteGame(file));
+            crowd_outgoing_samples=0;test_preload_marker=crowd_outgoing_sample;
+            T_ASSERT(ReadGame(file));
+            T_ASSERT(crowd_outgoing_samples>0);
+            test_preload_marker=crowd_sample;
+        }
     }
     T_ASSERT(!crowd_trace.failed);T_EQ(crowd_trace.visit,crowd_trace.visit_count);
     T_EQ(crowd_trace.pair,crowd_trace.pair_count);T_EQ(crowd_trace.retry,crowd_trace.retry_count);

@@ -3692,7 +3692,7 @@ TEST(pathfinding, indexed_placement_matches_live_scalar_occupancy_and_publicatio
                     .cell = move_cell_ok, .data = &graph}, .admit = placement_admit};
             bool scalar = wc3_fine_place(&query, expected);
             uint64_t serial = G_GetMoveSpatialSerial();
-            T_EQ(move_place_unit(unit, point, query.limit, &actual), scalar);
+            T_EQ(move_place_unit(unit, point, query.limit, false, &actual), scalar);
             T_EQ(G_GetMoveSpatialSerial(), serial);
             if (scalar) {
                 T_EQ(wc3_float_bits(actual.x), wc3_float_bits(expected[0]));

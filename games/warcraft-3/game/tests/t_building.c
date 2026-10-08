@@ -3823,6 +3823,21 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     level.events.read = level.events.write = 0;
 
+    T_ASSERT(run_test_jass("globals\ninteger deathFamilies=0\nendglobals\n"
+        "function unitDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==1,\"unit death follows player death\")\n"
+        "set deathFamilies=deathFamilies+1\nendfunction\n"
+        "function playerDeath takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call BJassAssert(deathFamilies==0,\"player death delivered once\")\n"
+        "set deathFamilies=deathFamilies+1\n"
+        "call TriggerRegisterUnitEvent(t,GetDyingUnit(),EVENT_UNIT_DEATH)\n"
+        "call TriggerAddAction(t,function unitDeath)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_DEATH,null)\n"
+        "call TriggerAddAction(t,function playerDeath)\nendfunction\n"
+        "function checkDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==2,\"cancel delivered both death families synchronously\")\nendfunction\n"));
+
     T_ASSERT(G_CancelStructureConstruction(building));
 
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
@@ -3834,11 +3849,11 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
     T_ASSERT(!building->food || building->food->used == 0);
     T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
-    T_EQ(level.events.write, 4);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_CANCEL);
-    T_EQ(level.events.queue[2].type, EVENT_UNIT_DEATH);
-    T_EQ(level.events.queue[3].type, EVENT_PLAYER_UNIT_DEATH);
+    jass_callbyname(level.vm,"checkDeath",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(level.events.queue[0].edict == building);
     T_ASSERT(!G_CancelStructureConstruction(building));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);

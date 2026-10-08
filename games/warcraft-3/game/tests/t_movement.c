@@ -4467,6 +4467,46 @@ TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
     remove("/tmp/openwarcraft3-embedded-stop-save.bin"); reset_entities(); setup_test_world();
 }
 
+void S_TestMoveRecoveryTrace(void (*)(void *,unsigned,edict_t const *),void *);
+typedef struct { unsigned outer,stages;bool moved;wc3FineBox_t before; } recovery183Trace_t;
+static void check_recovery183_scope(void *data,unsigned stage,edict_t const *unit) {
+    recovery183Trace_t *trace=data;
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_NOT_NULL(record);if(!record)return;
+    T_EQ(stage,trace->stages++);
+    T_EQ(record->flags,trace->outer+((stage==1 || stage==2)?1:0));
+    if(stage==2)T_EQ(memcmp(&record->box,&trace->before,sizeof(record->box))!=0,trace->moved);
+}
+
+/* Recovery holds a captured identity through admission AND publication. The
+ * clear, admitted and exhausted exits preserve an existing outer exclusion. */
+TEST(wc3_movement, recovery183_holds_spatial_identity_through_commit_and_all_exits) {
+    FOR_LOOP(outer,2) FOR_LOOP(exit,4) {
+        uint8_t cells[64*64]={0};reset_entities();setup_test_world();
+        if(exit==1)cells[20*64+20]=2;
+        if(exit==2)for(unsigned y=12;y<29;y++)for(unsigned x=12;x<29;x++)cells[y*64+x]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set mover=CreateUnit(Player(0),'hfoo',272,272,0)\n"
+            "call SetUnitPathing(mover,false)\ncall SetUnitPosition(mover,656,656)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"));
+        edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o'))unit=ent;
+        T_NOT_NULL(unit);if(!unit)continue;
+        unit->collision=8;unit->no_pathing=exit==3;G_PublishMoveSpatialObject(unit);
+        wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        record->flags=outer;
+        recovery183Trace_t trace={outer,0,exit==1,record->box};
+        S_TestMoveRecoveryTrace(check_recovery183_scope,&trace);
+        jass_callbyname(level.vm,"stop",false);
+        S_TestMoveRecoveryTrace(NULL,NULL);
+        T_EQ(trace.stages,4);T_EQ(record->flags,outer);T_EQ(unit->current_order_id,0);
+        if(exit!=1){T_EQ(unit->s.origin2.x,656);T_EQ(unit->s.origin2.y,656);}
+        record->flags=0;
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(wc3_movement, public_pathing_toggle_controls_blocked_placement) {
     static uint8_t cells[256*128];
     reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));

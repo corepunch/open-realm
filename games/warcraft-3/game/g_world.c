@@ -1012,13 +1012,14 @@ static bool placement_admit(void const *data, float const *point) {
 
 /* Public placement and Stop recovery share geometry, but retain distinct attempt limits. */
 static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t flags,
-                              uint32_t limit, bool match_level, vec2_t *out) {
+                              uint32_t limit, bool match_level, bool counted_scope, vec2_t *out) {
     wc3FineBox_t rejection = {0};
     moveFineGraph_t graph = {.flags = flags, .endpoint = true, .rejection = &rejection};
     float fine[2] = {point.x,point.y};
     if (match_level) graph.level = placement_terrain_level(fine);
     movePathQuery_t objects = {.mover = unit, .units = true};
     move_query_objects(&graph,&objects,NULL);
+    graph.counted_scope=counted_scope;
     wc3FinePlacement_t query = {.point = {point.x,point.y}, .limit = limit,
         .footprint = {.cls = wc3_fine_class(radius / pathmap_cell_world_size()),
                       .cell = move_cell_ok, .data = &graph}, .admit = match_level ? placement_admit : NULL};
@@ -1028,9 +1029,9 @@ static bool move_place_widget(edict_t *unit, vec2_t point, float radius, uint8_t
     return true;
 }
 
-static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, vec2_t *out) {
+static bool move_place_unit(edict_t *unit, vec2_t point, uint32_t limit, bool counted_scope, vec2_t *out) {
     uint8_t mask = unit->no_pathing ? 0 : M_UnitStaticPathingFlags(unit);
-    return move_place_widget(unit, point, unit->collision, mask, limit, true, out);
+    return move_place_widget(unit, point, unit->collision, mask, limit, true, counted_scope, out);
 }
 
 /* A widget owns its radius, query mask and support policy. Admission owns
@@ -1041,7 +1042,7 @@ bool G_FindWidgetPlacementPosition(edict_t *widget, vec2_t const *requested, flo
     if (!mask) return true;
     if (!world.map || !world.map->vertices || !pathmap.width || !pathmap.height) return false;
     vec2_t point = move_grid_from_world(requested->x, requested->y), admitted;
-    if (!move_place_widget(widget, point, radius, mask, 32, match_level, &admitted)) return false;
+    if (!move_place_widget(widget, point, radius, mask, 32, match_level, false, &admitted)) return false;
     *out = move_world_from_grid(admitted.x, admitted.y);
     return true;
 }
@@ -1056,7 +1057,7 @@ bool G_FindUnitPlacementPosition(edict_t *unit, vec2_t const *requested, vec2_t 
         return false;
     }
     vec2_t point = move_grid_from_world(requested->x,requested->y), admitted;
-    if (!move_place_unit(unit,point,32,&admitted)) return false;
+    if (!move_place_unit(unit,point,32,false,&admitted)) return false;
     *out = move_world_from_grid(admitted.x,admitted.y);
     return true;
 }
@@ -1101,7 +1102,8 @@ bool G_FindUnitMoveRecoveryPosition(edict_t *unit, vec2_t const *fine, vec2_t *o
         !pathmap.width || !pathmap.height) return false;
     movePathQuery_t query = {.geometry.from=&unit->s.origin2,.fine=fine};
     vec2_t point=move_query_source(&query), admitted;
-    if (!move_place_unit(unit,point,5,&admitted) ||
+    /* Move owns the captured record hold through the subsequent pose commit. */
+    if (!move_place_unit(unit,point,5,true,&admitted) ||
         (wc3_float_bits(point.x)==wc3_float_bits(admitted.x) &&
          wc3_float_bits(point.y)==wc3_float_bits(admitted.y))) return false;
     box2_t bounds=CM_GetWorldBounds();

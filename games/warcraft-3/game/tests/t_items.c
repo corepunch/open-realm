@@ -2096,7 +2096,7 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
     T_ASSERT(carrier->inventory[0] && carrier->inventory[0]->class_id == MAKEFOURCC('s','o','u','l'));
 }
 
-TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispatch) {
+TEST(wc3_items, soul_gem_approach_retains_same_hero_revived_by_synchronous_death_trigger) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y4;X12\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
@@ -2177,10 +2177,14 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
 
     G_SetHealth(grom, 0.0f);
     unit_die(grom, NULL);
-    T_ASSERT(M_IsDead(grom));
-    /* Model a frame where the approach check runs before the queued death-trigger revival. */
+    /* Player death delivery is synchronous. The revival completes before
+     *the ordinary approach tick observes this same retained Hero identity. */
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(grom->paused);
     thinker->think(thinker);
-    T_ASSERT(!thinker->inuse);
+    T_ASSERT(thinker->inuse);
+    T_EQ(thinker->think,S_SpellTargetApproachThink);
+    T_ASSERT(carrier->goalentity==grom);
     T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
     T_ASSERT(carrier->inventory[0] == gem);
     T_ASSERT(!gem->item || !gem->item->pending_use_removal);

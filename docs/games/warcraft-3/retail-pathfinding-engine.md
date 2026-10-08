@@ -12537,3 +12537,75 @@ record these words explicitly. `WC3BlinkPointPrefix` retains owner Unit at30 and
 software destination scalars atf8/100. Existing comments remain preserved.
 See [the target visibility document](retail-pathfinding-target-visibility.md#blink-notification-window-payoff182)
 for reproduction and evidence boundaries.
+
+## Embedded recovery holds its spatial record through publication (Payoff183)
+
+Original `170080` captures `mover+98` before incrementing that pooled record's
+occupancy word at `170133`. The hold spans the initial endpoint query,
+bounded placement search and `05c820` position publication. Only then does
+`1701d2` decrement the captured pointer. Clear source, admitted relocation and
+exhausted search all restore the original depth. A null record is permitted.
+The initial endpoint-mode override is restored before entering placement;
+the original return value reports a blocked source, even if placement fails.
+
+Move's Stop recovery previously suppressed self with a query-local overlay.
+The actual spatial record was visible throughout the operation, including
+publication of the admitted fine pose. Move now captures the address-stable
+record and holds its counter through the query and pose commit. The placement
+adapter consumes that counter directly. Every result takes the same release
+path; existing outer depth survives. Membership publication still uses its
+original owner and order. This is constant work, with no new allocation, map
+scan, saved state or public order selector.
+
+The production public-Stop regression combines clear, recovered, exhausted
+and zero-query sources with outer depth zero/one. It observes the counter
+before/while held, after the position and links commit, and after release;
+only admitted recovery changes the published rectangle. Its **16 failures
+before the fix** become **156 passing assertions**. The existing full public
+embedded-Stop/save-load regression retains exact fine/world coordinates.
+
+A new bounded oracle executes the complete unchanged `170080` body in 48
+cases: all three result exits, four footprint classes, two outer depths and
+present/absent self. Prediction, footprint verdict, placement verdict and
+position publication are explicitly controlled boundaries. The native body
+itself proves hold ordering, captured-pointer restoration, endpoint/SEH
+restoration and the instruction-verified thiscall/RET14 ABI. It does not prove
+placement geometry or arbitrary notification reentrancy. The existing original
+geometry oracle and complete repeated Frida Stop/MAP-04 capture contracts are
+re-executed separately; no new live capture is claimed.
+
+This advances MAP-04.2 without adding leaves or claiming its wider completion.
+Outer bridge Stop notifications, unresolved embedded callbacks, group
+publication and portal exclusions retain their remaining owner obligations.
+Ghidra preserves the existing structures and explicit signatures, appends these
+findings to `170080`/`05ca50`, saves them and reads them back. The mapper and
+versioned type evidence mirror the saved notes. Logs and the failing-first
+build are retained under `/GitHub/wc3-analysis/runtime/payoff183/`.
+
+The scheduled full-suite checkpoint initially exposed 12 assertions in older
+Avatar, construction cancellation, destructable Attack and Soul Gem tests.
+Those fixtures still expected queued immediate/death events or rejected invalid
+explicit Attack targets. Payoff173's point conversion and Payoff177/178's
+synchronous delivery were already retail-backed engine behavior. The fixtures
+now exercise real synchronous JASS callbacks, exact point-head ownership and
+a same-identity Hero revived before its next approach tick. No production event
+or Attack behavior was weakened to satisfy them. All corrected tests pass in
+Classic/TFT. The initial full run was stopped after the known failures and its
+partial log is preserved; only a complete corrected run qualifies as checkpoint.
+
+The next complete Classic run exposed an observation-boundary error in the
+crowd save tests: ReadGame drains the outgoing world for 0.2 seconds before
+restoration. A separate observer now accounts for those old-world timer samples;
+the saved continuation still compares every unchanged retail position, visit,
+pair and retry. All four crowd cases pass in Classic/TFT (352,120 assertions
+per mode). The unit-death fixture now checks synchronous callback delivery and
+committed zero life; its stripped common.j gains the standard UNIT_TYPE_DEAD
+constant. This changes test inputs only, not production events or saved clocks.
+
+The complete corrected repository checkpoint passes: Classic and TFT each
+3,028 tests / 12,015,859 assertions, and all 938 Python pathfinding checks.
+The staged corpus has 418 executable/capture contracts with 1,042 pinned
+inputs; its 32 inventory checks and three recovery negative checks pass.
+The three selected strict contracts (original recovery, exclusions and archived
+public Stop repeat) pass. The full checkpoint resets the local twelve-commit
+cadence; failed and partial runs remain archived alongside the accepted log.

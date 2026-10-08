@@ -8,6 +8,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -196,18 +197,27 @@ TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 1);
 
+    T_ASSERT(run_test_jass("globals\ninteger issued=0\nendglobals\n"
+        "function onIssued takes nothing returns nothing\n"
+        "call BJassAssert(GetIssuedOrderId()==OrderId(\"avatar\"),\"Avatar issued identity\")\n"
+        "call BJassAssert(GetUnitTypeId(GetTriggerUnit())=='Hpal',\"Avatar issued unit\")\n"
+        "set issued=issued+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_ISSUED_ORDER,null)\n"
+        "call TriggerAddAction(t,function onIssued)\nendfunction\n"
+        "function checkIssued takes nothing returns nothing\n"
+        "call BJassAssert(issued==1,\"Avatar issued callback completed synchronously\")\nendfunction\n"));
     level.events.read = level.events.write = 0;
     memset(level.events.queue, 0, sizeof(level.events.queue));
     T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
-    T_EQ(level.events.write, 4);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_ISSUED_ORDER);
-    T_EQ(level.events.queue[3].type, EVENT_UNIT_ISSUED_ORDER);
     T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
     T_EQ((uint32_t)level.events.queue[0].value, BZ_AVATAR);
     T_EQ((uint32_t)level.events.queue[1].value, BZ_AVATAR);
-    T_ASSERT(level.events.queue[2].edict == unit && level.events.queue[3].edict == unit);
+    jass_callbyname(level.vm,"checkIssued",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_EQ(G_GetIssuedOrderId(unit), G_OrderId("avatar"));
 
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
