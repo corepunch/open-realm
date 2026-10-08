@@ -492,7 +492,8 @@ uint32_t GetEnumUnit(jass_t *j) {
     return jass_pushlighthandle(j, currentunit, "unit");
 }
 uint32_t GetFilterDestructable(jass_t *j) {
-    return jass_pushnullhandle(j, "destructable");
+    extern edict_t *currentdestructable;
+    return jass_pushlighthandle(j, currentdestructable, "destructable");
 }
 uint32_t GetEnumDestructable(jass_t *j) {
     extern edict_t *currentdestructable;
