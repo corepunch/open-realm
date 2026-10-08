@@ -1591,6 +1591,7 @@ typedef struct {
     bool pathing_active;
     bool placement_solid;
     bool loot_processed;
+    float occluder_height; /* mutable elevator level, measured above the destructable origin */
 
     uint32_t editor_id;
     uint32_t item_table;
@@ -1826,6 +1827,7 @@ struct edict_s {
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
     char animation_request[WC3_ANIMATION_REQUEST_SIZE];
+    char queued_animation[WC3_ANIMATION_REQUEST_SIZE]; /* JASS follow-up to an authored destructable clip */
     char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     color32_t vertex_color;
@@ -2665,6 +2667,7 @@ animation_t const *G_GetAnimationVariant(uint32_t modelindex, cstring_t animname
 bool         G_AnimationHasPrimary(animation_t const *animation, cstring_t primary);
 animation_t const *G_GetUnitAnimation(edict_t *unit, cstring_t animname);
 void         G_SetUnitAnimation(edict_t *unit, cstring_t animname);
+void         G_RunDestructableAnimation(edict_t *ent);
 void         G_ResetUnitAnimationProperties(edict_t *unit);
 void         G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add);
 void         G_FreeModels(void);

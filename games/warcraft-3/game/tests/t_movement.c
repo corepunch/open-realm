@@ -3373,6 +3373,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
     bridge->destructable->placement_solid = true;
+    bridge->destructable->occluder_height = 32.0f; /* does not offset non-elevator bridges */
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
@@ -3382,6 +3383,35 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     T_FEQ(unit->s.ground_offset, unit->unitinfo.FlyHeight, 0.01f);
 
     unit->s.origin.x = CM_PathCellWorldSize() * 2.0f;
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
+}
+
+TEST(wc3_movement, elevator_level_controls_ground_unit_height_and_clears_on_exit) {
+    static DestructableData_t const elevator_data = { .walkable = true };
+    struct { uint16_t width, height; color32_t map[4]; } path = { .width = 2, .height = 2 };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    edict_t *deck = G_Spawn();
+    float const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
+
+    deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
+    deck->data.DestructableData = &elevator_data;
+    deck->destructable = G_AllocDestructable();
+    deck->destructable->placement_solid = true;
+    deck->pathtex = (pathTex_t *)&path;
+    deck->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain);
+    G_RegisterGroundSurface(deck);
+    FOR_LOOP(level_index, 3) {
+        deck->destructable->occluder_height = level_index * 128.0f;
+        M_CheckGround(unit);
+        T_FEQ(unit->s.origin.z, terrain + level_index * 128.0f, 0.01f);
+    }
+    unit->collision = 12.0f;
+    unit->s.radius = 100.0f; /* selection radius must not extend physical support */
+    unit->s.origin.x = CM_PathCellWorldSize() + 8.0f;
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, terrain + 256.0f, 0.01f);
+    unit->s.origin.x = CM_PathCellWorldSize() + 16.0f;
     M_CheckGround(unit);
     T_FEQ(unit->s.origin.z, CM_GetHeightAtPoint(unit->s.origin.x, unit->s.origin.y), 0.01f);
 }

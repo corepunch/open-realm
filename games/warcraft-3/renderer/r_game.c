@@ -1367,7 +1367,12 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
         }
 
         if (found_surface) {
-            ent->origin.z = authored_support + ent->ground_offset;
+            /* Preserve the game-authored elevator altitude when its animated
+             * walkable mesh traces below the requested logical deck level. */
+            float support_z = authored_support + ent->ground_offset;
+            if (ent->ground_snapshot_valid)
+                support_z = MAX(support_z, ent->ground_snapshot_z);
+            ent->origin.z = MAX(ent->origin.z, support_z);
             ent->flags |= RF_GROUND_SURFACE_SUPPORT;
         }
     }

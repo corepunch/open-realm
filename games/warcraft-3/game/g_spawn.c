@@ -517,6 +517,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->s.model = G_RegisterModel(buffer);
     if (!edict->destructable) edict->destructable = G_AllocDestructable();
     assert(edict->destructable);
+    edict->destructable->occluder_height = row->occluderHeight;
     edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
     edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
     edict->pathtex = edict->destructable->alive_pathtex;

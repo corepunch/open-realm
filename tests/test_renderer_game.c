@@ -364,6 +364,28 @@ TEST(renderer_game, bridge_supported_selection_ring_uses_walkable_surface_height
     tr.viewDef.num_entities = saved_num_entities;
 }
 
+TEST(renderer_game, elevator_render_support_cannot_lower_authoritative_unit_height) {
+    model_t bridge_model = { 0 }, unit_model = { 0 };
+    renderEntity_t entities[] = {
+        { .origin = { 64.0f, 96.0f, 40.0f }, .model = &bridge_model, .flags = RF_GROUND_SURFACE },
+        { .origin = { 64.0f, 96.0f, 160.0f }, .model = &unit_model,
+          .flags = RF_GROUND_CONFORM, .ground_offset = 8.0f,
+          .ground_snapshot_z = 264.0f, .ground_snapshot_valid = true },
+    };
+    viewDef_t view = { .entities = entities, .num_entities = 2 };
+
+    test_walkable_hit_z = 77.0f; /* animated mesh is still below the raised deck */
+    R_ConformGroundSurfaces(&view);
+    T_ASSERT(entities[1].flags & RF_GROUND_SURFACE_SUPPORT);
+    T_FEQ(entities[1].origin.z, 264.0f, 0.001f);
+
+    /* A later lower snapshot may descend again; no sticky height is cached. */
+    entities[1].ground_snapshot_z = 64.0f;
+    entities[1].origin.z = 64.0f;
+    R_ConformGroundSurfaces(&view);
+    T_FEQ(entities[1].origin.z, 85.0f, 0.001f);
+}
+
 TEST(renderer_game, unit_alpha_models_draw_after_the_water_alpha_pass) {
     mdxModel_t mdx = { 0 };
     model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };

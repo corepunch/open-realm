@@ -4,6 +4,8 @@
 #include "shared/test.h"
 void reset_entities(void);
 void setup_test_world(void);
+slkTestData_t *parse_slk_string(char const *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 #endif
 
 typedef enum {
@@ -83,7 +85,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 70 persists multiboard suppression state. */
 /* Version 71 persists local Team Resources collapse state. */
 /* Version 72 persists the source/recipient role of Hero aura effects. */
-static uint32_t const save_version = 72;
+/* Version 73 persists mutable destructable occluder levels and queued animation names. */
+static uint32_t const save_version = 73;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -630,6 +633,7 @@ static field_t const item_fields[] = {
 
 static field_t const destructable_fields[] = {
     TF(destructable_t, blighted, F_INT),
+    TF(destructable_t, occluder_height, F_FLOAT),
     TF(destructable_t, alive_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, death_pathtex, F_IGNORE, 0, FIELD_RUNTIME),
     TF(destructable_t, drop_sets, F_IGNORE, 0, FIELD_RUNTIME),
@@ -2392,7 +2396,7 @@ TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
 
 TEST(wc3_save, rejects_prior_save_versions) {
     PATHSTR filename;
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72 };
 
     /* The version fixtures wrap Test_TempPath's ring; retain the source path independently. */
     strlcpy(filename, Test_TempPath("wc3-save-prior-format.bin"), sizeof(filename));
@@ -2438,6 +2442,44 @@ TEST(wc3_save, cargo_unload_rejects_foreign_goal_pointer) {
     T_ASSERT(!WriteGame(filename));
     unit->movement.cargo_unload_goal = NULL;
     remove(filename);
+}
+
+TEST(wc3_save, elevator_occluder_and_pending_animation_round_trip) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y2;X1;K\"DTrx\"\n"
+        "C;Y2;X2;K\"Doodads/Cinematic/ElevatorPuzzle/ElevatorPuzzle.mdx\"\n"
+        "E\n";
+    cstring_t const filename = Test_TempPath("save-elevator-state.bin");
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *deck;
+    int index;
+
+    reset_entities();
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    deck = G_Spawn();
+    index = (int)(deck - g_edicts);
+    deck->class_id = MAKEFOURCC('D', 'T', 'r', 'x');
+    deck->s.class_id = deck->class_id;
+    G_BindEntityData(deck);
+    deck->destructable = G_AllocDestructable();
+    deck->destructable->occluder_height = 256.0f;
+    strlcpy(deck->queued_animation, "stand third", sizeof(deck->queued_animation));
+    T_ASSERT(WriteGame(filename));
+    deck->destructable->occluder_height = 0.0f;
+    deck->queued_animation[0] = '\0';
+    T_ASSERT(ReadGame(filename));
+    deck = &g_edicts[index];
+    T_NOT_NULL(deck->destructable);
+    if (deck->destructable) T_FEQ(deck->destructable->occluder_height, 256.0f, 0.001f);
+    T_STREQ(deck->queued_animation, "stand third");
+    remove(filename);
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_save, current_combat_cargo_state_round_trips_without_migration) {

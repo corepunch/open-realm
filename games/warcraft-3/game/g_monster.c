@@ -100,6 +100,9 @@ void M_MoveFrame(edict_t *self) {
     }
     if (self->aiflags & AI_HOLD_FRAME)
         return;
+    /* JASS owns destructable sequences; do not restart them via the unit move clock. */
+    if (G_IsDestructable(self) && self->animation_override)
+        return;
     umove_t const *move = self->currentmove;
     animation_t const *anim = self->animation;
     float frame_step = MAX(0.0f, FRAMETIME * self->animation_speed);

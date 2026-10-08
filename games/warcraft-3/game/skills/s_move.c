@@ -1138,9 +1138,17 @@ void M_CheckGround(edict_t *self) {
             pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
             if (!surface->inuse || surface->destructable->dead ||
                 !surface->destructable->placement_solid || !pathtex) continue;
-            if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f ||
-                fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f) continue;
-            height = MAX(height, surface->s.origin.z);
+            bool const elevator = surface->class_id == MAKEFOURCC('D','T','r','x') ||
+                surface->class_id == MAKEFOURCC('D','T','r','f');
+            /* Only animated elevators extend support to the unit collision
+             * footprint; existing bridge entry semantics remain unchanged. */
+            float const overlap = elevator ? MAX(0.0f, self->collision) : 0.0f;
+            if (fabsf(self->s.origin.x - surface->s.origin.x) > transform.width * cell * 0.5f + overlap ||
+                fabsf(self->s.origin.y - surface->s.origin.y) > transform.height * cell * 0.5f + overlap) continue;
+            /* Blizzard.j synchronously changes the logical elevator level.
+             * Other walkable bridges retain their authored world-space Z. */
+            height = MAX(height, surface->s.origin.z +
+                (elevator ? surface->destructable->occluder_height : 0.0f));
         }
     }
     self->s.ground_offset = self->unitinfo.FlyHeight;
