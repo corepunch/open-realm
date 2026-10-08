@@ -302,6 +302,52 @@ TEST(wc3_api, unit_life_state_event_fires_when_health_crosses_limit) {
     T_FEQ(unit->health.value, 75.0f, 0.001f);
 }
 
+TEST(wc3_api, zero_life_writes_run_unit_death_lifecycle) {
+    edict_t *units[2] = { NULL, NULL };
+
+    reset_entities();
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit stateUnit = null\n"
+        "  unit widgetUnit = null\n"
+        "  integer deaths = 0\n"
+        "endglobals\n"
+        "function on_death takes nothing returns nothing\n"
+        "  set deaths = deaths + 1\n"
+        "endfunction\n"
+        "function verifyDeathCount takes nothing returns nothing\n"
+        "  call BJassAssert(deaths == 2, \"zero-life writes should publish both player death events\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set stateUnit = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  set widgetUnit = CreateUnit(Player(0), 'hfoo', 128.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
+        "  call TriggerAddAction(t, function on_death)\n"
+        "  call SetUnitState(stateUnit, ConvertUnitState(0), 0.0)\n"
+        "  call SetWidgetLife(widgetUnit, 0.0)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = globals.edicts + i;
+        if (!unit->inuse || unit->class_id != MAKEFOURCC('h','f','o','o') || unit->s.player != 0) continue;
+        if (!units[0]) units[0] = unit;
+        else if (!units[1]) units[1] = unit;
+    }
+    T_NOT_NULL(units[0]);
+    T_NOT_NULL(units[1]);
+    if (!units[0] || !units[1]) return;
+    T_ASSERT(units[0]->svflags & SVF_DEADMONSTER);
+    T_ASSERT(units[1]->svflags & SVF_DEADMONSTER);
+
+    level.started = level.scriptsStarted = true;
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyDeathCount", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
     edict_t *unit;
     event_t *registration;

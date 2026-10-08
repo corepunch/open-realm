@@ -106,9 +106,9 @@ working compatibility approximations, not proven retail algorithms.
 
 ## Save/load and limitations
 
-Version 75 is required because `edict_t.ignore_alarm` is a serialized scalar.
-The current round-trip suite checks that it survives a save/load cycle, and
-older version 74 files are rejected according to `CONTRIBUTING.md`.
+The current save format is version 76. It persists `edict_t.ignore_alarm` and
+texttag presentation identity; the round-trip suites cover both contracts, and
+older version 75 files are rejected according to `CONTRIBUTING.md`.
 
 **Existing limitation (not solved by this change):** the WC3 save serializer
 explicitly does **not** snapshot AI JASS VM roots, pending AI coroutines,

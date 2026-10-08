@@ -469,6 +469,88 @@ static void test_start_deform(terrainDeform_t const *deformation) { test_deform 
 static void test_stop_deform(uint32_t id, uint32_t fade_ms) { test_deform_stop_id = id; test_deform_stop_fade = fade_ms; }
 static void test_stop_all_deforms(void) { test_deform_stop_alls++; }
 
+TEST(client_tent, texttag_updates_keep_identity_and_ignore_stale_removal) {
+    uint8_t buf[256];
+    sizeBuf_t sb = { .data = buf, .maxsize = sizeof(buf) };
+    floatingText_t saved_texts[MAX_FLOATING_TEXTS];
+    vec3_t const pos = { 12.0f, 34.0f, 56.0f };
+    uint32_t const old_time = cl.time;
+
+    memcpy(saved_texts, tents.texts, sizeof(saved_texts));
+    memset(tents.texts, 0, sizeof(tents.texts));
+    cl.time = 400;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteLong(&sb, 3);
+    MSG_WritePos(&sb, &pos);
+    MSG_WriteLong(&sb, -1);
+    MSG_WriteFloat(&sb, 40.0f);
+    MSG_WriteString(&sb, "150!");
+    MSG_WriteLong(&sb, (int32_t)0xff0000ffu);
+    MSG_WriteShort(&sb, 2);
+    MSG_WriteLong(&sb, 2000);
+    MSG_WriteLong(&sb, 1000);
+    MSG_WriteFloat(&sb, 0.0f);
+    MSG_WriteFloat(&sb, 0.03f);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_EQ(sb.readcount, sb.cursize);
+    T_ASSERT(tents.texts[0].active);
+    T_ASSERT(tents.texts[0].is_texttag);
+    T_EQ(tents.texts[0].texttag_id, 4u);
+    T_EQ(tents.texts[0].texttag_generation, 19u);
+    T_STREQ(tents.texts[0].text, "150!");
+    T_EQ(tents.texts[0].visible_clients, 3u);
+    T_EQ(tents.texts[0].attached_entity, UINT32_MAX);
+    T_FEQ(tents.texts[0].height_offset, 40.0f, 0.001f);
+    T_EQ(tents.texts[0].lifetime, 2000u);
+    T_EQ(tents.texts[0].fade_start, 1000u);
+    T_FEQ(tents.texts[0].velocity_y, 0.03f, 0.0001f);
+    T_EQ(tents.texts[0].starttime, 400u);
+
+    sb.cursize = sb.readcount = 0;
+    cl.time = 750;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 1);
+    MSG_WriteLong(&sb, 1);
+    MSG_WritePos(&sb, &pos);
+    MSG_WriteLong(&sb, -1);
+    MSG_WriteFloat(&sb, 40.0f);
+    MSG_WriteString(&sb, "updated");
+    MSG_WriteLong(&sb, (int32_t)0xff0000ffu);
+    MSG_WriteShort(&sb, 2);
+    MSG_WriteLong(&sb, 2000);
+    MSG_WriteLong(&sb, 1000);
+    MSG_WriteFloat(&sb, 0.0f);
+    MSG_WriteFloat(&sb, 0.03f);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_EQ(tents.texts[0].starttime, 400u);
+    T_STREQ(tents.texts[0].text, "updated");
+
+    sb.cursize = sb.readcount = 0;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 18);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_ASSERT(tents.texts[0].active);
+    sb.cursize = sb.readcount = 0;
+    MSG_WriteByte(&sb, TE_TEXT_TAG);
+    MSG_WriteShort(&sb, 4);
+    MSG_WriteLong(&sb, 19);
+    MSG_WriteByte(&sb, 0);
+    CL_ParseTEnt(&sb);
+    T_ASSERT(!tents.texts[0].active);
+
+    memcpy(tents.texts, saved_texts, sizeof(saved_texts));
+    cl.time = old_time;
+}
+
 /* The client is a pure courier for terrain-deformation events: it decodes the game's field order and hands
  * the descriptor to the renderer. The byte layout here mirrors G_SendTerrainDeformation in the WC3 game. */
 TEST(client_tent, terrain_deform_temp_events_reach_the_renderer_intact) {
