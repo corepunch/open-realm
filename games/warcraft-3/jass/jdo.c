@@ -1040,6 +1040,16 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
                                 co->yielded, co->done);
     }
     jass_resumecoroutine(co);
+    /* A coroutine can change bj_forLoopAIndex after dispatch and before it
+     * yields. Keep that live value as its resume state; the dispatch-time
+     * value is only a starting point. Otherwise a loop that waits between
+     * iterations resumes at its original index and can repeat forever. */
+    if (co->yielded) {
+        if (loop_index && loop_index->value && jass_getvarbasetype(loop_index) == jasstype_integer) {
+            co->loop_a_index = *(int32_t *)loop_index->value;
+            co->loop_a_index_valid = true;
+        }
+    }
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
         jass_host.CoroutineTrace(root, co, co->state->context.trigger,
