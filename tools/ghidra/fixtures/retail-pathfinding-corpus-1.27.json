@@ -41081,6 +41081,262 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-target-loss-ordered-subscriptions",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_target167_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-target-loss167-1.27.json",
+        "--visibility",
+        "tools/ghidra/fixtures/retail-target-visibility166-1.27.json",
+        "--archive",
+        "{archive}/research",
+        "--header",
+        "games/warcraft-3/game/tests/retail_target_fog166.h",
+        "--output",
+        "{report}"
+      ],
+      "report": "target-loss167.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-target-loss",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 6
+        },
+        "controls": {
+          "equal": 2
+        },
+        "observed_repeats": {
+          "equal": 2
+        },
+        "producer_events": {
+          "equal": 4
+        },
+        "subscribed_handoffs": {
+          "equal": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Two complete archived public observed repeats verify synchronous hide/cargo TargetLost and subscribed approach/persistent handoffs, after the prerequisite six-capture provenance/control check. Original assembly establishes clear/unsubscribe/reappend ordering. Production regressions integrate actual ShowUnit/Cargo, retained parent/successor, O(K) target-specific dispatch with4096 unrelated actors, renewal, nested mutation and cold-save identity. Broader TARGET-03 policies remain open.",
+      "exclusions": [
+        "No new completed Payoff167 live capture: isolated retail environments failed before gameplay in observed and observer-free attempts.",
+        "Multi-subscriber renewal and nested mutation ordering use inspected original subscription/dispatch assembly plus production mechanism tests; no new public multi-follower retail witness.",
+        "Owner-change, flags1/2, transient morph/blink, point reissue and broader ability policies remain open."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "research/TARGET-03.2/captures/observe-1.jsonl",
+        "sha256": "0b6839d10b34d6b5142ee19b46f821542af56cc7df93d89bde507741992ccce9",
+        "bytes": 34528016,
+        "metadata": {
+          "task": "TARGET-03.2",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "map": "8925d1ec1c7350f225f33314b43c84fd43ef384deb13de9e1e319bc2481d92b0"
+          },
+          "map": "Maps\\RS-TARGET-03.2-b.w3m",
+          "seconds": 900.0,
+          "continue_at": 45,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "T03 ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/TARGET-03.2/captures/observe-2.jsonl",
+            "sha256": "5f630ccac1d044aaeefd9997826aee8faff69fb7ee376258fe083b51a01fdce6",
+            "bytes": 34422858,
+            "metadata": {
+              "task": "TARGET-03.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "map": "8925d1ec1c7350f225f33314b43c84fd43ef384deb13de9e1e319bc2481d92b0"
+              },
+              "map": "Maps\\RS-TARGET-03.2-b.w3m",
+              "seconds": 900.0,
+              "continue_at": 45,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "T03 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/TARGET-03.2/captures/control-1.jsonl",
+            "sha256": "7ae03bfd0ddcf67adf00919d506c1a19a636512466dbc93ff3060fa712d0494d",
+            "bytes": 1493,
+            "metadata": {
+              "task": "TARGET-03.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "map": "8925d1ec1c7350f225f33314b43c84fd43ef384deb13de9e1e319bc2481d92b0"
+              },
+              "map": "Maps\\RS-TARGET-03.2-b.w3m",
+              "seconds": 900.0,
+              "continue_at": 45,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "T03 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/TARGET-03.2/captures/observe-r-1.jsonl",
+            "sha256": "ef0f12b643c5abf5904e34b0d51935a718e0767704f283a4520431de3eea284a",
+            "bytes": 14498493,
+            "metadata": {
+              "task": "TARGET-03.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "map": "fd5c2b525675fe4b5f1f550304a335ab01ff8c2034018cb959aa50c780c58ca1"
+              },
+              "map": "Maps\\RS-TARGET-03.2-r.w3m",
+              "seconds": 600.0,
+              "continue_at": 45,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "T3R ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/TARGET-03.2/captures/observe-r-2.jsonl",
+            "sha256": "4cff08ac9bf17f453306bf54d5c02cf116d74ec862968de15a0f3aa3d2a98af8",
+            "bytes": 14498495,
+            "metadata": {
+              "task": "TARGET-03.2",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "map": "fd5c2b525675fe4b5f1f550304a335ab01ff8c2034018cb959aa50c780c58ca1"
+              },
+              "map": "Maps\\RS-TARGET-03.2-r.w3m",
+              "seconds": 600.0,
+              "continue_at": 45,
+              "display": ":99",
+              "remote": "127.0.0.1:27050",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research3",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "T3R ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/TARGET-03.2/captures/control-r-1.jsonl",
+            "sha256": "b90c259b0fcc77a1daee93ca18c9dee760be3ca7e5236bd93fad1781119034bb",
+            "bytes": 1493,
+            "metadata": {
+              "task": "TARGET-03.2",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "target03_capture.py": "837deaf06321f0677da565a5111a4b2d413d259a8eda36d27e4c5404b23d36c3",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "target03_vis_observer.js": "37089399f29a7e43e383bc0243d67f133b062fbca9ac16a9117390766a36543e",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "map": "fd5c2b525675fe4b5f1f550304a335ab01ff8c2034018cb959aa50c780c58ca1"
+              },
+              "map": "Maps\\RS-TARGET-03.2-r.w3m",
+              "seconds": 600.0,
+              "continue_at": 45,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "T3R ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -41146,7 +41402,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "6255b0cd8a2c9c0763a8e7f3c65c3dd866bd8ea73ea1c369da368a30d7301a2f"
+      "sha256": "1963f07b5e7d3a7936658e8e81fc2874f46621607995e44cd7411d9aabf2d805"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -41979,7 +42235,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e31c5416800d2af40fb4f642388b287f7c6ac8358a8fc47601d97de14aee7ab9"
+      "sha256": "331d46e2710bd02b75e8e07f38058b8392fa748af477a019255b1d25dad39986"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -42835,7 +43091,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "aa58e1958767d02c1eecc65f9f8f9b92040428ea4aaf04620a093f07dac50d31"
+      "sha256": "c02cc935de0d547719c08798df89b59fd62e4f9516d29d78065022cbe2d84d2e"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -43271,7 +43527,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "5a7e6c391b26df9ba2a6df5dc1c0f72259b419c052843e85f251ad3026667ef9"
+      "sha256": "470ada2521c4d3055a492b473b869fd2acc45f7ca25fdacebb333106d52a246e"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -43279,7 +43535,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "286cda48505f4ca89108f08b0621b2f0cac9b5e73fc76dcd3c4d9e02da471a4d"
+      "sha256": "d575d2cbb6859e223581ed36b803e6883ad891c6633a7cb47dff4772f6a3259a"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -43527,7 +43783,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "32bbc798b0959a670513a687385eebdc2977fa362a45c50fb74ce9525f5b5655"
+      "sha256": "379bdd9195efa6ac10ac7bae194e452f2e49c750438dc16cc2cd2258aa64de58"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -43771,7 +44027,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "2338c0e4953ecf33965e65bcfc087e95aa70c52c5747bf92f70022f5c5a8ffda"
+      "sha256": "f4dbffca9da6ad24bf777ce63481bb7d7c1d9922083f7fdf47ad303071913373"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -43779,15 +44035,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "f4b74b788cde30272340176fa8185a9a3923793721fca10cf02a0dd20988acfd"
+      "sha256": "346305f439c870b9cc645b2c164ebaa71b4e9b3de3100000157f0a263168762d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "b182e9f66a582be6415a68861110bfbd9bd739d71058f590f3032f9b71fc2540"
+      "sha256": "738fe078149ba1d0e4ca883677fc04ea9ae63397cef530731676608233ce9287"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "acbbc63fbc64726c6d6e762d1cfc0bf382271eb820dc3384556221f194a0df82"
+      "sha256": "8beb6bb53f8440b0d0783353bf2d2be261d408e3d70dd04341de999cdf033414"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -43795,11 +44051,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "0a2b178c2c7322481232a7390cf8108b0f14f79d8a1a45e5755e9e196a8baf19"
+      "sha256": "6f109abd9071a599aefcdb6a23316633c9aec98c6631832d4131b4d5324c12b1"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
-      "sha256": "f161bc65a8fa34ca1e1081bd0e1bcf908f380d5738acfc655501bbf8fe4c1af6"
+      "sha256": "a20de8d83eec8f58f0b401fdc7822b6b4dc7f087eef1378acc63ede9a247e39a"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_attack_exemption.h",
@@ -44419,7 +44675,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-target-visibility.md",
-      "sha256": "98cb1959ac6ddafeb5aed9ead10cc16d1f82cd8215ea40a2e6d654bab281c6cb"
+      "sha256": "244b274b2a16fb942c6cf03149da50ac41d08106f5cd20ee312971209f9c55f3"
     },
     {
       "path": "tools/frida/research/target021_analyze.py",
@@ -44471,7 +44727,31 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_target_visibility.py",
-      "sha256": "8768187a07af63d585c5ddc308b84bc9f2835b94d3b2ef951988432240f57530"
+      "sha256": "8188f5c01a92ab57d3f9ebc112b1717cb119a2288c32a2d51bea51f86b6ce4e5"
+    },
+    {
+      "path": "tools/frida/research/target167_capture.py",
+      "sha256": "cf84cce3f8bd8d9eb4cbdb6542bd7edc0a52556abaa910f98c93bf0f856c8035"
+    },
+    {
+      "path": "tools/frida/research/target167_make_map.py",
+      "sha256": "8b518513f28ac5aefc0a002dbb235b4f46d7a9a61e07235e5a31cc5394a8d724"
+    },
+    {
+      "path": "tools/frida/research/target167_probe.j",
+      "sha256": "f985ea10954417b27b36c1dda194df0a494d251a002408d8ab7c29d2d4d8aef0"
+    },
+    {
+      "path": "tools/frida/research/target167_subscriber_observer.js",
+      "sha256": "5372b09cbbd13a34db793fd377c6c0293d658fa50d58e92758b9fc43e6ec6893"
+    },
+    {
+      "path": "tools/ghidra/research/verify_target167_live.py",
+      "sha256": "3a6e0750c3368d8dc40a4e90ab34ff06eb8486c78f4e4b0e00dfb48ec2f6ad64"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-loss167-1.27.json",
+      "sha256": "bd8f827da57dc5274dd6893de43d3ac61f8f6eba2a641c1077d87eefc06e4177"
     }
   ]
 }

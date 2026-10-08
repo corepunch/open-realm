@@ -43,7 +43,7 @@ static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
-    unit->movement.follow_target = NULL;
+    S_SetFollowTarget(unit,NULL);
     G_ClearUnitGuardPosition(unit);
     unit->movement.holding_position = true;
     unit_leavecombat(unit);

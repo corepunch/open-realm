@@ -331,7 +331,7 @@ static bool waygate_order_use(edict_t *unit, edict_t *gate) {
         if (!goal) return false; /* A rejected Smart order must not disturb the current behavior. */
     }
 
-    unit->movement.follow_target = NULL;
+    S_SetFollowTarget(unit,NULL);
     S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);

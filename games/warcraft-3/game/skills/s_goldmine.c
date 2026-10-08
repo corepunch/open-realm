@@ -1091,7 +1091,7 @@ bool S_AcolyteHarvestOrder(edict_t *worker, edict_t *mine) {
 
     G_ClearUnitOrderQueue(worker);
     S_AcolyteHarvestRelease(worker);
-    worker->movement.follow_target = NULL;
+    S_SetFollowTarget(worker,NULL);
     S_SetMoveGoal(worker, &worker->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(worker, &worker->movement.patrol_a, NULL);
     S_SetMoveGoal(worker, &worker->movement.patrol_b, NULL);

@@ -40,7 +40,7 @@ void order_patrol(edict_t *self, edict_t *b) {
     S_SetMoveGoal(self, &self->movement.patrol_a, Waypoint_add(&self->s.origin2));
     S_SetMoveGoal(self, &self->movement.patrol_b, b);
     S_SetMoveGoal(self, &self->movement.patrol_target, b);
-    self->movement.follow_target = NULL;
+    S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
     order_patrol_resume(self);
 }

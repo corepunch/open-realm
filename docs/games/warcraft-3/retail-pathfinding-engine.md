@@ -11801,3 +11801,20 @@ restores game-owned fog modifier identities and active write order before VM
 handle binding. These regressions advance TARGET-03.1/03.2; broader policy
 producers and TargetLost compositions remain open. See
 [target visibility](retail-pathfinding-target-visibility.md).
+
+## Target loss uses ordered subscriptions (Payoff167)
+
+ShowUnit(false) and successful Cargo entry retire invalid Follow synchronously
+after publishing target state. Move keeps target-specific O(1) registration/removal
+and O(K) notification, preserving issue/task-renewal order independently of edict
+allocation. Cold Save136 rebuilds logical registration ranks; release/reissue and
+nested delivery cannot adopt stale registrations. Three subscribed followers with
+4096 unrelated entities generate exactly three visits.
+
+The original688300/651010 producer chain,5ff490 handler and5fc640/5fbea0/5ff020
+subscription lifecycle are saved in Ghidra and mapped. The strict archived
+verifier requires six complete provenance/control captures before comparing two
+repeated hide/cargo chains and subscribed approach/persistent calls. Current
+research launches failed before gameplay and are explicitly excluded. Wider
+TARGET-03 policy branches remain open; no task closure is inferred from this
+bounded integration. See [target-loss contract, tests and reproducers](retail-pathfinding-target-visibility.md#synchronous-world-presence-loss-payoff167).

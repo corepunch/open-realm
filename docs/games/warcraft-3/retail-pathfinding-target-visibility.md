@@ -103,6 +103,88 @@ Classic and TFT each pass movement (386 tests / 5,654,221 assertions), API
 affected production suites; the full repository suite was not run for this
 chunk under the authorized pathfinding checkpoint cadence.
 
+## Synchronous world-presence loss (Payoff167)
+
+ShowUnit(false) and successful Cargo entry now notify the retained Move parent
+after publishing the target's absent/loaded state. This ends an invalid Follow
+before the producer returns, including while still approaching. A waiting
+successor activates once; showing or unloading the target does not recreate
+the retired order. Temporary combat retains its owning ability and public head
+when only its suspended Follow parent is canceled.
+
+Complete original bodies and assembly establish the following contracts:
+
+| Address | Contract |
+| --- | --- |
+| `6f688300`, `6f651010` | World-presence retirement sets Unit+20 bit1 before synchronously dispatching TargetLost `0xd01a4`. The producer resolves its two -1 player arguments from the target's owner. |
+| `6f5ff490` | Validate the event target first. A valid result retains the order; absent/loaded results `0xaa`/`0xa9` retire the Move parent. Wider reissue branches remain open. |
+| `6f5fc640`, `6f5fbea0` | Each target-task admission clears the old retained target and unsubscribes before binding/registering the new target. Approach-to-persistent handoff also renews registration. |
+| `6f5ff020`, `6f652dd0` | Retain canonical target identity, then register/unregister this Move on that widget's TargetLost event when the subscription argument is enabled. |
+| `6f6901c0` | Parallel registration for Unit owner-change `0xd01a2`; that engine policy remains open. |
+| `6f0725d0` | New event/subscriber pairs append; updating an existing pair's remap does not move it. The task handoff unregisters first, so its subsequent registration appends. |
+
+Ghidra comments, three recovered names and three assembly-derived x86
+prototypes were saved and read back. The two subscription helpers have ECX
+owner, stack subscriber/enabled and RET8; RetainTarget has ECX Move, stack
+target/enabled and RET8. `MapPathfinding.java` and the persistent type schema
+retain these contracts. Ghidra's thiscall parser creates the ECX `this`
+parameter implicitly; declaring it again incorrectly adds a stack argument.
+
+The delivered retail repeats contain actual subscribed approach and persistent
+task calls (`a3=1` in both), plus the hide/cargo event chains. The strict verifier
+checks state publication before the event, validation and handler ordering,
+public cancellation/no resumption and hide completion within the same native
+call and owner counter. The cargo event occurs during its actual Load approach
+at local tick53..54, rather than at the scripted tick60 producer marker. It
+checks the unrounded event fields and repeats; earlier six-capture provenance
+and observer controls are required before these narrower contracts are used.
+
+```sh
+python3 tools/ghidra/research/verify_target167_live.py \
+  --expected tools/ghidra/fixtures/retail-target-loss167-1.27.json \
+  --visibility tools/ghidra/fixtures/retail-target-visibility166-1.27.json \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --header games/warcraft-3/game/tests/retail_target_fog166.h \
+  --output /tmp/target167.json
+```
+
+Move keeps a doubly linked subscriber list per target: registration and removal
+are O(1), notification and its stack snapshot are O(K) for K subscribers. No
+world scan or heap allocation is used for hide/cargo notification. An immutable
+delivery identity consists of subscriber slot, incarnation and registration
+rank. Removing/reissuing a later subscriber excludes the new registration from
+the already-running delivery; nested delivery sees current registrations.
+Generic Attack/Repair removal notification retains its existing separate scan.
+
+Save136 stores logical ranks and their global sequence, validates them in
+O(N log N), then reconstructs derived lists in rank order. It never substitutes
+edict allocation order. All production Follow writers use the Move-owned setter;
+direct release also unlinks its derived subscription before clearing the edict.
+
+The new production regressions initially fail for public hide, successful cargo
+entry (six assertions), handoff renewal (four) and direct release (two).
+Nine focused tests now cover immediate approach/persistent loss, queued
+successor, cargo inverse, non-allocation delivery order, renewal, cold load,
+malformed save state and controlled nested mutation. Three followers with4,096
+unrelated entities produce exactly three notification visits. Nested mutation
+and multi-follower ordering are mechanism tests backed by the original
+subscription/dispatch contracts; no new multi-follower live retail claim is made.
+
+Five bounded capture attempts in isolated research environments B/C failed
+before gameplay, including observer-free attempts and an already working
+TARGET-03 map. The Blizzard error dialog and incomplete captures are retained
+under `research/payoff167/` and `runtime/payoff167/`; they are not successful
+controls or gameplay evidence. Current `target167_*` scripts retain the intended
+three-follower public probe. This chunk uses the complete delivered retail
+repeats and current Ghidra inspection instead of interpreting failed launches.
+
+Classic and TFT each pass movement395 tests/5,654,395 assertions, unit127/12,708,
+combat188/4,620, API351/56,739, save194/27,608, game151/45,507,
+order lifecycle35/527 and Way Gate18/2,222. Python visibility/provenance tests
+pass17 cases and corpus tests30; the exact staged tree passes393 fixture contracts
+and a fresh strict target-loss archive run. The full repository checkpoint is
+not repeated for this chunk under the authorized validation cadence.
+
 ## Remaining scope
 
 The full archived policy matrix is research evidence, not a claim that this

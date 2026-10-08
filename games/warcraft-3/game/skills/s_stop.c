@@ -47,7 +47,7 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
     S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_target, NULL);
-    ent->movement.follow_target = NULL;
+    S_SetFollowTarget(ent,NULL);
     ent->movement.holding_position = false;
     if (record_guard) G_SetUnitGuardPosition(ent);
     unit_leavecombat(ent);

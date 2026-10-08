@@ -17917,4 +17917,194 @@ TEST(wc3_movement, target166_public_fog_follow_matches_retail_and_cold_save) {
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
 }
 
+/* TargetLost is synchronous at the public world-presence producer, including
+ * during approach. Undoing the producer does not restore the retired order. */
+static void target167_hide(bool persistent, bool queued) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function hide takes nothing returns nothing\ncall ShowUnit(target,false)\nendfunction\n"
+        "function show takes nothing returns nothing\ncall ShowUnit(target,true)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {
+            target166_tick();moveGroup_t *group=move_unit_group(unit);
+            if(group && (group->flags&1))break;
+        }
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1280,1280},true,0,0));
+    uint32_t group=unit->movement.group_id,counter=level.pathing_counter;
+    jass_callbyname(level.vm,"hide",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(level.pathing_counter,counter);T_NULL(unit->movement.follow_target);
+    T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);T_EQ(unit->order_queue.count,0);
+    if(queued) {
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity)T_EQ(unit->goalentity->s.origin2.x,1280);
+    } else {
+        T_EQ(unit->current_order_id,0);T_NULL(unit->goalentity);T_EQ(unit->movement.group_id,0);
+    }
+    edict_t *goal=unit->goalentity;
+    jass_callbyname(level.vm,"hide",false);jass_callbyname(level.vm,"show",false);
+    T_EQ(unit->goalentity,goal);T_NULL(unit->movement.follow_target);
+    T_EQ(unit->current_order_id,queued ? G_OrderId("move") : 0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_showunit_retires_approach_in_native_call) {target167_hide(false,false);}
+TEST(wc3_movement, target167_showunit_retires_persistent_follow_in_native_call) {target167_hide(true,false);}
+TEST(wc3_movement, target167_showunit_activates_successor_once) {target167_hide(false,true);}
+
+TEST(wc3_movement, target167_cargo_entry_retires_follow_before_load_returns) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    char const slk[]="ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;Y2;X2;K\"Acar\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"3\"\nC;Y2;X5;K\"173\"\nC;Y2;X6;K\"ground,friend,organic\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    static UnitAbilities_t const abilities={.abilList="Acar"};
+    edict_t *transport=alloc_test_unit(MAKEFOURCC('h','R','T','E'),704,256);
+    transport->svflags=SVF_MONSTER;transport->data.UnitAbilities=&abilities;
+    target->targtype=TARG_GROUND;
+    T_EQ(S_CargoCapacity(transport),3);T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    uint32_t group=unit->movement.group_id,counter=level.pathing_counter;
+    T_ASSERT(S_CargoTryLoad(transport,target));T_EQ(S_CargoTransportForUnit(target),transport);
+    T_EQ(level.pathing_counter,counter);T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOADED);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+    T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);T_ASSERT(S_CargoUnloadAt(transport,0));
+    T_NULL(S_CargoTransportForUnit(target));T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static struct {edict_t *units[3],*target;uint32_t order[16],count;bool nested;} target167_delivery;
+static void target167_observe(edict_t *unit) {
+    FOR_LOOP(i,3)if(unit==target167_delivery.units[i]) {
+        T_ASSERT(target167_delivery.count<16);
+        if(target167_delivery.count<16)target167_delivery.order[target167_delivery.count++]=i;
+    }
+    if(target167_delivery.nested) {
+        target167_delivery.nested=false;
+        T_ASSERT(unit_issueimmediateorder(target167_delivery.units[1],"stop"));
+        T_ASSERT(unit_issuetargetorder(target167_delivery.units[1],"move",target167_delivery.target));
+        S_UnitTargetLost(target167_delivery.target);
+    }
+}
+
+/* Registration order is independent of allocation order. Index visits stay
+ * proportional to the subscribers even with thousands of unrelated actors. */
+TEST(wc3_movement, target167_ordered_subscriptions_survive_cold_save_and_scale) {
+    FOR_LOOP(pass,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target167_delivery=(typeof(target167_delivery)){.units={unit},.target=target};
+        FOR_LOOP(i,2) {
+            edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,448+160*i);
+            other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;
+            unit_stand(other);S_SetUnitMoveSpeed(other,270);target167_delivery.units[i+1]=other;
+        }
+        FOR_LOOP(i,4096)G_Spawn();
+        uint32_t const issue[]={2,0,1};
+        FOR_LOOP(i,3)T_ASSERT(unit_issuetargetorder(target167_delivery.units[issue[i]],"move",target));
+        if(pass==2) {
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        }
+        uint64_t rank=unit->movement.follow_sequence,next=level.next_follow_sequence;
+        cstring_t file="/tmp/wc3-target167-follow.bin";
+        if(pass) {
+            T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(unit->movement.follow_sequence,rank);T_EQ(level.next_follow_sequence,next);
+        }
+        move_follow_visits=0;move_test_target_lost=target167_observe;
+        G_SetEntityHidden(target,true);S_UnitTargetLost(target);move_test_target_lost=NULL;
+        T_EQ(move_follow_visits,3);T_EQ(target167_delivery.count,3);
+        uint32_t const renewed[]={2,1,0};
+        FOR_LOOP(i,3) {
+            T_EQ(target167_delivery.order[i],pass==2 ? renewed[i] : issue[i]);
+            T_EQ(target167_delivery.units[i]->current_order_id,0);
+            T_NULL(target167_delivery.units[i]->movement.follow_target);
+        }
+        move_follow_visits=0;S_UnitTargetLost(target);T_EQ(move_follow_visits,0);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target167_nested_delivery_excludes_new_outer_subscription) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    target167_delivery=(typeof(target167_delivery)){.units={unit},.target=target};
+    FOR_LOOP(i,2) {
+        edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,448+160*i);
+        other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;
+        unit_stand(other);S_SetUnitMoveSpeed(other,270);target167_delivery.units[i+1]=other;
+    }
+    uint32_t const issue[]={2,0,1},expected[]={2,2,0,1,0};
+    FOR_LOOP(i,3)T_ASSERT(unit_issuetargetorder(target167_delivery.units[issue[i]],"move",target));
+    target167_delivery.nested=true;move_test_target_lost=target167_observe;
+    S_UnitTargetLost(target);move_test_target_lost=NULL;
+    T_EQ(target167_delivery.count,5);
+    FOR_LOOP(i,5)T_EQ(target167_delivery.order[i],expected[i]);
+    FOR_LOOP(i,3)T_EQ(target167_delivery.units[i]->current_order_id,G_OrderId("move"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* 5fc640 unregisters/re-registers when approach becomes persistent Follow;
+ * preserving the issue-time rank would deliver multi-follower loss incorrectly. */
+TEST(wc3_movement, target167_approach_handoff_renews_subscription_order) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    edict_t *far=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,1536);
+    far->svflags=SVF_MONSTER;far->movetype=MOVETYPE_STEP;far->stand=unit_stand;
+    unit_stand(far);S_SetUnitMoveSpeed(far,150);
+    target167_delivery=(typeof(target167_delivery)){.units={unit,far},.target=target};
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_ASSERT(unit_issuetargetorder(far,"move",target));
+    uint64_t original=unit->movement.follow_sequence;
+    FOR_LOOP(i,100) {
+        target166_tick();moveGroup_t *group=move_unit_group(unit);
+        if(group && (group->flags&1))break;
+    }
+    T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    T_ASSERT(move_unit_group(far) && !(move_unit_group(far)->flags&1));
+    T_ASSERT(unit->movement.follow_sequence>original);
+    T_ASSERT(unit->movement.follow_sequence>far->movement.follow_sequence);
+    move_test_target_lost=target167_observe;G_SetEntityHidden(target,true);S_UnitTargetLost(target);
+    move_test_target_lost=NULL;T_EQ(target167_delivery.count,2);
+    T_EQ(target167_delivery.order[0],1);T_EQ(target167_delivery.order[1],0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_save_rejects_invalid_follow_registration_identity) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_ASSERT(S_ValidateMoveFollows());
+    uint64_t sequence=unit->movement.follow_sequence;
+    unit->movement.follow_sequence=0;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=level.next_follow_sequence+1;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=sequence;unit->movement.follow_target_spawn_time++;
+    T_ASSERT(!S_ValidateMoveFollows());unit->movement.follow_target_spawn_time=target->spawn_time;
+    edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,768);
+    other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;unit_stand(other);
+    T_ASSERT(unit_issuetargetorder(other,"move",target));uint64_t distinct=other->movement.follow_sequence;
+    other->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
+    cstring_t file="/tmp/wc3-target167-invalid.bin";T_ASSERT(!WriteGame(file));remove(file);
+    other->movement.follow_sequence=distinct;T_ASSERT(S_ValidateMoveFollows());
+    S_SetFollowTarget(unit,NULL);unit->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=0;G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_direct_follower_release_unlinks_subscription) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    T_EQ(move_follow_lists[other-1].count,1);
+    G_FreeEdict(unit);
+    T_EQ(move_follow_lists[other-1].count,0);T_EQ(move_follow_links[id-1].target,0);
+    /* A reused slot must not inherit an old target's derived list edges. */
+    edict_t *replacement=G_Spawn();
+    if(replacement==unit) {
+        S_SetFollowTarget(replacement,target);T_EQ(move_follow_lists[other-1].count,1);
+        S_SetFollowTarget(replacement,NULL);T_EQ(move_follow_lists[other-1].count,0);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
 #endif

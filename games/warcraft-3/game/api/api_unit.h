@@ -180,6 +180,9 @@ uint32_t ShowUnit(jass_t *j) {
     is_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     G_MarkMoveSpatialObject(whichUnit);
     if (was_hidden != is_hidden) {
+        /* Original688300 publishes world retirement before synchronous
+         * TargetLost. Showing the actor does not recreate canceled tasks. */
+        if(is_hidden)S_UnitTargetLost(whichUnit);
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         /* Visibility is part of both Hero-shortcut and idle-worker eligibility.
          * Rebuild only on a real transition; the shared hook cheaply rejects

@@ -191,6 +191,9 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
     S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
     unit_stand(unit);
     G_SetEntityHidden(unit,true);
+    /* Cargo membership precedes TargetLost, so the observer sees loaded a9
+     * rather than ordinary hidden aa before Load returns. */
+    S_UnitTargetLost(unit);
     unit->paused = true;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
@@ -716,7 +719,7 @@ bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
         return S_CargoTryLoad(transport, unit);
     }
     G_ClearUnitOrderQueue(unit);
-    unit->movement.follow_target = NULL;
+    S_SetFollowTarget(unit,NULL);
     S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);

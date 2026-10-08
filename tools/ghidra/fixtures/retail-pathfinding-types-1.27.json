@@ -13151,6 +13151,78 @@
         }
       ],
       "evidence": "Payoff156 original function body, stack offsets and RET cleanup, public producer capture."
+    },
+    {
+      "address": "6f5ff020",
+      "name": "CAbilityMove_RetainTarget",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "move",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "subscribe",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff167 complete original function assembly: ECX owner, two stack parameters, RET8; subscriptions at d01a4/d01a2, task renewal clears before registering."
+    },
+    {
+      "address": "6f652dd0",
+      "name": "Widget_SetTargetLostSubscription",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "subscriber",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "subscribe",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff167 complete original function assembly: ECX owner, two stack parameters, RET8; subscriptions at d01a4/d01a2, task renewal clears before registering."
+    },
+    {
+      "address": "6f6901c0",
+      "name": "Unit_SetOwnerChangeSubscription",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "subscriber",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "subscribe",
+          "type": "i32",
+          "storage": 8
+        }
+      ],
+      "evidence": "Payoff167 complete original function assembly: ECX owner, two stack parameters, RET8; subscriptions at d01a4/d01a2, task renewal clears before registering."
     }
   ],
   "globals": [

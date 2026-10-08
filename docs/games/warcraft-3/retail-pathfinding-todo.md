@@ -57,6 +57,13 @@ work closes no additional retail research tasks. See
 
 **245 done / 336 tasks; 91 remaining.**
 
+Payoff167 implements synchronous ShowUnit/Cargo TargetLost, target-specific ordered
+Follow subscriptions, task-handoff renewal and Save136 registration identity.
+Two repeated retail producer chains and failing-first production regressions cover
+loss, successor activation, cold load and4096 unrelated actors. TARGET-03.1/03.2
+remain open for wider policies; no new TODOs. See [synchronous target loss](retail-pathfinding-target-visibility.md#synchronous-world-presence-loss-payoff167).
+
+
 Payoff166 implements Move/Smart fogged-target admission, hidden cached-point
 arrival, approach-to-Follow local-path invalidation and Save135 fog modifier
 ownership. The actual public engine scene matches238 raw retail owner states

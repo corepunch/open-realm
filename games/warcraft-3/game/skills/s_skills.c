@@ -1489,11 +1489,21 @@ void S_UnitAllyCombatAlert(edict_t *unit,edict_t *victim,edict_t *source) {
     unit_dispatch_authored_abilities(unit,A_ALLY_COMBAT_ALERT,&call,false,false,false);
 }
 
+/* The target publishes its state first. Each intrinsic owner maintains its
+ * own subscriptions rather than discovering followers by scanning scenery. */
+void S_UnitTargetLost(edict_t *target) {
+    abilityCall_t call={.lost_target=target};
+    unit_dispatch_engine_event_abilities(NULL,A_TARGET_LOST,&call);
+}
+
 /* Notify active behavior owners after semantic removal, before deferred memory reclamation. */
 void S_UnitTargetRemoved(edict_t *target) {
     abilityCall_t call = MAKE(abilityCall_t, .removed_target = target);
     uint32_t count = globals.num_edicts;
 
+    /* Move's retained parent can be subscribed while a different ability owns
+     * the active task. Retire that subscription before generic owner cleanup. */
+    S_UnitTargetLost(target);
     FOR_LOOP(i, count) {
         edict_t *ent = globals.edicts + i;
         if (ent == target || !ent->inuse || G_IsDeferredFree(ent) || !ent->currentmove || !ent->currentmove->proc)

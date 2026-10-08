@@ -4034,7 +4034,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->s.origin.x = 96.0f;
     first->s.origin.y = 128.0f;
     first->owner = second;
-    first->movement.follow_target = second;
+    S_SetFollowTarget(first,second);
     first->movement.explicit_allied_attack = true;
     first->inventory[2] = second;
     if (!first->cargo) first->cargo = G_AllocCargo();
@@ -4139,7 +4139,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     first->sleep->can_sleep = false;
     first->sleep->sleeping = false;
     first->owner = NULL;
-    first->movement.follow_target = NULL;
+    S_SetFollowTarget(first,NULL);
     first->movement.explicit_allied_attack = false;
     first->inventory[2] = NULL;
     first->cargo->units[3] = NULL;

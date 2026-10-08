@@ -1055,7 +1055,7 @@ bool S_OrderAttack(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
-    self->movement.follow_target = NULL;
+    S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
     order_attack(self, target);
     self->movement.explicit_allied_attack = G_PlayerTreatsPlayerAsAlly(self->s.player, target->s.player);
@@ -1260,7 +1260,7 @@ bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
-    unit->movement.follow_target = NULL;
+    S_SetFollowTarget(unit,NULL);
     unit->movement.holding_position = false;
     unit->movement.group_speed = 0.0f;
     S_SpellCancelChannel(unit);
@@ -1337,7 +1337,7 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
     S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
-    self->movement.follow_target = NULL;
+    S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
     S_SetMoveGoal(self, &self->goalentity, waypoint);
     self->attack_target_spawn_time = 0;

@@ -46,6 +46,15 @@ typedef struct {
 } moveStep_t;
 
 static entitySet_t move_timer_members;
+typedef struct { uint16_t target,prev,next; } moveFollowLink_t;
+typedef struct { uint16_t head,tail,count; } moveFollowList_t;
+typedef struct { uint64_t sequence; uint32_t incarnation; uint16_t index; } moveFollowDelivery_t;
+static moveFollowLink_t move_follow_links[MAX_ENTITIES];
+static moveFollowList_t move_follow_lists[MAX_ENTITIES];
+#ifdef BZ_TESTS
+static uint32_t move_follow_visits;
+static void (*move_test_target_lost)(edict_t *unit);
+#endif
 
 /* Timer ownership changes at admission/cancellation, never by scanning scenery
  * every five milliseconds. Three passes below retain the original phase order. */
@@ -2876,6 +2885,100 @@ static uint16_t waypoint_identity(edict_t const *point) {
         (uint16_t)(offset/sizeof(*point)+1) : 0;
 }
 
+/* One retained Follow parent per unit. Links are derived; its registration
+ * rank is authoritative so cold load never substitutes edict allocation order. */
+static void move_follow_unlink(uint16_t id) {
+    moveFollowLink_t *link=move_follow_links+id-1;
+    if(!link->target)return;
+    moveFollowList_t *list=move_follow_lists+link->target-1;
+    if(link->prev)move_follow_links[link->prev-1].next=link->next;
+    else list->head=link->next;
+    if(link->next)move_follow_links[link->next-1].prev=link->prev;
+    else list->tail=link->prev;
+    assert(list->count);list->count--;*link=(moveFollowLink_t){0};
+}
+
+static void move_follow_link(uint16_t id,uint16_t target) {
+    moveFollowList_t *list=move_follow_lists+target-1;
+    move_follow_links[id-1]=(moveFollowLink_t){target,list->tail,0};
+    if(list->tail)move_follow_links[list->tail-1].next=id;
+    else list->head=id;
+    list->tail=id;list->count++;
+}
+
+void S_SetFollowTarget(edict_t *unit,edict_t *target) {
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    if(id)move_follow_unlink(id);
+    unit->movement.follow_target=target;
+    unit->movement.follow_target_spawn_time=target ? target->spawn_time : 0;
+    if(target && level.next_follow_sequence==UINT64_MAX)gi.error("Move: exhausted Follow subscription sequence");
+    unit->movement.follow_sequence=target ? ++level.next_follow_sequence : 0;
+    if(id && other)move_follow_link(id,other);
+}
+
+static int move_follow_compare(void const *a,void const *b) {
+    edict_t const *x=g_edicts+*(uint16_t const *)a,*y=g_edicts+*(uint16_t const *)b;
+    return (x->movement.follow_sequence>y->movement.follow_sequence)-
+        (x->movement.follow_sequence<y->movement.follow_sequence);
+}
+
+/* Save/load rejects missing, duplicated or stale logical subscriptions. */
+bool S_ValidateMoveFollows(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    FOR_LOOP(i,globals.num_edicts) {
+        edict_t const *unit=g_edicts+i,*target=unit->movement.follow_target;
+        if(!unit->inuse)continue;
+        if(!target) {if(unit->movement.follow_sequence)return false;continue;}
+        if(!waypoint_identity(target) || !target->inuse ||
+           unit->movement.follow_target_spawn_time!=target->spawn_time ||
+           !unit->movement.follow_sequence || unit->movement.follow_sequence>level.next_follow_sequence)return false;
+        units[count++]=i;
+    }
+    qsort(units,count,sizeof(*units),move_follow_compare);
+    FOR_LOOP(i,count)if(i && !move_follow_compare(units+i-1,units+i))return false;
+    return true;
+}
+
+static void move_follow_reset(void) {
+    memset(move_follow_links,0,sizeof(move_follow_links));memset(move_follow_lists,0,sizeof(move_follow_lists));
+}
+
+static void move_follow_rebuild(void) {
+    uint16_t units[MAX_ENTITIES];uint32_t count=0;
+    move_follow_reset();
+    FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse && g_edicts[i].movement.follow_target)units[count++]=i;
+    qsort(units,count,sizeof(*units),move_follow_compare);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+units[i];uint16_t target=waypoint_identity(unit->movement.follow_target);
+        if(target)move_follow_link(units[i]+1,target);
+    }
+}
+
+/* Capture only this target's subscribers. Registration identities allow a
+ * callback to remove/reissue a later subscriber, or nest delivery, without
+ * delivering a newly appended subscription in the already-running pass. */
+static void move_follow_target_lost(edict_t *target) {
+    uint16_t id=waypoint_identity(target);
+    if(!id || !move_follow_lists[id-1].count)return;
+    uint32_t count=move_follow_lists[id-1].count,pos=0;
+    moveFollowDelivery_t delivery[count];
+    for(uint16_t next=move_follow_lists[id-1].head;next;next=move_follow_links[next-1].next) {
+        edict_t *unit=g_edicts+next-1;
+        delivery[pos++]=(moveFollowDelivery_t){unit->movement.follow_sequence,unit->spawn_time,next-1};
+    }
+    assert(pos==count);
+    FOR_LOOP(i,count) {
+        edict_t *unit=g_edicts+delivery[i].index;
+        if(!unit->inuse || G_IsDeferredFree(unit) || unit->spawn_time!=delivery[i].incarnation ||
+           unit->movement.follow_sequence!=delivery[i].sequence || unit->movement.follow_target!=target)continue;
+#ifdef BZ_TESTS
+        move_follow_visits++;
+        if(move_test_target_lost)move_test_target_lost(unit);
+#endif
+        abilityCall_t call={.lost_target=target};CAbilityMove(unit,A_TARGET_LOST,&call);
+    }
+}
+
 static void waypoint_update_owner(uint32_t index) {
     edict_t const *unit=g_edicts+index;
     bool kind=(unit->svflags&SVF_MOVE_WAYPOINT)!=0;
@@ -3623,7 +3726,7 @@ moveTargetResult_t S_MoveTargetStatus(edict_t const *self, edict_t const *target
 
 /* Arrival retires the Follow parent before stand can activate a queued owner. */
 static void move_end_follow(edict_t *unit) {
-    unit->movement.follow_target=NULL;unit->movement.follow_target_spawn_time=0;
+    S_SetFollowTarget(unit,NULL);unit->movement.follow_target_spawn_time=0;
     S_SetMoveGoal(unit,&unit->goalentity,NULL);
     unit_stand(unit);
 }
@@ -3691,7 +3794,7 @@ static void ai_follow_walk(edict_t *ent) {
 
     if (!follow_target_is_valid(ent, target) ||
         ent->movement.follow_target_spawn_time != target->spawn_time) {
-        ent->movement.follow_target = NULL;
+        S_SetFollowTarget(ent,NULL);
         if (ent->goalentity == target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
         unit_stand(ent);
         return;
@@ -3746,7 +3849,7 @@ void order_follow_resume(edict_t *self) {
     target = self->movement.follow_target;
     if (!follow_target_is_valid(self, target) ||
         self->movement.follow_target_spawn_time != target->spawn_time) {
-        self->movement.follow_target = NULL;
+        S_SetFollowTarget(self,NULL);
         if (self->goalentity == target) S_SetMoveGoal(self, &self->goalentity, NULL);
         unit_stand(self);
         return;
@@ -3776,7 +3879,7 @@ void order_follow(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
-    self->movement.follow_target = target;
+    S_SetFollowTarget(self,target);
     self->movement.follow_target_spawn_time = target->spawn_time;
     self->movement.holding_position = false;
     order_follow_resume(self);
@@ -4082,7 +4185,7 @@ void order_move(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->movement.patrol_a, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
-    self->movement.follow_target = NULL;
+    S_SetFollowTarget(self,NULL);
     self->movement.holding_position = false;
 #ifdef WC3_DEBUG_BUILD
     if (self->class_id == MAKEFOURCC('h','p','e','a'))
@@ -4300,6 +4403,9 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
     /* Move->Follow shares the procedure, so unit_setmove need not dispatch
      * leave. Transfer physical ownership before installing its successor. */
     move_detach_group(unit);
+    /* Original5fc640 clears/re-registers on every task admission, including
+     * approach->persistent. Renewal belongs after the old physical departure. */
+    if(unit->movement.follow_target==target)S_SetFollowTarget(unit,target);
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->target=target; group->target_spawn=target->spawn_time;
@@ -4826,7 +4932,7 @@ static void move_run_group_updates(void) {
                 G_IsDeferredFree(group->target) || (!group->target->movement.captain_actor_type && M_IsDead(group->target)))) {
             while(group->count) {
                 edict_t *unit=group->members[group->count-1].unit;
-                unit->movement.follow_target=NULL; S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
+                S_SetFollowTarget(unit,NULL); S_SetMoveGoal(unit, &unit->goalentity, NULL); unit_stand(unit);
             }
             move_release_group(group); continue;
         }
@@ -5127,7 +5233,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return UNIT_MESSAGE_SUBSCRIPTIONS(A_MOVE_PARAMETERS_CHANGED, A_DEATH, A_QUEUE_ORDER_START,
             A_GROUP_POINT_ORDER, A_OWNER_BEGIN, A_OWNER_UPDATE, A_UNIT_TYPE_CHANGING,
             A_PRIMARY_TIMER, A_ORDER_ACCEPTED, A_UNIT_TYPE_CHANGED, A_UNIT_INIT, A_UNIT_OWNER_CHANGING,
-            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED,
+            A_UNIT_OWNER_CHANGED, A_UNIT_REMOVE, A_UNIT_REMOVING, A_COMMAND, A_TARGET_REMOVED, A_TARGET_LOST,
             A_CHANNEL_STATE_CHANGED);
     case A_MOVE_PARAMETERS_CHANGED: {
         wc3Velocity_t velocity = { .vel = {ent->movement.velocity.x, ent->movement.velocity.y},
@@ -5177,10 +5283,12 @@ BZ_ABILITY_PROC(CAbilityMove) {
         return true;
     case A_TIMERS_RESET:
         if(ent)return 0;
+        move_follow_reset();
         move_repulse_clear_links();
         move_timer_members=(entitySet_t){0};return true;
     case A_TIMERS_REBUILD:
         if(ent)return 0;
+        move_follow_rebuild();
         move_timer_members=(entitySet_t){0};
         FOR_LOOP(i,globals.num_edicts) S_TrackMoveTimers(g_edicts+i);
         return true;
@@ -5222,9 +5330,10 @@ BZ_ABILITY_PROC(CAbilityMove) {
         move_leave(ent);
         move_cancel_displacement(ent);
         S_SetMoveGoal(ent, &ent->goalentity, NULL);
-        ent->movement.follow_target=NULL;
+        S_SetFollowTarget(ent,NULL);
         return true;
     case A_UNIT_REMOVE:
+        S_SetFollowTarget(ent,NULL);
         move_remove_captain_roster_member(ent);
         move_release_captain_reference(ent);
         move_unlink_fine_request(ent);
@@ -5241,9 +5350,17 @@ BZ_ABILITY_PROC(CAbilityMove) {
         clent->client->menu.supports_order_queue = true;
         return true;
     }
+    case A_TARGET_LOST:
+        if(!call)return false;
+        if(!ent) {move_follow_target_lost(call->lost_target);return true;}
+        if(ent->movement.follow_target!=call->lost_target ||
+           S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID)return false;
+        /* The retained Move parent owns this subscription during automatic
+         * combat as well. Invalid loss retires the parent before completion. */
+        return CAbilityMove(ent,A_TARGET_REMOVED,&(abilityCall_t){.removed_target=call->lost_target});
     case A_TARGET_REMOVED:
         if (!call || ent->movement.follow_target != call->removed_target) return false;
-        ent->movement.follow_target = NULL;
+        S_SetFollowTarget(ent,NULL);
         ent->movement.follow_target_spawn_time = 0;
         /* Attack can temporarily own Smart's task. Retire its Follow parent
          * without completing the public head or advancing the pending FIFO. */

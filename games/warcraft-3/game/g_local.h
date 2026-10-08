@@ -947,6 +947,7 @@ typedef enum {
     A_ATTACK_DAMAGE_BONUS, /* Active status ability query: return additive attack damage. */
     A_ATTACK_LANDED,     /* Non-missed attack hit; active status abilities may end on hit. */
     A_TARGET_REMOVED,    /* Active move owner: call->removed_target is semantically removed, still allocated. */
+    A_TARGET_LOST,       /* Published target state changed; subscribed owners validate synchronously. */
     A_OWNER_BEGIN,      /* Before owner-clock movement callbacks: publish the owning scheduler state. */
     A_OWNER_UPDATE,     /* After owner-clock movement callbacks: update persistent ability-owned lists. */
     A_UNIT_OWNER_CHANGING, /* Old owner remains published while behaviors cancel their orders/requests. */
@@ -1032,6 +1033,7 @@ struct ability_call_s {
         edict_t *client;
         edict_t *projectile;
         edict_t *removed_target; /* A_TARGET_REMOVED; valid throughout the notification. */
+        edict_t *lost_target; /* A_TARGET_LOST; world/invisibility state is already published. */
         cstring_t order;
         groupPointOrder_t const *group_order; /* A_GROUP_POINT_ORDER: retained public point request. */
         abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
@@ -2053,6 +2055,7 @@ struct edict_s {
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         uint32_t follow_target_spawn_time; /* incarnation captured by the Follow owner */
+        uint64_t follow_sequence; /* Target subscription order, retained across save/load. */
         bool holding_position;
         /* Stop establishes a WC3 guard point. Automatic idle combat may leave
          * that point temporarily, then returns once the combat detour ends. */
@@ -2561,6 +2564,7 @@ struct level_locals {
     uint64_t next_move_shared_id;
     uint32_t next_move_group_id; /* Zero is ungrouped; allocation excludes every live unit identity. */
     uint64_t next_move_group_sequence;
+    uint64_t next_follow_sequence;
     uint64_t next_unit_seq;
     quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
@@ -3019,6 +3023,8 @@ edict_t *Waypoint_add(vec2_t const *);
 void G_ResetWaypointCache(void);
 void S_MarkMoveGoals(edict_t const *owner);
 edict_t *S_SetMoveGoal(edict_t *owner, edict_t **slot, edict_t *goal);
+void S_SetFollowTarget(edict_t *, edict_t *);
+bool S_ValidateMoveFollows(void);
 void G_InitWaypoints(void);
 void G_ResetSpawnCache(void);
 void G_ClearEdictStorage(uint32_t count);
@@ -3358,6 +3364,7 @@ bool S_UnitTypeHasAbilityCode(UnitAbilities_t const *, uint32_t);
 bool S_UnitHasAbilityFlags(edict_t const *, uint32_t);
 void S_ClearUnitEventPlans(void);
 void S_UnitTargetRemoved(edict_t *);
+void S_UnitTargetLost(edict_t *);
 bool S_UnitAbilityMoveArrive(edict_t *);
 bool S_AncientIsRooted(edict_t const *);
 bool S_AncientHasRootAbility(edict_t const *);

@@ -37,7 +37,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),138)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),133)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),134)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -53,6 +53,16 @@ class CorpusTests(unittest.TestCase):
                               engine_exact_cases=4 if '--terrain-producer' in entry['command'] else 356,
                               cases=4 if '--terrain-producer' in entry['command'] else 356,
                               producer_classification_cases=54,producer_classification_rejected=27,producer_hierarchy_cells=2206),entry,self.target)
+
+    def test_target_loss_requires_complete_producer_and_handoff_repeats(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-target-loss-ordered-subscriptions')
+        report={field:rule['equal'] for field,rule in entry['checks'].items()}
+        check_report(report,entry,self.target)
+        for field,value in [('passed',False),('captures',5),('controls',1),
+                            ('observed_repeats',1),('producer_events',3),('subscribed_handoffs',3)]:
+            changed=dict(report);changed[field]=value
+            with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+        self.assertTrue(any('no new' in x.lower() for x in entry['exclusions']))
 
     def test_yield_lifetime_requires_both_policies_and_identity_controls(self):
         entry=next(e for e in self.manifest['entries'] if e['id']=='live-moving-yield-identity-and-group-policy')
