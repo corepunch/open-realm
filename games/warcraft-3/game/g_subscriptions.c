@@ -139,17 +139,20 @@ static void SubscriberDispatch(edict_t *subject, gameEvent_t const *event) {
     event_depth--;SubscribersReclaim();
 }
 
-void G_DispatchOrderEvents(gameEventPointParams_t const *params, EVENTTYPE unit_type) {
+void G_DispatchUnitEventFamilies(gameEventPointParams_t const *params, EVENTTYPE unit_type,
+                                  bool freeze_unit_presence) {
     if(!level.vm)return;
     SubscribersPrepare();
     edict_t *player=G_GetPlayerEntityByNumber(params->edict->s.player);
-    /* Original67c230 freezes both family-presence tests before player delivery. */
+    /* Issued orders67c230 freeze both families before player delivery. Death
+     *67b8a0 samples the unit family only after the player death producer returns. */
     bool player_present=SubscriberExists(player,params->type);
-    bool unit_present=SubscriberExists(params->edict,unit_type);
+    bool unit_present=freeze_unit_presence && SubscriberExists(params->edict,unit_type);
     gameEvent_t event={.edict=params->edict,.source=params->source,.value=params->value,
                       .has_point=params->point!=NULL};
     if(params->point)event.point=*params->point;
     if(player_present){event.type=params->type;SubscriberDispatch(player,&event);}
+    if(!freeze_unit_presence)unit_present=SubscriberExists(params->edict,unit_type);
     if(unit_present){event.type=unit_type;SubscriberDispatch(params->edict,&event);}
 }
 

@@ -4734,6 +4734,42 @@
         }
       ],
       "scope": "Partial verified prefix; enabled storage starts+64 outside this100-byte layout and is intentionally undefined."
+    },
+    {
+      "name": "WC3ScriptEventPacket",
+      "length": 20,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "67ae78/262d0a store 6fa9f7f4 (CScriptEvent RTTI). ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+        },
+        {
+          "offset": 4,
+          "name": "references",
+          "type": "u32",
+          "evidence": "Producer +1 (67ae90), released after dispatch (67af10); destroyed at zero. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+        },
+        {
+          "offset": 8,
+          "name": "event",
+          "type": "u32",
+          "evidence": "Producer event; 071e00 overwrites with each node's remapped event before the handler. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+        },
+        {
+          "offset": 12,
+          "name": "registration",
+          "type": "ptr:void",
+          "evidence": "Written by CUnitEventReg_OnEvent 27d1f0 (packet+C = reg); read by CTriggerWar3_OnEvent 298d82. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+        },
+        {
+          "offset": 16,
+          "name": "event_data",
+          "type": "ptr:void",
+          "evidence": "Counted reference to the CScriptEventData (e.g. CPlayerUnitPointOrderEventData) set by 67aecf..67aeee, released with the packet. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py."
+        }
+      ]
     }
   ],
   "methods": [
@@ -15074,6 +15110,154 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f67bd10",
+      "name": "Unit_FireIssuedOrderEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4; ECX 67bd3b, stack4 67bd40. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f67ae10",
+      "name": "Unit_FireScriptEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8 67af2c. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "event_data",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f262cb0",
+      "name": "Player_FireScriptEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8 262de6. ORDER-03.2: instruction-verified (RET/stack use below); live public order-event captures (order03/03b/03c probes) and Unicorn oracle verify_ORDER-03.2_nested_lifetime.py.",
+      "parameters": [
+        {
+          "name": "player",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "event",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "event_data",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f605aa0",
+      "name": "ModalAbility_CancelAndPublishOff",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3ModalAbilityPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "MOV EDI,ECX605aa3; EventClock_CancelRequest at ability84; selector virtual318, OrderImmediate_Create, Unit_DispatchTransientOrder; plainRET605af7. Fresh read-only removal caller stack sees disable then detach independently invoke this function."
+    },
+    {
+      "address": "6f688790",
+      "name": "Unit_DispatchTransientOrder",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderPrefix",
+          "storage": 4
+        },
+        {
+          "name": "dispatch_suspended",
+          "type": "u32",
+          "storage": 8
+        }
+      ],
+      "evidence": "ECX savedEBX688799; orderEBP8; flagEBPc; both exits RET8. Immediate/point/target public notification precedes unit5c.dead gate; dead unit skips execution and releases the supplied order."
+    },
+    {
+      "address": "6f67b8a0",
+      "name": "Unit_FireDeathEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "killer",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "ECX savedEBX67b8cb; killerEBP8; RET4 67b9b8. Calls Player_FireUnitDeathEvent first, then Agent_HasEventSubscriber(unit,80235); unlike issued orders, unit presence is not frozen before the player family."
+    },
+    {
+      "address": "6f260ab0",
+      "name": "Player_FireUnitDeathEvent",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "player",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 4
+        },
+        {
+          "name": "killer",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": 8
+        }
+      ],
+      "evidence": "ECX savedEBX260adb; unitEBP8/killerEBPc; RET8 260bb6. Player_HasEventSubscriber80261 then counted script data and262cb0 synchronous delivery."
     }
   ],
   "globals": [

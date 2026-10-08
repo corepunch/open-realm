@@ -87,6 +87,15 @@ def main():
     lock = threading.Lock()
     errors = []
     pid = session = script = None
+    def visible_windows():
+        return subprocess.run(['xdotool','search','--onlyvisible','--name','^Warcraft III$'],
+            env={**os.environ,'DISPLAY':args.x11_display},capture_output=True,text=True,
+            timeout=10).stdout.split()
+    # A research display can retain another owner's window. Input is confined
+    # to the single new window created by this bounded owned launch.
+    previous_windows=set(visible_windows())
+    def owned_windows():
+        return [window for window in visible_windows()if window not in previous_windows]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open('w') as out:
         def record(row):
@@ -119,17 +128,17 @@ def main():
                 if len(errors) > 20:
                     break
                 if next_key is not None and time.monotonic() - start >= next_key:
-                    r = subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III', 'windowfocus',
-                                        '--sync', 'key', 'space'], timeout=10,
-                                       env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
-                    record({'event': 'loading-key', 'elapsed': time.monotonic() - start, 'status': r.returncode})
+                    wins=owned_windows();status=None
+                    if len(wins)==1:
+                        r = subprocess.run(['xdotool','windowfocus','--sync',wins[0],'key','space'],timeout=10,
+                            env={**os.environ,'DISPLAY':args.x11_display},stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+                        status=r.returncode
+                    record({'event':'loading-key','elapsed':time.monotonic()-start,'status':status,'windows':len(wins)})
                     next_key = next_key + args.continue_every if args.continue_every > 0 else None
                 while ui_plan and time.monotonic() - start >= ui_plan[0][0]:
                     at, kind, value = ui_plan.pop(0)
                     env = {**os.environ, 'DISPLAY': args.x11_display}
-                    wins = subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III'], env=env,
-                                          capture_output=True, text=True, timeout=10).stdout.split()
+                    wins = owned_windows()
                     status = None
                     if len(wins) == 1:
                         if kind == 'key':

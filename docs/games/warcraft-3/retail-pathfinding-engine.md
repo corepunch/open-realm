@@ -12177,3 +12177,84 @@ ORDER-03.2 remains open for nested Stop head retirement, synchronous death,
 removal admission and complete unit/order destruction composition. This chunk
 does not claim the remaining trigger-condition/action-list/sleep policies or
 physical destructor timing have been certified against retail.
+
+
+## Nested orders retain their packet and removal suspends execution (Payoff178)
+
+ORDER-03.2 is integrated into the synchronous indexed subscriber dispatcher.
+Each nesting level retains its own point, order, source and unit identity.
+Destroyed triggers are suppressed in every pending outer dispatch; the existing
+append ranks and insertion cutoffs still govern each family independently.
+
+- Stop owns a transient current-order head during its immediate notification.
+  Completion clears that head only if it still belongs to the same unit lifetime
+  and order; a Move issued by the callback survives. Stop owns this transition in
+  `skills/s_stop.c`; selectors come from the order registry.
+- Death commits the dead flag before ability cleanup, then synchronously delivers
+  player death before unit death. Recursive KillUnit cannot restart death. Retail
+  `67b8a0` calls player `260ab0` **before** querying unit subscribers; issued-order
+  `67c230/67bd10` query both families before player delivery. The dispatcher takes
+  this producer policy explicitly. A player death callback can therefore register
+  the first unit death subscriber and receive it during that same death.
+- RemoveUnit retains the live handle and original packet until deferred release.
+  It cancels the old logical head and suspends execution. A valid nested point
+  Move returns **true**, appends a new logical head, and emits no public issued-
+  order event or physical movement. `680320`/`693490` and public native `206f00`
+  establish this distinction. The earlier handoff's “rejected nested order”
+  wording described missing execution, not the native return or retained head.
+  Queue draining cannot consume suspended entries. This chunk covers ordinary
+  movement point families, not arbitrary post-removal spells or target orders.
+- Final removal commits inactivity and zero life before ability notifications,
+  while identity remains queryable. Generic `A_UNIT_RETIRE` precedes detach
+  `A_UNIT_REMOVE`; death uses retirement without immediate detach. Defend owns
+  its inverse and unconditional off notification for each operation. There is
+  no special two-notification loop. Fresh caller stacks show availability
+  `48c8c0 -> 605aa0 -> 688790 -> 67bd10`, then independent detach
+  `48e860 -> 605aa0 -> 688790 -> 67bd10`. The transient producer publishes before
+  its dead gate, then skips behavior execution. Removal creates no death event.
+  Actual life getter `685170` and removal `69c510` share the unit+98 scalar bridge;
+  zero life is committed before retirement callbacks.
+
+Evidence and acceptance:
+
+- Fresh unmodified original execution: **411 cases**, 988 deliveries, 285 nested
+  dispatches, maximum depth four, 119 callback destructions and two agent
+  destructions; zero mismatches/faults. Controlled handler bodies and Storm/CRT
+  services are labelled separately from original instructions.
+- Full prepared archive reconstruction: **11 captures / 16,778 records**, seven
+  observer-free comparisons and three normalized repeats. No archived oracle
+  is counted as fresh execution.
+- Fresh correction: **three complete captures / 5,564 records**, two identical
+  125-marker admission runs and three retirement/detach stack pairs. Common
+  marker streams match prepared observer-free controls. The new native-return
+  marker is supported by repeated observation and assembly, **without** claiming
+  a completed new observer-free run. Eight failed/incomplete runs are pinned and
+  rejected, even when a controller emitted trace-end.
+- Eight failing-first native regressions exercise Stop head/unwind, replacement,
+  immutable player/unit packets, three-level trigger destruction, nested death,
+  late unit-death registration, deferred removal and owning Defend cleanup.
+  A separate removal regression fails if suspended FIFO draining consumes its
+  entry. Classic/TFT focused subscribers, API, order lifecycle, spells, saves,
+  pathfinding and both existing retail Defend trajectory/save cases pass.
+- Ghidra is saved and read back: **20-byte WC3ScriptEventPacket**, seven explicit
+  receiver/stack ABIs and 15 mapped function annotations. The canonical schema
+  and `MapPathfinding.java` preserve the same evidence. No network or save-layout
+  contract changes; the new ability message is appended to the enum.
+
+Reproduce from the repository root (`game.dll` is the pinned 1.27.1.7085 image):
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_order_reentry.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --output /tmp/order-reentry-original-new.json
+python tools/ghidra/research/verify_order178_reentry.py \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --output /tmp/order-reentry-captures-new.json
+python tools/ghidra/research/verify_order178_removal.py \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --output /tmp/order-removal-new.json
+```
+
+[Research handoff](retail-pathfinding-handoffs/ORDER-03.2/HANDOFF.md).
+Trigger waits, physical CUnit destructor timing and broader queue/target-policy
+research remain outside this closure. No additional TODO IDs were created.

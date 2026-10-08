@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**252 done / 336 tasks; 84 remaining.**
+**253 done / 336 tasks; 83 remaining.**
+
+Payoff178 closes ORDER-03.2: nested Stop retains its transient head, death
+families deliver synchronously with the retail presence-query timing, and
+removal retains its payload while suspending accepted point orders. Defend owns
+retirement/detach notifications. Failing-first native regressions, fresh original
+411-case execution and complete Frida streams pass; Ghidra and the mapper are
+saved. See [nested order lifetime](retail-pathfinding-engine.md#nested-orders-retain-their-packet-and-removal-suspends-execution-payoff178).
 
 Payoff177 closes ORDER-03.1 with synchronous indexed issued-order subscribers,
 append-ranked iteration, insertion cutoffs and immediate DestroyTrigger
@@ -1050,7 +1057,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 ### ORDER-03 — Callback mutation
 
 - [x] **ORDER-03.1** Insert/remove a subscription while dispatching to multiple subscribers; assert delivery order, iterator and reference counts. Payoff177 integrates synchronous indexed issued-order families, saved append ranks/cutoffs, immediate destroy suppression/counters and ordered primary-clock cleanup. Seventeen failing-first native/registration/save/scaling regressions pass in Classic/TFT; fresh 627 original cases verify complete native delivery/reference/pool semantics, and five complete archived Frida logs retain controls/repeat. Stable engine registry slots replace native pool pointers; nested Stop/death/removal remain ORDER-03.2. [Evidence](retail-pathfinding-engine.md#synchronous-issued-order-subscribers-and-deferred-trigger-cleanup-payoff177).
-- [ ] **ORDER-03.2** Destroy an order or unit from a subscriber, then perform nested dispatch; assert depth/unwind and payload lifetime with no stale callback.
+- [x] **ORDER-03.2** Destroy an order or unit from a subscriber, then perform nested dispatch; assert depth/unwind and payload lifetime with no stale callback. Payoff178 integrates transient Stop completion, synchronous player/unit death with producer-specific presence sampling, deferred removal with accepted suspended point heads, and ability-owned retirement/detach notifications. Eight failing-first native regressions and focused Classic/TFT movement/save/queue suites pass, alongside fresh 411 original cases, eleven full prepared Frida captures and three fresh correction captures; incomplete runs remain explicitly rejected. Ghidra packet/ABIs and mapper saved. [Evidence](retail-pathfinding-engine.md#nested-orders-retain-their-packet-and-removal-suspends-execution-payoff178).
 
 ### ORDER-04 — Reference reclamation
 

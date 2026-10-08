@@ -89,6 +89,7 @@ BZ_ABILITY_PROC(CAbilityEntangledGoldMine);
 BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
 BZ_ABILITY_PROC(CAbilityStop);
+bool S_IssueStopOrder(edict_t *);
 BZ_ABILITY_PROC(CAbilityHoldPosition);
 BZ_ABILITY_PROC(CAbilityPatrol);
 BZ_ABILITY_PROC(CAbilityRally);

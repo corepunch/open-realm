@@ -59,10 +59,21 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
 }
 
 void order_stop(edict_t *ent) {
-    if (ent) {
-    }
     G_ClearUnitOrderQueue(ent);
     order_stop_state(ent, false, true);
+}
+
+/* An instantaneous order retains its head throughout synchronous notification.
+ * A nested replacement owns its own head and must survive this completion. */
+bool S_IssueStopOrder(edict_t *ent) {
+    uint32_t const order_id=G_OrderId("stop"),spawn_time=ent->spawn_time;
+    order_stop(ent);
+    ent->current_order_id=order_id;
+    S_UnitAbilityOrderAccepted(ent,"stop");
+    G_PublishIssuedImmediateOrder(ent,order_id,ent->s.player,"stop");
+    if(ent->inuse && ent->spawn_time==spawn_time && ent->current_order_id==order_id)
+        ent->current_order_id=0;
+    return true;
 }
 
 void order_stop_cleanup(edict_t *ent) {

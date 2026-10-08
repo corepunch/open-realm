@@ -926,7 +926,7 @@ TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
 TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
     edict_t *unit, *replacement;
     event_t *registration;
-    uint32_t old_spawn_time;
+    uint32_t old_spawn_time, removal_events;
 
     reset_entities(); setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -938,13 +938,14 @@ TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
     registration->limitval = 0;
     old_spawn_time = unit->spawn_time;
     G_FreeEdict(unit);
+    removal_events=level.events.write;
     level.time += 2000;
     replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     replacement->spawn_time = level.time;
     T_ASSERT(replacement == unit);
     T_NE(replacement->spawn_time, old_spawn_time);
     G_SetHealth(replacement, 0);
-    T_EQ(level.events.write, 0);
+    T_EQ(level.events.write, removal_events);
 }
 
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
@@ -8960,7 +8961,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
         "  set deaths = deaths + 1\n"
         "endfunction\n"
         "function verify takes nothing returns nothing\n"
-        "  call BJassAssert(deaths == 0, \"death event reached a reused edict\")\n"
+        "  call BJassAssert(deaths == 2, \"only the original synchronous death reached subscribers\")\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
@@ -8969,6 +8970,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
         "  call TriggerRegisterPlayerUnitEvent(t, Player(0), EVENT_PLAYER_UNIT_DEATH, null)\n"
         "  call TriggerAddAction(t, function on_death)\n"
         "  call KillUnit(victim)\n"
+        "  call BJassAssert(deaths == 2, \"both death families complete inside KillUnit\")\n"
         "endfunction\n"));
     victim = find_test_unit(MAKEFOURCC('h','f','o','o'));
     T_NOT_NULL(victim);

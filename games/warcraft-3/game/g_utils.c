@@ -31,7 +31,7 @@ static void G_CancelDeferredFree(edict_t *ent) {
     }
 }
 
-/* Identify hidden-but-live edicts whose JASS handles must already behave as null. */
+/* Pending removal suspends execution; queries retain the live identity until release. */
 bool G_IsDeferredFree(edict_t const *ent) {
     if (!ent) return false;
     FOR_LOOP(i, deferred_free_count)
@@ -73,6 +73,13 @@ void G_FreeEdict(edict_t *ent) {
     if (had_aura) S_MarkAuraSource(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
+    /* Native69c510 commits inactivity before availability and detach callbacks.
+     * No death event is produced by removal; the identity stays queryable. */
+    if(ent->class_id && !M_IsDead(ent)) {
+        ent->svflags|=SVF_DEADMONSTER;
+        G_SetHealth(ent,0);
+        S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
+    }
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
     G_BotRemoveCaptainUnit(ent);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state

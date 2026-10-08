@@ -514,7 +514,7 @@ BZ_ABILITY_PROC(CAbilityDefend) {
     uint32_t const code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_UNIT_EVENT_MASK:
-        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_REMOVE);
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND,A_VALIDATE,A_MOVE_LEAVE,A_UNIT_RETIRE,A_UNIT_REMOVE);
     case A_COMMAND: {
         edict_t *clent=call ? call->client : NULL;
         if (!clent || !clent->client) return false;
@@ -536,12 +536,17 @@ BZ_ABILITY_PROC(CAbilityDefend) {
         return ref.alias && defend_set(ent,&item,!strcmp(call->order,"defend"));
     }
     case A_DISABLE:
+    case A_UNIT_RETIRE:
     case A_UNIT_REMOVE:
         if (human_has_status(ent,code)) {
             uint32_t rank=G_UnitStatusLevel(ent,code);
             human_remove_status(ent,code);
             S_HumanStatusExpired(ent,code,rank);
         }
+        /* Modal605aa0 emits the off selector even for an inactive stance.
+         * Availability retirement and ability detach are distinct operations;
+         * both notify synchronously while the unit identity is still held. */
+        G_PublishIssuedImmediateOrder(ent,G_OrderId("undefend"),ent->s.player,"undefend");
         return true;
     case A_PROJECTILE_HIT: return defend_projectile_reaction(call ? call->projectile : NULL);
     default: return CAbilitySimpleSpell(ent, msg, call);

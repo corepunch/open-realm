@@ -966,6 +966,7 @@ typedef enum {
     A_CHANNEL_STATE_CHANGED, /* Published channel begin/end; behavior owners refresh their runtime policy. */
     A_UNIT_OWNED,       /* Read-only intrinsic ownership query; no initialization or allocation. */
     A_STATUS_REPLACE,   /* Applying owner may release its contribution before a status payload is replaced. */
+    A_UNIT_RETIRE,      /* Death/removal commits an inactive unit before ability detach; identity remains valid. */
     A_NUM_MESSAGES,
 } abilityMsg_t;
 
@@ -3828,7 +3829,7 @@ void G_ResetEventSubscribers(void);
 void G_TrackEventSubscriber(event_t *);
 void G_SetEventTrigger(event_t *, trigger_t *);
 bool G_EventSlotAvailable(event_t const *);
-void G_DispatchOrderEvents(gameEventPointParams_t const *, EVENTTYPE);
+void G_DispatchUnitEventFamilies(gameEventPointParams_t const *, EVENTTYPE, bool);
 void G_TriggerRequestDestroy(trigger_t *, wc3Clock_t const *);
 bool G_NextTriggerRelease(wc3Clock_t *, uint32_t *);
 void G_FireTriggerRelease(void);

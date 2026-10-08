@@ -423,11 +423,12 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
      * the mission win check that counts the player's dying naga. */
-    G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
-    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
     G_MarkMoveSpatialObject(self);
+    S_UnitAbilityEvent(self,A_UNIT_RETIRE);
     S_UnitAbilityEvent(self, A_DEATH);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_DEATH,.source=attacker },EVENT_UNIT_DEATH,false);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
@@ -681,9 +682,9 @@ void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *p
                 (cstring_t)&self->class_id, debug_order ? debug_order : "",
                 (unsigned)order_id, point->x, point->y);
     }
-    G_DispatchOrderEvents(&(gameEventPointParams_t){
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
         .edict = self, .type = EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
-        .value = order_id, .point = point }, EVENT_UNIT_ISSUED_POINT_ORDER);
+        .value = order_id, .point = point }, EVENT_UNIT_ISSUED_POINT_ORDER,true);
 }
 
 void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
@@ -691,8 +692,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
     issued_order_point_valid[self->s.number] = false;
-    G_DispatchOrderEvents(&(gameEventPointParams_t){
-        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER,true);
 }
 
 static void unit_publish_target_order(edict_t *self, cstring_t order,
@@ -710,8 +711,8 @@ static void unit_publish_target_order(edict_t *self, cstring_t order,
                 (unsigned)order_id, target ? (unsigned)target->s.number : 0u,
                 target ? (cstring_t)&target->class_id : "----");
     }
-    G_DispatchOrderEvents(&(gameEventPointParams_t){
-        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER,true);
 }
 
 bool G_UnitHasActiveOrder(edict_t const *self) {
@@ -866,7 +867,7 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     vec2_t target;
     edict_t *waypoint;
 
-    if (!self || !order || !point) return false;
+    if (!self || !order || !point || G_IsDeferredFree(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
     /* The Attack owner keeps the exact clicked point, including range-hold
@@ -987,6 +988,22 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
 bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
+    /* Removal leaves an internal task that suspends the new user chain. The
+     * order is retained without execution or notification (original693490). */
+    if(G_IsDeferredFree(self)) {
+        if(M_IsDead(self) || self->aiflags&AI_IMMOBILE ||
+            (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack") && strcmp(order,"patrol")))
+            return false;
+        uint32_t const order_id=G_OrderId(order);
+        if(!queue && self->order_queue.count>1) {
+            unitOrder_t head=self->order_queue.entries[self->order_queue.head];
+            G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
+        }
+        if(!G_QueueUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,issuer_player,group_speed,order_id))
+            return false;
+        if(!self->current_order_id)self->current_order_id=order_id;
+        return true;
+    }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
     /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
@@ -1042,7 +1059,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
 bool G_UnitStartNextQueuedOrder(edict_t *self) {
     unitOrder_t queued;
 
-    if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
+    if (!self || M_IsDead(self) || G_IsDeferredFree(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.owner_context) {
             if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
@@ -1198,11 +1215,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (S_GoldMineWorkerIsInside(self))
         return false;
     if (!strcmp(order, "stop")) {
-        G_ClearUnitOrderQueue(self);
-        order_stop(self);
-        S_UnitAbilityOrderAccepted(self, order);
-        G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return true;
+        return S_IssueStopOrder(self);
     }
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
