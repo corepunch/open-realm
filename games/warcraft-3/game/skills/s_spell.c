@@ -393,6 +393,35 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
              S_UnitIsInvisibleToPlayer(target, caster->s.player));
 }
 
+/* Spell Shield intercepts hostile unit-targeted spells at resolution. Launched
+ * bolts defer the check until impact so shield state can change in flight. */
+bool S_TryBlockSpellShield(edict_t *caster, uint32_t code, edict_t *target) {
+    ability_t const *ability = S_SpellAbilityForCode(code);
+    abilityLevel_t const *row;
+    heroabilitystatus_t *status;
+
+    if (!caster || !target || !ability ||
+        (ability->target_type != SPELL_TARGET_UNIT && ability->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        !S_SpellIsEnemy(caster, target) || !S_SpellIsAliveTarget(target)) return false;
+    /* Physical nets and Finger of Death bypass Spell Shield. */
+    if (ability->proc == CAbilityEnsnare || ability->proc == CAbilityWeb ||
+        ability->proc == CAbilityFingerOfDeath) return false;
+    row = G_AbilityLevel(code, S_SpellLevel(caster, code));
+    if (!row || !row->targs || !S_SpellTargetHasToken(row->targs, "enemy", NULL) ||
+        S_SpellTargetHasToken(row->targs, "friend", NULL)) return false;
+    status = unit_findstatus(target, MAKEFOURCC('B', 'N', 's', 's'));
+    if (!status) return false;
+    unit_expirestatus(target, status);
+    unit_refreshstatusflags(target);
+    G_InvalidateUnitInfoPanel(target);
+    return true;
+}
+
+bool S_SpellShieldImpactDeferred(uint32_t code) {
+    ability_t const *ability = S_SpellAbilityForCode(code);
+    return ability && (ability->proc == CAbilityThunderBolt || ability->proc == CAbilityFireBolt);
+}
+
 /* The authored targs mask without the unit-target visibility rule: area effects reach
  * units the caster cannot see. */
 bool S_SpellAllowsAreaTarget(uint32_t code, edict_t *caster, edict_t *target) {
@@ -784,10 +813,12 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item_spawn_time = params->source_item_spawn_time);
 
     spell_commit(params->caster, params->code, params->level, active_approach);
-    if (params->spell->flags & AB_CHANNEL)
+    bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
+        S_TryBlockSpellShield(params->caster, params->code, params->target);
+    if (!blocked && (params->spell->flags & AB_CHANNEL))
         spell_begin_channel(params->caster, params->code);
-    spell_publish_effect(params->caster, params->code, st);
-    bool const executed = S_AbilityMessage(params->caster, A_EXECUTE, &call);
+    if (!blocked) spell_publish_effect(params->caster, params->code, st);
+    bool const executed = blocked || S_AbilityMessage(params->caster, A_EXECUTE, &call);
     if (executed && params->source_item) G_CompleteItemUse(params->caster, params->source_item);
     /* Existing unit spells historically accepted the order once validation and
      * commit succeeded even if a handler returned false from A_EXECUTE. Item
@@ -1158,6 +1189,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
     spell_commit(caster, code, level, NULL);
+    if (!S_SpellShieldImpactDeferred(code) && S_TryBlockSpellShield(caster, code, unit)) return true;
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);

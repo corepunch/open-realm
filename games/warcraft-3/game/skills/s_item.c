@@ -551,6 +551,30 @@ BZ_ABILITY_PROC(CAbilityItemManaAoe) {
     return true;
 }
 
+/* Rune of Shielding (ANse): a one-use, untimed BNss protection per eligible
+ * ally. Stock zero Dur is intentional: only an incoming block or dispel
+ * removes it. Re-pickup does not stack charges or create an expiry timer. */
+BZ_ABILITY_PROC(CAbilitySpellShieldAoe) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    cstring_t buff;
+    uint32_t code;
+    if (msg != A_ITEM_USE || !call || !call->item) return false;
+    caster = item_use_caster(ent, call);
+    code = call->item->code;
+    row = G_AbilityLevel(code, 1);
+    buff = row ? row->buffID : NULL;
+    if (!caster || !row || !buff || strlen(buff) < 4 || row->area < 0.0f) return false;
+    FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) &&
+                 S_SpellAllowsAreaTarget(code, caster, target) &&
+                 Vector2_distance(&target->s.origin2, &caster->s.origin2) <= row->area) {
+        if (G_UnitStatusLevel(target, FS_SLKKey(buff))) continue;
+        /* TargetArt is one-shot presentation; BNss owns persistent game state. */
+        S_SpellApplyTimedTargetStatus(target, code, 1, buff, 0.0f);
+    }
+    return true; /* Powerups consume even if all eligible allies already have shields. */
+}
+
 /* TFT Resurrection Runes (APrl / APrr): DataA is the maximum number of
  * nearby friendly ordinary corpses to restore and Area is the search radius.
  * Match the shared Resurrection spell's corpse policy: Heroes keep their altar

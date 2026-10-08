@@ -22,7 +22,8 @@ static void thunderbolt_projectile_hit(edict_t *missile) {
     edict_t *target = S_SpellProjectileTarget(missile);
     edict_t *caster = S_SpellProjectileOwner(missile);
 
-    if (caster && S_SpellIsAliveTarget(target)) {
+    if (caster && S_SpellIsAliveTarget(target) &&
+        !S_TryBlockSpellShield(caster, missile->class_id, target)) {
         if (S_SpellDamage(target, caster, missile->damage) && !M_IsDead(target)) {
             S_SpellApplyStun(target, missile->wait);
         }
