@@ -721,3 +721,13 @@ TEST(commands, cvar_alias_migrates_early_settings_and_rejects_retargeting) {
     T_STREQ(Cvar_String("test_new_speed", ""), "123");
     Cvar_EndConfig();
 }
+
+/* The server reads sv_rate every snapshot; like the other sv_ cvars it is registered with a default and a description
+ * so `set`, cvarlist and the config file know it. */
+TEST(commands, sv_rate_is_registered_unlimited_by_default) {
+    setup_command_tests();
+    Cvar_Init();
+    T_STREQ(Cvar_String("sv_rate", NULL), "0");
+    T_NOT_NULL(Cvar_Get("sv_rate", "", 0)->description);
+    Cvar_EndConfig();
+}

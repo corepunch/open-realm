@@ -12,8 +12,14 @@
 #define BZ_SIGNON_SIZE 1400 // bytes; fits a 1500-byte LAN MTU with UDP/IP headers; bounds remote startup batches
 #define BZ_CLIENT_ZOMBIE_MSEC 2000 // milliseconds; Quake 2 disconnect grace period before a client slot can be reused
 
-/* Loopback accepts engine-sized messages; UDP startup must fit an individual datagram. */
-static inline uint32_t SV_SignonLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE - (Netchan_IsSequenced(chan) ? NETCHAN_HEADER_SIZE : 0)); }
+/* Loopback accepts engine-sized messages; a UDP or EOS datagram must fit BZ_SIGNON_SIZE with its netchan header. */
+static inline uint32_t SV_DatagramLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE - (Netchan_IsSequenced(chan) ? NETCHAN_HEADER_SIZE : 0)); }
+/* Room for a startup reply. The next packet also carries the pending reliable message (a new batch, or a resend of the
+ * one in flight) in front of it, so that comes off the datagram budget; it used to be added on top. */
+static inline uint32_t SV_SignonLimit(struct netchan const *chan) {
+    uint32_t const limit = SV_DatagramLimit(chan), pending = chan->inflight_length ? chan->inflight_length : chan->reliable.cursize;
+    return chan->remote_address.type == NA_LOOPBACK ? limit : limit - MIN(limit, pending);
+}
 
 KNOWN_AS(client_frame, clientFrame_t);
 KNOWN_AS(client, client_t);
@@ -164,9 +170,10 @@ void SV_LobbyAddCommands(void);
 void SV_BuildClientFrame(client_t *client);
 void SV_SendClientDatagram(client_t *client);
 void SV_QueueFrameForClient(client_t *client);
-void SV_WriteFrameToClient(client_t *client);
+uint32_t SV_WriteFrameToClient(client_t *client);
 bool SV_ClientLinkBusy(client_t const *client);
 void SV_AcknowledgeFrames(client_t *client);
+void SV_ResetDeltaBase(client_t *client);
 void SV_SetPaused(bool paused);
 void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client);
 int SV_ModelIndex(cstring_t name);

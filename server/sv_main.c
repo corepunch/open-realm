@@ -62,7 +62,8 @@ static void SV_AppendConfigString(sizeBuf_t *msg, uint32_t i) {
 static bool SV_QueueConfigString(client_t *client, uint32_t i) {
     uint32_t size = SV_ConfigStringWireSize(i);
     sizeBuf_t *reliable = Netchan_Reliable(&client->netchan);
-    uint32_t limit = MIN(SV_SignonLimit(&client->netchan), reliable->maxsize);
+    /* One reliable batch shares a datagram with at most a startup reply, which SV_SignonLimit shrinks to make room. */
+    uint32_t limit = MIN(SV_DatagramLimit(&client->netchan), reliable->maxsize);
 
     if (size + 32 > limit) {
         fprintf(stderr, "SV_QueueConfigString: configstring %u exceeds message limit\n", (unsigned)i);
@@ -99,13 +100,19 @@ void SV_QueuePendingConfigStrings(void) {
 }
 
 void SV_SendClientDatagram(client_t *client) {
+    uint32_t bytes;
     /* A modem still draining the last snapshot skips this one; the next delta is against what it acknowledged. */
     if (SV_ClientLinkBusy(client)) {
-        Netchan_Transmit(NS_SERVER, &client->netchan);
-        return;
+        bytes = Netchan_Transmit(NS_SERVER, &client->netchan);
+    } else {
+        SV_BuildClientFrame(client);
+        bytes = SV_WriteFrameToClient(client);
     }
-    SV_BuildClientFrame(client);
-    SV_WriteFrameToClient(client);
+    /* Q2 "rate": the link stays busy until everything sent has drained at the client's modem speed, reliable stream
+     * and netchan headers included (only the snapshot message used to be charged). */
+    uint32_t const rate = (uint32_t)Cvar_Integer("sv_rate", 0);
+    if (rate && bytes && Netchan_IsSequenced(&client->netchan))
+        client->rate_clear_msec = MAX(svs.realtime, client->rate_clear_msec) + (uint32_t)((uint64_t)bytes * 1000 / rate);
 }
 
 /* Flush any un-synced config strings to all clients, then send a per-frame

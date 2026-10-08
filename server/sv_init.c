@@ -283,8 +283,12 @@ void SV_DirectConnect(netadr_t const *from, cstring_t userinfo) {
      * pre-created this address. Re-send the idempotent handshake response so
      * the client cannot remain on the loading plaque waiting for `new`. */
     if ((existing = SV_FindClientByAddr(from))) {
-        if (existing->state != cs_zombie)
-            Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
+        if (existing->state == cs_zombie) return;
+        /* client_connect starts a new session on both ends: the client restarts its netchan when it reads the reply,
+         * so the slot's must restart too, or each side drops the other's packets as stale. */
+        Netchan_Reset(&existing->netchan);
+        SV_ResetDeltaBase(existing);
+        Netchan_OutOfBandPrint(NS_SERVER, existing->netchan.remote_address, "client_connect %d", BZ_PROTOCOL_VERSION);
         return;
     }
     if ((Cvar_Integer("online_mode", 0) && from->type != NA_EOS && from->type != NA_LOOPBACK) ||

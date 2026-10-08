@@ -54,8 +54,9 @@ typedef struct {
 #define NETCHAN_RELIABLE_MAX (16 * 1024) // bytes; one reliable message in flight plus one being built
 
 /* Quake 2 netchan. message is the unreliable stream (frames, sounds, layouts): sent once, never resent. reliable
- * is the reliable stream (live configstrings): resent every packet until the peer acknowledges it. Only NA_IP is
- * sequenced; loopback and EOS (reliable-ordered) deliver every packet in order, so they send the bare stream. */
+ * is the reliable stream (live configstrings, a client's "nodelta"): resent until the peer acknowledges it. Only
+ * NA_IP is sequenced; loopback and EOS (reliable-ordered) deliver every packet in order, so they carry no header and
+ * the reliable stream rides in front of the message, or in its own packet just before it when both do not fit. */
 struct netchan {
     netadr_t remote_address;    // where packets are sent/expected from
     sizeBuf_t message;
@@ -66,6 +67,7 @@ struct netchan {
     uint32_t inflight_length;
     uint32_t outgoing_sequence, incoming_sequence, incoming_acknowledged;
     uint32_t last_reliable_sequence;
+    uint32_t unreliable_sequence; // the last packet that carried the unreliable message
     uint32_t dropped;           // packets lost between the last two accepted packets
     uint8_t reliable_sequence, incoming_reliable_sequence, incoming_reliable_acknowledged; // alternating 0/1 bits
     bool ack_owed;              // the last accepted packet carried data the peer is waiting to hear acknowledged
@@ -95,7 +97,7 @@ int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg);
 int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg);
 void NET_ClearLoopPackets(NETSOURCE netsrc);
 
-void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
+uint32_t Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan); // bytes sent, headers included
 // Tests divert every outgoing packet (any address type) into a simulated link; NULL restores real routing.
 void NET_SetPacketHook(void (*hook)(NETSOURCE netsrc, int length, void const *data, netadr_t to));
 uint32_t Netchan_BuildPacket(struct netchan *netchan, uint8_t *out, uint32_t out_size);
