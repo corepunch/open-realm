@@ -517,7 +517,7 @@ void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, mat4_t *light);
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, uint32_t camera_index, float aspect, mat4_t *output, mat4_t *light);
 bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);

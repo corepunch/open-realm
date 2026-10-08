@@ -1729,6 +1729,19 @@ TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
     gi.QueueMovie = old_queue_movie;
 }
 
+TEST(wc3_jass_map, model_cinematic_queues_original_mdl_asset_path) {
+    void (*old_queue_model)(cstring_t) = gi.QueueModelCinematic;
+    cinematic_movie_path[0] = '\0';
+    gi.QueueModelCinematic = capture_cinematic_movie;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PlayModelCinematic(\"Doodads\\\\Cinematic\\\\ArthasIllidanFight\\\\ArthasIllidanFight.mdl\")\n"
+        "endfunction\n"
+    ));
+    T_STREQ(cinematic_movie_path, "Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    gi.QueueModelCinematic = old_queue_model;
+}
+
 TEST(wc3_jass_map, neutral_remove_records_result_without_victory_or_defeat_event) {
     bool ok = run_test_jass(
         "function main takes nothing returns nothing\n"

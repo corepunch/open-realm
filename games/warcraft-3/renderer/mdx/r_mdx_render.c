@@ -29,13 +29,15 @@ static void Matrix4_getLightMatrix(vec3_t const *sunangles, vec3_t const *target
 }
 
 static bool
-R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, vec3_t *root)
+R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, uint32_t camera_index, float aspect, mat4_t *output, vec3_t *root)
 {
     if (!model || !model->cameras) {
         return false;
     }
 
     mdxCamera_t const *camera = model->cameras;
+    /* No camera change for normal portraits, which default to index zero. */
+    while (camera_index-- && camera->next) camera = camera->next;
     mat4_t projection, view;
     vec3_t eye = camera->pivot;
     vec3_t target = camera->targetPivot;
@@ -201,10 +203,10 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t 
     return seq;
 }
 
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, mat4_t *light) {
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, uint32_t camera_index, float aspect, mat4_t *output, mat4_t *light) {
     vec3_t root;
     vec3_t lightAngles = { 10, 270, 0 };
-    bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
+    bool ok = R_GetModelCameraMatrix(model, frame, camera_index, aspect, output, &root);
     if (ok && light) {
         Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
     }

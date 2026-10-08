@@ -153,6 +153,7 @@ typedef struct {
 #endif
     uint32_t frame;
     uint32_t oldframe;
+    uint32_t camera_index; /* dedicated model-cinematic scene; zero for ordinary portraits */
     uint32_t flags;
     uint8_t health;        /* compressed 0..255 snapshot health ratio */
     uint16_t effect_flags;
@@ -235,6 +236,8 @@ typedef struct {
 } viewDef_t;
 
 struct modelInfo_s {
+    uint32_t sequenceCount; /* MDX model-cinematic playback metadata */
+    uint32_t cameraCount;
     uint32_t textureCount;
     cstring_t texturePaths[MODELINFO_MAX_TEXTURES];
     rect_t textureUVRect;

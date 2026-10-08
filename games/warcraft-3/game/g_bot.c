@@ -228,6 +228,7 @@ static bool G_BotIsHostile(player_t *, edict_t *);
 static void G_BotClearCaptains(bot_t *bot) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
         if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
+        if (bot->captains[i].routes) gi.MemFree(bot->captains[i].routes);
         memset(bot->captains + i, 0, sizeof(bot->captains[i]));
     }
 }
@@ -1228,6 +1229,7 @@ void G_BotInitAssault(player_t *player) {
     if (!bot) return;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
     if (captain->units) gi.MemFree(captain->units);
+    if (captain->routes) gi.MemFree(captain->routes);
     memset(captain, 0, sizeof(*captain)); captain->state = BOT_CAPTAIN_FORMING;
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI assault init player=%u\n", PLAYER_NUM(player));
@@ -1465,6 +1467,179 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
 }
 
+/* BZ_COMPAT_GUESS: TeleportCaptain relocates the *attack captain's logical*
+ * position without teleporting its member units, changing its home or
+ * destroying existing attack targets.  Retail in-flight effects are unknown. */
+void G_BotTeleportCaptain(player_t *player, float x, float y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot || !isfinite(x) || !isfinite(y)) return;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    captain->position = MAKE(vec2_t, x, y);
+    captain->position_valid = true;
+}
+
+/* BZ_COMPAT_GUESS: SetAmphibious enables a per-member route preflight,
+ * but must not change a unit's authored movement mask.  A partial destination
+ * is the closest reachable waypoint, NOT the original common captain goal. */
+static vec2_t G_BotCaptainRoutePoint(bot_t const *bot, edict_t const *unit,
+                                   vec2_t const *goal, bool *partial) {
+    vec2_t reachable;
+    *partial = false;
+    if (bot && unit && (bot->flags & BOT_AMPHIBIOUS) && !(bot->flags & BOT_DISABLE_PATHING) &&
+        CM_ClosestReachablePointForRadiusFlags(&unit->s.origin2, goal, unit->collision,
+                                                M_UnitStaticPathingFlags(unit), &reachable)) {
+        *partial = Vector2_distance(&reachable, goal) > BOT_GROUP_FLEE_HOME_RADIUS;
+        return reachable;
+    }
+    if (bot && unit && (bot->flags & BOT_AMPHIBIOUS) &&
+        !(bot->flags & BOT_DISABLE_PATHING)) {
+        /* BZ_COMPAT_GUESS: no navigable candidate; complete the captain's
+         * order at the member's existing reachable position rather than
+         * leaving common.ai waiting forever for unreachable water. */
+        *partial = true;
+        return unit->s.origin2;
+    }
+    return *goal;
+}
+
+/* A captain owns one authored objective but each member may receive a
+ * different reachable destination. These routes are transient AI runtime
+ * state, not an edict or game-save contract. Replacing an order frees the
+ * previous route map; no stale member pointer is ever dereferenced. */
+static void G_BotCaptainClearRoutes(botCaptain_t *captain) {
+    if (captain->routes) gi.MemFree(captain->routes);
+    captain->routes = NULL;
+    ARRAY_COUNT(captain->routes) = 0;
+}
+
+static void G_BotCaptainPrepareRoutes(botCaptain_t *captain) {
+    uint32_t count = ARRAY_COUNT(captain->units);
+    G_BotCaptainClearRoutes(captain);
+    if (!count) return;
+    captain->routes = gi.MemAlloc(count * sizeof(*captain->routes));
+    memset(captain->routes, 0, count * sizeof(*captain->routes));
+    ARRAY_COUNT(captain->routes) = count;
+}
+
+static void G_BotCaptainRecordRoute(botCaptain_t *captain, uint32_t index,
+                                   edict_t *unit, vec2_t destination, bool partial) {
+    if (index >= ARRAY_COUNT(captain->routes)) return;
+    captain->routes[index] = MAKE(botCaptainRoute_t,
+        .unit = unit, .destination = destination, .partial = partial);
+}
+
+static vec2_t const *G_BotCaptainMemberDestination(botCaptain_t const *captain,
+                                                    edict_t const *unit, vec2_t const *default_goal) {
+    FOR_EACH_ARRAY(botCaptainRoute_t, route, captain->routes)
+        if (route->unit == unit) return &route->destination;
+    return default_goal;
+}
+
+void G_BotCaptainAttack(player_t *player, float x, float y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    bool any = false;
+    if (!bot || !isfinite(x) || !isfinite(y)) return;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    captain->goal = MAKE(vec2_t, x, y);
+    captain->position_valid = false;
+    G_BotCaptainPrepareRoutes(captain);
+    FOR_LOOP(i, ARRAY_COUNT(captain->units)) {
+        edict_t *member = captain->units[i];
+        vec2_t destination;
+        bool partial;
+        if (!G_BotUnitAlive(member)) continue;
+        destination = G_BotCaptainRoutePoint(bot, member, &captain->goal, &partial);
+        G_BotCaptainRecordRoute(captain, i, member, destination, partial);
+        order_attackmove(member, Waypoint_add(&destination));
+        any = true;
+    }
+    if (any) captain->state = BOT_CAPTAIN_ACTIVE;
+}
+
+void G_BotCaptainGoHome(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    if (!bot) return;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    captain->goal = captain->home;
+    captain->position_valid = false;
+    G_BotCaptainPrepareRoutes(captain);
+    FOR_LOOP(i, ARRAY_COUNT(captain->units)) {
+        edict_t *member = captain->units[i];
+        vec2_t destination;
+        bool partial;
+        if (!G_BotUnitAlive(member)) continue;
+        destination = G_BotCaptainRoutePoint(bot, member, &captain->home, &partial);
+        G_BotCaptainRecordRoute(captain, i, member, destination, partial);
+        order_move(member, Waypoint_add(&destination));
+    }
+    captain->state = BOT_CAPTAIN_ACTIVE;
+}
+
+/* BZ_COMPAT_GUESS: partial-route arrival means each living member reached
+ * its issued reachable waypoint. This reports order completion, not actual
+ * access to an unreachable water-separated captain objective. The attack
+ * captain's original goal remains unchanged for scripts/next orders. */
+bool G_BotCaptainAtGoal(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    bool has_unit = false;
+    botCaptain_t *captain;
+    if (!bot) return false;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    if (captain->position_valid)
+        return Vector2_distance(&captain->position, &captain->goal) <= BOT_GROUP_FLEE_HOME_RADIUS;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        vec2_t const *destination;
+        if (!G_BotUnitAlive(*member)) continue;
+        has_unit = true;
+        destination = G_BotCaptainMemberDestination(captain, *member, &captain->goal);
+        if (Vector2_distance(&(*member)->s.origin2, destination) > BOT_GROUP_FLEE_HOME_RADIUS) return false;
+    }
+    return has_unit;
+}
+
+bool G_BotCaptainIsHome(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    bool has_unit = false;
+    if (!bot) return false;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    if (captain->position_valid)
+        return Vector2_distance(&captain->position, &captain->home) <= BOT_GROUP_FLEE_HOME_RADIUS;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        if (!G_BotUnitAlive(*member)) continue;
+        has_unit = true;
+        vec2_t const *destination = &captain->home;
+        if (Vector2_distance(&captain->goal, &captain->home) <= 0.01f)
+            destination = G_BotCaptainMemberDestination(captain, *member, &captain->home);
+        if (Vector2_distance(&(*member)->s.origin2, destination) > BOT_GROUP_FLEE_HOME_RADIUS) return false;
+    }
+    if (has_unit) return true;
+    return false;
+}
+
+void G_BotClearCaptainTargets(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    botCaptain_t *captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    /* BZ_COMPAT_GUESS: clear logical targets only; existing member orders
+     * keep running, so do not claim the captain is idle while they fight. */
+    G_BotCaptainClearRoutes(captain);
+    captain->position_valid = false;
+    captain->goal = captain->home;
+}
+
+void G_BotResetCaptainLocs(player_t *player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        bot->captains[i].position = bot->captains[i].home;
+        bot->captains[i].position_valid = true;
+        bot->captains[i].goal = bot->captains[i].home;
+        G_BotCaptainClearRoutes(&bot->captains[i]);
+    }
+}
+
 void G_BotSetStagePoint(player_t *player, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
@@ -1645,6 +1820,56 @@ bool G_BotSuicidePlayer(player_t *player, uint32_t target, bool check_full) {
     captain->state = BOT_CAPTAIN_ACTIVE;
     if (bot->stage_valid) captain->goal = bot->stage;
     return true;
+}
+
+/* BZ_COMPAT_GUESS: VsUnits targets enemy units only; VsPlayer also
+ * targets buildings. Select ONE visible enemy as captain objective, rather
+ * than repeatedly overwriting the shared goal with each soldier's target.
+ * G_FowPlayerCanHoverEntity requires CURRENT visibility for structures as
+ * well as units (CanSeeEntity deliberately includes explored buildings). */
+static void G_BotCaptainVsTarget(player_t *player, player_t *enemy, bool units_only) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    edict_t *best = NULL;
+    float best_distance = 0.0f;
+    bool any = false;
+    if (!bot || !enemy) return;
+    captain = &bot->captains[BOT_CAPTAIN_ATTACK];
+    FILTER_EDICTS(candidate, G_BotUnitAlive(candidate) &&
+        candidate->s.player == PLAYER_NUM(enemy) &&
+        ((candidate->svflags & SVF_MONSTER) || G_UnitIsStructure(candidate)) &&
+        (!units_only || !G_UnitIsStructure(candidate)) &&
+        !(candidate->svflags & SVF_NOCLIENT) &&
+        !S_UnitIsHiddenFromPlayer(candidate, PLAYER_NUM(player)) &&
+        G_FowPlayerCanHoverEntity(PLAYER_NUM(player), candidate)) {
+        FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+            float distance;
+            if (!G_BotUnitAlive(*member)) continue;
+            distance = Vector2_distance(&(*member)->s.origin2, &candidate->s.origin2);
+            if (!best || distance < best_distance) {
+                best = candidate;
+                best_distance = distance;
+            }
+        }
+    }
+    if (!best) return; /* Retain previous orders/goal when no valid target is visible. */
+    G_BotCaptainClearRoutes(captain);
+    captain->position_valid = false;
+    captain->goal = best->s.origin2;
+    FOR_EACH_ARRAY(edict_t *, member, captain->units) {
+        if (!G_BotUnitAlive(*member)) continue;
+        order_attack(*member, best);
+        any = true;
+    }
+    if (any) captain->state = BOT_CAPTAIN_ACTIVE;
+}
+
+void G_BotCaptainVsPlayer(player_t *player, player_t *enemy) {
+    G_BotCaptainVsTarget(player, enemy, false);
+}
+
+void G_BotCaptainVsUnits(player_t *player, player_t *enemy) {
+    G_BotCaptainVsTarget(player, enemy, true);
 }
 
 /* MergeUnits reports whether the requested fused count already stands as live,

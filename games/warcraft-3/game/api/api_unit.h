@@ -309,6 +309,19 @@ uint32_t GetUnitUserData(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->user_data : 0);
 }
+/* BZ_COMPAT_GUESS: retail does not document the return contract for null or
+ * repeated requests.  For a valid unit, report success.  The getter always
+ * reports the stored flag; this only mutes alarms, never retaliation/damage. */
+uint32_t UnitIgnoreAlarm(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    bool ignore = jass_checkboolean(j, 2);
+    if (unit && unit->inuse) unit->ignore_alarm = ignore;
+    return jass_pushboolean(j, unit && unit->inuse);
+}
+uint32_t UnitIgnoreAlarmToggled(jass_t *j) {
+    edict_t *unit = jass_checkhandle(j, 1, "unit");
+    return jass_pushboolean(j, unit && unit->inuse && unit->ignore_alarm);
+}
 uint32_t UnitSetUsesAltIcon(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) whichUnit->uses_alt_icon = jass_checkboolean(j, 2);

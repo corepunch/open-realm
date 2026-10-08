@@ -178,18 +178,22 @@ void CL_MusicSetPosition(int32_t millisecs);
 void CL_MusicSetThematicVolume(int32_t volume);
 void CL_MusicSetThematicPosition(int32_t millisecs);
 void CL_MusicSuspend(void);
+bool CL_MusicIsSuspended(void);
 void CL_MusicResumeFromSuspend(void);
 
 /* Optional full-screen movie playback (client/cl_movie.c). */
 void CL_MovieInit(void);
 void CL_Movie_f(void);
 void CL_QueueMovie(cstring_t path);
+void CL_QueueModelCinematic(cstring_t path);
+bool CL_PlayModelCinematic(cstring_t path);
 bool CL_PlayMovie(cstring_t path);
 bool CL_MovieActive(void);
 void CL_MovieUpdate(void);
 void CL_MovieDraw(void);
 bool CL_MovieKeyEvent(keyCode_t key, bool down);
 void CL_MovieShutdown(void);
+void CL_MovieCancel(void);
 vec2_t CL_ClampCameraPosition(vec2_t position);
 void CL_PredictCameraPosition(vec2_t position);
 static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f ? scale : 1.0f; }

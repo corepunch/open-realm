@@ -192,6 +192,16 @@ the Human campaign before a long final cinematic and calls `CustomVictoryBJ` onl
 [campaign-progress.md](../../docs/games/warcraft-3/campaign-progress.md). The `doScoreScreen` parameter is consumed but score-screen presentation
 is not implemented yet.
 
+`PlayModelCinematic` now queues the authored MDL path to an isolated MDX
+model scene in the client; this works even when no new map/menu action follows.
+It advances non-looping model sequences with embedded cameras and defers
+session transitions until playback completes or is skipped. Sequence start,
+exact music, native JASS blocking and MRF morph effects are not retail-exact;
+see [Campaign AI and model cinematics](../../docs/games/warcraft-3/campaign-ai-model-cinematic.md)
+for `BZ_COMPAT_GUESS` details. `UnitIgnoreAlarm` suppresses the attacked
+notification from flagged victims; `SetAmphibious`, `TeleportCaptain`, and
+associated captain operations are registered with documented approximations.
+
 `PlayCinematic` now queues `Movies\<name>.mpq` through `gi.QueueMovie`. When the script subsequently requests a map/menu
 session action, the client pauses the outgoing simulation, plays the pre-rendered movie through the optional FFmpeg
 backend, then resumes that deferred action after EOF or Escape. Builds without `FFMPEG=1` leave the native harmless and

@@ -1966,4 +1966,130 @@ TEST(wc3_bot, defend_player_redirects_only_defense_captain_and_returns_home) {
     T_EQ(defender->currentmove->proc, CAbilityMove);
 }
 
+/* These tests intentionally do not assume retail's undocumented captain
+ * in-flight order/arrival tolerance; they assert independent engine-owned state. */
+TEST(wc3_bot, teleport_captain_preserves_home_goal_and_members) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *attack = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    botCaptain_t *defense = &level.bots[2].captains[BOT_CAPTAIN_DEFENSE];
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    G_BotSetCaptainHome(player, 1, 100.0f, 200.0f);
+    G_BotSetCaptainHome(player, 2, 700.0f, 800.0f);
+    G_BotCaptainAttack(player, 400.0f, 500.0f);
+    G_BotTeleportCaptain(player, 400.0f, 500.0f);
+    T_ASSERT(attack->position_valid);
+    T_FEQ(attack->position.x, 400.0f, 0.01f);
+    T_FEQ(attack->position.y, 500.0f, 0.01f);
+    T_FEQ(attack->goal.x, 400.0f, 0.01f);
+    T_FEQ(attack->home.x, 100.0f, 0.01f);
+    T_FEQ(defense->home.x, 700.0f, 0.01f);
+    T_ASSERT(!defense->position_valid);
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    G_BotResetCaptainLocs(player);
+    T_FEQ(attack->position.x, 100.0f, 0.01f);
+    T_ASSERT(G_BotCaptainIsHome(player));
+}
+
+TEST(wc3_bot, captain_teleport_never_moves_assigned_units) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *footman;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    G_BotTeleportCaptain(player, 2000.0f, 3000.0f);
+    T_FEQ(footman->s.origin2.x, 64.0f, 0.01f);
+    T_FEQ(footman->s.origin2.y, 128.0f, 0.01f);
+    T_EQ(G_BotCaptainGroupSize(player), 1);
+}
+
+TEST(wc3_bot, teleport_captain_affects_arrival_even_with_assigned_units) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    edict_t *footman;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    captain->goal = MAKE(vec2_t, 1500.0f, 2000.0f);
+    G_BotTeleportCaptain(player, 1500.0f, 2000.0f);
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    T_ASSERT(!G_BotCaptainIsHome(player));
+    T_FEQ(footman->s.origin2.x, 64.0f, 0.01f);
+    G_BotCaptainGoHome(player);
+    T_ASSERT(!captain->position_valid);
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, amphibious_route_policy_does_not_change_unit_pathing) {
+    player_t *player = &game.clients[2].ps;
+    edict_t *footman;
+    uint8_t movement_flags;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    footman = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    movement_flags = M_UnitStaticPathingFlags(footman);
+    level.bots[2].flags |= BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
+    T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
+    T_ASSERT(G_BotAddAssault(player, 1, footman->class_id));
+    G_BotCaptainAttack(player, 320.0f, 384.0f);
+    T_EQ(M_UnitStaticPathingFlags(footman), movement_flags);
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, captain_arrival_uses_per_member_reachable_destinations) {
+    player_t *player = &game.clients[2].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    edict_t *a;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 128.0f, 2, NULL);
+    make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 250.0f, 128.0f, 2, NULL);
+    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
+    level.bots[2].flags = BOT_AMPHIBIOUS | BOT_DISABLE_PATHING;
+    G_BotCaptainAttack(player, 4000.0f, 5000.0f);
+    T_EQ(ARRAY_COUNT(captain->routes), 2u);
+    T_ASSERT(!G_BotCaptainAtGoal(player));
+    /* Simulate the actual reachable edge issued by the amphibious planner.
+     * The original common captain goal remains across the water. */
+    FOR_LOOP(i, ARRAY_COUNT(captain->routes)) {
+        botCaptainRoute_t *route = captain->routes + i;
+        route->destination = route->unit->s.origin2;
+        route->partial = true;
+    }
+    T_ASSERT(G_BotCaptainAtGoal(player));
+    T_FEQ(captain->goal.x, 4000.0f, 0.01f);
+    T_FEQ(captain->goal.y, 5000.0f, 0.01f);
+    captain->state = BOT_CAPTAIN_ACTIVE;
+    G_BotClearCaptainTargets(player);
+    T_EQ(ARRAY_COUNT(captain->routes), 0u);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE); /* current soldier orders persist */
+    G_BotCreateCaptains(player);
+}
+
+TEST(wc3_bot, captain_targeting_selects_one_visible_group_objective) {
+    player_t *player = &game.clients[2].ps;
+    player_t *enemy_player = &game.clients[3].ps;
+    botCaptain_t *captain = &level.bots[2].captains[BOT_CAPTAIN_ATTACK];
+    edict_t *a, *b, *enemy_a, *enemy_b;
+    uint32_t rdflags = player->rdflags;
+    reset_entities();
+    memset(level.bots + 2, 0, sizeof(level.bots[2]));
+    a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 128, 2, NULL);
+    b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 640, 128, 2, NULL);
+    enemy_a = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 96, 128, 3, NULL);
+    enemy_b = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 608, 128, 3, NULL);
+    enemy_a->svflags |= SVF_MONSTER;
+    enemy_b->svflags |= SVF_MONSTER;
+    T_ASSERT(G_BotAddAssault(player, 2, a->class_id));
+    player->rdflags |= RDF_NOFOG; /* isolate target-scoring from fog fixture */
+    G_BotCaptainVsUnits(player, enemy_player);
+    T_EQ(captain->state, BOT_CAPTAIN_ACTIVE);
+    T_FEQ(captain->goal.x, enemy_a->s.origin2.x, 0.01f);
+    T_ASSERT(a->goalentity == enemy_a && b->goalentity == enemy_a);
+    player->rdflags = rdflags;
+    G_BotCreateCaptains(player);
+}
+
 #endif /* BZ_TESTS */
