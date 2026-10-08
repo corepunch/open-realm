@@ -3447,6 +3447,41 @@ static void set_uniform_test_water_height(float height) {
     FOR_LOOP(i, count) vertices[i].waterlevel = encoded;
 }
 
+TEST(wc3_movement, snapshot_marks_authored_water_selection_circle_only_on_water_support) {
+    static UnitUI_t water_circle_ui = { .selectionCircleOnWater = true };
+    edict_t *unit = make_moving_unit(0.0f, 0.0f);
+    entityState_t snapshot;
+    float water_z, ground_z;
+
+    T_NOT_NULL(globals.CustomizeEntity);
+    if (!globals.CustomizeEntity) return;
+
+    unit->data.UnitUI = &water_circle_ui;
+    unit->s.ground_offset = 5.0f;
+    set_uniform_test_water_height(64.0f);
+    water_z = CM_GetWaterHeightAtPoint(0.0f, 0.0f);
+    unit->s.origin.z = water_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER);
+
+    /* The same authored unit on land must return to ordinary terrain rings. */
+    ground_z = CM_GetHeightAtPoint(0.0f, 0.0f);
+    unit->s.origin.z = ground_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    snapshot.flags |= EF_SELECTION_CIRCLE_ON_WATER;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(!(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER));
+
+    /* Water support alone does not opt a unit in when the object data says no. */
+    water_circle_ui.selectionCircleOnWater = false;
+    unit->s.origin.z = water_z + unit->s.ground_offset;
+    snapshot = unit->s;
+    globals.CustomizeEntity(0, unit, &snapshot);
+    T_ASSERT(!(snapshot.flags & EF_SELECTION_CIRCLE_ON_WATER));
+    water_circle_ui.selectionCircleOnWater = true;
+}
+
 TEST(wc3_movement, fly_height_is_added_to_support_surface) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     float const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);

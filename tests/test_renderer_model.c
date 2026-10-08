@@ -1932,6 +1932,7 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
     ground_update.z = vertices[0].position.z;
 }
 #define R_RenderRectSplatUV R_TestProductionRenderRectSplatUV
+#define R_RenderFlatRectSplat R_TestProductionRenderFlatRectSplat
 #define R_RenderSplat R_TestProductionRenderSplat
 #define R_UpdateVertexArrayObject test_ground_update
 #define WC3_TERRAIN_NORMAL_TESTS
@@ -1942,6 +1943,7 @@ static void test_ground_update(buffer_t const *buffer, uint32_t first, vertex_t 
 #undef glDisable
 #undef glPolygonOffset
 #undef R_RenderRectSplatUV
+#undef R_RenderFlatRectSplat
 #undef R_RenderSplat
 #define _W3M_ClearMap R_TestClearMap
 #define _W3M_RegisterMap R_TestUnusedRegisterMap

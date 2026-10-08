@@ -11,6 +11,13 @@
 #define MDLX_FindSequenceByName R_TestCursorSequence
 #include "../games/warcraft-3/renderer/r_game.c"
 
+/* Keep the selection-ring production path in this headless test translation
+ * unit. The renderer imports below record whether it requests terrain-conformed
+ * or flat geometry, without needing a GL context. */
+#define R_GetEntityMatrix R_TestEntityMatrixFromEnts
+#include "../renderer/r_ents.c"
+#undef R_GetEntityMatrix
+
 #include "test.h"
 
 extern void R_TestUseProductionModelLoader(bool enabled);
@@ -26,6 +33,8 @@ static uint32_t test_sound_count;
 static uint32_t test_splat_count;
 static vec2_t test_splat_origin;
 static float test_splat_radius;
+static uint32_t test_flat_splat_count;
+static float test_flat_splat_z;
 static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
@@ -233,6 +242,63 @@ void R_RenderSplat(vec2_t const *position, float radius, texture_t const *textur
     test_splat_origin = *position;
     test_splat_radius = radius;
     test_splat_color = color;
+}
+
+void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
+                           texture_t const *texture, splat_shader_t *shader, color32_t color) {
+    (void)mins; (void)maxs; (void)texture; (void)shader; (void)color;
+    test_flat_splat_count++;
+    test_flat_splat_z = z;
+}
+
+TEST(renderer_game, water_supported_selection_ring_is_flat_at_water_surface) {
+    model_t model = { 0 };
+    renderEntity_t entity = {
+        .origin = { 64.0f, 96.0f, 128.0f }, /* water surface 8 units below unit origin */
+        .model = &model,
+        .flags = RF_SELECTED | RF_SELECTION_CIRCLE_ON_WATER,
+        .radius = 12.0f,
+        .ground_offset = 8.0f,
+    };
+    renderEntity_t *saved_entities = tr.viewDef.entities;
+    uint32_t saved_num_entities = tr.viewDef.num_entities;
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    tr.viewDef.entities = &entity;
+    tr.viewDef.num_entities = 1;
+
+    /* The entity pass defers this overlay; the post-water pass emits it as a
+     * flat quad at its support water height, plus the one-unit depth bias. */
+    R_RenderSelectedCircle(&entity, (vec2_t const *)&entity.origin, false);
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 0);
+    R_DrawWaterEntityOverlays();
+
+    T_EQ(test_splat_count, 0);
+    T_EQ(test_flat_splat_count, 1);
+    T_FEQ(test_flat_splat_z, 121.0f, 0.001f);
+
+    tr.viewDef.entities = saved_entities;
+    tr.viewDef.num_entities = saved_num_entities;
+}
+
+TEST(renderer_game, ordinary_selected_ring_still_uses_terrain_conforming_path) {
+    renderEntity_t entity = {
+        .origin = { 64.0f, 96.0f, 128.0f },
+        .flags = RF_SELECTED,
+        .radius = 12.0f,
+    };
+    vec2_t const origin = { entity.origin.x, entity.origin.y };
+
+    test_splat_count = 0;
+    test_flat_splat_count = 0;
+    R_RenderSelectedCircle(&entity, &origin, false);
+
+    T_EQ(test_splat_count, 1);
+    T_EQ(test_flat_splat_count, 0);
+    T_FEQ(test_splat_origin.x, entity.origin.x, 0.001f);
+    T_FEQ(test_splat_origin.y, entity.origin.y, 0.001f);
 }
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
