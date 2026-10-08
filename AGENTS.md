@@ -511,6 +511,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 ## PR Hygiene and Protocol Stability
 
 - **Add commits; never rewrite history or force-push.**
+- **Commit messages and PR descriptions describe only what the change does and why.** Do not name other games or engines (Quake 2, etc.) or justify the change by comparison with them; state the problem, the behavior now, and the tests. Reference-engine comparisons belong in code comments or docs only where they explain a contract.
 - **Network wire format stays bit-compatible unless explicitly approved.** Network flags and message layouts remain unchanged. Save formats follow the strict rejection policy above; bump their version when their contract changes. State network and save-format impact separately in the PR description.
 - **Note the baseline before fixing.** Run `make test` first and record pre-existing failures. Write each new test before its fix and confirm it fails.
 - **Build the matrix.** Finish with `make test` plus the affected engine suites, building with and without each relevant `DEBUG` define, and building every game target whose shared path changed (e.g. SC2 and WoW for `common/`/`client/`/`renderer/` changes).
