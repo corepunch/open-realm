@@ -1832,6 +1832,7 @@ TEST(wc3_unit, submerge_toggle_state_selects_surface_button) {
     edict_t *unit;
     abilityitem_t item;
     abilityCall_t call;
+    gameCommandButton_t button;
 
     reset_test_entities(); setup_test_world();
     install_submerge_test_data(&rows, &old, &ui_rows, &old_ui);
@@ -1839,11 +1840,17 @@ TEST(wc3_unit, submerge_toggle_state_selects_surface_button) {
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.5f, 0.5f);
     unit->svflags |= SVF_MONSTER;
     T_ASSERT(G_ActorAddSkill(unit, asb1));
+    T_ASSERT(G_BuildCommandButton(unit, "Asb1", false, 0, &button));
+    T_STREQ(button.tooltip, "Submerge");
+    T_STREQ(button.ubertip, "Hide beneath the water.");
     item = S_AbilityItem(asb1);
     call = MAKE(abilityCall_t, .item = &item);
     T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
     T_ASSERT(unit_issueimmediateorder(unit, "submerge"));
     T_ASSERT(S_AbilityMessage(unit, A_TOGGLE_ON, &call));
+    T_ASSERT(G_BuildCommandButton(unit, "Asb1", false, 0, &button));
+    T_STREQ(button.tooltip, "Surface");
+    T_STREQ(button.ubertip, "Return to the surface.");
     T_ASSERT(unit_issueimmediateorder(unit, "unsubmerge"));
     T_ASSERT(!S_AbilityMessage(unit, A_TOGGLE_ON, &call));
     restore_submerge_test_data(rows, old, ui_rows, old_ui);

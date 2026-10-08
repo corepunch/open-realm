@@ -44,6 +44,7 @@ cstring_t config_files[] = {
     "Units\\UndeadUnitStrings.txt",
     "Units\\NightElfAbilityFunc.txt",
     "Units\\CampaignAbilityFunc.txt",
+    "Units\\CampaignAbilityStrings.txt",
     "Units\\MiscData.txt",
     "Units\\UndeadUpgradeStrings.txt",
     NULL
