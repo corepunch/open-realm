@@ -1114,6 +1114,24 @@ bool S_AcolyteHarvestOrder(edict_t *worker, edict_t *mine) {
     return true;
 }
 
+/* The stock autoharvestgold order used by Undead campaign setup has no target.
+ * Resolve it to the nearest live Haunted Mine owned by this Acolyte. */
+bool S_AcolyteHarvestAutoStart(edict_t *worker) {
+    edict_t *best = NULL;
+    float best_dist = FLT_MAX;
+
+    if (!worker || (worker->aiflags & AI_IMMOBILE) ||
+        !goldmine_actor_ability_alias(worker, MAKEFOURCC('A','a','h','a'))) return false;
+    FILTER_EDICTS(mine, haunted_mine_valid_for(worker, mine)) {
+        float const distance = Vector2_distance(&worker->s.origin2, &mine->s.origin2);
+        if (distance < best_dist) {
+            best = mine;
+            best_dist = distance;
+        }
+    }
+    return best && S_AcolyteHarvestOrder(worker, best);
+}
+
 void blight_mine_think(edict_t *mine) {
     uint32_t alias, maximum, active, multiplier, interval_ms, now;
     int32_t gold_per_interval, gold;

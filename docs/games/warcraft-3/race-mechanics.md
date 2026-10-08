@@ -112,6 +112,9 @@ An Acolyte walks into ability range, selects the nearest free slot, snaps to its
 `stand work`, and owns `{mine, mine_spawn_time, slot}` until retasked, killed, removed, or the mine disappears. `Abgm` DataA/DataB
 drive direct gold income from the parent. The current Warsmash source uses integer `maxMiners / activeMiners` when stretching the
 interval; OpenRealm intentionally preserves that integer behavior rather than substituting fractional scaling.
+The stock `autoharvestgold` immediate order also starts this `Aaha` behavior by selecting the nearest valid Haunted Mine owned by
+the Acolyte. Undead campaign setup uses that targetless order after `BlightGoldMineForPlayer` creates the Haunted Mine; the same
+order remains supported for `Ahar` workers and Entangled Mine Wisps.
 
 Night Elf Entangled Mines reuse the existing `Aenc` cargo contract. Mining Wisps are hidden/paused cargo occupants, and the mine uses
 first-through-fifth secondary animation tags for occupancy. `Aegm` DataA/DataB advance a persistent round-robin slot index before

@@ -3429,6 +3429,7 @@ void S_MineOverlayRelease(edict_t *);
 edict_t *S_CreateBlightedGoldmine(uint32_t, vec2_t const *, float);
 void S_GoldMineSetResourceAmount(edict_t *, uint32_t);
 bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
+bool S_AcolyteHarvestAutoStart(edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
 bool S_AcolyteHarvestIsActive(edict_t const *);
 bool S_EntangleCommandHidden(edict_t const *, uint32_t);

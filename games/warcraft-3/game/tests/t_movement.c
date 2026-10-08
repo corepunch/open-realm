@@ -4577,6 +4577,36 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     free_slk_rows(rows);
 }
 
+/* UndeadX04's retail cleanup issues autoharvestgold to its newly created
+ * Acolytes after replacing the neutral mine with a Haunted Mine. */
+TEST(wc3_movement, autoharvestgold_assigns_acolyte_to_nearest_haunted_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *haunted, *acolyte;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    haunted = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    acolyte = alloc_test_unit(MAKEFOURCC('u','a','c','o'), 180.0f, 0.0f);
+    setup_test_goldmine(parent, &test_goldmine_stock, 4500);
+    haunted->data.UnitAbilities = &test_haunted_mine;
+    haunted->s.player = acolyte->s.player = 0;
+    acolyte->data.UnitAbilities = &test_acolyte_harvest;
+    acolyte->stand = unit_stand;
+    acolyte->collision = 16.0f;
+    acolyte->unitinfo.MoveSpeed = 220.0f;
+    unit_stand(acolyte);
+    T_ASSERT(S_MineOverlayBind(haunted, parent));
+
+    T_ASSERT(unit_issueimmediateorder(acolyte, "autoharvestgold"));
+    T_EQ(acolyte->goalentity, haunted);
+    T_ASSERT(acolyte->currentmove && acolyte->currentmove->proc == CAbilityAcolyteHarvest);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 /* Map-loaded overlays must bind to the neutral mine at the same authored location. */
 TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
     slkTestData_t *rows, *old_abilities;
