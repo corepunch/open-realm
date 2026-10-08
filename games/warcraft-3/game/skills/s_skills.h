@@ -199,6 +199,7 @@ BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemHealAoe);
 BZ_ABILITY_PROC(CAbilityItemManaAoe);
+BZ_ABILITY_PROC(CAbilityItemResurrection);
 BZ_ABILITY_PROC(CAbilityItemGold);
 BZ_ABILITY_PROC(CAbilityItemLumber);
 BZ_ABILITY_PROC(CAbilityItemSpeed);

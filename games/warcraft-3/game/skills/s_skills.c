@@ -353,7 +353,8 @@ static ability_t abilitylist[] = {
     { "Aami", CAbilityAntiMagicShellInstant, AB_SPELL, SPELL_TARGET_UNIT },  /* Item Anti-Magic Shell Instant */
     // TODO: AIas a_unknown  /* Item Attack Speed Bonus */
     // TODO: AIan a_simple_spell  /* Item Animate Dead */
-    // TODO: AIrs a_item_reincarnation  /* Item Resurrection */
+    { "AIrs", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Lesser Resurrection */
+    { "AIrr", CAbilityItemResurrection, AB_ITEM | AB_POWERUP },  /* Rune of Greater Resurrection */
     // TODO: AIms a_move_speed_bonus  /* Item Move Speed Bonus */
     { "AIgo", CAbilityItemGold, AB_ITEM | AB_POWERUP },  /* Chest of Gold / Gold Coins */
     { "AIlu", CAbilityItemLumber, AB_ITEM | AB_POWERUP },  /* Bundle of Lumber */

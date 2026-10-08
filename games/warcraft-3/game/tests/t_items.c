@@ -798,6 +798,79 @@ TEST(wc3_items, mana_rune_restores_authored_aoe_without_inventory_slot) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_items, resurrection_rune_revives_authored_count_without_inventory_slot) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"Area1\"\n"
+        "C;Y2;X1;K\"AIrs\"\nC;Y2;X2;K\"AIrs\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"140\"\n"
+        "C;Y3;X1;K\"AIrr\"\nC;Y3;X2;K\"AIrs\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"3\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"140\"\nE\n";
+    static ItemData_t rune_data = { .abilList = "AIrr", .powerup = true,
+                                    .usable = true, .perishable = true };
+    static UnitData_t corpse_data = { .deathType = UNIT_DEATH_TYPE_RAISE };
+    static UnitBalance_t low_balance = { .level = 1 };
+    static UnitBalance_t high_balance = { .level = 3 };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *picker, *near_low, *near_high, *third, *distant, *enemy, *rune;
+
+    setup_test_world();
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    picker = make_item_test_inventory_unit(0, 0);
+    picker->s.player = 0;
+    picker->svflags |= SVF_MONSTER;
+    picker->targtype = TARG_GROUND;
+    FOR_LOOP(slot, G_InventoryCapacity(picker)) {
+        edict_t *held = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        T_ASSERT(G_AddItemToSlot(picker, held, slot));
+    }
+
+#define MAKE_RES_CORPSE(var, x, player, balance) do { \
+    (var) = alloc_test_unit(MAKEFOURCC('h','f','o','o'), (x), 0); \
+    (var)->s.player = (player); \
+    (var)->svflags |= SVF_MONSTER | SVF_DEADMONSTER; \
+    (var)->targtype = TARG_GROUND; \
+    (var)->data.UnitData = &corpse_data; \
+    (var)->data.UnitBalance = (balance); \
+    (var)->health.max_value = 100.0f; \
+    (var)->health.value = 0.0f; \
+} while (0)
+
+    MAKE_RES_CORPSE(near_low, 20, 0, &low_balance);
+    MAKE_RES_CORPSE(near_high, 100, 0, &high_balance);
+    MAKE_RES_CORPSE(third, 120, 0, &low_balance);
+    MAKE_RES_CORPSE(distant, 200, 0, &high_balance);
+    MAKE_RES_CORPSE(enemy, 30, 1, &high_balance);
+#undef MAKE_RES_CORPSE
+
+    T_ASSERT(G_UnitIsRaisableCorpse(near_low));
+    T_ASSERT(G_UnitIsRaisableCorpse(near_high));
+    T_EQ(FindAbilityForCommand("AIrs")->proc, CAbilityItemResurrection);
+    T_EQ(FindAbilityForCommand("AIrr")->proc, CAbilityItemResurrection);
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(!M_IsDead(near_high));
+    T_ASSERT(!M_IsDead(near_low));
+    T_ASSERT(!M_IsDead(third));
+    T_FEQ(near_high->health.value, near_high->health.max_value, 0.01f);
+    T_ASSERT(M_IsDead(distant));
+    T_ASSERT(M_IsDead(enemy));
+    T_ASSERT(rune->item->pending_use_removal);
+    T_EQ(rune->item->charges, 0);
+    T_ASSERT(G_FindFreeInventorySlot(picker) < 0);
+
+    /* A supported resurrection rune is still consumed when no corpse qualifies. */
+    rune = make_item_test_world_item(MAKEFOURCC('r','r','e','2'), 32, 0);
+    rune->data.ItemData = &rune_data;
+    T_ASSERT(G_PickupItem(picker, rune));
+    T_ASSERT(rune->item->pending_use_removal);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_items, speed_powerup_applies_authored_status_and_movement_cap) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y3;X8\n"
