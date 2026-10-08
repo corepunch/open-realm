@@ -421,6 +421,11 @@ static edict_t *wisp_find_nearest_tree(edict_t *worker, edict_t const *origin);
 static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
     edict_t *target;
 
+    /* Undead campaign setup uses the same targetless order for Acolytes;
+     * their Aaha behavior mines a Haunted Mine rather than an Agld mine. */
+    if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasSkill(self, "Aaha"))
+        return S_AcolyteHarvestAutoStart(self);
+
     /* NightElf campaign scripts use the shared autoharvestgold order for
      * Wisps too. Their gold work is cargo boarding, not Ahar mining. */
     if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasSkill(self, "Awha"))
