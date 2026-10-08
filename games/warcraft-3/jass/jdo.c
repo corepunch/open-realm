@@ -1101,10 +1101,6 @@ void jass_runevents(jass_t *j) {
 
 static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
     player_t *player = params->event_player ? params->event_player : jass_eventplayer(params->unit);
-
-    if (params->trigger->disabled) {
-        return false;
-    }
     jass_t tmp_state;
     FOR_EACH_LIST(gTriggerCondition_t, cond, params->trigger->conditions) {
         memcpy(&tmp_state, j, sizeof(struct jass_s));
@@ -1247,6 +1243,12 @@ void jass_executetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
 }
 
 static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    /* Disabled triggers do not respond to registered events. Explicit JASS
+     * evaluation/execution is separate: Blizzard.j queue helpers evaluate a
+     * trigger before executing it, and maps can intentionally queue disabled
+     * triggers for later scripted execution. */
+    if (!params->trigger || params->trigger->disabled)
+        return false;
     if (!jass_evaluatetriggercontext(j, params))
         return false;
     jass_executetriggercontext(j, params, false);
