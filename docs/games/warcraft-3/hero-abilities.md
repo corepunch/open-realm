@@ -78,6 +78,7 @@ Implemented Hero-progression natives:
 - `UnitModifySkillPoints` applies a signed delta without changing XP or Hero level.
 - `SetHeroXP` and `AddHeroXP` use the shared XP transition; `SetHeroXP` does not lower XP.
 - `SetHeroLevel` raises a Hero through `G_HeroSetXP()`, preserving XP-driven skill points and both Hero-level event families.
+- `UnitStripHeroLevel` removes up to the existing levels above 1 and returns whether any level was lost; `SetHeroLevelBJ` uses this path for reductions while retaining `SetHeroLevel` for increases.
 - `SelectHeroSkill` uses normal candidate/point/level/max-rank validation.
 - `GetUnitAbilityLevel` reports the current learned Hero rank and treats an ordinary ability listed in `abilList` as level 1.
 
@@ -89,7 +90,11 @@ Map/campaign object modifications are only partially merged into typed runtime r
 
 `SetPlayerAbilityAvailable` has player-wide rawcode state plus shared runtime activation, learned-command-card, and Hero skill-learning gates. Disabling a learned Hero spell hides its command and rejects direct activation; disabling an unlearned skill omits it from Select Skill and rejects `SelectHeroSkill`. Passive/on-tick lifecycle removal remains ability-specific work.
 
-`SetHeroLevel` still does not lower a Hero. Requests at or below the current level are ignored; implementing level loss needs explicit XP/stat/event semantics rather than reversing the raise path opportunistically.
+`SetHeroLevel` remains raise-only. `UnitStripHeroLevel` is a separate level-loss operation, including when requested via the engine's direct `SetHeroLevelBJ` wrapper. Non-Hero units, non-positive level counts, and level-1 Heroes return false; stripping more than the available levels clamps to level 1. XP is reduced to the cumulative threshold for the resulting level (or preserved if already smaller), using the same map-configurable Misc/NeedHeroXP source. Unlike `SetHeroXP` it deliberately permits XP reduction. No Hero level-up events or bot level-up callbacks are generated when stripping.
+
+Level loss subtracts only the old-to-new *level-derived* Strength/Agility/Intelligence growth, preserving other existing attribute changes, and recomputes HP/mana/armor/damage through the shared Hero stat path. The older raise-only `G_HeroApplyLevel` still derives attributes afresh from UnitBalance when leveling up; preserving scripted/tome deltas across a subsequent increase remains broader attribute-state work.
+
+For skill points, each removed level removes one unspent point if possible. If those points have been spent, it removes learned Hero ranks (not ordinary unit abilities) until the corresponding spent budget is reclaimed; ranks above the new level's data-driven `reqLevel + (rank - 1) * levelSkip` are unlearned first. Remaining ties use reverse runtime slot order, **not a proven retail skill-unlearning order**. The exact retail ordering, abnormal/scripted skill-point budgets, boolean outcomes for every boundary case, and XP fraction handling on level loss require a retail comparison. A Reforged PTR report from 15 October 2025 also identifies an ability-unlearning ordering defect; that reported bug is not treated as a compatibility contract. Passive ability cleanup after unlearning still depends on each ability's lifecycle support.
 
 Hero-level events are queued with the unit pointer rather than an immutable level payload. A multi-level XP gain publishes both player-unit and unit-specific events per crossed level, but handlers that run later observe the unit's then-current level; preserving an intermediate-level snapshot would require an event-context change.
 
@@ -107,7 +112,7 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_combat.c` and `ga
 - stock `NeedHeroXP` cumulative thresholds and a fixture-authored table/formula extension;
 - one skill point per Hero level crossed;
 - player-unit and unit-specific Hero-level events for every crossed level;
-- raise-only XP semantics;
+- raise-only XP semantics and level-strip XP clamping, attribute/stat preservation, minimum level, skill ranks, and no gain events;
 - `GlobalExperience` fallback when no eligible Hero is inside `HeroExpRange`;
 - creep reduction indexed by receiving Hero level and restricted to Neutral Aggressive victims;
 - summoned-victim XP factor, max-level drain toggle, building killer/victim rules, and receiving-player XP handicap;
@@ -115,6 +120,7 @@ Focused in-engine tests live in `games/warcraft-3/game/tests/t_combat.c` and `ga
 - `GrantNormalXP` and `GrantHeroXP` formula extension beyond their authored tables;
 - JASS `main()` granting startup XP through the ordinary Hero progression path;
 - JASS `GetHeroSkillPoints` and signed `UnitModifySkillPoints` changes, including zero clamping and non-Hero rejection;
+- JASS `UnitStripHeroLevel` and engine `SetHeroLevelBJ` reduction and increase paths;
 - map-start direct skill-point awards that leave XP and level unchanged;
 - first-rank learning and point consumption;
 - no-point disabling;
@@ -128,6 +134,7 @@ Run the relevant suite when validating locally:
 
 ```bash
 make test-wc3-engine WC3_PATTERN="wc3_combat.hero_*"
+make test-wc3-engine WC3_PATTERN="wc3_api.hero_strip_levels_*"
 make test-wc3-engine WC3_PATTERN="wc3_combat.grant_kill_xp_*"
 make test-wc3-engine WC3_PATTERN="wc3_api.hero_xp_*"
 make test-wc3-engine WC3_PATTERN="wc3_api.hero_skill_points_*"

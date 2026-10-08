@@ -2022,6 +2022,98 @@ void G_HeroSetXP(edict_t *ent, uint32_t xp) {
     }
 }
 
+/* Adjust only the level-derived fraction of an attribute. The remaining
+ * value may contain permanent tome/script bonuses and must survive a strip. */
+static uint32_t G_HeroLevelAdjustedAttribute(uint32_t value, float per_level,
+                                             float old_steps, float new_steps) {
+    int64_t const delta = (int32_t)(new_steps * per_level) -
+                          (int32_t)(old_steps * per_level);
+    int64_t const result = (int64_t)value + delta;
+    return (uint32_t)MAX(0, MIN(result, (int64_t)INT32_MAX));
+}
+
+/* Remove Hero levels without going through the raise-only XP path. The native
+ * returns false if no level can be removed; stripping past level 1 clamps there.
+ * Unspent points are removed first. If the lost levels had already been spent,
+ * discard ranks that are now illegal and then reclaim remaining spent points.
+ * Retail's tie-break among equally legal learned skills is not established;
+ * use a deterministic reverse-slot order rather than inventing learn history. */
+bool G_HeroStripLevels(edict_t *ent, uint32_t levels) {
+    UnitBalance_t const *balance;
+    uint32_t old_level, new_level, removed, debt;
+    uint32_t old_points;
+    float old_steps, new_steps;
+    gameClient_t *owner;
+
+    if (!ent || !ent->data.UnitBalance || !G_UnitIsHero(ent) ||
+        !levels || ent->hero.level <= 1) return false;
+
+    balance = ent->data.UnitBalance;
+    old_level = ent->hero.level;
+    removed = MIN(levels, old_level - 1);
+    new_level = old_level - removed;
+    old_steps = (float)(old_level - 1);
+    new_steps = (float)(new_level - 1);
+
+    /* XP must not remain above the new level's threshold. Keep the level
+     * reached by the strip operation even with custom Misc XP tables. */
+    ent->hero.xp = MIN(ent->hero.xp, G_HeroXPForLevel(new_level));
+
+    /* Preserve scripted/tome attribute modifications: subtract only the
+     * level-derived difference, rather than rebuilding from UnitBalance. */
+    ent->hero.str = G_HeroLevelAdjustedAttribute(ent->hero.str, balance->strengthPerLevel,
+                                                  old_steps, new_steps);
+    ent->hero.agi = G_HeroLevelAdjustedAttribute(ent->hero.agi, balance->agilityPerLevel,
+                                                  old_steps, new_steps);
+    ent->hero.intel = G_HeroLevelAdjustedAttribute(ent->hero.intel, balance->intelligencePerLevel,
+                                                    old_steps, new_steps);
+    ent->hero.level = new_level;
+    G_RecomputeHeroStats(ent);
+
+    old_points = ent->hero.skillpoints;
+    debt = removed;
+    if (old_points) {
+        uint32_t const spent = MIN(old_points, debt);
+        G_HeroModifySkillPoints(ent, -(int32_t)spent);
+        debt -= spent;
+    }
+
+    /* First unlearn ranks whose authored Hero-level gate is now too high.
+     * Do not mutate ordinary abilities in heroabilities[]: only entries from
+     * this Hero's candidate list are subject to level-loss reconciliation. */
+    for (uint32_t i = 0; i < MAX_HERO_ABILITIES; i++) {
+        heroability_t *ha = ent->heroabilities + i;
+        AbilityData_t const *ability;
+        uint32_t base, skip;
+        if (!ha->level || !G_HeroHasCandidateSkill(ent, ha->code)) continue;
+        ability = G_AbilityData(ha->code);
+        if (!ability->id) continue;
+        base = ability->reqLevel > 0 ? (uint32_t)ability->reqLevel : 1;
+        skip = ability->levelSkip > 0 ? (uint32_t)ability->levelSkip : G_HeroAbilityLevelSkip();
+        while (ha->level && (uint64_t)base + (uint64_t)(ha->level - 1) * skip > new_level) {
+            ha->level--;
+            if (debt) debt--;
+        }
+        if (!ha->level) ha->code = 0;
+    }
+    /* A lost level also removes a spent skill point when every remaining rank
+     * is individually legal. The exact retail ordering needs comparative tests. */
+    for (uint32_t i = MAX_HERO_ABILITIES; debt && i > 0; i--) {
+        heroability_t *ha = ent->heroabilities + (i - 1);
+        if (!ha->level || !G_HeroHasCandidateSkill(ent, ha->code)) continue;
+        uint32_t const count = MIN(debt, ha->level);
+        ha->level -= count;
+        debt -= count;
+        if (!ha->level) ha->code = 0;
+    }
+
+    owner = G_GetPlayerClientByNumber(ent->s.player);
+    if (owner && owner->ps.number == ent->s.player) G_InvalidateCommands(owner);
+    G_InvalidateUnitShortcutsForUnit(ent);
+    /* Hero LEVEL events are gain events, so level loss publishes none. */
+    return true;
+}
+
 /* --- XP-on-kill (data-driven from Units\MiscGame.txt) ------------------------
  * Constants read live from config.misc so map overrides stay 1:1.  Stock TFT
  * uses HeroExpRange=1200, formula-driven normal/Hero kill XP, HeroFactorXP as a

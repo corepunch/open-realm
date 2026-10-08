@@ -2131,6 +2131,72 @@ TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
     T_EQ((int)h->hero.xp, 500);
 }
 
+TEST(wc3_combat, hero_strip_levels_recomputes_stats_and_preserves_tomes) {
+    edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    h->hero.level = 1;
+    h->hero.str = 22; h->hero.agi = 13; h->hero.intel = 17;
+    h->hero.skillpoints = 1;
+    h->health.max_value = h->health.value = 650.0f;
+    h->mana.max_value = h->mana.value = 255.0f;
+    G_HeroSetXP(h, 650); /* Level 3, with partial XP progress. */
+    T_EQ(h->hero.level, 3);
+    h->hero.str += 3; /* Permanent tome/SetHeroStr bonus survives stripping. */
+    G_RecomputeHeroStats(h);
+    level.events.write = level.events.read = 0;
+
+    T_ASSERT(G_HeroStripLevels(h, 1));
+    T_EQ(h->hero.level, 2);
+    T_EQ(h->hero.xp, G_HeroXPForLevel(2));
+    T_EQ(h->hero.str, 27); /* 22 + trunc(2.7) + 3 */
+    T_EQ(h->hero.agi, 14); /* 13 + trunc(1.5) */
+    T_EQ(h->hero.intel, 18); /* 17 + trunc(1.8) */
+    T_EQ(h->hero.skillpoints, 2);
+    T_FEQ(h->health.max_value, 650.0f + 5 * 25.0f, 0.01f);
+    T_FEQ(h->mana.max_value, 255.0f + 1 * 15.0f, 0.01f);
+    T_EQ(level.events.write, 0); /* Stripping is not a level-up event. */
+
+    T_ASSERT(G_HeroStripLevels(h, UINT32_MAX));
+    T_EQ(h->hero.level, 1);
+    T_EQ(h->hero.xp, 0);
+    T_EQ(h->hero.str, 25);
+    T_EQ(h->hero.agi, 13);
+    T_EQ(h->hero.intel, 17);
+    T_EQ(h->hero.skillpoints, 1);
+    T_ASSERT(!G_HeroStripLevels(h, 1));
+    T_ASSERT(!G_HeroStripLevels(h, 0));
+    T_EQ(level.events.write, 0);
+}
+
+TEST(wc3_combat, hero_strip_levels_reconciles_spent_skill_ranks) {
+    UnitAbilities_t const tree = { .heroAbilList = "AHhb,AHtb" };
+    slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    edict_t *h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    uint32_t const holy = MAKEFOURCC('A','H','h','b');
+    uint32_t const thunder = MAKEFOURCC('A','H','t','b');
+
+    h->data.UnitAbilities = &tree;
+    h->hero.level = 1;
+    h->hero.str = 22; h->hero.agi = 13; h->hero.intel = 17;
+    h->hero.skillpoints = 1;
+    G_HeroSetXP(h, 500);
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_ASSERT(G_HeroLearnSkill(h, thunder));
+    T_EQ(h->hero.skillpoints, 0);
+    T_EQ(G_UnitAbilityLevel(h, holy), 2);
+    T_EQ(G_UnitAbilityLevel(h, thunder), 1);
+
+    T_ASSERT(G_HeroStripLevels(h, 2));
+    T_EQ(h->hero.level, 1);
+    T_EQ(h->hero.skillpoints, 0);
+    T_EQ(G_UnitAbilityLevel(h, holy), 1); /* Rank 2 requires level 3. */
+    T_EQ(G_UnitAbilityLevel(h, thunder), 0); /* Reclaim remaining spent point. */
+    T_ASSERT(G_HeroStripLevels(h, 0) == false);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 /* Attack timing: after damage point, the next swing must wait for both the
  * remaining weapon cooldown and the authored backswing. */
 TEST(wc3_combat, attack_recovery_respects_cooldown_and_backswing) {

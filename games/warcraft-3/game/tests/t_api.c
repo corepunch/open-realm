@@ -5887,6 +5887,30 @@ TEST(wc3_api, hero_xp_map_main_uses_normal_progression) {
     ));
 }
 
+TEST(wc3_api, hero_strip_levels_jass_and_blizzard_level_wrapper) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  local unit u = CreateUnit(Player(0), 'hfoo', 128.0, 0.0, 0.0)\n"
+        "  call BJassAssert(not UnitStripHeroLevel(u, 1), \"non-Hero can lose levels\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, 0), \"zero levels should fail\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, -1), \"negative levels should fail\")\n"
+        "  call SetHeroLevel(h, 4, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 4, \"SetHeroLevel did not raise level\")\n"
+        "  call BJassAssert(UnitStripHeroLevel(h, 2), \"failed to strip two levels\")\n"
+        "  call BJassAssert(GetHeroLevel(h) == 2, \"wrong level after strip\")\n"
+        "  call BJassAssert(GetHeroXP(h) == 200, \"XP threshold after strip incorrect\")\n"
+        "  call SetHeroLevelBJ(h, 1, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 1, \"BJ wrapper did not lower level\")\n"
+        "  call BJassAssert(not UnitStripHeroLevel(h, 99), \"level-1 Hero lost a level\")\n"
+        "  call SetHeroLevelBJ(h, 3, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 3, \"BJ wrapper did not raise level\")\n"
+        "  call SetHeroLevelBJ(h, -100, false)\n"
+        "  call BJassAssert(GetHeroLevel(h) == 1, \"BJ wrapper did not clamp to level 1\")\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_api, hero_skill_points_jass_modify_and_query) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

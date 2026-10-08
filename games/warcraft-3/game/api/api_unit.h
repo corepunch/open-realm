@@ -447,6 +447,27 @@ uint32_t AddHeroXP(jass_t *j) {
     }
     return 0;
 }
+uint32_t UnitStripHeroLevel(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    int32_t const levels = jass_checkinteger(j, 2);
+    return jass_pushboolean(j, levels > 0 && G_HeroStripLevels(whichHero, (uint32_t)levels));
+}
+uint32_t SetHeroLevelBJ(jass_t *j) {
+    edict_t *whichHero = jass_checkhandle(j, 1, "unit");
+    int32_t const newLevel = jass_checkinteger(j, 2);
+    /* The Blizzard.j wrapper uses SetHeroLevel for raises and the strip
+     * native for reductions. The third showEyeCandy argument applies only
+     * to the raise path and is currently a presentation TODO. */
+    if (!whichHero || !G_UnitIsHero(whichHero)) return 0;
+    if (newLevel < (int32_t)whichHero->hero.level) {
+        int64_t const remove = (int64_t)whichHero->hero.level - newLevel;
+        G_HeroStripLevels(whichHero, (uint32_t)MIN(remove, (int64_t)UINT32_MAX));
+    } else if (newLevel > (int32_t)whichHero->hero.level) {
+        uint32_t const target = MIN((uint32_t)newLevel, G_MaxHeroLevel());
+        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, G_HeroXPForLevel(target)));
+    }
+    return 0;
+}
 uint32_t SetHeroLevel(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
     int32_t level = jass_checkinteger(j, 2);
