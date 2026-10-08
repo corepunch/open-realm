@@ -547,6 +547,7 @@ void CL_BeginLoadingMap(cstring_t mapName) {
     /* New map baselines repopulate the compact active-entity list; drop any
      * stale entries from the previous map before they arrive. */
     cl.num_active = 0;
+    CL_ResetFrameHistory();
 }
 
 int CL_ModelIndex(cstring_t modelName) {
@@ -1123,6 +1124,10 @@ static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int lengt
             return;
         }
     }
+    if (Netchan_IsSequenced(&cls.netchan)) {
+        /* Q2 netchan: only the connected server's sequenced packets count, and stale or duplicated ones are dropped. */
+        if (!NET_CompareAdr(from, &cls.netchan.remote_address) || !Netchan_Process(&cls.netchan, msg)) return;
+    }
     CL_ParseServerMessage(msg);
 }
 
@@ -1262,6 +1267,8 @@ void CL_Connect(cstring_t host, unsigned short port) {
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    Netchan_Reset(&cls.netchan);
+    CL_ResetFrameHistory();
     Cbuf_CopyToDefer();
     cls.state = ca_connecting;
     // Send an out-of-band "connect" request; the server will register this

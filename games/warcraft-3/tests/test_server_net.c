@@ -415,6 +415,14 @@ TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
     SV_ParseClientMessage(&msg, client); T_EQ(test_camera_calls, 1);
 }
 
+/* A UDP client sees the Q2 netchan header (sequence, acknowledge) in front of every in-game packet; return the payload. */
+static int recv_netchan(int sock, uint8_t *buf, size_t size) {
+    int const bytes = (int)recv(sock, buf, size, 0);
+    if (bytes < NETCHAN_HEADER_SIZE) return bytes;
+    memmove(buf, buf + NETCHAN_HEADER_SIZE, bytes - NETCHAN_HEADER_SIZE);
+    return bytes - NETCHAN_HEADER_SIZE;
+}
+
 static int open_client_socket(void) {
     int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s < 0)
@@ -654,6 +662,7 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     client = &svs.clients[0];
     client->state = cs_spawned;
     SZ_Init(&client->netchan.message, client->netchan.message_buf, sizeof(client->netchan.message_buf));
+    Netchan_Reliable(&client->netchan)->cursize = 0;
 
     image = SV_ImageIndex("ReplaceableTextures\\CommandButtons\\BTNFootman.blp");
     T_ASSERT(image > 0);
@@ -662,8 +671,15 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     SV_QueuePendingConfigStrings();
     MSG_WriteByte(&client->netchan.message, svc_layout);
 
-    memcpy(copy, client->netchan.message.data, client->netchan.message.cursize);
-    msg = (sizeBuf_t){ .data = copy, .maxsize = sizeof(copy), .cursize = client->netchan.message.cursize };
+    /* The configstring rides the reliable stream, which the transport puts ahead of the unreliable payload. */
+    T_ASSERT(Netchan_Reliable(&client->netchan)->cursize > 0);
+    client->netchan.remote_address.type = NA_LOOPBACK;
+    NET_Config(false);
+    NET_ClearLoopPackets(NS_CLIENT);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+    msg = (sizeBuf_t){ .data = copy, .maxsize = sizeof(copy) };
+    netadr_t from;
+    T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg) > 0);
     T_EQ(MSG_ReadByte(&msg), svc_configstring);
     T_EQ(MSG_ReadShort(&msg), CS_IMAGES + image);
     MSG_ReadStringN(&msg, name, sizeof(name));
@@ -1443,7 +1459,7 @@ TEST(server_net, loading_screen_chunks_fit_udp) {
     MSG_Write(&sv.loading, data, sizeof(data));
     SV_SendLoadingScreen(&svs.clients[0]);
     while (bytes < sizeof(data)) {
-        int size = recv(sock, buf, sizeof(buf), 0);
+        int size = recv_netchan(sock, buf, sizeof(buf));
         T_ASSERT(size > 0 && size <= BZ_SIGNON_SIZE);
         if (size <= 0 || size > BZ_SIGNON_SIZE) break;
         msg.cursize = size; msg.readcount = 0;
@@ -1557,7 +1573,7 @@ TEST(server_net, idle_lobby_sends_keepalives_without_simulating) {
         SV_Frame(1000);
         T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
         T_EQ(msg.cursize, 1); T_EQ(MSG_ReadByte(&msg), svc_nop);
-        T_EQ(recv(sock, buf, sizeof(buf), 0), 1); T_EQ(buf[0], svc_nop);
+        T_EQ(recv_netchan(sock, buf, sizeof(buf)), 1); T_EQ(buf[0], svc_nop);
         T_EQ(sv.framenum, 0); T_EQ(sv.time, 0); T_EQ(svs.num_clients, 2);
     }
     close(sock); NET_Shutdown();
@@ -1606,7 +1622,7 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
         SZ_Clear(&msg); msg.readcount = 0;
         MSG_WriteString(&msg, next);
         SV_ExecuteUserCommand(&msg, &svs.clients[0]);
-        int size = recv(sock, buf, sizeof(buf), 0);
+        int size = recv_netchan(sock, buf, sizeof(buf));
         T_ASSERT(size > 0 && size <= BZ_SIGNON_SIZE);
         if (size <= 0 || size > BZ_SIGNON_SIZE) break;
         msg.cursize = size; msg.readcount = 0; next[0] = 0;
@@ -1658,7 +1674,7 @@ TEST(server_net, udp_signon_addresses_late_entity_baseline_to_its_own_slot) {
     ge->num_edicts = 3;
     MSG_WriteString(&msg, "baselines");
     SV_ExecuteUserCommand(&msg, &svs.clients[0]);
-    int size = recv(sock, buf, sizeof(buf), 0);
+    int size = recv_netchan(sock, buf, sizeof(buf));
     T_ASSERT(size > 0);
     msg.cursize = MAX(size, 0); msg.readcount = 0;
     while (msg.readcount < msg.cursize) {
@@ -1745,7 +1761,7 @@ TEST(server_net, udp_signon_without_baselines_disconnects_client) {
     SZ_Clear(&msg);
     MSG_WriteString(&msg, "baselines");
     SV_ExecuteUserCommand(&msg, &svs.clients[0]);
-    int size = recv(sock, buf, sizeof(buf), 0);
+    int size = recv_netchan(sock, buf, sizeof(buf));
     T_EQ(size, 1);
     if (size == 1) T_EQ(buf[0], svc_disconnect);
     T_EQ(svs.clients[0].state, cs_zombie);
@@ -1825,72 +1841,273 @@ TEST(server_net, eos_game_rejects_new_connections_after_match_start) {
     T_EQ(svs.num_clients, 0);
 }
 
-/* ---------------------------------------------------------------------------
- * Stress tests (suite stress_net). Skipped by the default `*` run because they
- * model a slow link; run them with `make test-stress`.
- * ------------------------------------------------------------------------- */
-
-/* Virtual-time FIFO link between server and client: serializes each packet at a
- * 33.6 kbps modem rate, then adds one-way latency and a deterministic jitter. */
-#define LINK_BYTES_PER_SEC 4200u // 33.6 kbps
-#define LINK_LATENCY_MS 150u
-#define LINK_JITTER_MS 100u
-#define LINK_MAX_PACKETS 256
-
-typedef struct {
-    uint8_t *data[LINK_MAX_PACKETS];
-    uint32_t size[LINK_MAX_PACKETS], deliver_ms[LINK_MAX_PACKETS];
-    uint32_t count, next, wire_free_ms, last_deliver_ms, seed, bytes;
-} slowLink_t;
-
-static void slow_link_collect(slowLink_t *link, uint32_t now_ms) {
-    static uint8_t packet[MAX_MSGLEN];
-    sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
-    netadr_t from;
-
-    while (NET_GetPacket(NS_CLIENT, &from, &msg) > 0) {
-        uint32_t const index = link->count++, size = msg.cursize;
-        uint32_t const start = MAX(now_ms, link->wire_free_ms);
-        T_ASSERT(index < LINK_MAX_PACKETS);
-        if (index >= LINK_MAX_PACKETS) return;
-        link->seed = link->seed * 1664525u + 1013904223u;
-        link->wire_free_ms = start + (uint32_t)((uint64_t)size * 1000 / LINK_BYTES_PER_SEC);
-        link->deliver_ms[index] = MAX(link->last_deliver_ms, link->wire_free_ms + LINK_LATENCY_MS + (link->seed >> 16) % LINK_JITTER_MS);
-        link->last_deliver_ms = link->deliver_ms[index];
-        link->data[index] = malloc(size);
-        memcpy(link->data[index], packet, size);
-        link->size[index] = size;
-        link->bytes += size;
-        msg.cursize = 0;
-    }
-}
-
-static void slow_link_free(slowLink_t *link) {
-    FOR_LOOP(i, link->count) free(link->data[i]);
-}
-
 static void stress_server_client(client_t *client) {
     client->state = cs_spawned;
     client->netchan.remote_address.type = NA_LOOPBACK;
     SZ_Init(&client->netchan.message, client->netchan.message_buf, MAX_MSGLEN);
 }
 
-TEST(stress_net, every_unit_name_survives_map_start_over_modem) {
-    enum { SLOTS = CS_MAX_NAMES / ENT_NAMES_PER_CS };
-    static char client_cs[SLOTS][MAX_PATHLEN];
-    char expected[CS_MAX_NAMES][ENT_NAME_SLOT_SIZE], pool[MAX_PATHLEN];
-    slowLink_t link = { .seed = 1 };
-    uint32_t received = 0, last_arrival_ms = 0;
+/* ---------------------------------------------------------------------------
+ * Netchan: Quake 2 sequencing, acknowledgement and the reliable stream (NA_IP only)
+ * ------------------------------------------------------------------------- */
 
+typedef struct {
+    struct netchan chan;
+    uint8_t packet[MAX_MSGLEN];
+} testPeer_t;
+
+static testPeer_t *test_peer_create(void) {
+    testPeer_t *peer = calloc(1, sizeof(*peer));
+    if (!peer) return NULL;
+    peer->chan.remote_address.type = NA_IP;
+    SZ_Init(&peer->chan.message, peer->chan.message_buf, sizeof(peer->chan.message_buf));
+    return peer;
+}
+
+/* Build the peer's next datagram into out; returns a message positioned at the start of the packet, or size 0. */
+static sizeBuf_t test_peer_send(testPeer_t *peer, uint8_t *out) {
+    uint32_t const size = Netchan_BuildPacket(&peer->chan, out, MAX_MSGLEN);
+    return (sizeBuf_t){ .data = out, .maxsize = MAX_MSGLEN, .cursize = size };
+}
+
+TEST(netchan, reliable_stream_is_resent_until_acknowledged) {
+    testPeer_t *server = test_peer_create(), *client = test_peer_create();
+    static uint8_t buf[MAX_MSGLEN];
+    uint32_t reliable_arrivals = 0, drops = 0;
+
+    T_NOT_NULL(server); T_NOT_NULL(client);
+    if (!server || !client) { free(server); free(client); return; }
+    MSG_WriteByte(Netchan_Reliable(&server->chan), 0xA1);
+    MSG_WriteByte(Netchan_Reliable(&server->chan), 0xA2);
+    for (int tick = 0; tick < 12 && (!reliable_arrivals || server->chan.inflight_length); tick++) {
+        MSG_WriteByte(&server->chan.message, svc_nop);
+        sizeBuf_t packet = test_peer_send(server, buf);
+        T_ASSERT(packet.cursize > 0);
+        if (drops < 3) { drops++; continue; } /* the first three server packets never arrive */
+        T_ASSERT(Netchan_Process(&client->chan, &packet));
+        if (MSG_ReadByte(&packet) == 0xA1) { T_EQ(MSG_ReadByte(&packet), 0xA2); reliable_arrivals++; }
+        sizeBuf_t ack = test_peer_send(client, buf); /* bare acknowledge back */
+        T_ASSERT(ack.cursize == NETCHAN_HEADER_SIZE);
+        T_ASSERT(Netchan_Process(&server->chan, &ack));
+    }
+    T_EQ(reliable_arrivals, 1);
+    T_EQ(server->chan.inflight_length, 0);
+    T_EQ(client->chan.dropped, 0); /* only the packet after the gap sees the gap */
+    free(server); free(client);
+}
+
+TEST(netchan, stale_duplicate_and_unsent_acknowledgements_are_rejected) {
+    testPeer_t *server = test_peer_create(), *client = test_peer_create();
+    static uint8_t bufs[3][MAX_MSGLEN];
+    sizeBuf_t p[3];
+
+    T_NOT_NULL(server); T_NOT_NULL(client);
+    if (!server || !client) { free(server); free(client); return; }
+    FOR_LOOP(i, 3) {
+        MSG_WriteByte(&server->chan.message, svc_nop);
+        p[i] = test_peer_send(server, bufs[i]);
+    }
+    T_ASSERT(Netchan_Process(&client->chan, &p[0]));
+    T_ASSERT(Netchan_Process(&client->chan, &p[2]));
+    T_EQ(client->chan.dropped, 1);
+    T_ASSERT(!Netchan_Process(&client->chan, &p[1])); /* overtaken by packet 3 */
+    T_ASSERT(!Netchan_Process(&client->chan, &p[2])); /* duplicate */
+    T_EQ(client->chan.incoming_sequence, 3);
+
+    sizeBuf_t forged = { .data = bufs[0], .maxsize = MAX_MSGLEN };
+    MSG_WriteLong(&forged, 1); MSG_WriteLong(&forged, 99); /* acknowledges packets the client never sent */
+    T_ASSERT(!Netchan_Process(&client->chan, &forged));
+    free(server); free(client);
+}
+
+TEST(netchan, bare_acknowledge_is_never_acknowledged_back) {
+    testPeer_t *server = test_peer_create(), *client = test_peer_create();
+    static uint8_t buf[MAX_MSGLEN];
+
+    T_NOT_NULL(server); T_NOT_NULL(client);
+    if (!server || !client) { free(server); free(client); return; }
+    MSG_WriteByte(&server->chan.message, svc_nop);
+    sizeBuf_t packet = test_peer_send(server, buf);
+    T_ASSERT(Netchan_Process(&client->chan, &packet));
+    sizeBuf_t ack = test_peer_send(client, buf);
+    T_EQ(ack.cursize, NETCHAN_HEADER_SIZE);
+    T_ASSERT(Netchan_Process(&server->chan, &ack));
+    T_EQ(test_peer_send(server, buf).cursize, 0); /* no reply storm */
+    free(server); free(client);
+}
+
+/* ---------------------------------------------------------------------------
+ * Slow-link simulation (suite stress_net). The server talks to a modelled client over a 33.6 kbps link that adds
+ * latency and jitter (so packets overtake each other) and drops packets, using the real server code and netchan.
+ * Skipped by the default `*` run; run with `make test-stress`.
+ * ------------------------------------------------------------------------- */
+#define MODEM_BYTES_PER_SEC 4200u // 33.6 kbps
+#define MODEM_LATENCY_MS 150u
+#define MODEM_JITTER_MS 120u
+#define MODEM_LOSS_PERCENT 8u
+#define SIM_FRAME_MS 100u
+#define SIM_MAX_PACKETS 4096
+#define SIM_FRAME_HISTORY 8192
+
+typedef struct { uint8_t *data; uint32_t size, at_ms; bool to_server; } simPacket_t;
+
+static struct {
+    simPacket_t packets[SIM_MAX_PACKETS];
+    uint32_t now_ms, wire_free_ms[2], seed, loss_percent;
+    uint32_t sent, lost, overtaken, last_delivered_seq, server_bytes;
+    testPeer_t *client;
+    char names[CS_MAX_NAMES / ENT_NAMES_PER_CS][MAX_PATHLEN];
+    uint32_t names_set;
+    bool got_frame[SIM_FRAME_HISTORY];
+    uint32_t frames_received, full_frames, bad_bases, dropped_by_netchan;
+} sim;
+
+static uint32_t sim_random(void) { sim.seed = sim.seed * 1664525u + 1013904223u; return sim.seed >> 8; }
+
+static void sim_send_hook(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
+    bool const to_server = netsrc == NS_CLIENT;
+    uint32_t const tx_ms = (uint32_t)((uint64_t)length * 1000 / MODEM_BYTES_PER_SEC);
+    (void)to;
+    sim.sent++;
+    if (!to_server) sim.server_bytes += length;
+    if (sim_random() % 100 < sim.loss_percent) { sim.lost++; return; }
+    FOR_LOOP(i, SIM_MAX_PACKETS) {
+        simPacket_t *slot = &sim.packets[i];
+        if (slot->data) continue;
+        uint32_t const start = MAX(sim.now_ms, sim.wire_free_ms[to_server]);
+        sim.wire_free_ms[to_server] = start + tx_ms;
+        slot->data = malloc(length);
+        memcpy(slot->data, data, length);
+        slot->size = length;
+        slot->to_server = to_server;
+        slot->at_ms = sim.wire_free_ms[to_server] + MODEM_LATENCY_MS + sim_random() % MODEM_JITTER_MS;
+        return;
+    }
+    T_ASSERT(false); /* simulated link is full */
+}
+
+static void sim_client_receive(simPacket_t const *packet) {
+    uint8_t copy[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = copy, .maxsize = sizeof(copy), .cursize = packet->size };
+    memcpy(copy, packet->data, packet->size);
+    if (!Netchan_Process(&sim.client->chan, &msg)) { sim.dropped_by_netchan++; return; }
+    while (msg.readcount < msg.cursize) {
+        int const op = MSG_ReadByte(&msg);
+        if (op == svc_configstring) {
+            uint32_t const index = (uint32_t)MSG_ReadShort(&msg) - CS_GENERAL;
+            char value[MAX_PATHLEN];
+            MSG_ReadStringN(&msg, value, sizeof(value));
+            if (index < (sizeof(sim.names) / sizeof(*sim.names))) {
+                if (!sim.names[index][0]) sim.names_set++;
+                memcpy(sim.names[index], value, sizeof(value));
+            }
+        } else if (op == svc_frame) {
+            uint32_t const frame = (uint32_t)MSG_ReadLong(&msg);
+            MSG_ReadLong(&msg);
+            int const base = MSG_ReadLong(&msg);
+            /* The Quake 2 invariant: a delta is only ever against a frame this client actually holds. */
+            if (base == -1) sim.full_frames++;
+            else if ((uint32_t)base >= SIM_FRAME_HISTORY || !sim.got_frame[base]) sim.bad_bases++;
+            if (frame < SIM_FRAME_HISTORY) sim.got_frame[frame] = true;
+            sim.frames_received++;
+            break;
+        } else break;
+    }
+    Netchan_Transmit(NS_CLIENT, &sim.client->chan); /* acknowledge */
+}
+
+/* Advance the link to now_ms: deliver everything due, in arrival order (which may differ from send order). */
+static void sim_deliver(client_t *server_side) {
+    for (;;) {
+        simPacket_t *next = NULL;
+        FOR_LOOP(i, SIM_MAX_PACKETS) {
+            simPacket_t *p = &sim.packets[i];
+            if (p->data && p->at_ms <= sim.now_ms && (!next || p->at_ms < next->at_ms)) next = p;
+        }
+        if (!next) return;
+        if (next->to_server) {
+            uint8_t copy[MAX_MSGLEN];
+            sizeBuf_t msg = { .data = copy, .maxsize = sizeof(copy), .cursize = next->size };
+            memcpy(copy, next->data, next->size);
+            if (Netchan_Process(&server_side->netchan, &msg)) SV_AcknowledgeFrames(server_side);
+        } else sim_client_receive(next);
+        free(next->data);
+        *next = (simPacket_t){ 0 };
+    }
+}
+
+static void sim_begin(uint32_t units, uint32_t loss_percent, char const *rate) {
+    static gameClient_t player;
+    memset(&sim, 0, sizeof(sim));
+    sim.seed = 0x5eed;
+    sim.loss_percent = loss_percent;
+    sim.client = test_peer_create();
+    T_NOT_NULL(sim.client);
+    player = (gameClient_t){ .ps.number = 0 };
     reset_server_state(1);
     sv.state = ss_game;
     svs.num_clients = 1;
-    stress_server_client(&svs.clients[0]);
-    NET_Config(false);
-    NET_ClearLoopPackets(NS_CLIENT);
+    svs.num_client_entities = MAX_PACKET_ENTITIES * UPDATE_BACKUP;
+    svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
+    client_t *client = &svs.clients[0];
+    stress_server_client(client);
+    client->netchan.remote_address.type = NA_IP;
+    client->edict = &test_edicts[0];
+    client->edict->client = &player;
+    client->edict->inuse = true;
+    client->lastframe = (uint32_t)-1;
+    test_ge.num_edicts = units + 1;
+    test_client_stubs_set_cvar("sv_rate", rate);
+    NET_SetPacketHook(sim_send_hook);
+}
 
-    /* Mirror G_UnitNameConfigstring: every name rewrites its packed slot, and
-     * names fill the whole pool at map start before the first flush. */
+static void sim_end(void) {
+    NET_SetPacketHook(NULL);
+    test_client_stubs_clear_cvars();
+    FOR_LOOP(i, SIM_MAX_PACKETS) free(sim.packets[i].data);
+    SAFE_DELETE(svs.client_entities, MemFree);
+    free(sim.client);
+    sim.client = NULL;
+}
+
+/* One server tick: advance the frame, queue pending configstrings, send a snapshot unless the modem is still busy. */
+static void sim_server_tick(void) {
+    sv.framenum++;
+    sv.time += SIM_FRAME_MS;
+    svs.realtime = sim.now_ms;
+    SV_QueuePendingConfigStrings();
+    SV_SendClientDatagram(&svs.clients[0]);
+}
+
+/* Deterministic and quick enough for the default run: over a link that loses 30% of packets, every snapshot delta
+ * is against a frame the client holds and every live configstring still arrives. */
+TEST(server_net, udp_deltas_use_acknowledged_frames_and_configstrings_survive_loss) {
+    enum { UNITS = 20, TICKS = 120 };
+    sim_begin(UNITS, 30, "0");
+    SV_SetConfigString(CS_GENERAL, "AllHeroes", sizeof("AllHeroes"));
+    for (sim.now_ms = 0; sim.now_ms < TICKS * SIM_FRAME_MS; sim.now_ms += 10) {
+        sim_deliver(&svs.clients[0]);
+        if (sim.now_ms % SIM_FRAME_MS) continue;
+        FOR_LOOP(i, UNITS) {
+            test_edicts[i + 1].inuse = true;
+            test_edicts[i + 1].s = (entityState_t){ .number = i + 1, .model = 1, .origin = { 64.0f + i * 32, 64.0f + sim.now_ms / 100, 0 } };
+        }
+        sim_server_tick();
+    }
+    T_EQ(sim.bad_bases, 0);
+    T_ASSERT(sim.lost > 0);
+    T_ASSERT(sim.frames_received > TICKS / 2);
+    T_ASSERT(sim.full_frames < sim.frames_received / 4); /* mostly small deltas, not a full resend per packet */
+    T_STREQ(sim.names[0], "AllHeroes");
+    sim_end();
+}
+
+TEST(stress_net, every_unit_name_survives_map_start_over_lossy_modem) {
+    enum { SLOTS = CS_MAX_NAMES / ENT_NAMES_PER_CS };
+    char expected[CS_MAX_NAMES][ENT_NAME_SLOT_SIZE], pool[MAX_PATHLEN];
+
+    sim_begin(0, MODEM_LOSS_PERCENT, "4200");
+    /* Mirror G_UnitNameConfigstring: every name rewrites its packed slot, and the whole table fills at map start. */
     FOR_LOOP(i, CS_MAX_NAMES) {
         uint32_t const slot = i / ENT_NAMES_PER_CS, sub = i % ENT_NAMES_PER_CS;
         snprintf(expected[i], sizeof(expected[i]), "Hero %03u of the Lordaeron Vanguard", (unsigned)i);
@@ -1898,103 +2115,52 @@ TEST(stress_net, every_unit_name_survives_map_start_over_modem) {
         entity_name_slot_store(pool, sub, expected[i]);
         SV_SetConfigString(CS_GENERAL + slot, pool, sizeof(pool));
     }
-    SV_QueuePendingConfigStrings();
-    T_ASSERT(!svs.clients[0].netchan.message.overflowed);
-    Netchan_Transmit(NS_SERVER, &svs.clients[0].netchan);
-    slow_link_collect(&link, 0);
-    T_ASSERT(link.count > 0);
-
-    for (uint32_t now = 0; link.next < link.count; now++) {
-        while (link.next < link.count && link.deliver_ms[link.next] <= now) {
-            sizeBuf_t msg = { .data = link.data[link.next], .maxsize = link.size[link.next], .cursize = link.size[link.next] };
-            while (msg.readcount < msg.cursize) {
-                T_EQ(MSG_ReadByte(&msg), svc_configstring);
-                uint32_t const index = (uint32_t)MSG_ReadShort(&msg) - CS_GENERAL;
-                T_ASSERT(index < SLOTS);
-                if (index >= SLOTS) break;
-                MSG_ReadStringN(&msg, client_cs[index], sizeof(client_cs[index]));
-                entity_name_pool_decode(client_cs[index]);
-                received++;
-            }
-            last_arrival_ms = link.deliver_ms[link.next++];
-        }
+    uint32_t done_ms = 0;
+    for (sim.now_ms = 0; sim.now_ms < 120000 && !done_ms; sim.now_ms += 10) {
+        sim_deliver(&svs.clients[0]);
+        if (sim.now_ms % SIM_FRAME_MS == 0) sim_server_tick();
+        if (sim.names_set == SLOTS) done_ms = sim.now_ms;
     }
-
-    T_EQ(received, SLOTS);
+    T_ASSERT(done_ms > 0);
     FOR_LOOP(i, CS_MAX_NAMES) {
-        cstring_t const name = client_cs[i / ENT_NAMES_PER_CS] + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE;
-        T_ASSERT(entity_name_slot_equals(name, expected[i]));
+        char names[MAX_PATHLEN];
+        memcpy(names, sim.names[i / ENT_NAMES_PER_CS], sizeof(names));
+        entity_name_pool_decode(names);
+        T_ASSERT(entity_name_slot_equals(names + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, expected[i]));
     }
-    /* The modem, not the simulation, bounds how long a full name table takes. */
-    T_ASSERT(last_arrival_ms >= (uint32_t)((uint64_t)link.bytes * 1000 / LINK_BYTES_PER_SEC));
-    printf("[STRESS] %u names: %u bytes, last configstring after %u ms on a 33.6 kbps link\n",
-           (unsigned)CS_MAX_NAMES, (unsigned)link.bytes, (unsigned)last_arrival_ms);
-    slow_link_free(&link);
+    T_EQ(sim.bad_bases, 0);
+    T_ASSERT(sim.lost > 0); /* the link really was lossy */
+    T_ASSERT(done_ms < 60000);
+    printf("[STRESS] %u names over a %u%% lossy 33.6 kbps link: complete after %u ms (%u packets sent, %u lost, %u dropped as stale)\n",
+           (unsigned)CS_MAX_NAMES, MODEM_LOSS_PERCENT, (unsigned)done_ms, (unsigned)sim.sent, (unsigned)sim.lost,
+           (unsigned)sim.dropped_by_netchan);
+    sim_end();
 }
 
-TEST(stress_net, mass_spawn_snapshots_stay_ordered_over_modem) {
-    enum { UNITS = 900, FRAMES = 24 };
-    static gameClient_t player = { .ps.number = 0 };
-    static uint8_t sent_frames[FRAMES][MAX_MSGLEN];
-    uint32_t sent_size[FRAMES] = { 0 }, delivered = 0, last_arrival_ms = 0;
-    slowLink_t link = { .seed = 7 };
-    client_t *client;
-
-    T_ASSERT(UNITS < MAX_PACKET_ENTITIES);
-    reset_server_state(1);
-    sv.state = ss_game;
-    svs.num_clients = 1;
-    svs.num_client_entities = MAX_PACKET_ENTITIES * UPDATE_BACKUP;
-    svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
-    svs.next_client_entities = 0;
-    client = &svs.clients[0];
-    stress_server_client(client);
-    client->edict = &test_edicts[0];
-    client->edict->client = &player;
-    client->lastframe = (uint32_t)-1;
-    test_ge.num_edicts = UNITS + 1;
-    test_edicts[0].inuse = true;
-    NET_Config(false);
-    NET_ClearLoopPackets(NS_CLIENT);
+TEST(stress_net, mass_spawn_deltas_stay_decodable_over_lossy_modem) {
+    enum { UNITS = 900, SECONDS = 90 };
+    sim_begin(UNITS, MODEM_LOSS_PERCENT, "4200");
 
     /* Buildings and units appear in waves (as a JASS trigger spawning them would), then everything keeps moving. */
-    FOR_LOOP(frame, FRAMES) {
-        uint32_t const alive = MIN((uint32_t)UNITS, (uint32_t)(frame + 1) * (UNITS / 6));
+    for (sim.now_ms = 0; sim.now_ms <= SECONDS * 1000; sim.now_ms += 10) {
+        sim_deliver(&svs.clients[0]);
+        if (sim.now_ms % SIM_FRAME_MS) continue;
+        uint32_t const tick = sim.now_ms / SIM_FRAME_MS, alive = MIN((uint32_t)UNITS, (tick + 1) * (UNITS / 60));
         FOR_LOOP(i, alive) {
             edict_t *unit = &test_edicts[i + 1];
             unit->inuse = true;
             unit->s = (entityState_t){ .number = i + 1, .class_id = MAKEFOURCC('h','f','o','o'), .model = 1 + i % 40,
-                                       .player = 0, .origin = { 64.0f + (i % 30) * 48.0f + frame, 64.0f + (i / 30) * 48.0f, 0 } };
+                                       .origin = { 64.0f + (i % 30) * 48.0f + tick, 64.0f + (i / 30) * 48.0f, 0 } };
         }
-        sv.framenum = frame + 1;
-        sv.time = (frame + 1) * 100;
-        SV_BuildClientFrame(client);
-        SV_WriteFrameToClient(client);
-        T_ASSERT(!client->netchan.message.overflowed);
-        slow_link_collect(&link, frame * 100);
-        T_EQ(link.count, frame + 1);
-        sent_size[frame] = link.size[frame];
-        memcpy(sent_frames[frame], link.data[frame], link.size[frame]);
+        sim_server_tick();
     }
-
-    /* Frames must arrive intact and in order; an in-flight frame never overtakes its predecessor. */
-    for (uint32_t now = 0, expect = 1; link.next < link.count; now++) {
-        while (link.next < link.count && link.deliver_ms[link.next] <= now) {
-            uint32_t const i = link.next;
-            sizeBuf_t msg = { .data = link.data[i], .maxsize = link.size[i], .cursize = link.size[i] };
-            T_EQ(link.size[i], sent_size[i]);
-            T_ASSERT(!memcmp(link.data[i], sent_frames[i], sent_size[i]));
-            T_EQ(MSG_ReadByte(&msg), svc_frame);
-            T_EQ((uint32_t)MSG_ReadLong(&msg), expect++);
-            T_ASSERT(link.deliver_ms[i] >= last_arrival_ms);
-            last_arrival_ms = link.deliver_ms[link.next++];
-            delivered++;
-        }
-    }
-    T_EQ(delivered, FRAMES);
-    T_EQ(client->frames[FRAMES & UPDATE_MASK].num_entities, UNITS);
-    printf("[STRESS] %u units over %u frames: %u bytes, snapshot backlog drains after %u ms (%.1f s of game time)\n",
-           (unsigned)UNITS, (unsigned)FRAMES, (unsigned)link.bytes, (unsigned)last_arrival_ms, FRAMES * 0.1f);
-    slow_link_free(&link);
-    SAFE_DELETE(svs.client_entities, MemFree);
+    T_EQ(sim.bad_bases, 0);                  /* never a delta against a frame the client does not hold */
+    T_ASSERT(sim.frames_received > 0);
+    T_ASSERT(sim.lost > 0);
+    /* sv_rate bounds the modem's load: everything sent fits the link (plus the last in-flight snapshot). */
+    T_ASSERT(sim.server_bytes <= (uint64_t)MODEM_BYTES_PER_SEC * (SECONDS + 1) + 64 * 1024);
+    printf("[STRESS] %u units over %us on a %u%% lossy 33.6 kbps link: %u snapshots delivered (%u full), %u bytes sent, %u lost, %u dropped as stale\n",
+           (unsigned)UNITS, (unsigned)SECONDS, MODEM_LOSS_PERCENT, (unsigned)sim.frames_received, (unsigned)sim.full_frames,
+           (unsigned)sim.server_bytes, (unsigned)sim.lost, (unsigned)sim.dropped_by_netchan);
+    sim_end();
 }

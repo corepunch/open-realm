@@ -155,6 +155,38 @@ Protocol version 19 expands each fixed-size `CS_GENERAL` hover-name record from 
 configstring payload at `MAX_PATHLEN`, each configstring now packs eight records instead of sixteen; the total name pool remains
 256 entries. The record layout is shared by all game modules and clients, so mixed protocol versions are rejected.
 
+## Sequenced netchan, acknowledged deltas and rate (protocol 20)
+
+UDP (`NA_IP`) is lossy, so its in-game packets follow Quake 2's netchan. Loopback and EOS (which is reliable-ordered) are
+lossless and keep sending the bare message stream, so everything below applies to `NA_IP` only.
+
+- **Header.** Every in-game datagram starts with two 32-bit words: its own sequence number, whose top bit says the packet
+  carries the reliable message, and the highest sequence it has received from the peer, whose top bit is the parity of the
+  reliable messages received. `Netchan_Process` drops stale, duplicated or overtaken packets, and acknowledgements for packets
+  never sent, so the game never parses the same unreliable data twice or out of order. Out-of-band packets (`-1` marker) are
+  untouched.
+- **Two streams.** `netchan.message` is unreliable: snapshots, sounds, layouts are sent once. `netchan.reliable` is resent in every
+  packet until the peer acknowledges it. Live configstrings (`SV_QueuePendingConfigStrings`) use it, so a lost datagram can no
+  longer lose a unit name or image. One reliable batch is in flight at a time; a configstring that does not fit is retried
+  next frame.
+- **Acknowledgements.** A peer that received data answers with at least a bare header-only packet. A bare acknowledge is never
+  acknowledged back.
+- **Deltas against what the client holds.** The server records which snapshot each packet carried; when the client acknowledges
+  the packet, that snapshot becomes the delta base (`client->lastframe`), instead of "the last one sent". The `svc_frame`
+  header names the base. The server keeps `UPDATE_BACKUP` snapshots per client, indexed by how many were built for it (a
+  rate-limited client skips game frames), and sends a full snapshot (`-1`) when the base is more than `UPDATE_BACKUP - 3`
+  snapshots old or its entities have left the ring. The client keeps its last `UPDATE_BACKUP` applied snapshots (entity table and
+  player state) and, when the named base is not the one it just applied, rebuilds that base before applying the delta
+  (`CL_RestoreDeltaBase`); a full snapshot clears the entity table first.
+- **Rate.** `sv_rate` (bytes per second, default `0` = unlimited) models a client's link: after a snapshot is sent the client is
+  busy for `size / sv_rate`, and snapshots due in that window are skipped rather than queued. The next one deltas against what
+  the client acknowledged, so a slow client sees a lower update rate, not a growing backlog.
+
+Tests: `netchan.*` and `server_net.udp_deltas_use_acknowledged_frames_and_configstrings_survive_loss` (lossy link, default run),
+`client_frames.delta_against_older_acknowledged_frame_rebuilds_that_frame`, and the `stress_net.*` suite (`make test-stress`):
+a 33.6 kbps link with latency, jitter that reorders packets and 8% loss, asserting every delta base is a frame the client
+holds and every unit name arrives.
+
 ## Entity heading encoding
 
 Protocol version 9 keeps `entityState_t.angle` two bytes wide but encodes its radian value as an unsigned
@@ -185,7 +217,7 @@ rejected by the versioned handshake.
 
 | File | Purpose |
 |------|---------|
-| `common/net.c` | `NET_SendPacket`, `NET_GetPacket`, loopback buffers, UDP socket |
+| `common/net.c` | `NET_SendPacket`, `NET_GetPacket`, loopback buffers, UDP socket, `Netchan_*` |
 | `common/net.h` | `netadr_t`, `netchan_t`, `NETSOURCE`, public API |
 | `common/main.c` | CLI parsing, `NET_Init`, mode selection |
 | `server/sv_init.c` | `SV_ClientConnect` (loopback slot), `SV_DirectConnect` (UDP slot) |

@@ -16,7 +16,7 @@
 #define PORT_SERVER 27910
 #endif
 #define PORT_SERVER_STRING BZ_XSTR(PORT_SERVER)
-#define BZ_PROTOCOL_VERSION 19 // v19 hover-name records; v18 widened entity flags to 32 bits
+#define BZ_PROTOCOL_VERSION 20 // v20 sequenced UDP netchan; v19 hover-name records; v18 widened entity flags to 32 bits
 
 
 typedef struct entityState_s entityState_t;
@@ -50,10 +50,25 @@ typedef struct {
     char peer[33];              // EOS Product User ID, lowercase hex; never an IP alias
 } netadr_t;
 
+#define NETCHAN_HEADER_SIZE 8 // bytes; sequence word then acknowledge word, on sequenced (NA_IP) packets only
+#define NETCHAN_RELIABLE_MAX (16 * 1024) // bytes; one reliable message in flight plus one being built
+
+/* Quake 2 netchan. message is the unreliable stream (frames, sounds, layouts): sent once, never resent. reliable
+ * is the reliable stream (live configstrings): resent every packet until the peer acknowledges it. Only NA_IP is
+ * sequenced; loopback and EOS (reliable-ordered) deliver every packet in order, so they send the bare stream. */
 struct netchan {
     netadr_t remote_address;    // where packets are sent/expected from
     sizeBuf_t message;
     uint8_t message_buf[MAX_MSGLEN];
+    sizeBuf_t reliable;         // lazily initialised by Netchan_Reliable
+    uint8_t reliable_buf[NETCHAN_RELIABLE_MAX];
+    uint8_t inflight_buf[NETCHAN_RELIABLE_MAX];
+    uint32_t inflight_length;
+    uint32_t outgoing_sequence, incoming_sequence, incoming_acknowledged;
+    uint32_t last_reliable_sequence;
+    uint32_t dropped;           // packets lost between the last two accepted packets
+    uint8_t reliable_sequence, incoming_reliable_sequence, incoming_reliable_acknowledged; // alternating 0/1 bits
+    bool ack_owed;              // the last accepted packet carried data the peer is waiting to hear acknowledged
 };
 
 // Initialise loopback state. UDP sockets are opened lazily by NET_Config().
@@ -81,6 +96,13 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg);
 void NET_ClearLoopPackets(NETSOURCE netsrc);
 
 void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan);
+// Tests divert every outgoing packet (any address type) into a simulated link; NULL restores real routing.
+void NET_SetPacketHook(void (*hook)(NETSOURCE netsrc, int length, void const *data, netadr_t to));
+uint32_t Netchan_BuildPacket(struct netchan *netchan, uint8_t *out, uint32_t out_size);
+sizeBuf_t *Netchan_Reliable(struct netchan *netchan);
+bool Netchan_IsSequenced(struct netchan const *netchan);
+void Netchan_Reset(struct netchan *netchan);
+bool Netchan_Process(struct netchan *netchan, sizeBuf_t *msg); // false: stale, duplicate or malformed; drop it
 void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, uint32_t length, uint8_t *data);
 void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, cstring_t format, ...);
 
