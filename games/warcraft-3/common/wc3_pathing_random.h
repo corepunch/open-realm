@@ -4,6 +4,8 @@
 #include "wc3_math.h"
 
 typedef struct { uint32_t sum, index; } wc3Random_t;
+#define BZ_WC3_RANDOM_STREAMS 45 // game-purpose states; original CRandData has45 two-word generators
+enum { WC3_RANDOM_ITEMS = 35 }; /* ChooseRandomItem/ItemEx share this catalog stream. */
 
 /* 1.27's prime-period lookup words at game.dll+ a92f10. */
 static uint32_t const wc3_random_words[61] = {
@@ -41,6 +43,17 @@ static inline uint32_t wc3_random_next(wc3Random_t *state) {
     }
     state->index = index;
     return state->sum += mix;
+}
+
+/* 693710: a local generator seeds each purpose; the path owner is untouched. */
+static inline void wc3_random_reseed(wc3Random_t streams[BZ_WC3_RANDOM_STREAMS], uint32_t seed) {
+    wc3Random_t local;wc3_random_seed(&local,seed);
+    for (unsigned i=0;i<BZ_WC3_RANDOM_STREAMS;i++)wc3_random_seed(streams+i,wc3_random_next(&local));
+}
+
+/* 693660 consumes one draw even for a zero or one-element span. */
+static inline uint32_t wc3_random_range(wc3Random_t *state, uint32_t span) {
+    return (uint32_t)(((uint64_t)wc3_random_next(state)*span)>>32);
 }
 
 /* Public scalar natives and overlap direction use the low 23 draw bits. */

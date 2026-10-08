@@ -772,6 +772,8 @@ static uint32_t G_MapControl(mapPlayer_t const *player) {
 void G_InitMapRandom(void) {
     uint32_t seed = level.setup.map_flags & 0x8000u ? 0x77617233u : level.setup.random_seed;
     wc3_random_seed(&level.pathing_random,seed);
+    /* 64f9a0/693710 uses the same setup word, independently of race draws. */
+    wc3_random_reseed(level.purpose_random,seed);
     static uint32_t const prefs[]={0,1,2,8,4,16}; /* a93c84/a93c88; preference bits by resolved race. */
     FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
         gameClient_t *client=G_GetPlayerClientByNumber(i);

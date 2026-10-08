@@ -2583,6 +2583,7 @@ struct level_locals {
     bool pathing_owner_clock_valid;
     bool move_fine_responsive; /* Saved simulation policy, selected at map start. */
     wc3Random_t pathing_random;
+    wc3Random_t purpose_random[BZ_WC3_RANDOM_STREAMS]; /* CRandData: game-owned, never per-unit or client-local. */
     uint32_t pathing_counter; /* original owner+538, initialized to0x400 */
     moveFineBudget_t move_fine_budgets[MAX_PLAYERS];
     moveCoarseBudget_t move_coarse_budgets[MAX_PLAYERS][3];

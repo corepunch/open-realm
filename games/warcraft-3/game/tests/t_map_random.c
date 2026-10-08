@@ -26,6 +26,9 @@ static void startup_loading(void) {
     if (level.vm && !level.scriptsConfigured) {
         T_EQ(level.pathing_random.sum,1768977253u);
         T_EQ(level.pathing_random.index,2822785048u);
+        FOR_LOOP(i,BZ_WC3_RANDOM_STREAMS) {
+            T_EQ(level.purpose_random[i].sum,0u);T_EQ(level.purpose_random[i].index,0u);
+        }
         startup_boot_visits++;
     }
 }

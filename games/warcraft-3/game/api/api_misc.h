@@ -1466,7 +1466,9 @@ static uint32_t JassChooseRandomItem(int32_t requested_level, uint32_t requested
 
     if (!count) return 0;
 
-    selected_index = (uint32_t)(rand() % count);
+    /* 693660 uses unsigned multiply-high on purpose35, never presentation
+     * libc state or the shared movement/race/public-query owner. */
+    selected_index = wc3_random_range(level.purpose_random+WC3_RANDOM_ITEMS,count);
 
     /*
      * Second pass returns the selected candidate.
@@ -1500,9 +1502,9 @@ uint32_t ChooseRandomItemEx(jass_t *j) {
 uint32_t SetRandomSeed(jass_t *j) {
     int32_t seed = jass_checkinteger(j, 1);
     wc3_random_seed(&level.pathing_random, (uint32_t)seed);
-    wc3_random_next(&level.pathing_random); /* 214140 burns one draw before reseeding unit streams. */
-    /* TODO: 693710's separate per-unit streams remain unported; retain their legacy seed until replaced. */
-    srand((unsigned int)seed);
+    /* 214140 tail-seeds all45 purposes from the first owner draw. It neither
+     * resets libc/presentation randomness nor consumes45 more owner draws. */
+    wc3_random_reseed(level.purpose_random,wc3_random_next(&level.pathing_random));
     return 0;
 }
 uint32_t SetTerrainFog(jass_t *j) {

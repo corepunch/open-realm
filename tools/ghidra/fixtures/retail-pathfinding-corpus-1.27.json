@@ -43349,6 +43349,73 @@
           "gameplay_complete": true
         }
       ]
+    },
+    {
+      "id": "oracle-purpose-random",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_purpose_random.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "purpose-random172.json",
+      "expected_exit": 0,
+      "expected_status": "original-exact-purpose-random",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "original_calls": {
+          "equal": 56
+        },
+        "tls_lookups": {
+          "equal": 57
+        },
+        "streams": {
+          "equal": 45
+        },
+        "reseed_seeds": {
+          "equal": 8
+        },
+        "public_reseeds": {
+          "equal": 4
+        },
+        "consumer_calls": {
+          "equal": 44
+        },
+        "captures": {
+          "equal": 10
+        },
+        "stream_draws": {
+          "equal": 530
+        },
+        "owner_draws": {
+          "equal": 1611
+        },
+        "observer_free_comparisons": {
+          "equal": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "L",
+        "C"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "scope": "Original45-purpose seed tables and independent indexed arithmetic; actual map/native/helper/save production regressions. Complete archived530 purpose draws are reconstructed, not claimed as a full engine combat transcript.",
+      "exclusions": [
+        "Single original-oracle TLS resolver stand-in; arithmetic is original code.",
+        "All-ability consumer migration, attack attach/reaction timers and Gaussian dice above16 are not part of this ownership/seed-side-effect closure.",
+        "The incomplete mixed-observe-2 gameplay trace remains explicitly incomplete.",
+        "No new retail runtime capture; existing ten observed startups and four complete locked controls reused."
+      ]
     }
   ],
   "fixtures": [
@@ -43414,7 +43481,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "434b6e72e55c9fb2c87c48b7bd6ab12ebceebcdad0b943e318953c8800800b8e"
+      "sha256": "95f46db9117484fd93b54b7c60a47d5eb1f249e95ea7216116891b582a73d14b"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -44247,7 +44314,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "3ae0712b9a2fc95160566dc365ad609fc3bfa26e1e2c1e639adc9ba52158e9c5"
+      "sha256": "fcf06eba9cba168b6f8e2993164eb2163d6681936a4081e13d481ce07b5c7724"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -45539,7 +45606,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "0e3798a6ab2556cabab60978e1672227bf2e23f4552c31c433a191aacdf3569f"
+      "sha256": "2b8cfbc4ec1a222f6c5ee458db71b32e92fed5eedd5ca61b7896e4fd62b3d7c5"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -45547,7 +45614,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "d51b5d90395183960db4ee18bd5ff68051c8fbf2c99c11c95258db3f2058244b"
+      "sha256": "bc0fefd0b1d0569093c51c4dc4bda9c3d0644987e1e3c94badfa0e8874e7f00d"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -46039,7 +46106,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "d8367a70c4dee6a9dc33e2a3b47a3eca732054ee00606b1b6185788dcf1b03ff"
+      "sha256": "dfce0a495faaed080c0e8492ea93713fad9e4e057a9b798d733aa6923fecdd43"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -46051,11 +46118,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ddeecccf1a0e8e9c5594e10613d8c836b7de99a18e44a8c3223242aa43ef3044"
+      "sha256": "c9cffbecf8aa8b0f420eee26bc3b43d7ea32daf242302eeb59f44812992eb29a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "3a6551f05c62112b785dacb449c2ee20f96966c6968e2cb017146dff0e13a8f4"
+      "sha256": "6103a65363514c2198c77db777b0f1142153db746dc9e13f753acab070ba36c8"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -46183,7 +46250,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_spawn.c",
-      "sha256": "58603210639b616099f7a306847f5c72efe5bf954dc2ba6698686ae39285cf6d"
+      "sha256": "d55cbc5a1d50b7dc55f9c514870b80326f25daf33c983fdfda3789140d50804e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_bot.c",
@@ -46859,7 +46926,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
-      "sha256": "ab7b518a565bea9d293ed9439e59f1797ad405b86807033d9b0988c568ce1d15"
+      "sha256": "8d6216f2a7eb6b4162b447a75d62975c000aed3a4ebd966ac2aa3a4360cd50cf"
     },
     {
       "path": "games/warcraft-3/tests/test_commands.c",
@@ -46940,6 +47007,66 @@
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.5/types.json",
       "sha256": "12f5256e5bb1311c389d0f2b6896f074f1101bcd958fe8cd6d4022eb985b2267"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_random.h",
+      "sha256": "17bf4ae1e4ff03398eafcd3bb6933608369f60d8280ddec36e044763ecf048c0"
+    },
+    {
+      "path": "games/warcraft-3/game/api/api_misc.h",
+      "sha256": "30c7c97352574f1b1a0d3c5c14a2270c165ee022c6c99ab7c5c5be19e50dda96"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_random_streams.c",
+      "sha256": "2775ad8a924f35a63128569ac64f52d28e787b6f5ec26840d2c0c6120120cf6c"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_purpose_random_172.h",
+      "sha256": "9e0bd0f800bb039fc1b0270d0dc4693a5671a54730e04ecb88294d27b3874b2c"
+    },
+    {
+      "path": "tools/ghidra/research/verify_NUM-04.6_streams.py",
+      "sha256": "71b671f8a253201536c02ff2a73c92dfd614c3f5f561406ba7d5a4dc98fe7ea9"
+    },
+    {
+      "path": "tools/ghidra/research/verify_purpose172_random.py",
+      "sha256": "32a361232be6b3d1d9f1862b8c62bbcc924553e5d3de481289838d14cc3c2025"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_purpose_random.py",
+      "sha256": "ef5328684768d5c756cb4cb938a8395553f12f991053f737fc449449f06697c0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/NUM-04.6-expected.json",
+      "sha256": "16afe54c8ce656b3f445a463535215372d88081057e4363d64710786d437a25c"
+    },
+    {
+      "path": "tools/frida/research/NUM-04.6_expected.py",
+      "sha256": "0da4c675a558558b64feb50c035b4b3c7f672fe08c384b9ea84a8ad001ecf7b0"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_purpose_random.py",
+      "sha256": "0f90af13983fd9f3f7ea9b42fe79a6c1e7b517797f817d86a4f2eeb22fe598fb"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-purpose-random.md",
+      "sha256": "04a63af2823eac1c916e008299c6f426ecb774857b66bb34c00f54339248e498"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.6/HANDOFF.md",
+      "sha256": "e7e6618897cc853ecad48f87e902eda90603031ed2aec801ab2cd99a76203721"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.6/mapping-rows.txt",
+      "sha256": "e0b9a5b1431192438a53cb5f0d03aeb050d571f76e01098233a3c6388563a993"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.6/proposed-docs.md",
+      "sha256": "e7ea305bbed5ba002368d7ed67cf3cf61b3f7a4d78b3666777d4d61071a3c052"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/NUM-04.6/types.json",
+      "sha256": "3bcaa31a3ed39fc945d52bb82468bba99db434d5e67dd1e49cd878a78c3c2574"
     }
   ]
 }

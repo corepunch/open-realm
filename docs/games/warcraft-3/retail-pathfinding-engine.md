@@ -11871,3 +11871,19 @@ reconstruct1611 owner and530 separate-stream draws, retaining one incomplete
 capture and four complete locked observer-free comparisons. The45 purpose
 streams remain NUM-04.6; observer payload78 and network/replay transport remain
 assembly-only. See [startup seeding](retail-pathfinding-startup-seed.md).
+
+## Game-purpose RNG ownership replaces legacy seed side effects
+
+Payoff172 closes NUM-04.6. The engine stores45 purpose states once per game,
+seeds them through693710's local-generator chain and saves all45 positions in
+format139. Public SetRandomSeed executes its original one-owner-draw tail and
+stops resetting libc presentation state. ChooseRandomItem/ItemEx select through
+purpose35/multiply-high; actual public queries and saved continuation advance
+only that stream. All45 initial words, independent race consumption,34 original
+range/unit-real vectors and current saved positions have production regressions.
+
+Fresh original56-call execution and the complete530 purpose/1611 owner archived
+draws verify without claiming a full engine combat transcript. Broader ability
+consumer/timer migrations are excluded from this ownership/seed-side-effect
+closure. Saved Ghidra/mapper/types also correct attack attachment jitter to
+base multiplied by the stream2 fraction. See [purpose ownership and limits](retail-pathfinding-purpose-random.md).
