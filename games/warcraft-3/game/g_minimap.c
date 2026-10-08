@@ -159,8 +159,9 @@ void G_WC3_AttackAlert(edict_t *victim, edict_t *attacker) {
     gameClient_t *owner;
     bool town;
 
-    if (!victim || !attacker || victim->ignore_alarm || victim->s.player >= MAX_PLAYERS || attacker->s.player >= MAX_PLAYERS ||
-        victim->s.player == attacker->s.player || !S_SpellIsEnemy(attacker, victim)) return;
+    if (!victim || !attacker || victim->ignore_alarm || victim->s.player >= MAX_PLAYERS ||
+        attacker->s.player >= MAX_PLAYERS || victim->s.player == attacker->s.player ||
+        !S_SpellIsEnemy(attacker, victim)) return;
     owner = G_GetPlayerClientByNumber(victim->s.player);
     if (!owner || owner->ps.number != victim->s.player) return;
 
