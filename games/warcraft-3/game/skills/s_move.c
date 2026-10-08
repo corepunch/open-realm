@@ -70,6 +70,9 @@ void S_TrackMoveTimers(edict_t const *ent) {
 static void (*move_test_motion_commit)(edict_t *unit);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
 static void (*move_test_group_begin)(moveGroup_t const *group);
+typedef struct { float cap, speed; } moveGroupCommitTrace_t;
+static void (*move_test_group_commit)(moveGroup_t const *group, moveGroupMember_t const *member, moveGroupCommitTrace_t const *trace);
+static void (*move_test_group_regroup)(moveGroup_t const *group,uint32_t const *trace);
 typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, result; } moveRetryTrace_t;
 static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
 typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
@@ -4538,9 +4541,19 @@ static edict_t *move_group_source(moveGroup_t const *group, wc3GridPose_t *selec
  * before the next owner pass can predict a moving member at a later clock. */
 static void move_group_seed_route(moveGroup_t *group) {
     wc3GridPose_t pose;
+    vec2_t center={0},goal={wc3_grid_coordinate(group->goal.x,CM_GetWorldBounds().min.x,32),
+        wc3_grid_coordinate(group->goal.y,CM_GetWorldBounds().min.y,32)};
+    FOR_LOOP(i,group->count) {
+        unit_predicted_pose(group->members[i].unit,&pose);
+        center.x=wc3_add(center.x,pose.grid[0]);center.y=wc3_add(center.y,pose.grid[1]);
+    }
+    float scale=wc3_div(1,wc3_float(wc3_from_int(group->count)));
+    float dx=wc3_sub(goal.x,wc3_mul(center.x,scale)),dy=wc3_sub(goal.y,wc3_mul(center.y,scale));
+    if(dx!=0 || dy!=0)group->heading=wc3_vector_heading(dx,dy);
     edict_t *source=move_group_source(group,&pose);
     if (!source) gi.error("Move: physical group has no route source");
     group->point=(vec2_t){pose.grid[0],pose.grid[1]};
+    group->flags|=0x10000u;
 }
 
 static void move_start_point_group(edict_t *actor,vec2_t const *home,float range) {
@@ -4841,6 +4854,10 @@ static void move_group_regroup(moveGroup_t *group) {
     }
     uint32_t status=arrived ? group->count-arrived-near : group->count;
     if (arrived && (group->cooldown || exempt || (group->flags&4))) status=0;
+#ifdef BZ_TESTS
+    uint32_t trace[]={1,status,arrived,near,group->completion_counter};
+    if(move_test_group_regroup)move_test_group_regroup(group,trace);
+#endif
     uint32_t limit=group->flags&0x100 ? (group->flags&0x20000 ? 396 : 198) : 99;
     if (!status || group->completion_counter>limit) {
         if (G_AdvanceUnitMoveGroupDestination(&group->route)) {
@@ -5031,6 +5048,10 @@ static void move_run_group_updates(void) {
                                       wc3_mul(group->target->movement.velocity.y,1.0f/32)}};
                 step.velocity.speed=wc3_mul(wc3_group_commit_speed(&speed),32);
             }
+#ifdef BZ_TESTS
+            moveGroupCommitTrace_t trace={share ? cap : FLT_MAX,step.velocity.speed};
+            if (move_test_group_commit) move_test_group_commit(group,member,&trace);
+#endif
             wc3_velocity_update_world(&step.velocity); unit_commit_motion(unit,&step);
             /* Native16c390 suppresses persistent completion for the first32
              * hidden visits.5fa7a0/5ff8b0 validate when completion dispatches. */

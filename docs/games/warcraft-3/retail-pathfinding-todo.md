@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**245 done / 336 tasks; 91 remaining.**
+**246 done / 336 tasks; 90 remaining.**
+
+Payoff169 closes FORM-05.2 with the complete public selected passage and cold-save
+continuation:340 owner visits,1,825 member commits and exact regroup/layout timing.
+Move now publishes the initial ordered-mean heading and fresh formation flag at
+creation. Independent-control full journeys remain FORM-05.1.
+See [selected passage](retail-pathfinding-formation-passage.md).
+
 
 Payoff168 advances TARGET-03.1/03.2 with ability-owned scalar Apiv publication
 and synchronous TargetLost. Seven production regressions integrate27 original
@@ -1142,7 +1149,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 ### FORM-05 — Retail formation witnesses
 
 - [ ] **FORM-05.1** Capture one mixed-unit selection order and independently issued controls with the same map/seed; compare group IDs, assignments, caps and trajectories.
-- [ ] **FORM-05.2** Send that selection through a narrow passage and regroup; compare offsets/rebuild timing with the composed fixture.
+- [x] **FORM-05.2** Send that selection through a narrow passage and regroup; compare offsets/rebuild timing with the composed fixture.
 
 ## SEP — Repulsion and spatial records
 

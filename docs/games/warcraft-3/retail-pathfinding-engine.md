@@ -11833,3 +11833,13 @@ See [contracts, saved Ghidra evidence and commands](retail-pathfinding-target-vi
 This is implementation progress on TARGET-03.1/03.2. It does not close their
 overlapping contributors, wider detection/visibility producers or other target
 families. The existing245/336 completed count remains unchanged.
+
+## Complete selected passage (Payoff169)
+
+FORM-05.2 closes with actual creation/selected Move,340 original owner visits,
+1,825 member pre-commit records and260 cold-save continuation visits. Move now
+publishes initial heading from the ordered predicted mean and the fresh flag at
+creation. Both layouts and all92 passage regroup decisions retain their original
+timing. Ten archived captures validate2,491 regroup calls and23 O0/O2 layouts.
+See [selected passage](retail-pathfinding-formation-passage.md).
+Independent-control full journeys remain FORM-05.1.

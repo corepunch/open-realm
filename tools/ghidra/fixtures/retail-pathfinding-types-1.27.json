@@ -13468,6 +13468,25 @@
         }
       ],
       "evidence": "Payoff168: ECX linear scalar, stack4 output and stack8 threshold scalar pointer, RET8. Threshold must lie between80/84; evaluate clamped78 +7c*elapsed; native Divide(threshold-value,slope7c) writes output. Outside threshold returnsRuntimeMinusOne. Complete consumer chains retain exact software-float words."
+    },
+    {
+      "address": "6f169ef0",
+      "name": "PathGroup_AccumulatePredictedMean",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "group",
+          "type": "ptr:WC3PathGroupPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "output",
+          "type": "ptr:WC3PathVector2",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff169: ECX physical group, stack4 initialized vector output, RET4. Accumulate predicted fine poses in member order, then multiply both sums by the software reciprocal of member count; caller16de50 zeroes output first. Public mixed-six creation produces mean(10,31), heading3cd03cbe. OpenRealm seeds the initial heading from this mean before publishing representative origin. Complete selected passage and cold-save continuation retain native words."
     }
   ],
   "globals": [

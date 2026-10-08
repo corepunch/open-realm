@@ -18297,4 +18297,138 @@ TEST(wc3_movement, target168_equal_deadline_bulk_heap_order_and_cancellation) {
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
 }
 
+/* FORM-05.2: compare actual selected Move through the complete wall passage.
+ * Inputs are the observed public point and owner clocks, not injected routes. */
+#include "fixtures/retail_formation_passage_169.h"
+static unsigned formation169_visit,formation169_commit,formation169_regroup;
+static bool formation169_failed;
+static edict_t *formation169_units[6];
+
+static void formation169_words(uint32_t const *actual,uint32_t const *expected,unsigned count,char const *stage) {
+    if(formation169_failed)return;
+    FOR_LOOP(i,count) {
+        T_EQ(actual[i],expected[i]);
+        if(actual[i]==expected[i])continue;
+        fprintf(stderr,"formation169 visit=%u commit=%u %s word=%u actual=%08x expected=%08x\n",
+            formation169_visit,formation169_commit,stage,i,actual[i],expected[i]);
+        formation169_failed=true;break;
+    }
+}
+
+static unsigned formation169_index(edict_t const *unit) {
+    FOR_LOOP(i,6)if(formation169_units[i]==unit)return i;
+    T_ASSERT(false);return 6;
+}
+
+static void formation169_before(moveGroup_t const *group) {
+    if(formation169_failed)return;
+    typeof(formation169_passage[0]) const *row=formation169_passage+formation169_visit;
+    uint32_t state[]={group->flags,group->age,group->completion_counter,group->cooldown,
+        wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),wc3_float_bits(group->heading)};
+    /* The engine initializes age on the first owner visit. */
+    if(!formation169_visit)state[1]=row->group[1];
+    formation169_words(state,row->group,7,"group");T_EQ(group->count,row->count);
+    if(group->count!=row->count){formation169_failed=true;return;}
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *m=group->members+i;edict_t *u=m->unit;
+        uint32_t words[]={formation169_index(u),wc3_float_bits(m->offset.x),wc3_float_bits(m->offset.y),
+            wc3_float_bits(m->destination.x),wc3_float_bits(m->destination.y),wc3_float_bits(wc3_div(m->speed,32)),
+            wc3_float_bits(m->heading),m->flags,wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+            wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+            wc3_float_bits(wc3_div(unit_effective_speed(u),32)),wc3_float_bits(u->s.angle),wc3_float_bits(wc3_div(u->collision,32)),
+            wc3_float_bits(m->arrival_range ? m->arrival_range : wc3_float(0x3efae148)),
+            wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch};
+        formation169_words(words,row->members[i],18,"member");
+    }
+}
+
+static void formation169_committing(moveGroup_t const *group,moveGroupMember_t const *m,moveGroupCommitTrace_t const *trace) {
+    if(formation169_failed)return;
+    typeof(formation169_passage[0]) const *row=formation169_passage+formation169_visit;
+    T_ASSERT(formation169_commit<row->commits);if(formation169_commit>=row->commits){formation169_failed=true;return;}
+    edict_t *u=m->unit;
+    uint32_t words[]={formation169_index(u),group->flags,m->flags,wc3_float_bits(wc3_div(m->speed,32)),
+        wc3_float_bits(m->heading),trace->cap==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_div(trace->cap,32)),
+        wc3_float_bits(wc3_div(trace->speed,32)),
+        wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+        wc3_float_bits(u->s.angle),wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch};
+    formation169_words(words,row->commit[formation169_commit],14,"commit");formation169_commit++;
+}
+
+static void formation169_routed(moveGroup_t const *group,edict_t *singleton) {
+    T_ASSERT(!singleton);
+    uint32_t words[]={1,1,!group->route.group_index,group->route.group_count,group->route.group_index};
+    formation169_words(words,formation169_passage[formation169_visit].route,5,"route");
+}
+
+static void formation169_regrouping(moveGroup_t const *group,uint32_t const *trace) {
+    formation169_words(trace,formation169_passage[formation169_visit].regroup,5,"regroup");
+    formation169_regroup++;
+}
+
+TEST(wc3_movement, formation169_selected_public_passage_matches_complete_retail_journey) {
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64)if(y<30 || y>33)FOR_LOOP(x,2)cells[y*64+28+x]=0xc6;
+    for(unsigned y=6;y<18;y++)for(unsigned x=50;x<62;x++)if(y<8 || y>=16 || x<52 || x>=60)cells[y*64+x]=0xc6;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){wc3_float(0x406e65ab),0,300};level.pathing_counter=1149;
+    T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+        "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,320.,832.+I2R(i)*64.,0.)\n"
+        "if i<3 then\ncall SetUnitMoveSpeed(a[i],100.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+        "call SetUnitAcquireRange(a[i],0.)\nset i=i+1\nendloop\nendfunction\n"));
+    unsigned count=0;FILTER_EDICTS(u,u->inuse && u->class_id>=types[0].newUnitID && u->class_id<=types[3].newUnitID)
+        {if(count<6)formation169_units[count]=u;count++;}
+    T_EQ(count,6);
+    edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+    FOR_LOOP(i,6)G_SetEntitySelectionMask(formation169_units[i],1);
+    clent->client->menu.order_alt=false;
+    vec2_t point={wc3_mul(wc3_float(formation169_goal[0]),32),wc3_mul(wc3_float(formation169_goal[1]),32)};
+    T_ASSERT(move_selectlocation(clent,&point));formation169_failed=false;
+    move_test_group_begin=formation169_before;move_test_group_commit=formation169_committing;
+    move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
+    cstring_t file="/tmp/wc3-formation169-passage.bin";
+    FOR_LOOP(pass,2) {
+        formation169_visit=pass ? 80 : 0;
+        if(pass)T_ASSERT(ReadGame(file));
+        for(;formation169_visit<(sizeof(formation169_passage)/sizeof(*formation169_passage)) && !formation169_failed;formation169_visit++) {
+            formation169_commit=formation169_regroup=0;
+            level.pathing_clock.time=wc3_float(formation169_passage[formation169_visit].clock);
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            if(!formation169_failed) {
+                T_EQ(formation169_commit,formation169_passage[formation169_visit].commits);
+                T_EQ(formation169_regroup,formation169_passage[formation169_visit].regroup[0]);
+            }
+            if(!pass && formation169_visit==79)T_ASSERT(WriteGame(file));
+        }
+        T_EQ(formation169_visit,(sizeof(formation169_passage)/sizeof(*formation169_passage)));
+        if(formation169_failed)break;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        FOR_LOOP(i,6) {
+            edict_t const *u=formation169_units[i];char position[64];
+            T_EQ(u->current_order_id,0);
+            snprintf(position,sizeof(position),"%.3f,%.3f",u->s.origin2.x,u->s.origin2.y);
+            T_STREQ(position,formation169_finish[i]);
+        }
+    }
+    remove(file);move_test_group_begin=NULL;move_test_group_commit=NULL;
+    move_test_group_route=NULL;move_test_group_regroup=NULL;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
+}
+
 #endif
