@@ -477,7 +477,11 @@ bool G_PickupItem(edict_t *unit, edict_t *item) {
 
     if (powerup.ability && G_CanPickupItem(unit, item)) {
         abilityCall_t call = MAKE(abilityCall_t, .item = &powerup, .source_item = item, .source_item_spawn_time = item->spawn_time);
-        S_AbilityMessage(unit, A_ITEM_USE, &call); /* WC3 consumes a powerup even when nothing qualifies */
+        bool const used = S_AbilityMessage(unit, A_ITEM_USE, &call);
+        /* Resurrection is a validated use: with no legal corpse, WC3 reports
+         * failure and leaves the powerup in the world. Other supported runes
+         * keep their consume-on-touch behavior even when no target qualifies. */
+        if (!used && powerup.ability->proc == CAbilityItemResurrection) return false;
         G_QueueOwnerSoundAlias(unit, "ItemGet");
         G_CompletePowerupUse(unit, item);
         return true;
@@ -517,7 +521,8 @@ static void G_PickupItemThink(edict_t *unit) {
 
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_PICKUP_RANGE) {
-        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0) {
+        if (!G_PickupItem(unit, item) && G_FindFreeInventorySlot(unit) < 0 &&
+            !S_ItemPowerup(unit, item).ability) {
             G_ShowInventoryFull(unit);
         }
         G_StopPickupOrder(unit);
