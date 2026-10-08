@@ -4658,6 +4658,71 @@ TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
     free_slk_rows(rows);
 }
 
+/* BlightGoldMineForPlayer removes ngol before creating ugol. The replacement
+ * must retain the old mine's gold and restore an ordinary mine on destruction. */
+TEST(wc3_movement, replaced_goldmine_restores_after_haunted_mine_dies) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *old_mine, *haunted, *restored, *acolyte;
+    gameClient_t *client;
+    vec2_t point = { 256.0f, 256.0f };
+    uint32_t gold = 4321;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    client = &game.clients[0];
+    old_mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), point.x, point.y);
+    old_mine->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(old_mine, &test_goldmine_stock, gold);
+    /* Retail RemoveUnit hides now and frees after the current simulation
+     * tick. The new overlay must not bind to this mine while it is queued. */
+    G_DeferFreeEdict(old_mine);
+
+    haunted = S_CreateBlightedGoldmine(0, &point, 90.0f);
+    T_NOT_NULL(haunted);
+    if (!haunted) goto done;
+    T_NOT_NULL(haunted->mineoverlay);
+    if (!haunted->mineoverlay) goto done;
+    restored = haunted->mineoverlay->parent;
+    T_NOT_NULL(restored);
+    T_ASSERT(restored != old_mine);
+    S_GoldMineSetResourceAmount(haunted, gold);
+    T_EQ(restored->resources, gold);
+    T_ASSERT(G_IsDeferredFree(old_mine));
+    G_RunDeferredFrees();
+    T_ASSERT(!old_mine->inuse);
+    T_ASSERT(restored->inuse);
+    T_EQ(haunted->mineoverlay->parent, restored);
+
+    acolyte = alloc_test_unit(MAKEFOURCC('u','a','c','o'), point.x, point.y);
+    acolyte->data.UnitAbilities = &test_acolyte_harvest;
+    acolyte->s.player = client->ps.number;
+    acolyte->stand = unit_stand;
+    acolyte->collision = 16.0f;
+    acolyte->unitinfo.MoveSpeed = 220.0f;
+    unit_stand(acolyte);
+    T_ASSERT(unit_issuetargetorder(acolyte, "smart", haunted));
+    T_ASSERT(acolyte->currentmove && acolyte->currentmove->proc == CAbilityAcolyteHarvest);
+    acolyte->currentmove->think(acolyte);
+    T_ASSERT(S_AcolyteHarvestIsActive(acolyte));
+    level.time = 5000;
+    blight_mine_think(haunted);
+    T_EQ(restored->resources, gold - 10);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
+
+    unit_die(haunted, NULL);
+    T_ASSERT(M_IsDead(haunted));
+    T_ASSERT(restored->inuse);
+    T_ASSERT(!(restored->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!restored->paused);
+    T_EQ(restored->resources, gold - 10);
+    T_ASSERT(S_GoldMineCanHarvest(restored));
+
+done:
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 /* Restoration spawns must initialize gameplay data without replaying Birth presentation. */
 TEST(wc3_movement, no_birth_spawn_skips_birth_callback) {
     edict_t *unit;

@@ -732,7 +732,8 @@ void S_MineOverlayBindPreplaced(void) {
         FOR_LOOP(j, globals.num_edicts) {
             edict_t *parent = &globals.edicts[j];
             float distance;
-            if (parent == overlay || !parent->inuse || !S_GoldMineIsMine(parent) ||
+            if (parent == overlay || !parent->inuse || G_IsDeferredFree(parent) ||
+                !S_GoldMineIsMine(parent) ||
                 goldmine_is_overlay_type(parent) || parent->s.player != PLAYER_NEUTRAL_PASSIVE) continue;
             distance = Vector2_distance(&overlay->s.origin2, &parent->s.origin2);
             if (distance > WC3_MINE_OVERLAY_MATCH_RADIUS || distance >= best_distance) continue;
