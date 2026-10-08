@@ -2,6 +2,8 @@
 #include "test.h"
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
+#include "games/warcraft-3/common/wc3_math.h"
+#include "fixtures/retail_object_range184.h"
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
@@ -85,6 +87,99 @@ static edict_t *make_hero(uint32_t class_id, float hp, float mana, float x, floa
 	ent->movetype = MOVETYPE_NONE;
 	unit_stand(ent);
 	return ent;
+}
+
+/* Original05b580 outputs, not another implementation of its range formula.
+ * Exercise the spell consumer and ensure prediction remains read-only. */
+TEST(wc3_spell, range184_matches_original_object_predicate) {
+    reset_entities(); setup_test_world();
+    edict_t *units[2]={alloc_test_unit(MAKEFOURCC('H','p','a','l'),0,0),
+                       alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0)};
+    box2_t bounds=CM_GetWorldBounds();
+    level.pathing_clock=(wc3Clock_t){.time=1};
+    FOR_LOOP(i,sizeof(retail_range184)/sizeof(*retail_range184)) {
+        typeof(*retail_range184) *row=retail_range184+i;
+        FOR_LOOP(k,2) {
+            edict_t *unit=units[k];
+            unit->movement.fine_pose=(vec2_t){wc3_float(row->point[k][0]),wc3_float(row->point[k][1])};
+            unit->s.origin2=(vec2_t){bounds.min.x+unit->movement.fine_pose.x*32,
+                                    bounds.min.y+unit->movement.fine_pose.y*32};
+            unit->movement.pose_world=unit->s.origin2;
+            unit->movement.pose_valid=true;
+            unit->movement.velocity=(vec2_t){wc3_float(row->velocity[k][0])*32,
+                                            wc3_float(row->velocity[k][1])*32};
+            unit->movement.clock_valid=row->predict;
+            unit->movement.pose_clock=(wc3Clock_t){.time=wc3_float(row->old[k])};
+            unit->collision=wc3_float(row->radius[k])*32;
+        }
+        edict_t before[2]={*units[0],*units[1]};
+        wc3Clock_t clock=level.pathing_clock;
+        T_EQ(S_SpellTargetInRange(units[0],row->same ? units[0] : units[1],wc3_float(row->reach)),row->accepted);
+        T_EQ(memcmp(units[0],before,sizeof(*units[0])),0);
+        T_EQ(memcmp(units[1],before+1,sizeof(*units[1])),0);
+        T_EQ(memcmp(&clock,&level.pathing_clock,sizeof(clock)),0);
+    }
+    T_ASSERT(!S_SpellTargetInRange(NULL,units[1],100));
+    T_ASSERT(!S_SpellTargetInRange(units[0],NULL,100));
+    reset_entities(); setup_test_world();
+}
+
+/* Holy Bolt consumes authored range and collision edges. Public target
+ * orders must not install a walk when the predicted target is already in range.
+ * Stop must still cancel an out-of-range pending cast without spending mana. */
+TEST(wc3_spell, range184_public_holybolt_uses_edges_prediction_and_stop) {
+    FOR_LOOP(schema,2) FOR_LOOP(kind,4) {
+        char text[1400];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;EBB;Y2;X7\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"%s\"\n"
+            "C;Y1;X4;K\"%s\"\nC;Y1;X5;K\"%s\"\nC;Y1;X6;K\"%s\"\nC;Y1;X7;K\"%s\"\n"
+            "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+            "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"37\"\nE\n",
+            schema ? "targs1" : "targs","Cost1","Cool1","Rng1",schema ? "DataA1" : "Data11");
+        edict_t *caster=make_hero(MAKEFOURCC('H','p','a','l'),500,200,256,256);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),kind==0 ? 388 : 420,256);
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        UnitAbilities_t abilities={.abilList="AHhb"};
+        caster->data.UnitAbilities=&abilities;
+        caster->s.player=target->s.player=0;
+        caster->collision=target->collision=16;
+        target->svflags|=SVF_MONSTER;
+        target->targtype=TARG_GROUND;
+        target->health.value=100; target->health.max_value=1000;
+        caster->unitinfo.MoveSpeed=270;
+        if(kind==1 || kind==2) {
+            /* Both committed centers remain outside: either independent
+             * velocity brings the predicted edge into the configured range. */
+            level.pathing_clock=(wc3Clock_t){.time=1};
+            edict_t *mover=kind==1 ? caster : target;
+            mover->movement.pose_clock=(wc3Clock_t){0};
+            mover->movement.clock_valid=true;
+            mover->movement.velocity=(vec2_t){kind==1 ? 32 : -32,0};
+        }
+        T_FEQ(S_SpellRange(MAKEFOURCC('A','H','h','b'),1),100,0);
+        T_ASSERT(G_IssueUnitTargetOrder(caster,"holybolt",target,false,0));
+        if(kind<3) {
+            T_FEQ(target->health.value,137,0);
+            T_FEQ(caster->mana.value,187,0);
+            T_ASSERT(!move_is_active_order_walk(caster));
+        } else {
+            T_FEQ(target->health.value,100,0);
+            T_FEQ(caster->mana.value,200,0);
+            T_ASSERT(move_is_active_order_walk(caster));
+            uint32_t slot=globals.num_edicts-1;
+            edict_t *thinker=g_edicts+slot;
+            T_ASSERT(thinker->think==S_SpellTargetApproachThink);
+            T_ASSERT(unit_issueimmediateorder(caster,"stop"));
+            if(thinker->inuse && thinker->think)thinker->think(thinker);
+            T_ASSERT(!thinker->inuse);
+            T_FEQ(target->health.value,100,0);
+            T_FEQ(caster->mana.value,200,0);
+            T_ASSERT(S_SpellCooldownReady(caster,MAKEFOURCC('A','H','h','b')));
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities(); setup_test_world();
 }
 
 /* Two authored rawcodes share Holy Bolt's callbacks but must read their own effect and resource data. */

@@ -1698,6 +1698,29 @@ void S_PredictUnitFinePointAt(edict_t const *self,wc3Clock_t const *clock,float 
     point[0]=pose.grid[0];point[1]=pose.grid[1];
 }
 
+/* Original05b580 with prediction enabled: convert the requested scalar before
+ * adding target then source radii. Source-minus-point truncation, the minimum
+ * radius and squared near-equality are observable at adjacent float inputs.
+ * Read fine positions only; querying must not commit either mover's clock. */
+bool S_UnitTargetInMoveRange(edict_t const *self,edict_t const *target,float range) {
+    if(!self || !target)return false;
+    uint32_t word=wc3_float_bits(range);
+    range=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    float target_radius=wc3_mul(target->collision,wc3_float(0x3d000000));
+    float source_radius=wc3_mul(self->collision,wc3_float(0x3d000000));
+    range=MAX(wc3_float(0x3efae148),wc3_add(wc3_add(range,target_radius),source_radius));
+    float source[2],point[2],squared=0;
+    S_PredictUnitFinePointAt(self,&level.pathing_clock,source);
+    S_PredictUnitFinePointAt(target,&level.pathing_clock,point);
+    FOR_LOOP(k,2) {
+        float delta=wc3_sub(source[k],point[k]);
+        squared=wc3_add(squared,wc3_mul(delta,delta));
+    }
+    float limit=wc3_mul(range,range);
+    return limit>squared ||
+        wc3_float(wc3_float_bits(wc3_sub(squared,limit))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
 static void unit_predicted_pose_raw(edict_t const *self,wc3GridPose_t *pose) {
     unit_predicted_pose_at(self,&level.pathing_clock,pose);
 }

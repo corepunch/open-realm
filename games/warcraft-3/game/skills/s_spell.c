@@ -330,10 +330,7 @@ bool S_SpellCanPay(edict_t *caster, uint32_t code, uint32_t level) {
 }
 
 bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
-    if (!caster || !target) {
-        return false;
-    }
-    return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
+    return S_UnitTargetInMoveRange(caster,target,range);
 }
 
 bool S_SpellIsAliveTarget(edict_t *target) {

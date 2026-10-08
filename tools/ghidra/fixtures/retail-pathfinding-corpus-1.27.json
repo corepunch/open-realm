@@ -622,7 +622,11 @@
         "--binary",
         "{binary}",
         "--report",
-        "{report}"
+        "{report}",
+        "--check-object-fixture",
+        "tools/ghidra/fixtures/retail-object-range184-1.27.json",
+        "--check-object-header",
+        "games/warcraft-3/game/tests/fixtures/retail_object_range184.h"
       ],
       "inputs": {
         "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
@@ -633,18 +637,29 @@
       "checks": {
         "passed": {
           "equal": true
+        },
+        "engine_object_cases": {
+          "equal": 822
+        },
+        "engine_exports_verified": {
+          "equal": true
+        },
+        "spell_wrapper_cases": {
+          "equal": 795
         }
       },
       "evidence": [
         "O"
       ],
-      "scope": "Exact retail point-range predicate, including mover lookup and prediction.\n\nFull 05b440 calls; no stubs. Models reuse independently verified numeric bits.",
+      "scope": "Complete original point/object range predicates and795 shared-spell caller executions through authentic CUnit getter and absent-perimeter fallback;822 frozen domain-zero cases wired into the game spell consumer.",
       "exclusions": [
         "Point predicate invalid/stale mover handles; object faults covered separately",
         "Nonfinite producer inputs",
         "Point predicate clock domain1; epoch wrap in both predicates",
         "Object predicate nonfinite inputs and upstream handle validation",
-        "Full order dispatch composition"
+        "Full order dispatch composition",
+        "Spell caller present target-perimeter fallback",
+        "Full spell approach completion/stop and live producer timing"
       ]
     },
     {
@@ -45332,7 +45347,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "fe84605803cd9c562451409671922b293477b459c01c863bc48430677830d936"
+      "sha256": "5d79b51e969445cb26248bb6e7c4c2a08fdbe071ad38165ad109fbcb9db169e3"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -46165,7 +46180,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c51020cf1cc7a0129514aa425476f3490274f12e67676ff0cc014f44d36c4d6b"
+      "sha256": "ad5f5908769a209e67db5ccfb5adb106956ce6e75cc0d893a8d3bfebae293685"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -47017,11 +47032,11 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "56693a63d92f1963d8c6b219fb1adb6e695f308bbce93b9319b6ebd486ff7523"
+      "sha256": "4629a53ea13ceeb9084b30a5b0f02d3fb14e0a298843d3cf93ec200357ddd442"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "0ce53de4cea51c80524e0d475b2fe1caeed652c7f3532808e3683ff673f96d59"
+      "sha256": "c517e8f28ed1bad81fd88c6949085258ae94c9645b294780b656a39ad4afeaf9"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -47465,7 +47480,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "e97ce509fd084024ec9a22d07061bc20dd74680d2ba9eb1e845d8871c4e9c328"
+      "sha256": "f9969af1c3174477c473daafc4cc0e864da5a3063f7ce13a89868034fa1b1424"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -47969,11 +47984,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ae791fcfbdd74904bec047d249bef856caad5e942254b62d8d664499d41996e0"
+      "sha256": "7302d523a00ecef5ee812842dc5cd780fbdbf7510b240c1d30de5fc0683dfeda"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "693b6c11b76a8d950846d8363026fe089e7c945969dbe0c255e2ac942b912b6f"
+      "sha256": "92fcb07e77d7d70a56e3cddb507b8cb6fff720350b9e3ca49cc0da359d272744"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -48773,7 +48788,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_spell.c",
-      "sha256": "91c690be012bf6504609e4a9ec07b0490dbe30bbcbd96ca72c0057c0d3391111"
+      "sha256": "4f44f2c50e553fb33b5a286d7732682c3e8a3d73c39a90c6f4d12bac7f7c3359"
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_random.c",
@@ -49438,6 +49453,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-recovery-scope-ghidra183-1.27.json",
       "sha256": "208bdb1095f045dd724fdbf3183bedc98181a8ef7f0e81854cfb16b086ea2dd9"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/fixtures/retail_object_range184.h",
+      "sha256": "ed1dac5fb89568c21054cbde468f10cd575e8e93ede8ddf88844c6f777ff7f0f"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_range.py",
+      "sha256": "f31c7186ac499c0d4a3e895fb33648326fd9044a930a79a8551c1bd8cc55e8c0"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-object-range184-1.27.json",
+      "sha256": "333dbf14ccde5e139a8adc9f39adcd0f357c507f59966ef494ba1f4ba4151a59"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spell-launch-failures184-1.27.json",
+      "sha256": "ee3de648ec13fbade9cf2cdb7e14d4b1bf805b4b3a24ed1bc1b54ac77489aea8"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_object_range.py",
+      "sha256": "d8fd8d9b999ca8898e51cb96e24202769aa3d1e441f4f1a9a990e62c81d9a2ce"
+    },
+    {
+      "path": "tools/frida/research/spell184_probe.j",
+      "sha256": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed"
+    },
+    {
+      "path": "tools/frida/research/spell184_make_map.py",
+      "sha256": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f"
+    },
+    {
+      "path": "tools/frida/research/spell184_capture.py",
+      "sha256": "59e7f6ef83baa408543809eda0ff85bf0656830eb3bb60eb492f783f999bd63a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-spell-range-ghidra184-1.27.json",
+      "sha256": "5813496a1425b144d52044016607e22186dc8384d63859e8083f2906571f54a7"
     }
   ]
 }

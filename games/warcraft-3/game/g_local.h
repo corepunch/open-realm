@@ -3321,6 +3321,7 @@ void S_QueryMoveProximity(edict_t const *,float const[2],float,bool (*)(edict_t 
 void S_QueryMoveProximityContext(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
 void S_QueryMoveRangeCandidates(edict_t const *,float const[2],float,void (*)(void *,edict_t const *),void *);
 void S_PredictUnitFinePointAt(edict_t const *,wc3Clock_t const *,float[2]);
+bool S_UnitTargetInMoveRange(edict_t const *,edict_t const *,float);
 wc3FineBox_t const *S_GetMoveProximity(uint32_t);
 bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);

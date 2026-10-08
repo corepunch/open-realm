@@ -803,6 +803,12 @@
           "evidence": "Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Increment Unit114 counted contributions; only transition0->1 constructs a fade. Zero fade calls68b780 synchronously; nonzero clears128/12c handles, sets Scalar118 near-zero if belowcd53a0, adds reciprocal fade slope and upward1 listener d01d4. Subsequent contributions only679db0. Positive isolated fade consumer words verified separately; overlapping full-owner composition remains open. Payoff168: ECX Unit, stack4 fade scalar pointer, RET4. Decrement Unit114; only last contribution clears Unit5c01000000 before optional revealed notification. Zero fade refreshes68b780 without TargetLost when114=0. Nonzero removal installs negative slope and downward0 listener. Do not infer inverse TargetLost or automatic Follow resumption."
         },
         {
+          "offset": 356,
+          "name": "mover_bridge",
+          "type": "WC3UnitMoverBridge",
+          "evidence": "Payoff184: authentic CUnit vtable6fb77eb0+b8 is6864d0, LEA EAX,[ECX+164]; RET without consuming stack.795 complete41d1f0 original calls resolve this embedded bridge."
+        },
+        {
           "offset": 372,
           "name": "internal_head",
           "type": "WC3PathIdentity",
@@ -4938,6 +4944,36 @@
           "evidence": "4c95da loads software scalar word at100 before position commit."
         }
       ]
+    },
+    {
+      "name": "WC3SpellAbilityPrefix",
+      "length": 88,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "type": "ptr:void",
+          "evidence": "HolyBolt RTTI vtable6fb61628 and shared spell dispatch4259e0."
+        },
+        {
+          "offset": 48,
+          "name": "caster",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "evidence": "438680 reads ability30 before Unit range query and internal approach creation."
+        },
+        {
+          "offset": 80,
+          "name": "rank_index",
+          "type": "i32",
+          "evidence": "417f90 pushes ability50 to417a70; signed negative rank returns zero; authored rows use0x68 stride."
+        },
+        {
+          "offset": 84,
+          "name": "cached_rank_rows",
+          "type": "ptr:void",
+          "evidence": "417a70 lazily resolves ability54 through6ac530 then reads row count50/data54."
+        }
+      ]
     }
   ],
   "methods": [
@@ -7969,7 +8005,7 @@
       "name": "CUnit_GetMoverBridge",
       "returns": "ptr:WC3UnitMoverBridge",
       "convention": "__thiscall",
-      "evidence": "Registered native, actual CUnit vtable6fb77eb0, instruction/RET readback and two complete public live four-toggle profile/velocity witnesses (engine payoff25).",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. Two original instructions: LEA EAX,[ECX+164]; RET. No stack argument. PUSH1 in41d1f0 belongs to the later05b580 prediction argument, not this virtual getter.",
       "parameters": [
         {
           "name": "unit",
@@ -16017,6 +16053,112 @@
         {
           "name": "unused1",
           "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f05b580",
+      "name": "MoveBridge_IsTargetInConfiguredRange",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; ECX bridge; stack4 requested scalar pointer,8 target bridge, c integer prediction selector.948 complete native object cases, including independent clock domains;822 exported domain-zero engine cases. No invalid-handle false fallback.",
+      "parameters": [
+        {
+          "name": "bridge",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": "ECX"
+        },
+        {
+          "name": "requested",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:WC3UnitMoverBridge",
+          "storage": 8
+        },
+        {
+          "name": "predict",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f41d1f0",
+      "name": "Unit_IsTargetInSpellRange",
+      "returns": "u32",
+      "convention": "__thiscall",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; original calls target virtualb8() then05b580 with predict1; if false, target-perimeter fallback68c250.795 full unmodified executions including authentic CUnit virtual getter and native absent-perimeter fallback; unchanged unit/mover bytes. Present perimeter remains excluded.",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:WC3UnitOrdersPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "requested",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f417f90",
+      "name": "CAbilitySpell_GetTargetCastRange",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RETc; writes authored417a70 output for ability50 rank. Unused stack8 target, stackc add_buffer enables SpellCastRangeBuffer. Target-order producer438680 passes0, so approach takes authored range without that buffer.",
+      "parameters": [
+        {
+          "name": "spell",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "out_range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "add_buffer",
+          "type": "u32",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f417a70",
+      "name": "CAbilitySpell_GetAuthoredCastRange",
+      "returns": "ptr:WC3PathScalar",
+      "convention": "__thiscall",
+      "evidence": "Payoff184: instruction-checked x86 ABI and full original range oracle. RET8; out_scalar stack4, signed rank_index stack8. Lazy cache54; count row50, data54, scalar at data+1c+rank*68. Negative/out-of-bounds/absent row returns runtime zero.",
+      "parameters": [
+        {
+          "name": "spell",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "out_range",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "rank_index",
+          "type": "i32",
           "storage": 8
         }
       ]

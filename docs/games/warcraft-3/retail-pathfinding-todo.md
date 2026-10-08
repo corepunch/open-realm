@@ -57,6 +57,15 @@ work closes no additional retail research tasks. See
 
 **256 done / 336 tasks; 80 remaining.**
 
+Payoff184 advances TARGET-01.3 with the Move-owned predicted collision-edge
+range predicate:822 original fixtures and public Holy Light/Stop regressions;
+303 failures before the fix,3,342 assertions after. All403 spell tests pass in
+Classic/TFT. Saved Ghidra and mapper preserve the actual shared spell caller,
+authored range producer and five ABIs. Captured approach completion/perimeter
+handling and live producer timing remain open; three incomplete launches are
+explicitly rejected as gameplay evidence. No new leaves or closure claims.
+See [spell target range](retail-pathfinding-engine.md#spell-target-range-uses-predicted-collision-edges-payoff184).
+
 Payoff183 advances MAP-04.2: Stop recovery holds the captured spatial counter
 through fine-pose publication and restores it on clear/admitted/exhausted exits.
 The public production regression fails16 assertions before the fix; all156 pass

@@ -12609,3 +12609,71 @@ inputs; its 32 inventory checks and three recovery negative checks pass.
 The three selected strict contracts (original recovery, exclusions and archived
 public Stop repeat) pass. The full checkpoint resets the local twelve-commit
 cadence; failed and partial runs remain archived alongside the accepted log.
+
+## Spell target range uses predicted collision edges (Payoff184)
+
+The shared spell range consumer now calls Move-owned
+`S_UnitTargetInMoveRange`. The old consumer compared committed world centers
+with a host square root and treated zero range as unlimited. Original05b580
+instead predicts both fine poses without publishing them, converts the
+requested world scalar with the guarded exponent adjustment, adds target radius
+then source radius, clamps to `cd53f0` (0.49 fine cells), and compares software
+squared distance. The exact boundary includes squared near-equality below
+`cd53a0` (`3a83126f`). The engine preserves this order, consumes each mover's
+retained pose clock, and neither allocates nor converts predicted poses back to
+world coordinates. This is an O(1) range predicate, not a routing shortcut or a
+claim that the frame budget has been met.
+
+`verify_wc3_pathing_range.py` executes the complete original point and object
+predicates without stubs: 4,957 point cases, 948 object cases, and the six invalid
+object-handle faults. It now exports 822 object cases using the primary movement
+clock into `retail-object-range184-1.27.json` and the corresponding game-test
+header. Fresh execution verifies both frozen exports; negative checks reject
+changed inputs/results, missing cases and a changed engine header. The broader
+native oracle still tests both clock domains. The engine export intentionally
+does not pretend that our single movement clock implements the second native
+domain.
+
+A further 795 complete original41d1f0 calls execute the authentic CUnit virtual
+getter6864d0 and original absent-perimeter fallback68c250/05ac80. The getter is
+`LEA EAX,[ECX+164]; RET`, with no stack argument. In41d1f0 the earlier `PUSH1`
+belongs to05b580's prediction argument; decompiling it as a getter parameter
+misstates the ABI. Saved Ghidra now retains the embedded Unit mover bridge,
+spell caster/rank-row prefix, five explicit prototypes and the named shared
+spell approach producer. `MapPathfinding.java` and its type schema reproduce
+that evidence.
+
+The public Holy Light target-order regression uses non-stock range100,
+Cost13 and heal37 with both RoC `targs`/`Data11` and TFT `targs1`/`DataA1`
+columns. Two16-world collision radii make a132-world center separation eligible;
+independent caster or target prediction also makes an otherwise164-world gap
+eligible. Eligible orders cast without entering a walk. An out-of-range order
+enters the pending approach; public Stop cancels it without healing, spending
+mana or starting cooldown. Alongside the822 frozen predicate cases and read-only
+state checks, the new regressions fail303 assertions before the fix and pass
+3,342 afterward. All403 spell tests pass in Classic and TFT (10,993 assertions
+per mode); the directly related prediction-cache regression passes80 assertions
+per mode. Both production and test binaries build. This is focused validation,
+one implementation commit after the Payoff183 full checkpoint.
+
+Static producer evidence: HolyBolt vtable6fb61628+0c dispatch60a530 delegates to
+SimpleSpell4259e0; accepted target eventd0161 reaches438680. Its virtual408 call
+passes `(out,target,0)` to417f90, capturing authored range without
+`SpellCastRangeBuffer`. The out-of-range branch pops the old internal head and
+creates6926b0 taskd0174 with that range. The already-in-range branch can instead
+install the `cd5480` FLT_MAX range sentinel after05b340's point check. This differs
+from ordinary Follow's half-edge initial approach and configured persistent
+range. **Captured task completion, the present target-perimeter fallback,
+spell facing/effect timing and exact stop/replacement composition remain open.**
+The current pending spell thinker still observes an ordinary Move and reads live
+ability range; this commit does not claim to replace that whole lifecycle.
+
+Three bounded Frida launch attempts are retained in
+`/GitHub/wc3-analysis/runtime/payoff184` and summarized, with source/capture
+hashes, in `retail-spell-launch-failures184-1.27.json`. The first map retained an
+incompatible campaign shadow map; the local spell builder now rebuilds its64×64
+shadow member. The corrected observer run and an observer-free control both
+reached the loading screen but produced no simulation markers or Preload file.
+They certify no live gameplay behavior. The capture controller now rejects
+incomplete marker streams rather than returning a successful status. These
+attempts do not close TARGET-01.3 or establish a movement-start trace.
