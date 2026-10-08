@@ -56,6 +56,7 @@ def main():
     ap.add_argument('--preload', default='rs-spell184.txt')
     ap.add_argument('--task', default='payoff184')
     ap.add_argument('--extension', type=Path, help='additional read-only observer source')
+    ap.add_argument('--observer', type=Path, help='read-only observer replacing target021_observer.js')
     ap.add_argument('--always', action='store_true', help='observer records outside scene windows too')
     ap.add_argument('--lite', action='store_true', help='compact observer rows for crowd scenes')
     ap.add_argument('--output', type=Path, required=True, help='new JSONL path')
@@ -77,6 +78,8 @@ def main():
     sources = [Path(__file__), HERE / 'target021_observer.js', HERE / 'spell184_probe.j', HERE / 'spell184_make_map.py', HERE / 'target021_make_map.py']
     if args.extension:
         sources.append(args.extension)
+    if args.observer:
+        sources.append(args.observer)
     if (HERE / 'target03_probe.j').exists():
         sources.append(HERE / 'target03_probe.j')
     provenance = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
@@ -120,7 +123,7 @@ def main():
             if args.mode == 'observe':
                 session = device.attach(pid)
                 script = session.create_script('const config = ' + json.dumps(config) + ';\n' +
-                                               (HERE / 'target021_observer.js').read_text() + '\n' +
+                                               (args.observer or HERE / 'target021_observer.js').read_text() + '\n' +
                                                (args.extension.read_text() if args.extension else ''))
                 script.on('message', message)
                 script.load()

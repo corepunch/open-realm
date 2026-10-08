@@ -57,6 +57,14 @@ work closes no additional retail research tasks. See
 
 **258 done / 336 tasks; 78 remaining.**
 
+Payoff188 integrates the portal placement exclusion lifetime into the engine:
+its captured spatial counter remains held through bounded admission and restores
+on success or exhaustion. A failing-first 24-case engine regression, 48 complete
+original-wrapper cases and repeated minimal-hook public controls verify the
+contract; Ghidra and `MapPathfinding.java` retain the corrected footprint/mask
+ABI and null outer-callback producer. MAP-04.2 remains open for its wider scopes;
+no new leaves. See [portal exclusion](retail-pathfinding-engine.md#portal-placement-holds-its-authoritative-spatial-counter-payoff188).
+
 Payoff187 advances TARGET-02.1 and MAP-04.2: group coarse paths now borrow a
 member pose without acquiring its self exclusion. Complete ground-to-air pursuit
 matches616 follower states,621 target states and466 saved follower suffix states,

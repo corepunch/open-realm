@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "150 executable original oracle contracts;421 total entries.",
+  "scope": "151 executable original oracle contracts;423 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -45896,6 +45896,307 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-portal-scope",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_portal_scope.py",
+        "--binary",
+        "{binary}",
+        "--fixture",
+        "tools/ghidra/fixtures/retail-portal-scope188-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "portal-scope188.json",
+      "expected_exit": 0,
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "case_count": {
+          "equal": 48
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Complete original16ec00 captured-self lifetime, explicit ABI, RET10 and SEH restoration across both exits, null self, four footprints, outer0/1/7.",
+      "exclusions": [
+        "16ecc0 placement boundary controlled; no geometry/callback or thrown exception claim."
+      ],
+      "expected_status": "bounded-original-portal-scope"
+    },
+    {
+      "id": "live-portal-exclusion",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/portal188_verify.py",
+        "--archive",
+        "{archive}/research",
+        "--expected",
+        "tools/ghidra/fixtures/retail-portal-exclusion188-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "portal-live188.json",
+      "expected_exit": 0,
+      "expected_status": "live-portal-exclusion",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "portal_requests": {
+          "equal": 1
+        },
+        "candidate_checks": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 166
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "rejected_public_differences": {
+          "equal": 157
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Captured portal self counter held through bounded adaptive-distance candidate and restored before publication. Two minimal function-entry observed repeats match166 public samples against observer-free control.",
+      "exclusions": [
+        "Broad observer captures perturb157 public positions and are explicitly rejected; archived negative control is checked.",
+        "The48-case original-wrapper oracle controls the placement boundary; no geometry claim from it.",
+        "Generic optional outer callback is NULL in this producer; exceptions and wider group/rectangle/stale/notification scopes are not closed."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/MAP-04.2/captures188/minimal-observe-1.jsonl",
+        "sha256": "4c9ba55d96141a661eb5cb40eb08582677ca2d06d2aeaa6a3ce965b04c38cfc6",
+        "bytes": 21691,
+        "metadata": {
+          "task": "payoff188",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+          },
+          "map": "Maps\\RS-Portal188.w3m",
+          "seconds": 130.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "P188 ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/MAP-04.2/captures188/minimal-observe-2.jsonl",
+            "sha256": "79e09ef51b7cb53dbad6a29211035477884da34bcdfc12fdc87a9cef6f1d8ec2",
+            "bytes": 21691,
+            "metadata": {
+              "task": "payoff188",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+              },
+              "map": "Maps\\RS-Portal188.w3m",
+              "seconds": 130.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P188 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/MAP-04.2/captures188/minimal-control-1.jsonl",
+            "sha256": "2e169f6b1379e94ad932a7d1ba059798b10c738b2de096b1a739a8fce6d35016",
+            "bytes": 1532,
+            "metadata": {
+              "task": "payoff188",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "portal188_observer.js": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+              },
+              "map": "Maps\\RS-Portal188.w3m",
+              "seconds": 130.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P188 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        },
+        {
+          "inputs": {
+            "capture": "research/MAP-04.2/captures188/observe-1.jsonl",
+            "sha256": "a5be285d699e516d50903f92e2261fa6c4d67277159c78e5c6fd9e11382994d8",
+            "bytes": 236538,
+            "metadata": {
+              "task": "payoff188",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+              },
+              "map": "Maps\\RS-Portal188.w3m",
+              "seconds": 130.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P188 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/MAP-04.2/captures188/observe-2.jsonl",
+            "sha256": "2f3fe5a9b0d8a6512f873b9722c2becd189076146a1736d59c06dd4604025b6e",
+            "bytes": 236536,
+            "metadata": {
+              "task": "payoff188",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+              },
+              "map": "Maps\\RS-Portal188.w3m",
+              "seconds": 130.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P188 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/MAP-04.2/captures188/control-1.jsonl",
+            "sha256": "33cc30c7d1163333c1a4e9c3475020c663f252350a41b3ddf2704ec8aa549dc4",
+            "bytes": 1530,
+            "metadata": {
+              "task": "payoff188",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "portal188_observer.js": "bd75753c6679cd35d243c55408abc5800b353c7985ba342437f7325f55cf4959",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "44b9b5843b55080b9f3ade8f16a698e3d5b37da18fd018b409b3d0c45329e3fc"
+              },
+              "map": "Maps\\RS-Portal188.w3m",
+              "seconds": 130.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "P188 ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -45961,7 +46262,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "df729f4dfd86253b3dd24b2ae094fe61a92ec658fba460c897862f6714a9e852"
+      "sha256": "3a6d0198f4bed8d62040d73c645fd206388329fd536e73a99c560adf5f55fa48"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -46794,7 +47095,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "bb71454e8897314c7d3e5bc58d55613f798dac02a5b21d0fd9e5f617fed263db"
+      "sha256": "98dd165b37d15afebcc01c48b57b85f97b68188a7294686ce875b1a7cee4757b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48082,7 +48383,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "b35bf80224fcd7b1ee2515dc96c59bb419c1875b64d765043cde5f63a1bed694"
+      "sha256": "6f07e5db2e9c79b1c8bbe78006da41d524caa16abcc9f7f1e7387599413fe2f6"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -48094,7 +48395,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "02ef91cad6ba8809730a1a51b61d0d3772b955f833b3a53ef7edd41e40d7e570"
+      "sha256": "774786883df1e98cb018d51661cd7fdc5fc75205217bc5476cf9e84be0f56333"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -48146,7 +48447,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_pathfinding.c",
-      "sha256": "1be3960a77ee0d3f8d7d2321a6e1cb2cbd10bc81aba3cc55dadd4c7673c9481e"
+      "sha256": "6698bbfebafa4b563350bf8eae9664110cc897d1697807f79b2e32ded00d7033"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_routes.py",
@@ -48586,7 +48887,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "53ea02ae1cfbf094ed0b8d024edbd401b6b2aa1c1edc1136609dab45f864d1a2"
+      "sha256": "7e1a55213a1072764744916bcf17eefcaa7d730b31d47971784091eb059dcda2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -48598,11 +48899,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "e4accb64b1fffd6d4d75daff9e01f4354d81b7f789dac9c14d6a81d59f7818c8"
+      "sha256": "abe6c2ec51419438c41ebbce7b8aed47e603ff7d17711dbb97fa955256d2fbd5"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "330a9c50315262534e31c6a1d3228439860aff89890f1218772e8e0e0a7e7cd2"
+      "sha256": "4857969c8d9e87a91e2e09aa5cdcd6bc57ee127ef6f1868ed196f5867e680db3"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50098,7 +50399,7 @@
     },
     {
       "path": "tools/frida/research/spell184_capture.py",
-      "sha256": "df6f799b751cae6a262998f48825aa4e7d8d9042dfd3b1d76da32af58fa099e5"
+      "sha256": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1"
     },
     {
       "path": "tools/ghidra/fixtures/retail-spell-range-ghidra184-1.27.json",
@@ -50183,6 +50484,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-ground-air-follow-ghidra187-1.27.json",
       "sha256": "a803b1a6043f6746af25a6034b1fc7187ad9fd187f99723ef9ee2d4b22faace3"
+    },
+    {
+      "path": "tools/frida/research/portal188_verify.py",
+      "sha256": "9fe20b86a5c8bb4197941c075a7fc8d45a097e6bb0b34961c3ce467edec5b437"
+    },
+    {
+      "path": "tools/frida/research/portal188_make_map.py",
+      "sha256": "33a264d9dcb4aa4f5a0f3dc062633d110239dab2c8cc1e169e8638548738ba16"
+    },
+    {
+      "path": "tools/frida/research/portal188_observer.js",
+      "sha256": "e103c6a79fdc4768bc6799ce4fff57e27bc054c2b05ea76f2f505e2461888f06"
+    },
+    {
+      "path": "tools/frida/research/portal188_probe.j",
+      "sha256": "cb31fd0e602de743ba897250ad1234085444544625452d015c3add5458a612d2"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_portal_scope.py",
+      "sha256": "cd9f908c8291e4247fee514f96a8911c0b9c7122cd939fb91190259abb59a5f7"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-portal-scope188-1.27.json",
+      "sha256": "36262a28f5b06f5806c70e94353885e6f5ddc92e48393eecb809533e21edfc63"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-portal-exclusion188-1.27.json",
+      "sha256": "bc9caa006e2195ccf5b2cacda1d336655a889bce23e1f2af67e566770fdc34bf"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_portal_scope.py",
+      "sha256": "608bada4981037d77f4b9efa91b8e5201b07de2699c8d7de88cb4007eb4a09f4"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-portal-ghidra188-1.27.json",
+      "sha256": "5f8ebd4151d684b85ba659771a22e4d4c6b04edc516f636d74c6be5121d38c59"
     }
   ]
 }

@@ -3264,7 +3264,7 @@ typedef struct {
     bool group_path; /* A group borrows a source member; its path has no self exclusion. */
 } movePathQuery_t;
 #ifdef BZ_TESTS
-enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS };
+enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS, MOVE_SCOPE_PORTAL };
 typedef struct { movePathQuery_t const *query; unsigned kind,stage; } moveScopeTrace_t;
 void G_TestMoveObjectScopeTrace(void (*)(void *,moveScopeTrace_t const *),void *);
 #endif

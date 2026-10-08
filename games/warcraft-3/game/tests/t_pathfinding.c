@@ -1788,6 +1788,40 @@ TEST(pathfinding, fine_consumers_hold_captured_self_and_restore_every_result) {
 
 void G_TestMoveFineScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);
 
+typedef struct { edict_t *unit; wc3RecordObject_t *self; uint32_t outer; unsigned stages; bool blocked; } portalScopeTrace_t;
+static void check_portal_scope(void *data,moveScopeTrace_t const *scope) {
+    portalScopeTrace_t *trace=data;
+    T_EQ(scope->kind,MOVE_SCOPE_PORTAL);T_EQ(scope->stage,trace->stages++);
+    T_EQ(scope->query->mover,trace->unit);T_NULL(scope->query->target);
+    T_EQ(trace->self->flags,trace->outer+(scope->stage==1));
+    if(scope->stage==1)T_EQ(G_TestMoveScopeCell(trace->self->box.min,2,NULL),!trace->blocked);
+}
+
+/*16ec00 holds its captured self through the complete bounded portal placement,
+ * including the adaptive-distance callback. Existing outer holds survive both
+ * admission and six-ring exhaustion; no query-local self overlay substitutes it. */
+TEST(pathfinding, portal188_placement_holds_self_through_admission_and_exhaustion) {
+    uint32_t const outer[]={0,1,7};
+    FOR_LOOP(cls,4)FOR_LOOP(blocked,2)FOR_LOOP(depth,3) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};if(blocked)memset(cells,2,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *unit=make_unit_at(12.25f*32,16.75f*32);unit->collision=8+cls*16;
+        G_PublishMoveSpatialObject(unit);
+        wc3RecordObject_t *self=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);T_NOT_NULL(self);
+        self->flags=outer[depth];wc3FineBox_t box=self->box;
+        portalScopeTrace_t trace={unit,self,outer[depth],0,blocked};G_TestMoveObjectScopeTrace(check_portal_scope,&trace);
+        vec2_t fine={12.25f,16.75f},out={-1,-1};
+        T_EQ(G_FindUnitMovePortalPosition(unit,&fine,&out),!blocked);
+        G_TestMoveObjectScopeTrace(NULL,NULL);T_EQ(trace.stages,3);T_EQ(self->flags,outer[depth]);
+        T_EQ(memcmp(&self->box,&box,sizeof(box)),0);
+        if(blocked){T_EQ(out.x,-1);T_EQ(out.y,-1);}
+        else{T_EQ(wc3_float_bits(out.x),wc3_float_bits(fine.x));T_EQ(wc3_float_bits(out.y),wc3_float_bits(fine.y));}
+        self->flags=0;
+    }
+    reset_entities();setup_test_world();
+}
+
 TEST(pathfinding, fine_scope_restores_exact_partial_and_pre_acquire_denial_exits) {
     uint32_t old_counter=level.pathing_counter;
     FOR_LOOP(exit,4) {

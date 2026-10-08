@@ -1092,7 +1092,15 @@ bool G_FindUnitMovePortalPosition(edict_t *unit,vec2_t const *fine,vec2_t *out) 
     movePathQuery_t objects={.mover=unit,.units=true};move_query_objects(&data.graph,&objects,NULL);
     wc3FinePlacement_t query={.point={fine->x,fine->y},.limit=6,
         .footprint={.cls=cls,.cell=move_cell_ok,.data=&data},.admit=move_portal_admit};
-    float admitted[2];if(!wc3_fine_place(&query,admitted))return false;
+    /*16ec00 captures self once;16ee00's distance callback runs while held.
+     * Portal placement has no outer gameplay callback. Release before commit. */
+    move_trace_object_scope(MOVE_SCOPE_PORTAL,0,&objects);
+    wc3RecordObject_t *self=move_hold_self(&objects);data.graph.counted_scope=true;
+    move_trace_object_scope(MOVE_SCOPE_PORTAL,1,&objects);
+    float admitted[2];bool placed=wc3_fine_place(&query,admitted);
+    move_release_self(self);
+    move_trace_object_scope(MOVE_SCOPE_PORTAL,2,&objects);
+    if(!placed)return false;
     *out=(vec2_t){admitted[0],admitted[1]};return true;
 }
 

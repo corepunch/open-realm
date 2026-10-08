@@ -12896,3 +12896,60 @@ fixture derivation and the new region ownership stream. It does not certify full
 stock combat/presentation, structure or spell perimeters, arbitrary target families,
 visibility/loss compositions or reentrant/portal exclusion scopes. TARGET-02.1
 and MAP-04.2 retain those broader scopes and remain open.
+
+### Portal placement holds its authoritative spatial counter (Payoff188)
+
+The portal adapter now holds the mover's captured fine-spatial record through
+placement and the bounded adaptive-distance predicate. It releases that same
+record before returning either admission or six-ring exhaustion. This replaces
+its query-local self-ignore overlay with retail's authoritative exclusion; outer
+holds survive without a record rebuild or a second hold. Portal publication
+still occurs after release. Stop recovery has its independently verified longer
+scope through position commit.
+
+Original `16ec00` captures mover `+98` into ESI, increments record `+40` at
+`16ec34`, calls `16ecc0`, decrements ESI at `16eca0`, and returns `RET10`.
+Both outer callback arguments are literal null. The generic `16ee00` optional
+`context+24` callback is therefore unreachable through this producer; its
+internal bounded adaptive query remains reachable. The earlier MAP-04.2
+handoff's unresolved outer callback does not apply to portal placement.
+The `16ecc0` fastcall profile also corrects the reversed pointer names/types:
+stack4 is the scalar footprint from mover90, stack8 the query mask from path9c.
+
+The complete original-wrapper oracle checks 48 cases: four footprints,
+null/present self, outer depths 0/1/7 and both placement verdicts. Only the
+placement boundary is controlled; this proves scope, ABI and SEH restoration,
+not geometry. The production regression failed 28 assertions before the fix
+and passes all 552 afterward, checking actual placement success/exhaustion and
+raw held-cell occupancy in 24 cases. All 29 `pathfinding.*` tests pass in
+Classic and TFT (3,422,395 assertions each). Four existing full native Way Gate
+journey/save regressions pass in each mode (226,062 assertions), as do all 18
+Way Gate API tests (2,222 assertions). Save146 and placement policy are unchanged.
+
+Fresh bounded public point-Move portal captures use a minimal read-only observer
+with four function-entry hooks and a Preload marker hook. Two observed repeats
+match the observer-free control's complete 166-marker position/order timeline.
+Each observes the same captured record counter 0 → 1 → 0, null outer callback,
+and held `16ee00` candidate check. The occupied exit enters at fine51.5/17.5
+and is admitted at52.5/16.5. The earlier broad observer changed that admitted
+point and fails the control comparison: its two captures remain in the runtime
+archive as rejected evidence, not acceptance inputs. The verifier requires exact
+public equality rather than tolerating this instrumentation effect.
+
+Reproducers and frozen inputs:
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_portal_scope.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3/game.dll \
+  --fixture tools/ghidra/fixtures/retail-portal-scope188-1.27.json --output /tmp/portal-scope.json
+python3 tools/frida/research/portal188_verify.py \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --expected tools/ghidra/fixtures/retail-portal-exclusion188-1.27.json --output /tmp/portal-live.json
+```
+
+Capture inputs are under `research/MAP-04.2/captures188`; rejected broad captures,
+red/green engine logs and saved Ghidra assembly/decompilation/readback are under
+`/GitHub/wc3-analysis/runtime/payoff188`. `MapPathfinding.java` and the explicit
+ABI fixture retain the three saved portal contracts. MAP-04.2 stays open for
+its remaining group publication/rectangle-list/stale-identity and broader
+notification/reentrancy lifetimes; this chunk creates no new leaves.
