@@ -55,7 +55,9 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**253 done / 336 tasks; 83 remaining.**
+**254 done / 336 tasks; 82 remaining.**
+
+Payoff179 closes ORDER-05.1: unit removals now use an indexed deadline/unsigned-serial heap in the primary drain, with O(1) membership, O(log N) insertion/cancellation/pop and exact borrowed callback clocks. Twelve failing-first/production-path regressions, focused Classic/TFT suites, fresh 432 original-code cases and two complete repeated/control Frida archives pass. Ghidra layouts/ABIs and mapper are saved; repeating listeners and pending-clock persistence remain ORDER-05.2/03. See [unit release heap](retail-pathfinding-engine.md#unit-releases-join-the-primary-deadline-heap-payoff179).
 
 Payoff178 closes ORDER-03.2: nested Stop retains its transient head, death
 families deliver synchronously with the retail presence-query timing, and
@@ -1068,7 +1070,7 @@ Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
 
 ### ORDER-05 — Deferred requests
 
-- [ ] **ORDER-05.1** Populate the deferred heap with different/equal deadlines; assert pop/tie order, cancellation and wrapper reuse.
+- [x] **ORDER-05.1** Populate the deferred heap with different/equal deadlines; assert pop/tie order, cancellation and wrapper reuse. Payoff179 integrates indexed unit releases with minimum-delay deadlines, unsigned serial keys, arbitrary cancellation, incarnation/reuse checks and popped-clock callback chaining in the primary drain. Twelve production regressions, focused Classic/TFT suites, fresh 432 original cases and two full repeated/control Frida captures pass; saved Ghidra layouts/eleven ABIs and mapper retain the contract. Native pool addresses are not engine identities; repeating listeners and clock persistence remain05.2/03. [Evidence](retail-pathfinding-engine.md#unit-releases-join-the-primary-deadline-heap-payoff179).
 - [ ] **ORDER-05.2** Schedule a repeating request and a callback that schedules/cancels another; assert invocation order and final heap/refcount state.
 - [ ] **ORDER-05.3** Restore or switch the request clock with pending deadlines; assert which callbacks fire and when without rebasing deadlines by assumption.
 

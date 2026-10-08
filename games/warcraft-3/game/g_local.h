@@ -3820,8 +3820,15 @@ bool G_UnitIsWorldActive(edict_t const *);
 void G_FreeEdict(edict_t *);
 bool G_EntityHasStaticPathing(edict_t const *);
 void G_DeferFreeEdict(edict_t *);
+void G_DeferFreeEdictAt(edict_t *,wc3Clock_t const *);
 bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
+bool G_NextUnitRelease(wc3Clock_t *,uint32_t *);
+void G_FireUnitRelease(void);
+void G_RebaseUnitReleases(float);
+#ifdef BZ_TESTS
+void G_TestFinishDeferredFrees(void);
+#endif
 void G_ResetDeferredFrees(void);
 void G_ResetMoveRegionEvents(void);
 void G_TrackMoveRegionEvent(event_t const *);

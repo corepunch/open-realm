@@ -12258,3 +12258,88 @@ python tools/ghidra/research/verify_order178_removal.py \
 [Research handoff](retail-pathfinding-handoffs/ORDER-03.2/HANDOFF.md).
 Trigger waits, physical CUnit destructor timing and broader queue/target-policy
 research remain outside this closure. No additional TODO IDs were created.
+
+## Unit releases join the primary deadline heap (Payoff179)
+
+ORDER-05.1 replaces the game-owned unit removal array with an indexed heap.
+`G_DeferFreeEdictAt` preserves immediate retirement of commands, world occupancy
+and JASS-group membership, then schedules storage release at the captured primary
+clock plus `G_ClockMinimumDelay()` using the verified software add. Duplicate
+requests for the same live incarnation remain idempotent. `RemoveUnit` captures
+its JASS context's clock, so a timer callback uses its popped deadline.
+
+The heap key is scalar deadline followed by unsigned primary registration serial.
+`TimerDrain` merges its minimum with script timers, ability-owned requests,
+spatial maintenance and trigger releases; slot numbers do not set priority.
+`G_FireUnitRelease` removes the captured slot before freeing that incarnation,
+then the drain samples the new root after callbacks. Direct freeing cancels the
+indexed node; final cancellation before clearing the edict also handles a
+removal callback that requests the retiring identity again. Reset clears only
+occupied membership records. Epoch rebasing uses software subtraction, retaining
+the native heap's existing order.
+
+Storage is a stable side array indexed by edict slot plus a compact heap of slot
+indices. Membership is O(1); insertion, arbitrary cancellation and popping are
+O(log N), with no queue-node allocation or edict growth. This deliberately does
+not reproduce native allocator addresses: the original request blocks are reused
+LIFO, whereas engine nodes remain attached to stable edict slots. Logical
+incarnation, deadline, serial and callback order are the contracts.
+
+The post-entity `G_RunDeferredFrees` drain processes only already-due releases.
+It temporarily establishes a valid borrowed primary clock at each popped
+deadline and restores all prior clock context afterwards. A failing regression
+caught the distinction: changing only `level.timer_clock` without establishing
+its source/validity caused callback-created work to use the later frame time.
+Nested releases now complete within the same due interval, and nested timers
+retain the original deadline words.
+
+Verification:
+
+- Initial failing-first tests expose LIFO release order, premature release before
+  the minimum delay and missing primary-scheduler integration. A separate red
+  callback-chain test exposes the post-entity borrowed-clock bug.
+- Twelve production-path tests cover synchronous native removal, equal/different
+  keys, unsigned serial wrap, tied timer/release order in both directions,
+  callback-created requests, actual `RunFrame`, cancellation/slot reuse, reset
+  and rebasing. A 1,024-entry mixed heap checks every retained key after arbitrary
+  internal-node cancellation against independently sorted expectations.
+- Focused Classic/TFT API, reentry/subscriber/order lifecycle, Way Gate, movement
+  and save suites pass; production and test targets build. Isolated cleanup
+  tests use the explicitly test-only `G_TestFinishDeferredFrees` boundary;
+  scheduler tests use real deadlines and frames. Old self-Attack and short-Patrol
+  expectations were corrected to the already verified Payoff175/176 contracts.
+- Fresh unmodified retail instructions pass 432 cases (32 named, 400 seeded),
+  with 4,529 callbacks, 182 silent canceled pops, 3,179 rearms, 3,395 queued
+  requests, five rebases and no faults or mismatches. The 12 frozen ORDER-05.1
+  named results agree. Supplied owners/receivers and presentation-clock cases
+  remain explicitly labelled helper evidence.
+- Two complete prepared Frida captures contain 6,230 records and 1,432 checked
+  pops, with no ordering violations, identical normalized repetition and exact
+  marker comparisons against the observer-free control. The empty failed launch
+  is retained, hashed and explicitly rejected. These are archived retail runs,
+  not newly launched captures. Strict verification reconstructs the entire frozen
+  fixture and rejects changed keys, cancellation/reuse, controls, caps or missing
+  completion markers.
+- Ghidra saves/readbacks retain the clock/request/wrapper layouts, eleven explicit
+  x86 ABIs and task-tagged comments; `MapPathfinding.java` and the canonical type
+  schema carry the same evidence.
+
+Reproduce the new engine regression suite with:
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests \
+  -data build/tests +dedicated 1 +test 'wc3_unit_releases.*'
+# Repeat with -tft before +dedicated.
+python3 tools/ghidra/research/verify_order179_requests.py \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --output /tmp/order179-captures-new.json
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_request_heap.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --output /tmp/order179-original-new.json
+```
+
+The existing game-owned trigger-release contract remains intact. Exact
+repeating range-listener phase/callback/release-chain integration stays
+ORDER-05.2. Pending request persistence, secondary-clock public producers and
+clock switching remain ORDER-05.3/SCHED-01. This change does not claim those
+lifetimes, arbitrary native allocator identity or complete retail fidelity.

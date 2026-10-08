@@ -938,13 +938,25 @@
           "offset": 20,
           "name": "identity",
           "type": "WC3PathIdentity",
-          "evidence": "054530 canonical generation"
+          "evidence": "054530 canonical generation\n054530 canonical generation\nORDER-05.1 (identity, u32): bit31 selects the presentation clock (owner+68) in 15c650; same field as WC3AgentWrapperPrefix.identity. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 28,
+          "name": "timer_request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "evidence": "Current timer request (15d6f0 stores, 15d7a0 cancels+clears, 15e500 stops a fired one-shot). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 32,
           "name": "retired",
           "type": "u32",
-          "evidence": "2039d0/061320 reject nonzero"
+          "evidence": "2039d0/061320 reject nonzero\n2039d0/061320 reject nonzero\nORDER-05.1 (retired, ptr:WC3AgentRequest): Release request (15e0e0 idempotence guard); same field as WC3AgentWrapperPrefix.retired. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 76,
+          "name": "flags",
+          "type": "u32",
+          "evidence": "0x10000 repeat timer; 0x100/0x200/0x400 signal kinds in 15e500; 0x20000/0x40000 stop hooks; 0x800000 inside OnClockRequest; 0x1000000 destroying. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 84,
@@ -1226,31 +1238,73 @@
     },
     {
       "name": "WC3SimulationClockPrefix",
-      "length": 80,
+      "length": 84,
       "fields": [
+        {
+          "offset": 16,
+          "name": "heap_requests",
+          "type": "ptr:void",
+          "evidence": "Heap container at clock+4 (+C): 1-based array of request pointers; slot 0 unused. 04f990/04f3c0/0521f0. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 24,
+          "name": "heap_growth",
+          "type": "u32",
+          "evidence": "Container +14: growth step for 6f04ff60. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 28,
+          "name": "heap_capacity",
+          "type": "u32",
+          "evidence": "Container +18. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 32,
+          "name": "heap_count",
+          "type": "u32",
+          "evidence": "Container +1C: count including slot 0 (drain loops while >1). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 56,
+          "name": "free_blocks",
+          "type": "ptr:void",
+          "evidence": "LIFO free list of request blocks (054370 push, 15e310 pop). Live: release blocks freed D3,D1,D4,D2 are reused D2,D4,D1,D3. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal). Block pool +0x24 block_pool (u8[20]): Fixed allocator used by 15e310 (6f06a320) when the free list is empty; blocks 0x28 bytes, request = block+4. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 60,
+          "name": "live_requests",
+          "type": "u32",
+          "evidence": "Incremented by 15e310, decremented when a request is freed (054370). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
         {
           "offset": 64,
           "name": "time",
           "type": "WC3PathScalar",
-          "evidence": "054050/0540f0/054190/054230 software advance and due-request dispatch; repeated raw primary producer"
+          "evidence": "054050/0540f0/054190/054230 software advance and due-request dispatch; repeated raw primary producer\n054050/0540f0/054190/054230 software advance and due-request dispatch; repeated raw primary producer\nClock time; set to each popped deadline during a drain (052380) and restored after. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 68,
           "name": "epoch",
           "type": "u32",
-          "evidence": "052170/0521b0/0521f0/052230 deadline rebase increments epoch"
+          "evidence": "052170/0521b0/0521f0/052230 deadline rebase increments epoch\n052170/0521b0/0521f0/052230 deadline rebase increments epoch\nIncremented once per rebase (0521f0). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 72,
           "name": "span",
           "type": "WC3PathScalar",
-          "evidence": "054190 single wrap; actual primary clock span300"
+          "evidence": "054190 single wrap; actual primary clock span300\n054190 single wrap; actual primary clock span300\n300.0 for both owner request clocks (live). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 76,
           "name": "flags",
           "type": "u32",
-          "evidence": "054190 bit1 pause; actual primary1000 flag permits advance"
+          "evidence": "054190 bit1 pause; actual primary1000 flag permits advance\n054190 bit1 pause; actual primary1000 flag permits advance\nbit0 pause: 054190 returns without advancing. Live primary 0x1000, presentation 0; bit0 never set by menu/save/load. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
+          "offset": 80,
+          "name": "serial",
+          "type": "u32",
+          "evidence": "Pre-incremented per new request (15dc30/15d6f0/15e0e0); saved/restored by 15c490. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         }
       ]
     },
@@ -2183,46 +2237,52 @@
       "length": 32,
       "fields": [
         {
+          "offset": 0,
+          "name": "reserved",
+          "type": "u32",
+          "evidence": "Written 0 by 15e310 (request = block+4; block+0 is the free-list link). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
+        },
+        {
           "offset": 4,
           "name": "deadline",
           "type": "WC3PathScalar",
-          "evidence": "0522e0 due comparison/temporaryclock; repeated3899 rearm captures"
+          "evidence": "0522e0 due comparison/temporaryclock; repeated3899 rearm captures\n0522e0 due comparison/temporaryclock; repeated3899 rearm captures\nClock time + delay via software Math_Add 06fbb0 (truncating: 1.0+0.125 -> 3f8ffff8). Heap key 1. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 8,
           "name": "period",
           "type": "WC3PathScalar",
-          "evidence": "053640 request8 pointer to scalar Math_Add operand; actual0.10 and owner0.03 words"
+          "evidence": "053640 request8 pointer to scalar Math_Add operand; actual0.10 and owner0.03 words\n053640 request8 pointer to scalar Math_Add operand; actual0.10 and owner0.03 words\nDelay after clamp to 6fcd539c (1e-4); repeat period for 053710. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 12,
           "name": "clock",
           "type": "ptr:WC3SimulationClockPrefix",
-          "evidence": "0542d0 free list at requestc clock38/3c;053630 ECX clock"
+          "evidence": "0542d0 free list at requestc clock38/3c;053630 ECX clock\n0542d0 free list at requestc clock38/3c;053630 ECX clock\nOwning clock. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 16,
           "name": "flags",
           "type": "u32",
-          "evidence": "0542d0 periodic1/cancel10000;053630 clears10000 and sets queued20000"
+          "evidence": "0542d0 periodic1/cancel10000;053630 clears10000 and sets queued20000\n0542d0 periodic1/cancel10000;053630 clears10000 and sets queued20000\n0x20000 queued (cleared at pop), 0x10000 cancelled (pop frees without callback), 0x1 repeating. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 20,
           "name": "serial",
           "type": "u32",
-          "evidence": "04f830/04f1a0 unsigned secondary comparison;0602a0 incrementsclock50. Whole208 original insert/pop ordering entries including shared deadlines."
+          "evidence": "04f830/04f1a0 unsigned secondary comparison;0602a0 incrementsclock50. Whole208 original insert/pop ordering entries including shared deadlines.\n04f830/04f1a0 unsigned secondary comparison;0602a0 incrementsclock50. Whole208 original insert/pop ordering entries including shared deadlines.\nHeap key 2 (unsigned, CMP/SBB); kept across rearm. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 24,
           "name": "receiver",
           "type": "ptr:void",
-          "evidence": "0542d0 invokes receiver vtablec(request); live request snapshots"
+          "evidence": "0542d0 invokes receiver vtablec(request); live request snapshots\n0542d0 invokes receiver vtablec(request); live request snapshots\nAgent wrapper; vt+48 called by 054370 (AgentWrapper_OnClockRequest 15e500 base). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         },
         {
           "offset": 28,
           "name": "callback_data",
           "type": "u32",
-          "evidence": "060840 stores caller-supplied data;060d40 reads before count/callback transitions."
+          "evidence": "060840 stores caller-supplied data;060d40 reads before count/callback transitions.\n060840 stores caller-supplied data;060d40 reads before count/callback transitions.\nORDER-05.1 (value, u32): Opaque value copied from the producer (*value). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal)."
         }
       ]
     },
@@ -15258,6 +15318,225 @@
         }
       ],
       "evidence": "ECX savedEBX260adb; unitEBP8/killerEBPc; RET8 260bb6. Player_HasEventSubscriber80261 then counted script data and262cb0 synchronous delivery."
+    },
+    {
+      "address": "6f15e310",
+      "name": "SimClock_QueueAgentRequest",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "convention": "__thiscall",
+      "evidence": "RET14 15e38c. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "value",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "delay",
+          "type": "WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "deadline",
+          "type": "ptr:WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "serial",
+          "type": "u32",
+          "storage": 20
+        }
+      ]
+    },
+    {
+      "address": "6f15dc30",
+      "name": "SimClock_ScheduleAgentRequest",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "convention": "__thiscall",
+      "evidence": "RET0C 15dc84. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "receiver",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "value",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "delay",
+          "type": "ptr:WC3PathScalar",
+          "storage": 12
+        }
+      ]
+    },
+    {
+      "address": "6f15d6f0",
+      "name": "AgentWrapper_StartTimer",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET8 15d76e. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "period",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "value",
+          "type": "u32",
+          "storage": 8
+        }
+      ]
+    },
+    {
+      "address": "6f15d7a0",
+      "name": "AgentWrapper_StopTimer",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET 15d7d8 (tail jmp 15e830). ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f15e0e0",
+      "name": "AgentWrapper_ScheduleRelease",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET 15e156. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f04f990",
+      "name": "RequestHeap_Push",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 04fa10. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f04f3c0",
+      "name": "RequestHeap_PopMin",
+      "returns": "ptr:WC3TimerRequestPrefix",
+      "convention": "__thiscall",
+      "evidence": "RET 04f3fc/04f4c8. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "heap",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f15c650",
+      "name": "AgentOwner_SelectRequestClock",
+      "returns": "ptr:WC3SimulationClockPrefix",
+      "convention": "__thiscall",
+      "evidence": "RET4 15c666. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "owner",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "wrapper",
+          "type": "ptr:void",
+          "storage": 4
+        }
+      ]
+    },
+    {
+      "address": "6f052380",
+      "name": "SimClock_DrainDueRequests",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET 0523cf. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "clock",
+          "type": "ptr:WC3SimulationClockPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f054370",
+      "name": "SimClock_ExecuteRequest",
+      "returns": "void",
+      "convention": "__fastcall",
+      "evidence": "RET 0543a0/0543b3. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f15e500",
+      "name": "AgentWrapper_OnClockRequest",
+      "returns": "void",
+      "convention": "__thiscall",
+      "evidence": "RET4 15e519/15e58a. ORDER-05.1: instruction-verified (disassembly in ORDER-05.1/asm, RET/stack below); Unicorn oracle verify_ORDER-05.1_request_heap.py (432 cases, 0 mismatches); live order05 requests probe (observer==control, repeat equal).",
+      "parameters": [
+        {
+          "name": "wrapper",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "storage": 4
+        }
+      ]
     }
   ],
   "globals": [

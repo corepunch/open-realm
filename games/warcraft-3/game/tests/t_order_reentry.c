@@ -142,7 +142,7 @@ TEST(wc3_order_reentry, removal_keeps_running_dispatch_and_suspends_new_point_or
     T_ASSERT(G_IsDeferredFree(unit));T_EQ(unit->currentmove,NULL);
     T_EQ(G_UnitQueuedOrderCount(unit),1);
     T_ASSERT(!G_UnitStartNextQueuedOrder(unit));T_EQ(G_UnitQueuedOrderCount(unit),1);
-    G_RunDeferredFrees();T_ASSERT(!unit->inuse);T_EQ(unit->class_id,0);
+    G_TestFinishDeferredFrees();T_ASSERT(!unit->inuse);T_EQ(unit->class_id,0);
     jass_callbyname(level.vm,"check_removed",false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
@@ -168,7 +168,7 @@ TEST(wc3_order_reentry, remove_from_player_keeps_unit_packet_then_defend_retires
         "call TriggerAddAction(b,function second)\ncall reg(function unitpoint,EVENT_UNIT_ISSUED_POINT_ORDER)\n"
         "call IssuePointOrder(u,\"move\",512.0,64.0)\n"
         "call BJassAssert(trace==123,\"removal defers ability detach until dispatch completes\")\nendfunction\n"));
-    G_RunDeferredFrees();jass_callbyname(level.vm,"check_release",false);
+    G_TestFinishDeferredFrees();jass_callbyname(level.vm,"check_release",false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 #endif

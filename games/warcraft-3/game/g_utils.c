@@ -2,12 +2,30 @@
 #include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 
 typedef struct {
-    edict_t *ent;
-    uint32_t spawn_time;
+    wc3Clock_t deadline;
+    uint32_t spawn_time, sequence, heap_index; /* index plus one; zero means absent */
 } deferred_free_t;
 
 static deferred_free_t deferred_frees[MAX_ENTITIES];
+static uint32_t deferred_free_heap[MAX_ENTITIES];
 static uint32_t deferred_free_count;
+
+static bool DeferredFreeLess(uint32_t a,uint32_t b) {
+    deferred_free_t const *x=deferred_frees+a,*y=deferred_frees+b;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void DeferredFreePut(uint32_t index,uint32_t slot) {
+    deferred_free_heap[index]=slot;deferred_frees[slot].heap_index=index+1;
+}
+static void DeferredFreeDown(uint32_t index,uint32_t slot) {
+    while(index*2+1<deferred_free_count) {
+        uint32_t child=index*2+1;
+        if(child+1<deferred_free_count && DeferredFreeLess(deferred_free_heap[child+1],deferred_free_heap[child]))child++;
+        if(DeferredFreeLess(slot,deferred_free_heap[child]))break;
+        DeferredFreePut(index,deferred_free_heap[child]);index=child;
+    }
+    DeferredFreePut(index,slot);
+}
 
 /* A trapped unit keeps its identity but is absent from normal world interaction. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
@@ -23,20 +41,23 @@ void G_SetEntityHidden(edict_t *ent, bool hidden) {
 }
 
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
-static void G_CancelDeferredFree(edict_t *ent) {
-    FOR_LOOP(i, deferred_free_count) {
-        if (deferred_frees[i].ent != ent) continue;
-        deferred_frees[i] = deferred_frees[--deferred_free_count];
-        i--;
+static void DeferredFreeRemove(uint32_t slot) {
+    if(slot>=MAX_ENTITIES || !deferred_frees[slot].heap_index)return;
+    uint32_t index=deferred_frees[slot].heap_index-1,last=deferred_free_heap[--deferred_free_count];
+    deferred_frees[slot].heap_index=0;
+    if(index==deferred_free_count)return;
+    while(index && DeferredFreeLess(last,deferred_free_heap[(index-1)/2])) {
+        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
     }
+    DeferredFreeDown(index,last);
 }
+
+static void G_CancelDeferredFree(edict_t *ent) { DeferredFreeRemove(ent->s.number); }
 
 /* Pending removal suspends execution; queries retain the live identity until release. */
 bool G_IsDeferredFree(edict_t const *ent) {
-    if (!ent) return false;
-    FOR_LOOP(i, deferred_free_count)
-        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return true;
-    return false;
+    return ent && ent->s.number<MAX_ENTITIES && deferred_frees[ent->s.number].heap_index &&
+        deferred_frees[ent->s.number].spawn_time==ent->spawn_time;
 }
 
 /* Remove an entity from every live JASS group before its handle becomes stale. */
@@ -121,6 +142,8 @@ void G_FreeEdict(edict_t *ent) {
     G_PoolsReleaseEdict(ent);
     S_MarkMoveGoals(ent);
     G_SetEntitySelectionMask(ent, 0);
+    /* A removal callback can request this already-retired identity again. */
+    G_CancelDeferredFree(ent);
     memset(ent, 0, sizeof(*ent));
     /* Removal callbacks can consume the earlier notification while still live. */
     if (had_aura) S_MarkAuraSource(ent);
@@ -131,11 +154,15 @@ void G_FreeEdict(edict_t *ent) {
     if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
-/* Retail RemoveUnit retires commands now, then releases storage after this tick. */
+/* Retail RemoveUnit retires commands now, then queues a primary-clock release. */
 void G_DeferFreeEdict(edict_t *ent) {
+    wc3Clock_t clock=G_TimerQueryClock(NULL);G_DeferFreeEdictAt(ent,&clock);
+}
+
+void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     if (!ent || !ent->inuse) return;
-    FOR_LOOP(i, deferred_free_count)
-        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return;
+    if(G_IsDeferredFree(ent))return;
+    G_CancelDeferredFree(ent);
     if (deferred_free_count >= MAX_ENTITIES) {
         fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
         return;
@@ -149,7 +176,15 @@ void G_DeferFreeEdict(edict_t *ent) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
-    deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
+    uint32_t const slot=ent->s.number;
+    deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
+        .sequence=++level.timer_sequence};
+    deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
+    uint32_t index=deferred_free_count++;
+    while(index && DeferredFreeLess(slot,deferred_free_heap[(index-1)/2])) {
+        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
+    }
+    DeferredFreePut(index,slot);
     /* Native694690 retires the order chain before returning from RemoveUnit;
      * deferred storage release must not keep its commands or physical task. */
     G_ClearUnitOrderQueue(ent);
@@ -161,24 +196,55 @@ void G_DeferFreeEdict(edict_t *ent) {
     M_SetMove(ent, NULL);
 }
 
-/* Complete queued JASS removals after entity iteration and before the next snapshot. */
-void G_RunDeferredFrees(void) {
-    while (deferred_free_count) {
-        deferred_free_t pending = deferred_frees[deferred_free_count - 1];
-        /* Actions run after the normal event pass and can kill/remove more units.
-         * Drain their death callbacks before freeing, then re-read the removal queue. */
-        if (level.vm && pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time &&
-            G_HasPendingDeathEvent(pending.ent)) {
-            G_RunEvents();
-            jass_runevents(level.vm);
-            continue;
-        }
-        deferred_free_count--;
-        if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
+bool G_NextUnitRelease(wc3Clock_t *deadline,uint32_t *sequence) {
+    if(!deferred_free_count)return false;
+    deferred_free_t const *next=deferred_frees+deferred_free_heap[0];
+    *deadline=next->deadline;*sequence=next->sequence;return true;
+}
+
+void G_FireUnitRelease(void) {
+    uint32_t const slot=deferred_free_heap[0];
+    deferred_free_t pending=deferred_frees[slot];edict_t *ent=g_edicts+slot;
+    /* Legacy queued death producers still deliver before their unit release.
+     * Dispatch can mutate the heap, so the caller samples its new head. */
+    if (level.vm && ent->inuse && ent->spawn_time == pending.spawn_time && G_HasPendingDeathEvent(ent)) {
+        G_RunEvents();jass_runevents(level.vm);return;
+    }
+    DeferredFreeRemove(slot);
+    if(ent->inuse && ent->spawn_time==pending.spawn_time)G_FreeEdict(ent);
+}
+
+void G_RebaseUnitReleases(float span) {
+    FOR_LOOP(i,deferred_free_count) {
+        deferred_free_t *pending=deferred_frees+deferred_free_heap[i];
+        pending->deadline.time=wc3_sub(pending->deadline.time,span);pending->deadline.epoch++;
     }
 }
 
-void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
+/* Post-entity work may have requested another release after the primary drain.
+ * Do not advance its clock or expose a future callback before the next quantum. */
+void G_RunDeferredFrees(void) {
+    wc3Clock_t now=G_TimerQueryClock(NULL),due;uint32_t serial;
+    wc3Clock_t saved=level.timer_clock,source=level.timer_source_clock;
+    bool const valid=level.timer_clock_valid;
+    level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
+    while(G_NextUnitRelease(&due,&serial) && (due.epoch==now.epoch ? due.time<=now.time :
+        (int32_t)(due.epoch-now.epoch)<0)) {
+        level.timer_clock=due;G_FireUnitRelease();
+    }
+    level.timer_clock=saved;level.timer_source_clock=source;level.timer_clock_valid=valid;
+}
+
+void G_ResetDeferredFrees(void) {
+    FOR_LOOP(i,deferred_free_count)deferred_frees[deferred_free_heap[i]].heap_index=0;
+    deferred_free_count=0;
+}
+
+#ifdef BZ_TESTS
+/* Isolated cleanup tests supply the release boundary, without claiming a clock
+ * producer. Scheduler tests call the real primary drain or globals.RunFrame. */
+void G_TestFinishDeferredFrees(void) { while(deferred_free_count)G_FireUnitRelease(); }
+#endif
 
 event_t *G_MakeEvent(EVENTTYPE type) {
     FOR_LOOP(i, MAX_EVENTS) if (G_EventSlotAvailable(level.events.handlers+i)) {

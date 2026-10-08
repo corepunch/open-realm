@@ -462,7 +462,7 @@ TEST(wc3_jass_map, nightelfx01_cleanup_removes_every_tracker) {
         "  call BJassAssert(FirstOfGroup(first) == null, \"first tracker group is empty\")\n"
         "  call BJassAssert(FirstOfGroup(second) == null, \"second tracker group is empty\")\n"
         "endfunction\n"));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     jass_callbyname(level.vm, "VerifyCleanup", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }

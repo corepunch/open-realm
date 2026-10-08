@@ -421,7 +421,9 @@ static void TimerDrain(float limit,bool before_owner) {
         bool owned=S_NextAbilityPrimaryTimer(&ability);
         wc3Clock_t release;uint32_t release_sequence;
         bool releasing=G_NextTriggerRelease(&release,&release_sequence);
-        if(!spatial && !timer && !owned && !releasing)break;
+        wc3Clock_t unit_release;uint32_t unit_sequence;
+        bool removing=G_NextUnitRelease(&unit_release,&unit_sequence);
+        if(!spatial && !timer && !owned && !releasing && !removing)break;
         float due=spatial ? maintenance.time : timer ? timer->scalar_deadline.time : FLT_MAX;
         uint32_t serial=spatial ? sequence : timer ? timer->scalar_sequence : UINT32_MAX;
         if(owned && ((!spatial && !timer) || ability.deadline.time<due ||
@@ -432,8 +434,15 @@ static void TimerDrain(float limit,bool before_owner) {
             (release.time==due && release_sequence<serial))) {
             due=release.time;serial=release_sequence;owned=false;spatial=false;
         } else releasing=false;
+        if(removing && ((!spatial && !timer && !owned && !releasing) || unit_release.time<due ||
+            (unit_release.time==due && unit_sequence<serial))) {
+            due=unit_release.time;serial=unit_sequence;owned=false;spatial=false;releasing=false;
+        } else removing=false;
         if(due>limit || (before_owner && due==limit && serial>level.pathing_owner_sequence))break;
-        if(releasing) {
+        if(removing) {
+            wc3Clock_t saved=level.timer_clock;level.timer_clock=unit_release;
+            G_FireUnitRelease();level.timer_clock=saved;
+        } else if(releasing) {
             wc3Clock_t saved=level.timer_clock;level.timer_clock=release;
             G_FireTriggerRelease();level.timer_clock=saved;
         }
@@ -456,6 +465,7 @@ static void RunScalarTimers(wc3Clock_t const *before) {
         S_RebaseMoveSpatialMaintenance(now.span);
         S_RebaseAbilityPrimaryTimers(now.span);
         G_RebaseTriggerReleases(now.span);
+        G_RebaseUnitReleases(now.span);
         FOR_LOOP(i,level.timer_heap_count) {
             gtimer_t *timer=level.timers+level.timer_heap[i];
             timer->scalar_deadline.time=wc3_sub(timer->scalar_deadline.time,now.span);timer->scalar_deadline.epoch++;

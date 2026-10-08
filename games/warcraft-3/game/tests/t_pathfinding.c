@@ -1400,7 +1400,7 @@ TEST(pathfinding, waygate_source_overlap_preserves_publication_routes_and_saved_
             unsigned pos=(stage<4?step:1-step);
             gates[step]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),pos?768:512,pos?768:512);
             T_ASSERT(G_ActorAddSkill(gates[step],MAKEFOURCC('Z','w','r','p')));
-        } else {G_DeferFreeEdict(gates[step-2]);G_RunDeferredFrees();}
+        } else {G_DeferFreeEdict(gates[step-2]);G_TestFinishDeferredFrees();}
         uint32_t size=G_GetMoveAdaptiveStateSize();T_EQ(size,2206*4+1681);
         uint8_t *state=malloc(size);T_NOT_NULL(state);
         if(state){T_ASSERT(G_GetMoveAdaptiveState(state,size));T_ASSERT(gate_overlap_bytes_hash(state,size)==retail_gate_overlap_stages[stage].state);free(state);}

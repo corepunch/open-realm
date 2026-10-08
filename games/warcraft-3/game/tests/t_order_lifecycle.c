@@ -764,7 +764,7 @@ TEST(wc3_order_lifecycle, follow_combat_target_loss_preserves_head_until_enemy_l
     T_EQ(subject->current_order_id, 851986);
     T_EQ(subject->order_queue.count, 0);
     T_NE(subject->goalentity, enemy);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     reset_entities(); setup_test_world();
 }
 
@@ -798,7 +798,7 @@ TEST(wc3_order_lifecycle, follow_incarnation_and_combat_removal_survive_save_bef
     T_EQ(subject->current_order_id, 851971);
     T_NULL(subject->movement.follow_target);
     T_ASSERT(G_IsDeferredFree(target));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(!target->inuse);
     unit_die(enemy, NULL);
     T_EQ(subject->current_order_id, 0);
@@ -883,7 +883,7 @@ TEST(wc3_order_lifecycle, retired_follow_subject_reuse_does_not_inherit_old_call
         subject->spawn_time = 10;
         T_ASSERT(G_IssueUnitTargetOrder(subject, smart ? "smart" : "move", target, false, 0));
         T_ASSERT(G_IssueUnitPointOrder(subject, "move", &(vec2_t){1024, 0}, true, 0, 0));
-        G_DeferFreeEdict(subject); G_RunDeferredFrees();
+        G_DeferFreeEdict(subject); G_TestFinishDeferredFrees();
         level.time += 1001;
         edict_t *replacement = review_order_unit(128, 0);
         replacement->spawn_time = level.time;

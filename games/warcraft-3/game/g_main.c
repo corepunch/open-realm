@@ -21,7 +21,7 @@
  *   4. G_RunClients()     — interpolate camera positions for smooth panning.
  *   5. G_RunEntities()    — call G_RunEntity() on every live entity.
  *   6. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
- *   7. G_RunDeferredFrees() — retire JASS RemoveUnit handles after the frame.
+ *   7. G_RunDeferredFrees() — drain already-due post-entity unit releases.
  */
 #include "common/common.h"
 #include "g_local.h"

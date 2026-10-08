@@ -242,7 +242,7 @@ TEST(wc3_attack_orders, detached_swing_wait_survives_save_and_slot_reuse) {
     edict_t *actor=attack_orders_hit(0.67f),*enemy=attack_orders_enemy();
     if (!actor || !enemy) return;
     T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){384,128},true,0,0));
-    G_DeferFreeEdict(enemy); G_RunDeferredFrees();
+    G_DeferFreeEdict(enemy); G_TestFinishDeferredFrees();
     T_EQ(actor->current_order_id,G_OrderId("attack")); T_NULL(actor->goalentity);
     abilityPrimaryTimer_t timer=actor->attack_swing;
     T_ASSERT(timer.active);

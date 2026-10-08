@@ -1200,7 +1200,7 @@ TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
     G_RunEntities(); G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify_removed_unit_did_not_receive_event", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     currentplayer = saved_currentplayer;
 }
 
@@ -4394,7 +4394,7 @@ TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
     G_DeferFreeEdict(unit);
     T_ASSERT(unit->inuse);
     T_ASSERT(unit->s.renderfx & RF_HIDDEN);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(!unit->inuse);
 }
 
@@ -4492,7 +4492,7 @@ TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
     replacement = unit_createorfind(0, MAKEFOURCC('h','p','e','a'), &(vec2_t){0, 0}, 0);
     T_ASSERT(replacement && replacement != dead);
     T_ASSERT(replacement->inuse);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     G_FreeEdict(replacement);
 }
 
@@ -8337,7 +8337,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify_removed_subject_did_not_dispatch", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     currentplayer = saved_currentplayer;
 }
 
@@ -8894,6 +8894,7 @@ static void death_events_before_corpse_removal(bool queued) {
     T_NOT_NULL(victim);
     jass_callbyname(level.vm, "kill_and_remove", queued);
     level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
     globals.RunFrame();
     T_ASSERT(!victim->inuse);
     jass_callbyname(level.vm, "verify", false);
@@ -8941,6 +8942,7 @@ TEST(wc3_api, death_events_drain_chained_corpse_removals) {
         "endfunction\n"));
     jass_callbyname(level.vm, "finish", true);
     level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
     globals.RunFrame();
     FOR_LOOP(i, globals.num_edicts) if (i >= game.max_clients) T_ASSERT(!g_edicts[i].inuse);
     jass_callbyname(level.vm, "verify", false);
@@ -8979,7 +8981,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
     replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(vec2_t, 64, 64));
     T_ASSERT(replacement == victim);
     G_DeferFreeEdict(replacement);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(!replacement->inuse);
     G_RunEvents(); jass_runevents(level.vm);
     jass_callbyname(level.vm, "verify", false);

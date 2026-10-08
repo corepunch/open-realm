@@ -158,7 +158,8 @@ uint32_t RemoveUnit(jass_t *j) {
     if (whichUnit) {
         gameClient_t *owner = G_GetPlayerClientByNumber(whichUnit->s.player);
         if (owner && owner->ps.number == whichUnit->s.player) G_InvalidateCommands(owner);
-        G_DeferFreeEdict(whichUnit);
+        wc3Clock_t clock=G_TimerQueryClock(jass_getcontext(j));
+        G_DeferFreeEdictAt(whichUnit,&clock);
     }
     return 0;
 }

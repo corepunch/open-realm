@@ -8354,7 +8354,7 @@ TEST(wc3_movement, group_point_request_owns_destination_during_moving_admission)
         edict_t *units[12];
         groupPointOrder_t request={.count=sizes[c],.order=orders[o],.order_id=G_OrderId(orders[o])};
         FOR_LOOP(i,request.count) {
-            units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128+i*64);
+            units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128+i*128);
             units[i]->collision=0;units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;
             unit_stand(units[i]);
             request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
@@ -8368,6 +8368,10 @@ TEST(wc3_movement, group_point_request_owns_destination_during_moving_admission)
         T_ASSERT(G_IssueGroupPointOrder(&request));
         if(!o)T_ASSERT(units[0]->s.origin2.x>expected.x);
         FOR_LOOP(i,request.count) {
+            if(o && !i) {
+                T_NULL(units[i]->goalentity);T_EQ(units[i]->current_order_id,0);
+                continue; /* Retail short Patrol completes at the producer's own position. */
+            }
             T_NOT_NULL(units[i]->goalentity);
             T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x),wc3_float_bits(expected.x));
             T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y),wc3_float_bits(expected.y));
@@ -10692,7 +10696,7 @@ TEST(wc3_movement, removed_buildings_refresh_same_callback_route_and_field) {
     T_ASSERT(CM_PointIsPathableForRadius(&center,0));
     T_ASSERT(!CM_ActivateCachedFlow(generation));
     T_ASSERT(G_UnitMovePathLineIsPathable(&query));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     FOR_LOOP(i,2) T_ASSERT(!buildings[i]->inuse);
     gi.MemFree(texture);
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
@@ -12243,7 +12247,7 @@ TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
         if(remove_unit) {
             T_ASSERT(victim->inuse);T_ASSERT(victim->s.renderfx&RF_HIDDEN);
             T_NULL(victim->currentmove);
-            G_RunDeferredFrees();T_ASSERT(!victim->inuse);T_NULL(victim->movement.fine_route.points);
+            G_TestFinishDeferredFrees();T_ASSERT(!victim->inuse);T_NULL(victim->movement.fine_route.points);
         } else {
             T_ASSERT(victim->inuse);T_ASSERT(victim->svflags&SVF_DEADMONSTER);
             T_ASSERT(WriteGame("/tmp/wc3-retired-mover.bin"));T_ASSERT(ReadGame("/tmp/wc3-retired-mover.bin"));
@@ -16439,7 +16443,7 @@ TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and
     T_EQ(actor->movement.captain_actor_members,3);
     jass_callbyname(level.vm,"remove_middle",false);
     T_EQ(ARRAY_COUNT(captain->units),3); /* Native return precedes deferred logical withdrawal. */
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_EQ(ARRAY_COUNT(captain->units),2);T_EQ(actor->movement.captain_actor_members,2);
     T_EQ(captain->units[0],first);T_EQ(captain->units[1],last);
     T_EQ(first->movement.captain_home.member_index,0);T_EQ(last->movement.captain_home.member_index,1);

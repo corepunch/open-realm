@@ -91,7 +91,7 @@ TEST(wc3_waygate, edge_queries_track_ownership_without_scanning_scenery) {
     edict_t *replacement=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
     T_ASSERT(G_ActorAddSkill(replacement,BZ_TEST_WARP));
     T_ASSERT(replacement->waygate->edge_id!=id);
-    S_WaygateSetActive(replacement,true);G_RunDeferredFrees();
+    S_WaygateSetActive(replacement,true);G_TestFinishDeferredFrees();
     T_ASSERT(G_ActorRemoveSkill(replacement,BZ_TEST_WARP));
     waygate_edge_visits=0;S_WaygateBuildEdges(edges);
     T_EQ(waygate_edge_visits,0u);
@@ -126,7 +126,7 @@ TEST(wc3_waygate, exhausted_gate_stays_unallocated_until_ability_recreation) {
     T_ASSERT(G_ActorRemoveSkill(gates[255],BZ_TEST_WARP));
     T_ASSERT(G_ActorAddSkill(gates[255],BZ_TEST_WARP));
     T_EQ(gates[255]->waygate->edge_id,0);
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     T_ASSERT(G_ActorRemoveSkill(gates[255],BZ_TEST_WARP));
     T_ASSERT(G_ActorAddSkill(gates[255],BZ_TEST_WARP));
     S_WaygateSetActive(gates[255],true);T_ASSERT(S_WaygateIsActive(gates[255]));
@@ -286,7 +286,8 @@ TEST(wc3_waygate, rejected_replacement_order_preserves_inflight_approach) {
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     goal = fix.unit->movement.waygate_goal;
-    T_ASSERT(!G_IssueUnitTargetOrder(fix.unit, "attack", fix.unit, false, 0));
+    /* Retail self-Attack forwards a point order; use an actually invalid target. */
+    T_ASSERT(!G_IssueUnitTargetOrder(fix.unit, "attack", NULL, false, 0));
     T_ASSERT(fix.unit->movement.waygate_target == fix.gate);
     T_ASSERT(fix.unit->movement.waygate_goal == goal);
     T_ASSERT(fix.unit->goalentity == goal);
