@@ -1611,6 +1611,21 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     state->name = 0;
     state->hover_value = 0;
     state->stats[ENT_CARGO] = 0;
+    /* World items have no health/mana hover bars, but their authored display
+     * name should still appear when the pointer rests on a visible pickup. */
+    if (G_IsItem((edict_t *)ent)) {
+        if (ent->item && ent->item->in_world && !(state->renderfx & RF_HIDDEN) &&
+            !(state->flags & EF_NOT_SELECTABLE) && G_FowPlayerCanHoverEntity(player, ent)) {
+            state->name = G_UnitNameConfigstring(G_ObjectName(ent->class_id));
+            /* The client's shared world-hover gate requires a positive health
+             * snapshot even for name-only entities. Items have no health bar,
+             * so publish a minimal presence value and keep the neutral pickup
+             * cursor behavior used for crates. */
+            state->stats[ENT_HEALTH] = 1;
+            state->flags |= EF_NEUTRAL;
+        }
+        return;
+    }
     /* Destructables are scenery, not units. Their live hover contract still
      * exposes the authored name and neutral Select cursor, without unit bars. */
     if (G_IsDestructable(ent)) {

@@ -158,7 +158,7 @@ TEST(client_layout, context_name_resolves_hover_entity_configstring) {
         .model = 1, .name = name, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 255 },
     };
     memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
-    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
+    snprintf(cl.configstrings[CS_GENERAL] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Footman");
 
     T_STREQ(SCR_GetStringValue(&frame), "Footman");
 }
@@ -176,7 +176,7 @@ TEST(client_layout, context_name_appends_live_hover_value) {
         .stats = { [ENT_HEALTH] = 255 },
     };
     memset(cl.configstrings[CS_GENERAL], 0, sizeof(cl.configstrings[CS_GENERAL]));
-    snprintf(cl.configstrings[CS_GENERAL] + (ni & 0xF) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
+    snprintf(cl.configstrings[CS_GENERAL] + (ni % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE, ENT_NAME_SLOT_SIZE, "Gold Mine");
 
     T_STREQ(SCR_GetStringValue(&frame), "Gold Mine\nGold: 12500");
     cl.ents[entnum].current.hover_value = 12491;
