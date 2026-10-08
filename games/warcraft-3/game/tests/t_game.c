@@ -5991,6 +5991,77 @@ TEST(wc3_jass, paused_timer_drops_queued_expiration_action) {
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+TEST(wc3_jass, disabled_triggers_allow_explicit_execution_but_ignore_events) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  trigger queuedTrigger = null\n"
+        "  trigger disabledEventTrigger = null\n"
+        "  trigger enabledEventTrigger = null\n"
+        "  timer disabledEventTimer = null\n"
+        "  timer enabledEventTimer = null\n"
+        "  integer queuedRuns = 0\n"
+        "  integer queuedConditionRuns = 0\n"
+        "  integer disabledEventRuns = 0\n"
+        "  integer enabledEventRuns = 0\n"
+        "endglobals\n"
+        "function QueueCondition takes nothing returns boolean\n"
+        "  set queuedConditionRuns = queuedConditionRuns + 1\n"
+        "  return true\n"
+        "endfunction\n"
+        "function TriggerExecuteBJ takes trigger whichTrigger, boolean checkConditions returns nothing\n"
+        "  if checkConditions then\n"
+        "    if TriggerEvaluate(whichTrigger) then\n"
+        "      call TriggerExecute(whichTrigger)\n"
+        "    endif\n"
+        "  else\n"
+        "    call TriggerExecute(whichTrigger)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function QueuedTriggerAddBJ takes trigger whichTrigger, boolean checkConditions returns nothing\n"
+        "  call TriggerExecuteBJ(whichTrigger, checkConditions)\n"
+        "endfunction\n"
+        "function QueuedAction takes nothing returns nothing\n"
+        "  set queuedRuns = queuedRuns + 1\n"
+        "endfunction\n"
+        "function DisabledEventAction takes nothing returns nothing\n"
+        "  set disabledEventRuns = disabledEventRuns + 1\n"
+        "endfunction\n"
+        "function EnabledEventAction takes nothing returns nothing\n"
+        "  set enabledEventRuns = enabledEventRuns + 1\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set queuedTrigger = CreateTrigger()\n"
+        "  call TriggerAddCondition(queuedTrigger, Condition(function QueueCondition))\n"
+        "  call TriggerAddAction(queuedTrigger, function QueuedAction)\n"
+        "  call DisableTrigger(queuedTrigger)\n"
+        "  call QueuedTriggerAddBJ(queuedTrigger, true)\n"
+        "  call BJassAssert(queuedRuns == 1, \"queued disabled trigger action did not run\")\n"
+        "  set disabledEventTrigger = CreateTrigger()\n"
+        "  set disabledEventTimer = CreateTimer()\n"
+        "  call TriggerAddAction(disabledEventTrigger, function DisabledEventAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(disabledEventTrigger, disabledEventTimer)\n"
+        "  call DisableTrigger(disabledEventTrigger)\n"
+        "  call TimerStart(disabledEventTimer, 0.0, false, null)\n"
+        "  set enabledEventTrigger = CreateTrigger()\n"
+        "  set enabledEventTimer = CreateTimer()\n"
+        "  call TriggerAddAction(enabledEventTrigger, function EnabledEventAction)\n"
+        "  call TriggerRegisterTimerExpireEvent(enabledEventTrigger, enabledEventTimer)\n"
+        "  call TimerStart(enabledEventTimer, 0.0, false, null)\n"
+        "endfunction\n"
+        "function VerifyDisabledTriggerPaths takes nothing returns nothing\n"
+        "  call BJassAssert(queuedRuns == 1, \"explicit queue ran more than once\")\n"
+        "  call BJassAssert(queuedConditionRuns == 1, \"disabled trigger condition was not evaluated exactly once\")\n"
+        "  call BJassAssert(disabledEventRuns == 0, \"disabled trigger responded to timer event\")\n"
+        "  call BJassAssert(enabledEventRuns == 1, \"enabled trigger missed timer event\")\n"
+        "endfunction\n"));
+
+    G_RunTimers();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "VerifyDisabledTriggerPaths", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 TEST(wc3_jass, nested_script_sleep_resumes_child_before_parent) {
     T_ASSERT(run_test_jass(
         "globals\n"
