@@ -269,8 +269,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     if (ent->current.name) {
         uint32_t i = ent->current.name - 1;
-        cstring_t cs = cl.configstrings[CS_GENERAL + (i >> 4)];
-        re.name = cs ? cs + (i & 0xF) * ENT_NAME_SLOT_SIZE : NULL;
+        cstring_t cs = cl.configstrings[CS_GENERAL + i / ENT_NAMES_PER_CS];
+        re.name = cs ? cs + (i % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE : NULL;
     }
     {
         uint32_t const encoded_color =

@@ -680,10 +680,10 @@ typedef enum {
 /* Packing layout for entityState_t.name.
  * CS_MAX_NAMES names total, ENT_NAMES_PER_CS per CS_GENERAL slot, ENT_NAME_SLOT_SIZE bytes each.
  * Wire slots use ASCII Unit Separator padding because configstrings cannot carry embedded NULs. The client restores separators
- * to NULs after receipt. Decode: i = name-1; slot = i>>4; sub = i&0xF. */
+ * to NULs after receipt. Decode: i = name-1; slot = i/ENT_NAMES_PER_CS; sub = i%ENT_NAMES_PER_CS. */
 #define CS_MAX_NAMES        256
-#define ENT_NAMES_PER_CS    16  /* names per configstring slot */
-#define ENT_NAME_SLOT_SIZE  16  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
+#define ENT_NAMES_PER_CS    8   /* names per configstring slot */
+#define ENT_NAME_SLOT_SIZE  32  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
 #define ENT_NAME_SEPARATOR  0x1f // ASCII byte; keeps fixed-width name records transmissible through C-string configstrings
 
 static inline bool entity_name_slot_empty(cstring_t slot) { return !*slot || (uint8_t)*slot == ENT_NAME_SEPARATOR; }

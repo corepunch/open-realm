@@ -101,6 +101,10 @@ void UI_WriteHoverLayout(edict_t *ent) {
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;
+    /* Let the measured label determine both dimensions; a fixed width clips
+     * longer names inside the otherwise content-sized backdrop. */
+    frame.size.width = 0.0f;
+    frame.size.height = 0.0f;
     frame.text = UI_HoverResourceLabel();
     uiNameTag_t data = MAKE(uiNameTag_t,
         .background = MAKE(uiBackdrop_t,

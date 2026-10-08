@@ -151,6 +151,10 @@ depleted resource can still display zero. Game modules own when it is populated 
 field for Gold Mine reserves, including the authoritative hidden parent reservoir behind Haunted/Entangled mine overlays. Clients
 and servers must use the same protocol version because this field is inserted into the entity delta schema.
 
+Protocol version 19 expands each fixed-size `CS_GENERAL` hover-name record from 15 to 31 display characters. To keep each
+configstring payload at `MAX_PATHLEN`, each configstring now packs eight records instead of sixteen; the total name pool remains
+256 entries. The record layout is shared by all game modules and clients, so mixed protocol versions are rejected.
+
 ## Entity heading encoding
 
 Protocol version 9 keeps `entityState_t.angle` two bytes wide but encodes its radian value as an unsigned
