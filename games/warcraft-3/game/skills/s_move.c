@@ -4552,12 +4552,16 @@ static bool move_group_route(moveGroup_t *group) {
         .no_warp=(group->flags&0x10u)!=0};
     uint32_t revision=group->route.group_revision;
     bool cached=group->route.group_count && group->route.group_index<group->route.group_count;
-    if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
+    bool rebuilt;
+    if (!G_UnitMoveGroupDestinationStatus(&query,&group->route,&point,&rebuilt)) {
         if(!group->route.group_admission.waiting)
             fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
         return false;
     }
-    if (cached && group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
+    if (!rebuilt && cached && group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
+    /* Native16ce10 ->1697a0(reset-members0,reset-counters1) resets these
+     * on every admitted replacement, even if its endpoint is unchanged. */
+    if (rebuilt) group->age=group->completion_counter=0;
     float dx=wc3_sub(point.x,group->point.x),dy=wc3_sub(point.y,group->point.y);
     if (dx!=0 || dy!=0) group->heading=wc3_vector_heading(dx,dy);
     group->point=point; group->initialized=true; group->flags|=0x30000;
@@ -4597,7 +4601,7 @@ static void move_group_adjust_destination(moveGroup_t *group, moveGroupMember_t 
     member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
 }
 
-static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *member) {
     if (group->flags&0x10000) move_group_adjust_destination(group,member);
     moveRouteResult_t route_result=MOVE_ROUTE_FAILED;
     edict_t *unit=member->unit;
@@ -4675,6 +4679,15 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
     member->speed=unit->movement.turn_blocked ? 0 : unit_effective_speed(unit);
     member->heading=unit->s.angle; unit->s.angle=old_angle;
     if (member->speed>0) member->flags|=0x100000;
+}
+
+/* Original16a9bc mirrors the retained path after every decision, including
+ * arrival, wait and formation hold. The following owner visit classifies it.
+ * Consuming a gate does not erase the marker; a new coarse search replaces it. */
+static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
+    move_group_decide_route(group,member);
+    if (member->unit->movement.fine_route.warp_markers) member->flags|=0x80000u;
+    else member->flags&=~0x80000u;
 }
 
 /* Original16b120/16c4f0 regroup ordinary members before advancing the shared

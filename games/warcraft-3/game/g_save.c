@@ -82,8 +82,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format133 retains Captain policy bits, point request and periodic deadline. */
-static uint32_t const save_version = 133;
+/* Format134 retains the coarse route's warp-marker classification state. */
+static uint32_t const save_version = 134;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -788,6 +788,7 @@ static field_t const move_route_fields[] = {
     TF(moveFineRoute_t, index, F_INT),
     TF(moveFineRoute_t, mask, F_INT),
     TF(moveFineRoute_t, partial, F_INT),
+    TF(moveFineRoute_t, warp_markers, F_INT),
     TF(moveFineRoute_t, adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, adaptive_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(moveFineRoute_t, adaptive_count, F_INT),
@@ -880,6 +881,7 @@ static field_t const movement_fields[] = {
     TF(struct edictMovement_s, fine_route.index, F_INT),
     TF(struct edictMovement_s, fine_route.mask, F_INT),
     TF(struct edictMovement_s, fine_route.partial, F_INT),
+    TF(struct edictMovement_s, fine_route.warp_markers, F_INT),
     TF(struct edictMovement_s, fine_route.adaptive_points, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.adaptive_capacity, F_IGNORE, 0, FIELD_RUNTIME),
     TF(struct edictMovement_s, fine_route.adaptive_count, F_INT),

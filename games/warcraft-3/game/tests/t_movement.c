@@ -17553,4 +17553,195 @@ TEST(wc3_movement, delayed164_group_discards_premature_sample_and_saves_cadence)
     remove(file);reset_entities();setup_test_world();
 }
 
+/* FORM-04.2: actual group routing must publish its route marker to every
+ * member decision. The route retains that fact after the gate is consumed. */
+static unsigned warp165_markers(moveFineRoute_t const *route) {
+    unsigned count=0;
+    FOR_LOOP(i,route->adaptive_count)
+        if(wc3_float_bits(route->adaptive_points[i].x)==0xc7fa0001u)count++;
+    return count;
+}
+
+static struct {
+    uint32_t group;
+    edict_t *units[3];
+    vec2_t position[3];
+    uint32_t fine_count[3],adaptive_count[3];
+} warp165_before_state;
+
+static void warp165_before(moveGroup_t const *group) {
+    if(group->id!=warp165_before_state.group)return;
+    FOR_LOOP(i,3) {
+        edict_t const *unit=warp165_before_state.units[i];
+        warp165_before_state.position[i]=unit->movement.fine_pose;
+        warp165_before_state.fine_count[i]=unit->movement.fine_route.count;
+        warp165_before_state.adaptive_count[i]=unit->movement.fine_route.adaptive_count;
+    }
+}
+
+TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=8,speed=270,gate_radius=50;
+    int building=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t gate_mods[]={
+        {.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Zwrp"},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="_"},
+        {.modID=MAKEFOURCC('u','b','d','g'),.type=mod_int,.data=&building},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&gate_radius}};
+    unitData_t custom[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','W','6','5'),.numbeOfModifications=2,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('n','W','6','5'),.numbeOfModifications=4,.modifications=gate_mods}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *gate=unit_create(15,custom[1].newUnitID,&(vec2_t){512,768},0);
+    S_WaygateSetDestination(gate,&(vec2_t){1728,1760});S_WaygateSetActive(gate,true);
+    T_ASSERT(S_WaygateIsActive(gate));
+    edict_t *units[3];vec2_t goal={1792,1856};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&goal};
+    FOR_LOOP(i,3) {
+        units[i]=unit_create(0,custom[0].newUnitID,&(vec2_t){272,304+i*128},0);
+        S_SetMoveFormationRank(units[i],i);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    G_FinishMovePathingInitialization();T_ASSERT(G_IssueGroupPointOrder(&request));
+    uint32_t id=units[0]->movement.group_id;bool saved=false,loaded=false,laid_out=false;
+    vec2_t retained_point={0},retained_offsets[3];
+    warp165_before_state=(typeof(warp165_before_state)){.group=id};
+    FOR_LOOP(i,3)warp165_before_state.units[i]=units[i];move_test_group_begin=warp165_before;
+    unsigned marked=0,crossed=0;uint32_t seen_crossings=0;
+    cstring_t file="/tmp/wc3-warp165.bin";
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<15000) {
+        uint32_t counter=level.pathing_counter;
+        level.time+=5;globals.RunFrame();
+        if(counter==level.pathing_counter)continue;
+        moveGroup_t *group=move_find_group(id);if(!group)break;
+        if(!laid_out) {
+            retained_point=group->point;
+            FOR_LOOP(i,group->count)retained_offsets[i]=group->members[i].offset;
+            laid_out=true;
+        }
+        T_EQ(group->route.group_index,0u);
+        FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->point)[k]),wc3_float_bits(((float *)&retained_point)[k]));
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i;
+            if(!warp165_markers(&member->unit->movement.fine_route))continue;
+            marked++;T_ASSERT(member->flags&0x80000u);
+            if(member->unit->movement.fine_pose.x>50) {
+                unsigned n=0;while(n<3 && units[n]!=member->unit)n++;
+                T_ASSERT(n<3);
+                if(n<3)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&member->offset)[k]),wc3_float_bits(((float *)&retained_offsets[n])[k]));
+                if(n<3 && !(seen_crossings&(1u<<n))) {
+                    T_ASSERT(warp165_before_state.position[n].x<31);
+                    T_EQ(member->unit->movement.fine_route.count,warp165_before_state.fine_count[n]);
+                    /* A fresh member can build and consume its first coarse
+                     * route in this same owner visit. Compare retained tables. */
+                    if(warp165_before_state.adaptive_count[n])
+                        T_EQ(member->unit->movement.fine_route.adaptive_count,warp165_before_state.adaptive_count[n]);
+                    T_EQ(member->unit->movement.fine_route.index,UINT32_MAX);
+                    T_EQ(member->unit->movement.fine_route.adaptive_index,0u);
+                    seen_crossings|=1u<<n;crossed++;
+                }
+            }
+        }
+        if(marked && !saved) {
+            /* Classification sees the newly mirrored marker on the next pass. */
+            T_ASSERT(WriteGame(file));saved=true;
+        } else if(saved && !loaded) {
+            T_EQ(group->cooldown,65u);
+            T_ASSERT(ReadGame(file));loaded=true;
+            group=move_find_group(id);T_NOT_NULL(group);
+            T_ASSERT(group && group->route.warp_markers);
+            if(group)FOR_LOOP(i,group->count) {
+                moveGroupMember_t *member=group->members+i;
+                if(warp165_markers(&member->unit->movement.fine_route)) {
+                    T_ASSERT(member->unit->movement.fine_route.warp_markers);
+                    T_ASSERT(member->flags&0x80000u);
+                    /* The held early exit still mirrors the retained path. */
+                    member->flags=(member->flags|0x200000u)&~0x80000u;
+                    move_group_decide(group,member);T_ASSERT(member->flags&0x80000u);
+                    member->flags&=~0x200000u;
+                }
+            }
+        }
+    }
+    T_ASSERT(saved && loaded);T_ASSERT(marked>3);T_EQ(crossed,3u);
+    /* A fresh marker-free route must clear the bit, including held decisions. */
+    S_WaygateSetActive(gate,false);
+    goal=(vec2_t){1600,1536};T_ASSERT(G_IssueGroupPointOrder(&request));
+    FOR_LOOP(tick,24) {level.time+=5;globals.RunFrame();}
+    moveGroup_t *group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
+    if(group)FOR_LOOP(i,group->count) {
+        moveGroupMember_t *member=group->members+i;
+        T_EQ(warp165_markers(&member->unit->movement.fine_route),0u);
+        member->flags|=0x280000u;move_group_decide(group,member);
+        T_ASSERT(!(member->flags&0x80000u));
+    }
+    move_test_group_begin=NULL;
+    remove(file);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+}
+
+/* The denied owner branch has the same ordered stop for every physical row.
+ * Cached slots and classification state are untouched until route recovery. */
+TEST(wc3_movement, warp165_multi_member_denial_retains_layout_until_recovery) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *units[3];vec2_t goal={1568,1312};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&goal};
+    FOR_LOOP(i,3) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256+i*128);
+        units[i]->svflags=SVF_MONSTER;units[i]->movetype=MOVETYPE_STEP;
+        units[i]->stand=unit_stand;units[i]->collision=31;unit_stand(units[i]);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    group->cooldown=37;group->completion_counter=19;
+    vec2_t retained=group->point;
+    wc3GridPose_t predicted[3];
+    FOR_LOOP(i,3) {
+        units[i]->movement.velocity=(vec2_t){100+i*10,20};units[i]->movement.clock_valid=true;
+        units[i]->movement.pose_clock=level.pathing_clock;
+        group->members[i].offset=(vec2_t){i,-i};group->members[i].flags=0x80000u;
+    }
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    FOR_LOOP(i,3)unit_predicted_pose(units[i],predicted+i);
+    level.move_coarse_budgets[0][0].work=801;
+    level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+    T_EQ(group->count,3u);T_EQ(group->cooldown,37u);T_EQ(group->completion_counter,19u);
+    T_EQ(group->point.x,retained.x);T_EQ(group->point.y,retained.y);
+    T_ASSERT(group->route.group_admission.waiting);
+    FOR_LOOP(i,3) {
+        T_EQ(group->members[i].flags,0x80000u);T_EQ(group->members[i].offset.x,i);
+        T_EQ(units[i]->movement.velocity.x,0);T_EQ(units[i]->movement.velocity.y,0);
+        FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&units[i]->movement.fine_pose)[k]),wc3_float_bits(predicted[i].grid[k]));
+    }
+    cstring_t file="/tmp/wc3-warp165-denied.bin";
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->cooldown,37u);T_EQ(group->completion_counter,19u);T_ASSERT(group->route.group_admission.waiting);
+        level.move_coarse_budgets[0][0].work=0;
+        level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+        T_ASSERT(group->initialized);T_ASSERT(!group->route.group_admission.waiting);
+        T_EQ(group->cooldown,36u);T_EQ(group->completion_counter,group->route.group_index ? 0u : 1u);
+        bool changed=false;FOR_LOOP(i,3)changed|=group->members[i].offset.x!=i;
+        T_ASSERT(changed);
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif

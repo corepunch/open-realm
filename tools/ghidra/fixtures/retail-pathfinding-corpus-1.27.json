@@ -40550,6 +40550,274 @@
           "capture_complete": true
         }
       ]
+    },
+    {
+      "id": "live-formation-warp-marker-lifetimes",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/ghidra/research/verify_warp165_live.py",
+        "--expected",
+        "tools/ghidra/fixtures/retail-warp-markers165-1.27.json",
+        "--archive",
+        "{archive}/research",
+        "--output",
+        "{report}"
+      ],
+      "report": "warp-marker165.json",
+      "expected_exit": 0,
+      "expected_status": "live-exact-warp-markers",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 4
+        },
+        "controls": {
+          "equal": 1
+        },
+        "observed_repeats": {
+          "equal": 3
+        },
+        "warp_transitions": {
+          "equal": 12
+        },
+        "retained_marker_commits": {
+          "equal": 180
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Three archived complete physical Way Gate observations retain exact route counts/flags/destination across12 warp transitions,180 marked post-warp commits and classification visits3/69/135. Production engine regressions construct a three-member public group, travel through a gate, cold-save the marker, retain held decisions, clear marker-free replacement, and preserve multi-member denied-layout state until counter-reset recovery.",
+      "exclusions": [
+        "Archived retail captures are freshly verified; no new live capture is claimed.",
+        "UI input has a one-visit phase difference; repeated complete motion words and control trajectories are not claimed equal.",
+        "Full mixed-selection and narrow-passage trajectory equivalence remains FORM-05.1/05.2.",
+        "Path activation resets its flags; public held replacement retains an existing path until coarse replacement."
+      ],
+      "capture_complete": true,
+      "capture_failures": [],
+      "inputs": {
+        "capture": "research/FORM-05.1/captures/d-observe-1.jsonl",
+        "sha256": "361a49425f0a3cbf1d40c85f53f61158db356da2382f06f8608726b8657c34e2",
+        "bytes": 4465270,
+        "metadata": {
+          "task": "GROUP-03.2/FORM",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+            "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+            "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+          },
+          "map": "Maps\\RS-FORM-05.1-d.w3m",
+          "seconds": 200.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [
+            {
+              "tick": 30,
+              "pixel": [
+                560,
+                230
+              ],
+              "alt": false,
+              "shift": false,
+              "key": "move"
+            },
+            {
+              "tick": 250,
+              "pixel": [
+                560,
+                230
+              ],
+              "alt": false,
+              "shift": false,
+              "key": "move"
+            }
+          ],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "F05 "
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/d-observe-2.jsonl",
+            "sha256": "e440db5f4191af4a07d3e161f5106f16076e58bea0e0f347cb18b65c137d1309",
+            "bytes": 4467775,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.2/captures/d-observe-1.jsonl",
+            "sha256": "d390554bb6689eae882ac14cc60f740d86ae286b61422032f3cc1e752e723717",
+            "bytes": 4469929,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form052_observer.js": "c330dcb123752d50c7fa5d6ff15c718ba80cdd6d8ce94b837c775646432215b7",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 200.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/FORM-05.1/captures/d-control-1.jsonl",
+            "sha256": "4586c26d8a3e842d788d6cad0241e8f692572e8134f44fe4e658ad48e11a9f33",
+            "bytes": 2014,
+            "metadata": {
+              "task": "GROUP-03.2/FORM",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "group032_capture.py": "a4343dbc3b620fdfeeda59a4bdd31d6a740d875d7baf1cc62503a7f1fc38180d",
+                "form05_observer.js": "ee644a75e9cdf79bacc12f59be22bec1bbc0321f04d7c7817ae51a776d2d6ab5",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "wc3_ui_input.exe": "675c94df1da19308c32bbcfb3f21ea1d6c35abe71d6515b1876d725b60e12f83",
+                "map": "46e6917ffdf48b44421ffde1c9b2677a79523fe53fa23c55c08d5490569bbb96"
+              },
+              "map": "Maps\\RS-FORM-05.1-d.w3m",
+              "seconds": 220.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [
+                {
+                  "tick": 30,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                },
+                {
+                  "tick": 250,
+                  "pixel": [
+                    560,
+                    230
+                  ],
+                  "alt": false,
+                  "shift": false,
+                  "key": "move"
+                }
+              ],
+              "input_seconds": [
+                2.9,
+                24.9
+              ],
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "F05 "
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -41448,7 +41716,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "cab83ee631ef2698ed413cad41e0ca71bb249c5c78d8d00a6a487e860f723433"
+      "sha256": "8bd3145b5aa06e26462ea16d2973736be0bfd517e6c59ed6c3898db4cd85e57b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -42304,7 +42572,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "36b627c5f1014e04512bc6e797042656003743059794827456220cfea6471fdc"
+      "sha256": "d684348272798513e2c73fb619fcd9806540f59d5cf86fff23482aae6c068f44"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -42736,11 +43004,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "738b3982385b7018cbff33140a2e5f2e25a06df1a233e19e7c87c8a6398a7a4d"
+      "sha256": "c77c4a4c1bc8b06b2f6bb9579c4e1371e63a687ab464675437e719a86de03fa2"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "664e9bf954e682f0f8c7ef5cd91506596feb695552c8af1bde64bb3b67ce85f6"
+      "sha256": "a46fb599f48d5eeb5c03169eb619aa274168d4418e070b67eac656838317eaea"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -42748,7 +43016,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "da9cbd81ad40c35832a5c114e6edd53d2faae489d6fd58d8a5903aedc4e045ea"
+      "sha256": "1029a0b991828e91357a1f70c92d03d0f0a5a6e8f7ce8c9d29b13427ccc0ee3f"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -42996,7 +43264,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "358f59b4d5a126e5f1f034ed9487da775afb2120184fec06eb2515baba656df3"
+      "sha256": "410208570e09243b8699c4c6278f883fbfa07e1deeaee3e4ca2417b470029c10"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -43240,7 +43508,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "8ef4e2542c6f33f517f67f0d43a27d095788c8127503d842ddb59ffc52ae9262"
+      "sha256": "f42393c51e7ea8665ca27196cdeb7b22feb8fba4b7374efa71805d619e20cd4a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -43248,15 +43516,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "378ce6c6c3f4e75e54fd4c375c203127443dde77a735e545c8167aedd1877df6"
+      "sha256": "21a863656177ec4853b29b39aa157ec354e5c048208f460d35606dcca8c6a490"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "ae7f421724e57854cdfe23d632e60e306bb7f81c334b80f8322ba45977770d45"
+      "sha256": "762890d4cf65bec1d965714ff28cefcea1d61e5434f88d8692d7e7c671e1d463"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "775009f1626b612c5ec85d6405b55947afc0d5eacbeff617599b6c253392d003"
+      "sha256": "1a5d7aab24a2bcdcbdacfc474104be35623f23a935ffe5970186b590cf0de354"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -43849,6 +44117,34 @@
     {
       "path": "tests/test_wc3_pathfinding_target_delay.py",
       "sha256": "be764d4096b3566184c54d85aca55462de0537c3448f754e367cafa132a1b89d"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-formation-warp.md",
+      "sha256": "cb1e06d48d7d97adc271c2ba2c5b67ed8fcbec7799cfc077f5e8e88dc2aabaf0"
+    },
+    {
+      "path": "docs/games/warcraft-3/retail-pathfinding-handoffs/RE-queue-2026-10-08.md",
+      "sha256": "224dcd2dbc94f58f3f347e00f799a77099ac006060020c07d71d4538331ba89e"
+    },
+    {
+      "path": "tools/frida/research/form042_analyze.py",
+      "sha256": "ef5dd7a23c6f36781cbf7854d63b04ce0503e2f6ef98c64497b2fa3124d59289"
+    },
+    {
+      "path": "tools/frida/research/form042_expected.py",
+      "sha256": "eac9ec52c0cdc9b9c1503e07a2f77881ca3b001e6e323cd3851892de0fa1082b"
+    },
+    {
+      "path": "tools/ghidra/research/verify_warp165_live.py",
+      "sha256": "c76850ecfe405ba21b52f1b9e36c3df543be50d8002cad64f43a2cbb3300764c"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-warp-markers165-1.27.json",
+      "sha256": "1a23ab88ef179fabdf5a3e28be10b69be415ca9bf28c39f2478424aa1648027a"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_warp_markers.py",
+      "sha256": "927617e68c22fa493688345c7472ebca9a12988fa85a9d990e07d60b3b1ddde0"
     }
   ]
 }

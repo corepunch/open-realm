@@ -48,6 +48,7 @@ typedef struct {
     uint32_t count, index, capacity;
     uint8_t mask;
     bool partial; /* Fine route endpoint differs from the requested point, including target-perimeter success. */
+    bool warp_markers; /* Last coarse replacement contains a gate; retained after consumption. */
     vec2_t *adaptive_points; /* Accelerator coordinates, twice the fine-cell size. */
     uint32_t adaptive_count, adaptive_index, adaptive_capacity;
     vec2_t adaptive_goal;
@@ -3249,6 +3250,7 @@ void G_ReserveMoveRouteBuffer(vec2_t **points, uint32_t *capacity, uint32_t coun
 bool G_BuildUnitMoveFineRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 bool G_BuildUnitMoveFineRouteStatus(movePathQuery_t const *query,moveFineRoute_t *route,vec2_t *out,uint32_t *status);
 bool G_UnitMoveGroupDestination(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *fine);
+bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *, moveFineRoute_t *, vec2_t *, bool *rebuilt);
 bool S_AdmitMoveCoarseRequest(edict_t *, moveCoarseRequest_t *, unsigned policy);
 void S_ChargeMoveCoarseRequest(moveCoarseRequest_t *, uint32_t work);
 void S_CancelMoveCoarseRequest(moveCoarseRequest_t *);

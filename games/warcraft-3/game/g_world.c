@@ -1402,6 +1402,7 @@ static bool move_adaptive_waypoint(moveAdaptiveQuery_t const *query, vec2_t *out
             route->adaptive_points=points; route->adaptive_count=count; route->adaptive_index=selected.index;
             route->adaptive_goal=(vec2_t){target.x,target.y}; route->adaptive_radius=input->geometry.radius;
             route->adaptive_revision=move_map_revision; route->adaptive_mask=mask;
+            route->warp_markers=move_acc.warps!=0;
             memcpy(points,move_acc_points,count*sizeof(*points));
         }
     }
@@ -1447,7 +1448,9 @@ bool G_AdjustUnitMoveFormationDestination(edict_t const *unit, vec2_t point, vec
 /* Original16ce10/1697a0 owns a coarse group plan before16a790 passes its
  * selected destination to the member's separate path. Singleton layout adds
  * zero offset. Shared cohort storage/formation admission remains GROUP-04.6. */
-bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
+bool G_UnitMoveGroupDestinationStatus(movePathQuery_t const *input, moveFineRoute_t *route,
+                                     vec2_t *fine, bool *rebuilt) {
+    if (rebuilt) *rebuilt=false;
     if (!input || !route || !fine || !input->geometry.target || !pathmap.width || !pathmap.height) return false;
     /* Native16ce10 updates target scheduling even when retaining a route. */
     S_SetMoveCoarseTarget(&route->group_admission,input->target!=NULL);
@@ -1510,14 +1513,20 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
         route->group_points=points; route->group_count=count; route->group_index=selected.index;
         route->group_goal=goal; route->group_radius=input->geometry.radius; route->group_revision=move_map_revision;
         route->group_mask=mask;
+        route->warp_markers=move_acc.warps!=0;
         route->adaptive_count=route->count=0;
         memcpy(points,move_acc_points,count*sizeof(*points));
+        if (rebuilt) *rebuilt=true;
     }
     route->group_request = *input->geometry.target;
     route->group_geometry = geometry->revision;
     vec2_t point=route->group_points[route->group_index];
     *fine=route->group_index ? (vec2_t){wc3_mul(point.x,2),wc3_mul(point.y,2)} : route->group_goal;
     return true;
+}
+
+bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *route, vec2_t *fine) {
+    return G_UnitMoveGroupDestinationStatus(input,route,fine,NULL);
 }
 
 /* Singleton regroup succeeds after the member's actual arrival/zero commit.

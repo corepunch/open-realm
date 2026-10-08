@@ -11774,3 +11774,16 @@ are integrated. See [composed blockers](retail-pathfinding-composed-blockers.md)
 ## Target destination admission retains cached paths (Payoff164)
 
 Move now keeps same-bucket destinations and waits for both member search timestamps before replacing a path. Premature group target samples are discarded until the next refresh. A denied coarse owner updates refresh, integrates each member's previous velocity, commits zero speed and retains its queued group request; saved state resumes the same countdown and admission. Two repeated complete raw Smart approaches support235 production owner states and85 saved suffix states. Two repeated crowd traces verify4166 denial/stop visits and723 recovery layouts. See [target delay contract and limits](retail-pathfinding-target-delays.md). TARGET-02.1 and FORM-04.2 remain open for their wider compositions.
+
+
+## Retained formation warp markers (Payoff165)
+
+FORM-04.2 now combines Payoff164's denied-route stop/recovery with the saved
+coarse marker producer, common member-decision mirror and exact replacement
+counter reset. Three archived complete Frida repeats freshly verify12 portal
+transitions,180 retained marked commits and cooldown visits3/69/135; the
+observer-free control has a complete public timeline with explicit UI-phase
+limits. Actual three-member public Move/server-frame/cold-save regressions
+fail before the fixes and pass afterward. Save134 retains the marker in both
+route owners. Full mixed-group trajectory equivalence remains FORM-05.1/05.2;
+see [formation warp markers](retail-pathfinding-formation-warp.md).

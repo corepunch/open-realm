@@ -26,7 +26,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),138)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),131)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),132)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))
@@ -68,6 +68,17 @@ class CorpusTests(unittest.TestCase):
         check_report(report,entry,self.target)
         for field,value in [('passed',False),('captures',4),('controls',1),
                             ('approach_owner_rows',234),('denied_visits',4165),('recovered_episodes',722)]:
+            changed=dict(report);changed[field]=value
+            with self.assertRaises(ValueError):check_report(changed,entry,self.target)
+
+    def test_warp_markers_require_repeated_complete_portal_lifetimes(self):
+        entry=next(e for e in self.manifest['entries'] if e['id']=='live-formation-warp-marker-lifetimes')
+        for capture in [entry]+entry['additional_captures']:
+            self.assertNotIn('pid',capture['inputs']['metadata'])
+        report={field:rule['equal'] for field,rule in entry['checks'].items()}
+        check_report(report,entry,self.target)
+        for field,value in [('passed',False),('captures',3),('controls',0),
+                            ('observed_repeats',2),('warp_transitions',11),('retained_marker_commits',179)]:
             changed=dict(report);changed[field]=value
             with self.assertRaises(ValueError):check_report(changed,entry,self.target)
 

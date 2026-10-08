@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**244 done / 336 tasks; 92 remaining.**
+**245 done / 336 tasks; 91 remaining.**
+
+Payoff165 closes FORM-04.2: retained warp-marker classification and admitted
+route-replacement counter resets are implemented alongside Payoff164's denied
+route owner. Actual public group/cold-save regressions and three complete
+retail warp observations pass. See [formation warp markers](retail-pathfinding-formation-warp.md).
+
 
 Payoff160 integrates the ordinary Captain retained-point speed multiplier,
 implicit Move/Adro minimum eligibility, and range-entry speed restoration.
@@ -1108,7 +1114,7 @@ Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida captur
 ### FORM-04 — Regroup triggers
 
 - [x] **FORM-04.1** Change target, membership and member size at fixed ticks; assert which change rebuilds layout/routes and its timeout in simulation time. **Payoff112:** repeated public ticks20 size/30 removal retain survivor cached layout/routes; point retarget50 creates a new five-member owner. One status0 coarse advance at1456 resets then lays out survivors;648 complete original timeout cases establish strict99/198/396 eligible-visit counters. Engine fixes stale arrival/pending held queues, passes public mutation/save and full boundary matrix. Saved Ghidra maps initialization versus regroup reset and exact heading helper ABI. Moving-widget target producer domains remain in TARGET/GROUP; see [contract and scope](retail-pathfinding-engine.md#fixed-tick-formation-mutation-and-regroup-preserve-cached-state).
-- [ ] **FORM-04.2** Cause route failure and a warp-marker transition; assert regroup trigger, cached-state invalidation and next layout. Payoff164 integrates admission-denied refresh-before-stop, previous-velocity integration, retained group queue and successful-retry layout, with failing-first engine save/recovery regressions and4166 repeated native denial visits. Warp-marker member flags/classification and full multi-member composition remain open. See [target delays](retail-pathfinding-target-delays.md).
+- [x] **FORM-04.2** Cause route failure and a warp-marker transition; assert regroup trigger, cached-state invalidation and next layout. Payoff164/165 integrate admission-denied refresh-before-stop, old-velocity integration, retained queues/layout and admitted replacement counter resets, plus retained coarse warp-marker publication and every member decision's classification mirror. Three complete archived Frida repeats freshly verify12 index-only portal transitions,180 post-warp marked commits and cooldown visits3/69/135; two crowd repeats verify4166 denied visits each and723 retained-member recovery layouts. Failing-first actual engine group/held/server-frame/cold-save/recovery regressions pass; Save134 persists both route marker owners and Ghidra/mapper evidence is saved. Full mixed-selection motion remains FORM-05.1/05.2. See [formation warp markers](retail-pathfinding-formation-warp.md).
 
 ### FORM-05 — Retail formation witnesses
 
