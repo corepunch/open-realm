@@ -75,6 +75,7 @@ uint32_t EnumDestructablesInRect(jass_t *j) {
      * GroupEnumUnitsInRect + ForGroup; like GroupEnumUnitsInRect we ignore the
      * boolexpr filter (arg 2) for now. */
     extern edict_t *currentdestructable;
+    edict_t *previousdestructable = currentdestructable;
     box2_t *r = jass_checkhandle(j, 1, "rect");
     jassFunc_t const *actionFunc = jass_checkcode(j, 3);
     if (!r) {
@@ -90,7 +91,7 @@ uint32_t EnumDestructablesInRect(jass_t *j) {
             }
         }
     }
-    currentdestructable = NULL;
+    currentdestructable = previousdestructable;
     return 0;
 }
 uint32_t GetDestructableTypeId(jass_t *j) {
