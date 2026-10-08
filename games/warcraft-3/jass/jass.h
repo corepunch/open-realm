@@ -73,6 +73,7 @@ struct vm_program {
 struct jass_context {
     trigger_t *trigger;
     edict_t *unit;
+    edict_t *enumunit;
     edict_t *source;
     int32_t eventValue;
     uint32_t dialog_id, dialog_button_id;

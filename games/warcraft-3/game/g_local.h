@@ -1044,6 +1044,8 @@ typedef struct {
 #define WC3_TUTORIAL_DEBUG_ENABLED() false
 #endif
 
+/* Focused diagnostics for UndeadX07c's periodic flame damage and texttags. */
+
 typedef struct {
     uint32_t handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     bool inuse;
@@ -1175,7 +1177,9 @@ struct gmultiboarditem_s {
 
 struct gtexttag_s {
     bool inuse;
+    bool has_text, has_position;
     uint32_t visible_clients;
+    uint32_t generation;
     bool permanent;
     float height, height_offset;
     float x, y;
@@ -2651,6 +2655,7 @@ void G_MultiboardReleaseItem(multiboardItem_t *item);
 multiboard_t *G_MultiboardItemBoard(multiboardItem_t const *item);
 texttag_t *G_AllocTextTag(void);
 void G_FreeTextTag(texttag_t *tag);
+void G_TextTagPresentation(texttag_t *tag, bool remove);
 void G_SetTextTagVisible(texttag_t *tag, player_t *player, bool visible);
 bool G_IsTextTagVisible(texttag_t const *tag, player_t const *player);
 hashtable_t *G_AllocHashtable(void);

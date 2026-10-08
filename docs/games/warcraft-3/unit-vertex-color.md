@@ -13,7 +13,7 @@ Current scope is intentionally narrow:
   omitted columns resolve to white, while `SetUnitVertexColor` remains an explicit
   per-unit override across type rebinds.
 - `SetWaterBaseColor` remains a placeholder; the W3M water renderer has no live server-authored base-colour contract yet.
-- JASS `texttag` / `SetTextTagColor` store registry state; client draw is still deferred ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
+- JASS `texttag` / `SetTextTagColor` store registry state and publish generic keyed texttag presentation updates ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
 - Gameplay visibility/detection remains independent from vertex alpha. Shadow Meld and active gameplay invisibility reuse the same per-client tint transport for owner/shared-vision presentation; the recipient tint multiplies authored alpha by a documented approximate fade/ghost opacity.
 
 ## Data Flow

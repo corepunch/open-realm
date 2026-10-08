@@ -177,19 +177,28 @@ uint32_t ShowUnit(jass_t *j) {
     return 0;
 }
 
-JASS_API(SetUnitState,
-(edict_t, whichUnit, "unit"),
-(UNITSTATE, whichUnitState, "unitstate"),
-(number, newVal))
-{
+uint32_t SetUnitState(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
+    float newVal = jass_checknumber(j, 3);
+    float oldLife;
     bool was_dead;
     if (!whichUnit || !whichUnitState) {
-        return;
+        return 0;
     }
     was_dead = M_IsDead(whichUnit);
-    if (*whichUnitState == WC3_UNIT_STATE_LIFE) G_SetHealth(whichUnit, newVal);
+    oldLife = whichUnit->health.value;
+    if (*whichUnitState == WC3_UNIT_STATE_LIFE) {
+        G_SetHealth(whichUnit, newVal);
+        /* A JASS life write to zero is a death transition. G_SetHealth updates
+         * the value and state-limit events; unit_die owns death events,
+         * animation, cleanup, and campaign triggers that react to death. */
+        if (oldLife > 0.0f && newVal <= 0.0f && !(whichUnit->svflags & SVF_DEADMONSTER) && whichUnit->die)
+            whichUnit->die(whichUnit, NULL);
+    }
     else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
+    return 0;
 }
 //uint32_t SetUnitState(jass_t *j) {
 //    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

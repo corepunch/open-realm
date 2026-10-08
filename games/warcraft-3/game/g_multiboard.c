@@ -194,8 +194,10 @@ multiboard_t *G_MultiboardItemBoard(multiboardItem_t const *item) {
 texttag_t *G_AllocTextTag(void) {
     FOR_LOOP(i, MAX_TEXTTAGS) if (!level.texttags[i].inuse) {
         texttag_t *tag = &level.texttags[i];
+        uint32_t generation = tag->generation + 1;
         memset(tag, 0, sizeof(*tag));
         tag->inuse = true;
+        tag->generation = generation ? generation : 1;
         tag->visible_clients = multiboard_all_client_mask();
         tag->permanent = true;
         tag->color = MAKE(color32_t, 255, 255, 255, 255);
@@ -206,8 +208,73 @@ texttag_t *G_AllocTextTag(void) {
 }
 
 void G_FreeTextTag(texttag_t *tag) {
+    uint32_t generation;
     if (texttag_index(tag) < 0) return;
+    G_TextTagPresentation(tag, true);
+    generation = tag->generation;
     memset(tag, 0, sizeof(*tag));
+    tag->generation = generation;
+}
+
+static uint32_t texttag_color_bits(color32_t color) {
+    return (uint32_t)color.r | ((uint32_t)color.g << 8) |
+           ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
+}
+
+void G_TextTagPresentation(texttag_t *tag, bool remove) {
+    int32_t index = texttag_index(tag);
+    vec3_t origin = { 0 };
+    int32_t attached = -1;
+    int32_t font, id;
+    uint32_t visible_players = 0, lifetime_ms, fade_ms;
+    float lifetime, fadepoint;
+    if (index < 0 || !gi.Write || !gi.multicast) return;
+    if (!remove && (!tag->has_text || !tag->has_position || !tag->text[0] ||
+                    !gi.FontIndex || tag->height <= 0.0f)) return;
+
+    if (tag->unit && tag->unit->inuse) {
+        origin = tag->unit->s.origin;
+        origin.z += tag->height_offset;
+        attached = (int32_t)(tag->unit - globals.edicts);
+    } else {
+        origin.x = tag->x;
+        origin.y = tag->y;
+        origin.z = tag->height_offset;
+    }
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
+        uint32_t player = game.clients[i].ps.number;
+        if ((tag->visible_clients & (1u << i)) && player < 32)
+            visible_players |= 1u << player;
+    }
+    font = remove ? 0 : gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"),
+                                     (uint32_t)MAX(1.0f, tag->height * 500.0f + 0.5f));
+    if (!remove && (font <= 0 || font >= MAX_FONTSTYLES)) return;
+
+    lifetime = MAX(0.0f, tag->lifespan);
+    fadepoint = MAX(0.0f, MIN(tag->fadepoint, lifetime));
+    lifetime_ms = (uint32_t)(lifetime * 1000.0f + 0.5f);
+    fade_ms = (uint32_t)(fadepoint * 1000.0f + 0.5f);
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_TEXT_TAG });
+    id = index;
+    gi.Write(PF_SHORT, &id);
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)tag->generation });
+    gi.Write(PF_BYTE, &(int32_t){ remove ? 0 : 1 });
+    if (!remove) {
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)visible_players });
+        gi.Write(PF_POSITION, &origin);
+        gi.Write(PF_LONG, &attached);
+        gi.Write(PF_FLOAT, &tag->height_offset);
+        gi.Write(PF_STRING, tag->text);
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)texttag_color_bits(tag->color) });
+        gi.Write(PF_SHORT, &font);
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)lifetime_ms });
+        gi.Write(PF_LONG, &(int32_t){ (int32_t)fade_ms });
+        gi.Write(PF_FLOAT, &tag->xvel);
+        gi.Write(PF_FLOAT, &tag->yvel);
+        gi.Write(PF_BYTE, &(int32_t){ tag->permanent });
+    }
+    gi.multicast(&origin, MULTICAST_ALL);
 }
 
 void G_SetTextTagVisible(texttag_t *tag, player_t *player, bool visible) {
@@ -215,6 +282,7 @@ void G_SetTextTagVisible(texttag_t *tag, player_t *player, bool visible) {
     if (texttag_index(tag) < 0) return;
     mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
     if (visible) tag->visible_clients |= mask; else tag->visible_clients &= ~mask;
+    G_TextTagPresentation(tag, false);
 }
 
 bool G_IsTextTagVisible(texttag_t const *tag, player_t const *player) {

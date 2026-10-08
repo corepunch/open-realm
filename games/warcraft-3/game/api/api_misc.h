@@ -488,8 +488,8 @@ uint32_t GetFilterUnit(jass_t *j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 uint32_t GetEnumUnit(jass_t *j) {
-    extern edict_t *currentunit;
-    return jass_pushlighthandle(j, currentunit, "unit");
+    extern edict_t *currentenumunit;
+    return jass_pushlighthandle(j, currentenumunit, "unit");
 }
 uint32_t GetFilterDestructable(jass_t *j) {
     extern edict_t *currentdestructable;
@@ -804,7 +804,13 @@ uint32_t SetWidgetLife(jass_t *j) {
     float newLife = jass_checknumber(j, 2);
     if (whichWidget) {
         bool const was_dead = M_IsDead(whichWidget);
+        float const oldLife = whichWidget->health.value;
         G_SetHealth(whichWidget, newLife);
+        /* Match SetUnitState(UNIT_STATE_LIFE): setting a live widget's life
+         * to zero must run its death lifecycle, not leave a zero-life entity
+         * without death events or cleanup. */
+        if (oldLife > 0.0f && newLife <= 0.0f && !(whichWidget->svflags & SVF_DEADMONSTER) && whichWidget->die)
+            whichWidget->die(whichWidget, NULL);
         if ((whichWidget->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichWidget)) G_FowMarkBlockersDirty();
     }
     return 0;

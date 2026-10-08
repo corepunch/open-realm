@@ -88,7 +88,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 73 persists mutable destructable occluder levels and queued animation names. */
 /* Version 74 replaces the byte-wise FNV footer checksum with the word-wise SaveChecksum. */
 /* Version 75 records the per-unit UnitIgnoreAlarm flag in serialized edicts. */
-static uint32_t const save_version = 75;
+/* Version 76 persists texttag presentation readiness and slot generations. */
+static uint32_t const save_version = 76;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -433,7 +434,10 @@ static field_t const multiboard_item_fields[] = {
 
 static field_t const texttag_fields[] = {
     F(gtexttag_s, inuse, F_INT),
+    F(gtexttag_s, has_text, F_INT),
+    F(gtexttag_s, has_position, F_INT),
     F(gtexttag_s, visible_clients, F_INT),
+    F(gtexttag_s, generation, F_INT),
     F(gtexttag_s, permanent, F_INT),
     F(gtexttag_s, height, F_FLOAT),
     F(gtexttag_s, height_offset, F_FLOAT),

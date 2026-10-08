@@ -120,10 +120,11 @@ The five classic Way Gate natives are implemented in `api_unit.h`: `WaygateGetDe
 
 The Warcraft Blight native family is no longer a placeholder. `SetBlight`, `SetBlightRect`, `SetBlightPoint`, and `SetBlightLoc` mutate the same game-owned `level.blight` state used by building placement and Blight-only regeneration; `IsPointBlighted` queries that state directly. The setter `player` argument is validated but Blight remains global terrain state, matching the player-less query contract. See [Blight](../../docs/games/warcraft-3/blight.md). Client terrain presentation and preview synchronization are implemented separately from this native simulation coverage and are not validated by these native tests.
 
-`KillUnit` must use the normal unit-death transition rather than only writing life to zero. The transition selects the
-model's `Death` sequence, publishes unit/player death events, clears orders and selection, updates pathing/FOW state,
-and starts the corpse/decay lifecycle. Bypassing `unit_die()` therefore leaves unit death events, presentation,
-and gameplay cleanup inconsistent with the native contract.
+`KillUnit`, `SetUnitState(UNIT_STATE_LIFE, 0)`, and `SetWidgetLife(widget, 0)` must use the normal death transition
+rather than only writing life to zero. For units, the transition selects the model's `Death` sequence, publishes
+unit/player death events, clears orders and selection, updates pathing/FOW state, and starts the corpse/decay lifecycle.
+For destructables, it runs the destructable death path. Bypassing the owning death callback leaves death events,
+presentation, and gameplay cleanup inconsistent with the native contract.
 
 Known examples include:
 
@@ -185,8 +186,8 @@ The patch-1.24 hashtable family (`InitHashtable`, `GetHandleId`, `StringHash`, t
 `Save*`/`Load*`/`HaveSaved*`/`RemoveSaved*`/`Flush*`) is registered in
 `api_hashtable.h` with a host-owned `level.hashtables[]` registry and typed nested-handle
 save/load (current format version 49; hashtable payload introduced in format version 31). Multiboard/texttag DotA surfaces are registered as
-server-owned state ([multiboard-and-texttag.md](../../docs/games/warcraft-3/multiboard-and-texttag.md)); HUD/client
-draw remains deferred. Remaining DotA holes are shop events and hero attributes. See
+server-owned state ([multiboard-and-texttag.md](../../docs/games/warcraft-3/multiboard-and-texttag.md)); multiboards use the
+server-authored HUD and texttags publish keyed generic world-text events. Remaining DotA holes are shop events and hero attributes. See
 [DotA Custom-Map Playability](../../docs/games/warcraft-3/dota-map-playability.md) and [Save/Load](../../docs/games/warcraft-3/save-load.md).
 
 `EndGame`, `ChangeLevel`, `RestartGame`, and `DisplayLoadDialog` cross the existing `gi.MenuAction` session boundary.

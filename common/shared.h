@@ -944,6 +944,10 @@ typedef enum {
     TE_TERRAIN_DEFORM,
     TE_TERRAIN_DEFORM_STOP,
     TE_TERRAIN_DEFORM_STOP_ALL,
+    /* Generic keyed world text lifecycle: id/generation, op byte (0 remove, 1 upsert),
+     * then visibility mask, position, attached entity, height offset, text, RGBA,
+     * font, lifetime/fade ms, UI velocity, and permanent flag. */
+    TE_TEXT_TAG,
 } tempEvent_t;
 
 typedef enum {

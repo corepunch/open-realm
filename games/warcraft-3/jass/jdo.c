@@ -22,7 +22,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 7 // format version; v7 persists dialog/button event context (clicked ids)
+#define BZ_JASS_SNAPSHOT_VERSION 8 // format version; v8 persists GetEnumUnit callback context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -87,6 +87,7 @@ uint32_t NAME(jass_t *j) { \
 
 player_t *currentplayer = NULL;
 edict_t *currentunit = NULL;
+edict_t *currentenumunit = NULL;
 player_t *currentenumplayer = NULL;
 static handle_t currenttimer = NULL;
 
@@ -394,10 +395,11 @@ bool jass_context_references_entity(jass_t *j, edict_t const *ent) {
 
     if (!j || !ent) return false;
     root = jass_root(j);
-    if (root->context.unit == ent || root->context.source == ent) return true;
+    if (root->context.unit == ent || root->context.enumunit == ent || root->context.source == ent) return true;
     FOR_EACH_LIST(jasscoroutine_t, co, root->coroutines) {
         if (!co->done && co->state &&
-            (co->state->context.unit == ent || co->state->context.source == ent))
+            (co->state->context.unit == ent || co->state->context.enumunit == ent ||
+             co->state->context.source == ent))
             return true;
     }
     return false;
@@ -520,6 +522,9 @@ jasscoroutine_t *jass_startcoroutine(jass_t *j, jassContext_t const *context) {
     }
     if (!co_state->context.unit) {
         co_state->context.unit = currentunit;
+    }
+    if (!co_state->context.enumunit) {
+        co_state->context.enumunit = currentenumunit;
     }
     if (!co_state->context.region) {
         co_state->context.region = jass_getcontext(j)->region;
@@ -989,7 +994,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     jasscoroutine_t *previous_coroutine = root->current_coroutine;
     uint32_t now = jass_gettime();
     player_t *previous_player;
-    edict_t *previous_unit;
+    edict_t *previous_unit, *previous_enumunit;
     jassVar_t *loop_index = find_global(jass_root(j), "bj_forLoopAIndex");
     int32_t previous_loop_index = 0;
     bool restore_loop_index = co && co->loop_a_index_valid && loop_index && loop_index->value &&
@@ -1020,6 +1025,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
 
     previous_player = currentplayer;
     previous_unit = currentunit;
+    previous_enumunit = currentenumunit;
 
     root->current_coroutine = co;
     if (restore_loop_index) {
@@ -1032,6 +1038,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     }
     currentplayer = co->state->context.localPlayerState;
     currentunit = co->state->context.unit;
+    currentenumunit = co->state->context.enumunit;
     if (jass_host.CoroutineTrace) {
         jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
         jass_host.CoroutineTrace(root, co, co->state->context.trigger,
@@ -1059,6 +1066,7 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
                                 co->yielded, co->done);
     }
     currentunit = previous_unit;
+    currentenumunit = previous_enumunit;
     currentplayer = previous_player;
     root->current_coroutine = previous_coroutine;
     if (restore_loop_index) {
@@ -2699,7 +2707,8 @@ static bool jass_snapshot_writecontext_handle(jassSnapshot_t *snapshot, cstring_
 
 static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t const *context) {
     struct { cstring_t type; handle_t value; } handles[] = {
-        { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
+        { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->enumunit },
+        { "unit", context->source },
         { "player", context->playerState }, { "player", context->localPlayerState },
         { "timer", context->timer }, { "region", context->region },
     };
@@ -2719,7 +2728,8 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
 static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassContext_t *context) {
     struct { cstring_t type; handle_t *value; } handles[] = {
         { "trigger", (handle_t *)&context->trigger }, { "unit", (handle_t *)&context->unit },
-        { "unit", (handle_t *)&context->source }, { "player", (handle_t *)&context->playerState },
+        { "unit", (handle_t *)&context->enumunit }, { "unit", (handle_t *)&context->source },
+        { "player", (handle_t *)&context->playerState },
         { "player", (handle_t *)&context->localPlayerState }, { "timer", &context->timer },
         { "region", &context->region },
     };
