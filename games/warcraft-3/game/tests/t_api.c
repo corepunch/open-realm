@@ -1838,6 +1838,27 @@ TEST(wc3_api, camera_noise_is_evaluated_by_the_game_into_view_offsets) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, reset_to_game_camera_clears_source_and_target_noise) {
+    gameClient_t *gc = &game.clients[0];
+
+    setup_test_world();
+    gc->ps.number = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call CameraSetTargetNoiseEx(12.0, 4.0, true)\n"
+        "  call CameraSetSourceNoiseEx(56.0, 7.0, false)\n"
+        "  call ResetToGameCamera(0.0)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(slot, CAMERA_NOISE_COUNT) {
+        T_FEQ(gc->camera.noise[slot].magnitude, 0.0f, 0.001f);
+        T_FEQ(gc->camera.noise[slot].velocity, 0.0f, 0.001f);
+        T_ASSERT(!gc->camera.noise[slot].vert_only);
+    }
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_field_set_adjust_and_stop_sample_current_transition) {
     gameClient_t *gc = &game.clients[0];
 

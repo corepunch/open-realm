@@ -255,6 +255,13 @@ are far above that and therefore read as per-frame pseudo-random jitter. Do not
 move the evaluation into `client/` to gain frequency; if a retail trace shows a
 faster shake is required, raise it with the developer as a contract question.
 
+`ResetToGameCamera` clears both source and target noise channels as part of
+returning to ordinary gameplay camera state. Map scripts may call the reset
+without an explicit `CameraClearNoiseForPlayer`; leaving either channel active
+would keep the shake running after the reset. The regression
+`wc3_api.reset_to_game_camera_clears_source_and_target_noise` covers both
+channels and their stored flags.
+
 `SetCameraOrientController` uses the same game-owned controller slot as
 `SetCameraTargetController`, but with distinct ownership semantics. Activating
 it samples the realized in-flight camera, captures that camera's source/eye,

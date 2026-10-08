@@ -1158,6 +1158,71 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_destructable, enum_filter_getter_tracks_and_restores_nested_destructables) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y2;X1;K\"B004\"\n"
+        "C;Y2;X2;K\"Doodads\\Test\\Test\"\n"
+        "C;Y2;X3;K\"debris\"\n"
+        "C;Y2;X4;K100\n"
+        "C;Y2;X5;K16\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  destructable outerDest = null\n"
+        "  destructable nestedDest = null\n"
+        "  rect outerRect = null\n"
+        "  rect nestedRect = null\n"
+        "  integer enumKills = 0\n"
+        "endglobals\n"
+        "function CheckNestedDestructable takes nothing returns nothing\n"
+        "  call BJassAssert(GetFilterDestructable() == GetEnumDestructable(), \"nested filter getter mismatch\")\n"
+        "  set nestedDest = GetFilterDestructable()\n"
+        "endfunction\n"
+        "function IsDestructableAliveBJ takes destructable d returns boolean\n"
+        "  return GetDestructableLife(d) > 0.0\n"
+        "endfunction\n"
+        "function KillEnumeratedDestructable takes nothing returns nothing\n"
+        "  local destructable current = GetFilterDestructable()\n"
+        "  call BJassAssert(current == GetEnumDestructable(), \"filter getter did not expose enum destructable\")\n"
+        "  if nestedDest == null then\n"
+        "    set outerDest = current\n"
+        "    call EnumDestructablesInRect(nestedRect, null, function CheckNestedDestructable)\n"
+        "    call BJassAssert(GetFilterDestructable() == outerDest, \"nested enumeration lost outer destructable\")\n"
+        "  endif\n"
+        "  if IsDestructableAliveBJ(current) then\n"
+        "    set enumKills = enumKills + 1\n"
+        "    call KillDestructable(GetEnumDestructable())\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call CreateDestructable('B004', 0.0, 0.0, 0.0, 1.0, 0)\n"
+        "  call CreateDestructable('B004', 64.0, 0.0, 0.0, 1.0, 0)\n"
+        "  set outerRect = Rect(-16.0, -16.0, 80.0, 16.0)\n"
+        "  set nestedRect = Rect(48.0, -16.0, 80.0, 16.0)\n"
+        "  call EnumDestructablesInRect(outerRect, null, function KillEnumeratedDestructable)\n"
+        "  call BJassAssert(enumKills == 2, \"both destructables were not killed\")\n"
+        "  call BJassAssert(nestedDest != null, \"nested destructable was not enumerated\")\n"
+        "  call BJassAssert(GetEnumDestructable() == null, \"enum destructable leaked after enumeration\")\n"
+        "  call BJassAssert(GetFilterDestructable() == null, \"filter destructable leaked after enumeration\")\n"
+        "  call RemoveRect(outerRect)\n"
+        "  call RemoveRect(nestedRect)\n"
+        "endfunction\n"));
+
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"

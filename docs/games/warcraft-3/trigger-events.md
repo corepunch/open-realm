@@ -33,6 +33,24 @@ remains scheduled to resume after the caller continues.
 action's first wait to its caller; if the action has no wait, all of its writes
 are visible when the native returns.
 
+Enabled state only gates registered events. `TriggerEvaluate()` evaluates the
+trigger's conditions regardless of whether `DisableTrigger()` was called, and
+`TriggerExecute()` runs its actions explicitly. The event/timer bridge checks
+`trigger->disabled` before evaluating a registered callback. This matches
+Blizzard.j's `QueuedTriggerAddBJ`: its `TriggerExecuteBJ` helper evaluates the
+conditions and then explicitly executes the action, so maps can queue a trigger
+that they created disabled. `ConditionalTriggerExecute()` also uses explicit
+evaluation; a condition that needs to reject a disabled trigger can query
+`IsTriggerEnabled()` itself.
+
+UndeadX04 relies on this contract for the opening Base quest: the map disables
+`Dragonhawks Die Q` during initialization, then queues it after gameplay starts.
+Its dialogue action discovers the Base quest. Rejecting disabled triggers in
+`TriggerEvaluate()` caused the Blizzard.j queue helper to discard that entry.
+The regression `wc3_jass.disabled_triggers_allow_explicit_execution_but_ignore_events`
+checks that explicit disabled-trigger execution succeeds while disabled timer
+events remain suppressed and enabled timer events still fire.
+
 Nested immediate actions must preserve the active parent coroutine. In
 particular, if the parent calls `TriggerSleepAction()` after a nested
 `TriggerExecute()`, it must still yield and resume at that point. `jass_resume()`

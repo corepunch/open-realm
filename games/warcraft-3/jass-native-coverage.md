@@ -69,6 +69,14 @@ to the registry or a placeholder begins consuming authoritative state.
 
 Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `ShiftTownSpot`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeWoodCost` (plus the historical OpenRealm `GetUpgradeLumberCost` alias; all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
 
+`GetFilterDestructable()` and `GetEnumDestructable()` resolve the currently
+enumerated destructable while an `EnumDestructablesInRect` action runs. The
+enumerator saves and restores that context so a nested enumeration does not
+clobber the outer callback. Its non-null `boolexpr` filter argument is still
+ignored; `EnumDestructablesInRectAll` passes null, which is sufficient for
+UndeadX04's wall-destruction trigger. The nested-context regression is
+`wc3_destructable.enum_filter_getter_tracks_and_restores_nested_destructables`.
+
 `GetUpgradeGoldCost` and retail `GetUpgradeWoodCost` now query the current AI player's next researched level and reuse the authoritative `UpgradeData.slk` base/mod cost helpers; invalid or maxed upgrades return zero. `ShiftTownSpot` owns a persistent `bot_t` construction-search override consumed only by AI building placement, leaving town halls, workers, harvesting, and captain state untouched. See [AI Upgrade Costs And Town Spot](../../docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md).
 
 `GetAllyColorFilterState` / `SetAllyColorFilterState` now own per-local-player minimap presentation state instead of one process-global placeholder. State `0` keeps the local player white while preserving resolved player colours for other ordinary contacts; states `1` and `2` drive self/allied/hostile/neutral relationship colours in the automatic minimap contact renderer. State `2`'s retail world-model recolouring is still separate presentation work. `Get/SetCreepCampFilterState` remains the existing placeholder state until creep-camp marker generation has a real consumer; `EnableMinimapFilterButtons` UI controls are also incomplete. See [Minimap Markers](../../docs/games/warcraft-3/minimap-markers.md).
