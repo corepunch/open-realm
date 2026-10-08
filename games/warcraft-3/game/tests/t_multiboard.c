@@ -12,6 +12,58 @@ extern player_t *currentplayer;
 
 #define MB_MAX_LAYOUTS 16 // svc_layout messages one test captures
 #define MB_MAX_TEXTS 64   // FT_STRING texts one test captures
+#define TT_MAX_FIELDS 20 // one texttag update and remove packet capture
+
+typedef struct {
+    pfWriteType_t types[TT_MAX_FIELDS];
+    int32_t integral[TT_MAX_FIELDS];
+    float real[TT_MAX_FIELDS];
+    vec3_t position;
+    char text[32];
+    uint32_t count, multicast_count;
+    multicast_t multicast_to;
+    vec3_t multicast_origin;
+    char font_name[MAX_PATHLEN];
+    uint32_t font_size;
+} texttagCapture_t;
+
+static texttagCapture_t texttag_capture;
+
+static void texttag_capture_write(pfWriteType_t type, void const *value) {
+    uint32_t const slot = texttag_capture.count++;
+    if (slot >= TT_MAX_FIELDS || !value) return;
+    texttag_capture.types[slot] = type;
+    switch (type) {
+        case PF_BYTE:
+        case PF_SHORT:
+        case PF_LONG:
+            texttag_capture.integral[slot] = *(int32_t const *)value;
+            break;
+        case PF_FLOAT:
+            texttag_capture.real[slot] = *(float const *)value;
+            break;
+        case PF_POSITION:
+            texttag_capture.position = *(vec3_t const *)value;
+            break;
+        case PF_STRING:
+            strlcpy(texttag_capture.text, value, sizeof(texttag_capture.text));
+            break;
+        default:
+            break;
+    }
+}
+
+static int texttag_capture_font(cstring_t name, uint32_t size) {
+    strlcpy(texttag_capture.font_name, name ? name : "", sizeof(texttag_capture.font_name));
+    texttag_capture.font_size = size;
+    return 17;
+}
+
+static void texttag_capture_multicast(vec3_t const *origin, multicast_t to) {
+    texttag_capture.multicast_count++;
+    texttag_capture.multicast_to = to;
+    if (origin) texttag_capture.multicast_origin = *origin;
+}
 
 /* svc_layout capture: one header (svc_layout byte + layer byte) per message,
  * then the frames until UI_WriteEnd.  Mirrors the client contract that one
@@ -574,5 +626,97 @@ TEST(wc3_save, texttag_presentation_state_round_trips) {
     T_FEQ(tag->height, 0.024f, 0.0001f);
     T_FEQ(tag->height_offset, 40.0f, 0.001f);
     remove(filename);
+}
+
+TEST(wc3_api, texttag_updates_and_removal_match_client_wire_contract) {
+    void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
+    uint32_t saved_max_clients = game.max_clients;
+    uint32_t saved_player_number = game.clients[0].ps.number;
+    edict_t *unit;
+    texttag_t *tag;
+
+    setup_test_world();
+    memset(&texttag_capture, 0, sizeof(texttag_capture));
+    unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 200.0f);
+    tag = G_AllocTextTag();
+    T_NOT_NULL(unit);
+    T_NOT_NULL(tag);
+    if (!unit || !tag) return;
+    game.max_clients = 1;
+    game.clients[0].ps.number = 0;
+    unit->s.origin.z = 3.0f;
+    tag->has_text = true;
+    tag->has_position = true;
+    tag->generation = 19;
+    tag->visible_clients = 1;
+    tag->unit = unit;
+    tag->height = 0.024f;
+    tag->height_offset = 40.0f;
+    tag->lifespan = 2.0f;
+    tag->fadepoint = 1.0f;
+    tag->xvel = 0.03f;
+    tag->color = MAKE(color32_t, 255, 0, 0, 255);
+    tag->permanent = false;
+    strlcpy(tag->text, "150!", sizeof(tag->text));
+    gi.Write = texttag_capture_write;
+    gi.multicast = texttag_capture_multicast;
+    gi.FontIndex = texttag_capture_font;
+
+    G_TextTagPresentation(tag, false);
+    T_EQ(texttag_capture.count, 17);
+    T_EQ(texttag_capture.types[0], PF_BYTE);
+    T_EQ(texttag_capture.integral[0], svc_temp_entity);
+    T_EQ(texttag_capture.types[1], PF_BYTE);
+    T_EQ(texttag_capture.integral[1], TE_TEXT_TAG);
+    T_EQ(texttag_capture.types[2], PF_SHORT);
+    T_EQ(texttag_capture.integral[2], 0);
+    T_EQ(texttag_capture.types[3], PF_LONG);
+    T_EQ((uint32_t)texttag_capture.integral[3], 19u);
+    T_EQ(texttag_capture.integral[4], 1);
+    T_EQ(texttag_capture.integral[5], 1);
+    T_EQ(texttag_capture.types[6], PF_POSITION);
+    T_FEQ(texttag_capture.position.x, 100.0f, 0.001f);
+    T_FEQ(texttag_capture.position.y, 200.0f, 0.001f);
+    T_FEQ(texttag_capture.position.z, 43.0f, 0.001f);
+    T_EQ(texttag_capture.types[7], PF_LONG);
+    T_EQ(texttag_capture.integral[7], (int32_t)(unit - globals.edicts));
+    T_EQ(texttag_capture.types[8], PF_FLOAT);
+    T_FEQ(texttag_capture.real[8], 40.0f, 0.001f);
+    T_EQ(texttag_capture.types[9], PF_STRING);
+    T_STREQ(texttag_capture.text, "150!");
+    T_EQ(texttag_capture.types[10], PF_LONG);
+    T_EQ((uint32_t)texttag_capture.integral[10], 0xff0000ffu);
+    T_EQ(texttag_capture.types[11], PF_SHORT);
+    T_EQ(texttag_capture.integral[11], 17);
+    T_EQ(texttag_capture.types[12], PF_LONG);
+    T_EQ(texttag_capture.integral[12], 2000);
+    T_EQ(texttag_capture.types[13], PF_LONG);
+    T_EQ(texttag_capture.integral[13], 1000);
+    T_EQ(texttag_capture.types[14], PF_FLOAT);
+    T_FEQ(texttag_capture.real[14], 0.03f, 0.0001f);
+    T_EQ(texttag_capture.types[15], PF_FLOAT);
+    T_FEQ(texttag_capture.real[15], 0.0f, 0.0001f);
+    T_EQ(texttag_capture.types[16], PF_BYTE);
+    T_EQ(texttag_capture.integral[16], 0);
+    T_STREQ(texttag_capture.font_name, "Fonts\\FRIZQT__.TTF");
+    T_EQ(texttag_capture.font_size, 12);
+    T_EQ(texttag_capture.multicast_count, 1);
+    T_EQ(texttag_capture.multicast_to, MULTICAST_ALL);
+    T_FEQ(texttag_capture.multicast_origin.z, 43.0f, 0.001f);
+
+    texttag_capture.count = 0;
+    G_TextTagPresentation(tag, true);
+    T_EQ(texttag_capture.count, 5);
+    T_EQ(texttag_capture.types[4], PF_BYTE);
+    T_EQ(texttag_capture.integral[4], 0);
+    T_EQ(texttag_capture.multicast_count, 2);
+
+    gi.Write = saved_write;
+    gi.multicast = saved_multicast;
+    gi.FontIndex = saved_font;
+    game.max_clients = saved_max_clients;
+    game.clients[0].ps.number = saved_player_number;
 }
 #endif
