@@ -187,7 +187,7 @@ static rawcode_map_t const classmap[] = {
     {"ANwm", "CAbilityWarStomp"},        {"ANbr", "CAbilityBash"},
     {"ANbs", "CAbilitySpell"},           {"ANpr", "CAbilityButton"},
     {"ANsa", "CAbilityBounce"},          {"ANss", "CAbilityBounce"},
-    {"ANse", "CAbilitySpell"},           {"AGbu", "CAbilityNeutralBuild"},
+    {"ANse", "CAbilitySpellShieldAoe"},  {"AGbu", "CAbilityNeutralBuild"},
     /* Unit abilities — Harvest/Build */
     {"Ahar", "CAbilityHarvest"},         {"Arep", "CAbilityRepair"},
     {"Agld", "CAbilityGoldMine"},        {"Agl2", "CAbilityGoldMine"},
