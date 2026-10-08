@@ -11770,3 +11770,7 @@ charged work. Fresh verification checks19 archived Frida streams, seven controls
 five repeats and539 original frozen owner records. The resolver excludes cyclic
 waits; the three-mover witness exercises an ordered chain. ROUTE-03.1/03.2/05.2
 are integrated. See [composed blockers](retail-pathfinding-composed-blockers.md).
+
+## Target destination admission retains cached paths (Payoff164)
+
+Move now keeps same-bucket destinations and waits for both member search timestamps before replacing a path. Premature group target samples are discarded until the next refresh. A denied coarse owner updates refresh, integrates each member's previous velocity, commits zero speed and retains its queued group request; saved state resumes the same countdown and admission. Two repeated complete raw Smart approaches support235 production owner states and85 saved suffix states. Two repeated crowd traces verify4166 denial/stop visits and723 recovery layouts. See [target delay contract and limits](retail-pathfinding-target-delays.md). TARGET-02.1 and FORM-04.2 remain open for their wider compositions.

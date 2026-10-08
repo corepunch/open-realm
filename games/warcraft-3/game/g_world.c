@@ -1489,6 +1489,11 @@ bool G_UnitMoveGroupDestination(movePathQuery_t const *input, moveFineRoute_t *r
             fprintf(stderr,"WC3 group routing: unsupported movement mask %02x\n",input->geometry.blocked_flags);
             return false;
         }
+        /* Native168b80 publishes the destination before admission. A denied
+         * request retains it and an invalid route for refresh/save/retry. */
+        route->group_goal=goal;route->group_request=*input->geometry.target;
+        route->group_geometry=geometry->revision;
+        route->group_count=0;route->group_index=UINT32_MAX;
         if(input->mover && !S_AdmitMoveCoarseRequest(input->mover,&route->group_admission,route->group_admission.policy))return false;
         vec2_t source=move_query_source(input);
         move_acc_prepare();

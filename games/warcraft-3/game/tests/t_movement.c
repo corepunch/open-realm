@@ -83,6 +83,7 @@
 #include "retail_group_target_speed.h"
 #include "retail_yield_composed163.h"
 #include "retail_dynamic_blocker163.h"
+#include "retail_target_approach164.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Helpers defined in t_utils.c */
@@ -17388,6 +17389,168 @@ TEST(wc3_movement, formation_refresh_public_mutations_preserve_cached_layout_and
     reset_entities();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
     G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
     game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+/* Compare the complete public walled Smart approach before each owner visit.
+ * The fixture contains native words, including the delayed member handoff at1261. */
+static unsigned target164_cursor;
+static bool target164_mismatch;
+static edict_t *target164_unit;
+
+static void target164_before(moveGroup_t const *group) {
+    if (target164_mismatch || group->count!=1 || group->members[0].unit!=target164_unit || (group->flags&1)) return;
+    T_ASSERT(target164_cursor<sizeof(target164_approach)/sizeof(*target164_approach));
+    if (target164_cursor>=sizeof(target164_approach)/sizeof(*target164_approach)) return;
+    uint32_t const *row=target164_approach[target164_cursor];
+    moveFineRoute_t const *path=&target164_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(target164_unit->movement.fine_pose.x),wc3_float_bits(target164_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(target164_unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(target164_unit->movement.velocity.y,32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        target164_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        target164_unit->movement.wait_delay,target164_unit->movement.retry_count};
+    FOR_LOOP(i,24) {
+        /* Unpublished empty-buffer destinations have no engine pointer identity. */
+        if ((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15))) continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"target164 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                target164_cursor,i,level.pathing_counter,actual[i],row[i]);
+            target164_mismatch=true;
+        }
+    }
+    target164_cursor++;
+}
+
+TEST(wc3_movement, delayed164_public_walled_smart_approach_matches_retail) {
+    reset_entities();setup_test_world();
+    memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','T','6','4'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==20 then\nset a=CreateUnit(Player(0),'hT64',480,288,0)\n"
+        "set b=CreateUnit(Player(0),'hT64',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",1568,1312)\nendif\n"
+        "if tick==25 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==90 then\ncall IssuePointOrder(b,\"move\",1568,288)\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    target164_unit=NULL;target164_cursor=0;target164_mismatch=false;move_test_group_begin=target164_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file="/tmp/wc3-target164-approach.bin";
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass) {
+            T_ASSERT(ReadGame(file));target164_cursor=150;
+        }
+        while(level.time<9600 && !target164_mismatch && target164_cursor<sizeof(target164_approach)/sizeof(*target164_approach)) {
+            level.time+=5;globals.RunFrame();
+            if(!target164_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {target164_unit=ent;break;}
+            if(!pass && !saved && target164_cursor==150) {
+                T_ASSERT(WriteGame(file));saved=true;
+            }
+        }
+        T_EQ(target164_cursor,sizeof(target164_approach)/sizeof(*target164_approach));
+        if(target164_mismatch)break;
+        uint32_t final[]={wc3_float_bits(target164_unit->movement.fine_pose.x),
+            wc3_float_bits(target164_unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_div(target164_unit->movement.velocity.x,32)),
+            wc3_float_bits(wc3_div(target164_unit->movement.velocity.y,32))};
+        FOR_LOOP(i,4)T_EQ(final[i],target164_finish[i]);
+    }
+    remove(file);
+    move_test_group_begin=NULL;target164_unit=NULL;level.started=false;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+
+/* A real target order under controlled coarse contention reproduces16c1fb:
+ * refresh first, then exactly one old-velocity stop; admission remains queued. */
+TEST(wc3_movement, delayed164_denied_group_commits_stop_and_refresh_before_recovery) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1568,288);
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    unit->movement.velocity=(vec2_t){100,0};unit->movement.clock_valid=true;
+    unit->movement.pose_clock=level.pathing_clock;level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    wc3GridPose_t before;unit_predicted_pose(unit,&before);
+    vec2_t point=group->point;uint32_t age=group->age;
+    S_SetMoveCoarseTarget(&group->route.group_admission,true);
+    level.move_coarse_budgets[0][1].work=301;
+    level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+    T_EQ(group->target_refresh,16);T_EQ(group->age,age+1);T_EQ(group->completion_counter,0);
+    T_EQ(group->route.group_goal.x,49);T_EQ(group->route.group_goal.y,9);
+    T_EQ(group->point.x,point.x);T_EQ(group->point.y,point.y);
+    T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(before.grid[0]));
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(before.grid[1]));
+    T_ASSERT(group->route.group_admission.waiting);T_ASSERT(S_ValidateMoveCoarseRequests());
+    T_ASSERT(WriteGame("/tmp/wc3-target164-denied.bin"));T_ASSERT(ReadGame("/tmp/wc3-target164-denied.bin"));
+    group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->target_refresh,16);T_ASSERT(group->route.group_admission.waiting);
+        level.move_coarse_budgets[0][1].work=0;
+        level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+        T_EQ(group->target_refresh,15);T_ASSERT(group->initialized);T_ASSERT(!group->route.group_admission.waiting);
+    }
+    remove("/tmp/wc3-target164-denied.bin");reset_entities();setup_test_world();
+}
+
+/* Public target teleport after a kept coarse search: premature samples are
+ * discarded for a complete17-visit refresh period, not admitted on visit10. */
+TEST(wc3_movement, delayed164_group_discards_premature_sample_and_saves_cadence) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1107;
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),480,288);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1568,288);
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    T_EQ(group->route.group_admission.time,1108);T_ASSERT(group->initialized);
+    group->target_refresh=0;
+    vec2_t retained=group->goal,goal={1568,1312};S_SetUnitPosition(target,&goal);
+    cstring_t file="/tmp/wc3-target164-delayed.bin";
+    FOR_LOOP(tick,18) {
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        if(tick<17) {
+            T_EQ(group->goal.x,retained.x);T_EQ(group->goal.y,retained.y);
+            T_EQ(group->target_refresh,16-tick);
+        } else {T_EQ(group->goal.x,goal.x);T_EQ(group->goal.y,goal.y);T_EQ(group->target_refresh,16);}
+        if(tick==7) {
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+            group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)break;
+            T_EQ(group->target_refresh,9);T_EQ(group->route.group_admission.time,1108);
+        }
+    }
+    remove(file);reset_entities();setup_test_world();
 }
 
 #endif

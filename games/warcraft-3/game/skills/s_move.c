@@ -60,6 +60,7 @@ void S_TrackMoveTimers(edict_t const *ent) {
 /* Read-only observer of scheduled Move commits, before same-clock map timers. */
 static void (*move_test_motion_commit)(edict_t *unit);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
+static void (*move_test_group_begin)(moveGroup_t const *group);
 typedef struct { wc3RetryInput_t input; wc3Random_t owner; uint32_t count, result; } moveRetryTrace_t;
 static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
 typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
@@ -2439,6 +2440,23 @@ wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
 typedef enum { MOVE_ROUTE_FAILED, MOVE_ROUTE_READY, MOVE_ROUTE_STOP } moveRouteResult_t;
+
+/* Native167e40 compares wrapped floor coordinates in two-fine-cell buckets.
+ * Equal buckets keep their stored destination regardless of timestamp age. */
+static bool move_destination_changed(vec2_t old, vec2_t next) {
+    if (old.x==next.x && old.y==next.y) return false;
+    int32_t ax=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(old.x)));
+    int32_t ay=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(old.y)));
+    int32_t bx=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(next.x)));
+    int32_t by=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(next.y)));
+    return (ax>>1)!=(bx>>1) || (ay>>1)!=(by>>1);
+}
+
+static bool move_destination_ready(uint32_t fine, uint32_t coarse) {
+    return level.pathing_counter-fine>=BZ_WC3_FINE_REQUEST_INTERVAL &&
+        level.pathing_counter-coarse>=BZ_WC3_FINE_REQUEST_INTERVAL;
+}
+
 static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t point, vec2_t *dir) {
     if (!self || !point.point || !dir) return MOVE_ROUTE_FAILED;
     movePathQuery_t query = move_route_query(self, point);
@@ -2465,10 +2483,8 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
         (vec2_t){wc3_grid_coordinate(query.geometry.target->x,bounds.min.x,32),wc3_grid_coordinate(query.geometry.target->y,bounds.min.y,32)};
     vec2_t held={wc3_sub(final.x,before.grid[0]),wc3_sub(final.y,before.grid[1])};
     if(query.units && query.fine_target && curve->adaptive_points &&
-        (((int32_t)floorf(final.x)>>1)!=((int32_t)floorf(curve->adaptive_goal.x)>>1) ||
-         ((int32_t)floorf(final.y)>>1)!=((int32_t)floorf(curve->adaptive_goal.y)>>1)) &&
-        (level.pathing_counter-self->movement.fine_request_time<BZ_WC3_FINE_REQUEST_INTERVAL ||
-         level.pathing_counter-curve->adaptive_admission.time<BZ_WC3_FINE_REQUEST_INTERVAL)) {
+        (!move_destination_changed(curve->adaptive_goal,final) ||
+         !move_destination_ready(self->movement.fine_request_time,curve->adaptive_admission.time))) {
         /* Native167e40/16fca2 retain the path destination until both request
          * timestamps permit replacement. Arrival/held heading still use the
          * caller's new destination. A group reset does not erase these times. */
@@ -2484,7 +2500,7 @@ static moveRouteResult_t unit_accel_direction(edict_t *self, moveRoutePoint_t po
          * fresh full-length interior sample every tick can reject a valid
          * cached turn as its fractional source crosses sample-cell boundaries.
          * Advance checks terrain epoch/mask; the step collector handles peers. */
-        if (path->valid && (Vector2_distance(&path->target,point.point) >= 1.f ||
+        if (path->valid && ((!query.fine_target && Vector2_distance(&path->target,point.point) >= 1.f) ||
             fabsf(path->radius-point.radius) >= .01f)) path->valid=false;
         /* Native165b60 checks the retained coarse point before every fine
          * refill. A failed portal must retry after its wait without walking
@@ -4535,12 +4551,13 @@ static bool move_group_route(moveGroup_t *group) {
         .mover=source,.target=group->target,.units=true,.fine=&fine,.coarse_mask=S_UnitMoveCoarseMask(source),
         .no_warp=(group->flags&0x10u)!=0};
     uint32_t revision=group->route.group_revision;
+    bool cached=group->route.group_count && group->route.group_index<group->route.group_count;
     if (!G_UnitMoveGroupDestination(&query,&group->route,&point)) {
         if(!group->route.group_admission.waiting)
             fprintf(stderr,"Move group %u: route unavailable at (%.9g,%.9g) to (%.9g,%.9g)\n",group->id,from.x,from.y,group->goal.x,group->goal.y);
         return false;
     }
-    if (group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
+    if (cached && group->initialized && point.x==group->point.x && point.y==group->point.y && revision==group->route.group_revision) return true;
     float dx=wc3_sub(point.x,group->point.x),dy=wc3_sub(point.y,group->point.y);
     if (dx!=0 || dy!=0) group->heading=wc3_vector_heading(dx,dy);
     group->point=point; group->initialized=true; group->flags|=0x30000;
@@ -4572,22 +4589,12 @@ static uint32_t move_group_advance_endpoint(moveGroup_t *group, moveGroupMember_
  * Keep the previous destination/flags until this member's decision: the next
  * owner visit observes adjusted40000 and seeds the classification cooldown. */
 static void move_group_adjust_destination(moveGroup_t *group, moveGroupMember_t *member) {
-    vec2_t previous=member->destination;
     member->destination=(vec2_t){wc3_add(group->point.x,member->offset.x),wc3_add(group->point.y,member->offset.y)};
     member->flags&=~0x70000u;
     if ((member->offset.x!=0 || member->offset.y!=0) &&
         G_AdjustUnitMoveFormationDestination(member->unit,group->point,&member->destination)) member->flags|=0x40000;
     box2_t bounds=CM_GetWorldBounds();
     member->world_destination=(vec2_t){wc3_add(bounds.min.x,wc3_mul(member->destination.x,32)),wc3_add(bounds.min.y,wc3_mul(member->destination.y,32))};
-    /* Accept destination changes before advancing a retained route wait. */
-    if (((int32_t)floorf(previous.x)>>1)!=((int32_t)floorf(member->destination.x)>>1) ||
-        ((int32_t)floorf(previous.y)>>1)!=((int32_t)floorf(member->destination.y)>>1)) {
-        edict_t *unit=member->unit;moveFineRoute_t *route=&unit->movement.fine_route;
-        route->count=route->adaptive_count=0;
-        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;
-        unit->movement.retry_count=unit->movement.wait_delay=0;
-    }
-    member->unit->movement.path.valid=false;
 }
 
 static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
@@ -4622,6 +4629,17 @@ static void move_group_decide(moveGroup_t *group, moveGroupMember_t *member) {
         member->speed=0;member->heading=unit->s.angle;unit->s.angle=old_angle;
         move_unlink_requests(unit);
         return;
+    }
+    /* Native16fbd0 accepts a new path destination after arrival/held handling,
+     * before Path_Advance consumes a pending wait. Slot publication alone does
+     * not replace the path's cached destination or clear its retry state. */
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    if (route->adaptive_points && move_destination_changed(route->adaptive_goal,member->destination) &&
+        move_destination_ready(unit->movement.fine_request_time,route->adaptive_admission.time)) {
+        route->count=route->adaptive_count=0;
+        route->index=route->adaptive_index=UINT32_MAX;route->partial=false;
+        unit->movement.retry_count=unit->movement.wait_delay=0;
+        unit->movement.path.valid=false;
     }
     if (wc3_yield_advance(&unit->movement.wait_delay,false)) {
         move_hold_goal_heading(unit);
@@ -4697,6 +4715,34 @@ static int move_compare_group_visits(void const *a, void const *b) {
     return x<y ? 1 : x>y ? -1 : 0;
 }
 
+/* Native169680 reloads after normal commits, but before failure stop commits.
+ * Both branches use the same cached destination and first-member prediction. */
+static void move_group_update_refresh(moveGroup_t *group) {
+    if (!group->target) return;
+    if (group->target_refresh==-1) {
+        wc3GridPose_t pose;unit_predicted_pose(group->members[0].unit,&pose);
+        vec2_t goal=group->route.group_goal;
+        float x=wc3_sub(goal.x,pose.grid[0]),y=wc3_sub(goal.y,pose.grid[1]);
+        float distance=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
+        int32_t reload=(int32_t)wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(distance,wc3_float(0x3ea8f5c3)),.5f)));
+        group->target_refresh=reload<16 ? 16 : reload>132 ? 132 : reload;
+        if (group->flags&0x400) group->target_refresh+=165;
+    } else if (group->target_refresh) group->target_refresh--;
+}
+
+/* Native16c5d0 retains the physical owner and coarse admission request.
+ * Every member integrates its old velocity before committing speed zero. */
+static void move_group_stop_members(moveGroup_t *group) {
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t *member=group->members+i;edict_t *unit=member->unit;
+        member->speed=0;member->heading=unit->s.angle;
+        moveStep_t step={.velocity={.heading=member->heading}};
+        unit_predicted_pose(unit,&step.pose);
+        unit_commit_motion(unit,&step);
+        move_unlink_requests(unit);
+    }
+}
+
 static void move_run_group_updates(void) {
     move_update_shared();
     move_prepare_group_order();
@@ -4742,6 +4788,9 @@ static void move_run_group_updates(void) {
             }
             move_release_group(group); continue;
         }
+#ifdef BZ_TESTS
+        if (move_test_group_begin) move_test_group_begin(group);
+#endif
         /* Original16bc10 samples each member's predicted region cell before
          * route/decision work; actions dispatch after all owner commits. */
         for(uint32_t i=group->count;i>0;i--) {
@@ -4763,18 +4812,18 @@ static void move_run_group_updates(void) {
             box2_t bounds=CM_GetWorldBounds();
             vec2_t old=group->initialized ? group->route.group_goal :
                 (vec2_t){wc3_grid_coordinate(group->goal.x,bounds.min.x,32),wc3_grid_coordinate(group->goal.y,bounds.min.y,32)};
-            /* Original167e40 compares floor(fine)>>1 before replacing the
-             * cached destination. Sub-cell target motion must not reset a
-             * retained route, even when the refresh countdown reaches zero.
-             * TODO TARGET-02.1: delayed destination changes also require both
-             * native path timestamps to be at least ten owner ticks old;
-             * their producers remain unported (scene53 retains zeroes). */
-            if (((int32_t)floorf(old.x)>>1)!=((int32_t)floorf(pose.grid[0])>>1) ||
-                    ((int32_t)floorf(old.y)>>1)!=((int32_t)floorf(pose.grid[1])>>1))
+            /* A group path only searches coarse routes: its fine timestamp
+             * stays zero. A premature sample is discarded, then reloaded;
+             * it is not held as a new destination for the next visit. */
+            if (move_destination_changed(old,sampled) && move_destination_ready(0,group->route.group_admission.time))
                 group->goal=(vec2_t){pose.world[0],pose.world[1]};
             group->target_refresh=-1;
         }
-        if (!move_group_route(group)) { group->ticking=false; continue; }
+        if (!move_group_route(group)) {
+            move_group_update_refresh(group);
+            move_group_stop_members(group);
+            group->ticking=false;continue;
+        }
 #ifdef BZ_TESTS
         if (move_test_group_route) move_test_group_route(group,NULL);
 #endif
@@ -4838,17 +4887,7 @@ static void move_run_group_updates(void) {
             if (member->arrived && !group->route.group_index && !(group->flags&1)) finished[count++]=unit;
         }
         group->flags&=~0x10000u;
-        if (group->target) {
-            if (group->target_refresh==-1) {
-                wc3GridPose_t pose; unit_predicted_pose(group->members[0].unit,&pose);
-                vec2_t goal=group->route.group_goal;
-                float x=wc3_sub(goal.x,pose.grid[0]),y=wc3_sub(goal.y,pose.grid[1]);
-                float distance=wc3_sqrt(wc3_add(wc3_mul(x,x),wc3_mul(y,y)));
-                int32_t reload=(int32_t)wc3_int_bits(wc3_float_bits(wc3_add(wc3_mul(distance,wc3_float(0x3ea8f5c3)),.5f)));
-                group->target_refresh=reload<16 ? 16 : reload>132 ? 132 : reload;
-                if (group->flags&0x400) group->target_refresh+=165;
-            } else if (group->target_refresh) group->target_refresh--;
-        }
+        move_group_update_refresh(group);
         if (!group->route.group_index) {
             if (!(group->flags&1)) group->completion_counter++;
         } else move_group_regroup(group);
