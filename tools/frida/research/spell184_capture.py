@@ -19,6 +19,29 @@ HASH = 'd51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236'
 HERE = Path(__file__).resolve().parent
 
 
+def owned_window(display, data, map_name):
+    """Wine's X11 PID is a Linux PID, whereas Frida reports the Windows PID.
+
+    Old crash reporters share Warcraft's title. Verify the invocation before
+    focusing a window; neither title alone nor an arbitrary visible match owns it.
+    """
+    env = {**os.environ, 'DISPLAY': display}
+    found = subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', '^Warcraft III$'],
+                           env=env, capture_output=True, text=True, check=False, timeout=5)
+    for window in found.stdout.splitlines():
+        host = subprocess.run(['xdotool', 'getwindowpid', window], env=env,
+                              capture_output=True, text=True, check=False, timeout=5)
+        try:
+            cmd = Path('/proc', str(int(host.stdout.strip())), 'cmdline').read_bytes()
+        except (OSError, ValueError):
+            continue
+        argv = [part.decode('utf-8', 'replace').replace('\\', '/') for part in cmd.split(b'\0') if part]
+        expected = str(data).replace('\\', '/').lower()
+        if any(expected + '/war3.exe' in arg.lower() for arg in argv) and map_name.replace('\\', '/') in argv:
+            return window, int(host.stdout.strip())
+    return None
+
+
 def main():
     import frida
     ap = argparse.ArgumentParser(description=__doc__)
@@ -32,6 +55,7 @@ def main():
     ap.add_argument('--prefix', default='S184 ')
     ap.add_argument('--preload', default='rs-spell184.txt')
     ap.add_argument('--task', default='payoff184')
+    ap.add_argument('--extension', type=Path, help='additional read-only observer source')
     ap.add_argument('--always', action='store_true', help='observer records outside scene windows too')
     ap.add_argument('--lite', action='store_true', help='compact observer rows for crowd scenes')
     ap.add_argument('--output', type=Path, required=True, help='new JSONL path')
@@ -51,6 +75,8 @@ def main():
                   imageSize=int.from_bytes(binary[pe + 80:pe + 84], 'little'), prefix=args.prefix, always=args.always, lite=args.lite)
     map_path = data / args.map.replace('\\', '/')
     sources = [Path(__file__), HERE / 'target021_observer.js', HERE / 'spell184_probe.j', HERE / 'spell184_make_map.py', HERE / 'target021_make_map.py']
+    if args.extension:
+        sources.append(args.extension)
     if (HERE / 'target03_probe.j').exists():
         sources.append(HERE / 'target03_probe.j')
     provenance = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
@@ -94,7 +120,8 @@ def main():
             if args.mode == 'observe':
                 session = device.attach(pid)
                 script = session.create_script('const config = ' + json.dumps(config) + ';\n' +
-                                               (HERE / 'target021_observer.js').read_text())
+                                               (HERE / 'target021_observer.js').read_text() + '\n' +
+                                               (args.extension.read_text() if args.extension else ''))
                 script.on('message', message)
                 script.load()
             device.resume(pid)
@@ -104,10 +131,18 @@ def main():
             while time.monotonic() - start < args.seconds and not errors:
                 if (not ticking and done_at is None and keys < 6 and
                         time.monotonic() - start >= args.continue_at + 15 * keys):
-                    subprocess.run(['xdotool', 'search', '--onlyvisible', '--name', 'Warcraft III', 'windowfocus',
-                                    '--sync', 'key', '--delay', '200', 'space'], check=False, timeout=5,
-                                   env={**os.environ, 'DISPLAY': args.x11_display}, stdout=subprocess.DEVNULL)
-                    record(dict(event='loading-key', elapsed=time.monotonic() - start))
+                    window = owned_window(args.x11_display, data, args.map)
+                    if window:
+                        env = {**os.environ, 'DISPLAY': args.x11_display}
+                        subprocess.run(['xdotool', 'windowfocus', '--sync', window[0], 'keydown', 'space'],
+                                       check=True, timeout=5, env=env)
+                        time.sleep(0.25)
+                        subprocess.run(['xdotool', 'keyup', 'space'], check=True, timeout=5, env=env)
+                        record(dict(event='loading-key', elapsed=time.monotonic() - start,
+                                    window=window[0], host_pid=window[1]))
+                    else:
+                        record(dict(event='loading-key-skipped', elapsed=time.monotonic() - start,
+                                    reason='No visible window with the owned data/map invocation'))
                     keys += 1
                 if done_at is None and (complete or (args.mode == 'control' and generated.exists())):
                     done_at = time.monotonic()

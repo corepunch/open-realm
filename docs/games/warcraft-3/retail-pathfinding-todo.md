@@ -55,7 +55,16 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**256 done / 336 tasks; 80 remaining.**
+**257 done / 336 tasks; 79 remaining.**
+
+Payoff185 closes TARGET-01.3: actual ground Holy Light captures its authored
+range in Move's physical target owner, without per-frame spell polling. Three
+fresh observed repeats match591 raw group visits; an observer-free control
+matches all376 public markers. The engine public order matches50 raw fine
+pose/velocity samples and the final public stop. Non-stock ROC/TFT lifecycle,
+Stop/replacement/removal and Save146 regressions accompany saved Ghidra packet
+ABIs and mapper evidence. Wider spell timing/perimeter/air/structure/point
+producers stay in their existing tasks. See [spell approaches](retail-pathfinding-engine.md#spell-approaches-capture-a-physical-stopping-range-payoff185).
 
 Payoff184 advances TARGET-01.3 with the Move-owned predicted collision-edge
 range predicate:822 original fixtures and public Holy Light/Stop regressions;
@@ -957,7 +966,7 @@ Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh,
 
 - [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
 - [ ] **TARGET-01.2** Trace remaining target/command range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values. Ordinary zero-range point Move is independently closed01.4; Patrol, AttackMove, occupied destinations and force/can't-path producer decisions remain here and their owning order tasks.
-- [ ] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands.
+- [x] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands. Payoff185 integrates actual ground Holy Light: authored unbuffered range, nonpersistent physical approach, exact50-row fine motion and retail final public stop; repeated/control producer evidence, non-stock schemas, cancellation and Save146 pass. Target Move retains its distinct configured persistent range. See [spell approaches](retail-pathfinding-engine.md#spell-approaches-capture-a-physical-stopping-range-payoff185). Complete spell timing, perimeter and other target families remain in their existing tasks.
 - [x] **TARGET-01.4** Split ordinary zero-range point Move from01.2: capture actual range publication, predicted-pose predicate and final stop; port them into the owning Move ability. Evidence: [point Move arrival](retail-pathfinding-engine.md#point-move-arrival),2342 complete original/C predicate cases, two identical183-evaluation/commit live witnesses, failing actual-order engine regressions then corrected range/heading gate and previous-velocity final step. Full world/grid/clock phases, other owners and force producers remain01.2/3/NUM-02.3; the rejected first observer capture stays explicit.
 
 ### TARGET-02 — Target mutations

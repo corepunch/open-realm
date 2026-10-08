@@ -95,6 +95,11 @@ typedef struct moveGroup_s {
     vec2_t goal, point;
     edict_t *target;
     uint32_t target_spawn;
+    /* Optional ability-owned completion receiver. Cancellation calls it with
+     * arrived=false and must only release the receiver's pending work. */
+    edict_t *receiver;
+    uint32_t receiver_spawn;
+    void (*complete)(edict_t *receiver, edict_t *unit, bool arrived);
     int32_t target_refresh;
     uint32_t unseen_counter; /* Consecutive hidden target samples, native group+6c. */
     float heading, radius;
@@ -3266,6 +3271,9 @@ void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
 void S_FreeMoveRoute(edict_t *self);
 void S_ClearMoveGroups(void);
+bool S_BeginUnitTargetApproach(edict_t *, edict_t *, float, edict_t *, void (*)(edict_t *, edict_t *, bool));
+edict_t *S_UnitTargetApproachReceiver(edict_t const *);
+void S_CancelUnitTargetApproach(edict_t *);
 moveShared_t *S_FindMoveShared(uint64_t);
 bool S_ValidateMoveShared(void);
 uint32_t S_UnitMoveFineObjectFlags(edict_t const *unit);
@@ -3812,6 +3820,7 @@ void G_ClientSetCameraPosition(edict_t *, vec2_t const *);
 float AB_Data(cstring_t, uint32_t, uint32_t);
 uint32_t GetAbilityIndex(abilityProc_t);
 void S_SpellTargetApproachThink(edict_t *);
+void S_SpellTargetApproachComplete(edict_t *, edict_t *, bool);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c

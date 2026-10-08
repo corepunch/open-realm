@@ -610,6 +610,14 @@ void S_ClearMoveGroups(void) {
 }
 
 /* Swap removal preserves the original surviving-row order contract. */
+static void move_complete_receiver(moveGroup_t *group, edict_t *unit, bool arrived) {
+    edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
+    void (*complete)(edict_t *,edict_t *,bool)=group->complete;
+    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
+    if(receiver && receiver->inuse && receiver->spawn_time==spawn && complete)
+        complete(receiver,unit,arrived);
+}
+
 static void move_detach_group(edict_t *unit) {
     moveGroup_t *group=move_unit_group(unit);
     if (!group) return;
@@ -627,6 +635,7 @@ static void move_detach_group(edict_t *unit) {
         /* Native171340 detaches now, but16c150 retires the empty owner at its
          * next visit. Its coarse FIFO entry and allocations remain until then,
          * for ordinary groups as well as groups with shared parameters. */
+        move_complete_receiver(group,unit,false);
         return;
     }
 }
@@ -4480,7 +4489,7 @@ static float move_follow_approach_range(edict_t *unit, edict_t *target, bool per
     return MAX(wc3_float(0x3efae148),wc3_div(wc3_add(wc3_add(wc3_div(world,2),wc3_mul(source_radius,32)),wc3_mul(target_radius,32)),32));
 }
 
-static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
+static moveGroup_t *move_start_target_group(edict_t *unit, edict_t *target, bool persistent, float range) {
     /* Move->Follow shares the procedure, so unit_setmove need not dispatch
      * leave. Transfer physical ownership before installing its successor. */
     move_detach_group(unit);
@@ -4496,9 +4505,46 @@ static void move_start_follow_group(edict_t *unit, edict_t *target, bool persist
     wc3GridPose_t pose; unit_predicted_pose(target,&pose);
     group->goal=(vec2_t){pose.world[0],pose.world[1]};
     group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
-        .arrival_range=move_follow_approach_range(unit,target,persistent)};
+        .arrival_range=range};
     unit->movement.group_id=group->id;
+    move_unit_groups[unit-g_edicts]=group;
     move_group_seed_route(group); group->ticking=false;
+    return group;
+}
+
+static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent) {
+    move_start_target_group(unit,target,persistent,move_follow_approach_range(unit,target,persistent));
+}
+
+/* Original05a5c0 adds world radii before converting the captured range. The
+ * spell's read-only05b580 admission predicate instead converts first. */
+bool S_BeginUnitTargetApproach(edict_t *unit, edict_t *target, float range,
+                              edict_t *receiver, void (*complete)(edict_t *,edict_t *,bool)) {
+    if(!unit || !target || !receiver || !complete || (unit->aiflags&AI_FLYING) ||
+       G_UnitIsStructure(target) || !S_UnitCanTranslate(unit))return false;
+    move_leave(unit);
+    order_move(unit,target);
+    if(unit->goalentity!=target || unit->currentmove!=&move_move_walk)return false;
+    S_SetFollowTarget(unit,target);
+    float world=wc3_add(wc3_add(range,unit->collision),target->collision);
+    uint32_t word=wc3_float_bits(world);
+    float fine=wc3_float((word^(word-0x03000000u))&0x80000000u ? 0 : word-0x02800000u);
+    moveGroup_t *group=move_start_target_group(unit,target,false,MAX(wc3_float(0x3efae148),fine));
+    group->receiver=receiver;group->receiver_spawn=receiver->spawn_time;group->complete=complete;
+    return true;
+}
+
+edict_t *S_UnitTargetApproachReceiver(edict_t const *unit) {
+    moveGroup_t const *group=unit ? move_unit_group(unit) : NULL;
+    edict_t *receiver=group ? group->receiver : NULL;
+    return receiver && receiver->inuse && receiver->spawn_time==group->receiver_spawn ? receiver : NULL;
+}
+
+void S_CancelUnitTargetApproach(edict_t *unit) {
+    if(!S_UnitTargetApproachReceiver(unit))return;
+    move_leave(unit);S_SetFollowTarget(unit,NULL);
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    unit_stand_no_queue(unit);
 }
 
 static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
@@ -5010,6 +5056,7 @@ static void move_run_group_updates(void) {
                 !unit->goalentity) {
                 if (unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
                     unit->movement.group_id=0;
+                move_complete_receiver(group,unit,false);
                 group->members[i]=group->members[--group->count]; continue;
             }
             if (!S_UnitCanTranslate(unit)) { unit->stand(unit); continue; }
@@ -5151,6 +5198,17 @@ static void move_run_group_updates(void) {
             edict_t *unit=finished[--count];
             if (unit->movement.group_id==group->id) {
                 edict_t *target=group->target;
+                if(group->receiver) {
+                    edict_t *receiver=group->receiver;uint32_t spawn=group->receiver_spawn;
+                    void (*complete)(edict_t *,edict_t *,bool)=group->complete;
+                    group->receiver=NULL;group->receiver_spawn=0;group->complete=NULL;
+                    move_detach_group(unit);unit->movement.group_id=0;
+                    S_SetFollowTarget(unit,NULL);
+                    if(receiver->inuse && receiver->spawn_time==spawn && complete)
+                        complete(receiver,unit,true);
+                    else unit_stand(unit);
+                    continue;
+                }
                 if (target && (group->flags&1) && S_MoveTargetStatus(unit,target)==MOVE_TARGET_VALID) continue;
                 move_detach_group(unit); unit->movement.group_id=0;
                 if (target) {
@@ -5466,7 +5524,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
         ent->movement.follow_target_spawn_time = 0;
         /* Attack can temporarily own Smart's task. Retire its Follow parent
          * without completing the public head or advancing the pending FIFO. */
-        if (move_is_following(ent)) {
+        if (move_is_following(ent) || S_UnitTargetApproachReceiver(ent)) {
             move_detach_group(ent); ent->movement.group_id=0;
             if (ent->goalentity == call->removed_target) S_SetMoveGoal(ent, &ent->goalentity, NULL);
             unit_stand(ent);

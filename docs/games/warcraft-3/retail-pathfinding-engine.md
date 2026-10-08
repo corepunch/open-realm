@@ -12677,3 +12677,76 @@ reached the loading screen but produced no simulation markers or Preload file.
 They certify no live gameplay behavior. The capture controller now rejects
 incomplete marker streams rather than returning a successful status. These
 attempts do not close TARGET-01.3 or establish a movement-start trace.
+
+## Spell approaches capture a physical stopping range (Payoff185)
+
+TARGET-01.3 closes for the actual ground Holy Light producer. The recovered
+Holy Bolt handler `60a530` delegates `4259e0` except its deferred-effect message;
+SimpleSpell's target-order message reaches `438680`. That producer obtains the
+rank's authored range through `417f90(out,target,0)`, queries `41d1f0`, replaces
+the old internal task, and submits nonpersistent `5fc640` when outside range.
+Instruction-checked packet ABIs for all three handlers/producers are saved in
+Ghidra and the mapping/type fixtures: ECX ability, stack4 script-event packet,
+RET4; the producer returns void and handlers return their EAX result.
+
+Four complete fresh runs use the **flat no-wall** `RS-Spell185.w3m` variant:
+three read-only observed repeats and one observer-free control. The map has
+64x64 dry fine cells, no placed objects and valid shadow data. Its actual map
+manifest and extracted WPM establish that the successful variant has no wall;
+the generic builder also supports a walled variant, which is not this witness.
+All376 public markers agree across the four runs. All591 raw group visits agree
+across observed runs, retaining fine positions, velocities, radii, ranges,
+flags, routing states and owner counters. Only process addresses and canonical
+allocation identities are normalized between independent processes.
+
+| Public producer | Requested world range | Persistent | Captured fine range |
+|---|---:|---:|---:|
+| Holy Light, stationary target |800|0|26.96875|
+| Target Move |300|1|11.34375|
+| Holy Light, moving target |800|0|26.96875|
+
+`05a5c0` adds the physical radii in world units **before** guarded conversion
+and the minimum .49 clamp. The Hero has32 world collision and the Footman31:
+Holy Light therefore captures `(800+32+31)/32`. This is a distinct operation
+from the read-only admission predicate, which converts the authored range
+before adding independently predicted collision edges. A spell approach does
+not acquire Follow's persistent bit or its target-speed matching bit.
+
+Move now owns that target group and its captured stopping range. Spell keeps a
+small pending receiver with its caster/target incarnations and rawcode, and
+receives arrival or cancellation through the group's saved callback. It no
+longer polls spell range each world frame for this ground path. Submission
+installs the derived unit-to-group binding immediately; cancellation and
+replacement use that binding rather than scanning every edict. Point, air and
+structure approaches retain their existing implementation pending their
+respective producer work. An arrival retires the old receiver binding before
+executing ability code; cancellation only releases pending work. The spell's
+stand transition does not prematurely activate its pending Shift order.
+
+The production public Holy Light order matches **all50 observed pre-visit fine
+poses and velocities**, the captured range, and retail's final four-decimal public stop `(676.1099,310.8699)`. Its clock and owner-counter inputs
+come directly from the observed primary clock. Separate non-stock range100,
+cost13 and healing37 fixtures cover both ROC and TFT schemas, natural arrival,
+Stop, replacement Move, target removal and pending save/load. The initial
+regression failed30 assertions, including16 direct missing-group/polling
+assertions; the completed lifecycle fixture passes150. Save146 serializes the
+receiver identity, captured member range and registered callback, rejects145,
+and rejects malformed receiver/group combinations. Older spell fixtures now
+advance the actual owner instead of invoking the retired polling thinker.
+
+The reusable verifier is
+[`spell185_expected.py`](../../../tools/frida/research/spell185_expected.py);
+its frozen capture pins and generated engine motion header are checked together.
+Live captures reside under
+`research/TARGET-01.3/captures185` in the local retail archive; failed Payoff184
+launches remain explicitly separate and are not counted as gameplay evidence.
+The controller now identifies its owned Linux window by data/map invocation,
+because old Wine crash dialogs can share the game's title and Frida's Windows
+PID is different from the X11 Linux PID.
+
+This closes one ability-specific **approach range/stop** producer. Complete
+spell cast/backswing/effect timing, present target-perimeter fallback,
+air/structure/point spells and arbitrary target-family motion are not claimed;
+they remain in the existing command/target and supported-input work. The moving
+target scene is a repeated retail contract witness; the engine's exact50-row
+motion comparison specifically covers the stationary-target scene.

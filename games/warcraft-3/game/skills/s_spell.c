@@ -765,6 +765,16 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     bool stop_move = false;
 
     if (!caster || !caster->inuse) return;
+    edict_t *receiver=S_UnitTargetApproachReceiver(caster);
+    if(receiver) {
+        if(receiver!=except && receiver->owner==caster)S_CancelUnitTargetApproach(caster);
+        return;
+    }
+    /* Ordinary ground target casts are scheduler-owned. Only the unported
+     * point/air/structure approach can still have a polling thinker. */
+    if(!move_is_active_order_walk(caster) || !caster->goalentity ||
+       (caster->goalentity->think!=S_SpellTargetApproachThink &&
+        !(caster->aiflags&AI_FLYING) && !G_UnitIsStructure(caster->goalentity)))return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
         if (S_SpellChannelOwner(thinker) == caster && move_is_active_order_walk(caster) &&
@@ -825,12 +835,9 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
     return source_item ? executed : true;
 }
 
-/* Ranged unit and point spells are accepted before the caster is in range.
- * Warsmash's CBehaviorTargetSpellBase owns that approach phase and only performs
- * the spell effect once canReach(target, castRange) becomes true. The selected
- * unit or point remains authoritative while this thinker watches the ordinary
- * Move order; replacing that order cancels the pending cast. */
-void S_SpellTargetApproachThink(edict_t *thinker) {
+/* Move owns ground target range/arrival. Point, air and structure approaches
+ * retain their legacy poll until their respective retail producers are ported. */
+static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
@@ -865,7 +872,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     /* A replacement order is authoritative. If the same spell-owned Move is
      * still active but its target died/disappeared, terminate that approach too. */
-    if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+    if (caster->goalentity != target || (!arrived && !move_is_active_order_walk(caster))) {
         G_FreeEdict(thinker);
         return;
     }
@@ -900,12 +907,12 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!S_SpellTargetInRange(caster, target, range))
+    if (!arrived && !S_SpellTargetInRange(caster, target, range))
         return;
 
     /* Mana/cooldown can change while walking. Do not spend or fire the ability
      * unless it is still legal at the actual cast point. */
-    if (!spell_validate(NULL, caster, code, level, target, range)) {
+    if (!spell_validate(NULL, caster, code, level, target, arrived ? 0 : range)) {
         unit_stand(caster);
         G_FreeEdict(thinker);
         return;
@@ -915,9 +922,18 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
-    unit_stand(caster);
+    unit_stand_no_queue(caster);
     spell_execute_unit_target(&params, thinker);
     G_FreeEdict(thinker);
+}
+
+void S_SpellTargetApproachThink(edict_t *thinker) {
+    spell_finish_target_approach(thinker,false);
+}
+
+void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arrived) {
+    if(!arrived || S_SpellChannelOwner(receiver)!=caster) {G_FreeEdict(receiver);return;}
+    spell_finish_target_approach(receiver,true);
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
@@ -948,6 +964,11 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
+    if(target && S_BeginUnitTargetApproach(caster,target,S_SpellRange(code,S_SpellLevel(caster,code)),
+                                         thinker,S_SpellTargetApproachComplete)) {
+        thinker->think=NULL;
+        return true;
+    }
     order_move(caster, goal);
     if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
         G_FreeEdict(thinker);

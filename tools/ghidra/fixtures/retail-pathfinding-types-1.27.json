@@ -16162,6 +16162,63 @@
           "storage": 8
         }
       ]
+    },
+    {
+      "address": "6f438680",
+      "name": "CAbilitySimpleSpell_BeginTargetApproach",
+      "convention": "__thiscall",
+      "returns": "void",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:WC3ScriptEventPacket",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff185 TARGET-01.3: complete owned-window live Holy Light producer on flat no-wall arena. Three observed runs match591 raw physical owner visits and376 public markers; observer-free control matches all public markers. 438680 receives authored800 from417f90(buffer0), invokes41d1f0 outside, then submits nonpersistent5fc640.05a5c0 captures (800+32+31)/32=26.96875 fine; target Move instead uses300 and persistent1, range11.34375. Engine public Holy Light matches all50 observed committed fine poses/velocities and stop (676.1099,310.8699), with no per-frame spell range poll. Save146 retains ability-owned completion receiver and captured range; Stop/replacement/removal cancel. Present target-perimeter fallback, air/structure/point spells and complete spell effect/cast timeline remain excluded. Saved packet ABI is ECX spell prefix plus stack4 CScriptEventPacket*,RET4, from instruction-checked assembly; producer returns void, handlers EAX result. HolyBolt60a530 delegates4259e0 except d01bf deferred effect."
+    },
+    {
+      "address": "6f4259e0",
+      "name": "CAbilitySimpleSpell_OnMessage",
+      "convention": "__thiscall",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:WC3ScriptEventPacket",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff185 TARGET-01.3: complete owned-window live Holy Light producer on flat no-wall arena. Three observed runs match591 raw physical owner visits and376 public markers; observer-free control matches all public markers. 438680 receives authored800 from417f90(buffer0), invokes41d1f0 outside, then submits nonpersistent5fc640.05a5c0 captures (800+32+31)/32=26.96875 fine; target Move instead uses300 and persistent1, range11.34375. Engine public Holy Light matches all50 observed committed fine poses/velocities and stop (676.1099,310.8699), with no per-frame spell range poll. Save146 retains ability-owned completion receiver and captured range; Stop/replacement/removal cancel. Present target-perimeter fallback, air/structure/point spells and complete spell effect/cast timeline remain excluded. Saved packet ABI is ECX spell prefix plus stack4 CScriptEventPacket*,RET4, from instruction-checked assembly; producer returns void, handlers EAX result. HolyBolt60a530 delegates4259e0 except d01bf deferred effect."
+    },
+    {
+      "address": "6f60a530",
+      "name": "CAbilityHolyBolt_OnMessage",
+      "convention": "__thiscall",
+      "returns": "u32",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3SpellAbilityPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "packet",
+          "type": "ptr:WC3ScriptEventPacket",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff185 TARGET-01.3: complete owned-window live Holy Light producer on flat no-wall arena. Three observed runs match591 raw physical owner visits and376 public markers; observer-free control matches all public markers. 438680 receives authored800 from417f90(buffer0), invokes41d1f0 outside, then submits nonpersistent5fc640.05a5c0 captures (800+32+31)/32=26.96875 fine; target Move instead uses300 and persistent1, range11.34375. Engine public Holy Light matches all50 observed committed fine poses/velocities and stop (676.1099,310.8699), with no per-frame spell range poll. Save146 retains ability-owned completion receiver and captured range; Stop/replacement/removal cancel. Present target-perimeter fallback, air/structure/point spells and complete spell effect/cast timeline remain excluded. Saved packet ABI is ECX spell prefix plus stack4 CScriptEventPacket*,RET4, from instruction-checked assembly; producer returns void, handlers EAX result. HolyBolt60a530 delegates4259e0 except d01bf deferred effect."
     }
   ],
   "globals": [

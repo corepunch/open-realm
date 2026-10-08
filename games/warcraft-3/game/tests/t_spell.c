@@ -35,6 +35,7 @@ static void terrain_deform_capture_multicast(vec3_t const *origin, multicast_t t
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(char const *source);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 void SV_Physics_Toss(edict_t *ent);
@@ -169,7 +170,8 @@ TEST(wc3_spell, range184_public_holybolt_uses_edges_prediction_and_stop) {
             T_ASSERT(move_is_active_order_walk(caster));
             uint32_t slot=globals.num_edicts-1;
             edict_t *thinker=g_edicts+slot;
-            T_ASSERT(thinker->think==S_SpellTargetApproachThink);
+            T_NULL(thinker->think);
+            T_ASSERT(S_UnitTargetApproachReceiver(caster)==thinker);
             T_ASSERT(unit_issueimmediateorder(caster,"stop"));
             if(thinker->inuse && thinker->think)thinker->think(thinker);
             T_ASSERT(!thinker->inuse);
@@ -180,6 +182,96 @@ TEST(wc3_spell, range184_public_holybolt_uses_edges_prediction_and_stop) {
         G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     }
     reset_entities(); setup_test_world();
+}
+
+static moveGroup_t *spell185_group(edict_t const *unit) {
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *group=level.move_groups[i];
+        if(group->inuse && group->id==unit->movement.group_id)return group;
+    }
+    return NULL;
+}
+
+/* Advance the actual Move owner, rather than calling a retired polling
+ * implementation. Legacy point/air fixtures still retain their own thinker. */
+static void spell_test_approach_tick(edict_t *caster, edict_t *pending) {
+    if(pending->inuse && pending->think) {pending->think(pending);return;}
+    FOR_LOOP(i,3) {
+        if(!pending->inuse || !caster->inuse)return;
+        wc3_clock_advance(&level.pathing_clock,.03f,0);
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    }
+}
+
+/* Public Holy Bolt must submit the authored range to the physical target
+ * scheduler, not walk all the way to the target behind a per-frame poll. */
+TEST(wc3_spell, approach185_captures_target_range_and_completes_once) {
+    FOR_LOOP(schema,2) FOR_LOOP(kind,5) {
+        char text[1400];
+        snprintf(text,sizeof(text),
+            "ID;PWXL;N;EBB;Y2;X7\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"%s\"\n"
+            "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"%s\"\n"
+            "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+            "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"37\"\nE\n",
+            schema ? "targs1" : "targs",schema ? "DataA1" : "Data11");
+        edict_t *caster=make_hero(MAKEFOURCC('H','p','a','l'),500,200,288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),800,288);
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        UnitAbilities_t abilities={.abilList="AHhb"}; caster->data.UnitAbilities=&abilities;
+        caster->heroabilities[0]=(heroability_t){.code=MAKEFOURCC('A','H','h','b'),.level=1};
+        caster->s.player=target->s.player=0; caster->collision=32; target->collision=31;
+        caster->unitinfo.MoveSpeed=270; caster->movetype=MOVETYPE_STEP;
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        target->svflags|=SVF_MONSTER; target->targtype=TARG_GROUND;
+        target->health.value=100; target->health.max_value=1000;
+        T_ASSERT(G_IssueUnitTargetOrder(caster,"holybolt",target,false,0));
+        edict_t *pending=g_edicts+globals.num_edicts-1;
+        T_ASSERT(pending->inuse); T_NULL(pending->think);
+        moveGroup_t *group=spell185_group(caster);
+        T_NOT_NULL(group);
+        if(group) {
+            T_ASSERT(!group->individual); T_ASSERT(group->target==target);
+            T_EQ(group->flags&0x1801u,0x1000u);
+            T_FEQ(group->members[0].arrival_range,5.09375f,0);
+        }
+        if(kind==1) T_ASSERT(unit_issueimmediateorder(caster,"stop"));
+        if(kind==2) {vec2_t point={288,800};T_ASSERT(G_IssueUnitPointOrder(caster,"move",&point,false,0,0));}
+        if(kind==3) G_FreeEdict(target);
+        if(kind==4) {
+            uint32_t ci=caster-g_edicts,ti=target-g_edicts,pi=pending-g_edicts;
+            FOR_LOOP(tick,5) {level.time+=30;globals.RunFrame();}
+            T_ASSERT(WriteGame("/tmp/wc3-spell185-approach.bin"));
+            T_ASSERT(ReadGame("/tmp/wc3-spell185-approach.bin"));
+            caster=g_edicts+ci;target=g_edicts+ti;pending=g_edicts+pi;
+            group=spell185_group(caster);T_NOT_NULL(group);
+            if(group) {
+                T_ASSERT(group->receiver==pending);T_NULL(pending->think);
+                T_ASSERT(group->complete==S_SpellTargetApproachComplete);
+                T_FEQ(group->members[0].arrival_range,5.09375f,0);
+            }
+            remove("/tmp/wc3-spell185-approach.bin");
+        }
+        float effect=0;
+        FOR_LOOP(tick,200) {
+            float before=target->health.value;
+            level.time+=30; globals.RunFrame();
+            if(!pending->inuse) {effect=target->health.value-before;break;}
+        }
+        T_ASSERT(!pending->inuse);
+        if(kind==0 || kind==4) {
+            T_FEQ(caster->mana.value,187,0.1f); T_FEQ(effect,37,0.1f);
+            T_EQ(caster->movement.group_id,0);
+            T_ASSERT(caster->s.origin2.x>600 && caster->s.origin2.x<700);
+        } else {
+            T_FEQ(caster->mana.value,200,0.1f);
+            if(target->inuse)T_FEQ(target->health.value,100,0.1f);
+            T_ASSERT(S_SpellCooldownReady(caster,MAKEFOURCC('A','H','h','b')));
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    }
+    reset_entities();setup_test_world();
 }
 
 /* Two authored rawcodes share Holy Bolt's callbacks but must read their own effect and resource data. */
@@ -3828,11 +3920,12 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     T_FEQ(caster->mana.value, 300.0f, 0.001f);
     thinker = &globals.edicts[thinker_slot];
     T_ASSERT(thinker->inuse);
-    T_NOT_NULL(thinker->think);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(caster)==thinker);
 
     caster->s.origin2.x = caster->s.origin.x = 425.0f;
     caster->s.origin2.y = caster->s.origin.y = 0.0f;
-    thinker->think(thinker);
+    spell_test_approach_tick(caster,thinker);
 
     T_ASSERT(!thinker->inuse);
     T_FEQ(target->health.value, 400.0f, 0.001f);
@@ -3879,19 +3972,25 @@ TEST(wc3_spell, unit_target_approach_replaces_same_target_cast) {
     caster->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','t','b'), .level = 1);
 
     first_slot = globals.num_edicts;
+    /* This allocator-only Ofar fixture has no authored turn row. Approach
+     * completion now also obeys Move's facing gate, as the retail task does. */
+    caster->unitinfo.TurnSpeed=.6f;caster->unitinfo.MoveSpeed=270;
+    caster->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_SPEED_SET;
     T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','O','c','l'), target));
     first = &globals.edicts[first_slot];
-    T_ASSERT(first->inuse && first->think == S_SpellTargetApproachThink);
+    T_ASSERT(first->inuse && S_UnitTargetApproachReceiver(caster)==first);
 
     latest_slot = globals.num_edicts;
     T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','H','t','b'), target));
     latest = &globals.edicts[latest_slot];
     T_ASSERT(!first->inuse);
-    T_ASSERT(latest->inuse && latest->think == S_SpellTargetApproachThink);
+    T_ASSERT(latest->inuse && S_UnitTargetApproachReceiver(caster)==latest);
     T_EQ(latest->class_id, MAKEFOURCC('A','H','t','b'));
 
-    caster->s.origin2.x = caster->s.origin.x = 500;
-    if (latest->think) latest->think(latest);
+    /* Be inside the captured arrival radius; this test owns replacement
+     * identity, not Move's separate strict boundary/facing contract. */
+    S_SetUnitAxisPosition(caster,0,510);
+    spell_test_approach_tick(caster,latest);
     T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','H','t','b'));
     T_ASSERT(!latest->inuse);
 
@@ -3931,7 +4030,7 @@ TEST(wc3_spell, unit_target_approach_rejects_reused_edict_slots) {
     approach_slot = globals.num_edicts;
     T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','O','c','l'), target));
     approach = &globals.edicts[approach_slot];
-    T_ASSERT(approach->inuse && approach->think == S_SpellTargetApproachThink);
+    T_ASSERT(approach->inuse && S_UnitTargetApproachReceiver(caster)==approach);
     old_spawn_time = target->spawn_time;
     G_FreeEdict(target);
     level.time = 1101;
@@ -3944,7 +4043,7 @@ TEST(wc3_spell, unit_target_approach_rejects_reused_edict_slots) {
     replacement->health.value = replacement->health.max_value = 500;
     T_NE(replacement->spawn_time, old_spawn_time);
     caster->s.origin2.x = caster->s.origin.x = 500;
-    if (approach->think) approach->think(approach);
+    spell_test_approach_tick(caster,approach);
     T_ASSERT(!approach->inuse);
     T_FEQ(replacement->health.value, 500.0f, 0.001f);
     T_FEQ(caster->mana.value, 300.0f, 0.001f);
@@ -3982,7 +4081,7 @@ TEST(wc3_spell, unit_target_approach_rejects_reused_edict_slots) {
     order_move(replacement, target);
     replacement->s.origin2.x = replacement->s.origin.x = 500;
     T_ASSERT(move_is_active_order_walk(replacement));
-    if (approach->think) approach->think(approach);
+    spell_test_approach_tick(caster,approach);
     T_ASSERT(!approach->inuse);
     T_FEQ(target->health.value, 500.0f, 0.001f);
     T_FEQ(replacement->mana.value, 300.0f, 0.001f);

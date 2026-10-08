@@ -83,7 +83,7 @@ enum {
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Format144 retains live unit release identities and their absolute clock keys. */
-static uint32_t const save_version = 145;
+static uint32_t const save_version = 146;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -156,6 +156,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(death_damage_aoe_think),
     SAVE_CFUNCTION(reincarnation_think),
     SAVE_CFUNCTION(acid_bomb_think),
+    SAVE_CFUNCTION(S_SpellTargetApproachComplete),
     SAVE_CFUNCTION(morph_end),
 };
 
@@ -879,6 +880,9 @@ static field_t const move_group_fields[] = {
     TF(moveGroup_t, point, F_VECTOR),
     TF(moveGroup_t, target, F_EDICT, 0, FIELD_NONE),
     TF(moveGroup_t, target_spawn, F_INT),
+    TF(moveGroup_t, receiver, F_EDICT, 0, FIELD_NONE),
+    TF(moveGroup_t, receiver_spawn, F_INT),
+    TF(moveGroup_t, complete, F_CFUNCTION),
     TF(moveGroup_t, target_refresh, F_INT),
     TF(moveGroup_t, unseen_counter, F_INT),
     TF(moveGroup_t, heading, F_FLOAT),
@@ -2229,6 +2233,14 @@ static bool ValidMoveGroup(moveGroup_t const *group) {
         !isfinite(group->point.y) || !isfinite(group->heading) || !isfinite(group->radius) || group->radius<0)
         return false;
     if (group->shared_id && !S_FindMoveShared(group->shared_id)) return false;
+    if(group->receiver) {
+        uintptr_t ptr=(uintptr_t)group->receiver,base=(uintptr_t)g_edicts;
+        if(ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
+           !group->receiver->inuse || G_IsDeferredFree(group->receiver) ||
+           group->receiver->spawn_time!=group->receiver_spawn || !group->target ||
+           group->count!=1 || (group->flags&1) || !group->complete || SaveCFunctionIndex((void *)group->complete)<1)
+            return false;
+    } else if(group->receiver_spawn || group->complete)return false;
     if (group->target) {
         uintptr_t ptr=(uintptr_t)group->target,base=(uintptr_t)g_edicts;
         if (ptr<base || ptr>=base+globals.num_edicts*sizeof(*g_edicts) || (ptr-base)%sizeof(*g_edicts) ||
@@ -3765,6 +3777,21 @@ TEST(wc3_save, rejects_invalid_physical_group_payloads) {
     follow.target_refresh=16; follow.flags|=0x1000;
     S_SetFollowTarget(first,S_SetMoveGoal(first, &first->goalentity, second));
     T_ASSERT(ValidMoveGroup(&follow));
+    edict_t *receiver=G_Spawn();
+    moveGroup_t approach=follow;approach.receiver=receiver;
+    approach.receiver_spawn=receiver->spawn_time;approach.complete=S_SpellTargetApproachComplete;
+    T_ASSERT(ValidMoveGroup(&approach));
+    FOR_LOOP(i,7) {
+        moveGroup_t invalid=approach;
+        if(i==0)invalid.receiver_spawn++;
+        if(i==1)invalid.complete=NULL;
+        if(i==2)invalid.flags|=1;
+        if(i==3)invalid.count=2;
+        if(i==4)invalid.receiver=NULL;
+        if(i==5)invalid.complete=(void (*)(edict_t *,edict_t *,bool))(uintptr_t)1;
+        if(i==6)invalid.receiver=g_edicts+globals.num_edicts;
+        T_ASSERT(!ValidMoveGroup(&invalid));
+    }
     FOR_LOOP(i,5) {
         moveGroup_t invalid=follow;
         if(i==0)invalid.target_spawn++;
@@ -3910,8 +3937,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-142.bin",
         "/tmp/openwarcraft3-wc3-save-version-143.bin",
         "/tmp/openwarcraft3-wc3-save-version-144.bin",
+        "/tmp/openwarcraft3-wc3-save-version-145.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 109, 110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 134, 135, 136, 139, 140, 141, 142, 143, 144, 145 };
 
     reset_entities();
     setup_test_world();

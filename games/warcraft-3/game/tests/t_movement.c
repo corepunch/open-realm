@@ -84,6 +84,7 @@
 #include "retail_yield_composed163.h"
 #include "retail_dynamic_blocker163.h"
 #include "retail_target_approach164.h"
+#include "fixtures/retail_spell_approach185.h"
 #include "retail_target_fog166.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
 
@@ -17485,6 +17486,56 @@ TEST(wc3_movement, formation_refresh_public_mutations_preserve_cached_layout_and
 
 /* Compare the complete public walled Smart approach before each owner visit.
  * The fixture contains native words, including the delayed member handoff at1261. */
+/* Full read-only live Holy Light approach; the clock is an observed input,
+ * and the public spell order constructs the actual physical target owner. */
+TEST(wc3_movement, spell185_public_approach_matches_live_motion) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    char text[1400];
+    snprintf(text,sizeof(text),
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"%s\"\n"
+        "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+        "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"37\"\nE\n",
+        "DataA1");
+    slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('H','p','a','l'),288,288);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1536,288);
+    UnitAbilities_t abilities={.abilList="AHhb"};unit->data.UnitAbilities=&abilities;
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=31;
+    unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+    unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit->mana.value=unit->mana.max_value=200;target->health.value=100;target->health.max_value=1000;
+    unit->s.player=target->s.player=0;unit->targtype=target->targtype=TARG_GROUND;
+    unit_stand(unit);unit_stand(target);
+    level.pathing_clock=(wc3Clock_t){wc3_float(0x3ffffff0),0,300};level.pathing_counter=1090;
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"holybolt",target,false,0));
+    bool mismatch=false;
+    FOR_LOOP(i,sizeof(spell185_motion)/sizeof(*spell185_motion)) {
+        uint32_t const *row=spell185_motion[i];
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)break;
+        uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+            wc3_float_bits(group->members[0].arrival_range)};
+        FOR_LOOP(k,5) {
+            T_EQ(actual[k],row[k+4]);
+            if(actual[k]!=row[k+4]) {
+                fprintf(stderr,"spell185 row=%u field=%u actual=%08x expected=%08x\n",i,k,actual[k],row[k+4]);mismatch=true;
+            }
+        }
+        if(mismatch)break;
+        level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],wc3_float(row[3])};level.pathing_counter=row[0]-1;
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    }
+    T_ASSERT(!mismatch);T_EQ(unit->movement.group_id,0);
+    T_FEQ(unit->s.origin2.x,676.1099f,.0001f);T_FEQ(unit->s.origin2.y,310.8699f,.0001f);
+    T_FEQ(target->health.value,137,0);T_FEQ(unit->mana.value,187,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+}
+
 static unsigned target164_cursor;
 static bool target164_mismatch;
 static edict_t *target164_unit;
