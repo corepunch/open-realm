@@ -70,6 +70,10 @@ void S_TrackMoveTimers(edict_t const *ent) {
 static void (*move_test_motion_commit)(edict_t *unit);
 static void (*move_test_group_route)(moveGroup_t const *group, edict_t *singleton);
 static void (*move_test_group_begin)(moveGroup_t const *group);
+enum { MOVE_PHASE_SCHEDULER, MOVE_PHASE_PUBLISH, MOVE_PHASE_RADIUS, MOVE_PHASE_GROUP, MOVE_PHASE_DECIDE, MOVE_PHASE_COMMIT, MOVE_PHASE_SEPARATE };
+static void (*move_test_owner_phase)(unsigned phase,uint64_t id);
+static uint32_t move_owner_visit_allocations;
+#define MOVE_OWNER_PHASE(phase,id) do { if(move_test_owner_phase)move_test_owner_phase(phase,id); } while(0)
 typedef struct { float cap, speed; } moveGroupCommitTrace_t;
 static void (*move_test_group_commit)(moveGroup_t const *group, moveGroupMember_t const *member, moveGroupCommitTrace_t const *trace);
 static void (*move_test_group_regroup)(moveGroup_t const *group,uint32_t const *trace);
@@ -78,6 +82,10 @@ static void (*move_test_retry)(edict_t *unit,moveRetryTrace_t const *trace);
 typedef struct { wc3Repulse_t state; vec2_t point; wc3Random_t owner; } moveRepulseTrace_t;
 static void (*move_test_repulse)(edict_t *unit,moveRepulseTrace_t const *trace);
 static uint32_t move_retry_member_visits;
+#endif
+
+#ifndef BZ_TESTS
+#define MOVE_OWNER_PHASE(phase,id) ((void)0)
 #endif
 
 #define MOVE_SLIDE_STEP BZ_ROUTE_SLIDE_STEP
@@ -142,6 +150,8 @@ typedef struct {
  * need no invalidation protocol. Tags also protect non-pool test actors. */
 static movePoseCache_t move_pose_cache[MAX_ENTITIES];
 typedef struct { moveGroup_t *group; uint64_t sequence; } moveGroupVisit_t;
+static moveGroupVisit_t *move_group_visits;
+static uint32_t move_group_visit_capacity;
 static moveGroup_t *move_group_head;
 static uint32_t move_group_first_free;
 static bool move_group_order_valid;
@@ -644,17 +654,20 @@ bool S_ValidateMoveShared(void) {
  * live mover radii before any physical owner routes. Original15aa80 orders
  *16c220 for shared owners,16e1f0 for groups, and only then16c570 movement. */
 static void move_update_shared(void) {
+    move_prepare_group_order();
     if(!move_prepare_shared_index())gi.error("Move: invalid shared parameter index");
     FOR_LOOP(i,ARRAY_COUNT(level.move_shared)) {
         moveShared_t *shared=level.move_shared+i;
         if (!shared->inuse) continue;
         if (!shared->references) {move_shared_erase(i);memset(shared,0,sizeof(*shared));continue;}
         shared->speed=shared->next_speed; shared->next_speed=FLT_MAX; shared->radius=0;
+        MOVE_OWNER_PHASE(MOVE_PHASE_PUBLISH,shared->id);
     }
-    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
-        moveGroup_t const *group=level.move_groups[g];
+    /* Original15aa80 uses the same newest-first list for radius and movement. */
+    for(moveGroup_t const *group=move_group_head;group;group=group->older) {
         if (!group->inuse) continue;
         moveShared_t *shared=move_group_shared(group); if (!shared) continue;
+        MOVE_OWNER_PHASE(MOVE_PHASE_RADIUS,group->id);
         FOR_LOOP(i,group->count) {
             moveGroupMember_t const *member=group->members+i; edict_t const *unit=member->unit;
             if (unit && unit->inuse && unit->spawn_time==member->spawn && unit->movement.group_id==group->id)
@@ -695,6 +708,7 @@ void S_ClearMoveGroups(void) {
      * consume unchecked serialized bindings or reference counts. */
     FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {move_free_group_routes(level.move_groups[i]);free(level.move_groups[i]);}
     free(level.move_groups); level.move_groups=NULL;
+    free(move_group_visits);move_group_visits=NULL;move_group_visit_capacity=0;
     ARRAY_COUNT(level.move_groups)=level.move_group_capacity=0;
     free(level.move_shared); level.move_shared=NULL;
     ARRAY_COUNT(level.move_shared)=level.move_shared_capacity=0;
@@ -1925,6 +1939,7 @@ static void move_repulse_owner_update(void) {
 #ifdef BZ_TESTS
         moveRepulseTrace_t before={.state=self->movement.repulse.state,.point=self->movement.fine_pose,.owner=level.pathing_random};
 #endif
+        MOVE_OWNER_PHASE(MOVE_PHASE_SEPARATE,self->s.number);
         move_repulse_update(self); skip = 1;
 #ifdef BZ_TESTS
         if(move_test_repulse)move_test_repulse(self,&before);
@@ -5132,17 +5147,26 @@ static void move_run_group_updates(void) {
     move_prepare_group_order();
     /* Freeze physical generations before callbacks can allocate or reuse slots.
      * Native visits newest cohorts first; newly created owners wait one pass. */
-    uint32_t count=ARRAY_COUNT(level.move_groups),visits=0;
-    if (!count) return;
-    moveGroupVisit_t *owners=malloc(count*sizeof(*owners));
-    if (!owners) gi.error("Move: cannot allocate physical owner visits");
+    uint32_t visits=0;
     for(moveGroup_t *group=move_group_head;group;group=group->older) if(group->inuse) {
-        owners[visits++]=(moveGroupVisit_t){group,group->sequence};
+        if(visits==move_group_visit_capacity) {
+            uint32_t capacity=move_group_visit_capacity ? move_group_visit_capacity*2 : 16;
+            if(capacity<move_group_visit_capacity)gi.error("Move: physical visit capacity exhausted");
+            moveGroupVisit_t *owners=realloc(move_group_visits,capacity*sizeof(*owners));
+            if(!owners)gi.error("Move: cannot allocate physical owner visits");
+            move_group_visits=owners;move_group_visit_capacity=capacity;
+#ifdef BZ_TESTS
+            move_owner_visit_allocations++;
+#endif
+        }
+        move_group_visits[visits++]=(moveGroupVisit_t){group,group->sequence};
     }
+    moveGroupVisit_t const *owners=move_group_visits;
     FOR_LOOP(g,visits) {
         if (!(g & 7u)) gi.FrameCheckpoint();
         moveGroup_t *group=owners[g].group;
         if (!group->inuse || group->sequence!=owners[g].sequence) continue;
+        MOVE_OWNER_PHASE(MOVE_PHASE_GROUP,group->id);
         group->ticking=true;
         for (uint32_t i=0;i<group->count;) {
             moveGroupMember_t const *member=group->members+i; edict_t *unit=member->unit;
@@ -5232,6 +5256,7 @@ static void move_run_group_updates(void) {
         move_deciding_group=group; move_deciding_excluded=0;
         if (group->count>1 && !(group->flags&0x200)) FOR_LOOP(i,group->count)
             if (!(group->members[i].flags&0x300000)) move_deciding_excluded|=1u<<i;
+        MOVE_OWNER_PHASE(MOVE_PHASE_DECIDE,group->id);
         FOR_LOOP(i,group->count) move_group_decide(group,group->members+i);
         /* Original16c250 publishes positive-request eligibility only for
          * members excluded by the multi-member classification pass.
@@ -5251,6 +5276,7 @@ static void move_run_group_updates(void) {
             shared->next_speed=MIN(shared->next_speed,cap);
             if (shared->speed!=FLT_MAX) cap=shared->speed;
         }
+        MOVE_OWNER_PHASE(MOVE_PHASE_COMMIT,group->id);
         edict_t *finished[BZ_WC3_GROUP_ORDER_UNITS]; uint32_t count=0;
         FOR_LOOP(i,group->count) {
             moveGroupMember_t *member=group->members+i; edict_t *unit=member->unit;
@@ -5345,7 +5371,7 @@ static void move_run_group_updates(void) {
         group->ticking=false;
         if (!group->count) move_release_group(group);
     }
-    free(owners);
+    /* Retain the generation snapshot arena until map teardown. */
 }
 
 /* Handle a right-click move command from the client.
@@ -5525,7 +5551,7 @@ BZ_ABILITY_PROC(CAbilityMove) {
             move_start_point_group(ent,&ent->goalentity->s.origin2,0);
         }
         return true;
-    case A_OWNER_BEGIN: move_update_fine_budget(); return true;
+    case A_OWNER_BEGIN: move_update_fine_budget(); MOVE_OWNER_PHASE(MOVE_PHASE_SCHEDULER,0); return true;
     case A_OWNER_UPDATE: move_run_group_updates(); move_repulse_owner_update(); return true;
     case A_CHANNEL_STATE_CHANGED:
         /* 48ef40/48bca0 refresh after publishing the channel-work flag. */

@@ -55,7 +55,14 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**259 done / 336 tasks; 77 remaining.**
+**260 done / 336 tasks; 76 remaining.**
+
+Payoff190 closes SCHED-02.3 with1,000 complete populated retail owner ticks,
+identical repeated phase sequences and304 public markers matching an observer-free
+control. Engine radius collection now visits the actual newest-first group list;
+a retained geometric generation snapshot removes per-owner malloc/free.
+Public Captain/separation construction and phase/work regressions pass.
+See [populated owner phases](retail-pathfinding-engine.md#populated-owner-phases-and-retained-visit-storage-payoff190).
 
 Payoff189 closes GROUP-03.3 with complete original shared-factory growth through
 three64-object blocks, exact radius mutation/departure publication and allocation-free
@@ -1032,7 +1039,7 @@ Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, mo
 
 - [x] **SCHED-02.1** Singleton wall trajectory: 44 complete owner updates, all 64 scheduler buckets, visual settling and unlink pass. Evidence: [singleton owner][owner], report M `move_owner_arrival_cases=1`; shared/separation lists empty.
 - [x] **SCHED-02.2** Active singleton plus eligible repulsor: 43 separation updates and four accepted attempts pass. Evidence: [separation pair][pair], M `move_owner_active_separation_cases=1`; controlled profile, bounded numeric tolerance.
-- [ ] **SCHED-02.3** Populate two groups and the shared-cap/radius lists in one owner tick; assert scheduler/publication/group/movement/separation order and same-tick visibility.
+- [x] **SCHED-02.3** Populate two groups and the shared-cap/radius lists in one owner tick; assert scheduler/publication/group/movement/separation order and same-tick visibility. [Payoff190](retail-pathfinding-engine.md#populated-owner-phases-and-retained-visit-storage-payoff190):1,000 complete repeated live owner intervals include328 shared publications,357 ordered radius visits,32 joint12+1 ticks and1,000 post-movement separation visits; all304 public markers match control. Engine fixes radius traversal to newest-first and retains geometric frozen-generation visit storage; failing-first public Captain/separation construction regression covers phases and zero warm allocation. Callback mutation remains02.4; no new task is added.
 - [ ] **SCHED-02.4** Mutate membership or remove a mover from one callback during that tick; assert subsequent iteration order and ownership.
 - [x] **SCHED-02.5** Explicitly split primary-clock singleton route composition from02.1/NUM-02.3. Two complete original wall detours agree on all34 pose/velocity/heading/index/elapsed/clock rows under six authentic5ms advances per pass;45 owner updates include the supplied freshclock0 callback and nine settling ticks. Actual engine RunFrame matches every active motion/clock word and22 saved continuation ticks. Evidence: [primary-owner engine differential](retail-pathfinding-engine.md#primary-owner-clocks-reproduce-the-complete-detour), frozen primary-owner route and strict repeat corpus. Initial public order-admission phase, stock profiles, rendered presentation and populated groups remain separately required.
 

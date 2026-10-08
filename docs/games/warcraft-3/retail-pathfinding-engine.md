@@ -13019,3 +13019,75 @@ saved readback is `retail-shared-ghidra189-1.27.json`; native repeats, red/green
 engine logs and full Ghidra readbacks remain in
 `/GitHub/wc3-analysis/runtime/payoff189`. No recovery from Storm allocation
 failure, public callback mutation or wider Captain producer closure is claimed.
+
+### Populated owner phases and retained visit storage (Payoff190)
+
+SCHED-02.3 is implemented and closed. The path owner services scheduler rows,
+publishes shared speed and resets radius, collects every bound group's live
+radius, visits physical groups in creation order (newest first), settles mover
+presentation and finally runs alternating separation. Both groups see the full
+radius aggregate before either commits; the second group also sees the first
+group's same-tick next-speed accumulation.
+
+Two read-only Frida function-entry captures run the existing mixed13 Captain
+scene with two distant, authored `repulse=1` Footman clones. Each contains1,000
+complete owner callbacks,328 shared publications,357 radius visits,32 ticks
+with both12+1 shared groups, and1,000 separation visits after movement/settling.
+The complete normalized phase sequences are identical. Both observations and
+the observer-free control have identical304 public position/order markers.
+The distant clones leave the original Captain public timeline unchanged; earlier
+captures without the clones have empty separation lists and are diagnostic only.
+
+At owner1325, the newest singleton radius collector reads zero, then the older
+twelve-member collector reads the singleton's maximum `0x3ffc0000` (63/32).
+Both physical groups read that final radius. Their published speed remains
+`FLT_MAX`, while the second group's entry observes first-group next speed
+`0x40960000`. The verifier rejects a radius pass after a group visit, reversed
+creation order, decision/commit crossing groups, missing separation, incomplete
+owners, changed phases and any public observer/control discrepancy.
+
+The engine previously accumulated radius by physical slot order. The final max
+happened to agree, but intermediate traversal differed. It now uses the same
+derived newest-first list as movement. This also visits active groups rather
+than every retained physical slot. Owner generation snapshots now use a retained
+geometric arena sized by live visits, replacing malloc/free every owner tick.
+Callbacks still receive frozen pointer/creation-sequence pairs; new or reused
+generations wait until the next owner visit. Cold load reconstructs process
+links, and map teardown releases the arena. Neither optimization changes saved
+logical state, network messages or save146.
+
+`wc3_movement.scheduler190_shared_radius_order_and_warm_owner_storage` creates
+thirteen recruits through JASS and actual Captain admission timers, makes the
+singleton largest, and constructs two authored separation owners through
+`unit_create`. Test-only phase hooks observe scheduler reset, publication,
+singleton-before-twelve radius accumulation, both decisions/commits and final
+separation. The pre-fix test fails4 of33 assertions (radius visit identities,
+intermediate maximum and repeated allocation). The complete regression passes
+43 assertions in Classic/TFT; sixteen further warm owner updates allocate no
+visit storage. The shared-growth fixture is reused by extraction, with its
+existing lifecycle regression retained. General reentrant membership/removal
+callbacks remain SCHED-02.4; this closure does not certify all such callbacks.
+
+```sh
+python3 tools/frida/research/schedule190_make_map.py \
+  --base /run/media/lofcz/ssd_external/Games/w3-research2/Maps/PathingRE-CaptainThirteenMixedV1-261003.w3m \
+  --tool build/bin/mpqtool --output /tmp/RS-Schedule190.w3m
+python3 tools/frida/research/schedule190_verify.py \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research \
+  --expected tools/ghidra/fixtures/retail-schedule190-1.27.json --output /tmp/owner-order.json
+python3 -m unittest discover -s tests -p 'test_wc3_pathfinding_schedule_order.py'
+build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_movement.scheduler190*'
+build/bin/openwarcraft3-tests -data build/tests -tft +dedicated 1 +test 'wc3_movement.scheduler190*'
+```
+
+Use `_env/live.sh` and `spell184_capture.py --observer
+ tools/frida/research/schedule190_observer.js --map 'Maps\RS-Schedule190.w3m'
+ --prefix 'PATHTRACE ' --preload rs-schedule190.txt --task payoff190` for new
+owned B/C observations; control mode omits the observer. The builder requires
+the frozen mixed13 base SHA256 and retains its embedded AI script. Source/map
+hashes, completed Preload output and observer-free provenance are mandatory.
+Captures are archived in `research/SCHED-02.3/captures190`; runtime construction,
+red/green logs and saved Ghidra readbacks are under `runtime/payoff190`.
+`MapPathfinding.java` retains the three saved phase annotations, with compact
+readback `retail-schedule-ghidra190-1.27.json`. Total frame-budget compliance is
+not inferred from this allocation and traversal regression.

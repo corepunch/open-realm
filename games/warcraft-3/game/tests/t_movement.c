@@ -16469,7 +16469,7 @@ static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*
     FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
 }
 
-TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reuse) {
+static botCaptain_t *shared_test_captain(void) {
     FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
     G_BotStop(0);reset_entities();setup_test_world();
     level.time=level.pathing_msec=0;level.pathing_clock=(wc3Clock_t){0,0,300};
@@ -16487,7 +16487,12 @@ TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reus
         level.time+=30;globals.RunFrame();
     }
     T_EQ(captain->entered_members,13);T_EQ(ARRAY_COUNT(captain->units),13);
-    if(captain->entered_members!=13){level.started=false;G_BotStop(0);reset_entities();setup_test_world();return;}
+    if(captain->entered_members!=13){level.started=false;G_BotStop(0);reset_entities();setup_test_world();return NULL;}
+    return captain;
+}
+
+TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reuse) {
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
     uint64_t before=level.next_move_shared_id;
     FOR_LOOP(i,129)S_CaptainPointMove(captain,&(vec2_t){-600+(float)i*4,-900},200);
     uint64_t id=level.next_move_shared_id;T_EQ(id-before,129);T_ASSERT(ARRAY_COUNT(level.move_shared)>=129);
@@ -16515,6 +16520,75 @@ TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reus
     T_NOT_NULL(S_FindMoveShared(level.next_move_shared_id));T_EQ(ARRAY_COUNT(level.move_shared),high_water);
     T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
     remove("/tmp/wc3-shared189-growth.bin");level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+
+static struct { unsigned phase;uint64_t id;float radius,speed,next_speed; } owner190_rows[128];
+static unsigned owner190_count;
+static uint64_t owner190_shared;static uint32_t owner190_groups[2];
+static void owner190_record(unsigned phase,uint64_t id) {
+    if(owner190_count>=128)return;
+    if(phase==MOVE_PHASE_SCHEDULER){T_EQ(level.move_fine_budgets[0].work,0);T_EQ(level.move_fine_budgets[0].countdown,1);}
+    moveShared_t const *shared=NULL;
+    if(phase==MOVE_PHASE_PUBLISH) {if(id!=owner190_shared)return;shared=S_FindMoveShared(id);}
+    if(phase>=MOVE_PHASE_RADIUS && phase<=MOVE_PHASE_COMMIT && id!=owner190_groups[0] && id!=owner190_groups[1])return;
+    if(phase>=MOVE_PHASE_RADIUS && phase<=MOVE_PHASE_COMMIT) {
+        moveGroup_t const *group=move_find_group(id);
+        if(!group || !group->shared_id)return;
+        shared=S_FindMoveShared(group->shared_id);
+    }
+    owner190_rows[owner190_count++]=(typeof(*owner190_rows)){phase,id,shared ? shared->radius : 0,shared ? shared->speed : 0,shared ? shared->next_speed : 0};
+}
+
+TEST(wc3_movement, scheduler190_shared_radius_order_and_warm_owner_storage) {
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
+    int repulse=1;float collision=8;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&repulse},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&collision}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','9','0'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+    G_SetMapUnitOverrides(&info);
+    edict_t *separators[2];
+    FOR_LOOP(i,2) {
+        separators[i]=unit_create(0,type.newUnitID,&(vec2_t){800+(float)i*100,800},0);
+        T_NOT_NULL(separators[i]);if(separators[i])T_ASSERT(separators[i]->movement.repulse.active);
+    }
+    S_CaptainPointMove(captain,&(vec2_t){800,-900},200);
+    moveGroup_t *newest=move_group_head,*older=NULL;
+    /* The virtual Captain itself is also a physical owner; find the two bound cohorts. */
+    while(newest && !newest->shared_id)newest=newest->older;
+    older=newest ? newest->older : NULL;while(older && !older->shared_id)older=older->older;
+    T_NOT_NULL(newest);T_NOT_NULL(older);
+    if(!newest || !older)goto done;
+    T_EQ(newest->shared_id,older->shared_id);T_EQ(newest->count,1);T_EQ(older->count,12);
+    newest->members[0].unit->collision=63;
+    owner190_shared=newest->shared_id;owner190_groups[0]=newest->id;owner190_groups[1]=older->id;
+    bool responsive=level.move_fine_responsive;level.move_fine_responsive=false;
+    level.move_fine_budgets[0].work=123;level.move_fine_budgets[0].countdown=0;
+    owner190_count=0;move_test_owner_phase=owner190_record;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();move_test_owner_phase=NULL;
+    T_ASSERT(owner190_count>=11);
+    if(owner190_count>=11) {
+        unsigned phases[]={MOVE_PHASE_SCHEDULER,MOVE_PHASE_PUBLISH,MOVE_PHASE_RADIUS,MOVE_PHASE_RADIUS,
+            MOVE_PHASE_GROUP,MOVE_PHASE_DECIDE,MOVE_PHASE_COMMIT,MOVE_PHASE_GROUP,MOVE_PHASE_DECIDE,MOVE_PHASE_COMMIT};
+        FOR_LOOP(i,10)T_EQ(owner190_rows[i].phase,phases[i]);
+        T_EQ(owner190_rows[2].id,newest->id);T_EQ(owner190_rows[3].id,older->id);
+        T_EQ(owner190_rows[2].radius,0);T_EQ(owner190_rows[3].radius,63);
+        FOR_LOOP(i,6)T_EQ(owner190_rows[i+4].radius,63);
+        T_EQ(owner190_rows[4].speed,FLT_MAX);T_EQ(owner190_rows[7].speed,FLT_MAX);
+        T_EQ(owner190_rows[4].next_speed,FLT_MAX);
+        T_EQ(owner190_rows[7].next_speed,unit_effective_speed(newest->members[0].unit));
+        T_EQ(owner190_rows[10].phase,MOVE_PHASE_SEPARATE);
+        T_ASSERT(owner190_rows[10].id==separators[0]->s.number || owner190_rows[10].id==separators[1]->s.number);
+    }
+    uint32_t allocations=move_owner_visit_allocations;
+    FOR_LOOP(i,16) {S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();}
+    T_EQ(move_owner_visit_allocations,allocations);
+    level.move_fine_responsive=responsive;
+done:
+    move_test_owner_phase=NULL;level.started=false;G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);
 }
 
 TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and_save) {
