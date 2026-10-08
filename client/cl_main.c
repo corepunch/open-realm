@@ -723,47 +723,68 @@ static void CL_CancelCinematicSession(void) {
     cl_cinematic_previous_pause = false;
 }
 
-/* FIFO dequeue is independent of renderer initialization and is regression
- * tested so two scenes queued in one JASS tick never overwrite one another. */
-static bool CL_PopCinematic(PATHSTR path, bool *model) {
-    if (!cl_cinematic_queue_count) return false;
-    *model = cl_cinematic_queue[0].model;
-    snprintf(path, sizeof(PATHSTR), "%s", cl_cinematic_queue[0].path);
+static bool CL_HasModelCinematic(void) {
+    FOR_LOOP(i, cl_cinematic_queue_count)
+        if (cl_cinematic_queue[i].model) return true;
+    return false;
+}
+
+static bool CL_CanStartCinematic(bool transition_pending) {
+    /* Model scenes may run standalone. Movie files are transition interposers
+     * and must not interrupt the map's remaining scripted ending. */
+    return transition_pending || CL_HasModelCinematic();
+}
+
+/* A model ending scene precedes an unlock movie queued earlier by
+ * SetCinematicAvailableBJ. Preserve FIFO order within each presentation type. */
+static bool CL_PopCinematic(PATHSTR path, bool *model, bool allow_movie) {
+    uint32_t index = cl_cinematic_queue_count;
+    FOR_LOOP(i, cl_cinematic_queue_count)
+        if (cl_cinematic_queue[i].model) { index = i; break; }
+    if (index == cl_cinematic_queue_count) {
+        if (!allow_movie || !cl_cinematic_queue_count) return false;
+        index = 0;
+    }
+    *model = cl_cinematic_queue[index].model;
+    snprintf(path, sizeof(PATHSTR), "%s", cl_cinematic_queue[index].path);
     cl_cinematic_queue_count--;
-    memmove(cl_cinematic_queue, cl_cinematic_queue + 1,
-            cl_cinematic_queue_count * sizeof(cl_cinematic_queue[0]));
+    memmove(cl_cinematic_queue + index, cl_cinematic_queue + index + 1,
+            (cl_cinematic_queue_count - index) * sizeof(cl_cinematic_queue[0]));
     return true;
 }
 
 /* Missing files are skipped, not allowed to hold a queued victory indefinitely. */
-static bool CL_StartNextCinematic(void) {
+static bool CL_StartNextCinematic(bool allow_movie) {
     PATHSTR path;
     bool model;
-    while (CL_PopCinematic(path, &model)) {
+    while (CL_PopCinematic(path, &model, allow_movie)) {
         if (model ? CL_PlayModelCinematic(path) : CL_PlayMovie(path)) return true;
     }
     return false;
 }
 
 #ifdef BZ_TESTS
-TEST(client_cinematic, queued_movie_and_model_play_in_script_order) {
+TEST(client_cinematic, ending_model_precedes_unlock_movies_and_movies_wait_for_transition) {
     PATHSTR path;
     bool model;
     cl_cinematic_queue_count = 0;
-    CL_QueueMovie("Movies\\one.mpq");
-    CL_QueueModelCinematic("Doodads\\Cinematic\\scene.mdl");
-    CL_QueueMovie("Movies\\two.mpq");
-    T_EQ(cl_cinematic_queue_count, 3u);
-    T_ASSERT(CL_PopCinematic(path, &model));
-    T_ASSERT(!model);
-    T_STREQ(path, "Movies\\one.mpq");
-    T_ASSERT(CL_PopCinematic(path, &model));
+    CL_QueueMovie("Movies\\OutroX.mpq");
+    T_ASSERT(!CL_CanStartCinematic(false));
+    CL_QueueModelCinematic("Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    T_ASSERT(CL_CanStartCinematic(false));
+    CL_QueueMovie("Movies\\later.mpq");
+    T_ASSERT(CL_PopCinematic(path, &model, false));
     T_ASSERT(model);
-    T_STREQ(path, "Doodads\\Cinematic\\scene.mdl");
-    T_ASSERT(CL_PopCinematic(path, &model));
+    T_STREQ(path, "Doodads\\Cinematic\\ArthasIllidanFight\\ArthasIllidanFight.mdl");
+    T_ASSERT(!CL_PopCinematic(path, &model, false));
+    T_EQ(cl_cinematic_queue_count, 2u);
+    T_ASSERT(CL_CanStartCinematic(true));
+    T_ASSERT(CL_PopCinematic(path, &model, true));
     T_ASSERT(!model);
-    T_STREQ(path, "Movies\\two.mpq");
-    T_ASSERT(!CL_PopCinematic(path, &model));
+    T_STREQ(path, "Movies\\OutroX.mpq");
+    T_ASSERT(CL_PopCinematic(path, &model, true));
+    T_STREQ(path, "Movies\\later.mpq");
+    T_ASSERT(!CL_PopCinematic(path, &model, true));
 }
 
 TEST(client_cinematic, queue_capacity_never_discards_existing_scenes) {
@@ -774,11 +795,11 @@ TEST(client_cinematic, queue_capacity_never_discards_existing_scenes) {
     CL_QueueModelCinematic("overflow.mdl");
     T_EQ(cl_cinematic_queue_count, (uint32_t)CL_MAX_QUEUED_CINEMATICS);
     FOR_LOOP(i, CL_MAX_QUEUED_CINEMATICS) {
-        T_ASSERT(CL_PopCinematic(path, &model));
+        T_ASSERT(CL_PopCinematic(path, &model, true));
         T_STREQ(path, "movie.mpq");
         T_ASSERT(!model);
     }
-    T_ASSERT(!CL_PopCinematic(path, &model));
+    T_ASSERT(!CL_PopCinematic(path, &model, true));
 }
 #endif
 
@@ -789,7 +810,9 @@ static void CL_ProcessPendingMenuAction(void) {
     if (cl_cinematic_paused) {
         /* The previous scene completed/skipped. Keep the simulation frozen
          * while the next queued scene starts; execute transition only at EOF. */
-        if (CL_StartNextCinematic()) return;
+        bool transition_pending = cl_movie_deferred_action.type != CL_MENU_ACTION_NONE;
+        if (CL_CanStartCinematic(transition_pending) &&
+            CL_StartNextCinematic(transition_pending)) return;
         pending = cl_movie_deferred_action;
         memset(&cl_movie_deferred_action, 0, sizeof(cl_movie_deferred_action));
         cl_cinematic_paused = false;
@@ -797,7 +820,7 @@ static void CL_ProcessPendingMenuAction(void) {
         cl_cinematic_previous_pause = false;
         if (pending.type != CL_MENU_ACTION_NONE) goto execute;
     }
-    if (cl_pending_menu_action.type == CL_MENU_ACTION_NONE && !cl_cinematic_queue_count) return;
+    if (!CL_CanStartCinematic(cl_pending_menu_action.type != CL_MENU_ACTION_NONE)) return;
 
     pending = cl_pending_menu_action;
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
@@ -806,7 +829,7 @@ static void CL_ProcessPendingMenuAction(void) {
         cl_cinematic_paused = true;
         cl_cinematic_previous_pause = SV_IsActive() && Cvar_Integer("paused", 0) != 0;
         if (SV_IsActive()) SV_SetPaused(true);
-        if (CL_StartNextCinematic()) return;
+        if (CL_StartNextCinematic(pending.type != CL_MENU_ACTION_NONE)) return;
         /* Every queued asset failed. Restore the original scheduler state and
          * perform the authored transition rather than freezing the campaign. */
         if (SV_IsActive()) SV_SetPaused(cl_cinematic_previous_pause);
