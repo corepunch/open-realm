@@ -2,6 +2,8 @@
 #include "test.h"
 #include "../g_local.h"
 #include "jass/jass.h"
+#include "../../common/wc3_pathing_speed.h"
+#include "retail_attack_swing174.h"
 
 bool run_test_jass(cstring_t source);
 void setup_test_world(void);
@@ -184,5 +186,100 @@ TEST(wc3_attack_orders, artillery_ground_publishes_its_own_head) {
     T_EQ(actor->current_order_id,G_OrderId("attackground"));
     attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attackground"));
     T_ASSERT(unit_issueimmediateorder(actor,"stop")); T_EQ(actor->current_order_id,0);
+}
+
+/* Drive an actual committed hit: no model animation supplies completion. */
+static edict_t *attack_orders_hit(float backswing) {
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return NULL;
+    S_AttackProfileWrite(actor,0)->targetsAllowed |= WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(actor,0)->backswingPoint=backswing;
+    enemy->s.origin2.x=128; enemy->s.origin.x=128; gi.LinkEntity(enemy);
+    attack_orders_call("attack");
+    FOR_LOOP(i,160) {
+        if (enemy->health.value<5000) break;
+        attack_orders_frames(1);
+    }
+    T_ASSERT(enemy->health.value<5000);
+    return actor;
+}
+
+TEST(wc3_attack_orders, target_loss_waits_for_swing_before_queued_move) {
+    edict_t *actor=attack_orders_hit(0.47f),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){384,128},true,0,0));
+    vec2_t position=actor->s.origin2;
+    G_DeferFreeEdict(enemy);
+    T_NULL(actor->goalentity);
+    T_EQ(actor->current_order_id,G_OrderId("attack")); T_EQ(actor->order_queue.count,1);
+    attack_orders_frames(3);
+    T_EQ(actor->current_order_id,G_OrderId("attack")); T_EQ(actor->order_queue.count,1);
+    T_FEQ(actor->s.origin2.x,position.x,0); T_FEQ(actor->s.origin2.y,position.y,0);
+    attack_orders_frames(3);
+    T_EQ(actor->current_order_id,G_OrderId("move")); T_EQ(actor->order_queue.count,0);
+    /* Swing completion precedes readiness for the next weapon attack. */
+    T_ASSERT((int32_t)(actor->attack_cooldown_end_time-G_Time())>0);
+}
+
+TEST(wc3_attack_orders, target_loss_replacement_is_not_retired_by_old_swing) {
+    edict_t *actor=attack_orders_hit(0.47f),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    G_DeferFreeEdict(enemy); T_EQ(actor->current_order_id,G_OrderId("attack"));
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){768,64},false,0,0));
+    attack_orders_frames(7);
+    T_EQ(actor->current_order_id,G_OrderId("move")); T_ASSERT(actor->s.origin2.x>64);
+    T_ASSERT(unit_issueimmediateorder(actor,"stop")); T_EQ(actor->current_order_id,0);
+}
+
+TEST(wc3_attack_orders, detached_swing_wait_survives_save_and_slot_reuse) {
+    edict_t *actor=attack_orders_hit(0.67f),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    T_ASSERT(G_IssueUnitPointOrder(actor,"move",&(vec2_t){384,128},true,0,0));
+    G_DeferFreeEdict(enemy); G_RunDeferredFrees();
+    T_EQ(actor->current_order_id,G_OrderId("attack")); T_NULL(actor->goalentity);
+    abilityPrimaryTimer_t timer=actor->attack_swing;
+    T_ASSERT(timer.active);
+    cstring_t save="/tmp/wc3-attack-swing174.bin";
+    T_ASSERT(WriteGame(save)); T_ASSERT(ReadGame(save)); remove(save);
+    T_ASSERT(actor->attack_swing.active); T_EQ(actor->attack_swing.sequence,timer.sequence);
+    T_FEQ(actor->attack_swing.deadline.time,timer.deadline.time,0);
+    T_EQ(actor->attack_swing.deadline.epoch,timer.deadline.epoch);
+    T_EQ(actor->current_order_id,G_OrderId("attack")); T_EQ(actor->order_queue.count,1);
+    attack_orders_frames(4); T_EQ(actor->current_order_id,G_OrderId("attack"));
+    attack_orders_frames(4); T_EQ(actor->current_order_id,G_OrderId("move"));
+    G_FreeEdict(actor); level.time+=1001; attack_orders_call("recreate");
+    attack_orders_frames(8); T_EQ(actor->current_order_id,0);
+    T_ASSERT(!actor->attack_swing.active);
+}
+
+TEST(wc3_attack_orders, original_swing_delay_words_and_cooldown_clamps) {
+    FOR_LOOP(i,sizeof(retail_attack_swing)/sizeof(*retail_attack_swing)) {
+        float remaining=wc3_float(retail_attack_swing[i].remaining);
+        float delay=wc3_attack_swing_delay(wc3_float(retail_attack_swing[i].backswing),
+                                          wc3_float(retail_attack_swing[i].divisor),&remaining);
+        T_EQ(wc3_float_bits(delay),retail_attack_swing[i].delay);
+        T_EQ(wc3_float_bits(remaining),retail_attack_swing[i].cooldown);
+    }
+}
+
+TEST(wc3_attack_orders, lethal_hit_waits_and_death_cancels_completion) {
+    edict_t *actor=attack_orders_hit(0.47f),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    enemy->health.value=1;
+    T_Damage(enemy,actor,2);
+    T_ASSERT(M_IsDead(enemy)); T_NULL(actor->goalentity);
+    T_EQ(actor->current_order_id,G_OrderId("attack"));
+    attack_orders_frames(3); T_EQ(actor->current_order_id,G_OrderId("attack"));
+    attack_orders_call("kill"); T_EQ(actor->current_order_id,0);
+    attack_orders_frames(3); T_EQ(actor->current_order_id,0); T_NULL(actor->combatentity);
+}
+
+TEST(wc3_attack_orders, loss_before_damage_point_has_no_swing_wait) {
+    edict_t *actor=attack_orders_setup(),*enemy=attack_orders_enemy();
+    if (!actor || !enemy) return;
+    S_AttackProfileWrite(actor,0)->targetsAllowed |= WC3_TARGET_FLAG_AIR;
+    attack_orders_call("attack");
+    T_ASSERT(!actor->attack_swing.active);
+    G_DeferFreeEdict(enemy); T_NULL(actor->goalentity); T_EQ(actor->current_order_id,0);
 }
 #endif

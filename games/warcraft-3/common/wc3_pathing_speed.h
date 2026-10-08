@@ -63,4 +63,17 @@ static inline bool wc3_attack_speed_cap_rearm(bool active, float remaining) {
     return !active || wc3_sub(3,remaining)>=.5f;
 }
 
+/* Attack49d050 arms d01b2 at the committed hit. The native minimums are
+ * scheduler gaps (cd53a4/cd53a8), independent of the model animation. */
+#define WC3_ATTACK_SWING_GAP .01f
+#define WC3_ATTACK_COOLDOWN_GAP .02f
+static inline float wc3_attack_swing_delay(float backswing, float divisor, float *remaining) {
+    float delay=wc3_div(backswing,divisor);
+    if (delay<WC3_ATTACK_SWING_GAP) delay=WC3_ATTACK_SWING_GAP;
+    if (*remaining<WC3_ATTACK_COOLDOWN_GAP) *remaining=WC3_ATTACK_COOLDOWN_GAP;
+    float maximum=wc3_sub(*remaining,WC3_ATTACK_SWING_GAP);
+    if (delay>maximum) delay=maximum;
+    return delay;
+}
+
 #endif

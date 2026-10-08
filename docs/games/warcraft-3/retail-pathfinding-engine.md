@@ -11927,3 +11927,58 @@ implemented by this chunk. Retail attack/save numerical parity is not inferred
 from engine round trips. The queue witness has no observer-free control and
 its input landing ticks differ; see the [handoff](retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md)
 and [probe addendum](retail-pathfinding-handoffs/ORDER-01.10/HANDOFF-addendum.md).
+
+## Lost Attack targets wait for swing completion (Payoff174)
+
+Attack has separate weapon-readiness and swing-completion deadlines. Original
+`49d050` runs at the committed hit, before damage/projectile delivery. It divides
+the active slot's recovery stat (`18c+16*slot`, payload at `190+16*slot`) by the
+effective attack-speed divisor. The weapon binder `49cab0` assigns the consecutive
+cooldown, damage-point and recovery inputs to stats `154`, `168` and `18c`.
+The two native scheduler gaps at `cd53a4`/`cd53a8` are `0.01`/`0.02` seconds:
+
+```
+remaining = max(weapon_cooldown_remaining, 0.02)
+delay = min(max(recovery / effective_divisor, 0.01), remaining - 0.01)
+arm swing control200, event d01b2, with delay
+```
+
+If the cooldown is raised, the producer first rearms control `1d8` with `d01b0`.
+These are binary scheduler constants, not delays inferred from a particular
+Footman capture. `497e20` cancels reaction/windup and releases target subscriptions
+while retaining control `200`. The `d016a` timer-wait task sets flag `800` when
+this control still has time remaining. `49a390` handles `d01b2`: flag `800` pops
+and dispatches the waiting task before the separate Attack Once flag `10000`.
+The prepared readonly Frida traces in [ORDER-01.10](retail-pathfinding-handoffs/ORDER-01.10/HANDOFF.md)
+show public target-loss heads retiring after this completion event, including
+KillUnit tick60/retirement62 and RemoveUnit tick45/retirement48.
+
+The engine now arms `attack_swing` before committing melee damage or launching
+a projectile. On target loss, Attack immediately clears the borrowed goal and
+combat identity, retains its user head/FIFO in an Attack-owned finishing move,
+and resumes its retained parent or queued successor at the saved primary
+deadline. Replacement Move/Stop, death and semantic removal cannot inherit
+completion: the callback only resumes the still-active finishing owner.
+Loss before a committed hit completes immediately because no swing was armed.
+
+The existing indexed Attack heap now holds three request kinds. Arm/cancel is
+O(log N), earliest deadline is O(1), and there is no per-frame entity scan.
+Format140 saves the logical request's deadline/epoch/span/sequence/active state;
+the heap is rebuilt and format139 is rejected. The old weapon and animation
+recovery bookkeeping is retained; it does not choose target-loss completion.
+
+`wc3_attack_orders.*` drives compiled JASS admission and actual game frames,
+committed hits, semantic removal, lethal damage, queued Move, replacement,
+death, save/load and slot reuse without a model animation supplying completion.
+`retail_attack_swing174.h` compares144 original scalar witnesses bit-for-bit;
+the Python comparison checks all288 witnesses, including both slots.
+`verify_wc3_pathing_attack_swing.py` executes original `49d050`, `StatDivide`
+and scalar/clamp instructions. Its effective-divisor getter, timer-remaining
+virtual and request allocator are explicit boundary stand-ins; it is not a
+retail scheduler or full attack-numerics oracle.
+
+ORDER-01.10 remains open for Attack Once admission/completion and non-artillery
+Attack Ground. Rescaling live timers when the effective attack speed changes
+(`495ef0`), exact damage-point/cooldown timing and wider paused/stat policies
+are not certified by this integration. Focused Classic/TFT checks pass841 tests
+and447,738 assertions per schema. No full-repository suite was repeated here.

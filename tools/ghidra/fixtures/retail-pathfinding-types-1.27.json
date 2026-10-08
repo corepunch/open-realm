@@ -3927,6 +3927,24 @@
           "name": "task_target",
           "type": "WC3PathIdentity",
           "evidence": "ORDER-01.10: 49e510 (d0168) writes canonical target identity 6c/70 (or -1/-1); 493ff0 tests 6c&70!=-1 to choose acquisition rearm period."
+        },
+        {
+          "offset": 400,
+          "name": "recovery_value0",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff174:49cab0 binds consecutive cooldown/damage-point/recovery inputs;49d050 passes stat18c to StatDivide3f15b0, which reads payload+4. Original288 constructed witnesses cover both slots."
+        },
+        {
+          "offset": 416,
+          "name": "recovery_value1",
+          "type": "WC3PathScalar",
+          "evidence": "Payoff174: same active-slot recovery payload at18c+16*slot+4; original49d050 slot1 witnesses."
+        },
+        {
+          "offset": 524,
+          "name": "swing_request",
+          "type": "ptr:WC3TimerRequestPrefix",
+          "evidence": "Payoff174:49d050 arms embedded control200 with d01b2;060ad0 remaining virtual reads request at control+c;497e20 retains this request when releasing target/windup."
         }
       ]
     },
@@ -14411,6 +14429,34 @@
           "storage": 4
         }
       ]
+    },
+    {
+      "address": "6f49d050",
+      "name": "Attack_ArmSwingCompletion",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff174: complete original x86 listing, ECX ability and plain RET, no stack arguments; saved/read back explicit storage."
+    },
+    {
+      "address": "6f49a390",
+      "name": "Attack_OnSwingComplete",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "ability",
+          "type": "ptr:WC3AttackRangePrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff174: complete original x86 listing, ECX ability and plain RET, no stack arguments; saved/read back explicit storage."
     }
   ],
   "globals": [

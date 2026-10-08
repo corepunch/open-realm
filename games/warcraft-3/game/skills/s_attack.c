@@ -37,6 +37,9 @@ static void attack_set_backswing_deadline(edict_t *ent);
 static float attack_backswing_remaining(edict_t const *ent);
 static umove_t attack_move_melee_cooldown;
 static umove_t attack_move_ranged_cooldown;
+static umove_t attack_move_finish = { "stand ready", NULL, NULL, CAbilityAttack };
+static void attack_resume_after_combat(edict_t *attacker);
+static void attack_set_cooldown(edict_t *ent, float seconds);
 
 /* Attack's exact primary requests: O(log n) arm/cancel, O(1) earliest
  * deadline. These indexes are derived; only deadline/serial/active are saved. */
@@ -45,13 +48,17 @@ static umove_t attack_move_ranged_cooldown;
 #define ATTACK_HELP_SUPPRESSION 3.0f
 #define ATTACK_AI_HELP_SUPPRESSION 0.5f
 
-enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_COUNT };
+enum { ATTACK_TIMER_CAP, ATTACK_TIMER_HELP, ATTACK_TIMER_SWING, ATTACK_TIMER_COUNT };
 static uint32_t attack_cap_heap[MAX_ENTITIES*ATTACK_TIMER_COUNT], attack_cap_positions[MAX_ENTITIES*ATTACK_TIMER_COUNT];
 static uint32_t attack_cap_count;
 
 static abilityPrimaryTimer_t *attack_primary_timer(uint32_t key) {
     edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
-    return key%ATTACK_TIMER_COUNT==ATTACK_TIMER_HELP ? &unit->combat_help : &unit->attack_speed_cap;
+    switch (key%ATTACK_TIMER_COUNT) {
+    case ATTACK_TIMER_HELP: return &unit->combat_help;
+    case ATTACK_TIMER_SWING: return &unit->attack_swing;
+    default: return &unit->attack_speed_cap;
+    }
 }
 static bool attack_cap_less(uint32_t a,uint32_t b) {
     abilityPrimaryTimer_t const *left=attack_primary_timer(a),*right=attack_primary_timer(b);
@@ -111,11 +118,22 @@ static void attack_cap_cancel(edict_t *unit) {
 static void attack_help_cancel(edict_t *unit) {
     attack_cap_remove(unit,ATTACK_TIMER_HELP);unit->combat_help.active=false;
 }
+static void attack_swing_cancel(edict_t *unit) {
+    attack_cap_remove(unit,ATTACK_TIMER_SWING);unit->attack_swing.active=false;
+}
 static void attack_primary_fire(void) {
     uint32_t key=attack_cap_heap[0];
     edict_t *unit=g_edicts+key/ATTACK_TIMER_COUNT;
-    if(key%ATTACK_TIMER_COUNT==ATTACK_TIMER_HELP)attack_help_cancel(unit);
-    else attack_cap_cancel(unit);
+    switch (key%ATTACK_TIMER_COUNT) {
+    case ATTACK_TIMER_HELP: attack_help_cancel(unit); break;
+    case ATTACK_TIMER_SWING:
+        attack_swing_cancel(unit);
+        /* Replacement orders, death and slot reuse cannot inherit completion. */
+        if (unit->inuse && !M_IsDead(unit) && !G_IsDeferredFree(unit) &&
+            unit->currentmove==&attack_move_finish) attack_resume_after_combat(unit);
+        break;
+    default: attack_cap_cancel(unit); break;
+    }
 }
 
 /* Native05f230 materializes the ordered spatial candidates before invoking
@@ -427,6 +445,19 @@ static void attack_finish_after_combat(edict_t *attacker, edict_t const *target,
     S_SetMoveGoal(attacker, &attacker->goalentity, NULL);
     attacker->attack_target_spawn_time = 0;
     attacker->movement.explicit_allied_attack = false;
+    /* Native497e20 releases the target, but d016a waits on the independent
+     * +200 timer. Retain the public head/FIFO until d01b2, never until cooldown. */
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    if (!G_BuildingIsUnsummoning(attacker) && attacker->attack_swing.active &&
+        attacker->attack_swing.deadline.time>now.time) {
+        unit_setmove(attacker,&attack_move_finish);
+        attacker->wait=0;
+        return;
+    }
+    attack_resume_after_combat(attacker);
+}
+
+static void attack_resume_after_combat(edict_t *attacker) {
     if (G_BuildingIsUnsummoning(attacker)) {
         M_SetMove(attacker,NULL);
         attacker->animation = NULL;
@@ -705,6 +736,20 @@ static void attack_set_backswing_deadline(edict_t *ent) {
     ent->attack_backswing_end_time = G_Time() + duration;
 }
 
+static void attack_swing_begin(edict_t *ent) {
+    float remaining=MAX(0,(int32_t)(ent->attack_cooldown_end_time-G_Time()))/1000.0f;
+    float previous=remaining;
+    float delay=wc3_attack_swing_delay(ACTIVE_ATTACK(ent)->backswingPoint,
+                                      attack_speed_divisor(ent),&remaining);
+    if (remaining!=previous) attack_set_cooldown(ent,remaining);
+    attack_swing_cancel(ent);
+    wc3Clock_t now=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    ent->attack_swing=(abilityPrimaryTimer_t){.active=true,.deadline=now,
+                                             .sequence=++level.timer_sequence};
+    ent->attack_swing.deadline.time=wc3_add(now.time,delay);
+    attack_cap_insert(ent,ATTACK_TIMER_SWING);
+}
+
 static float attack_backswing_remaining(edict_t const *ent) {
     int32_t remaining = ent ? (int32_t)(ent->attack_backswing_end_time - G_Time()) : 0;
     return remaining > 0 ? remaining / 1000.0f : 0.0f;
@@ -716,6 +761,7 @@ static void damage_target(edict_t *ent) {
     umove_t const *move = ent->currentmove;
     edict_t *target = ent->goalentity;
     attack_set_backswing_deadline(ent);
+    attack_swing_begin(ent);
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
@@ -745,6 +791,7 @@ static void throw_missile(edict_t *ent) {
     vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
     vec2_t impact = other->s.origin2;
     attack_set_backswing_deadline(ent);
+    attack_swing_begin(ent);
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
@@ -1409,6 +1456,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         FOR_LOOP(i,globals.num_edicts)if(g_edicts[i].inuse) {
             if(g_edicts[i].attack_speed_cap.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_CAP);
             if(g_edicts[i].combat_help.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_HELP);
+            if(g_edicts[i].attack_swing.active)attack_cap_insert(g_edicts+i,ATTACK_TIMER_SWING);
         }
         return true;
     case A_PRIMARY_TIMER_NEXT:
@@ -1460,7 +1508,7 @@ BZ_ABILITY_PROC(CAbilityAttack) {
         return false;
     case A_UNIT_REMOVING:
     case A_UNIT_REMOVE:
-        if(ent){attack_cap_cancel(ent);attack_help_cancel(ent);}
+        if(ent){attack_cap_cancel(ent);attack_help_cancel(ent);attack_swing_cancel(ent);}
         return false;
     case A_TARGET_REMOVED: {
         if (!call) return false;
