@@ -921,6 +921,10 @@ void R_RenderView(void) {
     R_DrawEntities();
     tr.render_phase = RENDER_PHASE_ALPHA;
     R_DrawAlphaSurfaces();
+    /* Warcraft water is translucent and drawn after ordinary entities. Render
+     * authored water-level unit overlays afterward so the water cannot cover
+     * the selection, hover, or indicator ring. */
+    R_DrawWaterEntityOverlays();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }

@@ -202,6 +202,7 @@ enum {
     FLAG(RF_GROUND_SURFACE, 23), /* presentation: model may provide an authored walkable support surface */
     FLAG(RF_UNIT, 24),           /* gameplay unit; prioritize in broad box-selection candidate queries */
     FLAG(RF_ALLIED, 25),         /* recipient-relative ally; prioritize after the local player's units */
+    FLAG(RF_SELECTION_CIRCLE_ON_WATER, 26), /* draw this entity's ground overlays over supported water */
 };
 
 enum {
@@ -225,6 +226,7 @@ enum {
     FLAG(EF_HOVER_MANA, 15),      /* client may expose this entity's mana on world hover */
     FLAG(EF_UNIT, 16),             /* gameplay actor; prioritize in broad box-selection candidate queries */
     FLAG(EF_ALLIED, 17),          /* recipient-relative alliance, distinct from neutral relationship */
+    FLAG(EF_SELECTION_CIRCLE_ON_WATER, 18), /* WC3 authored water-supported selection overlay */
 };
 
 enum {

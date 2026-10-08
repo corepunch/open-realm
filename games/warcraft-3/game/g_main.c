@@ -1590,6 +1590,19 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const *ent) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t *state) {
+    state->flags &= ~EF_SELECTION_CIRCLE_ON_WATER;
+    if (ent->data.UnitUI && ent->data.UnitUI->selectionCircleOnWater) {
+        float const ground_z = CM_GetHeightAtPoint(state->origin.x, state->origin.y);
+        float const water_z = CM_GetWaterHeightAtPoint(state->origin.x, state->origin.y);
+        float const support_z = water_z + state->ground_offset;
+
+        /* The UI field opts the unit into water-level rings. Publish the
+         * render hint only while the unit is actually supported by water;
+         * the client renderer stays independent of WC3 terrain data. */
+        if (water_z > ground_z + 0.01f && fabsf(state->origin.z - support_z) <= 1.0f)
+            state->flags |= EF_SELECTION_CIRCLE_ON_WATER;
+    }
+
     /* RF_HIDDEN also represents cargo/mines/revival placeholders. Only known
      * gameplay invisibility may be cleared in a client snapshot. Owners/shared
      * viewers see their invisible units; hostile viewers need true sight. */
