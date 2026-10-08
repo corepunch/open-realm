@@ -62,6 +62,31 @@ the MDX trace is presentation-only and determines how the actor follows the
 bridge deck in Z. Dead or placement-disabled destructables clear
 `EF_GROUND_SURFACE`, so their retained Death geometry cannot lift units.
 
+## Destructable Animation Speed (JASS)
+
+`SetDestructableAnimationSpeed(d, speedFactor)` is registered in
+`api/api_destructable.h` and `api/api_module.c`. `common.txt` already declares its
+retail JASS signature. It checks that the handle represents a live destructable
+and writes the per-edict `animation_speed` multiplier. Spawned entities start at
+`1.0`; `0.0` freezes and positive factors speed up/slow down playback. In line
+with `SetUnitTimeScale`, OpenWarcraft currently clamps negative factors to zero;
+negative retail behaviour has not been conclusively established.
+
+`G_RunDestructableAnimation` advances the server-owned `s.frame` at
+`FRAMETIME * animation_speed` for scripted animation overrides, including
+`SetDestructableAnimation` followed by `QueueDestructableAnimation`. It preserves
+the rate when switching to a queued clip. The normal entity state/animation
+clock and the existing save field (`g_save.c`) already carry the value; no new
+network or save-format fields are necessary. This native does not change
+health, pathing, collision, occluder height or animation selection.
+
+The `wc3_destructable.set_animation_selects_only_resolved_model_sequences`
+regression covers JASS dispatch, independent instances, zero freeze, half-speed
+scheduler advancement, queued sequence rate retention, negative clamping and
+resetting to 1.0. Verify visual frame timing in-game separately; runtime-model
+sampling is not proven by a headless frame test. See [Elevators](elevators.md)
+for the script-owned transition and height contract.
+
 ## Combat And Death
 
 Both explicit attack orders and contextual right-click orders accept an alive,

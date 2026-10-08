@@ -176,6 +176,14 @@ uint32_t SetDestructableAnimation(jass_t *j) {
     }
     return 0;
 }
+/* Destructables share the saved animation clock with units; the native only
+ * changes its rate, preserving the current MDX sequence and gameplay state. */
+uint32_t SetDestructableAnimationSpeed(jass_t *j) {
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    float speed = jass_checknumber(j, 2);
+    if (G_IsDestructable(d)) d->animation_speed = MAX(0.0f, speed);
+    return 0;
+}
 /* Ghidra: ShowDestructable=FUN_003f8790 — show (flag!=0) calls the entity's
  * show method (vtable+0x84), hide calls hide (vtable+0x88).  Our equivalent of
  * that visibility toggle is the RF_HIDDEN renderfx bit, exactly as ShowUnit. */

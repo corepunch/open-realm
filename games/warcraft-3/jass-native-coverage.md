@@ -431,6 +431,10 @@ so trigger publication and snapshots remain consistent.
   `s.origin`, so collision, pathing, visibility, and snapshots agree.
 - Kill and remove are distinct: kill runs death behavior and events; remove
   releases the entity without fabricating a death.
+- `SetDestructableAnimationSpeed` sets each destructable's existing saved
+  `animation_speed` multiplier (default 1.0, zero freezes). The scripted
+  animation scheduler advances the MDX frame and retains the factor across
+  queued sequences; see [Breakable Destructables](../../docs/games/warcraft-3/breakable-destructables.md#destructable-animation-speed-jass).
 - Item ownership is the inventory holder or explicit owning player defined by
   the item contract, not merely `edict.s.player` unless that field is kept in
   sync by every inventory transition.
