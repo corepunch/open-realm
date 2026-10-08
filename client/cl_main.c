@@ -67,7 +67,7 @@ static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
 /* Queued in authored order: scripts can request a movie followed by a model
  * scene (or vice versa) before the same deferred map transition. */
-#define CL_MAX_QUEUED_CINEMATICS 8
+#define CL_MAX_QUEUED_CINEMATICS 8 // scenes; bounds deferred model and movie presentation until transition completion
 static struct {
     bool model;
     PATHSTR path;

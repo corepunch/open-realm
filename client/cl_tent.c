@@ -2,7 +2,7 @@
 
 #define MAX_MISSILES 64
 #define MAX_SPELL_IMPACTS 32
-#define MAX_FLOATING_TEXTS 128     /* entries; bounds one-shot labels and live script tags */
+#define MAX_FLOATING_TEXTS 128     /* entries; fits 100 WC3 tags plus transient labels without dropping script text */
 #define MAX_ENTITY_INDICATORS 32     /* entries; repeated calls for one entity reuse its slot */
 #define FLOATING_TEXT_CAPACITY 128 /* bytes including terminator; JASS texttags can contain full labels */
 #define SPELL_IMPACT_LIFETIME 800  /* ms — one-shot birth animation duration */
