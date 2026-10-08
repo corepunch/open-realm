@@ -403,6 +403,7 @@ TEST(wc3_items, roc_hero_inventory_does_not_read_attribute_bonus_as_capacity) {
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     edict_t *player = &g_edicts[0], *hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     player->client->ps.race = kPlayerRaceUndead; G_SelectEntity(player->client, hero);
@@ -1103,6 +1104,7 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceHuman;
@@ -1143,6 +1145,7 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     client->ps.race = kPlayerRaceHuman;
@@ -1289,6 +1292,7 @@ TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     edict_t *player, *peasant; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceOrc; G_SelectEntity(client, peasant);
     reset_inventory_panel_capture();
@@ -1306,6 +1310,7 @@ TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_ra
     edict_t *player, *peasant; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     client->ps.race = kPlayerRaceNone; G_SelectEntity(client, peasant);
     reset_inventory_panel_capture();
@@ -1323,6 +1328,7 @@ TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
     edict_t *player, *unit; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
     client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
     reset_inventory_panel_capture();
@@ -1340,6 +1346,7 @@ TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
     edict_t *player, *unit; gameClient_t *client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
     reset_inventory_panel_capture();
@@ -1357,6 +1364,7 @@ TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
     gameClient_t *client;
 
     setup_test_world();
+    UI_ResetHud(); // image counts assume an empty HUD texture cache, not one left by earlier tests
     player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     inventory_unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 32, 0);

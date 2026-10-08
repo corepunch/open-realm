@@ -263,9 +263,16 @@ test-eos-service:
 endif
 
 WC3_PATTERN ?= *
-test-wc3-engine: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
-	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-classic.xml" TEST_JUNIT_SUITE="test-wc3-engine-classic" $(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test '$(WC3_PATTERN)'
-	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-tft.xml" TEST_JUNIT_SUITE="test-wc3-engine-tft" $(WC3_TEST_BINARY) -data $(TESTS_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
+# The engine suite runs once per data variant; each variant is split round-robin into
+# WC3_TEST_SHARDS processes (TEST_SHARD=index/count) so the shards share the -j job slots.
+WC3_TEST_SHARDS ?= 4
+WC3_TEST_SHARD_IDS := $(wordlist 1,$(WC3_TEST_SHARDS),0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)
+WC3_ENGINE_SHARDS := $(foreach v,classic tft,$(addprefix test-wc3-engine-$(v)-,$(WC3_TEST_SHARD_IDS)))
+.PHONY: test-wc3-engine $(WC3_ENGINE_SHARDS)
+test-wc3-engine: $(WC3_ENGINE_SHARDS)
+$(WC3_ENGINE_SHARDS): test-wc3-engine-%: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
+	TEST_SHARD="$(lastword $(subst -, ,$*))/$(WC3_TEST_SHARDS)" TEST_JUNIT="$(TEST_JUNIT_DIR)/test-wc3-engine-$*.xml" TEST_JUNIT_SUITE="test-wc3-engine-$*" \
+		$(WC3_TEST_BINARY) -data $(TESTS_DIR) $(if $(filter tft-%,$*),-tft) +dedicated 1 +test '$(WC3_PATTERN)'
 
 .PHONY: test-client-camera
 test-client-camera: $(WC3_TEST_BINARY) test-assets | $(TEST_JUNIT_DIR)
@@ -298,16 +305,10 @@ TEST_UI_SRCS := \
 
 TEST_JOBS ?= 16
 
- test: test-eos-release test-linux-media-release test-menu-boundary test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
+ test: $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR) $(TEST_JUNIT_DIR)
 	@rm -f $(TEST_JUNIT_DIR)/*.xml
-	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
-		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c \
-		$(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c \
-		common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm -lz
-	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-core.xml" TEST_JUNIT_SUITE="test-core" $(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Run independent suites concurrently while preserving recursive-make failure propagation.
-	@$(MAKE) -j$(TEST_JOBS) test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
+	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
 		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
@@ -317,6 +318,7 @@ TEST_JOBS ?= 16
 test-stress: $(BIN_DIR)/test_server_net$(EXE_EXT) | $(TEST_JUNIT_DIR)
 	@TEST_JUNIT="$(TEST_JUNIT_DIR)/test-stress.xml" TEST_JUNIT_SUITE="test-stress" $(BIN_DIR)/test_server_net 'stress_net.*'
 
+$(eval $(call test_schema,test-core,$(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_openwarcraft3$(EXE_EXT),tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_online_packet.c tests/test_tool_common.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_TEST_DIR)/test_control_groups.c $(WC3_TEST_DIR)/test_client_canvas.c $(WC3_TEST_DIR)/test_keys.c common/net.c common/msg.c common/online_packet.c client/keys.c client/cl_control_groups.c client/cl_parse.c client/cl_configstrings.c client/cl_scrn.c client/cl_minimap.c client/cl_layout.c client/cl_window.c client/cl_canvas.c,-lsheet -lshared -lm -lz,))
 $(eval $(call test_schema,test-mpq-compression,$(SHARED_LIB),$(TEST_CFLAGS) -DMPQ_TEST_API -DBZ_TESTS,$(BIN_DIR)/test_mpq_compression$(EXE_EXT),tests/test_runner.c tests/test_mpq_compression.c common/mpq.c,-lshared -lm -lz,))
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
