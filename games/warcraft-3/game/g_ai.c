@@ -68,9 +68,11 @@ void unit_setmove(edict_t *self, umove_t *move) {
         G_ClearBuildPreview(self);
         self->build_project = 0;
     }
-    if (self->currentmove != move)
+    if (self->currentmove != move) {
+        if (self->currentmove) SAFE_CALL(self->currentmove->leave, self);
         S_UnitAbilityMoveLeave(self, move->proc);
-    self->currentmove = move;
+    }
+    M_SetMove(self,move);
     G_SetUnitAnimation(self, move->animation);
     if (self->animation) {
         // skip
@@ -150,8 +152,8 @@ static bool filter_sight(edict_t const *ent) {
 /* Does this unit have an attack to acquire targets with? */
 static bool unit_has_attack(edict_t const *self) {
     return S_CargoAttacksEnabled(self) &&
-           ((S_UnitAttackSlotEnabled(self, 0) && self->attack1.cooldown > 0.0f && (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0)) ||
-            (S_UnitAttackSlotEnabled(self, 1) && self->attack2.cooldown > 0.0f && (self->attack2.damageBase > 0 || self->attack2.numberOfDice > 0)));
+           ((S_UnitAttackSlotEnabled(self, 0) && S_AttackProfileRead(self, 0)->cooldown > 0.0f && (S_AttackProfileRead(self, 0)->damageBase > 0 || S_AttackProfileRead(self, 0)->numberOfDice > 0)) ||
+            (S_UnitAttackSlotEnabled(self, 1) && S_AttackProfileRead(self, 1)->cooldown > 0.0f && (S_AttackProfileRead(self, 1)->damageBase > 0 || S_AttackProfileRead(self, 1)->numberOfDice > 0)));
 }
 
 /* Throttle target re-acquisition: units scan only a few times per second,
@@ -169,8 +171,8 @@ float G_AcquisitionRange(edict_t const *self) {
 }
 
 static bool ai_has_siege_attack(edict_t const *self) {
-    return self && ((S_UnitAttackSlotEnabled(self, 0) && self->attack1.type == ATK_SIEGE) ||
-                    (S_UnitAttackSlotEnabled(self, 1) && self->attack2.type == ATK_SIEGE));
+    return self && ((S_UnitAttackSlotEnabled(self, 0) && S_AttackProfileRead(self, 0)->type == ATK_SIEGE) ||
+                    (S_UnitAttackSlotEnabled(self, 1) && S_AttackProfileRead(self, 1)->type == ATK_SIEGE));
 }
 
 /* Melee AI policy setters affect automatic target acquisition, not explicit player/script
@@ -189,12 +191,126 @@ static uint32_t ai_bot_target_priority(edict_t const *self, edict_t const *targe
     return 0;
 }
 
+/* This grid only proves that the existing filtered broad phase is empty.
+ * It never selects or reorders candidates. Presence expands between frames;
+ * removal, death and movement may leave conservative positives until rebuild. */
+#define AI_PRESENCE_CELL_SIZE 512 // world units; coarse rejection only; local queries visit a few owner-mask cells
+static struct {
+    uint32_t *cells, width, height, overflow, unbounded;
+    box2_t overflow_bounds[MAX_PLAYERS];
+    box2_t bounds;
+    bool ready;
+} ai_presence;
+#ifdef BZ_TESTS
+static bool ai_force_broadphase;
+static uint32_t ai_broadphase_queries;
+#endif
+
+void G_ResetAcquisitionPresence(void) {
+    free(ai_presence.cells);
+    memset(&ai_presence, 0, sizeof(ai_presence));
+#ifdef BZ_TESTS
+    ai_force_broadphase = false;
+    ai_broadphase_queries = 0;
+#endif
+}
+
+void G_AcquisitionEntityLinked(edict_t const *ent) {
+    if (!ai_presence.ready || !ent->inuse || !ent->area.prev ||
+        !(ent->svflags & SVF_MONSTER) || ent->s.player >= MAX_PLAYERS) return;
+    uint32_t mask = 1u << ent->s.player;
+    box2_t const *box = &ent->bounds, *world = &ai_presence.bounds;
+    /* Out-of-map actors still have finite geometry. Retain conservative owner
+     * bounds instead of making one edge actor defeat every local query on the
+     * entire map. Malformed geometry alone requires an unbounded presence. */
+    if (!isfinite(box->min.x) || !isfinite(box->min.y) || !isfinite(box->max.x) || !isfinite(box->max.y) ||
+        box->min.x > box->max.x || box->min.y > box->max.y) {
+        ai_presence.unbounded |= mask;
+        return;
+    }
+    if (box->min.x < world->min.x || box->min.y < world->min.y ||
+        box->max.x > world->max.x || box->max.y > world->max.y) {
+        box2_t *bounds = ai_presence.overflow_bounds + ent->s.player;
+        if (!(ai_presence.overflow & mask)) *bounds = *box;
+        else {
+            bounds->min.x = MIN(bounds->min.x, box->min.x);
+            bounds->min.y = MIN(bounds->min.y, box->min.y);
+            bounds->max.x = MAX(bounds->max.x, box->max.x);
+            bounds->max.y = MAX(bounds->max.y, box->max.y);
+        }
+        ai_presence.overflow |= mask;
+        return;
+    }
+    uint32_t x0 = MIN(ai_presence.width - 1, (uint32_t)(((double)box->min.x - world->min.x) / AI_PRESENCE_CELL_SIZE));
+    uint32_t y0 = MIN(ai_presence.height - 1, (uint32_t)(((double)box->min.y - world->min.y) / AI_PRESENCE_CELL_SIZE));
+    uint32_t x1 = MIN(ai_presence.width - 1, (uint32_t)(((double)box->max.x - world->min.x) / AI_PRESENCE_CELL_SIZE));
+    uint32_t y1 = MIN(ai_presence.height - 1, (uint32_t)(((double)box->max.y - world->min.y) / AI_PRESENCE_CELL_SIZE));
+    for (uint32_t y = y0; y <= y1; y++)
+        for (uint32_t x = x0; x <= x1; x++) ai_presence.cells[y * ai_presence.width + x] |= mask;
+}
+
+void G_BeginAcquisitionFrame(void) {
+    box2_t bounds = CM_GetWorldBounds();
+    double width = ceil(((double)bounds.max.x - bounds.min.x) / AI_PRESENCE_CELL_SIZE);
+    double height = ceil(((double)bounds.max.y - bounds.min.y) / AI_PRESENCE_CELL_SIZE);
+    if (!isfinite(width) || !isfinite(height) || width < 1 || height < 1 ||
+        width > UINT32_MAX || height > UINT32_MAX || width * height > UINT32_MAX ||
+        width * height > SIZE_MAX / sizeof(uint32_t)) {
+        gi.error("Acquisition presence: invalid world bounds"); abort();
+    }
+    if (!ai_presence.cells || memcmp(&bounds, &ai_presence.bounds, sizeof(bounds))) {
+        free(ai_presence.cells);
+        ai_presence.width = (uint32_t)width; ai_presence.height = (uint32_t)height;
+        ai_presence.bounds = bounds;
+        ai_presence.cells = calloc((size_t)ai_presence.width * ai_presence.height, sizeof(uint32_t));
+        if (!ai_presence.cells) { gi.error("Acquisition presence: allocation failed"); abort(); }
+    } else memset(ai_presence.cells, 0, (size_t)ai_presence.width * ai_presence.height * sizeof(uint32_t));
+    ai_presence.overflow = ai_presence.unbounded = 0;
+    ai_presence.ready = true;
+}
+
+static bool ai_enemy_presence(edict_t const *self, box2_t const *box) {
+#ifdef BZ_TESTS
+    if (ai_force_broadphase) return true;
+#endif
+    if (!ai_presence.ready) {
+        G_BeginAcquisitionFrame();
+        FOR_LOOP(i, globals.num_edicts) G_AcquisitionEntityLinked(g_edicts + i);
+    }
+    if (self->s.player >= MAX_PLAYERS) return false;
+    uint32_t enemies = 0;
+    FOR_LOOP(player, MAX_PLAYERS)
+        if (!G_PlayerTreatsPlayerAsAlly(self->s.player, player)) enemies |= 1u << player;
+    if (ai_presence.unbounded & enemies) return true;
+    for (uint32_t owners = ai_presence.overflow & enemies; owners; owners &= owners - 1) {
+        box2_t const *outside = ai_presence.overflow_bounds + __builtin_ctz(owners);
+        if (!(box->min.x > outside->max.x || box->min.y > outside->max.y ||
+              box->max.x < outside->min.x || box->max.y < outside->min.y)) return true;
+    }
+    if (!isfinite(box->min.x) || !isfinite(box->min.y) || !isfinite(box->max.x) || !isfinite(box->max.y)) return true;
+    box2_t const *world = &ai_presence.bounds;
+    if (box->min.x > world->max.x || box->min.y > world->max.y ||
+        box->max.x < world->min.x || box->max.y < world->min.y) return false;
+    uint32_t x0 = MIN(ai_presence.width - 1, (uint32_t)((MAX((double)box->min.x, world->min.x) - world->min.x) / AI_PRESENCE_CELL_SIZE));
+    uint32_t y0 = MIN(ai_presence.height - 1, (uint32_t)((MAX((double)box->min.y, world->min.y) - world->min.y) / AI_PRESENCE_CELL_SIZE));
+    uint32_t x1 = MIN(ai_presence.width - 1, (uint32_t)((MIN((double)box->max.x, world->max.x) - world->min.x) / AI_PRESENCE_CELL_SIZE));
+    uint32_t y1 = MIN(ai_presence.height - 1, (uint32_t)((MIN((double)box->max.y, world->max.y) - world->min.y) / AI_PRESENCE_CELL_SIZE));
+    for (uint32_t y = y0; y <= y1; y++)
+        for (uint32_t x = x0; x <= x1; x++)
+            if (ai_presence.cells[y * ai_presence.width + x] & enemies) return true;
+    return false;
+}
+
 edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     ai_current_entity = self;
     box2_t const sightbox = {
         { self->s.origin2.x - radius, self->s.origin2.y - radius },
         { self->s.origin2.x + radius, self->s.origin2.y + radius },
     };
+    if (!ai_enemy_presence(self, &sightbox)) return NULL;
+#ifdef BZ_TESTS
+    ai_broadphase_queries++;
+#endif
     uint32_t numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
     edict_t *best = NULL;
     float best_dist = radius;

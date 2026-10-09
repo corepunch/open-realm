@@ -1,0 +1,4 @@
+        {"6f162f20", "PathMaps_LoadAdaptiveCells", "ECX map, stack4 stream, RET4. Per cell: dword0 stamp := 0, dword4 := saved ushort << 16 (node index 0; marker byte6 and class byte7 restored). ACC-02.2 assembly."},
+        {"6f163120", "PathMaps_SaveAdaptiveCells", "ECX map, stack4 stream, RET4. Writes ushort cell+6 (marker and class bytes) for every cell. ACC-02.2 assembly."},
+        {"6f159cd0", "PathOwner_GetAdaptiveMap", "ECX path owner, stack4 level, RET4/EAX owner+23c+4*level adaptive map. ACC-02.2 assembly."},
+        {"6f15d1c0", "PathMaps_ClassifyParent", "<append> Constructor dimensions (level side = base side >> level) make the missing-child path unreachable; a class2 parent over four class0 children arises only from a nonzero byte6 marker (ACC-02.2: 96 producer-built reducer cases, 54 parent tuples with or without markers)."},

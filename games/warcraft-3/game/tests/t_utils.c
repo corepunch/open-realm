@@ -30,6 +30,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    S_SetMoveFormationRank(ent, ent->data.UnitData->formationRank);
     /* This helper constructs allocator-only units instead of running
      * SP_SpawnUnit. Give its generic movement fixture a permissive window;
      * focused PropWindow tests set their authored/runtime value explicitly. */
@@ -60,10 +61,26 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
      * a generic test unit must not silently start life as a corpse. */
     ent->health.max_value = MAX(ent->data.UnitBalance->maxHealth, 1.0f);
     ent->health.value = ent->health.max_value;
+    G_UnitOwnerInsert(ent);
     return ent;
 }
 
 void reset_entities(void) {
+    G_ResetUnitAbilityCodes();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
+    G_ResetWaypointCache();
+    level.waypoints=(typeof(level.waypoints)){0};
+    G_ResetMoveRegionEvents();
+    G_ResetEventSubscribers();
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    /* Existing movement fixtures compare exact retail admission clocks.
+     * Responsive-policy tests opt in after resetting their world. */
+    level.move_fine_responsive=false;
+    S_ResetAbilityTimers();
+    G_ClearMoveSpatial();
+    M_ResetMoveMembers();
     uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
@@ -75,9 +92,13 @@ void reset_entities(void) {
      * test shrinks max_edicts to num_edicts+1 (26 in the full suite); walking 16000
      * edicts first would G_FreeActorSkills stale high slots. */
     if (cap > MAX_ENTITIES) cap = MAX_ENTITIES;
-    FOR_LOOP(i, cap) G_FreeActorSkills(g_edicts + i);
+    FOR_LOOP(i, cap) {
+        S_FreeMoveRoute(g_edicts+i);
+        G_FreeActorSkills(g_edicts+i);
+    }
     G_PoolsReset();
-    memset(g_edicts, 0, sizeof(edict_t) * cap);
+    G_ClearEdictStorage(cap);
+    level.repulse_head=NULL;level.repulse_phase=0;
     globals.max_edicts = MAX_ENTITIES;
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
@@ -139,6 +160,15 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    S_ResetAbilityTimers();
+    /* Physical Move owners also retain process-local links. Release them
+     * before wiping level; otherwise the next frame follows orphaned owners. */
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    G_ResetEventSubscribers();
+    G_ResetUnitAbilityCodes();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     G_ResetDeferredFrees();
     UI_TestResetInfoPanelIconCache();
     G_ResetSelectionSoundState();
@@ -150,7 +180,8 @@ static void reset_test_state(void) {
     G_FowShutdown();
     G_BlightShutdown();
     globals.max_edicts = MAX_ENTITIES;
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
+    G_ClearEdictStorage(globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
@@ -185,6 +216,7 @@ static void reset_test_state(void) {
     G_ClearRegionRegistry();
     G_ClearHashtableRegistry();
     memset(&level, 0, sizeof(level));
+    level.pathing_clock.span = 300;
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));

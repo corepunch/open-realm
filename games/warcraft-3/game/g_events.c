@@ -1,4 +1,34 @@
 #include "g_local.h"
+#include "g_entity_set.h"
+
+static entitySet_t move_region_events;
+static bool move_region_events_valid;
+#ifdef BZ_TESTS
+static uint32_t move_region_event_visits;
+uint32_t G_TestMoveRegionEventVisits(bool reset) {
+    uint32_t count=move_region_event_visits;
+    if(reset)move_region_event_visits=0;
+    return count;
+}
+#endif
+
+void G_ResetMoveRegionEvents(void) { move_region_events_valid=false; }
+
+void G_TrackMoveRegionEvent(event_t const *event) {
+    uint32_t slot=event-level.events.handlers;
+    if(slot>=MAX_EVENTS)return;
+    entity_set_put(&move_region_events,slot,event->inuse &&
+        (event->type==EVENT_GAME_ENTER_REGION || event->type==EVENT_GAME_LEAVE_REGION));
+}
+
+static uint32_t move_next_region_event(uint32_t start) {
+    if(!move_region_events_valid) {
+        memset(&move_region_events,0,sizeof(move_region_events));
+        FOR_LOOP(i,MAX_EVENTS)G_TrackMoveRegionEvent(level.events.handlers+i);
+        move_region_events_valid=true;
+    }
+    return entity_set_next(&move_region_events,start);
+}
 
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
 bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
@@ -94,6 +124,8 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
 }
 
 static void G_ExecuteEvent(gameEvent_t *evt) {
+    if(evt->responseTo && (!evt->responseTo->inuse ||
+        evt->response_sequence!=evt->responseTo->registration_sequence))return;
     edict_t *subject = evt->edict;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;
@@ -271,9 +303,28 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     }
 }
 
-static void G_TouchTriggers(edict_t *ent) {
-    FOR_EACH_EVENT(evt) {
-        switch (evt->type) {
+/* Region transitions are sampled by the physical owner before its decisions.
+ * Actions remain queued until the ordinary post-owner timer/event pass, after
+ * committed occupancy and support height are visible. Presentation sampling
+ * must not move this baseline forward between owners. */
+void G_UnitRegionPositionChanged(edict_t *ent, vec2_t const *point) {
+    if(!ent || !ent->inuse || !(ent->svflags&SVF_MONSTER) || G_IsDeferredFree(ent))return;
+    uint32_t const spawn=ent->spawn_time;
+    vec2_t const old_position=ent->movement.region_valid ? ent->movement.region_position : ent->old_origin;
+    /* Equal endpoints cannot enter or leave any region. Keep the sample
+     * baseline, including signed zero, without visiting subscribers. */
+    if(old_position.x==point->x && old_position.y==point->y) {
+        ent->movement.region_position=*point;
+        ent->movement.region_valid=true;
+        return;
+    }
+    for(uint32_t i=move_next_region_event(0);i<MAX_EVENTS;i=move_next_region_event(i+1)) {
+        event_t *evt=level.events.handlers+i;
+        if(!evt->inuse)continue;
+#ifdef BZ_TESTS
+        move_region_event_visits++;
+#endif
+        switch(evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle, region_handle;
                 region_t *region;
@@ -283,8 +334,8 @@ static void G_TouchTriggers(edict_t *ent) {
                 region_handle = evt->region;
                 region = G_RegionFromHandle(evt->region);
                 spawn_time = ent->spawn_time;
-                if (region && G_RegionContains(region, &ent->s.origin2) &&
-                    !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                if (region && G_RegionContains(region, point) &&
+                    !G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
@@ -297,8 +348,8 @@ static void G_TouchTriggers(edict_t *ent) {
                 region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
                 if (!(ent->svflags & SVF_MONSTER)) break; /* Region leave events carry units, not items, destructables, or map entities. */
-                if (region && !G_RegionContains(region, &ent->s.origin2) &&
-                    G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
+                if (region && !G_RegionContains(region, point) &&
+                    G_RegionContains(region, &old_position) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
                     G_EventFromHandle(event_handle) == evt && evt->region == region_handle)
                 {
@@ -306,39 +357,12 @@ static void G_TouchTriggers(edict_t *ent) {
                 }
                 break;
             }
-            case EVENT_UNIT_IN_RANGE:
-                if (!G_EventSubjectIsCurrent(evt)) break;
-                if (ent == evt->subject) {
-                    edict_t *target;
-
-                    /* A unit-in-range event is symmetric for movement: the
-                     * registered subject may approach a target.  The
-                     * subject-side pass owns pairs where both units moved,
-                     * preventing duplicate publications. */
-                    FOR_LOOP(i, globals.num_edicts) {
-                        target = globals.edicts + i;
-                        if (!target->inuse || target == ent)
-                            continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) <= evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) > evt->range)
-                            continue;
-                        if (Vector2_distance(&ent->old_origin, &target->old_origin) > evt->range &&
-                            Vector2_distance(&ent->s.origin2, &target->s.origin2) <= evt->range) {
-                            G_PublishEventResponse(target, evt->type, evt);
-                        }
-                    }
-                } else if (evt->subject &&
-                           memcmp(&((edict_t *)evt->subject)->old_origin,
-                                  &((edict_t *)evt->subject)->s.origin2, sizeof(vec2_t)) == 0 &&
-                           Vector2_distance(&((edict_t *)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
-                           Vector2_distance(&((edict_t *)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
-                    G_PublishEventResponse(ent, evt->type, evt);
-                }
-                break;
-            default:
-                break;
+            default: break;
         }
+        if(!ent->inuse || ent->spawn_time!=spawn || G_IsDeferredFree(ent))return;
     }
+    ent->movement.region_position=*point;
+    ent->movement.region_valid=true;
 }
 
 /* Explicit JASS position changes happen before G_RunEntities samples old_origin.
@@ -347,15 +371,24 @@ void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     if (!ent || !ent->inuse || !old_position ||
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
     ent->old_origin = *old_position;
-    G_TouchTriggers(ent);
-    ent->old_origin = ent->s.origin2;
+    G_UnitRegionPositionChanged(ent,&ent->s.origin2);
+    if(ent->inuse && !G_IsDeferredFree(ent))ent->old_origin = ent->s.origin2;
+}
+
+void G_BeginEntityFrame(void) {
+    G_BeginAcquisitionFrame();
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse) ent->old_origin = ent->s.origin2;
+        G_AcquisitionEntityLinked(ent);
+    }
 }
 
 void G_RunEntities(void) {
+    if (!level.scheduled_frame) G_BeginEntityFrame();
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
-        ent->old_origin = ent->s.origin2;
         if (ent->sound.pending) {
             G_PlaySound(NULL, ent, CHAN_VOICE | CHAN_OWNER | CHAN_RELIABLE, ent->sound.pending,
                      G_SoundIndexVolume(ent->sound.pending), 0.0f, 0.0f);
@@ -375,6 +408,9 @@ void G_RunEntities(void) {
     }
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = globals.edicts+i;
+        /* The host draws its completed client snapshot without dispatching
+         * gameplay input or observing this partially updated entity batch. */
+        if (!(i & 31u)) gi.FrameCheckpoint();
         if (!ent->inuse) continue;
         G_RunEntity(ent);
     }
@@ -384,7 +420,8 @@ void G_RunEntities(void) {
         if (!G_UnitIsWorldActive(ent)) continue;
         if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vec2_t)))
             continue;
-        G_TouchTriggers(ent);
+        if(!(level.scheduled_frame && ent->movement.clock_valid && ent->movement.pose_valid))
+            G_UnitRegionPositionChanged(ent,&ent->s.origin2);
     }
 }
 
@@ -408,6 +445,23 @@ void G_RunEvents(void) {
         }
         G_ExecuteEvent(evt);
     }
+}
+
+/* Teleporting inside an enter action queues its leave action. Complete that
+ * callback chain before the next primary advance, even when one server frame
+ * contains several5ms quanta. Preserve queue order; do not resume sleepers a
+ * second time merely because a new spatial event was authored. */
+void G_DrainRegionEvents(void) {
+    FOR_LOOP(pass,MAX_EVENT_QUEUE) {
+        bool pending=false;
+        for(uint32_t i=level.events.read;i<level.events.write;i++) {
+            EVENTTYPE type=level.events.queue[i%MAX_EVENT_QUEUE].type;
+            if(type==EVENT_GAME_ENTER_REGION || type==EVENT_GAME_LEAVE_REGION){pending=true;break;}
+        }
+        if(!pending)return;
+        G_RunEvents();jass_runnewevents(level.vm);
+    }
+    gi.error("WC3: region callback chain exceeds event queue limit (%u)",MAX_EVENT_QUEUE);
 }
 
 /* Warcraft's stock CustomVictoryDialogBJ/CustomDefeatDialogBJ pauses a

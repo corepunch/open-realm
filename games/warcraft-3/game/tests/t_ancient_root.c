@@ -198,8 +198,8 @@ TEST(wc3_ancient_root, shop_command_card_keeps_uproot_position_and_click_dispatc
     unit->s.player = 0;
     unit->data.UnitProfile = &shop_profile;
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     target->s.player = 1;
     target->svflags |= SVF_MONSTER;
@@ -260,10 +260,10 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     unit = ancient_test_unit(true);
     unit->ancient_root->ability = TEST_ARO2;
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack2.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     target->s.player = 1;
     target->svflags |= SVF_MONSTER;
@@ -277,7 +277,7 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     count = G_GetCommandButtons(unit, buttons, 12);
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
     T_ASSERT(attack_button);
-    T_EQ(unit->attack2.type, ATK_NORMAL); /* Rooted ranged weapon. */
+    T_EQ(S_AttackProfileRead(unit, 1)->type, ATK_NORMAL); /* Rooted ranged weapon. */
 
     unit->ancient_root->mode = ANCIENT_ROOTING;
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
@@ -293,7 +293,7 @@ TEST(wc3_ancient_root, protector_uses_authored_rooted_attack_mask) {
     T_ASSERT(!S_UnitAttackSlotEnabled(unit, 1));
     T_ASSERT(S_AttackCanTarget(unit, target));
     T_ASSERT(S_OrderAttack(unit, target));
-    T_EQ(unit->attack1.type, ATK_NORMAL); /* Shared uprooted melee weapon. */
+    T_EQ(S_AttackProfileRead(unit, 0)->type, ATK_NORMAL); /* Shared uprooted melee weapon. */
     count = G_GetCommandButtons(unit, buttons, 12);
     attack_button = false;
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, STR_CmdAttack)) attack_button = true;
@@ -337,8 +337,8 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
     unit = ancient_test_unit(true);
     unit->ancient_root->ability = TEST_ARO1;
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = unit->attack2.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     target->s.player = 1;
     target->svflags |= SVF_MONSTER;
@@ -357,14 +357,14 @@ TEST(wc3_ancient_root, ordinary_ancients_hide_attack_order_but_counterattack_whe
 
     /* Damage-triggered retaliation follows the weapon profile even though
      * players cannot issue an explicit rooted Attack order. */
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_AIR;
-    unit->attack2.type = ATK_NORMAL;
-    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    unit->attack2.range = 256.0f;
-    unit->attack2.weapon = WPN_MISSILE;
-    target->attack1.type = ATK_NORMAL;
-    target->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->range = 256.0f;
+    S_AttackProfileWrite(unit, 1)->weapon = WPN_MISSILE;
+    S_AttackProfileWrite(target, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(target, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->data.UnitWeapons = &weapons;
     T_Damage(unit, target, 1);
     T_ASSERT(unit->goalentity == target);
@@ -398,11 +398,11 @@ TEST(wc3_ancient_root, uprooted_protector_does_not_counterattack_with_rooted_wea
     unit = ancient_test_unit(false);
     unit->ancient_root->ability = TEST_ARO2;
     unit->data.UnitWeapons = &weapons;
-    unit->attack1.type = unit->attack2.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
-    unit->attack2.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_AIR;
-    unit->attack2.range = 256.0f;
-    unit->attack2.weapon = WPN_MISSILE;
+    S_AttackProfileWrite(unit, 0)->type = S_AttackProfileWrite(unit, 1)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(unit, 1)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_AIR;
+    S_AttackProfileWrite(unit, 1)->range = 256.0f;
+    S_AttackProfileWrite(unit, 1)->weapon = WPN_MISSILE;
     flyer = alloc_test_unit(MAKEFOURCC('h','g','r','y'), 96.0f, 64.0f);
     flyer->s.player = 1; flyer->svflags |= SVF_MONSTER; flyer->targtype = TARG_AIR;
     footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32.0f, 64.0f);
@@ -504,16 +504,16 @@ static void ancient_assert_morph_save_restore(bool rooted) {
     if (!unit->ancient_root) unit->ancient_root = G_AllocAncientRoot();
     assert(unit->ancient_root);
     unit->ancient_root->destination = (vec2_t){ 320.0f, 192.0f };
-    unit->ancient_root->approach_goal = goal;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, goal);
     unit->ancient_root->approach_goal_spawn_time = goal->spawn_time;
     S_AncientBeginMorph(unit, rooted);
     end_time = unit->ancient_root->transition_end_time;
 
     T_ASSERT(WriteGame(filename));
     unit->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
-    unit->ancient_root->approach_goal = NULL;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, NULL);
     unit->ancient_root->transition_end_time = 0;
-    unit->currentmove = NULL;
+    M_SetMove(unit,NULL);
     T_ASSERT(ReadGame(filename));
 
     T_EQ(unit->ancient_root->mode, rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);

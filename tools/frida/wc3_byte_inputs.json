@@ -1,0 +1,5125 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "byte_80_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 128,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_80_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 128,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_80_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 128,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_80_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 128,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_81_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 129,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_81_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 129,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_81_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 129,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_81_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 129,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_82_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 130,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_82_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 130,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_82_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 130,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_82_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 130,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_83_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 131,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_83_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 131,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_83_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 131,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_83_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 131,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_84_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 132,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_84_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 132,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_84_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 132,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_84_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 132,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_85_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 133,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_85_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 133,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_85_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 133,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_85_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 133,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_86_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 134,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_86_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 134,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_86_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 134,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_86_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 134,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_87_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 135,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_87_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 135,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_87_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 135,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_87_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 135,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_88_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 136,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_88_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 136,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_88_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 136,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_88_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 136,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_89_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 137,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_89_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 137,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_89_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 137,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_89_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 137,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8a_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 138,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8a_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 138,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8a_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 138,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8a_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 138,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8b_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 139,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8b_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 139,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8b_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 139,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8b_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 139,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8c_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 140,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8c_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 140,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8c_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 140,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8c_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 140,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8d_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 141,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8d_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 141,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8d_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 141,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8d_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 141,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8e_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 142,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8e_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 142,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8e_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 142,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8e_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 142,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_8f_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 143,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_8f_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 143,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_8f_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 143,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_8f_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 143,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_90_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 144,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_90_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 144,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_90_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 144,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_90_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 144,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_91_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 145,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_91_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 145,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_91_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 145,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_91_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 145,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_92_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 146,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_92_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 146,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_92_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 146,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_92_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 146,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_93_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 147,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_93_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 147,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_93_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 147,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_93_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 147,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_94_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 148,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_94_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 148,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_94_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 148,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_94_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 148,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_95_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 149,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_95_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 149,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_95_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 149,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_95_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 149,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_96_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 150,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_96_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 150,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_96_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 150,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_96_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 150,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_97_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 151,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_97_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 151,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_97_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 151,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_97_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 151,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_98_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 152,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_98_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 152,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_98_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 152,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_98_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 152,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_99_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 153,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_99_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 153,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_99_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 153,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_99_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 153,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9a_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 154,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9a_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 154,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9a_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 154,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9a_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 154,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9b_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 155,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9b_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 155,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9b_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 155,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9b_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 155,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9c_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 156,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9c_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 156,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9c_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 156,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9c_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 156,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9d_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 157,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9d_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 157,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9d_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 157,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9d_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 157,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9e_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 158,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9e_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 158,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9e_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 158,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9e_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 158,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_9f_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 159,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_9f_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 159,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_9f_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 159,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_9f_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 159,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 160,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 160,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 160,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 160,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 161,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 161,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 161,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 161,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 162,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 162,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 162,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 162,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 163,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 163,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 163,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 163,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 164,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 164,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 164,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 164,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 165,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 165,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 165,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 165,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 166,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 166,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 166,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 166,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 167,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 167,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 167,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 167,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 168,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 168,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 168,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 168,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_a9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 169,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_a9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 169,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_a9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 169,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_a9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 169,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_aa_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 170,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_aa_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 170,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_aa_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 170,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_aa_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 170,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ab_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 171,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ab_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 171,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ab_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 171,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ab_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 171,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ac_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 172,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ac_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 172,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ac_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 172,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ac_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 172,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ad_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 173,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ad_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 173,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ad_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 173,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ad_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 173,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ae_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 174,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ae_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 174,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ae_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 174,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ae_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 174,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_af_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 175,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_af_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 175,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_af_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 175,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_af_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 175,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 176,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 176,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 176,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 176,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 177,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 177,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 177,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 177,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 178,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 178,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 178,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 178,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 179,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 179,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 179,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 179,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 180,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 180,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 180,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 180,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 181,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 181,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 181,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 181,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 182,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 182,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 182,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 182,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 183,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 183,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 183,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 183,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 184,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 184,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 184,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 184,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_b9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 185,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_b9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 185,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_b9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 185,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_b9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 185,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ba_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 186,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ba_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 186,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ba_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 186,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ba_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 186,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_bb_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 187,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_bb_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 187,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_bb_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 187,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_bb_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 187,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_bc_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 188,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_bc_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 188,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_bc_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 188,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_bc_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 188,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_bd_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 189,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_bd_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 189,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_bd_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 189,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_bd_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 189,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_be_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 190,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_be_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 190,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_be_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 190,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_be_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 190,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_bf_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 191,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_bf_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 191,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_bf_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 191,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_bf_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 191,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 192,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 192,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 192,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 192,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 193,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 193,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 193,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 193,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 194,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 194,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 194,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 194,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 195,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 195,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 195,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 195,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 196,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 196,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 196,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 196,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 197,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 197,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 197,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 197,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 198,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 198,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 198,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 198,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 199,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 199,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 199,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 199,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 200,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 200,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 200,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 200,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_c9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 201,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_c9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 201,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_c9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 201,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_c9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 201,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ca_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 202,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ca_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 202,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ca_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 202,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ca_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 202,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_cb_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 203,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_cb_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 203,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_cb_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 203,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_cb_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 203,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_cc_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 204,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_cc_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 204,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_cc_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 204,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_cc_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 204,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_cd_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 205,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_cd_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 205,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_cd_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 205,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_cd_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 205,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ce_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 206,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ce_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 206,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ce_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 206,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ce_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 206,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_cf_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 207,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_cf_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 207,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_cf_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 207,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_cf_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 207,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 208,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 208,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 208,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 208,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 209,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 209,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 209,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 209,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 210,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 210,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 210,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 210,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 211,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 211,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 211,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 211,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 212,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 212,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 212,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 212,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 213,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 213,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 213,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 213,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 214,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 214,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 214,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 214,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 215,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 215,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 215,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 215,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 216,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 216,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 216,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 216,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_d9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 217,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_d9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 217,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_d9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 217,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_d9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 217,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_da_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 218,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_da_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 218,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_da_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 218,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_da_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 218,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_db_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 219,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_db_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 219,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_db_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 219,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_db_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 219,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_dc_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 220,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_dc_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 220,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_dc_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 220,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_dc_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 220,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_dd_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 221,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_dd_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 221,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_dd_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 221,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_dd_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 221,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_de_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 222,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_de_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 222,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_de_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 222,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_de_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 222,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_df_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 223,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_df_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 223,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_df_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 223,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_df_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 223,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 224,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 224,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 224,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 224,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 225,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 225,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 225,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 225,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 226,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 226,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 226,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 226,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 227,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 227,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 227,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 227,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 228,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 228,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 228,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 228,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 229,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 229,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 229,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 229,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 230,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 230,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 230,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 230,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 231,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 231,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 231,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 231,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 232,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 232,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 232,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 232,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_e9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 233,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_e9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 233,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_e9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 233,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_e9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 233,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ea_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 234,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ea_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 234,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ea_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 234,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ea_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 234,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_eb_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 235,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_eb_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 235,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_eb_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 235,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_eb_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 235,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ec_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 236,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ec_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 236,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ec_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 236,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ec_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 236,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ed_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 237,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ed_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 237,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ed_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 237,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ed_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 237,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ee_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 238,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ee_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 238,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ee_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 238,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ee_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 238,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ef_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 239,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ef_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 239,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ef_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 239,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ef_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 239,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f0_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 240,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f0_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 240,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f0_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 240,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f0_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 240,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f1_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 241,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f1_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 241,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f1_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 241,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f1_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 241,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f2_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 242,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f2_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 242,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f2_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 242,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f2_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 242,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f3_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 243,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f3_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 243,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f3_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 243,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f3_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 243,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f4_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 244,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f4_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 244,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f4_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 244,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f4_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 244,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f5_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 245,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f5_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 245,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f5_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 245,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f5_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 245,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f6_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 246,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f6_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 246,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f6_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 246,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f6_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 246,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f7_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 247,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f7_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 247,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f7_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 247,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f7_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 247,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f8_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 248,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f8_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 248,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f8_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 248,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f8_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 248,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_f9_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 249,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_f9_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 249,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_f9_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 249,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_f9_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 249,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_fa_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 250,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_fa_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 250,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_fa_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 250,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_fa_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 250,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_fb_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 251,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_fb_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 251,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_fb_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 251,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_fb_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 251,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_fc_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 252,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_fc_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 252,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_fc_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 252,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_fc_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 252,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_fd_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 253,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_fd_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 253,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_fd_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 253,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_fd_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 253,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_fe_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 254,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_fe_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 254,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_fe_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 254,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_fe_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 254,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    },
+    {
+      "id": "byte_ff_0",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 255,
+        "prefix": "",
+        "suffix": ""
+      }
+    },
+    {
+      "id": "byte_ff_1",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 255,
+        "prefix": "12",
+        "suffix": "34"
+      }
+    },
+    {
+      "id": "byte_ff_2",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 255,
+        "prefix": ".5",
+        "suffix": "7"
+      }
+    },
+    {
+      "id": "byte_ff_3",
+      "native": "S2R",
+      "producer": "byte_string",
+      "input": {
+        "byte": 255,
+        "prefix": "-",
+        "suffix": "0.2"
+      }
+    }
+  ]
+}

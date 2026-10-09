@@ -1,0 +1,432 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "asin_0",
+      "native": "Asin",
+      "input": -2.0,
+      "output": 0,
+      "input_word": 3221225472
+    },
+    {
+      "id": "asin_1",
+      "native": "Asin",
+      "input": -1.0,
+      "output": 3217625051,
+      "input_word": 3212836864
+    },
+    {
+      "id": "asin_2",
+      "native": "Asin",
+      "input": -0.999,
+      "output": 3217249966,
+      "input_word": 3212820087
+    },
+    {
+      "id": "asin_3",
+      "native": "Asin",
+      "input": -0.994140625,
+      "output": 3216716514,
+      "input_word": 3212738561
+    },
+    {
+      "id": "asin_4",
+      "native": "Asin",
+      "input": -0.6,
+      "output": 3206855807,
+      "input_word": 3206125978
+    },
+    {
+      "id": "asin_5",
+      "native": "Asin",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "asin_6",
+      "native": "Asin",
+      "input": 0.6,
+      "output": 1059372159,
+      "input_word": 1058642330
+    },
+    {
+      "id": "asin_7",
+      "native": "Asin",
+      "input": 0.994140625,
+      "output": 1069232865,
+      "input_word": 1065254913
+    },
+    {
+      "id": "asin_8",
+      "native": "Asin",
+      "input": 0.999,
+      "output": 1069766317,
+      "input_word": 1065336439
+    },
+    {
+      "id": "asin_9",
+      "native": "Asin",
+      "input": 1.0,
+      "output": 1070141403,
+      "input_word": 1065353216
+    },
+    {
+      "id": "asin_10",
+      "native": "Asin",
+      "input": 2.0,
+      "output": 0,
+      "input_word": 1073741824
+    },
+    {
+      "id": "atan_0",
+      "native": "Atan",
+      "input": -10000.0,
+      "output": 3217624212,
+      "input_word": 3323740160
+    },
+    {
+      "id": "atan_1",
+      "native": "Atan",
+      "input": -1.0,
+      "output": 3209236444,
+      "input_word": 3212836864
+    },
+    {
+      "id": "atan_2",
+      "native": "Atan",
+      "input": -0.6,
+      "output": 3205126383,
+      "input_word": 3206125978
+    },
+    {
+      "id": "atan_3",
+      "native": "Atan",
+      "input": -0.2679492,
+      "output": 3196455568,
+      "input_word": 3196661924
+    },
+    {
+      "id": "atan_4",
+      "native": "Atan",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "atan_5",
+      "native": "Atan",
+      "input": 0.2679492,
+      "output": 1048971920,
+      "input_word": 1049178276
+    },
+    {
+      "id": "atan_6",
+      "native": "Atan",
+      "input": 0.6,
+      "output": 1057642735,
+      "input_word": 1058642330
+    },
+    {
+      "id": "atan_7",
+      "native": "Atan",
+      "input": 1.0,
+      "output": 1061752796,
+      "input_word": 1065353216
+    },
+    {
+      "id": "atan_8",
+      "native": "Atan",
+      "input": 10000.0,
+      "output": 1070140564,
+      "input_word": 1176256512
+    },
+    {
+      "id": "tan_0",
+      "native": "Tan",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "tan_1",
+      "native": "Tan",
+      "input": 0.6,
+      "output": 1060053838,
+      "input_word": 1058642330
+    },
+    {
+      "id": "tan_2",
+      "native": "Tan",
+      "input": -0.6,
+      "output": 3207537338,
+      "input_word": 3206125978
+    },
+    {
+      "id": "tan_3",
+      "native": "Tan",
+      "input": 1.5707963267948966,
+      "output": 1325400063,
+      "input_word": 1070141403
+    },
+    {
+      "id": "tan_4",
+      "native": "Tan",
+      "input": 3.141592653589793,
+      "output": 2952790017,
+      "input_word": 1078530011
+    },
+    {
+      "id": "atan2_0",
+      "native": "Atan2",
+      "input": [
+        0.0,
+        0.0
+      ],
+      "output": 0,
+      "input_word": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "atan2_1",
+      "native": "Atan2",
+      "input": [
+        0.0009,
+        0.0009
+      ],
+      "output": 0,
+      "input_word": [
+        980151803,
+        980151803
+      ]
+    },
+    {
+      "id": "atan2_2",
+      "native": "Atan2",
+      "input": [
+        0.001,
+        0.0009
+      ],
+      "output": 1062634991,
+      "input_word": [
+        981668463,
+        980151803
+      ]
+    },
+    {
+      "id": "atan2_3",
+      "native": "Atan2",
+      "input": [
+        0.0009,
+        0.001
+      ],
+      "output": 1060870600,
+      "input_word": [
+        980151803,
+        981668463
+      ]
+    },
+    {
+      "id": "atan2_4",
+      "native": "Atan2",
+      "input": [
+        -0.001,
+        0.0
+      ],
+      "output": 3217625051,
+      "input_word": [
+        3129152111,
+        0
+      ]
+    },
+    {
+      "id": "atan2_5",
+      "native": "Atan2",
+      "input": [
+        0.0,
+        -0.001
+      ],
+      "output": 1078530011,
+      "input_word": [
+        0,
+        3129152111
+      ]
+    },
+    {
+      "id": "atan2_6",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        1.0
+      ],
+      "output": 1061752796,
+      "input_word": [
+        1065353216,
+        1065353216
+      ]
+    },
+    {
+      "id": "atan2_7",
+      "native": "Atan2",
+      "input": [
+        -1.0,
+        1.0
+      ],
+      "output": 3209236444,
+      "input_word": [
+        3212836864,
+        1065353216
+      ]
+    },
+    {
+      "id": "atan2_8",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        -1.0
+      ],
+      "output": 1075235812,
+      "input_word": [
+        1065353216,
+        3212836864
+      ]
+    },
+    {
+      "id": "atan2_9",
+      "native": "Atan2",
+      "input": [
+        -1.0,
+        -1.0
+      ],
+      "output": 3222719460,
+      "input_word": [
+        3212836864,
+        3212836864
+      ]
+    },
+    {
+      "id": "atan2_10",
+      "native": "Atan2",
+      "input": [
+        10.0,
+        1.0
+      ],
+      "output": 1069305321,
+      "input_word": [
+        1092616192,
+        1065353216
+      ]
+    },
+    {
+      "id": "atan2_11",
+      "native": "Atan2",
+      "input": [
+        1.0,
+        10.0
+      ],
+      "output": 1036787476,
+      "input_word": [
+        1065353216,
+        1092616192
+      ]
+    },
+    {
+      "id": "deg2rad_0",
+      "native": "Deg2Rad",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "deg2rad_1",
+      "native": "Deg2Rad",
+      "input": 90.0,
+      "output": 1070141403,
+      "input_word": 1119092737
+    },
+    {
+      "id": "deg2rad_2",
+      "native": "Deg2Rad",
+      "input": 180.0,
+      "output": 1078530011,
+      "input_word": 1127481345
+    },
+    {
+      "id": "deg2rad_3",
+      "native": "Deg2Rad",
+      "input": 360.0,
+      "output": 1086918619,
+      "input_word": 1135869953
+    },
+    {
+      "id": "deg2rad_4",
+      "native": "Deg2Rad",
+      "input": -45.0,
+      "output": 3209236443,
+      "input_word": 3258187777
+    },
+    {
+      "id": "deg2rad_5",
+      "native": "Deg2Rad",
+      "input": 0.1,
+      "output": 988070793,
+      "input_word": 1036831950
+    },
+    {
+      "id": "rad2deg_0",
+      "native": "Rad2Deg",
+      "input": 0.0,
+      "output": 0,
+      "input_word": 0
+    },
+    {
+      "id": "rad2deg_1",
+      "native": "Rad2Deg",
+      "input": 3.141592653589793,
+      "output": 1127481344,
+      "input_word": 1078530011
+    },
+    {
+      "id": "rad2deg_2",
+      "native": "Rad2Deg",
+      "input": 6.283185307179586,
+      "output": 1135869952,
+      "input_word": 1086918619
+    },
+    {
+      "id": "rad2deg_3",
+      "native": "Rad2Deg",
+      "input": -0.6,
+      "output": 3255403143,
+      "input_word": 3206125978
+    },
+    {
+      "id": "rad2deg_4",
+      "native": "Rad2Deg",
+      "input": 0.001,
+      "output": 1030401787,
+      "input_word": 981668463
+    }
+  ],
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "8c48eaf42d28f9839cfbe3c67e485a63ea0211ad780074c401dae76222c23363",
+    "wc3_pathfinding.js": "aee289cda2d89fecbfde6fd5576ff4e16c568a9d24760ec6f2d0b148b380da4f",
+    "wc3_pathfinding_probe.j": "443ea01241391be6babe060d6ae402d9badcfe95598e5f358d1b31ddbc4bfced",
+    "make_wc3_pathfinding_map.py": "fd4144adfb9f7b12014a7bb82cf9033b6b35633de832c542f1cdb36fc6fb74e0",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "map": "ac0b11a0d61a96d675cd7b8883980fb2293596d53a84bd5eeb86b2ad48cd9642"
+  },
+  "capture": "runtime/num-01.8-angles-raw.jsonl",
+  "capture_sha256": "bbde36e90479b9c5efa59c65f3ccb80c514daf2be9b48422e7095036449fc877",
+  "native_cases": 48,
+  "parser_cases": 0,
+  "move_destination_words": [
+    3304194048,
+    3272605696
+  ],
+  "scope": "Six original public angle natives on actual S2R-produced scalar inputs, bracketed raw words and registered wrapper guards. Distinct storage helper model; compiled decimal literals, pointer-alias producers, Pow and whole trajectories excluded."
+}

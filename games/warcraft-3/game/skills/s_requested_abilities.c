@@ -24,7 +24,7 @@ typedef struct {
 
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code) {
     if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code &&
             (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time())) return true;
     return false;
@@ -93,7 +93,7 @@ static bool earthquake_hits_destructable(edict_t *target, cstring_t targets, flo
 }
 
 float S_EarthquakeMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
+    uint32_t level = G_QueryUnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
     if (!level) return 0.0f;
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
@@ -304,7 +304,7 @@ static void chain_lightning_mark_visited(edict_t *thinker, edict_t *target) {
     if (!marker->channel) marker->channel = G_AllocChannel();
     assert(marker->channel);
     marker->channel->owner_spawn_time = thinker->spawn_time;
-    marker->goalentity = target;
+    S_SetMoveGoal(marker, &marker->goalentity, target);
     marker->resources = target->spawn_time;
 }
 
@@ -367,7 +367,7 @@ void chain_lightning_think(edict_t *thinker) {
     S_SpellDamage(next, caster, (int)MAX(1.0f, thinker->wait));
     G_SpawnAbilityEffectTarget(thinker->class_id, WC3_EFFECT_TARGET, 0, next, NULL, true);
     chain_lightning_mark_visited(thinker, next);
-    thinker->goalentity = next;
+    S_SetMoveGoal(thinker, &thinker->goalentity, next);
     thinker->damage = next->spawn_time;
     thinker->s.origin2 = next->s.origin2;
     thinker->wait *= thinker->velocity;
@@ -404,7 +404,7 @@ static void chain_lightning_execute(edict_t *caster, spellTarget_t st, abilityit
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;
     thinker->s.origin2 = st.entity->s.origin2;
-    thinker->goalentity = st.entity;
+    S_SetMoveGoal(thinker, &thinker->goalentity, st.entity);
     thinker->damage = st.entity->spawn_time;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->wait = damage * (1.0f - S_SpellData(spell->code, level, 3));
@@ -633,14 +633,23 @@ BZ_SIMPLE_SPELL_PROC(AbilityPoisonArrows) { toggle_status_execute(caster, st, sp
 /* Name=Silence
  * Ubertip="Stops enemy units in an area from casting spells."
  */
-BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
+static void silence_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &st.point) <= area) {
-        if (buff) S_SpellApplyTimedStatus(target, buff, level, S_SpellHeroDuration(spell->code, level, target));
+        if (buff) S_ApplyAttackPrevention(caster, target, spell, buff,
+            S_SpellHeroDuration(spell->code, level, target));
     }
+}
+
+BZ_ABILITY_PROC(CAbilitySilence) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target) silence_execute(ent, *call->target, call->item);
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
 }
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
  * ties retain the stable entity-enumeration order until a stricter retail tie-break
@@ -941,7 +950,18 @@ BZ_SIMPLE_SPELL_PROC(AbilityHowlOfTerror) {
 /* Name=Drunken Haze
  * Ubertip="Slows enemy units and gives them a chance to miss on attacks."
  */
-BZ_SIMPLE_SPELL_PROC(AbilityDrunkenHaze) { target_status_execute(caster, st, spell); }
+BZ_ABILITY_PROC(CAbilityDrunkenHaze) {
+    if (msg == A_EXECUTE) {
+        if (call && call->item && call->target && call->target->entity) {
+            uint32_t rank = S_SpellLevel(ent, call->item->code);
+            cstring_t buff = spell_buff(call->item, rank);
+            S_ApplyAttackPrevention(ent, call->target->entity, call->item, buff,
+                S_SpellHeroDuration(call->item->code, rank, call->target->entity));
+        }
+        return true;
+    }
+    return CAbilityAttackPrevention(ent, msg, call);
+}
 /* Name=Doom
  * Ubertip="Curses a target enemy unit, preventing it from casting spells and damaging it over time."
  */
@@ -983,7 +1003,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     edict_t *thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) S_SpellApplyTimedStatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
-    thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->class_id = spell->code;
+    thinker = G_Spawn(); thinker->owner = caster; S_SetMoveGoal(thinker, &thinker->goalentity, st.entity); thinker->class_id = spell->code;
     thinker->channel = G_AllocChannel();
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;

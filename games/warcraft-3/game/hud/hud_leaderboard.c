@@ -69,8 +69,9 @@ static void LeaderboardItemText(leaderboard_t const *board, struct gleaderboardi
     player_t *player = item->player >= 0 ? G_GetPlayerByNumber((uint32_t)item->player) : NULL;
     cstring_t name = board->show_names && player && player->name ? player->name : "";
     cstring_t label = item->show_label ? item->label : "";
-    if (*name && *label) snprintf(out, out_size, "%s - %s", name, label);
-    else snprintf(out, out_size, "%s%s", name, label);
+    strlcpy(out, name, out_size);
+    if (*name && *label) strlcat(out, " - ", out_size);
+    strlcat(out, label, out_size);
 }
 
 static void WriteLeaderboardText(leaderboardTextParams_t const *params) {

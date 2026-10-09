@@ -14,6 +14,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 
 /* Forward declarations for functions in m_unit.c without a public header. */
@@ -33,16 +34,441 @@ bool unit_additemtoslot(edict_t *edict, edict_t *item, uint32_t slot);
 slkTestData_t *parse_slk_string(cstring_t slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
+static uint32_t create_checkpoint_count;
+static edict_t *create_checkpoint_unit;
+static vec2_t create_checkpoint_point;
+static void create_unit_checkpoint(void) {
+    edict_t *unit = g_edicts + globals.num_edicts - 1;
+    create_checkpoint_unit = unit;
+    create_checkpoint_count++;
+    T_ASSERT(unit->inuse);
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_FEQ(unit->s.origin2.x, create_checkpoint_point.x, 0);
+    T_FEQ(unit->s.origin2.y, create_checkpoint_point.y, 0);
+    T_FEQ(unit->health.value, unit->health.max_value, 0);
+    T_ASSERT(unit->own_seq != 0);
+    T_NOT_NULL(unit->currentmove);
+    if (unit->currentmove) T_STREQ(unit->currentmove->animation, "stand");
+    T_EQ(level.time, 1234);
+    T_EQ(level.pathing_random.sum, 2137);
+}
+TEST(wc3_unit, public_creation_checkpoint_sees_completed_unit_and_same_simulation_clock) {
+    reset_entities();
+    setup_test_world();
+    struct game_import old = gi;
+    gi.FrameCheckpoint = create_unit_checkpoint;
+    create_checkpoint_count = 0;
+    level.time = 1234;
+    level.pathing_random.sum = 2137;
+    FOR_LOOP(i, 8) {
+        create_checkpoint_point = (vec2_t){64 + i * 128, 64};
+        create_checkpoint_unit = NULL;
+        edict_t *unit = unit_create(0, MAKEFOURCC('h','f','o','o'), &create_checkpoint_point, 37);
+        T_NOT_NULL(unit);
+        T_EQ(create_checkpoint_count, i + 1);
+        T_EQ(unit, create_checkpoint_unit);
+    }
+    gi = old;
+    reset_entities();
+    setup_test_world();
+}
+
 static int selection_sound_index_77(cstring_t path) {
     (void)path;
     return 77;
 }
+
+TEST(wc3_unit, static_ability_membership_is_compiled_without_truncating_authored_list) {
+    char list[1024] = {0}, code[5] = {0};
+    FOR_LOOP(i, 96) {
+        snprintf(code, sizeof(code), "A%03u", i);
+        strlcat(list, code, sizeof(list));
+        strlcat(list, ",", sizeof(list));
+    }
+    strlcat(list, "invalid,\"AHad\",  AInv,AHad", sizeof(list));
+    UnitAbilities_t row = { .abilList = list };
+    edict_t unit = { .data.UnitAbilities = &row };
+    T_ASSERT(G_ActorHasSkill(&unit, "A095"));
+    T_ASSERT(G_ActorHasSkill(&unit, "AHad"));
+    T_ASSERT(G_ActorHasSkill(&unit, "AInv"));
+    G_TestStaticAbilityTokens(true);
+    FOR_LOOP(i, 1024) {
+        T_ASSERT(G_ActorHasSkill(&unit, "A095"));
+        T_ASSERT(!G_ActorHasSkill(&unit, "ZZZZ"));
+    }
+    T_EQ(G_TestStaticAbilityTokens(false), 0);
+    unit.abilities.removed[unit.abilities.removed_count++] = MAKEFOURCC('A','0','9','5');
+    T_ASSERT(!G_ActorHasSkill(&unit, "A095"));
+    unit.abilities.added[unit.abilities.added_count++] = MAKEFOURCC('Z','Z','Z','Z');
+    T_ASSERT(G_ActorHasSkill(&unit, "ZZZZ"));
+    row.abilList = "Amgr,AInv";
+    T_ASSERT(!G_ActorHasSkill(&unit, "AHad"));
+    T_ASSERT(G_ActorHasSkill(&unit, "Amgr"));
+}
+
+extern uint32_t G_TestAuthoredMembershipVisits(bool reset);
+TEST(wc3_unit, negative_authored_membership_has_a_constant_rejection_filter) {
+    UnitAbilities_t row = { .abilList = "AInv,Amov,Aatk,AHad" };
+    edict_t unit = { .data.UnitAbilities = &row };
+    uint32_t count;
+    uint32_t const *codes = G_UnitAbilityCodes(&row, &count);
+    T_EQ(count, 4);
+    G_TestAuthoredMembershipVisits(true);
+    FOR_LOOP(i, 256) {
+        uint32_t code = MAKEFOURCC('A', '0' + i / 100, '0' + (i / 10) % 10, '0' + i % 10);
+        bool expected = false;
+        FOR_LOOP(j, count) expected |= codes[j] == code;
+        T_EQ(G_ActorHasAbilityCode(&unit, code), expected);
+    }
+    /* Collisions must confirm the original rawcode; most misses need no scan. */
+    T_ASSERT(G_TestAuthoredMembershipVisits(false) < 128);
+    FOR_LOOP(i, count) T_ASSERT(G_ActorHasAbilityCode(&unit, codes[i]));
+    unit.abilities.removed[unit.abilities.removed_count++] = codes[0];
+    T_ASSERT(!G_ActorHasAbilityCode(&unit, codes[0]));
+    uint32_t added = MAKEFOURCC('Z','Z','Z','Z');
+    unit.abilities.added[unit.abilities.added_count++] = added;
+    T_ASSERT(G_ActorHasAbilityCode(&unit, added));
+    row.abilList = "ZZZZ,Aslo";
+    T_ASSERT(G_ActorHasSkill(&unit, "Aslo"));
+    T_ASSERT(!G_ActorHasSkill(&unit, "AHad"));
+}
+
+TEST(wc3_unit, compiled_ability_arrays_survive_nested_lookups_and_preserve_outer_token) {
+    UnitAbilities_t first = { .abilList = "AInv,Amgr,Ahar" };
+    edict_t unit = { .data.UnitAbilities = &first };
+    static cstring_t const expected[] = { "AInv", "Amgr", "Ahar" };
+    uint32_t at = 0;
+    PARSE_LIST(first.abilList, token, parse_segment) {
+        T_ASSERT(G_ActorHasSkill(&unit, token));
+        T_STREQ(token, expected[at++]);
+    }
+    T_EQ(at, 3);
+    uint32_t count;
+    uint32_t const *codes = G_UnitAbilityCodes(&first, &count);
+    T_EQ(count, 3);
+    UnitAbilities_t *other = calloc(1024, sizeof(*other));
+    T_NOT_NULL(other);
+    if (other) {
+        FOR_LOOP(i, 1024) {
+            other[i].abilList = "AHad,AOae";
+            uint32_t other_count;
+            uint32_t const *decoded = G_UnitAbilityCodes(other + i, &other_count);
+            T_EQ(other_count, 2);
+            T_EQ(decoded[0], MAKEFOURCC('A','H','a','d'));
+            T_EQ(decoded[1], MAKEFOURCC('A','O','a','e'));
+        }
+        T_EQ(codes[0], MAKEFOURCC('A','I','n','v'));
+        T_EQ(codes[1], MAKEFOURCC('A','m','g','r'));
+        T_EQ(codes[2], MAKEFOURCC('A','h','a','r'));
+        free(other);
+    }
+}
+
+TEST(wc3_unit, scoped_ability_membership_rejects_misses_and_confirms_collisions) {
+    UnitAbilities_t row = { .abilList = "AInv,Amov,Aatk,AHad" };
+    edict_t unit = { .data.UnitAbilities = &row };
+    unitStatusQuery_t scope;
+    G_BeginUnitStatusQuery(&unit, &scope);
+    T_EQ(scope.ability_count, 4);
+    G_TestAuthoredMembershipVisits(true);
+    FOR_LOOP(i, 256) {
+        uint32_t code = MAKEFOURCC('A', '0' + i / 100, '0' + (i / 10) % 10, '0' + i % 10);
+        T_ASSERT(!G_ActorHasAbilityCode(&unit, code));
+    }
+    T_ASSERT(G_TestAuthoredMembershipVisits(false) < 128);
+    FOR_LOOP(i, scope.ability_count) T_ASSERT(G_ActorHasAbilityCode(&unit, scope.abilities[i]));
+    G_EndUnitStatusQuery(&scope);
+    /* Runtime ownership still takes precedence over authored rejection. */
+    uint32_t added = MAKEFOURCC('Z','Z','Z','Z');
+    unit.abilities.added[unit.abilities.added_count++] = added;
+    unit.abilities.removed[unit.abilities.removed_count++] = MAKEFOURCC('A','I','n','v');
+    G_BeginUnitStatusQuery(&unit, &scope);
+    T_ASSERT(G_ActorHasAbilityCode(&unit, added));
+    T_ASSERT(!G_ActorHasSkill(&unit, "AInv"));
+    G_EndUnitStatusQuery(&scope);
+    row.abilList = "ZZZZ,Aslo";
+    G_BeginUnitStatusQuery(&unit, &scope);
+    T_ASSERT(G_ActorHasSkill(&unit, "Aslo"));
+    T_ASSERT(!G_ActorHasSkill(&unit, "AHad"));
+    G_EndUnitStatusQuery(&scope);
+}
+
+TEST(wc3_unit, cargo_and_speed_queries_do_not_reparse_authored_ability_lists) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    UnitAbilities_t row={.abilList="AInv,Adef,Amov"};
+    unit->data.UnitAbilities=&row;
+    S_CargoInitUnit(unit);S_UnitMoveSpeed(unit);
+    G_TestStaticAbilityTokens(true);
+    for(uint32_t i=0;i<128;i++) {
+        S_CargoInitUnit(unit);
+        T_ASSERT(isfinite(S_UnitMoveSpeed(unit)));
+    }
+    T_EQ(G_TestStaticAbilityTokens(false),0);
+}
+
+TEST(wc3_unit, compiled_ability_tokens_keep_name_grammar_and_refresh_behavior_mapping) {
+    UnitAbilities_t row={.abilList="A001,\"A001Suffix\",A,  AInv,A001"};
+    AbilityData_t first={.id=MAKEFOURCC('A','0','0','1'),.code=MAKEFOURCC('A','g','l','d')};
+    slkTestData_t table={.rows=&first,.count=1};
+    slkTestData_t *old=G_SetSLKRows("AbilityData",&table);
+    uint32_t count;
+    unitAbilityToken_t const *tokens=G_UnitAbilityTokens(&row,&count);
+    T_EQ(count,5);
+    T_EQ(tokens[0].base,first.code);T_EQ(tokens[1].base,first.code);
+    T_EQ(tokens[1].length,10);T_EQ(tokens[2].code,'A');T_EQ(tokens[2].length,1);
+    T_EQ(tokens[3].code,MAKEFOURCC('A','I','n','v'));
+    uint32_t const *codes=G_UnitAbilityCodes(&row,&count);
+    T_EQ(count,3);T_EQ(codes[0],first.id);T_EQ(codes[2],first.id);
+    AbilityData_t second={.id=first.id,.code=MAKEFOURCC('A','r','t','n')};
+    slkTestData_t replacement={.rows=&second,.count=1};
+    slkTestData_t *previous=G_SetSLKRows("AbilityData",&replacement);
+    unitAbilityToken_t const *updated=G_UnitAbilityTokens(&row,&count);
+    T_EQ(updated[0].base,second.code);
+    T_EQ(tokens[0].base,first.code); /* Borrowed outer arrays survive a metadata callback. */
+    G_SetSLKRows("AbilityData",old);free(previous);free(old);
+}
+
+TEST(wc3_unit, type_resource_and_blight_queries_share_compiled_authored_lists) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    /* A long token still selects AbilityData by its first four characters.
+     * Literal Return Resources aliases require the entire four-character token. */
+    UnitAbilities_t row={.abilList="AInv,Adef,Amov,ArgdSuffix"};
+    row.id=unit->class_id;
+    slkTestData_t table={.rows=&row,.count=1};
+    slkTestData_t *old=G_SetSLKRows("UnitAbilities",&table);
+    bool returns_gold=S_UnitTypeReturnsGold(unit->class_id);
+    unit->data.UnitAbilities=&row;
+    S_UnitTypeIsGoldMine(unit->class_id);S_UnitTypeReturnsGold(unit->class_id);
+    S_UnitAbilityEvent(unit,A_UNIT_INIT);
+    G_TestStaticAbilityTokens(true);
+    FOR_LOOP(i,128) {
+        T_ASSERT(!S_UnitTypeIsGoldMine(unit->class_id));
+        T_EQ(S_UnitTypeReturnsGold(unit->class_id),returns_gold);
+        S_UnitAbilityEvent(unit,A_UNIT_INIT);
+    }
+    T_EQ(G_TestStaticAbilityTokens(false),0);
+    row.abilList="  AInv,\"Argd\",Amov";
+    T_ASSERT(S_UnitTypeReturnsGold(unit->class_id));
+    G_SetSLKRows("UnitAbilities",old);free(old);
+}
+
+TEST(wc3_unit, move_bonus_query_visits_only_subscribed_owners) {
+    setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),64,64);
+    UnitAbilities_t row={.abilList="AInv,Adef,Amov"};
+    unit->data.UnitAbilities=&row;
+    S_TestMoveBonusMessages(true);
+    FOR_LOOP(i,128)T_FEQ(S_MoveSpeedBonus(unit),0,0);
+    T_EQ(S_TestMoveBonusMessages(false),0);
+    row.abilList="AInv,AIms,AIms";
+    S_TestMoveBonusMessages(true);
+    S_MoveSpeedBonus(unit);
+    T_EQ(S_TestMoveBonusMessages(false),1);
+    unit->abilities.removed[unit->abilities.removed_count++]=MAKEFOURCC('A','I','m','s');
+    S_TestMoveBonusMessages(true);
+    T_FEQ(S_MoveSpeedBonus(unit),0,0);
+    T_EQ(S_TestMoveBonusMessages(false),0);
+}
+
+TEST(wc3_unit, numeric_ability_membership_preserves_four_character_validation) {
+    edict_t unit={0};
+    uint32_t codes[]={0x00000001,0x00766f41,0x416f0041,MAKEFOURCC('A','I','n','v')};
+    char text[5]={0};
+    unit.abilities.added_count=1;
+    FOR_LOOP(i,sizeof(codes)/sizeof(*codes)) {
+        unit.abilities.added[0]=codes[i];memcpy(text,codes+i,4);
+        T_EQ(G_ActorHasAbilityCode(&unit,codes[i]),G_ActorHasSkill(&unit,text));
+        T_EQ(G_UnitAbilityLevel(&unit,codes[i]),strlen(text)==4?1:0);
+    }
+}
+TEST(wc3_unit, string_ability_membership_checks_exact_rawcode_length) {
+    UnitAbilities_t row = { .abilList = "AInv" };
+    edict_t unit = { .data.UnitAbilities = &row };
+    cstring_t short_ids[] = { NULL, "", "A", "AI", "AIn" };
+    FOR_LOOP(i, sizeof(short_ids) / sizeof(*short_ids)) T_ASSERT(!G_ActorHasSkill(&unit, short_ids[i]));
+    T_ASSERT(G_ActorHasSkill(&unit, "AInv"));
+    T_ASSERT(!G_ActorHasSkill(&unit, "AInvx"));
+    T_ASSERT(!G_ActorHasSkill(&unit, "AInv_a_long_name_is_not_a_rawcode"));
+}
+TEST(wc3_unit, runtime_ability_tail_slots_preserve_removal_precedence) {
+    UnitAbilities_t row = { .abilList = "AInv,Adef" };
+    edict_t unit = { .data.UnitAbilities = &row };
+    uint32_t code = MAKEFOURCC('A','h','a','r');
+    unit.abilities.added_count = MAX_ABILITIES;
+    unit.abilities.added[MAX_ABILITIES - 1] = code;
+    T_ASSERT(G_ActorHasAbilityCode(&unit, code));
+    T_EQ(G_UnitAbilityLevel(&unit, code), 1);
+    unit.abilities.removed_count = MAX_ABILITIES;
+    unit.abilities.removed[MAX_ABILITIES - 1] = code;
+    T_ASSERT(!G_ActorHasAbilityCode(&unit, code));
+    T_EQ(G_UnitAbilityLevel(&unit, code), 0);
+    code = MAKEFOURCC('A','I','n','v');
+    unit.abilities.removed[MAX_ABILITIES - 1] = code;
+    T_ASSERT(!G_ActorHasAbilityCode(&unit, code));
+    unit.abilities.added[0] = code;
+    T_ASSERT(!G_ActorHasAbilityCode(&unit, code));
+    unit.abilities.removed[MAX_ABILITIES - 1] = 0;
+    T_ASSERT(G_ActorHasAbilityCode(&unit, code));
+}
 static int selection_sound_index_77_alias(cstring_t path, cstring_t alias) { (void)alias; return selection_sound_index_77(path); }
+
+static uint32_t visual_resource_model_calls, visual_resource_file_calls;
+static uint64_t visual_resource_revision;
+static uint64_t visual_resource_generation(void) { return visual_resource_revision; }
+static int visual_resource_model(cstring_t filename) {
+    T_STREQ(filename, "Units\\Human\\Test\\Test.mdx");
+    visual_resource_model_calls++;
+    return visual_resource_revision == 17 ? 77 : 78;
+}
+static bool visual_resource_exists(cstring_t filename) {
+    T_STREQ(filename, "ReplaceableTextures\\Shadows\\Probe.blp");
+    visual_resource_file_calls++;
+    return true;
+}
+static int visual_resource_image(cstring_t filename) {
+    T_STREQ(filename, "ReplaceableTextures\\Shadows\\Probe.blp");
+    return 33;
+}
+TEST(wc3_unit, unit_visual_resources_are_shared_until_media_revision_changes) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .modelFile = "Units\\Human\\Test\\Test", .unitShadowTexture = "Probe",
+        .shadowWidth = 96, .shadowHeight = 80, .shadowCenterX = 48, .shadowCenterY = 40 };
+    gi.MediaRevision = visual_resource_generation;
+    gi.ModelIndex = visual_resource_model;
+    gi.FileExists = visual_resource_exists;
+    gi.ImageIndex = visual_resource_image;
+    visual_resource_revision = 17;
+    visual_resource_model_calls = visual_resource_file_calls = 0;
+    FOR_LOOP(i, 32) {
+        edict_t unit = { .class_id = MAKEFOURCC('h','f','o','o'), .data.UnitUI = &ui };
+        unit_register_visuals(&unit);
+        T_EQ(unit.s.model, 77);
+#ifndef USE_SHADOWMAPS
+        T_EQ(unit.s.shadow, 33);
+        T_EQ(unit.s.shadow_rect, ShadowPackRect(48, 40, 96, 80));
+#endif
+    }
+    T_EQ(visual_resource_model_calls, 1);
+    T_EQ(visual_resource_file_calls, 1);
+    visual_resource_revision++;
+    edict_t unit = { .class_id = MAKEFOURCC('h','f','o','o'), .data.UnitUI = &ui };
+    unit_register_visuals(&unit);
+    T_EQ(unit.s.model, 78);
+    T_EQ(visual_resource_model_calls, 2);
+    T_EQ(visual_resource_file_calls, 2);
+    gi = old;
+}
+
+TEST(wc3_unit, spawn_classification_is_shared_and_refreshes_bound_rows_and_metadata) {
+    setup_test_world();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    G_ResetUnitResources(); unit_spawn_trait_builds = 0;
+    unitSpawnTraits_t first = *unit_spawn_type_traits(unit);
+    FOR_LOOP(i, 128) {
+        unitSpawnTraits_t const *traits = unit_spawn_type_traits(unit);
+        T_EQ(traits->flags, first.flags); T_EQ(traits->collision, first.collision);
+        T_EQ(traits->target, first.target);
+    }
+    T_EQ(unit_spawn_trait_builds, 1);
+    UnitData_t data = *unit->data.UnitData;
+    data.targetType = "air";
+    unit->data.UnitData = &data;
+    T_EQ(unit_spawn_type_traits(unit)->target, TARG_AIR);
+    T_EQ(unit_spawn_trait_builds, 2);
+    UnitBalance_t balance = *unit->data.UnitBalance;
+    balance.id = unit->class_id; balance.isBuilding = true; balance.collision = 99;
+    slkTestData_t table = { .rows = &balance, .count = 1 };
+    slkTestData_t *old = G_SetSLKRows("UnitBalance", &table);
+    unitSpawnTraits_t const *traits = unit_spawn_type_traits(unit);
+    T_EQ(traits->runtime, UNIT_BALANCE_BUILDING);
+    T_ASSERT(traits->flags & EF_BUILDING); T_EQ(traits->collision, 99);
+    T_EQ(unit_spawn_trait_builds, 3);
+    G_SetSLKRows("UnitBalance", old); free(old);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_unit, combat_text_classification_refreshes_rows_and_columns) {
+    UnitBalance_t balance = { .defenseType = "hero" };
+    UnitWeapons_t weapons = { .attack1.attackType = "pierce", .attack1.weaponType = "missile",
+        .attack2.attackType = "siege", .attack2.weaponType = "artillery" };
+    G_ResetUnitResources(); unit_combat_type_builds = 0;
+    FOR_LOOP(i, 64) {
+        unitCombatTypes_t const *types = unit_spawn_combat_types(&balance, &weapons);
+        T_EQ(types->defense, FindEnumValue(balance.defenseType, defense_type));
+        T_EQ(types->attack[0], FindEnumValue(weapons.attack1.attackType, attack_type));
+        T_EQ(types->attack[1], FindEnumValue(weapons.attack2.attackType, attack_type));
+        T_EQ(types->weapon[0], FindEnumValue(weapons.attack1.weaponType, weapon_type));
+        T_EQ(types->weapon[1], FindEnumValue(weapons.attack2.weaponType, weapon_type));
+    }
+    T_EQ(unit_combat_type_builds, 1);
+    balance.defenseType = "fort";
+    weapons.attack1.attackType = "magic"; weapons.attack2.attackType = NULL;
+    weapons.attack1.weaponType = "normal"; weapons.attack2.weaponType = "unknown";
+    unitCombatTypes_t const *types = unit_spawn_combat_types(&balance, &weapons);
+    T_EQ(types->defense, FindEnumValue("fort", defense_type));
+    T_EQ(types->attack[0], FindEnumValue("magic", attack_type));
+    T_EQ(types->attack[1], 0); T_EQ(types->weapon[0], FindEnumValue("normal", weapon_type));
+    T_EQ(types->weapon[1], 0); T_EQ(unit_combat_type_builds, 2);
+    UnitWeapons_t other = weapons;
+    other.attack2.weaponType = "missile";
+    types = unit_spawn_combat_types(&balance, &other);
+    T_EQ(types->weapon[1], FindEnumValue("missile", weapon_type));
+    T_EQ(unit_combat_type_builds, 3);
+    G_ResetUnitResources();
+}
+
+static int projectile_resource_model(cstring_t filename) {
+    T_STREQ(filename, "Units\\Human\\Test\\Test.mdx");
+    visual_resource_model_calls++;
+    return visual_resource_revision == 17 ? 77 : 78;
+}
+TEST(wc3_unit, projectile_resources_share_registration_and_preserve_unassigned_attack_state) {
+    struct game_import old_import = gi;
+    UnitProfile_t profile = { .id = MAKEFOURCC('h','f','o','o') };
+    profile.attack[0].art = "Units\\Human\\Test\\Test.mdx";
+    profile.attack[0].arc = .25f; profile.attack[0].speed = 900;
+    slkTestData_t table = { .rows = &profile, .count = 1 };
+    slkTestData_t *old_profile = G_SetProfileRows(&table);
+    gi.MediaRevision = visual_resource_generation; gi.ModelIndex = projectile_resource_model;
+    visual_resource_revision = 17; visual_resource_model_calls = 0;
+    G_ResetUnitResources(); unit_projectile_resource_builds = 0;
+    FOR_LOOP(i, 128) {
+        edict_t unit = { .class_id = profile.id };
+        S_AttackProfileWrite(&unit, 0)->weapon = WPN_MISSILE;
+        S_AttackProfileWrite(&unit, 0)->temporaryDamageBonus = 73;
+        S_AttackProfileWrite(&unit, 1)->origin = (vec3_t){ 3, 4, 5 }; S_AttackProfileWrite(&unit, 1)->projectile.model = 119;
+        unit_register_projectiles(&unit);
+        T_EQ(S_AttackProfileRead(&unit, 0)->projectile.model, 77); T_EQ(S_AttackProfileRead(&unit, 0)->projectile.arc, .25f);
+        T_EQ(S_AttackProfileRead(&unit, 0)->projectile.speed, 900); T_EQ(S_AttackProfileRead(&unit, 0)->temporaryDamageBonus, 73);
+        T_EQ(S_AttackProfileRead(&unit, 1)->origin.x, 3); T_EQ(S_AttackProfileRead(&unit, 1)->projectile.model, 119);
+        G_FreeAttackOne(&unit); G_FreeAttackTwo(&unit);
+    }
+    T_EQ(visual_resource_model_calls, 1); T_EQ(unit_projectile_resource_builds, 1);
+    visual_resource_revision++;
+    edict_t unit = { .class_id = profile.id }; S_AttackProfileWrite(&unit, 0)->weapon = WPN_ARTILLERY;
+    unit_register_projectiles(&unit);
+    T_EQ(S_AttackProfileRead(&unit, 0)->projectile.model, 78); T_EQ(visual_resource_model_calls, 2);
+    profile.attack[0].speed = 450;
+    slkTestData_t changed = { .rows = &profile, .count = 1 };
+    slkTestData_t *previous = G_SetProfileRows(&changed);
+    unit_register_projectiles(&unit);
+    T_EQ(S_AttackProfileRead(&unit, 0)->projectile.speed, 450); T_EQ(visual_resource_model_calls, 3);
+    G_FreeAttackOne(&unit); G_FreeAttackTwo(&unit);
+    G_SetProfileRows(old_profile); free(previous); free(old_profile); gi = old_import;
+    G_ResetUnitResources();
+}
 
 
 static char death_sound_path[256];
 static cstring_t death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+static uint32_t death_sound_reads;
+static bool death_sound_exists(cstring_t path) {
+    return !strcmp(path, death_sound_existing);
+}
 static handle_t death_sound_probe(cstring_t path, uint32_t *size) {
+    death_sound_reads++;
     if (strcmp(path, death_sound_existing)) return NULL;
     *size = 1;
     return malloc(1);
@@ -50,6 +476,39 @@ static handle_t death_sound_probe(cstring_t path, uint32_t *size) {
 static int death_sound_index(cstring_t path) {
     strlcpy(death_sound_path, path, sizeof(death_sound_path));
     return 77;
+}
+
+TEST(wc3_unit, identical_units_share_sound_resources_without_repeated_file_probes) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
+    UnitWeapons_t weapons = { 0 };
+    death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+    death_sound_reads = 0;
+    unit_sound_resource_builds = 0;
+    visual_resource_revision = 41;
+    gi.MediaRevision = visual_resource_generation;
+    gi.FileExists = death_sound_exists;
+    gi.SoundIndex = death_sound_index;
+    unitSoundProfile_t const *profile = NULL;
+    FOR_LOOP(i, 32) {
+        edict_t ent = { .class_id = MAKEFOURCC('h','f','o','o'), .data.UnitUI = &ui, .data.UnitWeapons = &weapons };
+        unit_register_sounds(&ent);
+        T_EQ(G_UnitSoundProfile(&ent)->death, 77);
+        if (i) T_ASSERT(ent.sound_profile == profile);
+        profile = ent.sound_profile;
+    }
+    /* Count actual VFS probes, independently of payload reads. */
+    T_EQ(unit_sound_resource_builds, 1);
+    visual_resource_revision++;
+    edict_t ent = { .class_id = MAKEFOURCC('h','f','o','o'), .data.UnitUI = &ui, .data.UnitWeapons = &weapons };
+    unit_register_sounds(&ent);
+    T_EQ(G_UnitSoundProfile(&ent)->death, 77);
+    T_EQ(unit_sound_resource_builds, 2);
+    ent.sound.owner_pending = 117;
+    unit_register_sounds(&ent);
+    T_EQ(ent.sound.owner_pending, 117);
+    T_EQ(unit_sound_resource_builds, 3);
+    gi = old;
 }
 
 TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
@@ -62,11 +521,149 @@ TEST(wc3_unit, death_sound_uses_existing_numbered_asset) {
     death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
     death_sound_path[0] = '\0';
     gi.ReadFile = death_sound_probe;
+    gi.FileExists = death_sound_exists;
     gi.SoundIndex = death_sound_index;
     G_RegisterUnitSounds(&ent);
     T_STREQ(death_sound_path, "Units\\Human\\Test\\TestDeath1.wav");
-    T_EQ(ent.sound.death, 77);
+    T_EQ(G_UnitSoundProfile(&ent)->death, 77);
     gi = old;
+}
+
+TEST(wc3_unit, scoped_status_queries_preserve_slots_deadlines_and_nested_owners) {
+    reset_entities();setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),0,0);
+    uint32_t code=MAKEFOURCC('B','O','w','k');
+    G_EnsureUnitStatusSlots(first); G_EnsureUnitStatusSlots(second);
+    first->abilstatus[0]=(heroabilitystatus_t){.code=code,.level=1,.timestamp=100};
+    first->abilstatus[MAX_UNIT_STATUSES-1]=(heroabilitystatus_t){.code=code,.level=3};
+    second->abilstatus[1]=(heroabilitystatus_t){.code=code,.level=2};
+    unitStatusQuery_t outer,inner;
+    level.time=0;G_BeginUnitStatusQuery(first,&outer);
+    T_EQ(G_UnitStatusLevel(first,code),1);
+    T_EQ(G_UnitStatusLevel(first,MAKEFOURCC('B','s','l','o')),0);
+    G_BeginUnitStatusQuery(second,&inner);
+    T_EQ(G_UnitStatusLevel(second,code),2);
+    T_EQ(G_UnitStatusLevel(first,code),1);
+    G_EndUnitStatusQuery(&inner);
+    level.time=100;
+    T_EQ(G_UnitStatusLevel(first,code),3);
+    T_EQ(G_UnitStatusLevel(second,code),2);
+    G_EndUnitStatusQuery(&outer);
+    first->abilstatus[2]=(heroabilitystatus_t){.code=MAKEFOURCC('B','s','l','o'),.level=4};
+    G_BeginUnitStatusQuery(first,&outer);
+    T_EQ(G_UnitStatusLevel(first,MAKEFOURCC('B','s','l','o')),4);
+    G_EndUnitStatusQuery(&outer);
+    reset_entities();setup_test_world();
+}
+
+extern uint32_t G_TestCompiledAbilityQueries(bool reset);
+extern uint32_t G_TestUnitStatusQueries(bool reset);
+extern uint32_t G_TestUnitStatusSlotVisits(bool reset);
+TEST(wc3_unit, empty_unit_status_queries_do_not_walk_vacant_records) {
+    reset_entities(); setup_test_world();
+    edict_t *unit = unit_create(0, MAKEFOURCC('h','f','o','o'), &MAKE(vec2_t, 64, 64), 17);
+    T_NOT_NULL(unit);
+    T_NULL(unit->abilstatus);
+    G_TestUnitStatusSlotVisits(true);
+    FOR_LOOP(i, 128) T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','c','r','i')), 0);
+    T_EQ(G_TestUnitStatusSlotVisits(false), 0);
+    unit_refreshstatusflags(unit);
+    unit_updatestatuses(unit);
+    T_EQ(unit_removebuffs(unit, true, true, false, false, true, true, false), 0);
+    T_NULL(unit->abilstatus);
+    unit_addtimedstatus(unit, "Bcri", 3, 1);
+    heroabilitystatus_t *slots = unit->abilstatus;
+    T_NOT_NULL(slots);
+    T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','c','r','i')), 3);
+    level.time += 1000;
+    T_EQ(G_UnitStatusLevel(unit, MAKEFOURCC('B','c','r','i')), 0);
+    unit_updatestatuses(unit);
+    T_EQ(unit->abilstatus, slots);
+    G_FreeEdict(unit);
+    T_NULL(unit->abilstatus);
+    edict_t *next = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    G_EnsureUnitStatusSlots(next);
+    T_EQ(next->abilstatus, slots);
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        T_EQ(next->abilstatus[i].level, 0);
+        T_NULL(next->abilstatus[i].source);
+    }
+    reset_entities(); setup_test_world();
+}
+TEST(wc3_unit, public_speed_uses_empty_status_discovery_and_live_custom_windwalk) {
+    reset_entities(); setup_test_world();
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 64);
+    UnitBalance_t balance = *unit->data.UnitBalance;
+    balance.speed = 331.75f; balance.minSpeed = 1; balance.maxSpeed = 522;
+    unit->data.UnitBalance = &balance; unit->unitinfo.MoveSpeed = balance.speed;
+    AbilityData_t windwalk = { .id = MAKEFOURCC('A','O','w','k'), .code = MAKEFOURCC('A','O','w','k') };
+    windwalk.level[0].data[0].number = 19;
+    slkTestData_t table = { .rows = &windwalk, .count = 1 };
+    slkTestData_t *old = G_SetSLKRows("AbilityData", &table);
+    S_UnitMoveSpeed(unit);
+    G_TestUnitStatusQueries(true);
+    FOR_LOOP(i, 128) T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
+    T_EQ(G_TestUnitStatusQueries(false), 0);
+    G_EnsureUnitStatusSlots(unit);
+    unit->abilstatus[MAX_UNIT_STATUSES - 1] = (heroabilitystatus_t){
+        .code = MAKEFOURCC('B','O','w','k'), .level = 1, .timestamp = 100 };
+    level.time = 0;
+    T_FEQ(S_UnitMoveSpeed(unit), 331.75f * 1.19f, 0);
+    T_ASSERT(G_TestUnitStatusQueries(false) > 0);
+    level.time = 100;
+    T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
+    unit->abilstatus[MAX_UNIT_STATUSES - 1].level = 0;
+    G_TestUnitStatusQueries(true);
+    T_FEQ(S_UnitMoveSpeed(unit), 331.75f, 0);
+    T_EQ(G_TestUnitStatusQueries(false), 0);
+    G_SetSLKRows("AbilityData", old); free(old);
+    reset_entities(); setup_test_world();
+}
+TEST(wc3_unit, pure_queries_share_ownership_discovery_and_preserve_rank_status_precedence) {
+    UnitAbilities_t rows[] = { { .abilList = "Ahar,Amov" }, { .abilList = "AHhb" } };
+    edict_t first = { .data.UnitAbilities = rows }, second = { .data.UnitAbilities = rows + 1 };
+    uint32_t harvest = MAKEFOURCC('A','h','a','r'), heal = MAKEFOURCC('A','H','h','b');
+    uint32_t slow = MAKEFOURCC('A','s','l','o');
+    unitStatusQuery_t outer, inner;
+    first.heroabilities[MAX_HERO_ABILITIES - 1] = (heroability_t){ .code = heal, .level = 2 };
+    heroabilitystatus_t statuses[MAX_UNIT_STATUSES] = { 0 };
+    first.abilstatus = statuses;
+    first.abilstatus[0] = (heroabilitystatus_t){ .code = harvest, .level = 3, .timestamp = 10 };
+    first.abilstatus[MAX_UNIT_STATUSES - 1] = (heroabilitystatus_t){ .code = harvest, .level = 4 };
+    first.abilities.removed[first.abilities.removed_count++] = harvest;
+    second.abilities.added[second.abilities.added_count++] = slow;
+    uint32_t time = level.time;
+    level.time = 0;
+    G_BeginUnitStatusQuery(&first, &outer);
+    G_TestCompiledAbilityQueries(true);
+    FOR_LOOP(i, 128) {
+        T_EQ(G_UnitAbilityLevel(&first, harvest), 3);
+        T_EQ(G_UnitAbilityLevel(&first, heal), 2);
+        T_EQ(G_UnitAbilityLevel(&first, slow), 0);
+        T_ASSERT(G_ActorHasSkill(&first, "Amov"));
+        T_ASSERT(!G_ActorHasSkill(&first, "Ahar"));
+    }
+    T_EQ(G_TestCompiledAbilityQueries(false), 0);
+    G_BeginUnitStatusQuery(&second, &inner);
+    G_TestCompiledAbilityQueries(true);
+    T_EQ(G_UnitAbilityLevel(&second, heal), 1);
+    T_EQ(G_UnitAbilityLevel(&second, slow), 1);
+    T_EQ(G_TestCompiledAbilityQueries(false), 0);
+    G_EndUnitStatusQuery(&inner);
+    level.time = 10;
+    T_EQ(G_UnitAbilityLevel(&first, harvest), 4);
+    G_EndUnitStatusQuery(&outer);
+    T_EQ(G_UnitAbilityLevel(&first, heal), 2);
+    T_EQ(G_UnitAbilityLevel(&second, slow), 1);
+    first.heroabilities[0] = (heroability_t){ .code = harvest, .level = 7 };
+    rows[0].abilList = "Aslo";
+    G_BeginUnitStatusQuery(&first, &outer);
+    T_EQ(G_UnitAbilityLevel(&first, harvest), 7);
+    T_EQ(G_UnitAbilityLevel(&first, slow), 1);
+    T_ASSERT(!G_ActorHasSkill(&first, "Amov"));
+    G_EndUnitStatusQuery(&outer);
+    level.time = time;
 }
 
 TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
@@ -79,10 +676,30 @@ TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
     death_sound_existing = "Units\\Human\\Test\\TestDeath.wav";
     death_sound_path[0] = '\0';
     gi.ReadFile = death_sound_probe;
+    gi.FileExists = death_sound_exists;
     gi.SoundIndex = death_sound_index;
     G_RegisterUnitSounds(&ent);
     T_STREQ(death_sound_path, death_sound_existing);
-    T_EQ(ent.sound.death, 77);
+    T_EQ(G_UnitSoundProfile(&ent)->death, 77);
+    gi = old;
+}
+
+TEST(wc3_unit, spawning_sound_registration_does_not_read_audio_payload) {
+    struct game_import old = gi;
+    UnitUI_t ui = { .soundLabel = "Test", .modelFile = "Units\\Human\\Test\\Test" };
+    UnitWeapons_t weapons = {0};
+    setup_test_world();
+    death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+    death_sound_reads = 0;
+    gi.ReadFile = death_sound_probe;
+    gi.FileExists = death_sound_exists;
+    gi.SoundIndex = death_sound_index;
+    FOR_LOOP(i,1024) {
+        edict_t ent = { .data.UnitUI = &ui, .data.UnitWeapons = &weapons };
+        G_RegisterUnitSounds(&ent);
+        T_EQ(G_UnitSoundProfile(&ent)->death,77);
+    }
+    T_EQ(death_sound_reads,0);
     gi = old;
 }
 
@@ -110,8 +727,12 @@ TEST(wc3_unit, smart_move_emits_selected_unit_response) {
     edict_t *clent = &g_edicts[0];
     ent->movetype = MOVETYPE_STEP;
     ent->stand = unit_stand;
-    ent->selected = 1;
-    ent->sound.yes[0] = 118; ent->sound.num_yes = 1;
+    G_SetEntitySelectionMask(ent, 1);
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.yes[0] = 118; value.num_yes = 1;
+        G_SetUnitSoundProfile(ent, &value);
+    }
     unit_stand(ent);
     gi.Write = order_sound_write; gi.unicast = order_sound_unicast; gi.Sound = order_sound_capture; gi.SoundPolicy = order_sound_policy_capture;
     order_sound_calls = order_sound_index = 0;
@@ -127,7 +748,8 @@ TEST(wc3_unit, smart_move_emits_selected_unit_response) {
 
 /* Reset the entity pool between tests. */
 static void reset_test_entities(void) {
-    memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
+    G_ResetWaypointCache();
+    G_ClearEdictStorage(globals.max_edicts);
     globals.num_edicts = 0;
     globals.edicts = g_edicts;
 }
@@ -152,8 +774,8 @@ static edict_t *make_unit(float x, float y) {
     ent->health.value   = G_UnitBalance(ent->class_id)->maxHealth;
     ent->health.max_value = G_UnitBalance(ent->class_id)->maxHealth;
     ent->unitinfo.MoveSpeed = G_UnitBalance(ent->class_id)->speed;
-    ent->attack1.type = ATK_NORMAL;
-    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     ent->targtype = TARG_GROUND;
     unit_stand(ent);
     return ent;
@@ -250,11 +872,11 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     slkTestData_t *sounds = parse_slk_string(slk);
     slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
     G_RegisterSelectSounds(ent, "Footman");
-    T_EQ(ent->sound.num_select, 4);
-    FOR_LOOP(i, ent->sound.num_select) T_ASSERT(ent->sound.select[i]);
-    FOR_LOOP(i, ent->sound.num_select)
-        T_EQ(G_SoundIndexPolicy(ent->sound.select[i])->priority, 1731);
-    soundPolicy_t const *policy = G_SoundIndexPolicy(ent->sound.select[0]);
+    T_EQ(G_UnitSoundProfile(ent)->num_select, 4);
+    FOR_LOOP(i, G_UnitSoundProfile(ent)->num_select) T_ASSERT(G_UnitSoundProfile(ent)->select[i]);
+    FOR_LOOP(i, G_UnitSoundProfile(ent)->num_select)
+        T_EQ(G_SoundIndexPolicy(G_UnitSoundProfile(ent)->select[i])->priority, 1731);
+    soundPolicy_t const *policy = G_SoundIndexPolicy(G_UnitSoundProfile(ent)->select[0]);
     T_NOT_NULL(policy);
     if (policy) {
         T_EQ(policy->priority, 1731); T_EQ(policy->group, 1);
@@ -262,7 +884,7 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
         T_EQ(policy->flags, SOUND_NO_DUPLICATE_USERS | SOUND_CHANNEL_PREEMPT);
     }
     G_ResetSoundPresentationState();
-    T_NULL(G_SoundIndexPolicy(ent->sound.select[0]));
+    T_NULL(G_SoundIndexPolicy(G_UnitSoundProfile(ent)->select[0]));
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
@@ -285,9 +907,13 @@ TEST(wc3_unit, shared_sound_file_keeps_label_policy_and_volume_independent) {
 
 TEST(wc3_unit, selecting_owned_unit_queues_one_ack_sound) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    ent->sound.select[0] = 11;
-    ent->sound.select[1] = 12;
-    ent->sound.num_select = 2;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.select[0] = 11;
+        value.select[1] = 12;
+        value.num_select = 2;
+        G_SetUnitSoundProfile(ent, &value);
+    }
     G_QueueSelectionSound(ent, true);
     T_ASSERT(ent->sound.pending == 11 || ent->sound.pending == 12);
     T_EQ(ent->sound.pending != 0, 1);
@@ -407,7 +1033,11 @@ TEST(wc3_unit, unused_client_slot_cannot_retire_another_clients_playback) {
 
 TEST(wc3_unit, selection_reset_ignores_late_response_admission) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    ent->sound.select[0] = 731; ent->sound.num_select = 1;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.select[0] = 731; value.num_select = 1;
+        G_SetUnitSoundProfile(ent, &value);
+    }
     G_ResetSelectionSoundState();
     G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 731);
     uint32_t request = G_UnitResponseRequest(ent, 731);
@@ -464,8 +1094,12 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
-    ent->sound.select[0] = 11;
-    ent->sound.num_select = 1;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.select[0] = 11;
+        value.num_select = 1;
+        G_SetUnitSoundProfile(ent, &value);
+    }
     gi.SoundIndex = selection_sound_index_77; gi.SoundIndexAlias = selection_sound_index_77_alias;
     G_ResetSelectionSoundState();
 
@@ -505,11 +1139,15 @@ TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
-    ent->sound.attack = 0;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.attack = 0;
+        G_SetUnitSoundProfile(ent, &value);
+    }
     gi.SoundIndex = selection_sound_index_77; gi.SoundIndexAlias = selection_sound_index_77_alias;
     G_QueueAttackOrderSound(ent);
     T_EQ(ent->sound.pending, 77);
-    T_EQ(ent->sound.attack, 0);
+    T_EQ(G_UnitSoundProfile(ent)->attack, 0);
 
     gi.SoundIndex = old_sound_index; gi.SoundIndexAlias = old_sound_alias;
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
@@ -517,9 +1155,13 @@ TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
 
 TEST(wc3_unit, ready_sound_queues_owner_only_sound) {
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    ent->sound.ready[0] = 21;
-    ent->sound.ready[1] = 22;
-    ent->sound.num_ready = 2;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.ready[0] = 21;
+        value.ready[1] = 22;
+        value.num_ready = 2;
+        G_SetUnitSoundProfile(ent, &value);
+    }
 
     G_QueueReadySound(ent);
     T_ASSERT(ent->sound.owner_pending == 21 || ent->sound.owner_pending == 22);
@@ -666,7 +1308,11 @@ TEST(wc3_unit, paused_death_animation_advances_after_kill) {
 TEST(wc3_unit, die_emits_registered_death_sound) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    ent->sound.death = 23;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.death = 23;
+        G_SetUnitSoundProfile(ent, &value);
+    }
 
     unit_die(ent, NULL);
     T_EQ(ent->sound.world_pending, 23);
@@ -677,7 +1323,11 @@ TEST(wc3_unit, die_emits_registered_death_sound) {
 TEST(wc3_unit, die_is_one_shot_after_dead_monster_flag) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    ent->sound.death = 23;
+    {
+        unitSoundProfile_t value = *G_UnitSoundProfile(ent);
+        value.death = 23;
+        G_SetUnitSoundProfile(ent, &value);
+    }
 
     unit_die(ent, NULL);
     T_ASSERT(ent->svflags & SVF_DEADMONSTER);
@@ -749,7 +1399,7 @@ TEST(wc3_unit, corpse_decay_uses_map_flesh_then_bone_constants) {
     unit_begin_decay(ent);
 
     T_STREQ(ent->currentmove->animation, "decay flesh");
-    T_STREQ(ent->animation_request, "decay flesh");
+    T_STREQ(G_UnitAnimationRequest(ent), "decay flesh");
     T_NOT_NULL(ent->currentmove->animation_duration);
     T_FEQ(ent->currentmove->animation_duration(ent), 0.2f, 0.001f);
     T_FEQ(ent->wait, 0.2f, 0.001f);
@@ -757,7 +1407,7 @@ TEST(wc3_unit, corpse_decay_uses_map_flesh_then_bone_constants) {
     ent->currentmove->think(ent);
     T_ASSERT(ent->inuse);
     T_STREQ(ent->currentmove->animation, "decay bone");
-    T_STREQ(ent->animation_request, "decay bone");
+    T_STREQ(G_UnitAnimationRequest(ent), "decay bone");
     T_NOT_NULL(ent->currentmove->animation_duration);
     T_FEQ(ent->currentmove->animation_duration(ent), 0.3f, 0.001f);
     T_FEQ(ent->wait, 0.3f, 0.001f);
@@ -914,7 +1564,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
     game.constants.structureFollowRange = 100.0f;
 
     T_FEQ(G_AcquisitionRange(follower), 600.0f, 0.001f);
-    T_FEQ(G_FollowStopRange(follower, target), 300.0f, 0.001f);
+    T_FEQ(G_FollowStopRange(follower, target), 332.0f, 0.001f);
 
     target->s.flags |= EF_BUILDING;
     T_FEQ(G_FollowStopRange(follower, target), 100.0f, 0.001f);
@@ -1034,7 +1684,7 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     T_ASSERT(G_IsNight());
     ai_stand(creep);
     T_ASSERT(G_UnitIsSleeping(creep));
-    T_STREQ(creep->animation_request, "sleep");
+    T_STREQ(G_UnitAnimationRequest(creep), "sleep");
     ability_t const *ability = FindAbilityByClassname("ACsp");
     T_NOT_NULL(ability);
     T_ASSERT(ability && creep->currentmove->proc == ability->proc);
@@ -1044,7 +1694,7 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     T_ASSERT(!G_IsNight());
     monster_think(creep);
     T_ASSERT(!G_UnitIsSleeping(creep));
-    T_STREQ(creep->animation_request, "stand");
+    T_STREQ(G_UnitAnimationRequest(creep), "stand");
     G_BindEntityData(creep);
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
@@ -1179,21 +1829,26 @@ TEST(wc3_unit, smart_on_shared_vision_enemy_still_attacks) {
     T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityAttack);
 }
 
-TEST(wc3_unit, die_publishes_death_event) {
-    reset_test_entities();
+TEST(wc3_unit, die_dispatches_death_event_synchronously) {
+    reset_entities();
+    setup_test_world();
     edict_t *ent = make_unit(0, 0);
     memset(level.events.queue, 0, sizeof(level.events.queue));
     memset(level.events.handlers, 0, sizeof(level.events.handlers));
 
+    T_ASSERT(run_test_jass("globals\ninteger deaths=0\nendglobals\n"
+        "function died takes nothing returns nothing\n"
+        "call BJassAssert(IsUnitType(GetDyingUnit(),UNIT_TYPE_DEAD),\"death state committed before delivery\")\n"
+        "set deaths=deaths+1\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_DEATH,null)\n"
+        "call TriggerAddAction(t,function died)\nendfunction\n"
+        "function check takes nothing returns nothing\n"
+        "call BJassAssert(deaths==1,\"death delivered synchronously once\")\nendfunction\n"));
+    G_SetHealth(ent, 0);
     unit_die(ent, NULL);
-    bool found = false;
-    for (int i = 0; i < MAX_EVENT_QUEUE; i++) {
-        if (level.events.queue[i].type == EVENT_UNIT_DEATH) {
-            found = true;
-            break;
-        }
-    }
-    T_ASSERT(found);
+    jass_callbyname(level.vm, "check", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 static bool unit_datagram_tint(edict_t *client_ent, uint32_t entity_number, color32_t *out) {
@@ -1602,7 +2257,7 @@ TEST(wc3_unit, issueorder_unknown_returns_false) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
     vec2_t dest = {100.0f, 0.0f};
-    bool result = unit_issueorder(ent, "notarealorder", &dest);
+    bool result = unit_issueorder(ent, "missingorder", &dest);
     T_ASSERT(!result);
 }
 
@@ -1732,7 +2387,7 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
     T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth + 123.0f, 0.001f);
     T_FEQ(ent->mana.max_value, ent->data.UnitBalance->maxMana + 77.0f, 0.001f);
-    T_STREQ(ent->animation_props, "alternateex");
+    T_STREQ(G_UnitAnimationProperties(ent), "alternateex");
     T_ASSERT(!ent->vertex_color_set);
     T_EQ(ent->vertex_color.r, 255); T_EQ(ent->vertex_color.g, 255);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
@@ -1740,7 +2395,7 @@ TEST(wc3_unit, ravenform_immediate_orders_transform_between_ability_data_types) 
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
     T_FEQ(ent->health.max_value, ent->data.UnitBalance->maxHealth + 123.0f, 0.001f);
     T_FEQ(ent->mana.max_value, ent->data.UnitBalance->maxMana + 77.0f, 0.001f);
-    T_STREQ(ent->animation_props, "");
+    T_STREQ(G_UnitAnimationProperties(ent), "");
     T_ASSERT(ent->vertex_color_set);
     T_EQ(ent->vertex_color.r, 224); T_EQ(ent->vertex_color.g, 232);
     T_EQ(ent->vertex_color.b, 255); T_EQ(ent->vertex_color.a, 255);
@@ -1794,7 +2449,7 @@ static void restore_submerge_test_data(slkTestData_t *rows, slkTestData_t *old,
 
 TEST(wc3_unit, submerge_rejects_walkable_land_and_morphs_on_deep_water) {
     slkTestData_t *rows, *old, *ui_rows, *old_ui;
-    uint8_t land[1] = { CM_PATHING_UNSWIMMABLE };
+    uint8_t land[1] = { CM_PATHING_UNFLOATABLE };
     uint8_t water[1] = { CM_PATHING_UNWALKABLE };
     uint32_t const asb1 = MAKEFOURCC('A','s','b','1');
     edict_t *unit;
@@ -1880,10 +2535,36 @@ TEST(wc3_unit, stoneform_uses_authored_transform_endpoints_in_both_directions) {
     T_EQ(ent->class_id, MAKEFOURCC('h','f','o','o'));
     /* Stone Form must add its presentation tag even when the authored target
      * profile already contributes another alternate-family requirement. */
-    T_ASSERT(strstr(ent->animation_props, ",alternate") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(ent), ",alternate") != NULL);
     T_ASSERT(unit_issueimmediateorder(ent, "unstoneform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
-    T_STREQ(ent->animation_props, "");
+    T_STREQ(G_UnitAnimationProperties(ent), "");
+    restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
+}
+
+TEST(wc3_unit, stoneform_immediate_direction_rejection_preserves_move_and_queue) {
+    slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    uint32_t const astn = MAKEFOURCC('A','s','t','n');
+    vec2_t destination = {256, 64}, successor = {320, 64};
+    edict_t *unit;
+
+    reset_test_entities(); setup_test_world();
+    install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
+    unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
+    unit->svflags |= SVF_MONSTER;
+    T_ASSERT(G_ActorAddSkill(unit, astn));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &destination, false, 0, false));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &successor, true, 0, false));
+    T_ASSERT(!unit_issueimmediateorder(unit, "unstoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
+    T_EQ(unit->current_order_id, 851986);
+    T_EQ(G_UnitQueuedOrderCount(unit), 1);
+    T_ASSERT(unit_issueimmediateorder(unit, "stoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(!unit_issueimmediateorder(unit, "stoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(unit_issueimmediateorder(unit, "unstoneform"));
+    T_EQ(unit->class_id, MAKEFOURCC('h','p','e','a'));
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
 
@@ -1934,11 +2615,11 @@ TEST(wc3_unit, unravenform_accepts_preplaced_alternate_form) {
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
     G_ResetUnitAnimationProperties(ent);
-    T_STREQ(ent->animation_props, "alternateex");
+    T_STREQ(G_UnitAnimationProperties(ent), "alternateex");
 
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
-    T_STREQ(ent->animation_props, "");
+    T_STREQ(G_UnitAnimationProperties(ent), "");
 
     restore_raven_form_test_data(ability_rows, old_ability, ui_rows, old_ui, profile_rows, old_profile);
 }
@@ -1958,7 +2639,7 @@ TEST(wc3_unit, unravenform_snaps_new_animation_frame_while_unit_is_paused) {
 
     T_ASSERT(unit_issueimmediateorder(ent, "unravenform"));
     T_EQ(ent->class_id, MAKEFOURCC('h','p','e','a'));
-    T_STREQ(ent->animation_props, "");
+    T_STREQ(G_UnitAnimationProperties(ent), "");
     T_NOT_NULL(ent->animation);
     T_ASSERT(G_AnimationHasPrimary(ent->animation, "morph"));
     T_EQ(ent->s.frame, ent->animation->interval[0]);
@@ -2060,7 +2741,7 @@ TEST(wc3_unit, ability_updates_leave_ordinary_units_unchanged) {
     reset_test_entities(); setup_test_world();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     ent->unitinfo.FlyHeight = 37;
-    ent->currentmove = NULL;
+    M_SetMove(ent,NULL);
     monster_think(ent);
     T_FEQ(ent->unitinfo.FlyHeight, 37, 0.001f);
     T_NULL(ent->raven);
@@ -2199,4 +2880,99 @@ TEST(wc3_unit, different_units_have_independent_response_gates) {
     T_EQ(b->sound.pending, 12);
 }
 
+
+TEST(wc3_unit, sound_profiles_share_defaults_keep_pending_local_and_restore_logical_values) {
+    reset_entities(); setup_test_world();
+    edict_t *first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    uint32_t a = first->s.number, b = second->s.number;
+    unitSoundProfile_t value = {.select = {11,12}, .num_select = 2, .yes = {17}, .num_yes = 1,
+        .ready = {21}, .num_ready = 1, .chop = {25,26,27}, .num_chop = 3, .attack = 31, .death = 37};
+    G_SetUnitSoundProfile(first, &value); G_SetUnitSoundProfile(second, &value);
+    T_ASSERT(first->sound_profile == second->sound_profile);
+    unitSoundProfile_t const *shared = second->sound_profile;
+    unitSoundProfile_t padded = value;
+    for (size_t i = offsetof(unitSoundProfile_t, num_chop) + sizeof(padded.num_chop);
+         i < offsetof(unitSoundProfile_t, attack); i++) ((uint8_t *)&padded)[i] = 0xa5;
+    G_SetUnitSoundProfile(second, &padded);
+    T_ASSERT(second->sound_profile == shared);
+    first->sound.pending = 11; second->sound.owner_pending = 21;
+    first->sound.world_pending = 37; first->sound.world_pending_event = EV_DEATH;
+    value.select[0] = 43;
+    G_SetUnitSoundProfile(first, &value);
+    T_ASSERT(first->sound_profile != shared);
+    T_EQ(G_UnitSoundProfile(first)->select[0], 43);
+    T_EQ(G_UnitSoundProfile(second)->select[0], 11);
+    T_EQ(first->sound.pending, 11); T_EQ(second->sound.pending, 0);
+    G_ResetUnitResources();
+    T_ASSERT(second->sound_profile == shared);
+    T_EQ(G_UnitSoundProfile(first)->death, 37);
+    cstring_t file = Test_TempPath("wc3-sound-profile-save.bin");
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    first = g_edicts + a; second = g_edicts + b;
+    T_EQ(G_UnitSoundProfile(first)->select[0], 43);
+    T_EQ(G_UnitSoundProfile(second)->select[0], 11);
+    T_EQ(G_UnitSoundProfile(first)->num_chop, 3);
+    T_EQ(G_UnitSoundProfile(first)->chop[2], 27);
+    T_EQ(G_UnitSoundProfile(first)->attack, 31);
+    /* Selection acknowledgement requests are intentionally retired on load. */
+    T_EQ(first->sound.pending, 0); T_EQ(second->sound.owner_pending, 21);
+    T_EQ(first->sound.world_pending, 37); T_EQ(first->sound.world_pending_event, EV_DEATH);
+    unitSoundProfile_t invalid = *G_UnitSoundProfile(first);
+    invalid.num_yes = MAX_UNIT_SELECT_SOUNDS + 1;
+    G_SetUnitSoundProfile(first, &invalid);
+    T_ASSERT(!WriteGame(file));
+    G_SetUnitSoundProfile(first, &value);
+    FILE *stream = tmpfile();
+    T_NOT_NULL(stream);
+    if (stream) {
+        T_EQ(fwrite(&invalid, sizeof(invalid), 1, stream), 1);
+        rewind(stream);
+        T_ASSERT(!ReadUnitSoundProfile(stream, first));
+        T_EQ(G_UnitSoundProfile(first)->num_yes, 1);
+        fclose(stream);
+    }
+    remove(file); reset_entities(); setup_test_world();
+}
+TEST(wc3_unit, animation_text_serializes_logical_values_without_sharing_mutations) {
+    reset_entities(); setup_test_world();
+    edict_t *first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    uint32_t a = first->s.number, b = second->s.number;
+    char long_text[256]; memset(long_text, 'a', sizeof(long_text)); long_text[255] = 0;
+    G_StoreUnitAnimationRequest(first, long_text);
+    G_StoreUnitAnimationProperties(first, long_text);
+    G_StoreUnitAnimationRequest(second, long_text);
+    G_StoreUnitAnimationProperties(second, long_text);
+    T_EQ(strlen(G_UnitAnimationRequest(first)), WC3_ANIMATION_REQUEST_SIZE - 1);
+    T_EQ(strlen(G_UnitAnimationProperties(first)), WC3_ANIMATION_PROPERTIES_SIZE - 1);
+    T_ASSERT(first->animation_request == second->animation_request);
+    T_ASSERT(first->animation_props == second->animation_props);
+    cstring_t file = Test_TempPath("wc3-animation-text-save.bin");
+    T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+    first = g_edicts + a; second = g_edicts + b;
+    T_ASSERT(first->animation_request == second->animation_request);
+    T_ASSERT(first->animation_props == second->animation_props);
+    T_EQ(strlen(G_UnitAnimationRequest(first)), WC3_ANIMATION_REQUEST_SIZE - 1);
+    T_EQ(strlen(G_UnitAnimationProperties(first)), WC3_ANIMATION_PROPERTIES_SIZE - 1);
+    G_StoreUnitAnimationRequest(first, "stand");
+    G_StoreUnitAnimationProperties(first, "work");
+    T_EQ(strlen(G_UnitAnimationRequest(second)), WC3_ANIMATION_REQUEST_SIZE - 1);
+    T_EQ(strlen(G_UnitAnimationProperties(second)), WC3_ANIMATION_PROPERTIES_SIZE - 1);
+    FOR_LOOP(invalid, 2) {
+        FILE *stream = tmpfile(); T_NOT_NULL(stream);
+        if (!stream) continue;
+        char request[WC3_ANIMATION_REQUEST_SIZE], properties[WC3_ANIMATION_PROPERTIES_SIZE];
+        memset(request, invalid ? 0 : 'x', sizeof(request));
+        memset(properties, invalid ? 'x' : 0, sizeof(properties));
+        T_EQ(fwrite(request, sizeof(request), 1, stream), 1);
+        T_EQ(fwrite(properties, sizeof(properties), 1, stream), 1);
+        rewind(stream);
+        T_ASSERT(!ReadUnitAnimationText(stream, first));
+        T_STREQ(G_UnitAnimationRequest(first), "stand");
+        T_STREQ(G_UnitAnimationProperties(first), "work");
+        fclose(stream);
+    }
+    remove(file); reset_entities(); setup_test_world();
+}
 #endif /* BZ_TESTS */

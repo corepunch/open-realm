@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "departure_fixture": "retail-captain-departure-1.27.json",
+  "shared_fixture": "retail-captain-shared-1.27.json",
+  "complete_engine_journey": true,
+  "whole_retail_pathfinder": false,
+  "engine_commits": 5462,
+  "engine_end_msec": 31000,
+  "shared_footprints": 353,
+  "shared_generations": 2,
+  "logical_deadlines": [
+    [
+      2000,
+      1073741816,
+      4095,
+      8191,
+      12,
+      13
+    ],
+    [
+      3000,
+      1077936124,
+      3839,
+      8191,
+      11,
+      13
+    ],
+    [
+      4000,
+      1082130428,
+      4095,
+      4095,
+      12,
+      12
+    ],
+    [
+      8000,
+      1090519038,
+      4095,
+      8191,
+      12,
+      13
+    ],
+    [
+      9000,
+      1091567615,
+      8191,
+      8191,
+      13,
+      13
+    ],
+    [
+      10000,
+      1092616191,
+      4095,
+      8191,
+      12,
+      13
+    ],
+    [
+      12000,
+      1094713343,
+      4095,
+      4095,
+      12,
+      12
+    ],
+    [
+      15000,
+      1097859071,
+      4095,
+      8191,
+      12,
+      13
+    ],
+    [
+      16000,
+      1098907647,
+      8191,
+      8191,
+      13,
+      13
+    ]
+  ],
+  "scope": "Complete stationary, alive thirteen-member mixed-radius captain home journey, logical inner/outer range deadlines, both12+1 shared generations and saved engine continuation. Dynamic roster, moving captain and wider AI policy remain separate tasks.",
+  "cases": [
+    {
+      "trace_sha256": "c40afbb25f9bd2700dbef4d6ccabc71eb3c4ea8865becdd0388f0b3ca6429e76",
+      "bytes": 30900839,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+          "wc3_pathfinding.js": "568bbe6028178bfcdd9f94b5b887192886d39a8831006f8cba674009571e0314",
+          "wc3_pathfinding_probe.j": "da7f13d876fd8a7674dd8b6963050e7c46ed93d80a5344692589be0da6d2e4ed",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "captain_ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "map": "c84af647961f25512c09f4ecb74aa3d9a283ebf0aa554380162a832dd1c0a60d"
+        },
+        "map": "Maps\\PathingRE-CaptainThirteenMixedV1-261003.w3m",
+        "seconds": 110.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      }
+    },
+    {
+      "trace_sha256": "0d791ea9672749facab3562ee6e99cf35f8084eeccee3c2fd63917bb91b2209b",
+      "bytes": 30991771,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+          "wc3_pathfinding.js": "568bbe6028178bfcdd9f94b5b887192886d39a8831006f8cba674009571e0314",
+          "wc3_pathfinding_probe.j": "da7f13d876fd8a7674dd8b6963050e7c46ed93d80a5344692589be0da6d2e4ed",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "captain_ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "map": "c84af647961f25512c09f4ecb74aa3d9a283ebf0aa554380162a832dd1c0a60d"
+        },
+        "map": "Maps\\PathingRE-CaptainThirteenMixedV1-261003.w3m",
+        "seconds": 100.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      }
+    }
+  ],
+  "departure_sha256": "cc75efcbc0b7dfaabc723d478b35e8b3d63d36d7efcf56945b5b02d9f9d33b1b",
+  "shared_sha256": "997d959d14b2e659f12d8735582cfd905480617f97ecd2a5a5553be703624823"
+}

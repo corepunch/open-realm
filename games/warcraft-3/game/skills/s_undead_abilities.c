@@ -35,7 +35,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShellInstant) { anti_magic_shell_execute(ca
 int S_AntiMagicShellAbsorb(edict_t *target, int damage) {
     heroabilitystatus_t *slot = NULL;
     if (!target || damage <= 0) return damage;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(target))
         if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_AMS_SHIELD &&
             (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
             slot = target->abilstatus + i; break;
@@ -242,6 +242,8 @@ static void graveyard_ensure(edict_t *graveyard) {
 }
 
 BZ_ABILITY_PROC(CAbilityGraveyard) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, ID_GRAVEYARD_CORPSE) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
     if (msg == A_UPDATE) { graveyard_ensure(ent); return true; }
     return false;
 }
@@ -367,7 +369,7 @@ static bool cannibalize_command(edict_t *caster, edict_t *clent, abilityitem_t c
     thinker = G_Spawn();
     if (!thinker) return false;
     thinker->owner = caster;
-    thinker->goalentity = corpse;
+    S_SetMoveGoal(thinker, &thinker->goalentity, corpse);
     thinker->class_id = spell->code;
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
@@ -592,7 +594,7 @@ static bool possession_validate(edict_t *caster, spellTarget_t st, abilityitem_t
 
 static void possession_clear_status(edict_t *ent, uint32_t code) {
     if (!ent) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent))
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
             memset(ent->abilstatus + i, 0, sizeof(ent->abilstatus[i]));
 }
@@ -601,7 +603,7 @@ static void possession_clear_status(edict_t *ent, uint32_t code) {
 static void possession_refresh_stun(edict_t *ent) {
     if (!ent) return;
     ent->stunned = false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         uint32_t c = ent->abilstatus[i].code;
         if (!ent->abilstatus[i].level) continue;
         if (c == MAKEFOURCC('B', 's', 't', 'u') || c == MAKEFOURCC('B', 'U', 's', 'l') || c == BZ_BPOS)
@@ -679,7 +681,7 @@ static void possession_two_execute(edict_t *caster, spellTarget_t st, abilityite
 
 bool S_PossessionSpellImmune(edict_t const *unit) {
     if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BPOS &&
             (unit->abilstatus[i].data & BZ_POS_MAGIC_IMMUNE) &&
             (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
@@ -691,7 +693,7 @@ bool S_PossessionSpellImmune(edict_t const *unit) {
 int S_PossessionDamageTaken(edict_t *target, int damage) {
     uint32_t milli = 0;
     if (!target || damage <= 0) return damage;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(target))
         if (target->abilstatus[i].level && target->abilstatus[i].code == BZ_BPOC &&
             (!target->abilstatus[i].timestamp || target->abilstatus[i].timestamp > G_Time())) {
             milli = target->abilstatus[i].data; break;

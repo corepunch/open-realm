@@ -28,7 +28,7 @@ static bool soul_trap_valid_link(edict_t const *carrier, edict_t const *target) 
 static void soul_trap_remove_possession(edict_t *carrier) {
     if (!carrier || !carrier->soul_possession_added || carrier->soul_trap_head) return;
     carrier->soul_possession_added = false;
-    if (G_ActorHasSkill(carrier, "Asou"))
+    if (G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(carrier, ID_SOUL_POSSESSION);
 }
 
@@ -97,7 +97,7 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
             target->s.origin.y = position->y;
             target->s.origin.z = CM_GetHeightAtPoint(position->x, position->y);
         }
-        target->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(target,false);
         target->svflags &= ~SVF_NOCLIENT;
         target->s.flags &= ~EF_NOT_SELECTABLE;
         if (target->stand) target->stand(target);
@@ -105,7 +105,7 @@ static void soul_trap_release_target(edict_t *target, vec2_t const *position, bo
         if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         if (G_UnitIsStructure(target)) CM_BakeStaticObstacles();
     }
-    if (remove_asou && G_ActorHasSkill(target, "Asou"))
+    if (remove_asou && G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u')))
         G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
 }
 
@@ -129,7 +129,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     uint32_t const code = ID_SOUL_POSSESSION;
     if (!carrier || !carrier->inuse || M_IsDead(carrier) || !target || !target->inuse ||
         M_IsDead(target) || (target->aiflags & AI_SOUL_TRAPPED)) return false;
-    if (!G_ActorHasSkill(carrier, "Asou")) {
+    if (!G_ActorHasAbilityCode(carrier, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(carrier, code)) {
             fprintf(stderr, "Soul Trap: unable to add Asou possession state to carrier %.4s\n",
                     (cstring_t)&carrier->class_id);
@@ -137,7 +137,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
         }
         carrier->soul_possession_added = true;
     }
-    if (target != carrier && !G_ActorHasSkill(target, "Asou")) {
+    if (target != carrier && !G_ActorHasAbilityCode(target, MAKEFOURCC('A','s','o','u'))) {
         if (!G_ActorAddSkill(target, code)) {
             soul_trap_remove_possession(carrier);
             fprintf(stderr, "Soul Trap: unable to add Asou trapped state to target %.4s\n",
@@ -157,9 +157,11 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
     target->aiflags |= AI_SOUL_TRAPPED;
     S_SpellCancelChannel(target);
     G_ClearUnitOrderQueue(target);
-    target->goalentity = target->combatentity = target->secondarygoal = NULL;
+    S_SetMoveGoal(target, &target->secondarygoal, NULL);
+    target->combatentity = NULL;
+    S_SetMoveGoal(target, &target->goalentity, NULL);
     if (target->stand) target->stand(target);
-    target->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(target,true);
     target->svflags |= SVF_NOCLIENT;
     target->s.flags |= EF_NOT_SELECTABLE;
     if (target->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
@@ -171,7 +173,7 @@ static bool soul_trap_capture(edict_t *carrier, edict_t *target) {
         G_DeselectEntity(client, target);
         G_SyncClientSelection(client);
     }
-    target->selected = 0;
+    G_SetEntitySelectionMask(target, 0);
     G_InvalidateUnitShortcutsForUnit(target);
     return true;
 }
@@ -332,13 +334,14 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
 
     if (!S_SpellIsAliveTarget(target) || duration <= 0.0f || !buff || strlen(buff) != 4)
         return false;
+    if (!target->abilstatus) has_status_slot = true;
     if (!has_status_slot) {
-        FOR_LOOP(i, MAX_UNIT_STATUSES)
+        FOR_LOOP(i, G_UnitStatusSlotCount(target))
             if (!target->abilstatus[i].level) { has_status_slot = true; break; }
     }
     if (!has_status_slot) return false;
 
-    target->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(target, true);
     {
         heroabilitystatus_t *status = S_SpellApplyTimedStatus(target, buff, 1, duration);
         if (status) status->data = code;
@@ -348,7 +351,7 @@ static bool AbilityItemInvis_ItemUse(edict_t *clent) {
         fprintf(stderr, "WC3 invisibility item: authored status %.4s missing after use on unit %u\n",
                 buff,
                 target->s.number);
-        target->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(target,false);
     }
     return false;
 }
@@ -360,7 +363,7 @@ BZ_ABILITY_PROC(CAbilityItemInvis) {
     case A_STATUS_REMOVE:
         if (ent && call && call->status.slot &&
             !S_UnitHasTemporaryInvisibility(ent, call->status.slot))
-            ent->s.renderfx &= ~RF_HIDDEN;
+            G_SetEntityHidden(ent,false);
         return true;
     default:
         return CAbilitySimpleSpell(ent, msg, call);
@@ -471,6 +474,85 @@ static edict_t *item_use_caster(edict_t *ent, abilityCall_t const *call) {
     if (ent && ent->inuse && ent->targtype != TARG_ITEM) return ent;
     if (call && call->source_item && G_IsItem(call->source_item)) return call->source_item->item->carrier;
     return NULL;
+}
+
+/* 672dd0 traverses profiles in UnitUI registration order. Count/select avoids
+ * allocating the native temporary vector and consumes exactly one purpose33
+ * draw only when the candidate set is nonempty. */
+static bool mechanical_critter_candidate(UnitUI_t const *ui, char tileset) {
+    UnitData_t const *data = G_UnitData(ui->id);
+    UnitBalance_t const *balance = G_UnitBalance(ui->id);
+    cstring_t tilesets = balance->tilesets ? balance->tilesets : ui->tilesets;
+    return data->race && !strcmp(data->race,"critters") &&
+        !balance->goldCost && !balance->lumberCost &&
+        S_UnitMovementType(data) != UNIT_MOVE_FLY &&
+        (!tileset || (tilesets && (strchr(tilesets,'*') || strchr(tilesets,tileset))));
+}
+
+static uint32_t mechanical_critter_choose(void) {
+    char tileset = level.mapinfo->mainGroundType;
+    uint32_t count = 0, selected;
+    FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    if (!count && tileset) {
+        tileset = 0;
+        FOR_LOOP(i,g_UnitUICount) if (mechanical_critter_candidate(g_UnitUI+i,tileset)) count++;
+    }
+    if (!count) return 0;
+    selected = wc3_random_range(level.purpose_random+WC3_RANDOM_CRITTERS,count);
+    FOR_LOOP(i,g_UnitUICount) {
+        if (!mechanical_critter_candidate(g_UnitUI+i,tileset)) continue;
+        if (!selected--) return g_UnitUI[i].id;
+    }
+    return 0;
+}
+
+/* The owned status carries the latent flag through save/load. A learned Amec
+ * ability or an unrelated Bmec status cannot manufacture the category. Reads
+ * never allocate, and apply/remove deliberately do not refresh separation. */
+bool S_UnitMechanicalCritter(edict_t const *unit) {
+    if (unit) FOR_LOOP(i,G_UnitStatusSlotCount(unit)) {
+        heroabilitystatus_t const *status = unit->abilstatus+i;
+        if (status->level && status->code == MAKEFOURCC('B','m','e','c') &&
+            status->data && G_AbilityCode(status->data) == MAKEFOURCC('A','m','e','c')) return true;
+    }
+    return false;
+}
+
+BZ_ABILITY_PROC(CAbilityMechanicalCritter) {
+    edict_t *caster;
+    abilityLevel_t const *row;
+    uint32_t code, unit_id, count;
+    float sine, cosine;
+    vec2_t point;
+    if (msg == A_STATUS_REMOVE || msg == A_STATUS_REPLACE) {
+        if (call && call->status.slot) call->status.slot->data = 0;
+        return true;
+    }
+    if (msg == A_ITEM_ADD) {
+        (void)mechanical_critter_choose(); /* Native attachment/display preparation. */
+        return true;
+    }
+    if (msg != A_ITEM_USE) return CAbilityPassive(ent,msg,call);
+    if (!call || !call->item || !(caster = item_use_caster(ent,call))) return false;
+    code = call->item->code;
+    row = G_AbilityLevel(code,1);
+    if (!row || !(unit_id = mechanical_critter_choose())) return false;
+    count = wc3_int_bits(wc3_float_bits(S_SpellData(code,1,1)));
+    wc3_sincos(caster->s.angle,&sine,&cosine);
+    point.x = wc3_add(caster->s.origin2.x,wc3_mul(row->area,cosine));
+    point.y = wc3_add(caster->s.origin2.y,wc3_mul(row->area,sine));
+    FOR_LOOP(i,count) {
+        edict_t *summon = unit_create(caster->s.player,unit_id,&point,
+            wc3_div(caster->s.angle,wc3_float(0x3c8efa35)));
+        if (!summon) continue;
+        summon->owner = caster; summon->summon_ability = code;
+        G_SpawnAbilityEffectTarget(code,WC3_EFFECT_TARGET,0,summon,NULL,true);
+        unit_addtimedstatus(summon,"Bmec",1,S_SpellDuration(code,1,false));
+        heroabilitystatus_t *status = unit_findstatus(summon,MAKEFOURCC('B','m','e','c'));
+        if (status) status->data = code;
+        G_PublishSummonEvents(caster,summon);
+    }
+    return true;
 }
 
 /* Item Temporary Speed Bonus / Scroll of Haste / Rune Speed AOE.
@@ -687,8 +769,8 @@ BZ_ABILITY_PROC(CAbilityItemSpeedAoe) {
 }
 
 bool S_ItemSpeedActive(edict_t const *unit) {
-    if (!unit) return false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    if (!unit || !unit->abilstatus) return false;
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t const *status = unit->abilstatus + i;
         ability_t const *ability = status->level && status->data ? S_AbilityItem(status->data).ability : NULL;
         if (ability && (ability->proc == CAbilityItemSpeed || ability->proc == CAbilityItemSpeedAoe)) return true;

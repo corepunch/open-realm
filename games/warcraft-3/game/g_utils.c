@@ -1,33 +1,72 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_pathing_coordinates.h"
 
 typedef struct {
-    edict_t *ent;
-    uint32_t spawn_time;
+    wc3Clock_t deadline;
+    uint32_t spawn_time, sequence, heap_index; /* index plus one; zero means absent */
 } deferred_free_t;
 
 static deferred_free_t deferred_frees[MAX_ENTITIES];
+static uint32_t deferred_free_heap[MAX_ENTITIES];
 static uint32_t deferred_free_count;
+
+static bool DeferredFreeLess(uint32_t a,uint32_t b) {
+    deferred_free_t const *x=deferred_frees+a,*y=deferred_frees+b;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void DeferredFreePut(uint32_t index,uint32_t slot) {
+    deferred_free_heap[index]=slot;deferred_frees[slot].heap_index=index+1;
+}
+static void DeferredFreeDown(uint32_t index,uint32_t slot) {
+    while(index*2+1<deferred_free_count) {
+        uint32_t child=index*2+1;
+        if(child+1<deferred_free_count && DeferredFreeLess(deferred_free_heap[child+1],deferred_free_heap[child]))child++;
+        if(DeferredFreeLess(slot,deferred_free_heap[child]))break;
+        DeferredFreePut(index,deferred_free_heap[child]);index=child;
+    }
+    DeferredFreePut(index,slot);
+}
+
+/* Save/load inserts existing keys without retirement callbacks or new serials. */
+static void DeferredFreeInsert(uint32_t slot) {
+    uint32_t index=deferred_free_count++;
+    while(index && DeferredFreeLess(slot,deferred_free_heap[(index-1)/2])) {
+        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
+    }
+    DeferredFreePut(index,slot);
+}
 
 /* A trapped unit keeps its identity but is absent from normal world interaction. */
 bool G_UnitIsWorldActive(edict_t const *ent) {
     return ent && ent->inuse && !(ent->aiflags & AI_SOUL_TRAPPED);
 }
 
-/* Drop a queued removal when another lifecycle path frees the same edict first. */
-static void G_CancelDeferredFree(edict_t *ent) {
-    FOR_LOOP(i, deferred_free_count) {
-        if (deferred_frees[i].ent != ent) continue;
-        deferred_frees[i] = deferred_frees[--deferred_free_count];
-        i--;
-    }
+/* Hidden actors leave fine occupancy; showing them is a new publication.
+ * Queue this at the owner so same-tick queries never need a world scan. */
+void G_SetEntityHidden(edict_t *ent, bool hidden) {
+    if(hidden)ent->s.renderfx|=RF_HIDDEN;
+    else ent->s.renderfx&=~RF_HIDDEN;
+    G_MarkMoveSpatialObject(ent);
 }
 
-/* Identify hidden-but-live edicts whose JASS handles must already behave as null. */
+/* Drop a queued removal when another lifecycle path frees the same edict first. */
+static void DeferredFreeRemove(uint32_t slot) {
+    if(slot>=MAX_ENTITIES || !deferred_frees[slot].heap_index)return;
+    uint32_t index=deferred_frees[slot].heap_index-1,last=deferred_free_heap[--deferred_free_count];
+    deferred_frees[slot].heap_index=0;
+    if(index==deferred_free_count)return;
+    while(index && DeferredFreeLess(last,deferred_free_heap[(index-1)/2])) {
+        DeferredFreePut(index,deferred_free_heap[(index-1)/2]);index=(index-1)/2;
+    }
+    DeferredFreeDown(index,last);
+}
+
+static void G_CancelDeferredFree(edict_t *ent) { DeferredFreeRemove(ent->s.number); }
+
+/* Pending removal suspends execution; queries retain the live identity until release. */
 bool G_IsDeferredFree(edict_t const *ent) {
-    if (!ent) return false;
-    FOR_LOOP(i, deferred_free_count)
-        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return true;
-    return false;
+    return ent && ent->s.number<MAX_ENTITIES && deferred_frees[ent->s.number].heap_index &&
+        deferred_frees[ent->s.number].spawn_time==ent->spawn_time;
 }
 
 /* Remove an entity from every live JASS group before its handle becomes stale. */
@@ -59,9 +98,20 @@ void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
 
 void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
+    bool const had_static_pathing = G_EntityHasStaticPathing(ent);
+    bool const had_aura = S_UnitHasAuraSource(ent);
+    if (had_aura) S_MarkAuraSource(ent);
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
+    /* Native69c510 commits inactivity before availability and detach callbacks.
+     * No death event is produced by removal; the identity stays queryable. */
+    if(ent->class_id && !M_IsDead(ent)) {
+        ent->svflags|=SVF_DEADMONSTER;
+        G_SetHealth(ent,0);
+        S_UnitAbilityEvent(ent,A_UNIT_RETIRE);
+    }
     S_UnitAbilityEvent(ent, A_UNIT_REMOVE);
+    G_BotRemoveCaptainUnit(ent);
     /* Direct JASS RemoveUnit must release transient construction/upgrade state
      * before the edict is cleared. Forced removal does not grant a player
      * cancellation refund. */
@@ -97,52 +147,152 @@ void G_FreeEdict(edict_t *ent) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
     gi.UnlinkEntity(ent);
+    G_RemoveMoveSpatialObject(ent);
     G_PoolsReleaseEdict(ent);
+    S_MarkMoveGoals(ent);
+    G_SetEntitySelectionMask(ent, 0);
+    /* A removal callback can request this already-retired identity again. */
+    G_CancelDeferredFree(ent);
     memset(ent, 0, sizeof(*ent));
+    /* Removal callbacks can consume the earlier notification while still live. */
+    if (had_aura) S_MarkAuraSource(ent);
+    M_TrackMove(ent);
+    S_TrackMoveTimers(ent);
     ent->freetime = level.time;
+    G_MarkFreeEdict(ent);
+    if (had_static_pathing) CM_BakeStaticObstacles();
 }
 
-/* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
+/* Retail RemoveUnit retires commands now, then queues a primary-clock release. */
 void G_DeferFreeEdict(edict_t *ent) {
+    wc3Clock_t clock=G_TimerQueryClock(NULL);G_DeferFreeEdictAt(ent,&clock);
+}
+
+void G_DeferFreeEdictAt(edict_t *ent,wc3Clock_t const *clock) {
     if (!ent || !ent->inuse) return;
-    FOR_LOOP(i, deferred_free_count)
-        if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return;
+    if(G_IsDeferredFree(ent))return;
+    G_CancelDeferredFree(ent);
     if (deferred_free_count >= MAX_ENTITIES) {
         fprintf(stderr, "WC3: deferred unit removal queue exhausted\n");
         return;
     }
-    ent->s.renderfx |= RF_HIDDEN;
+    bool const had_static_pathing = G_EntityHasStaticPathing(ent);
+    G_SetEntityHidden(ent,true);
+    G_RemoveMoveSpatialObject(ent);
+    /* RemoveUnit becomes absent now; a route issued in the same JASS callback
+     * must already see the remaining footprints and terrain baseline. */
+    if (had_static_pathing) CM_BakeStaticObstacles();
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
     G_RemoveEntityFromJassGroups(ent);
-    deferred_frees[deferred_free_count++] = (deferred_free_t){ .ent = ent, .spawn_time = ent->spawn_time };
+    uint32_t const slot=ent->s.number;
+    deferred_frees[slot]=(deferred_free_t){.deadline=*clock,.spawn_time=ent->spawn_time,
+        .sequence=++level.timer_sequence};
+    deferred_frees[slot].deadline.time=wc3_add(clock->time,G_ClockMinimumDelay());
+    DeferredFreeInsert(slot);
+    /* Native694690 retires the order chain before returning from RemoveUnit;
+     * deferred storage release must not keep its commands or physical task. */
+    G_ClearUnitOrderQueue(ent);
+    ent->current_order_id = 0;
+    S_UnitAbilityEvent(ent, A_UNIT_REMOVING);
+    S_UnitTargetRemoved(ent);
+    /* Removal replaces the old task. Keeping its callback in the scheduled
+     * owner set would execute canceled movement before deferred storage free. */
+    M_SetMove(ent, NULL);
 }
 
-/* Complete queued JASS removals after entity iteration and before the next snapshot. */
-void G_RunDeferredFrees(void) {
-    while (deferred_free_count) {
-        deferred_free_t pending = deferred_frees[deferred_free_count - 1];
-        /* Actions run after the normal event pass and can kill/remove more units.
-         * Drain their death callbacks before freeing, then re-read the removal queue. */
-        if (level.vm && pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time &&
-            G_HasPendingDeathEvent(pending.ent)) {
-            G_RunEvents();
-            jass_runevents(level.vm);
-            continue;
-        }
-        deferred_free_count--;
-        if (pending.ent->inuse && pending.ent->spawn_time == pending.spawn_time) G_FreeEdict(pending.ent);
+bool G_NextUnitRelease(wc3Clock_t *deadline,uint32_t *sequence) {
+    if(!deferred_free_count)return false;
+    deferred_free_t const *next=deferred_frees+deferred_free_heap[0];
+    *deadline=next->deadline;*sequence=next->sequence;return true;
+}
+
+void G_FireUnitRelease(void) {
+    uint32_t const slot=deferred_free_heap[0];
+    deferred_free_t pending=deferred_frees[slot];edict_t *ent=g_edicts+slot;
+    /* Legacy queued death producers still deliver before their unit release.
+     * Dispatch can mutate the heap, so the caller samples its new head. */
+    if (level.vm && ent->inuse && ent->spawn_time == pending.spawn_time && G_HasPendingDeathEvent(ent)) {
+        G_RunEvents();jass_runevents(level.vm);return;
+    }
+    DeferredFreeRemove(slot);
+    if(ent->inuse && ent->spawn_time==pending.spawn_time)G_FreeEdict(ent);
+}
+
+void G_RebaseUnitReleases(float span) {
+    FOR_LOOP(i,deferred_free_count) {
+        deferred_free_t *pending=deferred_frees+deferred_free_heap[i];
+        pending->deadline.time=wc3_sub(pending->deadline.time,span);pending->deadline.epoch++;
     }
 }
 
-void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
+/* Post-entity work may have requested another release after the primary drain.
+ * Do not advance its clock or expose a future callback before the next quantum. */
+void G_RunDeferredFrees(void) {
+    wc3Clock_t now=G_TimerQueryClock(NULL),due;uint32_t serial;
+    wc3Clock_t saved=level.timer_clock,source=level.timer_source_clock;
+    bool const valid=level.timer_clock_valid;
+    level.timer_source_clock=level.pathing_clock;level.timer_clock_valid=true;
+    while(G_NextUnitRelease(&due,&serial) && (due.epoch==now.epoch ? due.time<=now.time :
+        (int32_t)(due.epoch-now.epoch)<0)) {
+        level.timer_clock=due;G_FireUnitRelease();
+    }
+    level.timer_clock=saved;level.timer_source_clock=source;level.timer_clock_valid=valid;
+}
+
+void G_ResetDeferredFrees(void) {
+    FOR_LOOP(i,deferred_free_count)deferred_frees[deferred_free_heap[i]].heap_index=0;
+    deferred_free_count=0;
+}
+
+/* Persist live wrapper requests only. The heap and membership are derived;
+ * loading never calls RemoveUnit again or shifts an absolute saved deadline. */
+static bool DeferredFreeState(FILE *file,bool write) {
+    uint32_t count=deferred_free_count;
+    if((write ? fwrite(&count,sizeof(count),1,file) : fread(&count,sizeof(count),1,file))!=1 ||
+        count>MAX_ENTITIES)return false;
+    FOR_LOOP(i,count) {
+        uint32_t fields[3]={0};wc3Clock_t clock={0};
+        if(write) {
+            fields[0]=deferred_free_heap[i];deferred_free_t const *request=deferred_frees+fields[0];
+            fields[1]=request->spawn_time;fields[2]=request->sequence;clock=request->deadline;
+        }
+        if((write ? fwrite(fields,sizeof(fields),1,file) : fread(fields,sizeof(fields),1,file))!=1 ||
+            (write ? fwrite(&clock,sizeof(clock),1,file) : fread(&clock,sizeof(clock),1,file))!=1)return false;
+        uint32_t slot=fields[0];
+        if(slot>=globals.num_edicts || !g_edicts[slot].inuse || g_edicts[slot].spawn_time!=fields[1] ||
+            !isfinite(clock.time) || !isfinite(clock.span) || clock.span<=0 ||
+            (!write && deferred_frees[slot].heap_index))return false;
+        if(!write) {
+            deferred_frees[slot]=(deferred_free_t){.deadline=clock,.spawn_time=fields[1],.sequence=fields[2]};
+            DeferredFreeInsert(slot);
+        }
+    }
+    return true;
+}
+bool G_WriteUnitReleases(FILE *file) {return DeferredFreeState(file,true);}
+bool G_ReadUnitReleases(FILE *file) {
+    G_ResetDeferredFrees();
+    if(DeferredFreeState(file,false))return true;
+    G_ResetDeferredFrees();return false;
+}
+
+#ifdef BZ_TESTS
+/* Isolated cleanup tests supply the release boundary, without claiming a clock
+ * producer. Scheduler tests call the real primary drain or globals.RunFrame. */
+void G_TestFinishDeferredFrees(void) { while(deferred_free_count)G_FireUnitRelease(); }
+#endif
 
 event_t *G_MakeEvent(EVENTTYPE type) {
-    FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse && !level.events.handlers[i].generation_exhausted) {
+    FOR_LOOP(i, MAX_EVENTS) if (G_EventSlotAvailable(level.events.handlers+i)) {
         event_t *evt = &level.events.handlers[i];
         uintptr_t generation = evt->handle_generation;
         memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
-        evt->inuse = true; evt->type = type; return evt;
+        evt->inuse = true; evt->type = type;
+        if(level.events.registration_sequence==UINT64_MAX)gi.error("WC3: event registration sequence exhausted");
+        evt->registration_sequence=++level.events.registration_sequence;
+        G_TrackEventSubscriber(evt);G_TrackMoveRegionEvent(evt);
+        return evt;
     }
     fprintf(stderr, "WC3: event slot limit %u reached\n", MAX_EVENTS);
     return NULL;
@@ -152,12 +302,14 @@ void G_SetEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = subject ? subject->spawn_time : 0;
     evt->subject_spawn_tracked = subject != NULL;
+    G_TrackEventSubscriber(evt);
 }
 
 void G_SetPlayerEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = 0;
     evt->subject_spawn_tracked = false;
+    G_TrackEventSubscriber(evt);
 }
 
 bool G_EventSubjectIsCurrent(event_t *evt) {
@@ -546,11 +698,21 @@ trigger_t *G_AllocJassTrigger(void) {
     memset(trigger, 0, sizeof(*trigger)); return trigger;
 }
 
+/* Original05fcf0 registers every endpoint cell;05fa10 queries floor of the
+ * same world-to-fine transform. A region is a union of cells, not rectangles
+ * tested against the continuously predicted world position. */
 bool G_RegionContains(region_t const *region, vec2_t const *point) {
-    FOR_LOOP(i, region->num_rects) {
-        if (Box2_containsPoint(region->rects+i, point)) {
-            return true;
-        }
+    box2_t const bounds=CM_GetWorldBounds();
+    if(point->x<bounds.min.x || point->y<bounds.min.y || point->x>=bounds.max.x || point->y>=bounds.max.y)return false;
+    int32_t const x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(point->x,bounds.min.x,32))));
+    int32_t const y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(point->y,bounds.min.y,32))));
+    FOR_LOOP(i,region->num_rects) {
+        box2_t const *r=region->rects+i;
+        int32_t min_x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->min.x,bounds.min.x,32))));
+        int32_t min_y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->min.y,bounds.min.y,32))));
+        int32_t max_x=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->max.x,bounds.min.x,32))));
+        int32_t max_y=(int32_t)wc3_int_bits(wc3_floor_bits(wc3_float_bits(wc3_grid_coordinate(r->max.y,bounds.min.y,32))));
+        if(x>=min_x && x<=max_x && y>=min_y && y<=max_y)return true;
     }
     return false;
 }
@@ -595,6 +757,9 @@ void G_InitPlayerAlliances(mapInfo_t const *mapinfo) {
      * so triggers can subsequently revoke/change the relation instead of
      * relying on owner-ID special cases in every consumer. */
     FOR_LOOP(player, MAX_PLAYERS) {
+        /* Retail help queries intersect both directional diplomacy masks,
+         * including their own-owner bit. Keep it mutable like other relations. */
+        level.alliances[player][player] |= (1u<<ALLIANCE_HELP_REQUEST)|(1u<<ALLIANCE_HELP_RESPONSE);
         level.alliances[player][PLAYER_NEUTRAL_PASSIVE] |= passive;
         level.alliances[PLAYER_NEUTRAL_PASSIVE][player] |= passive;
     }

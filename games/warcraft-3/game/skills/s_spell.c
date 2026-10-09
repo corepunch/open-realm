@@ -51,7 +51,8 @@ static intptr_t spell_message(edict_t *ent, abilityMsg_t msg, abilityitem_t cons
 }
 
 BZ_ABILITY_PROC(CAbilityNoop) {
-    (void)ent; (void)msg; (void)call;
+    (void)ent;
+    if (msg == A_UNIT_EVENT_MASK) return S_UnitMessageSubscriptions(call, NULL, 0);
     return false;
 }
 
@@ -65,6 +66,8 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
     (void)ent;
     if (!call || !call->item || !call->item->ability) return false;
     switch (msg) {
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_VALIDATE, A_MOVE_LEAVE);
     case A_COMMAND:
         if (!call->client) return false;
         spell_cmd(call->client);
@@ -327,10 +330,7 @@ bool S_SpellCanPay(edict_t *caster, uint32_t code, uint32_t level) {
 }
 
 bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
-    if (!caster || !target) {
-        return false;
-    }
-    return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
+    return S_UnitTargetInMoveRange(caster,target,range);
 }
 
 bool S_SpellIsAliveTarget(edict_t *target) {
@@ -534,7 +534,7 @@ void S_SpellReleaseCorpse(edict_t *corpse, uint32_t code) {
     if (!corpse) return;
     corpse->aiflags &= ~AI_CORPSE_RESERVED;
     if (!code) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(corpse)) {
         heroabilitystatus_t *status = corpse->abilstatus + i;
         if (status->level && status->code == code) {
             memset(status, 0, sizeof(*status));
@@ -587,6 +587,7 @@ void S_SpellCancelChannel(edict_t *caster) {
     if (!caster || !caster->channel || !caster->channel->code) return;
     code = caster->channel->code;
     caster->channel->code = 0;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
     /* Notify the channeled ability so it can strip owned buffs (Mana Flare Bmfl). */
     {
         abilityitem_t item = S_AbilityItem(code);
@@ -601,7 +602,7 @@ void S_SpellCancelChannel(edict_t *caster) {
 edict_t *S_SpellIdentityThinker(edict_t *owner, uint32_t code, edict_t *target) {
     edict_t *ent = G_Spawn();
     if (!ent) return NULL;
-    ent->owner = owner; ent->class_id = code; ent->goalentity = target;
+    ent->owner = owner; ent->class_id = code; S_SetMoveGoal(ent, &ent->goalentity, target);
     ent->channel = G_AllocChannel();
     assert(ent->channel);
     ent->channel->owner_spawn_time = owner ? owner->spawn_time : 0;
@@ -623,7 +624,7 @@ edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
  * ability still decides range checks, duration, tick policy and cleanup. */
 edict_t *S_SpellChannelTargetThinker(edict_t *caster, uint32_t code, edict_t *target) {
     edict_t *ent = S_SpellChannelThinker(caster, code);
-    ent->goalentity = target;
+    S_SetMoveGoal(ent, &ent->goalentity, target);
     ent->channel->target_spawn_time = target ? target->spawn_time : 0;
     return ent;
 }
@@ -739,6 +740,7 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
     caster->channel->serial++;
     caster->channel->code = code;
     caster->channel->origin = caster->s.origin2;
+    S_UnitAbilityEvent(caster, A_CHANNEL_STATE_CHANGED);
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
@@ -794,11 +796,21 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     bool stop_move = false;
 
     if (!caster || !caster->inuse) return;
+    edict_t *receiver=S_UnitTargetApproachReceiver(caster);
+    if(receiver) {
+        if(receiver!=except && receiver->owner==caster)S_CancelUnitTargetApproach(caster);
+        return;
+    }
+    /* Ordinary ground target casts are scheduler-owned. Only the unported
+     * point/air/structure approach can still have a polling thinker. */
+    if(!move_is_active_order_walk(caster) || !caster->goalentity ||
+       (caster->goalentity->think!=S_SpellTargetApproachThink &&
+        !(caster->aiflags&AI_FLYING) && !G_UnitIsStructure(caster->goalentity)))return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
         if (S_SpellChannelOwner(thinker) == caster && move_is_active_order_walk(caster) &&
             caster->goalentity == spell_approach_move_goal(thinker)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             stop_move = true;
         }
         G_FreeEdict(thinker);
@@ -856,12 +868,9 @@ static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t
     return source_item ? executed : true;
 }
 
-/* Ranged unit and point spells are accepted before the caster is in range.
- * Warsmash's CBehaviorTargetSpellBase owns that approach phase and only performs
- * the spell effect once canReach(target, castRange) becomes true. The selected
- * unit or point remains authoritative while this thinker watches the ordinary
- * Move order; replacing that order cancels the pending cast. */
-void S_SpellTargetApproachThink(edict_t *thinker) {
+/* Move owns ground target range/arrival. Point, air and structure approaches
+ * retain their legacy poll until their respective retail producers are ported. */
+static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
     edict_t *caster = S_SpellChannelOwner(thinker);
     edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
@@ -880,7 +889,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
          spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
         (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
         if (caster && caster->goalentity == thinker) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -888,7 +897,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     if (!point_target && S_SpellChannelTarget(thinker) != target) {
         if (caster->goalentity == target && move_is_active_order_walk(caster)) {
-            caster->goalentity = NULL;
+            S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
         }
         G_FreeEdict(thinker);
@@ -896,7 +905,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     }
     /* A replacement order is authoritative. If the same spell-owned Move is
      * still active but its target died/disappeared, terminate that approach too. */
-    if (caster->goalentity != target || !move_is_active_order_walk(caster)) {
+    if (caster->goalentity != target || (!arrived && !move_is_active_order_walk(caster))) {
         G_FreeEdict(thinker);
         return;
     }
@@ -910,14 +919,14 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
                                               .range = 0.0f);
         st = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = thinker->s.origin2);
         if (!spell_validate_point(&val) || !spell_message(caster, A_VALIDATE, &item, &st)) {
-            if (caster->goalentity == thinker) caster->goalentity = NULL;
+            if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
             unit_stand(caster);
             G_FreeEdict(thinker);
             return;
         }
         if (range > 0.0f && Vector2_distance(&caster->s.origin2, &thinker->s.origin2) > range)
             return;
-        if (caster->goalentity == thinker) caster->goalentity = NULL;
+        if (caster->goalentity == thinker) S_SetMoveGoal(caster, &caster->goalentity, NULL);
         unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &thinker->s.origin2,
                                    source_item, thinker->spell_item_spawn_time, thinker);
@@ -931,12 +940,12 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         G_FreeEdict(thinker);
         return;
     }
-    if (!S_SpellTargetInRange(caster, target, range))
+    if (!arrived && !S_SpellTargetInRange(caster, target, range))
         return;
 
     /* Mana/cooldown can change while walking. Do not spend or fire the ability
      * unless it is still legal at the actual cast point. */
-    if (!spell_validate(NULL, caster, code, level, target, range)) {
+    if (!spell_validate(NULL, caster, code, level, target, arrived ? 0 : range)) {
         unit_stand(caster);
         G_FreeEdict(thinker);
         return;
@@ -946,9 +955,28 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
-    unit_stand(caster);
+    unit_stand_no_queue(caster);
     spell_execute_unit_target(&params, thinker);
     G_FreeEdict(thinker);
+}
+
+void S_SpellTargetApproachThink(edict_t *thinker) {
+    spell_finish_target_approach(thinker,false);
+}
+
+void S_SpellTargetApproachComplete(edict_t *receiver, edict_t *caster, bool arrived) {
+    if(S_SpellChannelOwner(receiver)!=caster) {G_FreeEdict(receiver);return;}
+    if(!arrived) {
+        /* Terminal cant-path has already detached Move. Cancellation while
+         * replacing an order still owns its old group and must not dispatch a
+         * queued successor here. Never execute an unreachable cast. */
+        bool terminal=!caster->movement.group_id && caster->goalentity==receiver->goalentity &&
+            move_is_active_order_walk(caster);
+        G_FreeEdict(receiver);
+        if(terminal)unit_stand(caster);
+        return;
+    }
+    spell_finish_target_approach(receiver,true);
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
@@ -966,7 +994,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     goal = point ? thinker : target;
     if (point) thinker->s.origin2 = *point;
     thinker->owner = caster;
-    thinker->goalentity = goal;
+    S_SetMoveGoal(thinker, &thinker->goalentity, goal);
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
     thinker->channel->owner_spawn_time = caster->spawn_time;
@@ -979,6 +1007,11 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     /* Replace the old pending cast before installing a new Move order. A unit
      * target pointer alone cannot distinguish two casts aimed at that same unit. */
     spell_cancel_target_approaches(caster, thinker);
+    if(target && S_BeginUnitTargetApproach(caster,target,S_SpellRange(code,S_SpellLevel(caster,code)),
+                                         thinker,S_SpellTargetApproachComplete)) {
+        thinker->think=NULL;
+        return true;
+    }
     order_move(caster, goal);
     if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
         G_FreeEdict(thinker);
@@ -1250,7 +1283,7 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     missile->s.model = art ? G_RegisterModel(art) : 0;
     missile->s.player = caster->s.player;
     G_InheritUnitTeamColor(missile, caster);
-    missile->goalentity = target;
+    S_SetMoveGoal(missile, &missile->goalentity, target);
     if (!missile->channel) missile->channel = G_AllocChannel();
     assert(missile->channel);
     missile->channel->owner_spawn_time = caster->spawn_time;
@@ -1258,7 +1291,9 @@ edict_t *S_SpawnUnitTargetSpellMissile(edict_t *caster, uint32_t code, edict_t *
     missile->owner = caster;
     missile->velocity = MAX(0.0f, speed) / 1000.0f;
     missile->movetype = MOVETYPE_FLYMISSILE;
-    missile->currentmove = move;
+    /* Homing spell missiles use the Move projectile producer, not a ground route. */
+    S_InitMoveProjectile(missile);
+    M_SetMove(missile, move);
     G_StartProjectilePresentation(missile);
     return missile;
 }
@@ -1405,7 +1440,7 @@ void S_SpellDamageEnemiesInRadius(edict_t *caster, vec2_t const *center, float r
  * keep their own wrapper so animation and expiry policy remain ability-owned. */
 void S_ToggleUnitAbilityStatus(edict_t *unit, uint32_t code, uint32_t level) {
     if (!unit || !code) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         heroabilitystatus_t *status = unit->abilstatus + i;
         if (status->level && status->code == code) {
             memset(status, 0, sizeof(*status));

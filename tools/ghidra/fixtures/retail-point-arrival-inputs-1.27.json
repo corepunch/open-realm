@@ -1,0 +1,170 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+    "wc3_pathfinding.js": "245bfd1a8e9516e50d9f477d0009a5ec440c8221cd76f6dd685e28d54c14547e",
+    "wc3_pathfinding_probe.j": "bdec3692c5c16c074c5870a7a65f0a87c369a0da86841fdad27b9b1511656283",
+    "make_wc3_pathfinding_map.py": "a6ec530c34ec02f5b92bed8cf0baf62b6444a52c175740685cb1fbf1a601821d",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+    "map": "2e899f44e99ecd699e4ffb6e60eab011e90f1b982c459f6f95b4312e61cc763c"
+  },
+  "rawcode": 1751543663,
+  "range": 1056629064,
+  "sample": [
+    {
+      "event": "arrival-evaluation",
+      "ms": 1790798910115,
+      "source": [
+        1126400000,
+        1115881472
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "heading": 1070141402,
+      "threshold": 1056629064,
+      "footprint": 1064828928,
+      "storedRange": 1056629064,
+      "storedPosition": [
+        1126400000,
+        1115881472
+      ],
+      "mover": "0x12d50098",
+      "flags": 0,
+      "result": 0,
+      "inRange": 0,
+      "angle": 0
+    },
+    {
+      "event": "velocity-commit",
+      "ms": 1790798910119,
+      "mover": "0x12d50098",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1065353200,
+        0,
+        1126400000,
+        1115881472,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1065520980,
+        0,
+        1133903872
+      ],
+      "fineObject": "0x116a49b0",
+      "fineFlagsBefore": 0,
+      "after": [
+        1065520980,
+        0,
+        1126400000,
+        1115881472,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "arrival-evaluation",
+      "ms": 1790798913866,
+      "source": [
+        1126400000,
+        1119235831
+      ],
+      "destination": [
+        1126400000,
+        1119289344
+      ],
+      "heading": 1070141402,
+      "threshold": 1056629064,
+      "footprint": 1064828928,
+      "storedRange": 1056629064,
+      "storedPosition": [
+        1126400000,
+        1119217401
+      ],
+      "mover": "0x12d50098",
+      "flags": 0,
+      "result": 1,
+      "inRange": 1,
+      "angle": 0
+    },
+    {
+      "event": "velocity-commit",
+      "ms": 1790798913866,
+      "mover": "0x12d50098",
+      "speed": 0,
+      "heading": 1070141402,
+      "before": [
+        1087267974,
+        0,
+        1126400000,
+        1119217401,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1087330884,
+        0,
+        1133903872
+      ],
+      "fineObject": "0x116a49b0",
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1087330884,
+        0,
+        1126400000,
+        1119235831,
+        0,
+        0,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        0,
+        2147483648
+      ],
+      "fineFlagsAfter": 0
+    }
+  ],
+  "publication": {
+    "event": "arrival-range",
+    "ms": 1790798910112,
+    "mover": "0x12d50098",
+    "value": 1056629064,
+    "before": 1061997773,
+    "callerRva": 375648,
+    "after": 1056629064
+  },
+  "input": {
+    "event": "arrival-input",
+    "ms": 1790798910111,
+    "kind": "point",
+    "bridge": "0x8dd0178",
+    "rawcode": 1751543663,
+    "identity": [
+      1109,
+      1109
+    ],
+    "worldRange": 0,
+    "callerRva": 6290868
+  }
+}

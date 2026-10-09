@@ -1,3 +1,4 @@
+#include "../g_entity_set.h"
 #include "s_skills.h"
 
 #define ID_STASIS_BUFF "Bsta"
@@ -76,7 +77,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	}
 	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->s.renderfx |= RF_HIDDEN;
+	ward->summon_ability = spell->code;
+	G_SetEntityHidden(ward, true);
 	thinker = S_SpellIdentityThinker(ward, spell->code, NULL);
 	if (!thinker) { G_FreeEdict(ward); return; }
 	thinker->wait = (float)level;
@@ -109,10 +111,74 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 	}
 }
 
+/* The owner pointer and thinker callback remain authoritative. Cache their
+ * reverse lookup, rebuilding once after map/save replacement rather than
+ * scanning every edict for every ordinary unit/effect removal. */
+static edict_t *land_mine_thinkers[MAX_ENTITIES];
+static entitySet_t land_mine_members;
+static bool land_mine_multiple[MAX_ENTITIES];
+static bool land_mine_index_valid;
+#ifdef BZ_TESTS
+static uint32_t land_mine_lookup_visits;
+#endif
+
+void S_ResetLandMineThinkers(void) {
+    memset(land_mine_thinkers, 0, sizeof(land_mine_thinkers));
+    land_mine_members = (entitySet_t){0};
+    memset(land_mine_multiple, 0, sizeof(land_mine_multiple));
+    land_mine_index_valid = false;
+}
+
+static uint32_t land_mine_owner_index(edict_t const *mine) {
+    uintptr_t offset = (uintptr_t)mine - (uintptr_t)g_edicts;
+    return offset < sizeof(*mine) * MAX_ENTITIES && offset % sizeof(*mine) == 0
+        ? (uint32_t)(offset / sizeof(*mine)) : MAX_ENTITIES;
+}
+
+static void land_mine_index_thinker(edict_t *thinker) {
+    uint32_t index = land_mine_owner_index(thinker->owner);
+    if (index == MAX_ENTITIES) return;
+    entity_set_put(&land_mine_members, (uint32_t)(thinker - g_edicts), true);
+    edict_t *previous = land_mine_thinkers[index];
+    if (previous && previous != thinker && previous->inuse && previous->owner == thinker->owner &&
+        previous->think == land_mine_think) land_mine_multiple[index] = true;
+    /* The old ascending scan returns the lowest matching thinker. Preserve
+     * that choice if a restored world contains more than one for an owner. */
+    if (!previous || !previous->inuse || previous->owner != thinker->owner ||
+        previous->think != land_mine_think || thinker->s.number < previous->s.number)
+        land_mine_thinkers[index] = thinker;
+}
+
 static edict_t *land_mine_thinker(edict_t const *mine) {
-	if (!mine) return NULL;
-	FILTER_EDICTS(th, th->inuse && th->owner == mine && th->think == land_mine_think) return th;
-	return NULL;
+    uint32_t index = land_mine_owner_index(mine);
+    if (index == MAX_ENTITIES) return NULL;
+    if (!land_mine_index_valid) {
+        FOR_LOOP(i, globals.num_edicts) {
+#ifdef BZ_TESTS
+            land_mine_lookup_visits++;
+#endif
+            edict_t *thinker = g_edicts + i;
+            if (thinker->inuse && thinker->owner && thinker->think == land_mine_think)
+                land_mine_index_thinker(thinker);
+        }
+        land_mine_index_valid = true;
+    }
+    edict_t *thinker = land_mine_thinkers[index];
+    if (thinker && thinker->inuse && thinker->owner == mine && thinker->think == land_mine_think) return thinker;
+    if (land_mine_multiple[index]) {
+        /* A retired first thinker must expose the next original match. Only
+         * thinker candidates participate, and their live ownership is checked. */
+        for (uint32_t i = entity_set_next(&land_mine_members, 0); i < globals.num_edicts;
+             i = entity_set_next(&land_mine_members, i + 1)) {
+            thinker = g_edicts + i;
+#ifdef BZ_TESTS
+            land_mine_lookup_visits++;
+#endif
+            if (thinker->inuse && thinker->owner == mine && thinker->think == land_mine_think)
+                return land_mine_thinkers[index] = thinker;
+        }
+    }
+    return NULL;
 }
 
 static void land_mine_remove_thinker(edict_t const *mine) {
@@ -162,7 +228,7 @@ void land_mine_think(edict_t *thinker) {
 	code = thinker->class_id;
 	level = MAX(1u, (uint32_t)thinker->wait);
 	if (thinker->damage && G_Time() >= thinker->resources) {
-		mine->s.renderfx |= RF_HIDDEN;
+		G_SetEntityHidden(mine,true);
 		thinker->damage = 0;
 	}
 	if (G_Time() < thinker->freetime) return;
@@ -205,8 +271,8 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	if (!thinker) { fprintf(stderr, "WC3 land mine: failed to allocate thinker for unit %u\n", mine->s.number); return false; }
 	/* Apply gameplay/presentation state only after the thinker owns the lifecycle. */
 	mine->collision = 0.0f;
-	mine->s.renderfx &= ~RF_HIDDEN;
-	if (invis == 0.0f) mine->s.renderfx |= RF_HIDDEN;
+	G_SetEntityHidden(mine,false);
+	if (invis == 0.0f) G_SetEntityHidden(mine,true);
 	thinker->owner = mine;
 	if (!thinker->channel) thinker->channel = G_AllocChannel();
 	assert(thinker->channel);
@@ -222,24 +288,29 @@ static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 		thinker->resources = G_Time() + (uint32_t)(invis * 1000.0f);
 	}
 	thinker->think = land_mine_think;
+    land_mine_index_thinker(thinker);
 	return true;
 }
 
 BZ_ABILITY_PROC(CAbilityLandMine) {
 	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_AMIN;
-	bool owns_mine_ability = ent && code && G_UnitAbilityLevel(ent, code);
 
 	switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call) return UNIT_INIT_UNKNOWN;
+        return G_UnitHasAuthoredAbility(call->unit_type, code) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_FALSE;
+	case A_UNIT_EVENT_MASK:
+		return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT, A_ENABLE, A_LEVEL_CHANGED, A_DEATH, A_DISABLE, A_UNIT_REMOVE);
 	case A_UNIT_INIT:
 	case A_ENABLE:
 	case A_LEVEL_CHANGED:
 		return land_mine_initialize(ent, code);
 	case A_DEATH:
-		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		/* Death/explosion presentation must no longer be hidden by the trap's
 		 * live-unit invisibility state. */
-		ent->s.renderfx &= ~RF_HIDDEN;
+		G_SetEntityHidden(ent,false);
 		return true;
 	case A_DISABLE:
 		/* G_ActorRemoveSkill removes the rawcode before dispatching A_DISABLE,
@@ -252,10 +323,10 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 				G_FreeEdict(thinker);
 			}
 		}
-		ent->s.renderfx &= ~RF_HIDDEN;
+		G_SetEntityHidden(ent,false);
 		return true;
 	case A_UNIT_REMOVE:
-		if (!owns_mine_ability && !land_mine_thinker(ent)) return false;
+		if (!(ent && code && G_UnitAbilityLevel(ent, code)) && !land_mine_thinker(ent)) return false;
 		land_mine_remove_thinker(ent);
 		return true;
 	default:
@@ -301,8 +372,7 @@ bool S_GhostActive(edict_t const *unit) {
 }
 
 bool S_PermanentInvisibilityActive(edict_t const *unit) {
-	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE) &&
-		G_Time() >= unit->permanent_invisibility_reveal_until;
+	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE);
 }
 
 bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status) {
@@ -317,7 +387,7 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status) {
 
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except) {
 	if (!unit) return false;
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus + i != except &&
 		    S_UnitStatusIsTemporaryInvisibility(unit->abilstatus + i)) return true;
 	return false;
@@ -328,56 +398,149 @@ bool S_UnitHasInvisibilityState(edict_t const *unit) {
 	       S_ShadowMeldActive(unit) || S_UnitUsesInvisibilityRenderFlag(unit);
 }
 
-void S_PermanentInvisibilityInitialize(edict_t *unit) {
-    float transition;
-    if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
-        if (unit) {
-            unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-            unit->permanent_invisibility_reveal_until = 0;
-        }
-        return;
-	}
-	transition = permanent_invisibility_transition(unit);
-	/* Negative transition is the authored opt-out: this unit never enters invisibility. */
-	if (transition < 0.0f) {
-		unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-		unit->permanent_invisibility_reveal_until = 0;
-		return;
-	}
-	unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    unit->permanent_invisibility_reveal_until =
-        G_Time() + (uint32_t)(MAX(0.0f, transition) * 1000.0f);
+/* Derived membership contains only pending fades. Ordinary lookup is O(1),
+ * admission/cancellation O(log N); unrelated units never enter a timer scan. */
+static edict_t *invisibility_heap[MAX_ENTITIES];
+static uint32_t invisibility_positions[MAX_ENTITIES], invisibility_count;
+
+static uint32_t invisibility_index(edict_t const *unit) {
+    uintptr_t offset=(uintptr_t)unit-(uintptr_t)g_edicts;
+    return g_edicts && offset%sizeof(*unit)==0 && offset/sizeof(*unit)<MAX_ENTITIES ?
+        offset/sizeof(*unit) : MAX_ENTITIES;
 }
 
-/* Own Permanent Invisibility's spawn, add, remove, and level-change lifecycle. */
+static bool invisibility_less(edict_t const *a, edict_t const *b) {
+    abilityPrimaryTimer_t const *x=&a->permanent_invisibility_fade.request;
+    abilityPrimaryTimer_t const *y=&b->permanent_invisibility_fade.request;
+    return x->deadline.time==y->deadline.time ? x->sequence<y->sequence : x->deadline.time<y->deadline.time;
+}
+static void invisibility_put(uint32_t position, edict_t *unit) {
+    invisibility_heap[position]=unit;invisibility_positions[unit-g_edicts]=position+1;
+}
+static void invisibility_remove(edict_t *unit) {
+    unit->permanent_invisibility_fade.request.active=false;
+    uint32_t index=invisibility_index(unit);
+    if(index==MAX_ENTITIES)return;
+    uint32_t position=invisibility_positions[index];
+    if(!position)return;
+    invisibility_positions[index]=0;position--;
+    edict_t *last=invisibility_heap[--invisibility_count];
+    if(position==invisibility_count)return;
+    while(position && invisibility_less(last,invisibility_heap[(position-1)/2])) {
+        invisibility_put(position,invisibility_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    while(position*2+1<invisibility_count) {
+        uint32_t child=position*2+1;
+        if(child+1<invisibility_count && invisibility_less(invisibility_heap[child+1],invisibility_heap[child]))child++;
+        if(!invisibility_less(invisibility_heap[child],last))break;
+        invisibility_put(position,invisibility_heap[child]);position=child;
+    }
+    invisibility_put(position,last);
+}
+static void invisibility_insert(edict_t *unit) {
+    if(invisibility_index(unit)==MAX_ENTITIES)gi.error("Invisibility: invalid timer owner");
+    uint32_t position=invisibility_count++;
+    while(position && invisibility_less(unit,invisibility_heap[(position-1)/2])) {
+        invisibility_put(position,invisibility_heap[(position-1)/2]);position=(position-1)/2;
+    }
+    invisibility_put(position,unit);
+}
+/* 6696e0 sets the near-zero scalar before installing reciprocal fade slope.
+ * 003d00 initializes listener tolerance from the original decimal "0.005";
+ * 001cb0 initializes its maximum request delay to4. */
+static float invisibility_value(edict_t const *unit, wc3Clock_t const *clock) {
+    float elapsed=wc3_elapsed(clock,&unit->permanent_invisibility_fade.origin);
+    return MAX(0,MIN(1,wc3_add(wc3_float(0x3a83126f),
+        wc3_mul(unit->permanent_invisibility_fade.slope,elapsed))));
+}
+static void invisibility_schedule(edict_t *unit, wc3Clock_t const *clock) {
+    /* 161c30 does not create requests below the scalar slope deadzone. */
+    if(unit->permanent_invisibility_fade.slope<wc3_float(0x3556bf95))return;
+    float delay=wc3_div(wc3_sub(1,invisibility_value(unit,clock)),unit->permanent_invisibility_fade.slope);
+    abilityPrimaryTimer_t *request=&unit->permanent_invisibility_fade.request;
+    request->deadline=*clock;
+    request->deadline.time=wc3_add(clock->time,MAX(wc3_float(0x38d1b717),MIN(4,delay)));
+    request->sequence=++level.timer_sequence;request->active=true;
+    invisibility_insert(unit);
+}
+static void invisibility_clear(edict_t *unit) {
+    invisibility_remove(unit);
+    memset(&unit->permanent_invisibility_fade,0,sizeof(unit->permanent_invisibility_fade));
+    unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
+}
+static void invisibility_begin(edict_t *unit, float transition) {
+    bool invisible=S_UnitHasInvisibilityState(unit);
+    invisibility_remove(unit);
+    if(transition==0)unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;
+    else unit->runtime.flags&=~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    unit->permanent_invisibility_fade.origin=G_TimerQueryClock(level.vm ? jass_getcontext(level.vm) : NULL);
+    unit->permanent_invisibility_fade.slope=transition ? wc3_recip(transition) : 0;
+    if(transition>0)invisibility_schedule(unit,&unit->permanent_invisibility_fade.origin);
+    else if(!invisible)S_UnitTargetLost(unit); /* Publish before synchronous subscribers. */
+}
+void S_PermanentInvisibilityInitialize(edict_t *unit) {
+    if(!unit)return;
+    float transition=permanent_invisibility_transition(unit);
+    if(transition<0) {invisibility_clear(unit);return;}
+    invisibility_begin(unit,transition);
+}
+
+/* Own Permanent Invisibility's publication and exact scalar listener queue. */
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
-    switch (msg) {
-    case A_UNIT_INIT:
-    case A_ENABLE:
-    case A_LEVEL_CHANGED:
-        S_PermanentInvisibilityInitialize(ent); return true;
-    case A_DISABLE:
-    case A_UNIT_REMOVE:
-        if (ent) {
-            ent->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-            ent->permanent_invisibility_reveal_until = 0;
+    switch(msg) {
+    case A_UNIT_TYPE_INIT:
+        if(ent || !call)return UNIT_INIT_UNKNOWN;
+        return G_UnitHasAuthoredAbility(call->unit_type,ID_APIV) ? UNIT_INIT_RUN : UNIT_INIT_SKIP_TRUE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UNIT_INIT,A_ENABLE,A_LEVEL_CHANGED,A_DISABLE,A_UNIT_REMOVING,A_UNIT_REMOVE);
+    case A_UNIT_INIT:case A_ENABLE:case A_LEVEL_CHANGED:
+        S_PermanentInvisibilityInitialize(ent);return true;
+    case A_DISABLE:case A_UNIT_REMOVING:case A_UNIT_REMOVE:
+        if(ent)invisibility_clear(ent);
+        return true;
+    case A_TIMERS_RESET:
+        if(ent)return false;
+        invisibility_count=0;memset(invisibility_positions,0,sizeof(invisibility_positions));return true;
+    case A_TIMERS_REBUILD:
+        if(ent)return false;
+        invisibility_count=0;memset(invisibility_positions,0,sizeof(invisibility_positions));
+        FOR_LOOP(i,globals.num_edicts) {
+            edict_t *unit=g_edicts+i;
+            if(unit->inuse && unit->permanent_invisibility_fade.request.active)invisibility_insert(unit);
         }
         return true;
-    default: return CAbilityPassive(ent, msg, call);
+    case A_PRIMARY_TIMER_NEXT:
+        if(ent || !call || !call->primary_timer || !invisibility_count)return false;
+        call->primary_timer->deadline=invisibility_heap[0]->permanent_invisibility_fade.request.deadline;
+        call->primary_timer->sequence=invisibility_heap[0]->permanent_invisibility_fade.request.sequence;
+        return true;
+    case A_PRIMARY_TIMER_FIRE: {
+        if(ent || !invisibility_count)return false;
+        edict_t *unit=invisibility_heap[0];
+        wc3Clock_t clock=unit->permanent_invisibility_fade.request.deadline;
+        invisibility_remove(unit);
+        float value=invisibility_value(unit,&clock);
+        /* 162250 accepts strict proximity, not equality or integer duration. */
+        if(fabsf(wc3_sub(value,1))<wc3_float(0x3ba3d70a)) {
+            unit->runtime.flags|=UNIT_BALANCE_PERMANENT_INVISIBLE;S_UnitTargetLost(unit);
+        } else invisibility_schedule(unit,&clock);
+        return true;
+    }
+    case A_PRIMARY_TIMER_REBASE:
+        if(ent || !call)return false;
+        FOR_LOOP(i,invisibility_count) {
+            abilityPrimaryTimer_t *request=&invisibility_heap[i]->permanent_invisibility_fade.request;
+            request->deadline.time=wc3_sub(request->deadline.time,call->clock_span);request->deadline.epoch++;
+        }
+        return true;
+    default:return CAbilityPassive(ent,msg,call);
     }
 }
-
 void S_PermanentInvisibilityReveal(edict_t *unit) {
-	float transition;
-	if (!unit || !(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE)) return;
-	transition = permanent_invisibility_transition(unit);
-	if (transition < 0.0f) {
-		unit->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
-		unit->permanent_invisibility_reveal_until = 0;
-		return;
-	}
-	unit->permanent_invisibility_reveal_until =
-		G_Time() + (uint32_t)(MAX(0.0f, transition) * 1000.0f);
+    if(!unit || (!(unit->runtime.flags&UNIT_BALANCE_PERMANENT_INVISIBLE) && !unit->permanent_invisibility_fade.request.active))return;
+    float transition=permanent_invisibility_transition(unit);
+    if(transition<0) {invisibility_clear(unit);return;}
+    invisibility_begin(unit,transition);
 }
 
 /* RF_HIDDEN is also used for cargo, mines, training and revival.  This narrow
@@ -463,7 +626,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 	}
 	ward = S_SummonAbilityAt(caster, spell->code, unit_id, &st.point, life);
 	if (!ward) return;
-	ward->s.renderfx |= RF_HIDDEN;
+	ward->summon_ability = spell->code;
+	G_SetEntityHidden(ward,true);
 	ward->wait = S_SpellRange(ID_ADT1, 1);
 	if (ward->wait <= 0.0f)
 		fprintf(stderr, "WC3 Sentry Ward: Adt1 Rng missing for detect on %.4s\n", (cstring_t)&spell->code);

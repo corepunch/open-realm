@@ -1,0 +1,47 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "contracts": [
+    {
+      "scene": 3,
+      "begin_c": 3290,
+      "loss_c": 3357,
+      "published": [
+        5190,
+        16777728
+      ],
+      "validation": 221,
+      "event": 852388,
+      "after_head": 0
+    },
+    {
+      "scene": 4,
+      "begin_c": 3957,
+      "loss_c": 4023,
+      "published": [
+        536876102,
+        16777728
+      ],
+      "validation": 0,
+      "event": 852388,
+      "after_head": 851971
+    },
+    {
+      "scene": 5,
+      "begin_c": 4624,
+      "loss_c": 4690,
+      "published": [
+        5190,
+        16777728
+      ],
+      "validation": 0,
+      "event": 852388,
+      "after_head": 851971
+    }
+  ],
+  "exclusions": [
+    "No new live launch is claimed: complete delivered Frida repeats/control archives are verified through Payoff166 provenance.",
+    "Public stock Apiv isolated fade policies only; numeric fade chains have a separate controlled original-code oracle.",
+    "Overlapping invisibility contributions, Ghost/buff/Shadow Meld publishers, broader detection and visibility producers remain TARGET-03 scope.",
+    "No full scene trajectory or 100 percent retail pathfinding completion is claimed by this engine chunk."
+  ]
+}

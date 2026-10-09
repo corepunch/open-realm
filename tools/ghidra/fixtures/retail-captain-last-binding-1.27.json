@@ -1,0 +1,437 @@
+{
+  "version": 1,
+  "complete_scene_journeys": true,
+  "whole_retail_pathfinder": false,
+  "remove_retarget_reuse_remain_open": true,
+  "owner_counter": 1024,
+  "primary_sha256": "c74157bbda9aef31e4c3318fa5978575f25be617420529584a2f7f63e19055ae",
+  "scope": "Complete stationary alive mixed13 all13 public Stop at9.2s, deferred final binding retirement and zero-reference collection; repeated StartCampaignAI at17s reloads sources without replaying main. Save88 preserves initialization gate and empty shared physical groups. RemoveUnit/retarget/reuse and private AI VM restoration remain open.",
+  "engine_commits": 3549,
+  "state": {
+    "motion_sha256": "edb5a80b99490403cc03fb044f9d8e3292ced2906017785fe5091798136c0a54",
+    "producer_sha256": "ef61ed7441cbfbf55dee881895894b5fecfc3749c3efb7afc8447069b56aa088",
+    "admission_sha256": "9979f65d98908fd5ecf4f5a4332930769d889b2dede75ac138e4fa11725c0d83",
+    "ranges_sha256": "ab99f031e3b52d62b54acd8a039b2098fb93ea451b73ddfdbb5c1d8a476b62fd",
+    "lifecycle_sha256": "1bf4283fb6889dc78e698b038a86463795cce45c17498c92b491d05af16af976",
+    "shared_sha256": "637caabf3bf32a37d57008ae44d87d3067d556ee357415868fc1f1b9a7dcf18a",
+    "shared_identities": [
+      [
+        1471,
+        1941
+      ]
+    ],
+    "footprint_transitions": [
+      [
+        1325,
+        0,
+        1073479680,
+        1073479680
+      ]
+    ],
+    "shared_footprints": 12,
+    "shared_reference_counts": [
+      2
+    ]
+  },
+  "cancellation": {
+    "publication": [
+      [
+        1325,
+        [
+          1091598534,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          2139095039,
+          2139095039,
+          0
+        ],
+        [
+          2,
+          2139095039,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1326,
+        [
+          1091629986,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          2139095039,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1327,
+        [
+          1091661438,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          1083572224,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1328,
+        [
+          1091692890,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          1083572224,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1329,
+        [
+          1091724342,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          1083572224,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1330,
+        [
+          1091755794,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          1083572224,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1331,
+        [
+          1091787246,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          2,
+          1083572224,
+          1083572224,
+          1073479680
+        ],
+        [
+          2,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          1471,
+          1941
+        ]
+      ],
+      [
+        1332,
+        [
+          1091818698,
+          0,
+          1133903872,
+          4096
+        ],
+        [
+          0,
+          1083572224,
+          2139095039,
+          0
+        ],
+        [
+          0,
+          2139095039,
+          2139095039,
+          0
+        ],
+        [
+          -1,
+          -1
+        ]
+      ]
+    ],
+    "markers": [
+      "PATHCAPTAIN home begin",
+      "PATHCAPTAIN home before recruit",
+      "PATHCAPTAIN home accepted",
+      "PATHCAPTAIN thirteen mixed roster thirteen",
+      "PATHCAPTAIN thirteen all before stop",
+      "PATHCAPTAIN thirteen all after stop",
+      "PATHCAPTAIN thirteen all before restart",
+      "PATHCAPTAIN thirteen all after restart"
+    ],
+    "natives": [
+      [
+        "captain-native-begin",
+        "start-wrapper"
+      ],
+      [
+        "captain-native-begin",
+        "load"
+      ],
+      [
+        "captain-native-begin",
+        "compile"
+      ],
+      [
+        "captain-native-begin",
+        "create"
+      ],
+      [
+        "captain-native-end",
+        "create"
+      ],
+      [
+        "captain-native-begin",
+        "init"
+      ],
+      [
+        "captain-native-end",
+        "init"
+      ],
+      [
+        "captain-native-begin",
+        "add"
+      ],
+      [
+        "captain-native-end",
+        "add"
+      ],
+      [
+        "captain-native-begin",
+        "add"
+      ],
+      [
+        "captain-native-end",
+        "add"
+      ],
+      [
+        "captain-native-end",
+        "compile"
+      ],
+      [
+        "captain-native-end",
+        "load"
+      ],
+      [
+        "captain-native-end",
+        "start-wrapper"
+      ],
+      [
+        "captain-native-begin",
+        "start-wrapper"
+      ],
+      [
+        "captain-native-begin",
+        "load"
+      ],
+      [
+        "captain-native-begin",
+        "compile"
+      ],
+      [
+        "captain-native-end",
+        "compile"
+      ],
+      [
+        "captain-native-end",
+        "load"
+      ],
+      [
+        "captain-native-end",
+        "start-wrapper"
+      ]
+    ]
+  },
+  "cases": [
+    {
+      "trace_sha256": "68d7cdb49b4b37517afaeaeabae1b3e8c95114529bebaa3cb65794a49c16ba9c",
+      "bytes": 23069306,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "6660e1c564e6471a1b0890ca6195863232a8acb12ce559f379f4267de7733ca2"
+        },
+        "map": "Maps\\PathingRE-CZ13V1-261003.w3m",
+        "seconds": 140.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      }
+    },
+    {
+      "trace_sha256": "573a3f205b81a9adfe6868ddcb32e9abc8de75947d6328986ab4adfeb095c11c",
+      "bytes": 23055054,
+      "metadata": {
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "wc3_captain_probe.ai": "58d9b0dbae15da87936c59be91ee7722d9ab19ae5b7e060686ac7aca76fdc0c3",
+          "trace_wc3_pathfinding.py": "58807f1ef70ccf6ece9471889f0c6ea5474439a0e2719e317a6c38585aa2da45",
+          "wc3_pathfinding.js": "8174b701a79d3c6f12a6ef82ec2d60e13930dec148acf4280561fc2ba0637e3c",
+          "wc3_pathfinding_probe.j": "98c1256a10bc02d8fd378848b70f56a21d8f011049318edc4dcda14a51286442",
+          "make_wc3_pathfinding_map.py": "1e967aad51e0d68c38c54ab216f81f05dcb0428aaf9a2d552504c44f1b6f8af5",
+          "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+          "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+          "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+          "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+          "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+          "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+          "map": "6660e1c564e6471a1b0890ca6195863232a8acb12ce559f379f4267de7733ca2"
+        },
+        "map": "Maps\\PathingRE-CZ13V1-261003.w3m",
+        "seconds": 130.0,
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "samples": 10000,
+        "watchCell": null,
+        "blockers": false,
+        "taskEvents": true,
+        "widgetEvents": false,
+        "motionEvents": true,
+        "velocityEvents": true,
+        "yieldEvents": true,
+        "clockEvents": true,
+        "headingEvents": false,
+        "captainApproachEvents": true,
+        "captainMembershipEvents": true,
+        "profileEvents": true,
+        "numericEvents": false,
+        "randomEvents": false,
+        "literalTexts": [],
+        "integerTexts": [],
+        "byteEvents": false
+      }
+    }
+  ],
+  "event_counts": {
+    "marker": 304,
+    "clock-owner-end": 1000,
+    "captain-native-begin": 10,
+    "captain-native-end": 10,
+    "captain-shared-publish": 9,
+    "arrival-evaluation": 3551,
+    "yield-decision": 2718,
+    "motion-decision": 3306,
+    "route-step": 3551,
+    "velocity-commit": 3551
+  },
+  "engine_header_sha256": "29a19e15f95e4b06613e311e1dbf1e18909729f65dc95e6869dfa69685836140"
+}

@@ -1,63 +1,129 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 #include <stdio.h>
 #include <string.h>
 
-#define DEFINE_POOL(member, Name, type, POOL_CAP) \
+#define DEFINE_POOL_OWNER_CALLBACKS(member, owner, Name, type, POOL_CAP, allocated, released) \
+_Static_assert(POOL_CAP > 1 && POOL_CAP <= UINT16_MAX + 1u, "WC3 pool index capacity"); \
 static struct { type data; uint16_t next; bool live; } member##_slots[POOL_CAP]; \
 static uint16_t member##_free; \
-static bool member##_ready; \
+static uint32_t member##_virgin = 1; \
 static uint16_t member##_live, member##_peak; \
 type *G_Alloc##Name(void) { \
-    if (!member##_ready) { \
-        member##_free = 1; \
-        for (uint16_t i = 1; i < POOL_CAP - 1; i++) member##_slots[i].next = i + 1; \
-        member##_ready = true; \
-    } \
     uint16_t i = member##_free; \
+    if (i) member##_free = member##_slots[i].next; \
+    else if (member##_virgin < POOL_CAP) i = (uint16_t)member##_virgin++; \
     if (!i) { \
         fprintf(stderr, "WC3 pool %s exhausted\n", #member); \
         gi.error("WC3 pool %s exhausted", #member); \
         abort(); \
     } \
-    member##_free = member##_slots[i].next; \
     memset(&member##_slots[i], 0, sizeof(member##_slots[i])); \
     member##_slots[i].live = true; \
     if (++member##_live > member##_peak) member##_peak = member##_live; \
+    allocated; \
     return &member##_slots[i].data; \
 } \
 void G_Free##Name(edict_t *ent) { \
     assert(ent); \
-    if (!ent->member) return; \
-    uint16_t i = (uint16_t)(((unsigned char *)ent->member - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
+    if (!owner) return; \
+    uint16_t i = (uint16_t)(((unsigned char *)owner - (unsigned char *)member##_slots) / sizeof(member##_slots[0])); \
     assert(i > 0 && i < POOL_CAP && member##_slots[i].live); \
     member##_slots[i].live = false; \
     member##_live--; \
     member##_slots[i].next = member##_free; \
     member##_free = i; \
-    ent->member = NULL; \
+    owner = NULL; \
+    released; \
+} \
+static void G_Reset##Name##Pool(void) { \
+    for (uint32_t i = 1; i < member##_virgin; i++) member##_slots[i].live = false; \
+    member##_virgin = 1; member##_free = member##_live = member##_peak = 0; \
 }
+
+#define DEFINE_POOL_CALLBACKS(member, Name, type, POOL_CAP, allocated, released) \
+    DEFINE_POOL_OWNER_CALLBACKS(member, ent->member, Name, type, POOL_CAP, allocated, released)
+
+#define DEFINE_POOL(member, Name, type, POOL_CAP) \
+    DEFINE_POOL_CALLBACKS(member, Name, type, POOL_CAP, (void)0, (void)0)
+
+/* Virgin records enter in ascending order; recycled records remain LIFO.
+ * First use is constant time, and reset invalidates only the allocated prefix.
+ * Payload bytes are cleared on allocation before callbacks can observe them. */
 
 DEFINE_POOL(construction, Construction, construction_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(research, Research, research_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(rally, Rally, rally_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(food, Food, food_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(rally, Rally, rally_t, LIFECYCLE_POOL_CAP,
+    S_InvalidateRallyProducers(), S_ForgetRallyProducer(ent))
+/* Every mobile unit owns food state, even when training limits are disabled. */
+DEFINE_POOL(food, Food, food_t, MAX_ENTITIES)
+DEFINE_POOL_OWNER_CALLBACKS(attack_one, ent->attack_overrides[0], AttackOne, unitAttack_t, MAX_ENTITIES,
+    (void)0, (void)0)
+DEFINE_POOL_OWNER_CALLBACKS(attack_two, ent->attack_overrides[1], AttackTwo, unitAttack_t, MAX_ENTITIES,
+    (void)0, (void)0)
+/* Plain units carry no status storage. Records retain their original slot
+ * identities until edict release, including synchronous inverse callbacks. */
+DEFINE_POOL(abilstatus, UnitStatus, unitStatusStorage_t, MAX_ENTITIES)
+DEFINE_POOL_OWNER_CALLBACKS(orders, ent->order_queue.entries, UnitOrdersInline, unitOrderStorage_t, MAX_ENTITIES,
+    (void)0, ent->order_queue.head = ent->order_queue.count = 0)
+/* Large FIFOs grow geometrically. Most units never allocate a queue, and
+ * ordinary short queues use the original LIFO pool. No maximum-sized bucket
+ * is charged to every unit merely because the retail admission bound is501. */
+unitOrderStorage_t *G_AllocUnitOrders(void) { return G_AllocUnitOrdersInline(); }
+
+void G_FreeUnitOrders(edict_t *ent) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(queue->entries) {
+        if(queue->capacity>UNIT_ORDER_INITIAL_CAPACITY) free(queue->entries);
+        else G_FreeUnitOrdersInline(ent);
+    }
+    *queue=(unitOrderQueue_t){0};
+}
+
+bool G_ReserveUnitOrders(edict_t *ent,uint32_t required) {
+    unitOrderQueue_t *queue=&ent->order_queue;
+    if(required>UNIT_ORDER_STORAGE_CAPACITY)return false;
+    if(queue->entries && !queue->capacity)queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;
+    if(queue->entries && required<=queue->capacity)return true;
+    if(!queue->entries && required<=UNIT_ORDER_INITIAL_CAPACITY) {
+        queue->entries=G_AllocUnitOrders()->entries;
+        queue->capacity=UNIT_ORDER_INITIAL_CAPACITY;return true;
+    }
+    uint32_t capacity=queue->capacity ? queue->capacity : UNIT_ORDER_INITIAL_CAPACITY;
+    while(capacity<required)capacity=MIN(capacity*2,UNIT_ORDER_STORAGE_CAPACITY);
+    unitOrder_t *entries=calloc(capacity,sizeof(*entries));
+    if(!entries) {gi.error("Unit order queue: cannot allocate %u entries",capacity);abort();}
+    if(queue->count) {
+        uint32_t first=MIN(queue->count,queue->capacity-queue->head);
+        memcpy(entries,queue->entries+queue->head,first*sizeof(*entries));
+        memcpy(entries+first,queue->entries,(queue->count-first)*sizeof(*entries));
+    }
+    uint32_t count=queue->count;
+    G_FreeUnitOrders(ent);
+    *queue=(unitOrderQueue_t){.entries=entries,.count=count,.capacity=capacity};
+    return true;
+}
+
 DEFINE_POOL(buildwork, Buildwork, buildwork_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(revival, Revival, revival_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(sacrifice, Sacrifice, sacrifice_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(unsummon, Unsummon, unsummon_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, LIFECYCLE_POOL_CAP)
+/* Hide-capable units retain this state even while walking in daylight. */
+DEFINE_POOL(shadowmeld, ShadowMeld, shadowMeld_t, MAX_ENTITIES)
 DEFINE_POOL(militia, Militia, militia_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(polymorph, Polymorph, polymorph_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(raven, Raven, raven_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(blight_growth, BlightGrowth, blightGrowth_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(ensnare, Ensnare, ensnare_t, LIFECYCLE_POOL_CAP)
-DEFINE_POOL(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(ancient_root, AncientRoot, ancientRoot_t, LIFECYCLE_POOL_CAP,
+    (void)0, S_MarkMoveGoals(ent))
 DEFINE_POOL(goldmine, GoldMine, goldMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(mineoverlay, MineOverlay, mineOverlay_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(acolyte_mine, AcolyteMine, acolyteMine_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(item, Item, item_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(destructable, Destructable, destructable_t, DESTRUCTABLE_POOL_CAP)
-DEFINE_POOL(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP)
+DEFINE_POOL_CALLBACKS(cargo, Cargo, cargo_t, LIFECYCLE_POOL_CAP,
+    S_InvalidateCargoHolders(), S_CargoForgetHolder(ent))
 DEFINE_POOL(stock, Stock, stock_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(waygate, Waygate, waygate_t, LIFECYCLE_POOL_CAP)
 DEFINE_POOL(artillery, Artillery, artillery_t, LIFECYCLE_POOL_CAP)
@@ -71,6 +137,10 @@ void G_PoolsReportPeaks(void) {
     REPORT_POOL(research);
     REPORT_POOL(rally);
     REPORT_POOL(food);
+    REPORT_POOL(attack_one);
+    REPORT_POOL(attack_two);
+    REPORT_POOL(abilstatus);
+    REPORT_POOL(orders);
     REPORT_POOL(buildwork);
     REPORT_POOL(revival);
     REPORT_POOL(sacrifice);
@@ -98,12 +168,20 @@ void G_PoolsReportPeaks(void) {
 }
 
 void G_PoolsReset(void) {
+    S_ClearTimedLives();
+    G_ResetWaypointCache();
+    S_InvalidateCargoHolders();
+    S_InvalidateRallyProducers();
+    S_ResetLandMineThinkers();
     if (g_edicts) {
         FOR_LOOP(i, globals.max_edicts) {
             g_edicts[i].construction = NULL;
             g_edicts[i].research = NULL;
             g_edicts[i].rally = NULL;
             g_edicts[i].food = NULL;
+            memset(g_edicts[i].attack_overrides, 0, sizeof(g_edicts[i].attack_overrides));
+            g_edicts[i].abilstatus = NULL;
+            G_FreeUnitOrders(g_edicts+i);
             g_edicts[i].buildwork = NULL;
             g_edicts[i].revival = NULL;
             g_edicts[i].sacrifice = NULL;
@@ -129,41 +207,50 @@ void G_PoolsReset(void) {
             g_edicts[i].channel = NULL;
         }
     }
-    construction_ready = false; construction_live = construction_peak = 0; memset(construction_slots, 0, sizeof(construction_slots)); construction_free = 0;
-    research_ready = false; research_live = research_peak = 0; memset(research_slots, 0, sizeof(research_slots)); research_free = 0;
-    rally_ready = false; rally_live = rally_peak = 0; memset(rally_slots, 0, sizeof(rally_slots)); rally_free = 0;
-    food_ready = false; food_live = food_peak = 0; memset(food_slots, 0, sizeof(food_slots)); food_free = 0;
-    buildwork_ready = false; buildwork_live = buildwork_peak = 0; memset(buildwork_slots, 0, sizeof(buildwork_slots)); buildwork_free = 0;
-    revival_ready = false; revival_live = revival_peak = 0; memset(revival_slots, 0, sizeof(revival_slots)); revival_free = 0;
-    sacrifice_ready = false; sacrifice_live = sacrifice_peak = 0; memset(sacrifice_slots, 0, sizeof(sacrifice_slots)); sacrifice_free = 0;
-    unsummon_ready = false; unsummon_live = unsummon_peak = 0; memset(unsummon_slots, 0, sizeof(unsummon_slots)); unsummon_free = 0;
-    shadowmeld_ready = false; shadowmeld_live = shadowmeld_peak = 0; memset(shadowmeld_slots, 0, sizeof(shadowmeld_slots)); shadowmeld_free = 0;
-    militia_ready = false; militia_live = militia_peak = 0; memset(militia_slots, 0, sizeof(militia_slots)); militia_free = 0;
-    polymorph_ready = false; polymorph_live = polymorph_peak = 0; memset(polymorph_slots, 0, sizeof(polymorph_slots)); polymorph_free = 0;
-    raven_ready = false; raven_live = raven_peak = 0; memset(raven_slots, 0, sizeof(raven_slots)); raven_free = 0;
-    blight_growth_ready = false; blight_growth_live = blight_growth_peak = 0; memset(blight_growth_slots, 0, sizeof(blight_growth_slots)); blight_growth_free = 0;
-    ensnare_ready = false; ensnare_live = ensnare_peak = 0; memset(ensnare_slots, 0, sizeof(ensnare_slots)); ensnare_free = 0;
-    ancient_root_ready = false; ancient_root_live = ancient_root_peak = 0; memset(ancient_root_slots, 0, sizeof(ancient_root_slots)); ancient_root_free = 0;
-    goldmine_ready = false; goldmine_live = goldmine_peak = 0; memset(goldmine_slots, 0, sizeof(goldmine_slots)); goldmine_free = 0;
-    mineoverlay_ready = false; mineoverlay_live = mineoverlay_peak = 0; memset(mineoverlay_slots, 0, sizeof(mineoverlay_slots)); mineoverlay_free = 0;
-    acolyte_mine_ready = false; acolyte_mine_live = acolyte_mine_peak = 0; memset(acolyte_mine_slots, 0, sizeof(acolyte_mine_slots)); acolyte_mine_free = 0;
-    item_ready = false; item_live = item_peak = 0; memset(item_slots, 0, sizeof(item_slots)); item_free = 0;
-    destructable_ready = false; destructable_live = destructable_peak = 0; memset(destructable_slots, 0, sizeof(destructable_slots)); destructable_free = 0;
-    cargo_ready = false; cargo_live = cargo_peak = 0; memset(cargo_slots, 0, sizeof(cargo_slots)); cargo_free = 0;
-    stock_ready = false; stock_live = stock_peak = 0; memset(stock_slots, 0, sizeof(stock_slots)); stock_free = 0;
-    waygate_ready = false; waygate_live = waygate_peak = 0; memset(waygate_slots, 0, sizeof(waygate_slots)); waygate_free = 0;
-    artillery_ready = false; artillery_live = artillery_peak = 0; memset(artillery_slots, 0, sizeof(artillery_slots)); artillery_free = 0;
-    avatar_ready = false; avatar_live = avatar_peak = 0; memset(avatar_slots, 0, sizeof(avatar_slots)); avatar_free = 0;
-    sleep_ready = false; sleep_live = sleep_peak = 0; memset(sleep_slots, 0, sizeof(sleep_slots)); sleep_free = 0;
-    channel_ready = false; channel_live = channel_peak = 0; memset(channel_slots, 0, sizeof(channel_slots)); channel_free = 0;
+    G_ResetConstructionPool();
+    G_ResetResearchPool();
+    G_ResetRallyPool();
+    G_ResetFoodPool();
+    G_ResetAttackOnePool();
+    G_ResetAttackTwoPool();
+    G_ResetUnitStatusPool();
+    G_ResetUnitOrdersInlinePool();
+    G_ResetBuildworkPool();
+    G_ResetRevivalPool();
+    G_ResetSacrificePool();
+    G_ResetUnsummonPool();
+    G_ResetShadowMeldPool();
+    G_ResetMilitiaPool();
+    G_ResetPolymorphPool();
+    G_ResetRavenPool();
+    G_ResetBlightGrowthPool();
+    G_ResetEnsnarePool();
+    G_ResetAncientRootPool();
+    G_ResetGoldMinePool();
+    G_ResetMineOverlayPool();
+    G_ResetAcolyteMinePool();
+    G_ResetItemPool();
+    G_ResetDestructablePool();
+    G_ResetCargoPool();
+    G_ResetStockPool();
+    G_ResetWaygatePool();
+    G_ResetArtilleryPool();
+    G_ResetAvatarPool();
+    G_ResetSleepPool();
+    G_ResetChannelPool();
 }
 
 void G_PoolsReleaseEdict(edict_t *ent) {
     assert(ent);
+    S_ReleaseTimedLives(ent);
     G_FreeConstruction(ent);
     G_FreeResearch(ent);
     G_FreeRally(ent);
     G_FreeFood(ent);
+    G_FreeAttackOne(ent);
+    G_FreeAttackTwo(ent);
+    G_FreeUnitStatus(ent);
+    G_FreeUnitOrders(ent);
     G_FreeBuildwork(ent);
     G_FreeRevival(ent);
     G_FreeSacrifice(ent);
@@ -192,6 +279,17 @@ void G_PoolsReleaseEdict(edict_t *ent) {
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void reset_entities(void);
+
+TEST(wc3_pools, common_mobile_state_scales_with_world_entity_capacity) {
+    reset_entities();
+    FOR_LOOP(i,3000) {
+        edict_t *unit=G_Spawn();unit->food=G_AllocFood();
+        T_ASSERT(unit->food!=NULL);
+        unit->shadowmeld=G_AllocShadowMeld();
+        T_ASSERT(unit->shadowmeld!=NULL);
+    }
+    reset_entities();
+}
 
 TEST(wc3_pools, release_reuses_zeroed_owned_state) {
     edict_t *unit;

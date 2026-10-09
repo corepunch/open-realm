@@ -1972,6 +1972,29 @@ TEST(renderer_terrain, null_segment_layer_does_not_drop_existing_layers) {
     T_ASSERT(segment.layers->next == &first);
 }
 
+/* A missing lower terrain texture makes the real baker returnNULL.
+ * It must not erase an already populated higher layer. */
+TEST(renderer_terrain, missing_ground_layer_preserves_populated_higher_layer) {
+    enum { W = SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1 };
+    static war3mapVertex_t verts[W * H];
+    texture_t textures[2] = { { .width = 256, .height = 256 }, { .width = 256, .height = 256 } };
+    uint32_t grounds[] = {MAKEFOURCC('L','d','r','t'), MAKEFOURCC('L','g','r','s')};
+    war3map_t map = { .width = W, .height = H, .vertices = verts, .num_grounds = 2, .grounds = grounds };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    memset(verts, 0, sizeof(verts));
+    FOR_LOOP(i, W * H) verts[i].ground = 1;
+    R_ResetGroundTextures();
+    g_groundTextures[1] = &textures[1];
+    g_groundLayers = NULL;
+    R_BuildGroundLayers(&map);
+    T_NOT_NULL(g_groundBatches[1].layer);
+    T_NULL(g_groundBatches[0].layer);
+    T_ASSERT(g_groundLayers == g_groundBatches[1].layer);
+    ri.MemFree(g_groundBatches[1].layer);
+    R_ResetGroundTextures();
+    g_groundLayers = NULL;
+}
+
 /* The ground stays one whole-map buffer per layer; a changed segment overwrites exactly its own slice. */
 TEST(renderer_terrain, ground_batch_rebakes_one_segment_slice_in_place) {
     enum { W = 2 * SEGMENT_SIZE + 1, H = SEGMENT_SIZE + 1, SLICE = SEGMENT_SIZE * SEGMENT_SIZE * 6 };

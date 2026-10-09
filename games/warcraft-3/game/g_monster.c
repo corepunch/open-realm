@@ -10,6 +10,35 @@
  */
 #include "g_local.h"
 
+static entitySet_t scheduled_moves, sampled_moves;
+#ifdef BZ_TESTS
+static uint32_t move_owner_visits;
+uint32_t M_TestMoveOwnerVisits(bool reset) {
+    uint32_t count=move_owner_visits;
+    if(reset)move_owner_visits=0;
+    return count;
+}
+#endif
+
+/* Membership belongs to the move transition, not periodic discovery. */
+void M_TrackMove(edict_t const *ent) {
+    uintptr_t index=((uintptr_t)ent-(uintptr_t)g_edicts)/sizeof(*ent);
+    if(!g_edicts || index>=MAX_ENTITIES)return;
+    umove_t const *move=ent->currentmove;
+    entity_set_put(&scheduled_moves,index,ent->inuse && move && move->scheduled_think);
+    entity_set_put(&sampled_moves,index,ent->inuse && move && move->sample_pose);
+}
+
+/* Raw transitions keep their existing animation/leave policy, but must update
+ * derived owner membership just like ordinary unit_setmove transitions. */
+void M_SetMove(edict_t *ent, umove_t *move) {
+    ent->currentmove=move; M_TrackMove(ent);
+}
+
+void M_ResetMoveMembers(void) {
+    scheduled_moves=(entitySet_t){0}; sampled_moves=(entitySet_t){0};
+}
+
 cstring_t attack_type[] = {
     "none",
     "normal",
@@ -143,7 +172,7 @@ void M_MoveFrame(edict_t *self) {
         if (!(self->aiflags & AI_HOLD_FRAME)) {
             if (self->currentmove == move && self->animation == anim &&
                 !self->animation_override && G_AnimationHasPrimary(anim, "walk"))
-                G_SetUnitAnimation(self, self->animation_request);
+                G_SetUnitAnimation(self, G_UnitAnimationRequest(self));
             /* End callbacks may install a different move/animation. Restart
              * whichever animation is active after the callback; resetting to
              * the completed clip's first frame leaves the replacement model
@@ -168,8 +197,38 @@ void monster_think(edict_t *self) {
         return;
     }
     M_MoveFrame(self);
-    if (self->currentmove->think) {
+    if (self->currentmove->think && !(level.scheduled_frame && (self->currentmove->scheduled_think ||
+            self->scheduled_think_frame == level.framenum))) {
         self->currentmove->think(self);
+    }
+}
+
+/* Callback cadence is data on the owning move; the snapshot frame still owns animation. */
+void M_RunScheduledThinks(void) {
+    level.scheduled_think = true;
+    S_BeginAbilityOwnerUpdates();
+    for(uint32_t i=entity_set_next(&scheduled_moves,0);i<globals.num_edicts;i=entity_set_next(&scheduled_moves,i+1)) {
+#ifdef BZ_TESTS
+        move_owner_visits++;
+#endif
+        edict_t *self = g_edicts + i;
+        if (!self->inuse || !G_UnitIsWorldActive(self) || self->paused || self->stunned ||
+            !self->currentmove || !self->currentmove->scheduled_think) continue;
+        self->scheduled_think_frame = level.framenum;
+        SAFE_CALL(self->currentmove->think, self);
+    }
+    S_RunAbilityOwnerUpdates();
+    level.scheduled_think = false;
+}
+
+void M_SamplePoses(void) {
+    for(uint32_t i=entity_set_next(&sampled_moves,0);i<globals.num_edicts;i=entity_set_next(&sampled_moves,i+1)) {
+#ifdef BZ_TESTS
+        move_owner_visits++;
+#endif
+        edict_t *self = g_edicts + i;
+        if (self->inuse && G_UnitIsWorldActive(self) && self->currentmove)
+            SAFE_CALL(self->currentmove->sample_pose, self);
     }
 }
 
@@ -234,13 +293,7 @@ uint32_t M_LoadUberSplat(cstring_t uber_splat) {
 }
 
 static bool G_FileExists(cstring_t filename) {
-    uint32_t filesize = 0;
-    handle_t buffer = gi.ReadFile(filename, &filesize);
-    if (buffer) {
-        gi.MemFree(buffer);
-        return true;
-    }
-    return false;
+    return gi.FileExists(filename);
 }
 
 static bool G_HasShadowName(cstring_t shadow) {
@@ -269,7 +322,7 @@ uint32_t G_LoadShadowTexture(cstring_t shadow, bool allowDDSFallback) {
     return 0;
 }
 
-static void M_SetUnitShadow(edict_t *self) {
+static bool M_SetUnitShadow(edict_t *self) {
     UnitUI_t const *ui = self->data.UnitUI;
     cstring_t unit_shadow = ui->unitShadowTexture;
     uint32_t shadow = G_LoadShadowTexture(unit_shadow, true);
@@ -277,7 +330,7 @@ static void M_SetUnitShadow(edict_t *self) {
         shadow = G_LoadShadowTexture("Shadow", true);
     }
     if (!shadow) {
-        return;
+        return false;
     }
 
 #ifndef USE_SHADOWMAPS
@@ -295,23 +348,170 @@ static void M_SetUnitShadow(edict_t *self) {
     }
     self->s.shadow_rect = ShadowPackRect(shadow_x, shadow_y, shadow_w, shadow_h);
 #endif
+    return true;
 }
 
-static void M_SetBuildingShadow(edict_t *self) {
+static bool M_SetBuildingShadow(edict_t *self) {
     UnitUI_t const *ui = self->data.UnitUI;
     cstring_t building_shadow = ui->buildingShadowTexture;
     uint32_t shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
         if (G_HasShadowName(ui->unitShadowTexture)) {
-            M_SetUnitShadow(self);
+            return M_SetUnitShadow(self);
         }
-        return;
+        return false;
     }
 
 #ifndef USE_SHADOWMAPS
     self->s.shadow = shadow;
     self->s.shadow_rect = 0;
 #endif
+    return true;
+}
+
+static void unit_reset_sound_resources(void);
+/* The standalone classification query is also used by diagnostic fixtures.
+ * Construction uses its prepared definition's combat binding directly. */
+#ifdef BZ_TESTS
+static unitCombatTypes_t unit_combat_types[512];
+#endif
+#ifdef BZ_TESTS
+static uint32_t unit_spawn_trait_builds, unit_projectile_resource_builds, unit_combat_type_builds;
+#endif
+
+void G_ResetUnitResources(void) {
+    G_ResetUnitTypeBindings();
+#ifdef BZ_TESTS
+    memset(unit_combat_types, 0, sizeof(unit_combat_types));
+#endif
+    unit_reset_sound_resources();
+}
+
+/* Compile immutable classification once per bound type. Mutable unit traits
+ * and ability callbacks still run in their original construction order. */
+static unitSpawnTraits_t const *unit_spawn_type_traits_prepared(edict_t const *self, unitSpawnTraits_t *entry) {
+    uint32_t metadata = G_UnitDataGeneration(), abilities = G_AbilityDataGeneration();
+    if (entry->valid && entry->class_id == self->class_id && entry->metadata == metadata &&
+        entry->abilities == abilities && entry->balance == self->data.UnitBalance &&
+        entry->data == self->data.UnitData && entry->ui == self->data.UnitUI) return entry;
+#ifdef BZ_TESTS
+    unit_spawn_trait_builds++;
+#endif
+    uint32_t flags = 0;
+    bool building = G_UnitIsBuilding(self->class_id);
+    if (building) flags |= EF_BUILDING;
+    if (S_UnitTypeIsGoldMine(self->class_id)) flags |= EF_RESOURCE_SOURCE;
+    if (S_UnitTypeReturnsGold(self->class_id)) flags |= EF_RESOURCE_RETURN;
+    if (S_UnitMovementType(self->data.UnitData) != UNIT_MOVE_FLOAT)
+        flags |= EF_GROUND_CONFORM;
+    float collision = G_UnitCollision(self->class_id);
+    *entry = (unitSpawnTraits_t){ .class_id = self->class_id, .metadata = metadata, .abilities = abilities,
+        .balance = self->data.UnitBalance, .data = self->data.UnitData, .ui = self->data.UnitUI,
+        .flags = flags, .runtime = building ? UNIT_BALANCE_BUILDING : 0,
+        .collision = collision > 0 ? collision : 0,
+        .target = G_GetTargetType(self->data.UnitData->targetType), .valid = true };
+    return entry;
+}
+
+static unitCombatTypes_t const *unit_spawn_combat_types_prepared(UnitBalance_t const *balance,
+                                                      UnitWeapons_t const *weapons, unitCombatTypes_t *entry) {
+    cstring_t names[5] = { balance->defenseType, weapons->attack1.attackType,
+        weapons->attack1.weaponType, weapons->attack2.attackType, weapons->attack2.weaponType };
+    uint32_t generation = G_UnitDataGeneration();
+    if (entry->valid && entry->balance == balance && entry->weapons == weapons &&
+        entry->generation == generation && !memcmp(entry->names, names, sizeof(names))) return entry;
+#ifdef BZ_TESTS
+    unit_combat_type_builds++;
+#endif
+    *entry = (unitCombatTypes_t){ .balance = balance, .weapons = weapons,
+        .generation = generation, .valid = true,
+        .defense = FindEnumValue(names[0], defense_type),
+        .attack = { FindEnumValue(names[1], attack_type), FindEnumValue(names[3], attack_type) },
+        .weapon = { FindEnumValue(names[2], weapon_type), FindEnumValue(names[4], weapon_type) } };
+    memcpy(entry->names, names, sizeof(names));
+    entry->defaults[0] = S_CompileAttackProfile(&weapons->attack1, 0, entry->attack[0], entry->weapon[0]);
+    entry->defaults[1] = S_CompileAttackProfile(&weapons->attack2, 1, entry->attack[1], entry->weapon[1]);
+    return entry;
+}
+
+/* Projectile media use the current class after initialization callbacks and
+ * player upgrades. Cache only fields this phase actually assigns. */
+static void unit_register_projectiles_prepared(edict_t *self, unitProjectileResources_t *entry) {
+    unitAttack_t const *attacks[2] = { S_AttackProfileRead(self, 0), S_AttackProfileRead(self, 1) };
+    uint32_t needed = 0;
+    FOR_LOOP(i, 2)
+        if (attacks[i]->weapon == WPN_MISSILE || attacks[i]->weapon == WPN_ARTILLERY) needed |= 1u << i;
+    if (!needed) return;
+    uint32_t metadata = G_UnitDataGeneration();
+    uint64_t revision = gi.MediaRevision();
+    if (!entry->valid || entry->class_id != self->class_id || entry->metadata != metadata ||
+        entry->revision != revision) {
+        *entry = (unitProjectileResources_t){ .class_id = self->class_id, .metadata = metadata,
+            .origin = {G_UnitAttack1LaunchX(self->class_id), G_UnitAttack1LaunchY(self->class_id),
+                       G_UnitAttack1LaunchZ(self->class_id)}, .valid = true };
+    }
+    FOR_LOOP(i, 2) {
+        if (!(needed & (1u << i))) continue;
+        if (!(entry->slots & (1u << i))) {
+#ifdef BZ_TESTS
+            unit_projectile_resource_builds++;
+#endif
+            UnitProfile_t const *profile = G_UnitProfile(self->class_id);
+            entry->projectile[i].model = G_RegisterModel(profile->attack[i].art);
+            entry->projectile[i].arc = profile->attack[i].arc;
+            entry->projectile[i].speed = profile->attack[i].speed;
+            entry->slots |= 1u << i;
+        }
+        if (self->attack_overrides[i]) {
+            unitAttack_t *owned = S_AttackProfileWrite(self, i);
+            owned->origin = entry->origin;
+            owned->projectile.model = entry->projectile[i].model;
+            owned->projectile.arc = entry->projectile[i].arc;
+            owned->projectile.speed = entry->projectile[i].speed;
+        } else {
+            if (entry->base_profiles[i] != attacks[i]) {
+                unitAttack_t value = *attacks[i];
+                value.origin = entry->origin;
+                value.projectile.model = entry->projectile[i].model;
+                value.projectile.arc = entry->projectile[i].arc;
+                value.projectile.speed = entry->projectile[i].speed;
+                entry->base_profiles[i] = attacks[i];
+                entry->complete_profiles[i] = S_InternAttackProfile(&value, i);
+            }
+            self->attack_profiles[i] = entry->complete_profiles[i];
+        }
+    }
+    entry->revision = gi.MediaRevision();
+}
+
+static void unit_register_visuals_prepared(edict_t *self, unitVisualResources_t *cached) {
+    uint64_t revision = gi.MediaRevision();
+    uint32_t metadata = G_UnitDataGeneration();
+    bool building = (self->runtime.flags & UNIT_BALANCE_BUILDING) != 0;
+    if (cached->valid && cached->row == self->data.UnitUI && cached->class_id == self->class_id &&
+        cached->revision == revision && cached->metadata == metadata && cached->building == building) {
+        self->s.model = cached->model;
+        self->s.splat = cached->splat;
+#ifndef USE_SHADOWMAPS
+        if (cached->shadow_set) {
+            self->s.shadow = cached->shadow;
+            self->s.shadow_rect = cached->shadow_rect;
+        }
+#endif
+        return;
+    }
+    PATHSTR model_filename;
+    G_NormalizeModelFilename(self->data.UnitUI->modelFile, model_filename, sizeof(model_filename));
+    self->s.model = G_RegisterModel(model_filename);
+    self->s.splat = M_LoadUberSplat(self->data.UnitUI->groundTexture);
+    bool shadow_set = building ? M_SetBuildingShadow(self) : M_SetUnitShadow(self);
+    *cached = (unitVisualResources_t){ .row = self->data.UnitUI, .class_id = self->class_id,
+        .revision = gi.MediaRevision(), .metadata = metadata, .building = building,
+        .model = self->s.model, .splat = self->s.splat, .valid = self->s.model != 0, .shadow_set = shadow_set
+#ifndef USE_SHADOWMAPS
+        , .shadow = self->s.shadow, .shadow_rect = self->s.shadow_rect
+#endif
+    };
 }
 
 int g_treeFallSounds[3]; uint8_t g_numTreeFallSounds;
@@ -337,7 +537,10 @@ static void G_RegisterSoundVariants(uint16_t out[], uint8_t *count, cstring_t la
 /* Cache every native selection response so repeated clicks can choose among
  * the authored UnitAckSounds variants instead of repeating the first file. */
 void G_RegisterSelectSounds(edict_t *self, cstring_t label) {
-    G_RegisterSoundVariants(self->sound.select, &self->sound.num_select, label, "What");
+    unitSoundProfile_t value = *G_UnitSoundProfile(self);
+    self->sound_profile = &value;
+    G_RegisterSoundVariants(value.select, &value.num_select, label, "What");
+    G_SetUnitSoundProfile(self, &value);
 }
 
 /* Populate the unit's cached sound indices from UnitAckSounds.slk using the
@@ -346,15 +549,19 @@ void G_RegisterSelectSounds(edict_t *self, cstring_t label) {
 static void G_RegisterUnitSounds(edict_t *self) {
     cstring_t label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
-    G_RegisterSelectSounds(self, label);
+    unitSoundProfile_t value = *G_UnitSoundProfile(self);
+    /* Keep the partial registration visible during resource callbacks. The
+     * stack value is frozen before return and never escapes this invocation. */
+    self->sound_profile = &value;
+    G_RegisterSoundVariants(value.select, &value.num_select, label, "What");
     /* Ordinary order and ready variants are cached per unit. YesAttack and
      * Pissed are selected from UnitAckSounds at the interaction that owns
      * them; they are not weapon-swing sounds. */
-    G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
-    G_RegisterSoundVariants(self->sound.ready, &self->sound.num_ready, label, "Ready");
+    G_RegisterSoundVariants(value.yes, &value.num_yes, label, "Yes");
+    G_RegisterSoundVariants(value.ready, &value.num_ready, label, "Ready");
     /* Death sounds may be catalogued or shipped beside the unit model. */
-    self->sound.death = G_UnitAckSoundVariantIndex(label, "Death", 0);
-    if (!self->sound.death) {
+    value.death = G_UnitAckSoundVariantIndex(label, "Death", 0);
+    if (!value.death) {
         cstring_t model = self->data.UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
@@ -363,7 +570,7 @@ static void G_RegisterUnitSounds(edict_t *self) {
                 snprintf(path, sizeof(path), "%.*s%sDeath%s.wav",
                          slash ? (int)(slash - model + 1) : 0, model,
                          slash ? slash + 1 : model, numbered ? "1" : "");
-                if (G_FileExists(path)) { self->sound.death = gi.SoundIndex(path); break; }
+                if (G_FileExists(path)) { value.death = gi.SoundIndex(path); break; }
             }
         }
     }
@@ -372,8 +579,38 @@ static void G_RegisterUnitSounds(edict_t *self) {
     if (ws && ws[0] && ws[0] != '_') {
         char key[128];
         snprintf(key, sizeof(key), "%sWood", ws);
-        G_RegisterCombatVariants(self->sound.chop, &self->sound.num_chop, 3, key);
+        G_RegisterCombatVariants(value.chop, &value.num_chop, 3, key);
     }
+    G_SetUnitSoundProfile(self, &value);
+}
+
+#ifdef BZ_TESTS
+static uint32_t unit_sound_resource_builds;
+#endif
+static void unit_reset_sound_resources(void) {
+#ifdef BZ_TESTS
+    unit_sound_resource_builds = 0;
+#endif
+}
+static void unit_register_sounds_prepared(edict_t *self, unitSoundResources_t *cached) {
+    static unitSound_t const empty;
+    bool fresh = (!self->sound_profile || self->sound_profile == &unit_sound_empty) &&
+        memcmp(&self->sound, &empty, sizeof(empty)) == 0;
+    uint64_t revision = gi.MediaRevision();
+    uint32_t metadata = G_UnitDataGeneration(), catalog = G_SoundCatalogGeneration();
+    if (fresh && cached->valid && cached->ui == self->data.UnitUI && cached->weapons == self->data.UnitWeapons &&
+        cached->class_id == self->class_id && cached->metadata == metadata && cached->catalog == catalog &&
+        cached->revision == revision) {
+        self->sound_profile = cached->profile;
+        return;
+    }
+#ifdef BZ_TESTS
+    unit_sound_resource_builds++;
+#endif
+    G_RegisterUnitSounds(self);
+    if (fresh) *cached = (unitSoundResources_t){ .ui = self->data.UnitUI, .weapons = self->data.UnitWeapons,
+        .class_id = self->class_id, .metadata = metadata, .catalog = catalog,
+        .revision = gi.MediaRevision(), .profile = G_UnitSoundProfile(self), .valid = true };
 }
 
 /* Register world-level sounds that are not per-unit: tree felling, etc.
@@ -396,10 +633,11 @@ uint32_t unit_spawn_aiflags(uint32_t class_id) { return G_UnitIsBuilding(class_i
 
 /* Apply static ability traits after ordinary collision and vulnerability state. */
 void G_ApplyUnitAbilityTraits(edict_t *ent) {
-    if (!G_ActorHasSkill(ent, "Aloc")) return;
+    if (!G_ActorHasAbilityCode(ent, MAKEFOURCC('A','l','o','c'))) return;
     ent->s.flags |= EF_NOT_SELECTABLE;
     ent->invulnerable = true;
     ent->collision = 0.0f;
+    G_MarkMoveSpatialObject(ent);
     ent->no_pathing = true;
 }
 
@@ -407,44 +645,66 @@ void G_ApplyUnitAbilityTraits(edict_t *ent) {
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
  * (type, weapon class, damage dice, range, projectile model/speed) for the
  * unit's class_id and stores them in the edict. */
-void SP_SpawnUnit(edict_t *self) {
-    PATHSTR model_filename;
-    UnitBalance_t const *b = self->data.UnitBalance;
-    UnitData_t const *d = self->data.UnitData;
-    UnitUI_t const *ui = self->data.UnitUI;
-    UnitWeapons_t const *w = self->data.UnitWeapons;
-    cstring_t uber_splat = ui->groundTexture;
-    cstring_t path_tex = d->pathingTexture;
-    self->s.flags |= EF_UNIT;
-    self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
-    if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
-    if (S_UnitTypeIsGoldMine(self->class_id)) self->s.flags |= EF_RESOURCE_SOURCE;
-    if (S_UnitTypeReturnsGold(self->class_id)) self->s.flags |= EF_RESOURCE_RETURN;
-    if (!d->moveTypeName || strcmp(d->moveTypeName, "float")) self->s.flags |= EF_GROUND_CONFORM;
-    G_NormalizeModelFilename(ui->modelFile, model_filename, sizeof(model_filename));
-    self->s.model = G_RegisterModel(model_filename);
-    G_ResetUnitAnimationProperties(self);
-    self->s.splat = M_LoadUberSplat(uber_splat);
-    if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
-        M_SetBuildingShadow(self);
-    } else {
-        M_SetUnitShadow(self);
-    }
+static unitRuntimeType_t *unit_construct_live_type(unitConstruction_t *construction) {
+    unitRuntimeType_t *type = construction->type;
+    if (type->rawcode == construction->unit->class_id && type->version == G_UnitDataGeneration() &&
+        type->ability_version == G_AbilityDataGeneration()) return type;
+    return G_UnitRuntimeType(construction->unit->class_id);
+}
+
+#ifdef BZ_TESTS
+static unitSpawnTraits_t const *unit_spawn_type_traits(edict_t const *self) {
+    return unit_spawn_type_traits_prepared(self, &G_UnitRuntimeType(self->class_id)->bindings.traits);
+}
+static unitCombatTypes_t const *unit_spawn_combat_types(UnitBalance_t const *balance, UnitWeapons_t const *weapons) {
+    uintptr_t hash = ((uintptr_t)balance >> 4) ^ ((uintptr_t)weapons >> 4);
+    return unit_spawn_combat_types_prepared(balance, weapons, unit_combat_types + ((hash ^ (hash >> 16)) & 511));
+}
+static void unit_register_visuals(edict_t *self) {
+    unit_register_visuals_prepared(self, &G_UnitRuntimeType(self->class_id)->bindings.visuals);
+}
+static void unit_register_projectiles(edict_t *self) {
+    unit_register_projectiles_prepared(self, &G_UnitRuntimeType(self->class_id)->bindings.projectiles);
+}
+static void unit_register_sounds(edict_t *self) {
+    unit_register_sounds_prepared(self, &G_UnitRuntimeType(self->class_id)->bindings.sounds);
+}
+#endif
+
+static void unit_construct_visuals(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    UnitUI_t const *ui = construction->captured.UnitUI;
+    unitSpawnTraits_t const *traits = unit_spawn_type_traits_prepared(self, &construction->type->bindings.traits);
+    self->runtime.flags = traits->runtime;
+    self->s.flags |= traits->flags;
+    unit_register_visuals_prepared(self, &construction->type->bindings.visuals);
+    G_ResetUnitAnimationPropertiesPrepared(self, &construction->type->bindings.animation);
     self->s.scale = ui->modelScale;
     self->s.radius = ui->selectionScale * SEL_SCALE / 2;
     /* Unit-vs-unit separation uses the authentic collisionSize ('ucol') from
      * the unit data, matching WC3. Buildings have no meaningful collisionSize
      * and instead block via their pathing footprint (set from pathtex below). */
-    {
-        float const ucol = G_UnitCollision(self->class_id);
-        /* Real WC3 units always have ucol>0; if missing, fall back to 0 (block
-         * via footprint, set below for buildings) — NOT s.radius, which is a
-         * selection-circle scale, not a world-unit collision radius. */
-        self->collision = ucol > 0.0f ? ucol : 0.0f;
-    }
+    self->collision = traits->collision;
+    S_SetMoveFormationRank(self, construction->captured.UnitData->formationRank);
 //    printf("%.4s\n", &self->class_id);
-    self->targtype = G_GetTargetType(d->targetType);
-    S_UnitAbilityEvent(self, A_UNIT_INIT);
+    self->targtype = traits->target;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_VISUALS, self, &construction->captured);
+}
+
+static void unit_construct_abilities(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_ABILITIES_BEGIN, self, &construction->captured);
+    if (construction->fresh) S_InitPreparedUnitAbilities(self, construction->type);
+    else S_UnitAbilityEvent(self, A_UNIT_INIT);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_ABILITIES_END, self, &construction->captured);
+}
+
+static void unit_construct_stats(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    UnitBalance_t const *b = construction->captured.UnitBalance;
+    UnitData_t const *d = construction->captured.UnitData;
+    UnitUI_t const *ui = construction->captured.UnitUI;
+    UnitWeapons_t const *w = construction->captured.UnitWeapons;
     if (ui->occluderHeight > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
         G_FowMarkBlockersDirty();
@@ -457,7 +717,7 @@ void SP_SpawnUnit(edict_t *self) {
     self->health.value = b->maxHealth;
     self->health.max_value = b->maxHealth;
     G_InitStockSlots(self);
-    self->invulnerable = G_ActorHasSkill(self, "Avul");
+    self->invulnerable = G_ActorHasAbilityCode(self, MAKEFOURCC('A','v','u','l'));
     G_ApplyUnitAbilityTraits(self);
     self->unitinfo.MoveSpeed = b->speed;
     self->unitinfo.PropWindow = DEG2RAD(d->propWin);
@@ -473,9 +733,15 @@ void SP_SpawnUnit(edict_t *self) {
         self->runtime.acquisition_range = self->runtime.sight_radius.day * 0.5f;
     if (self->runtime.sight_radius.day > 0.0f && self->runtime.acquisition_range > self->runtime.sight_radius.day)
         self->runtime.acquisition_range = self->runtime.sight_radius.day;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_STATS, self, &construction->captured);
+}
+
+static void unit_construct_lifecycle(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    UnitData_t const *d = construction->captured.UnitData;
     self->think = monster_think;
     /* Blighted gold mines earn gold on an interval instead of via workers. */
-    if (G_ActorHasSkill(self, "Abgm")) {
+    if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','b','g','m'))) {
         self->think = blight_mine_think;
     }
     self->svflags |= SVF_MONSTER;
@@ -484,18 +750,23 @@ void SP_SpawnUnit(edict_t *self) {
     if (self->runtime.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;
     /* Cache the air/ground collision layer once. Flyers ('movetp' == "fly")
      * never collide with ground units and vice-versa. */
-    {
-        cstring_t const movetp = d->moveTypeName;
-        if (movetp && !strcmp(movetp, "fly"))
-            self->aiflags |= AI_FLYING;
-    }
+    if (S_UnitMovementType(d) == UNIT_MOVE_FLY)
+        self->aiflags |= AI_FLYING;
     /* Neutral creeps sleep until a hero enters acquisition range; non-neutral
      * units (including camp defenders made hostile by script) start awake. */
     if (self->s.player < MAX_PLAYERS &&
         level.mapinfo->players[self->s.player].playerType == kPlayerTypeNeutral)
         self->aiflags |= AI_SLEEPING;
 
-    self->defense_type = FindEnumValue(b->defenseType, defense_type);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_LIFECYCLE, self, &construction->captured);
+}
+
+static void unit_construct_combat(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    UnitBalance_t const *b = construction->captured.UnitBalance;
+    UnitWeapons_t const *w = construction->captured.UnitWeapons;
+    unitCombatTypes_t const *combat = unit_spawn_combat_types_prepared(b, w, &construction->type->bindings.combat);
+    self->defense_type = combat->defense;
     self->armor_value = b->armor;
     /* Heroes carry their base primary attributes.  realHP/realM/realdef already
      * bake in the level-1 attribute bonus, so we just record the base values;
@@ -516,71 +787,24 @@ void SP_SpawnUnit(edict_t *self) {
             G_HeroInitializeProgression(self);
         }
     }
-    self->attack1.type = FindEnumValue(w->attack1.attackType, attack_type);
-    self->attack1.weapon = FindEnumValue(w->attack1.weaponType, weapon_type);
-    self->attack1.damageBase = w->attack1.damageBase;
-    self->attack1.numberOfDice = w->attack1.damageDice;
-    self->attack1.sidesPerDie = w->attack1.damageSides;
-    self->attack1.cooldown = w->attack1.cooldown;
-    self->attack1.damagePoint = w->attack1.damagePoint;
-    self->attack1.backswingPoint = w->attack1.backswingPoint;
-    self->attack1.range = w->attack1.range;
-    self->attack1.rangeBuffer = w->attack1.rangeBuffer;
-    self->attack1.targetsAllowed = (uint32_t)w->attack1.targetsAllowed;
-    self->attack1.areaFull = w->attack1.areaFull;
-    self->attack1.areaMedium = w->attack1.areaMedium;
-    self->attack1.areaSmall = w->attack1.areaSmall;
-    self->attack1.factorMedium = w->attack1.factorMedium;
-    self->attack1.factorSmall = w->attack1.factorSmall;
-    self->attack1.maxTargets = w->attack1.maxTargets;
-    self->attack1.damageLoss = w->attack1.damageLossFactor;
-
-    /* Keep Attack 2 runtime state parallel with Attack 1 so target selection
-     * can activate the authored secondary weapon profile. */
-    self->attack2.type = FindEnumValue(w->attack2.attackType, attack_type);
-    self->attack2.weapon = FindEnumValue(w->attack2.weaponType, weapon_type);
-    self->attack2.damageBase = w->attack2.damageBase;
-    self->attack2.numberOfDice = w->attack2.damageDice;
-    self->attack2.sidesPerDie = w->attack2.damageSides;
-    self->attack2.cooldown = w->attack2.cooldown;
-    self->attack2.damagePoint = w->attack2.damagePoint;
-    self->attack2.backswingPoint = w->attack2.backswingPoint;
-    self->attack2.range = w->attack2.range;
-    self->attack2.rangeBuffer = w->attack2.rangeBuffer;
-    self->attack2.targetsAllowed = (uint32_t)w->attack2.targetsAllowed;
-    self->attack2.areaFull = w->attack2.areaFull;
-    self->attack2.areaMedium = w->attack2.areaMedium;
-    self->attack2.areaSmall = w->attack2.areaSmall;
-    self->attack2.factorMedium = w->attack2.factorMedium;
-    self->attack2.factorSmall = w->attack2.factorSmall;
-    self->attack2.maxTargets = w->attack2.maxTargets;
-    self->attack2.damageLoss = w->attack2.damageLossFactor;
+    S_AttackApplyDefaults(self, 0, combat->defaults[0]);
+    S_AttackApplyDefaults(self, 1, combat->defaults[1]);
     /* Heroes: fold the primary-attribute attack-damage bonus into runtime
      * attacks now that base attributes and both weapon slots are loaded. */
     G_RecomputeHeroStats(self);
     /* Completed player upgrades are persistent techtree state, not producer
      * buffs. New units inherit the owner's current levels at spawn. */
     G_ApplyPlayerUpgradesToUnit(self);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_COMBAT, self, &construction->captured);
+}
+
+static void unit_construct_assets(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
     S_CargoInitUnit(self);
 
-    if (self->attack1.weapon == WPN_MISSILE || self->attack1.weapon == WPN_ARTILLERY) {
-        self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
-        self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
-        self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);
-        self->attack1.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[0].art);
-        self->attack1.projectile.arc = G_UnitProfile(self->class_id)->attack[0].arc;
-        self->attack1.projectile.speed = G_UnitProfile(self->class_id)->attack[0].speed;
-    }
-    if (self->attack2.weapon == WPN_MISSILE || self->attack2.weapon == WPN_ARTILLERY) {
-        self->attack2.origin.x = G_UnitAttack1LaunchX(self->class_id);
-        self->attack2.origin.y = G_UnitAttack1LaunchY(self->class_id);
-        self->attack2.origin.z = G_UnitAttack1LaunchZ(self->class_id);
-        self->attack2.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[1].art);
-        self->attack2.projectile.arc = G_UnitProfile(self->class_id)->attack[1].arc;
-        self->attack2.projectile.speed = G_UnitProfile(self->class_id)->attack[1].speed;
-    }
+    unit_register_projectiles_prepared(self, &unit_construct_live_type(construction)->bindings.projectiles);
 
-    if ((self->pathtex = M_LoadPathTex(path_tex))) {
+    if ((self->pathtex = M_LoadPathTex(construction->path_texture))) {
         /* Buildings: collide by footprint (their collisionSize is ~0). */
         if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
             self->collision = get_unit_collision(self->pathtex);
@@ -595,15 +819,58 @@ void SP_SpawnUnit(edict_t *self) {
     G_InitializeUnitVertexColor(self);
     /* Establish the authored altitude immediately; MOVETYPE_STEP will refresh
      * the same support-surface calculation each simulation frame. */
-    M_CheckGround(self);
-    G_RegisterUnitSounds(self);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_ASSETS, self, &construction->captured);
+}
 
+static void unit_construct_support(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    M_CheckGround(self);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_SUPPORT, self, &construction->captured);
+}
+
+static void unit_construct_sounds(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
+    unit_register_sounds_prepared(self, &unit_construct_live_type(construction)->bindings.sounds);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_SOUNDS, self, &construction->captured);
+
+}
+
+static void unit_construct_autocast(unitConstruction_t *construction) {
+    edict_t *self = construction->unit;
     /* `auto` / `udaa` is Warcraft's Default Active Ability rawcode.  Feed it
      * through the ordinary toggle path so ability policy, scheduler state,
      * and command-card presentation all start from the same state. */
     if (self->data.UnitAbilities && self->data.UnitAbilities->defaultActiveAbility)
         G_SetUnitAutocast(self, self->data.UnitAbilities->defaultActiveAbility, true);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_AUTOCAST, self, &construction->captured);}
+
+static void SpawnUnit(edict_t *self, bool fresh) {
+    unitConstruction_t construction = {
+        .unit = self, .captured = self->data, .type = G_UnitRuntimeType(self->class_id),
+        .path_texture = self->data.UnitData->pathingTexture, .fresh = fresh
+    };
+    construction.stage = UNIT_CONSTRUCT_VISUALS;
+    unit_construct_visuals(&construction);
+    construction.stage = UNIT_CONSTRUCT_ABILITIES_END;
+    unit_construct_abilities(&construction);
+    construction.stage = UNIT_CONSTRUCT_STATS;
+    unit_construct_stats(&construction);
+    construction.stage = UNIT_CONSTRUCT_LIFECYCLE;
+    unit_construct_lifecycle(&construction);
+    construction.stage = UNIT_CONSTRUCT_COMBAT;
+    unit_construct_combat(&construction);
+    construction.stage = UNIT_CONSTRUCT_ASSETS;
+    unit_construct_assets(&construction);
+    construction.stage = UNIT_CONSTRUCT_SUPPORT;
+    unit_construct_support(&construction);
+    construction.stage = UNIT_CONSTRUCT_SOUNDS;
+    unit_construct_sounds(&construction);
+    construction.stage = UNIT_CONSTRUCT_AUTOCAST;
+    unit_construct_autocast(&construction);
 }
+
+void SP_SpawnUnit(edict_t *self) { SpawnUnit(self, false); }
+void SP_SpawnFreshUnit(edict_t *self) { SpawnUnit(self, true); }
 
 /* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */
 void G_RegisterGroundSurface(edict_t *ent) {

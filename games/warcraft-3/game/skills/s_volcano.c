@@ -25,7 +25,7 @@ static float volcano_wave_damage(edict_t *ent, float dist) {
 
 static void volcano_finish(edict_t *ent) {
     if (ent->goalentity && ent->goalentity->inuse) G_FreeEdict(ent->goalentity);
-    ent->goalentity = NULL;
+    S_SetMoveGoal(ent, &ent->goalentity, NULL);
     S_SpellEndChannel(ent);
 }
 
@@ -72,7 +72,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
     thinker->health.value = S_SpellData(spell->code, level, 6); /* DataF half-damage factor */
     if (unit_id) {
         edict_t *doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y, 0, 0, 1, 0);
-        if (doodad) thinker->goalentity = doodad;
+        if (doodad) S_SetMoveGoal(thinker, &thinker->goalentity, doodad);
         else fprintf(stderr, "WC3 Volcano: failed to spawn UnitID %.4s\n", (cstring_t)&unit_id);
     }
     thinker->think = volcano_think;

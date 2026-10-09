@@ -109,3 +109,25 @@ build/bin/xctraceprof --top 30 build/test-time-profile.xml
 ```
 
 The final engine-test profile sampled `Test_Run` and showed `__bzero` as the largest leaf symbol, followed by JASS setup and test-specific work. This profile covers the engine-backed WC3 process; aggregate wall timing is required for the full multi-suite target.
+
+
+## Linux SDL compatibility-layer text-event crash
+
+On a host with`sdl2-compat 2.32.72` and`SDL3 3.4.16`, the unchanged
+`client_input.menu_sdl_input_is_exclusive_with_world_presentation` test crashes
+inside`SDL_PushEvent` for its`SDL_TEXTINPUT` event, even in isolation. A minimal
+SDL-only reproducer also crashes with the dummy video driver and a hidden
+window. This is separate from the Way Gate serialization diagnostics printed
+earlier by the aggregate suite.
+
+The compatibility layer's`Event2to3` returns NULL for text input, and its
+`SDL_PushEvent` forwards that result to SDL3. See the
+[upstream conversion](https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c).
+Keep the real queued text-input regression. For verification on this host,
+build native SDL2 in an isolated directory and select it for the test process:
+
+```sh
+LD_LIBRARY_PATH=/tmp/wc3-sdl2-build:$LD_LIBRARY_PATH make test
+```
+
+This does not replace system libraries or change production input handling.

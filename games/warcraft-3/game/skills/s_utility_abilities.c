@@ -348,6 +348,8 @@ BZ_VALIDATED_SPELL_PROC(AbilityCharm, charm_validate, charm_execute)
 BZ_VALIDATED_SPELL_PROC(AbilityEatTree, eat_tree_validate, eat_tree_execute)
 
 BZ_ABILITY_PROC(CAbilityManaBattery) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, ID_MOON_WELL) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     uint32_t code = call && call->item ? call->item->code : 0;
@@ -490,12 +492,12 @@ static bool ancient_root_select_location(edict_t *clent, vec2_t const *point) {
     unit->ancient_root->mode = ANCIENT_ROOTING;
     unit->ancient_root->approaching = true;
     order_move(unit, Waypoint_add(&snapped));
-    unit->ancient_root->approach_goal = unit->goalentity;
+    S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, unit->goalentity);
     unit->ancient_root->approach_goal_spawn_time = unit->goalentity ? unit->goalentity->spawn_time : 0;
     if (!unit->currentmove || unit->currentmove->proc != CAbilityMove || !unit->goalentity) {
         unit->ancient_root->mode = ANCIENT_UPROOTED;
         unit->ancient_root->approaching = false;
-        unit->ancient_root->approach_goal = NULL;
+        S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, NULL);
         return false;
     }
     return true;
@@ -594,7 +596,7 @@ static void ancient_root_update(edict_t *unit) {
             unit->goalentity->spawn_time != unit->ancient_root->approach_goal_spawn_time) {
             unit->ancient_root->mode = ANCIENT_UPROOTED;
             unit->ancient_root->approaching = false;
-            unit->ancient_root->approach_goal = NULL;
+            S_SetMoveGoal(unit, &unit->ancient_root->approach_goal, NULL);
         }
         return;
     }
@@ -608,6 +610,11 @@ static void ancient_root_update(edict_t *unit) {
 }
 
 BZ_ABILITY_PROC(CAbilityRoot) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_ROOT_LIFE) ||
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_ROOT_ANCIENT) ||
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_ROOT_PROTECTOR) ? UNIT_UPDATE_RUN : UNIT_UPDATE_POINTER(ancient_root);
     /* Root is a single command whose alternate presentation is Uproot while
      * the Ancient occupies rooted building mode. The HUD uses this response
      * to resolve the authored Unart/Untip fields for the command button. */
@@ -639,7 +646,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
             call && call->next_move_proc != CAbilityMove) {
             ent->ancient_root->mode = ANCIENT_UPROOTED;
             ent->ancient_root->approaching = false;
-            ent->ancient_root->approach_goal = NULL;
+            S_SetMoveGoal(ent, &ent->ancient_root->approach_goal, NULL);
         }
         return false;
     case A_MOVE_ARRIVE:
@@ -650,14 +657,14 @@ BZ_ABILITY_PROC(CAbilityRoot) {
                 !ancient_root_validate(ent, &ent->ancient_root->destination, &ent->ancient_root->destination)) {
                 ent->ancient_root->mode = ANCIENT_UPROOTED;
                 ent->ancient_root->approaching = false;
-                ent->ancient_root->approach_goal = NULL;
+                S_SetMoveGoal(ent, &ent->ancient_root->approach_goal, NULL);
                 {
                     edict_t *player = G_GetPlayerEntityByNumber(ent->s.player);
                     if (player) G_ShowCommandErrorKey(player, "Cantroot", "Unable to root there.");
                 }
                 return false;
             }
-            ent->ancient_root->approach_goal = NULL;
+            S_SetMoveGoal(ent, &ent->ancient_root->approach_goal, NULL);
             S_AncientBeginMorph(ent, true);
             return true;
         }
@@ -668,7 +675,7 @@ BZ_ABILITY_PROC(CAbilityRoot) {
             ent->ancient_root->mode = ANCIENT_ROOT_UNINITIALIZED;
             ent->ancient_root->transition_end_time = 0;
             ent->ancient_root->approaching = false;
-            ent->ancient_root->approach_goal = NULL;
+            S_SetMoveGoal(ent, &ent->ancient_root->approach_goal, NULL);
         }
         return false;
     default: return false;

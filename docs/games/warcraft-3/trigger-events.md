@@ -230,3 +230,21 @@ dialog and button, with the authoritative player ID and one-based clicked
 handle IDs. This response context is copied to a coroutine, so
 `GetClickedButton` / `GetClickedDialog` continue to work after a trigger wait.
 See [JASS choice dialogs](jass-dialogs.md) for lifecycle and limitations.
+
+
+### Merge integration: response identity and argument parsing
+
+Dialog click registrations must publish `response_sequence` together with
+`responseTo`. The queue validates both to reject removed/reused subscribers;
+leaving the sequence zero silently discards an otherwise valid click. Synchronous
+trigger context copies clicked-dialog/button/player values as well as ordinary
+unit/order values. Dialog coroutine/save regressions cover those observations.
+
+Logical operator recursion in `jparser.c` stops before a comma. The outer call
+owns the following argument and its closing delimiter; otherwise
+`BJassAssert(a and b, "message")` attaches the string to `b` and presents a malformed
+native argument list. `logical_call_arguments_preserve_outer_delimiters` exercises
+both logical operators in nested calls. Explicit `TriggerEvaluate` may evaluate
+a disabled trigger, while event delivery still suppresses its actions. Event
+evaluation counters advance before the disabled gate. Existing assertions for
+these separate entry points remain intact.

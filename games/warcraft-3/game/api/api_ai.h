@@ -456,6 +456,7 @@ uint32_t AddAssault(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool ready = G_BotAddAssault(player, qty, class_id);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_form_progress",
                "qty=%d unit=%.4s ready=%d group_size=%u desired=%u", qty,
                (cstring_t)&class_id, (int)ready, G_BotCaptainGroupSize(player),
@@ -550,15 +551,19 @@ uint32_t SetCaptainHome(jass_t *j) {
     G_BotSetCaptainHome(player, which, x, y);
     return 0;
 }
+uint32_t CaptainGoHome(jass_t *j) {
+    G_BotCaptainGoHome(jass_getcontext(j)->playerState);
+    return 0;
+}
+uint32_t CaptainAttack(jass_t *j) {
+    vec2_t point={jass_checknumber(j,1),jass_checknumber(j,2)};
+    G_BotCaptainAttack(jass_getcontext(j)->playerState,&point);
+    return 0;
+}
 uint32_t TeleportCaptain(jass_t *j) {
     G_BotTeleportCaptain(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
     return 0;
 }
-uint32_t CaptainAttack(jass_t *j) {
-    G_BotCaptainAttack(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
-    return 0;
-}
-uint32_t CaptainGoHome(jass_t *j) { G_BotCaptainGoHome(jass_getcontext(j)->playerState); return 0; }
 uint32_t CaptainVsPlayer(jass_t *j) {
     G_BotCaptainVsPlayer(jass_getcontext(j)->playerState, jass_checkhandle(j, 1, "player"));
     return 0;
@@ -584,7 +589,7 @@ uint32_t SuicideUnit(jass_t *j) {
     int32_t qty = jass_checkinteger(j, 1);
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, -1);
-    (void)accepted; // Retained for WC3_TRACE_AI diagnostics when tracing is enabled.
+    (void)accepted; /* Retained for optional WC3_TRACE_AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnit qty=%d unit=%.4s target=any_hostile accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, (int)accepted, G_BotCaptainGroupSize(player));
@@ -597,7 +602,7 @@ uint32_t SuicideUnitEx(jass_t *j) {
     uint32_t class_id = (uint32_t)jass_checkinteger(j, 2);
     int32_t target = jass_checkinteger(j, 3);
     bool accepted = G_BotSuicideUnits(player, qty, class_id, target);
-    (void)accepted; // Retained for WC3_TRACE_AI diagnostics when tracing is enabled.
+    (void)accepted; /* Retained for optional WC3_TRACE_AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicideUnitEx qty=%d unit=%.4s target_player=%d accepted=%d group_size=%u",
                qty, (cstring_t)&class_id, target, (int)accepted, G_BotCaptainGroupSize(player));
@@ -611,6 +616,7 @@ uint32_t SuicidePlayer(jass_t *j) {
     player_t *target = jass_checkhandle(j, 1, "player");
     bool check_full = jass_checkboolean(j, 2);
     bool accepted = G_BotSuicidePlayer(player, target ? PLAYER_NUM(target) : 0, check_full);
+    (void)bot; /* Used by optional AI diagnostics. */
     G_BOT_TRACE(player ? PLAYER_NUM(player) : MAX_PLAYERS, j, "wave_send",
                "api=SuicidePlayer target_player=%u check_full=%d accepted=%d group_size=%u desired=%u shortfall=%u",
                target ? PLAYER_NUM(target) : 0, (int)check_full, (int)accepted,

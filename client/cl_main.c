@@ -1520,6 +1520,21 @@ void CL_Frame(uint32_t msec) {
     SCR_UpdateScreen(msec);
 }
 
+/* A large synchronous server action can keep displaying its last snapshot.
+ * Leave SDL gameplay events queued: dispatching commands or processing a
+ * session action here would reenter the live game/JASS call stack. */
+void CL_PresentationFrame(uint32_t msec) {
+    cl_realtime += msec;
+    cl.time += msec;
+    SDL_PumpEvents();
+    mouse.event = UI_EVENT_NONE;
+    mouse.wheel = 0;
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+    mouse.origin = (vec2_t){x, y};
+    SCR_UpdateScreen(msec);
+}
+
 #if defined(BZ_TESTS) && defined(BZ_CLIENT_WORLD)
 #include "shared/test.h"
 TEST(client_sound, playback_receipts_are_reliable_ordered_and_wait_for_buffer_space) {

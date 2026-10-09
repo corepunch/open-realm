@@ -67,7 +67,15 @@ Each pending entry stores:
 - entity number plus `spawn_time` for an entity order; queued Build entries reuse this otherwise-unused stable pair to identify their owner-only Construction Site Indicator for teardown;
 - the issuing player number for future error-routing work;
 - an optional rawcode payload (`order_id`) used by delayed construction;
-- the movement group-speed cap for a queued formation Move leg.
+- the movement group-speed cap for a legacy queued formation Move leg;
+- an optional ability-owned request context, used by selected physical Move cohorts to retain one common point and request identity.
+
+The first selected ground Shift Move behind an active shared cohort preserves
+its current physical owner and appends a common point with one new request
+identity. Move starts each queued leg at that member's natural completion, then
+rebuilds matching nearby membership when a later member arrives. Save78 retains
+the request on both sides of this transition. Idle/mixed/additional queues and
+other movement lanes remain separate parity work. See [retail queue evidence](retail-pathfinding-engine.md#selected-shift-move-retains-request-ownership-through-staggered-arrival).
 
 Entity pointers are intentionally not stored in the queue. An edict slot can be freed and reused before a delayed command reaches the head of the FIFO. Number + `spawn_time` re-resolution makes that stale command fail closed rather than retargeting the new occupant of the same slot.
 
@@ -167,7 +175,7 @@ OpenRealm does not yet have Warsmash's per-ability `onCancelFromQueue()` reserva
 
 The queue is inline numeric data inside `edict_t`; it contains no process pointers, so it persists with the existing raw-edict save record without adding an `F_EDICT` field. Entity targets remain number + `spawn_time` and are re-resolved only at execution.
 
-Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 60; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue`, `order_queued`, and `order_queue_chained` because targeting callbacks/menu modes are rebuilt rather than persisted.
+Adding the queue changes `sizeof(edict_t)`, so the save header's `edict_size` guard rejects older incompatible raw-struct saves independently of the outer `W3SV` format version. The current outer format is version 78; its evolution and compatibility policy are tracked in [Save/Load](save-load.md). The transient menu flags are still process-local: `WriteClient()` and `ReadClient()` explicitly clear `supports_order_queue`, `order_queued`, and `order_queue_chained` because targeting callbacks/menu modes are rebuilt rather than persisted.
 
 The existing save/load limitation still applies: arbitrary active `umove_t` behavior identity is not semantically restored. Pending queue records are persisted, but exact mid-order resume requires the separate active-behavior save work described in [Save/Load](save-load.md).
 

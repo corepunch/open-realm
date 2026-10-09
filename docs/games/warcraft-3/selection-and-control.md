@@ -298,3 +298,19 @@ make test-wc3-engine WC3_PATTERN='wc3_unit.*'
 
 Runtime verification should also cover an enemy walking from visible terrain into fog, Neutral Passive/Hostile circle colours, and attempting Smart/command-card orders while a foreign unit is selected.
 For multiselect ordering, drag-select a deliberately mixed group (for example a Hero plus several different unit types) and confirm the status-panel icons remain grouped/sorted by priority, level, then rawcode regardless of entity spawn order; the first sorted unit should own the initial command card and selection response.
+
+### Ordered selection membership
+
+Selection masks remain authoritative edict state. `G_SetEntitySelectionMask`
+updates both the mask and a derived per-player hierarchical bitset. All native,
+command, death, item and allocator writers use this operation; diagnostic tools
+must use it too. `FOR_SELECTED_UNITS` visits indexed members in ascending edict
+order and evaluates live eligibility. Adds/removals of later identities during a
+callback are observed by the same traversal, as with the former full edict scan.
+`G_UpdateClientSelections` visits raw indexed membership so it can still remove
+units that became hidden, dead or unselectable.
+
+The index is cleared at world reset and rebuilt after save restoration. It adds
+no serialized fields. Allocator-cache resets do not erase selection. A fixture
+with 4,096 entities and two selected units verifies exactly two eligibility
+checks, ordered traversal, live mutation, removal, and independent player masks.

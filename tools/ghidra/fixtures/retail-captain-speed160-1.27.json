@@ -1,0 +1,4864 @@
+{
+ "task": "GROUP-03.4.7.3",
+ "dll_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "repository_sources": {
+  "tools/frida/research/captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+  "tools/frida/research/captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+  "tools/frida/research/captain_speed160_make_map.py": "771f9bc4462f8046cc1a549714cc8b947ffea7600d8de7bbf3dac3c700efe85b",
+  "tools/frida/research/GROUP-03.4.7.3_make_map.py": "c3c7cf4e09045ba804d02836e3788f991145f78f36d1e47d085a576ade8ef15f",
+  "tools/frida/research/GROUP-03.4.7.3_probe.j": "27073d98657da6592127ec7f5338ac3f81a2847bcabe0219e3542e6f7ac7d88b",
+  "tools/frida/research/GROUP-03.4.7.3_probe.ai": "b858b9a40a65f39f8f07c7edf95890610594193e151f28751f0eb4bdf0157e4c",
+  "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+  "tools/ghidra/research/verify_captain_speed160_live.py": "044aeae7ee784d0f9a84627ae098972e57e657370a781ba6d254bd1eddaf3844",
+  "tools/ghidra/verify_wc3_pathing_numeric.py": "4b662d992bfee2ac25ad46abf675acdb3582b124f14f68c93d12c66e2d171ed8"
+ },
+ "scenes": {
+  "away": {
+   "sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+    "map": "3b45cfe60ef0aa0c162a2e47f4a895254b8bcea0e7de64d186c50e753fe26f24"
+   },
+   "normalized": [
+    {
+     "event": "policy-constants",
+     "retreatSpeed": 1140457472,
+     "emptySpeed": 1176255488,
+     "memberFactor": 1009915459,
+     "baseFactor": 1060976551
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1129917573
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1129917573
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1258,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4105,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1258,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4105,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1269,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4105,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1269,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4105,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1287,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1287,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    }
+   ],
+   "public_markers": [
+    "RSH tick=0 label=start_group0473 variant=away",
+    "RSH tick=0 label=birth u=0",
+    "RSH tick=0 label=birth u=1",
+    "RSH tick=0 label=birth u=2",
+    "RSH tick=0 label=birth u=3",
+    "RSH tick=0 label=birth u=4",
+    "RSH tick=0 label=birth u=5",
+    "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "RSH tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "RSH tick=9 label=start-ai",
+    "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "RSH tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "RSH tick=12 label=command phase=6",
+    "RSH tick=15 label=sample u=0 x=-1936.000 y=-822.103 o=851986",
+    "RSH tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "RSH tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "RSH tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "RSH tick=15 label=sample u=4 x=-1936.000 y=-942.602 o=851986",
+    "RSH tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "RSH tick=20 label=sample u=0 x=-1936.000 y=-714.104 o=851988",
+    "RSH tick=20 label=sample u=1 x=-1863.057 y=-717.351 o=851988",
+    "RSH tick=20 label=sample u=2 x=-1789.765 y=-714.506 o=851988",
+    "RSH tick=20 label=sample u=3 x=-1738.089 y=-842.444 o=851988",
+    "RSH tick=20 label=sample u=4 x=-1936.000 y=-834.604 o=851988",
+    "RSH tick=20 label=sample u=5 x=-1856.236 y=-837.157 o=851988",
+    "RSH tick=25 label=sample u=0 x=-1947.822 y=-837.568 o=851988",
+    "RSH tick=25 label=sample u=1 x=-1877.221 y=-840.737 o=851988",
+    "RSH tick=25 label=sample u=2 x=-1786.147 y=-837.100 o=851988",
+    "RSH tick=25 label=sample u=3 x=-1787.885 y=-964.030 o=851988",
+    "RSH tick=25 label=sample u=4 x=-1947.394 y=-958.266 o=851988",
+    "RSH tick=25 label=sample u=5 x=-1871.188 y=-960.453 o=851988",
+    "RSH tick=30 label=sample u=0 x=-1963.088 y=-971.699 o=851988",
+    "RSH tick=30 label=sample u=1 x=-1892.610 y=-974.855 o=851988",
+    "RSH tick=30 label=sample u=2 x=-1790.643 y=-931.490 o=851988",
+    "RSH tick=30 label=sample u=3 x=-1799.874 y=-1069.635 o=851988",
+    "RSH tick=30 label=sample u=4 x=-1959.308 y=-1092.734 o=851988",
+    "RSH tick=30 label=sample u=5 x=-1887.439 y=-1094.468 o=851988",
+    "RSH tick=35 label=sample u=0 x=-1978.355 y=-1105.829 o=851988",
+    "RSH tick=35 label=sample u=1 x=-1908.000 y=-1108.973 o=851988",
+    "RSH tick=35 label=sample u=2 x=-1797.063 y=-1066.333 o=851988",
+    "RSH tick=35 label=sample u=3 x=-1803.276 y=-1204.588 o=851988",
+    "RSH tick=35 label=sample u=4 x=-1971.222 y=-1227.203 o=851988",
+    "RSH tick=35 label=sample u=5 x=-1903.690 y=-1228.483 o=851988",
+    "RSH tick=40 label=sample u=0 x=-1993.623 y=-1239.957 o=851988",
+    "RSH tick=40 label=sample u=1 x=-1923.389 y=-1243.089 o=851988",
+    "RSH tick=40 label=sample u=2 x=-1803.485 y=-1201.176 o=851988",
+    "RSH tick=40 label=sample u=3 x=-1806.678 y=-1339.541 o=851988",
+    "RSH tick=40 label=sample u=4 x=-1983.137 y=-1361.671 o=851988",
+    "RSH tick=40 label=sample u=5 x=-1916.691 y=-1335.695 o=851988",
+    "RSH tick=45 label=sample u=0 x=-2076.223 y=-1328.565 o=851988",
+    "RSH tick=45 label=sample u=1 x=-1954.551 y=-1259.248 o=851988",
+    "RSH tick=45 label=sample u=2 x=-1775.549 y=-1323.816 o=851988",
+    "RSH tick=45 label=sample u=3 x=-1763.700 y=-1464.022 o=851988",
+    "RSH tick=45 label=sample u=4 x=-1995.051 y=-1496.134 o=851988",
+    "RSH tick=45 label=sample u=5 x=-1926.437 y=-1416.100 o=851988",
+    "RSH tick=50 label=sample u=0 x=-2065.318 y=-1308.381 o=851988",
+    "RSH tick=50 label=sample u=1 x=-1951.164 y=-1352.000 o=851988",
+    "RSH tick=50 label=sample u=2 x=-1785.466 y=-1305.684 o=851988",
+    "RSH tick=50 label=sample u=3 x=-1775.479 y=-1421.341 o=851988",
+    "RSH tick=50 label=sample u=4 x=-2066.598 y=-1562.808 o=851988",
+    "RSH tick=50 label=sample u=5 x=-1934.485 y=-1450.730 o=851988",
+    "RSH tick=55 label=sample u=0 x=-2002.355 y=-1272.927 o=851988",
+    "RSH tick=55 label=sample u=1 x=-1942.213 y=-1231.407 o=851988",
+    "RSH tick=55 label=sample u=2 x=-1857.138 y=-1216.741 o=851988",
+    "RSH tick=55 label=sample u=3 x=-1822.349 y=-1303.138 o=851988",
+    "RSH tick=55 label=sample u=4 x=-2001.842 y=-1511.104 o=851988",
+    "RSH tick=55 label=sample u=5 x=-1934.949 y=-1356.240 o=851988",
+    "RSH tick=60 label=sample u=0 x=-2002.355 y=-1272.927 o=851988",
+    "RSH tick=60 label=sample u=1 x=-1942.213 y=-1231.407 o=851988",
+    "RSH tick=60 label=sample u=2 x=-1857.138 y=-1216.741 o=851988",
+    "RSH tick=60 label=sample u=3 x=-1808.102 y=-1184.215 o=851988",
+    "RSH tick=60 label=sample u=4 x=-1917.125 y=-1409.582 o=851988",
+    "RSH tick=60 label=sample u=5 x=-1921.067 y=-1302.693 o=851988",
+    "RSH tick=65 label=sample u=0 x=-2002.355 y=-1272.927 o=851988",
+    "RSH tick=65 label=sample u=1 x=-1942.213 y=-1231.407 o=851988",
+    "RSH tick=65 label=sample u=2 x=-1857.138 y=-1216.741 o=851988",
+    "RSH tick=65 label=sample u=3 x=-1823.647 y=-1172.399 o=851988",
+    "RSH tick=65 label=sample u=4 x=-1855.779 y=-1345.065 o=851988",
+    "RSH tick=65 label=sample u=5 x=-1921.067 y=-1302.693 o=851988",
+    "RSH tick=70 label=sample u=0 x=-2002.355 y=-1272.927 o=851988",
+    "RSH tick=70 label=sample u=1 x=-1942.213 y=-1231.407 o=851988",
+    "RSH tick=70 label=sample u=2 x=-1857.138 y=-1216.741 o=851988",
+    "RSH tick=70 label=sample u=3 x=-1823.647 y=-1172.399 o=851988",
+    "RSH tick=70 label=sample u=4 x=-1855.779 y=-1345.065 o=851988",
+    "RSH tick=70 label=sample u=5 x=-1921.067 y=-1302.693 o=851988",
+    "RSH tick=75 label=sample u=0 x=-2026.981 y=-1302.237 o=851986",
+    "RSH tick=75 label=sample u=1 x=-1946.302 y=-1207.760 o=851986",
+    "RSH tick=75 label=sample u=2 x=-1853.334 y=-1276.151 o=851986",
+    "RSH tick=75 label=sample u=3 x=-1812.253 y=-1193.613 o=851986",
+    "RSH tick=75 label=sample u=4 x=-1840.676 y=-1399.473 o=851986",
+    "RSH tick=75 label=sample u=5 x=-1945.963 y=-1361.891 o=851986",
+    "RSH tick=80 label=sample u=0 x=-2000.156 y=-1203.906 o=851986",
+    "RSH tick=80 label=sample u=1 x=-1954.447 y=-1073.019 o=851986",
+    "RSH tick=80 label=sample u=2 x=-1848.865 y=-1189.875 o=851986",
+    "RSH tick=80 label=sample u=3 x=-1809.335 y=-1058.844 o=851986",
+    "RSH tick=80 label=sample u=4 x=-1837.277 y=-1305.090 o=851986",
+    "RSH tick=80 label=sample u=5 x=-1921.564 y=-1229.287 o=851986",
+    "RSH tick=85 label=sample u=0 x=-1975.555 y=-1141.421 o=851986",
+    "RSH tick=85 label=sample u=1 x=-1962.585 y=-938.290 o=851986",
+    "RSH tick=85 label=sample u=2 x=-1841.883 y=-1055.081 o=851986",
+    "RSH tick=85 label=sample u=3 x=-1809.034 y=-923.871 o=851986",
+    "RSH tick=85 label=sample u=4 x=-1827.255 y=-1170.490 o=851986",
+    "RSH tick=85 label=sample u=5 x=-1899.860 y=-1096.069 o=851986",
+    "RSH tick=90 label=sample u=0 x=-1980.186 y=-1006.527 o=851986",
+    "RSH tick=90 label=sample u=1 x=-1970.723 y=-803.561 o=851986",
+    "RSH tick=90 label=sample u=2 x=-1834.901 y=-920.287 o=851986",
+    "RSH tick=90 label=sample u=3 x=-1808.733 y=-788.898 o=851986",
+    "RSH tick=90 label=sample u=4 x=-1817.229 y=-1035.889 o=851986",
+    "RSH tick=90 label=sample u=5 x=-1891.176 y=-1042.782 o=851986",
+    "RSH tick=95 label=sample u=0 x=-1984.816 y=-871.635 o=851986",
+    "RSH tick=95 label=sample u=1 x=-1978.861 y=-668.832 o=851986",
+    "RSH tick=95 label=sample u=2 x=-1827.918 y=-785.493 o=851986",
+    "RSH tick=95 label=sample u=3 x=-1808.432 y=-653.925 o=851986",
+    "RSH tick=95 label=sample u=4 x=-1804.683 y=-901.627 o=851986",
+    "RSH tick=95 label=sample u=5 x=-1869.465 y=-909.567 o=851986",
+    "RSH tick=100 label=sample u=0 x=-1989.447 y=-736.744 o=851986",
+    "RSH tick=100 label=sample u=1 x=-1986.999 y=-534.103 o=851986",
+    "RSH tick=100 label=sample u=2 x=-1820.936 y=-650.699 o=851986",
+    "RSH tick=100 label=sample u=3 x=-1808.126 y=-518.951 o=851986",
+    "RSH tick=100 label=sample u=4 x=-1778.903 y=-769.141 o=851986",
+    "RSH tick=100 label=sample u=5 x=-1854.267 y=-816.316 o=851986",
+    "RSH tick=105 label=sample u=0 x=-1998.937 y=-602.568 o=851986",
+    "RSH tick=105 label=sample u=1 x=-2010.633 y=-403.490 o=851986",
+    "RSH tick=105 label=sample u=2 x=-1819.151 y=-517.662 o=851986",
+    "RSH tick=105 label=sample u=3 x=-1806.781 y=-384.009 o=851986",
+    "RSH tick=105 label=sample u=4 x=-1769.252 y=-680.027 o=851986",
+    "RSH tick=105 label=sample u=5 x=-1842.008 y=-682.745 o=851986",
+    "RSH tick=110 label=sample u=0 x=-2010.957 y=-468.475 o=851986",
+    "RSH tick=110 label=sample u=1 x=-2070.426 y=-282.482 o=851986",
+    "RSH tick=110 label=sample u=2 x=-1860.964 y=-389.330 o=851986",
+    "RSH tick=110 label=sample u=3 x=-1799.978 y=-249.207 o=851986",
+    "RSH tick=110 label=sample u=4 x=-1794.489 y=-664.378 o=851986",
+    "RSH tick=110 label=sample u=5 x=-1861.123 y=-549.131 o=851986",
+    "RSH tick=115 label=sample u=0 x=-2037.251 y=-337.461 o=851986",
+    "RSH tick=115 label=sample u=1 x=-2130.216 y=-161.474 o=851986",
+    "RSH tick=115 label=sample u=2 x=-1902.777 y=-260.997 o=851986",
+    "RSH tick=115 label=sample u=3 x=-1793.174 y=-114.405 o=851986",
+    "RSH tick=115 label=sample u=4 x=-1802.430 y=-531.394 o=851986",
+    "RSH tick=115 label=sample u=5 x=-1880.231 y=-415.517 o=851986",
+    "RSH tick=120 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=120 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=120 label=sample u=2 x=-1944.589 y=-132.660 o=851986",
+    "RSH tick=120 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=120 label=sample u=4 x=-1805.009 y=-396.445 o=851986",
+    "RSH tick=120 label=sample u=5 x=-1899.339 y=-281.903 o=851986",
+    "RSH tick=125 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=125 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=125 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=125 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=125 label=sample u=4 x=-1807.590 y=-261.496 o=851986",
+    "RSH tick=125 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=130 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=130 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=130 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=130 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=130 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=130 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=135 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=135 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=135 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=135 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=135 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=135 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=140 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=140 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=140 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=140 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=140 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=140 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=145 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=145 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=145 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=145 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=145 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=145 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=150 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=150 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=150 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=150 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=150 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=150 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=155 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=155 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=155 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=155 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=155 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=155 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=160 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=160 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=160 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=160 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=160 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=160 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=165 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=165 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=165 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=165 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=165 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=165 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=170 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=170 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=170 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=170 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=170 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=170 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=175 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=175 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=175 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=175 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=175 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=175 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=180 label=sample u=0 x=-2076.423 y=-289.289 o=0",
+    "RSH tick=180 label=sample u=1 x=-2132.607 y=-156.633 o=0",
+    "RSH tick=180 label=sample u=2 x=-1959.639 y=-86.459 o=0",
+    "RSH tick=180 label=sample u=3 x=-1788.410 y=-20.043 o=0",
+    "RSH tick=180 label=sample u=4 x=-1741.061 y=-149.199 o=0",
+    "RSH tick=180 label=sample u=5 x=-1908.511 y=-217.768 o=0",
+    "RSH tick=180 label=complete"
+   ],
+   "repeats": [
+    "away-observe-1.jsonl",
+    "away-observe-3.jsonl"
+   ],
+   "control": "away-control-1.jsonl",
+   "captures": {
+    "away-observe-1.jsonl": "afa2ecdf248a4d32d5872090108c93ee493705811da7cf0b5d42b9af2daa8db0",
+    "away-observe-3.jsonl": "1e7c2b2776095b519df252904d0e913dc602942da81d145154438da6dfaaf4f6",
+    "away-control-1.jsonl": "808f6dbe390bca37ef3c7abe211b9236c3bf39ec4902de7f375b160a09eeb4dc"
+   },
+   "map": {
+    "path": "RS-CS160-away.w3m",
+    "sha256": "3b45cfe60ef0aa0c162a2e47f4a895254b8bcea0e7de64d186c50e753fe26f24",
+    "variant": "away",
+    "legacy_markers": true
+   }
+  },
+  "home": {
+   "sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+    "map": "631d88ce8c3654dfb773a3259fe3f9011dcb58f10e74a4a99bacfba53062dfd3"
+   },
+   "normalized": [
+    {
+     "event": "policy-constants",
+     "retreatSpeed": 1140457472,
+     "emptySpeed": 1176255488,
+     "memberFactor": 1009915459,
+     "baseFactor": 1060976551
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    }
+   ],
+   "public_markers": [
+    "RSH tick=0 label=start_group0473 variant=home",
+    "RSH tick=0 label=birth u=0",
+    "RSH tick=0 label=birth u=1",
+    "RSH tick=0 label=birth u=2",
+    "RSH tick=0 label=birth u=3",
+    "RSH tick=0 label=birth u=4",
+    "RSH tick=0 label=birth u=5",
+    "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "RSH tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "RSH tick=9 label=start-ai",
+    "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "RSH tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "RSH tick=12 label=command phase=3",
+    "RSH tick=15 label=sample u=0 x=-1936.000 y=-822.103 o=851986",
+    "RSH tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "RSH tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "RSH tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "RSH tick=15 label=sample u=4 x=-1936.000 y=-942.602 o=851986",
+    "RSH tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "RSH tick=20 label=sample u=0 x=-1937.425 y=-692.697 o=851986",
+    "RSH tick=20 label=sample u=1 x=-1867.816 y=-696.455 o=851986",
+    "RSH tick=20 label=sample u=2 x=-1782.951 y=-694.769 o=851986",
+    "RSH tick=20 label=sample u=3 x=-1743.093 y=-821.439 o=851986",
+    "RSH tick=20 label=sample u=4 x=-1938.348 y=-813.210 o=851986",
+    "RSH tick=20 label=sample u=5 x=-1858.983 y=-815.733 o=851986",
+    "RSH tick=25 label=sample u=0 x=-1973.054 y=-562.488 o=851986",
+    "RSH tick=25 label=sample u=1 x=-1868.735 y=-561.465 o=851986",
+    "RSH tick=25 label=sample u=2 x=-1797.362 y=-594.774 o=851986",
+    "RSH tick=25 label=sample u=3 x=-1768.819 y=-730.512 o=851986",
+    "RSH tick=25 label=sample u=4 x=-1961.820 y=-680.271 o=851986",
+    "RSH tick=25 label=sample u=5 x=-1876.155 y=-681.837 o=851986",
+    "RSH tick=30 label=sample u=0 x=-2010.207 y=-432.730 o=851986",
+    "RSH tick=30 label=sample u=1 x=-1869.655 y=-426.476 o=851986",
+    "RSH tick=30 label=sample u=2 x=-1800.794 y=-459.825 o=851986",
+    "RSH tick=30 label=sample u=3 x=-1802.760 y=-621.914 o=851986",
+    "RSH tick=30 label=sample u=4 x=-1985.290 y=-547.333 o=851986",
+    "RSH tick=30 label=sample u=5 x=-1893.323 y=-547.938 o=851986",
+    "RSH tick=35 label=sample u=0 x=-2050.921 y=-304.023 o=851986",
+    "RSH tick=35 label=sample u=1 x=-1870.572 y=-291.486 o=851986",
+    "RSH tick=35 label=sample u=2 x=-1804.221 y=-324.877 o=851986",
+    "RSH tick=35 label=sample u=3 x=-1804.786 y=-486.937 o=851986",
+    "RSH tick=35 label=sample u=4 x=-2025.006 y=-419.646 o=851986",
+    "RSH tick=35 label=sample u=5 x=-1910.487 y=-414.040 o=851986",
+    "RSH tick=40 label=sample u=0 x=-2091.636 y=-175.317 o=851986",
+    "RSH tick=40 label=sample u=1 x=-1871.484 y=-156.497 o=851986",
+    "RSH tick=40 label=sample u=2 x=-1807.647 y=-189.928 o=851986",
+    "RSH tick=40 label=sample u=3 x=-1806.805 y=-351.960 o=851986",
+    "RSH tick=40 label=sample u=4 x=-2083.793 y=-298.125 o=851986",
+    "RSH tick=40 label=sample u=5 x=-1927.650 y=-280.141 o=851986",
+    "RSH tick=45 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=45 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=45 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=45 label=sample u=3 x=-1764.937 y=-233.356 o=851986",
+    "RSH tick=45 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=45 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=50 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=50 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=50 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=50 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=50 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=50 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=55 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=55 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=55 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=55 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=55 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=55 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=60 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=60 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=60 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=60 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=60 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=60 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=65 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=65 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=65 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=65 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=65 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=65 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=70 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=70 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=70 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=70 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=70 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=70 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=75 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=75 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=75 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=75 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=75 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=75 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=80 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=80 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=80 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=80 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=80 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=80 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=85 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=85 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=85 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=85 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=85 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=85 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=90 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=90 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=90 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=90 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=90 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=90 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=95 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=95 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=95 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=95 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=95 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=95 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=100 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=100 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=100 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=100 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=100 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=100 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=105 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=105 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=105 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=105 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=105 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=105 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=110 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=110 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=110 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=110 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=110 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=110 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=115 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=115 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=115 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=115 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=115 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=115 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=120 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=120 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=120 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=120 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=120 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=120 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=125 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=125 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=125 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=125 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=125 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=125 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=130 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=130 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=130 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=130 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=130 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=130 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=135 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=135 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=135 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=135 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=135 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=135 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=140 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=140 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=140 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=140 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=140 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=140 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=145 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=145 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=145 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=145 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=145 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=145 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=150 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=150 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=150 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=150 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=150 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=150 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=155 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=155 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=155 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=155 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=155 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=155 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=160 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=160 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=160 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=160 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=160 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=160 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=165 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=165 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=165 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=165 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=165 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=165 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=170 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=170 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=170 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=170 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=170 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=170 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=175 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=175 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=175 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=175 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=175 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=175 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=180 label=sample u=0 x=-2120.134 y=-85.225 o=0",
+    "RSH tick=180 label=sample u=1 x=-1925.652 y=-76.391 o=0",
+    "RSH tick=180 label=sample u=2 x=-1754.216 y=-84.595 o=0",
+    "RSH tick=180 label=sample u=3 x=-1753.953 y=-221.451 o=0",
+    "RSH tick=180 label=sample u=4 x=-2117.885 y=-227.644 o=0",
+    "RSH tick=180 label=sample u=5 x=-1934.516 y=-226.584 o=0",
+    "RSH tick=180 label=complete"
+   ],
+   "repeats": [
+    "home-observe-1.jsonl",
+    "home-observe-2.jsonl"
+   ],
+   "control": "home-control-1.jsonl",
+   "captures": {
+    "home-observe-1.jsonl": "952f7e94383a1c6460ff851583280a1c19e1921ffb2b788d9e9aa860e07505f1",
+    "home-observe-2.jsonl": "5bb546a5641220356bcb2eef6728a14f423be2c6dcb3e4083d1a1d6ad19a7666",
+    "home-control-1.jsonl": "05c7f66c0bf8987bc3200bc940e682c2bd896e4657ac198b29645c12a2f349c9"
+   },
+   "map": {
+    "path": "RS-CS160-home.w3m",
+    "sha256": "631d88ce8c3654dfb773a3259fe3f9011dcb58f10e74a4a99bacfba53062dfd3",
+    "variant": "home",
+    "legacy_markers": true
+   }
+  },
+  "slow": {
+   "sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+    "map": "60be08026c844dd89f9f93fb23278117a29dc6d0c7af76634b20b3396dee207d"
+   },
+   "normalized": [
+    {
+     "event": "policy-constants",
+     "retreatSpeed": 1140457472,
+     "emptySpeed": 1176255488,
+     "memberFactor": 1009915459,
+     "baseFactor": 1060976551
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1125173336
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1125173336
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1127481344
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1127481344
+    },
+    {
+     "event": "speed",
+     "counter": 1349,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1127481344
+    },
+    {
+     "event": "speed",
+     "counter": 1349,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1127481344,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1127481344
+    }
+   ],
+   "public_markers": [
+    "RSH tick=0 label=start_group0473 variant=slow",
+    "RSH tick=0 label=birth u=0",
+    "RSH tick=0 label=birth u=1",
+    "RSH tick=0 label=birth u=2",
+    "RSH tick=0 label=birth u=3",
+    "RSH tick=0 label=birth u=4",
+    "RSH tick=0 label=birth u=5",
+    "RSH tick=0 label=order-ids board=852043 load=852046",
+    "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "RSH tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "RSH tick=9 label=start-ai",
+    "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "RSH tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "RSH tick=12 label=command phase=6",
+    "RSH tick=15 label=sample u=0 x=-1936.000 y=-863.502 o=851986",
+    "RSH tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "RSH tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "RSH tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "RSH tick=15 label=sample u=4 x=-1931.429 y=-952.115 o=851986",
+    "RSH tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "RSH tick=20 label=sample u=0 x=-1936.000 y=-863.502 o=851988",
+    "RSH tick=20 label=sample u=1 x=-1863.057 y=-717.351 o=851988",
+    "RSH tick=20 label=sample u=2 x=-1789.765 y=-714.506 o=851988",
+    "RSH tick=20 label=sample u=3 x=-1738.089 y=-842.444 o=851988",
+    "RSH tick=20 label=sample u=4 x=-1908.571 y=-918.684 o=851988",
+    "RSH tick=20 label=sample u=5 x=-1846.291 y=-847.220 o=851988",
+    "RSH tick=25 label=sample u=0 x=-1939.667 y=-902.931 o=851988",
+    "RSH tick=25 label=sample u=1 x=-1884.508 y=-802.377 o=851988",
+    "RSH tick=25 label=sample u=2 x=-1793.862 y=-794.018 o=851988",
+    "RSH tick=25 label=sample u=3 x=-1768.756 y=-924.167 o=851988",
+    "RSH tick=25 label=sample u=4 x=-1913.301 y=-1001.341 o=851988",
+    "RSH tick=25 label=sample u=5 x=-1835.370 y=-929.247 o=851988",
+    "RSH tick=30 label=sample u=0 x=-1945.500 y=-965.660 o=851988",
+    "RSH tick=30 label=sample u=1 x=-1905.016 y=-890.011 o=851988",
+    "RSH tick=30 label=sample u=2 x=-1820.557 y=-871.430 o=851988",
+    "RSH tick=30 label=sample u=3 x=-1779.440 y=-946.990 o=851988",
+    "RSH tick=30 label=sample u=4 x=-1918.135 y=-1091.209 o=851988",
+    "RSH tick=30 label=sample u=5 x=-1825.294 y=-1018.680 o=851988",
+    "RSH tick=35 label=sample u=0 x=-1953.833 y=-1055.271 o=851988",
+    "RSH tick=35 label=sample u=1 x=-1919.371 y=-951.355 o=851988",
+    "RSH tick=35 label=sample u=2 x=-1848.397 y=-952.611 o=851988",
+    "RSH tick=35 label=sample u=3 x=-1788.599 y=-966.552 o=851988",
+    "RSH tick=35 label=sample u=4 x=-1922.969 y=-1181.077 o=851988",
+    "RSH tick=35 label=sample u=5 x=-1815.220 y=-1108.113 o=851988",
+    "RSH tick=40 label=sample u=0 x=-1962.167 y=-1144.883 o=851988",
+    "RSH tick=40 label=sample u=1 x=-1939.878 y=-1038.989 o=851988",
+    "RSH tick=40 label=sample u=2 x=-1861.294 y=-1014.277 o=851988",
+    "RSH tick=40 label=sample u=3 x=-1786.159 y=-963.430 o=851988",
+    "RSH tick=40 label=sample u=4 x=-1927.803 y=-1270.945 o=851988",
+    "RSH tick=40 label=sample u=5 x=-1805.142 y=-1197.546 o=851988",
+    "RSH tick=45 label=sample u=0 x=-1970.500 y=-1234.491 o=851988",
+    "RSH tick=45 label=sample u=1 x=-1960.377 y=-1126.618 o=851988",
+    "RSH tick=45 label=sample u=2 x=-1879.718 y=-1102.365 o=851988",
+    "RSH tick=45 label=sample u=3 x=-1802.520 y=-1045.658 o=851988",
+    "RSH tick=45 label=sample u=4 x=-1932.637 y=-1360.809 o=851988",
+    "RSH tick=45 label=sample u=5 x=-1795.060 y=-1286.974 o=851988",
+    "RSH tick=50 label=sample u=0 x=-1978.826 y=-1324.099 o=851988",
+    "RSH tick=50 label=sample u=1 x=-1980.877 y=-1214.246 o=851988",
+    "RSH tick=50 label=sample u=2 x=-1898.143 y=-1190.455 o=851988",
+    "RSH tick=50 label=sample u=3 x=-1804.490 y=-1135.630 o=851988",
+    "RSH tick=50 label=sample u=4 x=-1937.471 y=-1450.673 o=851988",
+    "RSH tick=50 label=sample u=5 x=-1784.977 y=-1376.402 o=851988",
+    "RSH tick=55 label=sample u=0 x=-1984.487 y=-1385.032 o=851988",
+    "RSH tick=55 label=sample u=1 x=-2016.854 y=-1293.190 o=851988",
+    "RSH tick=55 label=sample u=2 x=-1917.118 y=-1281.188 o=851988",
+    "RSH tick=55 label=sample u=3 x=-1806.518 y=-1228.301 o=851988",
+    "RSH tick=55 label=sample u=4 x=-1937.119 y=-1436.366 o=851988",
+    "RSH tick=55 label=sample u=5 x=-1762.856 y=-1463.737 o=851988",
+    "RSH tick=60 label=sample u=0 x=-1985.486 y=-1395.785 o=851988",
+    "RSH tick=60 label=sample u=1 x=-2097.904 y=-1332.310 o=851988",
+    "RSH tick=60 label=sample u=2 x=-1924.484 y=-1316.424 o=851988",
+    "RSH tick=60 label=sample u=3 x=-1784.947 y=-1310.676 o=851988",
+    "RSH tick=60 label=sample u=4 x=-1881.895 y=-1360.993 o=851988",
+    "RSH tick=60 label=sample u=5 x=-1750.708 y=-1479.370 o=851988",
+    "RSH tick=65 label=sample u=0 x=-1993.812 y=-1485.393 o=851988",
+    "RSH tick=65 label=sample u=1 x=-2035.792 y=-1299.768 o=851988",
+    "RSH tick=65 label=sample u=2 x=-1939.546 y=-1271.435 o=851988",
+    "RSH tick=65 label=sample u=3 x=-1766.937 y=-1337.863 o=851988",
+    "RSH tick=65 label=sample u=4 x=-1878.797 y=-1298.563 o=851988",
+    "RSH tick=65 label=sample u=5 x=-1750.708 y=-1479.370 o=851988",
+    "RSH tick=70 label=sample u=0 x=-2026.292 y=-1550.070 o=851988",
+    "RSH tick=70 label=sample u=1 x=-2000.849 y=-1234.493 o=851988",
+    "RSH tick=70 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=70 label=sample u=3 x=-1812.850 y=-1238.087 o=851988",
+    "RSH tick=70 label=sample u=4 x=-1887.049 y=-1277.923 o=851988",
+    "RSH tick=70 label=sample u=5 x=-1750.708 y=-1479.370 o=851988",
+    "RSH tick=75 label=sample u=0 x=-2065.561 y=-1563.179 o=0",
+    "RSH tick=75 label=sample u=1 x=-2000.387 y=-1215.690 o=851988",
+    "RSH tick=75 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=75 label=sample u=3 x=-1842.981 y=-1195.047 o=851988",
+    "RSH tick=75 label=sample u=4 x=-1888.319 y=-1274.747 o=851988",
+    "RSH tick=75 label=sample u=5 x=-1750.708 y=-1479.370 o=0",
+    "RSH tick=80 label=sample u=0 x=-2065.561 y=-1563.179 o=851988",
+    "RSH tick=80 label=sample u=1 x=-2000.387 y=-1215.690 o=851988",
+    "RSH tick=80 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=80 label=sample u=3 x=-1842.981 y=-1195.047 o=851988",
+    "RSH tick=80 label=sample u=4 x=-1888.319 y=-1274.747 o=851988",
+    "RSH tick=80 label=sample u=5 x=-1750.708 y=-1479.370 o=851988",
+    "RSH tick=85 label=sample u=0 x=-2008.906 y=-1540.849 o=851988",
+    "RSH tick=85 label=sample u=1 x=-2000.387 y=-1215.690 o=851988",
+    "RSH tick=85 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=85 label=sample u=3 x=-1842.981 y=-1195.047 o=851988",
+    "RSH tick=85 label=sample u=4 x=-1888.319 y=-1274.747 o=851988",
+    "RSH tick=85 label=sample u=5 x=-1785.264 y=-1379.298 o=851988",
+    "RSH tick=90 label=sample u=0 x=-1993.758 y=-1454.107 o=851988",
+    "RSH tick=90 label=sample u=1 x=-2000.387 y=-1215.690 o=851988",
+    "RSH tick=90 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=90 label=sample u=3 x=-1842.981 y=-1195.047 o=851988",
+    "RSH tick=90 label=sample u=4 x=-1888.319 y=-1274.747 o=851988",
+    "RSH tick=90 label=sample u=5 x=-1820.922 y=-1304.188 o=851988",
+    "RSH tick=95 label=sample u=0 x=-1919.037 y=-1410.326 o=851988",
+    "RSH tick=95 label=sample u=1 x=-1999.982 y=-1159.027 o=851988",
+    "RSH tick=95 label=sample u=2 x=-1939.142 y=-1193.072 o=851988",
+    "RSH tick=95 label=sample u=3 x=-1842.981 y=-1195.047 o=851988",
+    "RSH tick=95 label=sample u=4 x=-1888.319 y=-1274.747 o=851988",
+    "RSH tick=95 label=sample u=5 x=-1820.922 y=-1304.188 o=851988",
+    "RSH tick=100 label=sample u=0 x=-1874.727 y=-1371.707 o=851986",
+    "RSH tick=100 label=sample u=1 x=-1975.496 y=-1105.396 o=851986",
+    "RSH tick=100 label=sample u=2 x=-1939.142 y=-1193.072 o=851986",
+    "RSH tick=100 label=sample u=3 x=-1840.874 y=-1171.756 o=851986",
+    "RSH tick=100 label=sample u=4 x=-1888.319 y=-1274.747 o=851986",
+    "RSH tick=100 label=sample u=5 x=-1827.636 y=-1279.834 o=851986",
+    "RSH tick=105 label=sample u=0 x=-1877.261 y=-1339.412 o=851986",
+    "RSH tick=105 label=sample u=1 x=-1969.970 y=-1015.583 o=851986",
+    "RSH tick=105 label=sample u=2 x=-1938.438 y=-1117.488 o=851986",
+    "RSH tick=105 label=sample u=3 x=-1836.700 y=-1081.870 o=851986",
+    "RSH tick=105 label=sample u=4 x=-1899.096 y=-1233.543 o=851986",
+    "RSH tick=105 label=sample u=5 x=-1829.388 y=-1209.669 o=851986",
+    "RSH tick=110 label=sample u=0 x=-1883.456 y=-1260.468 o=851986",
+    "RSH tick=110 label=sample u=1 x=-1964.444 y=-925.772 o=851986",
+    "RSH tick=110 label=sample u=2 x=-1937.600 y=-1027.508 o=851986",
+    "RSH tick=110 label=sample u=3 x=-1832.525 y=-991.984 o=851986",
+    "RSH tick=110 label=sample u=4 x=-1895.930 y=-1143.616 o=851986",
+    "RSH tick=110 label=sample u=5 x=-1831.634 y=-1119.713 o=851986",
+    "RSH tick=115 label=sample u=0 x=-1890.495 y=-1170.758 o=851986",
+    "RSH tick=115 label=sample u=1 x=-1958.918 y=-835.961 o=851986",
+    "RSH tick=115 label=sample u=2 x=-1936.761 y=-937.530 o=851986",
+    "RSH tick=115 label=sample u=3 x=-1828.350 y=-902.100 o=851986",
+    "RSH tick=115 label=sample u=4 x=-1892.765 y=-1053.689 o=851986",
+    "RSH tick=115 label=sample u=5 x=-1833.880 y=-1029.758 o=851986",
+    "RSH tick=120 label=sample u=0 x=-1897.527 y=-1081.049 o=851986",
+    "RSH tick=120 label=sample u=1 x=-1953.386 y=-746.150 o=851986",
+    "RSH tick=120 label=sample u=2 x=-1935.923 y=-847.552 o=851986",
+    "RSH tick=120 label=sample u=3 x=-1824.175 y=-812.215 o=851986",
+    "RSH tick=120 label=sample u=4 x=-1889.599 y=-963.763 o=851986",
+    "RSH tick=120 label=sample u=5 x=-1836.124 y=-939.804 o=851986",
+    "RSH tick=125 label=sample u=0 x=-1920.491 y=-1014.345 o=851986",
+    "RSH tick=125 label=sample u=1 x=-1947.852 y=-656.339 o=851986",
+    "RSH tick=125 label=sample u=2 x=-1935.084 y=-757.574 o=851986",
+    "RSH tick=125 label=sample u=3 x=-1820.000 y=-722.331 o=851986",
+    "RSH tick=125 label=sample u=4 x=-1889.029 y=-947.577 o=851986",
+    "RSH tick=125 label=sample u=5 x=-1838.362 y=-849.850 o=851986",
+    "RSH tick=130 label=sample u=0 x=-1927.814 y=-959.866 o=851986",
+    "RSH tick=130 label=sample u=1 x=-1942.318 y=-566.528 o=851986",
+    "RSH tick=130 label=sample u=2 x=-1934.247 y=-667.596 o=851986",
+    "RSH tick=130 label=sample u=3 x=-1815.826 y=-632.446 o=851986",
+    "RSH tick=130 label=sample u=4 x=-1886.117 y=-864.846 o=851986",
+    "RSH tick=130 label=sample u=5 x=-1817.691 y=-766.510 o=851986",
+    "RSH tick=135 label=sample u=0 x=-1930.467 y=-869.921 o=851986",
+    "RSH tick=135 label=sample u=1 x=-1948.643 y=-481.099 o=851986",
+    "RSH tick=135 label=sample u=2 x=-1933.403 y=-577.618 o=851986",
+    "RSH tick=135 label=sample u=3 x=-1811.651 y=-542.562 o=851986",
+    "RSH tick=135 label=sample u=4 x=-1882.951 y=-774.921 o=851986",
+    "RSH tick=135 label=sample u=5 x=-1770.786 y=-689.724 o=851986",
+    "RSH tick=140 label=sample u=0 x=-1942.964 y=-780.917 o=851986",
+    "RSH tick=140 label=sample u=1 x=-1985.346 y=-397.866 o=851986",
+    "RSH tick=140 label=sample u=2 x=-1933.698 y=-507.432 o=851986",
+    "RSH tick=140 label=sample u=3 x=-1804.267 y=-450.185 o=851986",
+    "RSH tick=140 label=sample u=4 x=-1880.084 y=-683.566 o=851986",
+    "RSH tick=140 label=sample u=5 x=-1800.841 y=-627.082 o=851986",
+    "RSH tick=145 label=sample u=0 x=-1958.907 y=-692.354 o=851986",
+    "RSH tick=145 label=sample u=1 x=-2020.673 y=-315.107 o=851986",
+    "RSH tick=145 label=sample u=2 x=-1934.111 y=-430.048 o=851986",
+    "RSH tick=145 label=sample u=3 x=-1796.773 y=-360.517 o=851986",
+    "RSH tick=145 label=sample u=4 x=-1890.753 y=-594.219 o=851986",
+    "RSH tick=145 label=sample u=5 x=-1803.055 y=-537.124 o=851986",
+    "RSH tick=150 label=sample u=0 x=-1974.848 y=-603.792 o=851986",
+    "RSH tick=150 label=sample u=1 x=-2056.000 y=-232.346 o=851986",
+    "RSH tick=150 label=sample u=2 x=-1934.591 y=-340.065 o=851986",
+    "RSH tick=150 label=sample u=3 x=-1789.278 y=-270.848 o=851986",
+    "RSH tick=150 label=sample u=4 x=-1901.415 y=-504.872 o=851986",
+    "RSH tick=150 label=sample u=5 x=-1805.268 y=-447.167 o=851986",
+    "RSH tick=155 label=sample u=0 x=-1990.783 y=-515.230 o=851986",
+    "RSH tick=155 label=sample u=1 x=-2091.319 y=-149.583 o=851986",
+    "RSH tick=155 label=sample u=2 x=-1935.071 y=-250.083 o=851986",
+    "RSH tick=155 label=sample u=3 x=-1781.783 y=-181.179 o=851986",
+    "RSH tick=155 label=sample u=4 x=-1912.076 y=-415.524 o=851986",
+    "RSH tick=155 label=sample u=5 x=-1807.480 y=-357.209 o=851986",
+    "RSH tick=160 label=sample u=0 x=-2019.715 y=-430.889 o=851986",
+    "RSH tick=160 label=sample u=1 x=-2119.574 y=-83.372 o=0",
+    "RSH tick=160 label=sample u=2 x=-1935.558 y=-157.402 o=851986",
+    "RSH tick=160 label=sample u=3 x=-1759.256 y=-93.314 o=851986",
+    "RSH tick=160 label=sample u=4 x=-1923.057 y=-323.497 o=851986",
+    "RSH tick=160 label=sample u=5 x=-1773.109 y=-271.822 o=851986",
+    "RSH tick=165 label=sample u=0 x=-2058.858 y=-349.862 o=851986",
+    "RSH tick=165 label=sample u=1 x=-2119.574 y=-83.372 o=0",
+    "RSH tick=165 label=sample u=2 x=-1935.945 y=-83.616 o=0",
+    "RSH tick=165 label=sample u=3 x=-1754.896 y=-85.444 o=0",
+    "RSH tick=165 label=sample u=4 x=-1934.676 y=-226.105 o=0",
+    "RSH tick=165 label=sample u=5 x=-1753.106 y=-226.555 o=0",
+    "RSH tick=170 label=sample u=0 x=-2097.998 y=-268.836 o=851986",
+    "RSH tick=170 label=sample u=1 x=-2119.574 y=-83.372 o=0",
+    "RSH tick=170 label=sample u=2 x=-1935.945 y=-83.616 o=0",
+    "RSH tick=170 label=sample u=3 x=-1754.896 y=-85.444 o=0",
+    "RSH tick=170 label=sample u=4 x=-1934.676 y=-226.105 o=0",
+    "RSH tick=170 label=sample u=5 x=-1753.106 y=-226.555 o=0",
+    "RSH tick=175 label=sample u=0 x=-2117.566 y=-228.323 o=0",
+    "RSH tick=175 label=sample u=1 x=-2119.574 y=-83.372 o=0",
+    "RSH tick=175 label=sample u=2 x=-1935.945 y=-83.616 o=0",
+    "RSH tick=175 label=sample u=3 x=-1754.896 y=-85.444 o=0",
+    "RSH tick=175 label=sample u=4 x=-1934.676 y=-226.105 o=0",
+    "RSH tick=175 label=sample u=5 x=-1753.106 y=-226.555 o=0",
+    "RSH tick=180 label=sample u=0 x=-2117.566 y=-228.323 o=0",
+    "RSH tick=180 label=sample u=1 x=-2119.574 y=-83.372 o=0",
+    "RSH tick=180 label=sample u=2 x=-1935.945 y=-83.616 o=0",
+    "RSH tick=180 label=sample u=3 x=-1754.896 y=-85.444 o=0",
+    "RSH tick=180 label=sample u=4 x=-1934.676 y=-226.105 o=0",
+    "RSH tick=180 label=sample u=5 x=-1753.106 y=-226.555 o=0",
+    "RSH tick=180 label=complete"
+   ],
+   "repeats": [
+    "slow-observe-1.jsonl",
+    "slow-observe-2.jsonl"
+   ],
+   "control": "slow-control-1.jsonl",
+   "captures": {
+    "slow-observe-1.jsonl": "d9a8c459c6d2e86ec7d22844c99e484d04d8cef31b3c3be1a2311cd8ca97650d",
+    "slow-observe-2.jsonl": "d19aea7c49a24fd1a66521ea8ad50e683dd9db5cada4692fc6bab11a1c8f8a37",
+    "slow-control-1.jsonl": "c7f550ad5007a106d60bd9ce88bb9a99dedbb1d9b2cc0ea7c2bcaf2ac907928e"
+   },
+   "map": {
+    "path": "RS-CS160-slow.w3m",
+    "sha256": "60be08026c844dd89f9f93fb23278117a29dc6d0c7af76634b20b3396dee207d",
+    "variant": "slow",
+    "legacy_markers": false
+   }
+  },
+  "drop": {
+   "sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+    "map": "c9cf3a0fd56c907082fa80e2bf000ba96b87b87dc75bbe6007a3fc96d4bc095c"
+   },
+   "normalized": [
+    {
+     "event": "policy-constants",
+     "retreatSpeed": 1140457472,
+     "emptySpeed": 1176255488,
+     "memberFactor": 1009915459,
+     "baseFactor": 1060976551
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1213,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1213,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": true
+      }
+     ],
+     "word": 1132920832
+    }
+   ],
+   "public_markers": [
+    "RSH tick=0 label=start_group0473 variant=drop",
+    "RSH tick=0 label=birth u=0",
+    "RSH tick=0 label=birth u=1",
+    "RSH tick=0 label=birth u=2",
+    "RSH tick=0 label=birth u=3",
+    "RSH tick=0 label=birth u=4",
+    "RSH tick=0 label=birth u=5",
+    "RSH tick=0 label=order-ids board=852043 load=852046",
+    "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "RSH tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "RSH tick=9 label=start-ai",
+    "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "RSH tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "RSH tick=12 label=command phase=6",
+    "RSH tick=15 label=sample u=0 x=-1936.000 y=-822.103 o=851986",
+    "RSH tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "RSH tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "RSH tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "RSH tick=15 label=sample u=4 x=-1936.000 y=-942.602 o=851986",
+    "RSH tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "RSH tick=20 label=sample u=0 x=-1936.000 y=-714.104 o=851988",
+    "RSH tick=20 label=sample u=1 x=-1863.057 y=-717.351 o=851988",
+    "RSH tick=20 label=sample u=2 x=-1789.765 y=-714.506 o=851988",
+    "RSH tick=20 label=sample u=3 x=-1738.089 y=-842.444 o=851988",
+    "RSH tick=20 label=sample u=4 x=-1936.000 y=-834.604 o=851988",
+    "RSH tick=20 label=sample u=5 x=-1856.236 y=-837.157 o=851988",
+    "RSH tick=25 label=sample u=0 x=-1947.822 y=-837.568 o=851988",
+    "RSH tick=25 label=sample u=1 x=-1877.221 y=-840.737 o=851988",
+    "RSH tick=25 label=sample u=2 x=-1786.147 y=-837.100 o=851988",
+    "RSH tick=25 label=sample u=3 x=-1787.885 y=-964.030 o=851988",
+    "RSH tick=25 label=sample u=4 x=-1947.394 y=-958.266 o=851988",
+    "RSH tick=25 label=sample u=5 x=-1871.188 y=-960.453 o=851988",
+    "RSH tick=30 label=sample u=0 x=-1963.088 y=-971.699 o=851988",
+    "RSH tick=30 label=sample u=1 x=-1892.610 y=-974.855 o=851988",
+    "RSH tick=30 label=sample u=2 x=-1790.643 y=-931.490 o=851988",
+    "RSH tick=30 label=sample u=3 x=-1799.874 y=-1069.635 o=851988",
+    "RSH tick=30 label=sample u=4 x=-1959.308 y=-1092.734 o=851988",
+    "RSH tick=30 label=sample u=5 x=-1887.439 y=-1094.468 o=851988",
+    "RSH tick=35 label=sample u=0 x=-1978.355 y=-1105.829 o=851988",
+    "RSH tick=35 label=sample u=1 x=-1908.000 y=-1108.973 o=851988",
+    "RSH tick=35 label=sample u=2 x=-1797.063 y=-1066.333 o=851988",
+    "RSH tick=35 label=sample u=3 x=-1803.276 y=-1204.588 o=851988",
+    "RSH tick=35 label=sample u=4 x=-1971.222 y=-1227.203 o=851988",
+    "RSH tick=35 label=sample u=5 x=-1903.690 y=-1228.483 o=851988",
+    "RSH tick=40 label=sample u=0 x=-1993.623 y=-1239.957 o=851988",
+    "RSH tick=40 label=sample u=1 x=-1923.389 y=-1243.089 o=851988",
+    "RSH tick=40 label=sample u=2 x=-1803.485 y=-1201.176 o=851988",
+    "RSH tick=40 label=sample u=3 x=-1806.678 y=-1339.541 o=851988",
+    "RSH tick=40 label=sample u=4 x=-1983.137 y=-1361.671 o=851988",
+    "RSH tick=40 label=sample u=5 x=-1916.691 y=-1335.695 o=851988",
+    "RSH tick=45 label=sample u=0 x=-2076.223 y=-1328.565 o=851988",
+    "RSH tick=45 label=sample u=1 x=-1954.551 y=-1259.248 o=851988",
+    "RSH tick=45 label=sample u=2 x=-1775.549 y=-1323.816 o=851988",
+    "RSH tick=45 label=sample u=3 x=-1763.700 y=-1464.022 o=851988",
+    "RSH tick=45 label=sample u=4 x=-1995.051 y=-1496.134 o=851988",
+    "RSH tick=45 label=sample u=5 x=-1926.437 y=-1416.100 o=851988",
+    "RSH tick=50 label=sample u=0 x=-2065.318 y=-1308.381 o=851988",
+    "RSH tick=50 label=sample u=1 x=-1951.164 y=-1352.000 o=851988",
+    "RSH tick=50 label=sample u=2 x=-1786.031 y=-1301.945 o=851988",
+    "RSH tick=50 label=sample u=3 x=-1763.290 y=-1409.931 o=851988",
+    "RSH tick=50 label=sample u=4 x=-2066.598 y=-1562.808 o=851988",
+    "RSH tick=50 label=sample u=5 x=-1934.492 y=-1450.730 o=851988",
+    "RSH tick=55 label=sample u=0 x=-2018.076 y=-1294.761 o=851988",
+    "RSH tick=55 label=sample u=1 x=-1942.736 y=-1255.711 o=851988",
+    "RSH tick=55 label=sample u=2 x=-1820.963 y=-1258.263 o=851988",
+    "RSH tick=55 label=sample u=3 x=-1841.299 y=-1328.107 o=851988",
+    "RSH tick=55 label=sample u=4 x=-2001.842 y=-1511.104 o=851988",
+    "RSH tick=55 label=sample u=5 x=-1934.998 y=-1356.240 o=851988",
+    "RSH tick=60 label=sample u=0 x=-2000.454 y=-1240.013 o=851986",
+    "RSH tick=60 label=sample u=1 x=-1950.715 y=-1257.105 o=851986",
+    "RSH tick=60 label=sample u=2 x=-1813.434 y=-1195.143 o=851986",
+    "RSH tick=60 label=sample u=3 x=-1860.088 y=-1248.873 o=851986",
+    "RSH tick=60 label=sample u=4 x=-1972.186 y=-1401.127 o=851986",
+    "RSH tick=60 label=sample u=5 x=-1935.080 y=-1342.741 o=851986",
+    "RSH tick=65 label=sample u=0 x=-2000.004 y=-1105.028 o=851986",
+    "RSH tick=65 label=sample u=1 x=-1957.621 y=-1221.023 o=851986",
+    "RSH tick=65 label=sample u=2 x=-1812.433 y=-1060.160 o=851986",
+    "RSH tick=65 label=sample u=3 x=-1849.475 y=-1187.693 o=851986",
+    "RSH tick=65 label=sample u=4 x=-1972.186 y=-1401.127 o=851986",
+    "RSH tick=65 label=sample u=5 x=-1953.545 y=-1318.350 o=851986",
+    "RSH tick=70 label=sample u=0 x=-2000.002 y=-970.042 o=851986",
+    "RSH tick=70 label=sample u=1 x=-1953.999 y=-1086.084 o=851986",
+    "RSH tick=70 label=sample u=2 x=-1811.432 y=-925.178 o=851986",
+    "RSH tick=70 label=sample u=3 x=-1826.404 y=-1054.693 o=851986",
+    "RSH tick=70 label=sample u=4 x=-1967.748 y=-1317.554 o=851986",
+    "RSH tick=70 label=sample u=5 x=-1827.089 y=-1271.128 o=851986",
+    "RSH tick=75 label=sample u=0 x=-2000.002 y=-835.056 o=851986",
+    "RSH tick=75 label=sample u=1 x=-1950.377 y=-951.146 o=851986",
+    "RSH tick=75 label=sample u=2 x=-1810.431 y=-790.197 o=851986",
+    "RSH tick=75 label=sample u=3 x=-1803.330 y=-921.694 o=851986",
+    "RSH tick=75 label=sample u=4 x=-1960.586 y=-1182.757 o=851986",
+    "RSH tick=75 label=sample u=5 x=-1839.613 y=-1149.138 o=851986",
+    "RSH tick=80 label=sample u=0 x=-2000.002 y=-700.071 o=851986",
+    "RSH tick=80 label=sample u=1 x=-1946.756 y=-816.210 o=851986",
+    "RSH tick=80 label=sample u=2 x=-1809.429 y=-655.216 o=851986",
+    "RSH tick=80 label=sample u=3 x=-1780.251 y=-788.694 o=851986",
+    "RSH tick=80 label=sample u=4 x=-1953.425 y=-1047.961 o=851986",
+    "RSH tick=80 label=sample u=5 x=-1860.674 y=-1015.803 o=851986",
+    "RSH tick=85 label=sample u=0 x=-2000.002 y=-565.098 o=851986",
+    "RSH tick=85 label=sample u=1 x=-1953.301 y=-695.347 o=851986",
+    "RSH tick=85 label=sample u=2 x=-1808.316 y=-520.248 o=851986",
+    "RSH tick=85 label=sample u=3 x=-1771.076 y=-676.798 o=851986",
+    "RSH tick=85 label=sample u=4 x=-1942.845 y=-914.200 o=851986",
+    "RSH tick=85 label=sample u=5 x=-1874.997 y=-882.718 o=851986",
+    "RSH tick=90 label=sample u=0 x=-2010.769 y=-430.637 o=851986",
+    "RSH tick=90 label=sample u=1 x=-1952.512 y=-571.586 o=851986",
+    "RSH tick=90 label=sample u=2 x=-1842.491 y=-390.233 o=851986",
+    "RSH tick=90 label=sample u=3 x=-1802.046 y=-557.791 o=851986",
+    "RSH tick=90 label=sample u=4 x=-1937.155 y=-779.347 o=851986",
+    "RSH tick=90 label=sample u=5 x=-1858.583 y=-748.746 o=851986",
+    "RSH tick=95 label=sample u=0 x=-2023.585 y=-296.274 o=851986",
+    "RSH tick=95 label=sample u=1 x=-1946.271 y=-436.755 o=851986",
+    "RSH tick=95 label=sample u=2 x=-1880.658 y=-260.765 o=851986",
+    "RSH tick=95 label=sample u=3 x=-1804.154 y=-422.834 o=851986",
+    "RSH tick=95 label=sample u=4 x=-1967.630 y=-648.662 o=851986",
+    "RSH tick=95 label=sample u=5 x=-1842.168 y=-614.773 o=851986",
+    "RSH tick=100 label=sample u=0 x=-2062.412 y=-170.781 o=851986",
+    "RSH tick=100 label=sample u=1 x=-1940.029 y=-301.926 o=851986",
+    "RSH tick=100 label=sample u=2 x=-1918.818 y=-131.297 o=851986",
+    "RSH tick=100 label=sample u=3 x=-1806.260 y=-287.878 o=851986",
+    "RSH tick=100 label=sample u=4 x=-1990.938 y=-515.716 o=851986",
+    "RSH tick=100 label=sample u=5 x=-1825.751 y=-480.801 o=851986",
+    "RSH tick=105 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=105 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=105 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=105 label=sample u=3 x=-1792.621 y=-156.723 o=851986",
+    "RSH tick=105 label=sample u=4 x=-2039.534 y=-390.887 o=851986",
+    "RSH tick=105 label=sample u=5 x=-1809.328 y=-346.830 o=851986",
+    "RSH tick=110 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=110 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=110 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=110 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=110 label=sample u=4 x=-2097.965 y=-269.216 o=851986",
+    "RSH tick=110 label=sample u=5 x=-1752.397 y=-224.450 o=851986",
+    "RSH tick=115 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=115 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=115 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=115 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=115 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=115 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=120 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=120 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=120 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=120 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=120 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=120 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=125 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=125 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=125 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=125 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=125 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=125 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=130 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=130 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=130 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=130 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=130 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=130 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=135 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=135 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=135 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=135 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=135 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=135 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=140 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=140 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=140 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=140 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=140 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=140 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=145 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=145 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=145 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=145 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=145 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=145 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=150 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=150 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=150 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=150 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=150 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=150 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=155 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=155 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=155 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=155 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=155 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=155 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=160 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=160 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=160 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=160 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=160 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=160 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=165 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=165 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=165 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=165 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=165 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=165 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=170 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=170 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=170 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=170 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=170 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=170 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=175 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=175 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=175 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=175 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=175 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=175 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=180 label=sample u=0 x=-2117.084 y=-83.982 o=0",
+    "RSH tick=180 label=sample u=1 x=-1936.405 y=-223.727 o=0",
+    "RSH tick=180 label=sample u=2 x=-1931.792 y=-87.278 o=0",
+    "RSH tick=180 label=sample u=3 x=-1754.533 y=-85.256 o=0",
+    "RSH tick=180 label=sample u=4 x=-2120.168 y=-222.980 o=0",
+    "RSH tick=180 label=sample u=5 x=-1751.258 y=-222.002 o=0",
+    "RSH tick=180 label=complete"
+   ],
+   "repeats": [
+    "drop-observe-1.jsonl",
+    "drop-observe-2.jsonl"
+   ],
+   "control": "drop-control-1.jsonl",
+   "captures": {
+    "drop-observe-1.jsonl": "d7b194a42cab01bf6737cab9694a4f6797a34c5ae354c567400b8ffc0599b5ca",
+    "drop-observe-2.jsonl": "f31896f681aa9742ea3e24928d07a3f1c7b824033dcc6b859966bc1d5e6a4016",
+    "drop-control-1.jsonl": "4910ff44f1d1ee364b820088245447a1098bc3417ff0331bd1b6bc1dbf8861bd"
+   },
+   "map": {
+    "path": "RS-CS160-drop.w3m",
+    "sha256": "c9cf3a0fd56c907082fa80e2bf000ba96b87b87dc75bbe6007a3fc96d4bc095c",
+    "variant": "drop",
+    "legacy_markers": false
+   }
+  },
+  "nomove": {
+   "sources": {
+    "captain_enrollment157_capture.py": "0e9e009596a711ef1b98d997cd1771b566e63c7a19d555de84178263012c3c91",
+    "captain_speed160_observer.js": "d15a19e879df0390c5187fbb98c53950cf85ddbc6c847a7dddd75e4d5eab47ee",
+    "map": "f219cd8ed36ea2b656679f5cd410e3a28a05d994fbd9024d2db59c05afe5fa18"
+   },
+   "normalized": [
+    {
+     "event": "policy-constants",
+     "retreatSpeed": 1140457472,
+     "emptySpeed": 1176255488,
+     "memberFactor": 1009915459,
+     "baseFactor": 1060976551
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1054,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 0,
+      "counts": [
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [],
+     "abilities": [],
+     "word": 1176255488
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1129917573
+    },
+    {
+     "event": "speed",
+     "counter": 1064,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 1,
+      "counts": [
+       6,
+       6,
+       6,
+       0,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1129917573
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1087,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       0,
+       0
+      ],
+      "request": [
+       3304194048,
+       3299999744
+      ],
+      "requestRange": 1128792064,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1228,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    },
+    {
+     "event": "speed",
+     "counter": 1228,
+     "before": {
+      "state": 2,
+      "player": 0,
+      "flags": 4097,
+      "counts": [
+       6,
+       6,
+       6,
+       6,
+       6,
+       0
+      ],
+      "request": [
+       3304194048,
+       3272605696
+      ],
+      "requestRange": 1140457472,
+      "home": [
+       3304194048,
+       3272605696
+      ],
+      "targets": [
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ],
+       [
+        4294967295,
+        4294967295
+       ]
+      ]
+     },
+     "inputs": [
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832,
+      1132920832
+     ],
+     "abilities": [
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      },
+      {
+       "kind": 1114664057,
+       "present": false
+      },
+      {
+       "kind": 1097101935,
+       "present": false
+      }
+     ],
+     "word": 1132920832
+    }
+   ],
+   "public_markers": [
+    "RSH tick=0 label=start_group0473 variant=nomove",
+    "RSH tick=0 label=birth u=0",
+    "RSH tick=0 label=birth u=1",
+    "RSH tick=0 label=birth u=2",
+    "RSH tick=0 label=birth u=3",
+    "RSH tick=0 label=birth u=4",
+    "RSH tick=0 label=birth u=5",
+    "RSH tick=0 label=order-ids board=852043 load=852046",
+    "RSH tick=5 label=sample u=0 x=-1936.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=1 x=-1856.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=2 x=-1776.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=3 x=-1696.000 y=-976.000 o=0",
+    "RSH tick=5 label=sample u=4 x=-1936.000 y=-1056.000 o=0",
+    "RSH tick=5 label=sample u=5 x=-1856.000 y=-1056.000 o=0",
+    "RSH tick=9 label=start-ai",
+    "RSH tick=10 label=sample u=0 x=-1936.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=1 x=-1847.549 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=2 x=-1776.000 y=-957.100 o=851986",
+    "RSH tick=10 label=sample u=3 x=-1704.453 y=-959.096 o=851986",
+    "RSH tick=10 label=sample u=4 x=-1936.000 y=-1047.900 o=851986",
+    "RSH tick=10 label=sample u=5 x=-1853.439 y=-1048.316 o=851986",
+    "RSH tick=12 label=command phase=6",
+    "RSH tick=15 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=15 label=sample u=1 x=-1854.912 y=-825.040 o=851986",
+    "RSH tick=15 label=sample u=2 x=-1783.508 y=-822.322 o=851986",
+    "RSH tick=15 label=sample u=3 x=-1719.937 y=-907.457 o=851986",
+    "RSH tick=15 label=sample u=4 x=-1914.159 y=-1012.952 o=851986",
+    "RSH tick=15 label=sample u=5 x=-1848.449 y=-944.872 o=851986",
+    "RSH tick=20 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=20 label=sample u=1 x=-1863.057 y=-717.351 o=851988",
+    "RSH tick=20 label=sample u=2 x=-1789.765 y=-714.506 o=851988",
+    "RSH tick=20 label=sample u=3 x=-1738.089 y=-842.444 o=851988",
+    "RSH tick=20 label=sample u=4 x=-1872.766 y=-950.401 o=851988",
+    "RSH tick=20 label=sample u=5 x=-1856.236 y=-837.157 o=851988",
+    "RSH tick=25 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=25 label=sample u=1 x=-1870.917 y=-836.959 o=851988",
+    "RSH tick=25 label=sample u=2 x=-1786.147 y=-837.100 o=851988",
+    "RSH tick=25 label=sample u=3 x=-1787.885 y=-964.030 o=851988",
+    "RSH tick=25 label=sample u=4 x=-1895.449 y=-1044.287 o=851988",
+    "RSH tick=25 label=sample u=5 x=-1875.370 y=-925.775 o=851988",
+    "RSH tick=30 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=30 label=sample u=1 x=-1871.584 y=-942.254 o=851988",
+    "RSH tick=30 label=sample u=2 x=-1790.643 y=-931.490 o=851988",
+    "RSH tick=30 label=sample u=3 x=-1799.749 y=-1069.505 o=851988",
+    "RSH tick=30 label=sample u=4 x=-1953.995 y=-1165.928 o=851988",
+    "RSH tick=30 label=sample u=5 x=-1891.841 y=-1059.763 o=851988",
+    "RSH tick=35 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=35 label=sample u=1 x=-1902.939 y=-1070.852 o=851988",
+    "RSH tick=35 label=sample u=2 x=-1797.063 y=-1066.333 o=851988",
+    "RSH tick=35 label=sample u=3 x=-1802.890 y=-1204.464 o=851988",
+    "RSH tick=35 label=sample u=4 x=-2002.431 y=-1281.530 o=851988",
+    "RSH tick=35 label=sample u=5 x=-1908.310 y=-1193.752 o=851988",
+    "RSH tick=40 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=40 label=sample u=1 x=-1956.382 y=-1194.819 o=851988",
+    "RSH tick=40 label=sample u=2 x=-1803.485 y=-1201.176 o=851988",
+    "RSH tick=40 label=sample u=3 x=-1806.032 y=-1339.422 o=851988",
+    "RSH tick=40 label=sample u=4 x=-2069.740 y=-1364.386 o=851988",
+    "RSH tick=40 label=sample u=5 x=-1924.773 y=-1327.740 o=851988",
+    "RSH tick=45 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=45 label=sample u=1 x=-1987.791 y=-1256.201 o=851988",
+    "RSH tick=45 label=sample u=2 x=-1775.811 y=-1324.062 o=851988",
+    "RSH tick=45 label=sample u=3 x=-1767.110 y=-1460.070 o=851988",
+    "RSH tick=45 label=sample u=4 x=-2032.598 y=-1322.252 o=851988",
+    "RSH tick=45 label=sample u=5 x=-1941.236 y=-1461.723 o=851988",
+    "RSH tick=50 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=50 label=sample u=1 x=-1997.716 y=-1286.783 o=851988",
+    "RSH tick=50 label=sample u=2 x=-1783.418 y=-1313.196 o=851988",
+    "RSH tick=50 label=sample u=3 x=-1751.621 y=-1478.790 o=851988",
+    "RSH tick=50 label=sample u=4 x=-1939.415 y=-1291.076 o=851988",
+    "RSH tick=50 label=sample u=5 x=-1937.334 y=-1405.390 o=851988",
+    "RSH tick=55 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=55 label=sample u=1 x=-2099.962 y=-1311.937 o=0",
+    "RSH tick=55 label=sample u=2 x=-1875.296 y=-1227.208 o=851988",
+    "RSH tick=55 label=sample u=3 x=-1751.621 y=-1478.790 o=851988",
+    "RSH tick=55 label=sample u=4 x=-1953.388 y=-1183.995 o=851988",
+    "RSH tick=55 label=sample u=5 x=-1949.086 y=-1289.897 o=851988",
+    "RSH tick=60 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=60 label=sample u=1 x=-2099.962 y=-1311.937 o=851988",
+    "RSH tick=60 label=sample u=2 x=-1890.691 y=-1212.061 o=851988",
+    "RSH tick=60 label=sample u=3 x=-1751.621 y=-1478.790 o=851988",
+    "RSH tick=60 label=sample u=4 x=-1953.388 y=-1183.995 o=851988",
+    "RSH tick=60 label=sample u=5 x=-1951.272 y=-1268.410 o=851988",
+    "RSH tick=65 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=65 label=sample u=1 x=-2013.057 y=-1298.496 o=851986",
+    "RSH tick=65 label=sample u=2 x=-1895.505 y=-1119.953 o=851986",
+    "RSH tick=65 label=sample u=3 x=-1759.877 y=-1419.596 o=851986",
+    "RSH tick=65 label=sample u=4 x=-1970.763 y=-1107.872 o=851986",
+    "RSH tick=65 label=sample u=5 x=-1946.051 y=-1255.962 o=851986",
+    "RSH tick=70 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=70 label=sample u=1 x=-1979.988 y=-1245.004 o=851986",
+    "RSH tick=70 label=sample u=2 x=-1883.884 y=-985.468 o=851986",
+    "RSH tick=70 label=sample u=3 x=-1799.763 y=-1290.635 o=851986",
+    "RSH tick=70 label=sample u=4 x=-1990.693 y=-974.364 o=851986",
+    "RSH tick=70 label=sample u=5 x=-1963.167 y=-1123.655 o=851986",
+    "RSH tick=75 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=75 label=sample u=1 x=-1984.822 y=-1118.207 o=851986",
+    "RSH tick=75 label=sample u=2 x=-1872.937 y=-850.953 o=851986",
+    "RSH tick=75 label=sample u=3 x=-1804.735 y=-1156.254 o=851986",
+    "RSH tick=75 label=sample u=4 x=-1999.967 y=-839.987 o=851986",
+    "RSH tick=75 label=sample u=5 x=-1979.368 y=-1030.563 o=851986",
+    "RSH tick=80 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=80 label=sample u=1 x=-1888.915 y=-1023.928 o=851986",
+    "RSH tick=80 label=sample u=2 x=-1872.611 y=-715.968 o=851986",
+    "RSH tick=80 label=sample u=3 x=-1805.826 y=-1021.271 o=851986",
+    "RSH tick=80 label=sample u=4 x=-1999.998 y=-705.001 o=851986",
+    "RSH tick=80 label=sample u=5 x=-1999.908 y=-910.573 o=851986",
+    "RSH tick=85 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=85 label=sample u=1 x=-1872.077 y=-893.170 o=851986",
+    "RSH tick=85 label=sample u=2 x=-1872.286 y=-580.994 o=851986",
+    "RSH tick=85 label=sample u=3 x=-1806.916 y=-886.302 o=851986",
+    "RSH tick=85 label=sample u=4 x=-1998.474 y=-570.500 o=851986",
+    "RSH tick=85 label=sample u=5 x=-1999.998 y=-775.600 o=851986",
+    "RSH tick=90 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=90 label=sample u=1 x=-1950.470 y=-784.638 o=851986",
+    "RSH tick=90 label=sample u=2 x=-1844.474 y=-456.481 o=851986",
+    "RSH tick=90 label=sample u=3 x=-1800.619 y=-753.049 o=851986",
+    "RSH tick=90 label=sample u=4 x=-1965.235 y=-490.223 o=851986",
+    "RSH tick=90 label=sample u=5 x=-1992.197 y=-662.747 o=851986",
+    "RSH tick=95 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=95 label=sample u=1 x=-1981.104 y=-671.449 o=851986",
+    "RSH tick=95 label=sample u=2 x=-1806.505 y=-326.987 o=851986",
+    "RSH tick=95 label=sample u=3 x=-1796.459 y=-661.628 o=851986",
+    "RSH tick=95 label=sample u=4 x=-2053.569 y=-400.655 o=851986",
+    "RSH tick=95 label=sample u=5 x=-1966.921 y=-548.535 o=851986",
+    "RSH tick=100 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=100 label=sample u=1 x=-1968.719 y=-539.345 o=851986",
+    "RSH tick=100 label=sample u=2 x=-1774.515 y=-195.859 o=851986",
+    "RSH tick=100 label=sample u=3 x=-1802.375 y=-536.319 o=851986",
+    "RSH tick=100 label=sample u=4 x=-2083.160 y=-268.965 o=851986",
+    "RSH tick=100 label=sample u=5 x=-1957.896 y=-413.863 o=851986",
+    "RSH tick=105 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=105 label=sample u=1 x=-2019.351 y=-417.621 o=851986",
+    "RSH tick=105 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=105 label=sample u=3 x=-1806.166 y=-401.398 o=851986",
+    "RSH tick=105 label=sample u=4 x=-2112.750 y=-137.276 o=851986",
+    "RSH tick=105 label=sample u=5 x=-1948.871 y=-279.191 o=851986",
+    "RSH tick=110 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=110 label=sample u=1 x=-2084.888 y=-299.624 o=851986",
+    "RSH tick=110 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=110 label=sample u=3 x=-1771.793 y=-275.198 o=851986",
+    "RSH tick=110 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=110 label=sample u=5 x=-1939.845 y=-144.519 o=851986",
+    "RSH tick=115 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=115 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=115 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=115 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=115 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=115 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=120 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=120 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=120 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=120 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=120 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=120 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=125 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=125 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=125 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=125 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=125 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=125 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=130 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=130 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=130 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=130 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=130 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=130 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=135 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=135 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=135 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=135 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=135 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=135 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=140 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=140 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=140 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=140 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=140 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=140 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=145 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=145 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=145 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=145 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=145 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=145 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=150 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=150 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=150 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=150 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=150 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=150 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=155 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=155 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=155 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=155 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=155 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=155 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=160 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=160 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=160 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=160 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=160 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=160 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=165 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=165 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=165 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=165 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=165 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=165 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=170 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=170 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=170 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=170 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=170 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=170 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=175 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=175 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=175 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=175 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=175 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=175 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=180 label=sample u=0 x=-1936.000 y=-930.101 o=0",
+    "RSH tick=180 label=sample u=1 x=-2117.655 y=-240.625 o=0",
+    "RSH tick=180 label=sample u=2 x=-1750.198 y=-96.205 o=0",
+    "RSH tick=180 label=sample u=3 x=-1751.950 y=-236.835 o=0",
+    "RSH tick=180 label=sample u=4 x=-2121.626 y=-97.769 o=0",
+    "RSH tick=180 label=sample u=5 x=-1936.954 y=-101.424 o=0",
+    "RSH tick=180 label=complete"
+   ],
+   "repeats": [
+    "nomove-observe-1.jsonl",
+    "nomove-observe-2.jsonl"
+   ],
+   "control": "nomove-control-1.jsonl",
+   "captures": {
+    "nomove-observe-1.jsonl": "6e75b14c0ed38c662e9a6ebc25add6c50d7753f27008a84dd4d5ed6e54722802",
+    "nomove-observe-2.jsonl": "93ffead8e91c75c44ee8788b87b820c5d2b211af953882277055bbadea6dac02",
+    "nomove-control-1.jsonl": "9965ad1dffbdee3811271a00e522119bd81dc059dabf4fe8a21b0cd6d895e840"
+   },
+   "map": {
+    "path": "RS-CS160-nomove.w3m",
+    "sha256": "f219cd8ed36ea2b656679f5cd410e3a28a05d994fbd9024d2db59c05afe5fa18",
+    "variant": "nomove",
+    "legacy_markers": false
+   }
+  }
+ }
+}

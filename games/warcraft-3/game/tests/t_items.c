@@ -285,7 +285,8 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_NULL(unit_findstatus(hero, MAKEFOURCC('B','i','x','x')));
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
 
-    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         hero->abilstatus[i].code = MAKEFOURCC('T','s','t','0') + (uint32_t)i;
@@ -295,7 +296,8 @@ TEST(wc3_items, invisibility_item_uses_authored_duration_and_buff_status) {
     T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
     T_EQ(G_UnitStatusLevel(hero, MAKEFOURCC('B','i','x','x')), 0);
 
-    memset(hero->abilstatus, 0, sizeof(hero->abilstatus));
+    G_EnsureUnitStatusSlots(hero);
+    memset(hero->abilstatus, 0, MAX_UNIT_STATUSES * sizeof(*hero->abilstatus));
     hero->s.renderfx &= ~RF_HIDDEN;
     hero->health.value = 0.0f;
     T_ASSERT(!S_AbilityMessage(player, A_ITEM_USE, &call));
@@ -2057,7 +2059,7 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     G_ClientCommand(clent, 2, command);
 
     T_FEQ(G_UnitArmorValue(unit), base_armor + 2.0f, 0.01f);
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit)) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == MAKEFOURCC('B','d','e','f')) {
             found_buff = true;
             break;
@@ -2186,6 +2188,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     }
     T_NOT_NULL(approach);
     if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_EQ(hero->movement.fine_route.group_count,0); /* Replacement approach owns a fresh plan. */
     {
         float const start_x = hero->s.origin2.x;
         uint32_t frame;
@@ -2343,6 +2346,7 @@ TEST(wc3_items, blizzard_unit_and_widget_drop_item_create_world_loot) {
     setup_test_world();
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
+        "  call SetRandomSeed(1)\n"
         "  local unit source = CreateUnit(Player(0), 'Hpal', 128.0, 128.0, 0.0)\n"
         "  local item first = UnitDropItem(source, 'spro')\n"
         "  local item second = WidgetDropItem(source, 'ratf')\n"
@@ -2780,7 +2784,7 @@ TEST(wc3_items, soul_gem_targets_grom_after_death_trigger_revives_him) {
     T_ASSERT(carrier->inventory[0] && carrier->inventory[0]->class_id == MAKEFOURCC('s','o','u','l'));
 }
 
-TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispatch) {
+TEST(wc3_items, soul_gem_approach_retains_same_hero_revived_by_synchronous_death_trigger) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y4;X12\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
@@ -2838,6 +2842,8 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     T_NOT_NULL(grom);
     if (!grom) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
     grom->targtype = TARG_GROUND;
+    /* A frame-driven approach must retain vision of this distant enemy Hero. */
+    G_AddUnitForcedVisibility(grom, 0);
     gem = make_item_test_world_item(MAKEFOURCC('g','s','o','u'), 64, 64);
     gem->data.ItemData = G_ItemData(MAKEFOURCC('g','s','o','u'));
     if (!gem->item) gem->item = G_AllocItem();
@@ -2854,17 +2860,38 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(carrier->goalentity == grom);
     T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
     T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));
 
     G_SetHealth(grom, 0.0f);
     unit_die(grom, NULL);
-    T_ASSERT(M_IsDead(grom));
-    /* Model a frame where the approach check runs before the queued death-trigger revival. */
-    thinker->think(thinker);
+    /* Death retires Move's subscribed approach synchronously (retail scenes
+     *54/55). A same-identity revival permits a fresh cast, not the old receiver. */
     T_ASSERT(!thinker->inuse);
+    T_NULL(S_UnitTargetApproachReceiver(carrier));
+    T_NULL(carrier->goalentity);
+    G_UseItem(carrier, 0);
+    thinker_slot = globals.num_edicts;
+    G_ClientCommand(clent, 2, select);
+    thinker = &globals.edicts[thinker_slot];
+    T_ASSERT(thinker->inuse);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+    T_ASSERT(!M_IsDead(grom));
+    T_ASSERT(grom->paused);
+    carrier->think = monster_think;
+    bool const started = level.started, scripts = level.scriptsStarted;
+    level.started = level.scriptsStarted = true;
+    level.time += FRAMETIME;
+    globals.RunFrame();
+    level.started = started; level.scriptsStarted = scripts;
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
+    T_ASSERT(carrier->goalentity==grom);
     T_ASSERT(!(grom->aiflags & AI_SOUL_TRAPPED));
     T_ASSERT(carrier->inventory[0] == gem);
     T_ASSERT(!gem->item || !gem->item->pending_use_removal);
@@ -3171,7 +3198,9 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think);
+    T_ASSERT(thinker->inuse);
+    T_NULL(thinker->think);
+    T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
     T_ASSERT(thinker->spell_item == gem);
     T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
     T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
@@ -3179,18 +3208,26 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
-        /* g_save.c checks the append-only v47 roster identity directly; this
-         * round trip verifies the pending thinker pointer and its payload. */
-        thinker->think = NULL; thinker->spell_item = NULL;
+        /* Retail185 retains a receiver on Move's group instead of polling.
+         * Restore its callback binding and payload before advancing Move. */
+        thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
-        T_NOT_NULL(thinker->think);
-        T_EQ(thinker->think, S_SpellTargetApproachThink);
+        T_NULL(thinker->think);
+        T_ASSERT(S_UnitTargetApproachReceiver(carrier) == thinker);
         T_ASSERT(thinker->spell_item == gem);
         T_EQ(thinker->channel->owner_spawn_time, carrier->spawn_time);
         T_EQ(thinker->channel->target_spawn_time, target->spawn_time);
-        carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
-        if (thinker->think) thinker->think(thinker);
+        G_AddUnitForcedVisibility(target, 0);
+        carrier->think = monster_think;
+        if (!level.vm) T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        bool const started = level.started, scripts = level.scriptsStarted;
+        level.started = level.scriptsStarted = true;
+        for (unsigned frame = 0; frame < 200 && thinker->inuse; frame++) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        level.started = started; level.scriptsStarted = scripts;
         T_ASSERT(!thinker->inuse);
         T_ASSERT(target->aiflags & AI_SOUL_TRAPPED);
     }

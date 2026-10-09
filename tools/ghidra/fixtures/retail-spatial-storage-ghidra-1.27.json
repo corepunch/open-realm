@@ -1,0 +1,306 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "unsaved": false,
+  "rows": [
+    {
+      "address": "6f14e770",
+      "name": "SpatialObject_UpdateRectangle",
+      "comment": "Old/new rectangle differences; preserves overlap cells, emits lazy removal/insertion records elsewhere then saves bounds. 1280 full updates composed with1280 separation queries. Payoff81 C active-chain ranks match81920 native cell orders, including overlapping retained cells and leave/reentry. Public paused target/blocker scene repeats all501 commits: blocker-first fine exhausts701 pops; target reinserted first terminates39 pops despite a foreign rejection. Engine pose commits publish history and Save91 retains it. Native lazy allocator and global stamp storage remain MAP05/06.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: production raw record map now emits the same reversed1d4ae0 strip order, retains intersections and copies un-clipped final bounds; exact original/C indices and stamps checked after each mutation. Fine-grid producers still use active storage pending SEP03 completion.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14d9e0",
+      "name": "SpatialMap_PrependCellRecord",
+      "comment": "Prepend type0 removal or type1 insertion; free-list or vector append; preserve terrain; removal dirties bitmap; increments map/object record counts.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: eight-byte low24-index records replace20-byte active-only proximity links; LIFO link reuse and separate64-object stable pool identities. Dead records cannot resolve to a reused edict. Exact131072-slot growth/reclamation/reuse test.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14e050",
+      "name": "SpatialMap_CompactCell",
+      "comment": "Keep effective first live insertion, unlink obsolete/type2 records, push freed slots to+ac, decrement record counts; stable survivor order. Composed cleanup oracle.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: production compactor retains the first effective insertion per live object using native32-bit stamps, reclaims metadata/removal/dead records in stored order, decrements references and recycles only at the last dead reference. All free-list indices match original.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14df20",
+      "name": "SpatialMap_CompactDirtyCells",
+      "comment": "Visit dirty bitmap words/cells ascending and clear processed words; reset high-bit stamp before traversal. 96 full original cleanup cases.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: engine proximity maintenance is one recurring software1/10 scalar request merged with JASS timers and owner serial ordering. No record-count threshold. High-bit repair retains original object-stamp aliases; tests explicitly label interventions.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14dfc0",
+      "name": "SpatialMap_CompactAllCells",
+      "comment": "Visit all +38 cells; reset high-bit stamp; leaves dirty bitmap unchanged. 64 full original sweeps with exact pre/post separation-order checks.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: full proximity compaction at save; Save120 retains map/object stamps and rebuilds links in save order. Generic map core also covers flagged dead records that dirty-only maintenance cannot reclaim. Fine full-sweep integration remains open.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14cf20",
+      "name": "SpatialMap_CreateObject",
+      "comment": "ThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c ->1c53f0. Writes +2c map, +30 payload, +1c..+28=-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it.\n   [BASE-02.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nThiscallECX spatial map, stack4 payload, stack8 registry descriptor (NULL or +24 slot hint), RET8, EAX CPmRegion (vtable6fa90948). Pool owner+5d8 via14cb60/14c880, registry activation vtable+c ->1c53f0. Writes +2c map, +30 payload, +1c..+28=-1 empty rectangle, +34/+38/+3c/+40 zero. Callers: 15ed40 mover proximity/fine objects, 14cf70 static objects. Oracle FOOT-03.2 executes it. [BASE-02.2]\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: common production pooled identities are independent of owner edict slots; initial rectangle(-1,-1,-1,-1), objects allocated in64-entry blocks, LIFO reuse only after zero references. No process pointers serialized.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14dde0",
+      "name": "SpatialLinks_AppendRecords",
+      "comment": "Thiscall ECX link table (map+6c), stack4 source records (8-byte), stack8 count; RET8, EAX 1 ok / 0 refused. Count 0 returns 1. If count+n > capacity(+18): growth increment(+14)==0 -> return 0 without storing; else reserve capacity+max(inc, needed) via 6f1c5130 (never returns 0; Storm terminates on OOM) and copy with 6f14e9b0. Spatial ctor 6f14c090 sets increment 0x20000, capacity 0. Callers 6f14d9e0/6f14d890/6f14d2e0 ignore the result.\n   [SEP-03.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: common production record vector grows in20000-slot steps without shrink during map lifetime. Boundary crossed mid36-cell update; every insertion/reclamation/reuse index compared against original. Allocation failure terminates rather than returning partial membership.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14dae0",
+      "name": "SpatialObject_Retire",
+      "comment": "ECX CPmRegion. Emit removal records unless flag10000000, mark38 -1, unregister through6860c, clear14/18;14dab0 returns to pool only if low24 reference count3c is0. Original callback mover destruction leaves old regions with two lazy references and uses supplied spare backing for new activation. Missing6860c leaves stale slots despite handle rejection.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: engine proximity retirement appends removal records beforeFFFFFFFF stamp; static/region generic records skip removal emission. Retained identity survives owner reuse; forced stamp aliases preserved. Fine retirement integration stays open.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f170c00",
+      "name": "Separate_EnumerateRectangle",
+      "comment": "Clips half-open rectangle, outer first coordinate/inner second, query stamp and optional source exclusion; 1024 original traversal cases.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: engine raw proximity traversal advances once for a nonempty clipped query and once per nonempty raw cell; source receives query stamp. Native/C complete candidate order, map/object stamps and raw state compared.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f170b30",
+      "name": "Separate_EnumerateCell",
+      "comment": "Stored link order; skip metadata type2; type1 filtered/appended and query-stamped even if rejected; other types cell-stamped. 1024 full rectangle cases.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: metadata skipped; ordinary insertion writes query stamp even when game eligibility rejects; removal writes cell stamp and masks older insertion only in that cell. Production callback performs game-owned eligibility, with pooled identity keeping retired owners separate.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14c990",
+      "name": "SpatialMap_Init",
+      "comment": "Map vtable+C. Thiscall ECX map, stack4 descriptor (+10 width, +14 height); RET4. 6f14c8e0 geometry/cells=0xffffff, dirty words (w*h>>5)+1 zeroed, free head 0xffffff, stamp 0 (records +B0 NOT reset), schedules repeating maintenance request (period max([6fd53a4c],1e-4)) on owner+164 via 6f14e3f0, flags |= 1.\n   [SEP-03.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: source1/10 word3dccccce and all12 accumulated deadlines are frozen and checked through real engine scalar timer dispatch, including ordering against owner sequence and epoch rebase.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14cac0",
+      "name": "SpatialMap_Release",
+      "comment": "Map vtable+10. Thiscall ECX map, stack4 unused flag; RET4. Full compaction 6f14dfc0, mark maintenance request cancelled (+10 |= 0x10000), +B8=0, erase+free link table (does not reset +B0/+AC or object +3C), free dirty table, 6f14ca60 then pool return.\n   [SEP-03.1] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff135: normal engine map reset clears identities/records/stamps and cancels maintenance; capacities retained only within same-map reset. Raw native diagnostic with live owners across map release remains documented as invalid ownership, not a supported engine operation.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14d000",
+      "name": "SpatialObject_Load",
+      "comment": "[MAP-06.2] Spatial object vtable slot (6fa9096c+4). Thiscall ECX object, stack4 stream; RET4. Reads map, payload handles, +34, rectangle +1C..28, +38 stamp, +3C refs, +40 flags; if not 0x10000000 re-inserts the saved rectangle via 6f14d380.\nPayoff135 Save120: retain logical proximity object stamps, insert rectangles in save order; load registers a fresh maintenance request. Link table/free-list identities are reconstructed, not persisted process pointers.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "6f14d620",
+      "name": "SpatialMap_Save",
+      "comment": "[MAP-06.2] Thiscall ECX map, stack4 stream; RET4. Geometry 6f14d590, stamp +B4, PathRandom +BC/+C0, then per cell (row-major) 6f14d4c0: cells with nonzero high byte or flagged (0x10000000) live objects only.\nPayoff135 Save120: after full proximity compaction, map stamp and logical owner rectangles/stamps are written; no heap/process pointer. Generic region collectors and fine map save stamps remain separate open work.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    }
+  ],
+  "layouts": [
+    {
+      "name": "WC3SpatialRecord",
+      "length": 8,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "kind_and_next",
+          "datatype": "uint",
+          "evidence": "14d9e0/14e050: kind high8, next index low24; 00 removal,01 insertion,02 fine metadata; ffffff sentinel. Payoff135 original/C exact raw-chain comparisons."
+        },
+        {
+          "offset": 4,
+          "name": "payload",
+          "datatype": "uint",
+          "evidence": "Ordinary links carry object pointers; kind02 carries two16-bit fine-node indices. No unconditional pointer type;14d890/170b30/14e050."
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialMapPrefix",
+      "length": 188,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "base",
+          "datatype": "WC3PathMapHeader",
+          "evidence": "SpatialMap subclass of shared path map;14c280/14c990. Shared base remains108 bytes."
+        },
+        {
+          "offset": 108,
+          "name": "link_table",
+          "datatype": "WC3DynamicTablePrefix",
+          "evidence": "14d9e0/14dde0: eight-byte records, growth20000 slots (1MiB); data78,capacity84,count88; capacity retained. Original MAP05.1 and exact production indices."
+        },
+        {
+          "offset": 152,
+          "name": "dirty_bitmap",
+          "datatype": "void *32",
+          "evidence": "14df20 ascending dirty cells only; each bit denotes a removal/metadata producer, not an active-owner count."
+        },
+        {
+          "offset": 168,
+          "name": "dirty_word_count",
+          "datatype": "uint",
+          "evidence": "14df20 reads a8 and clears processed words; no cleanup count threshold."
+        },
+        {
+          "offset": 172,
+          "name": "free_link_head",
+          "datatype": "uint",
+          "evidence": "14e050 LIFO reclaim;14d9e0 LIFO reuse;ffffff sentinel. MAP05.1 complete original/C free-list equality."
+        },
+        {
+          "offset": 176,
+          "name": "outstanding_records",
+          "datatype": "uint",
+          "evidence": "Insert/remove/metadata writers increment; compactor decrements. Constructor zeroes; native pooled release leaves stale count. Normal teardown retires owners first."
+        },
+        {
+          "offset": 180,
+          "name": "cell_visit_stamp",
+          "datatype": "uint",
+          "evidence": "170c00 once per clipped query,170b30 once per nonempty cell;14df20/14dfc0 reset above7fffffff without repairing object stamps. Labelled alias hazards reproduced by C."
+        },
+        {
+          "offset": 184,
+          "name": "maintenance_request",
+          "datatype": "void *32",
+          "evidence": "14c990 register repeat3dccccce=software1/10;14cac0 cancel; load14d1d0 registers fresh. Payoff135 merged deterministic scalar-timer engine request."
+        }
+      ]
+    },
+    {
+      "name": "WC3SpatialPrefix",
+      "length": 68,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "datatype": "void *32",
+          "evidence": "14c1d0 original constructor"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "datatype": "WC3PathIdentity",
+          "evidence": "14ee90 activation"
+        },
+        {
+          "offset": 28,
+          "name": "rectangle",
+          "datatype": "WC3PathIntegerRectangle",
+          "evidence": "14cf20 14cf44 MOVDQU [obj+1c] initial (-1,-1,-1,-1) empty; 14e770 updates; order min_y,min_x,max_y,max_x; SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: empty -1 rectangle at14cf20;14e770 updates ordered min_y,min_x,max_y,max_x. Independent from proximity rectangle."
+        },
+        {
+          "offset": 44,
+          "name": "map",
+          "datatype": "void *32",
+          "evidence": "BASE-02.2:14cf20 initializes object+2c to owning spatial map; movers own independent proximity owner234 and fine owner238 maps\nPayoff134: BASE-02.2:14cf20 owning spatial map; unit mover fine owner238 is separate from proximity owner234."
+        },
+        {
+          "offset": 48,
+          "name": "observer",
+          "datatype": "void *32",
+          "evidence": "16fa00 region callback dispatch\nROUTE-02.2: payload; 1480d0 accepts only payload+10==60706375 (mover tag)\nPayoff134: BASE-02.2: payload;1480d0 returns unit mover token only for payload+10==60706375; item60706f73 and widget agents yieldNULL."
+        },
+        {
+          "offset": 52,
+          "name": "category_flags",
+          "datatype": "uint",
+          "evidence": "05c7b0/05c770 mask publication\nBASE-02.2/ROUTE-02.2: bit01000000 active, low24 category bits tested against the query mask\nPayoff134: BASE-02.2:01000000 active,low24 category; unitca/fly0/unbuild08,item18,static regionsc2/10/08(+04)."
+        },
+        {
+          "offset": 56,
+          "name": "eligibility",
+          "datatype": "int",
+          "evidence": "16fa00 callback eligibility\nROUTE-02.2/FOOT-03.1: per-cell visit stamp compared with map+b4 (first record per object decides); ffffffff marks a dead record\nPayoff134: FOOT-03.1: per-cell visit stamp;ffffffff retired. Metadata/removal records retain separate semantics.\nPayoff135: native32-bit stamp and low24 reference lifetime; engine pooled object survives edict reuse until its last retained record is reclaimed. Forced high-bit repair retains native alias hazards."
+        },
+        {
+          "offset": 60,
+          "name": "outstanding_records",
+          "datatype": "uint",
+          "evidence": "low24 outstanding cell records, writers increment, 14e050 14e12f DEC; high byte flags (writer unresolved, proposed SEP-03.4); SEP-03.1/SEP-03.2/MAP-05.1 assembly, original-code oracle and live captures\nPayoff134: BASE-02.2: low24 cell records; writers increment,14e050 decrements; high byte policy unresolved.\nPayoff135: native32-bit stamp and low24 reference lifetime; engine pooled object survives edict reuse until its last retained record is reclaimed. Forced high-bit repair retains native alias hazards."
+        },
+        {
+          "offset": 64,
+          "name": "occupancy_flags",
+          "datatype": "uint",
+          "evidence": "16fe20/16c250 moving20000000 and exemption40000000 motion oracle\nFOOT-03.1: &8fffffff nonzero suppresses (exclusion counter); 60000000 moving bits exempt in 1489a0 only when fine+d4==0; 10000000 static flag required by hierarchy 148e90\nPayoff134: BASE-02.2/FOOT-03.1:low28 suppression,10000000 static,20000000 moving,40000000 cohort,80000000 excluded. Hierarchy requiresstatic; ordinaryfine excludesmoving/group,endpointincludes."
+        }
+      ]
+    },
+    {
+      "name": "WC3PathMapHeader",
+      "length": 108,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "vtable",
+          "datatype": "uint",
+          "evidence": "14c8e0/151760 map constructors"
+        },
+        {
+          "offset": 20,
+          "name": "identity",
+          "datatype": "WC3PathIdentity",
+          "evidence": "Original initializer registry publication; repeated complete map loads"
+        },
+        {
+          "offset": 40,
+          "name": "cells",
+          "datatype": "void *32",
+          "evidence": "WPM04c860 uses4-byte fine cells;15cf80 uses8-byte hierarchy cells"
+        },
+        {
+          "offset": 60,
+          "name": "width",
+          "datatype": "uint",
+          "evidence": "14c8e0/151760 descriptor dimensions; full live WPM load"
+        },
+        {
+          "offset": 64,
+          "name": "height",
+          "datatype": "uint",
+          "evidence": "14c8e0/151760 descriptor dimensions; full live WPM load"
+        },
+        {
+          "offset": 68,
+          "name": "active_y0",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 72,
+          "name": "active_x0",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 76,
+          "name": "active_y1",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 80,
+          "name": "active_x1",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 84,
+          "name": "bounds_y0",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 88,
+          "name": "bounds_x0",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 92,
+          "name": "bounds_y1",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 96,
+          "name": "bounds_x1",
+          "datatype": "uint",
+          "evidence": "Original14c8e0/151760 set rectangles (0,0,height,width); grid query/rebuild consumers"
+        },
+        {
+          "offset": 100,
+          "name": "scale",
+          "datatype": "WC3PathScalar",
+          "evidence": "15ab60 original software scale/reciprocal; full live WPM load"
+        },
+        {
+          "offset": 104,
+          "name": "inverse_scale",
+          "datatype": "WC3PathScalar",
+          "evidence": "15ab60 original software scale/reciprocal; full live WPM load"
+        }
+      ]
+    }
+  ]
+}

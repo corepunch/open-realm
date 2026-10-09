@@ -960,9 +960,9 @@ TEST(wc3_ability_lifecycle, stop_move_and_attack_retire_channel_before_motion) {
         edict_t *caster = review_setup(), *enemy = review_unit(1, 100);
         slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
         caster->unitinfo.MoveSpeed = 300; caster->movetype = MOVETYPE_STEP;
-        caster->attack1.type = ATK_NORMAL;
-        caster->attack1.range = 600; caster->attack1.damageBase = 10; caster->attack1.cooldown = 1;
-        caster->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+        S_AttackProfileWrite(caster, 0)->type = ATK_NORMAL;
+        S_AttackProfileWrite(caster, 0)->range = 600; S_AttackProfileWrite(caster, 0)->damageBase = 10; S_AttackProfileWrite(caster, 0)->cooldown = 1;
+        S_AttackProfileWrite(caster, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
         T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
         edict_t *thinker = review_thinker(caster);
         if (i == 0) T_ASSERT(unit_issueimmediateorder(caster, orders[i]));

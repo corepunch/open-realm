@@ -1,10 +1,12 @@
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_pathing_widget.h"
 
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
 static void G_ApplyDestructableAlivePathing(edict_t *ent) {
+    G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->alive_pathtex
         : NULL;
@@ -21,6 +23,8 @@ static void G_ApplyDestructableAlivePathing(edict_t *ent) {
 }
 
 static void G_ApplyDestructableDeathPathing(edict_t *ent) {
+    S_RetireMoveRegions(ent);
+    G_MarkMoveSpatialObject(ent);
     ent->pathtex = ent->destructable->placement_solid
         ? ent->destructable->death_pathtex
         : NULL;
@@ -28,6 +32,29 @@ static void G_ApplyDestructableDeathPathing(edict_t *ent) {
     ent->destructable->pathing_active = ent->destructable->placement_solid &&
         ent->pathtex != NULL;
     ent->s.flags &= ~EF_GROUND_SURFACE;
+}
+
+/* The authored constructor selects rotation and snaps pose before publishing
+ * its footprint. Apply this equally to fresh creation and map-script binding. */
+vec2_t G_DestructableCreationPoint(edict_t const *ent, vec2_t point, float facing) {
+    assert(ent && ent->destructable);
+    pathTex_t const *pt=ent->destructable->alive_pathtex;
+    if(!pt) return point;
+    if(ent->data.DestructableData->fixedRot>=0)
+        facing=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    unsigned turn=wc3_widget_texture_turn(facing,pt->width,pt->height);
+    box2_t bounds=CM_GetWorldBounds();
+    float snapped[]={wc3_widget_clamp_axis(point.x,bounds.min.x,bounds.max.x),
+        wc3_widget_clamp_axis(point.y,bounds.min.y,bounds.max.y)};
+    wc3_widget_snap(snapped,turn&1 ? pt->height : pt->width,turn&1 ? pt->width : pt->height);
+    return (vec2_t){snapped[0],snapped[1]};
+}
+
+void G_ApplyDestructableCreationPose(edict_t *ent) {
+    if (!G_IsDestructable(ent)) return;
+    if (ent->data.DestructableData->fixedRot>=0)
+        ent->s.angle=wc3_degrees_to_radians(ent->data.DestructableData->fixedRot);
+    ent->s.origin2=G_DestructableCreationPoint(ent,ent->s.origin2,ent->s.angle);
 }
 
 /* Saved records retain logical placement state; map/model pointers are rebuilt. */
@@ -95,13 +122,15 @@ void G_ActivateScriptedDestructable(edict_t *ent,
 
     ent->svflags &= ~SVF_DEADMONSTER;
 
-    ent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(ent,false);
     ent->s.renderfx &= ~RF_NO_SHADOW;
     ent->s.flags &= ~EF_NOT_SELECTABLE;
 
     ent->health.value = ent->health.max_value;
 
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
+    G_ApplyDestructableCreationPose(ent);
     G_DestructableStartAliveAnimation(ent, false);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
 
@@ -142,18 +171,18 @@ bool G_DestructableCanBeAttackedBy(edict_t const *attacker, edict_t const *targe
     uint32_t flag;
 
     if (!attacker || !G_DestructableIsAttackable(target) ||
-        (attacker->attack1.type == ATK_NONE && attacker->attack2.type == ATK_NONE)) {
+        (S_AttackProfileRead(attacker, 0)->type == ATK_NONE && S_AttackProfileRead(attacker, 1)->type == ATK_NONE)) {
         return false;
     }
     /* Retail lets the explicit Attack command cut down trees even though
      * standard UnitWeapons.slk melee target lists usually omit "tree".
      * Smart handling is still separate and workers keep Harvest precedence. */
     if (target->targtype == TARG_TREE)
-        return (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) ||
-               (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1));
+        return (S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) ||
+               (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1));
     flag = G_TargetFlagForType(target->targtype);
-    return flag && ((attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->attack1.targetsAllowed & flag)) ||
-                    (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
+    return flag && ((S_AttackProfileRead(attacker, 0)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (S_AttackProfileRead(attacker, 0)->targetsAllowed & flag)) ||
+                    (S_AttackProfileRead(attacker, 1)->type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (S_AttackProfileRead(attacker, 1)->targetsAllowed & flag)));
 }
 
 bool G_DestructableAcceptsSmartAttack(edict_t const *attacker, edict_t const *target) {
@@ -364,10 +393,10 @@ void G_InitializeDestructablePlacement(edict_t *ent, doodad_t const *placement) 
     ent->destructable->placement_solid = (placement->flags & 2) != 0;
     visible = placement->flags != 0;
     if (visible) {
-        ent->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(ent,false);
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     } else {
-        ent->s.renderfx |= RF_HIDDEN;
+        G_SetEntityHidden(ent,true);
         ent->s.flags |= EF_NOT_SELECTABLE;
     }
 
@@ -397,7 +426,6 @@ bool G_RemoveDestructable(edict_t *ent) {
     }
     unit_leavecombat(ent);
     G_FreeEdict(ent);
-    CM_BakeStaticObstacles();
     return true;
 }
 
@@ -427,6 +455,7 @@ bool G_RestoreDestructable(edict_t *ent, float life, bool birth) {
     if (!(ent->s.renderfx & RF_HIDDEN)) {
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     }
+    S_RetireMoveRegions(ent);
     G_ApplyDestructableAlivePathing(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_DestructableStartAliveAnimation(ent, birth);

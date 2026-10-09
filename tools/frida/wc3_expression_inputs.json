@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "int_sub",
+      "native": "I2R",
+      "expression": "100-10-5"
+    },
+    {
+      "id": "int_sub_add",
+      "native": "I2R",
+      "expression": "100-10+5"
+    },
+    {
+      "id": "int_add_sub",
+      "native": "I2R",
+      "expression": "100+10-5"
+    },
+    {
+      "id": "int_div",
+      "native": "I2R",
+      "expression": "120/4/3"
+    },
+    {
+      "id": "int_div_mul",
+      "native": "I2R",
+      "expression": "9/2*2"
+    },
+    {
+      "id": "int_precedence",
+      "native": "I2R",
+      "expression": "41-1-2*20"
+    },
+    {
+      "id": "int_right_parens",
+      "native": "I2R",
+      "expression": "100-(10-5)"
+    },
+    {
+      "id": "int_left_parens",
+      "native": "I2R",
+      "expression": "(100-10)-5"
+    },
+    {
+      "id": "int_negative",
+      "native": "I2R",
+      "expression": "-100-10-5"
+    },
+    {
+      "id": "real_sub",
+      "native": "R2I",
+      "expression": "100.0-10.0-5.0"
+    },
+    {
+      "id": "real_sub_add",
+      "native": "R2I",
+      "expression": "100.0-10.0+5.0"
+    },
+    {
+      "id": "real_div",
+      "native": "R2I",
+      "expression": "120.0/4.0/3.0"
+    },
+    {
+      "id": "real_div_mul",
+      "native": "R2I",
+      "expression": "9.0/2.0*2.0"
+    },
+    {
+      "id": "mixed_div",
+      "native": "R2I",
+      "expression": "120.0/4/3.0"
+    },
+    {
+      "id": "mixed_sub",
+      "native": "R2I",
+      "expression": "100.0-10-5.0"
+    },
+    {
+      "id": "real_right_parens",
+      "native": "R2I",
+      "expression": "100.0-(10.0-5.0)"
+    },
+    {
+      "id": "int_operands",
+      "native": "I2R",
+      "expression": "PathExpressionInteger(1,100)-PathExpressionInteger(2,10)-PathExpressionInteger(3,5)"
+    },
+    {
+      "id": "real_operands",
+      "native": "R2I",
+      "expression": "PathExpressionReal(1,120.0)/PathExpressionReal(2,4.0)/PathExpressionReal(3,3.0)"
+    },
+    {
+      "id": "mixed_operands",
+      "native": "R2I",
+      "expression": "PathExpressionReal(1,100.0)-PathExpressionReal(2,4.0)*PathExpressionReal(3,3.0)-PathExpressionReal(4,5.0)"
+    },
+    {
+      "id": "real_cancel",
+      "native": "R2I",
+      "expression": "0.3-0.2-0.1"
+    },
+    {
+      "id": "real_sum",
+      "native": "R2I",
+      "expression": "0.1+0.2+0.3"
+    },
+    {
+      "id": "real_ratio",
+      "native": "R2I",
+      "expression": "7.0/3.0/2.0"
+    },
+    {
+      "id": "real_product",
+      "native": "R2I",
+      "expression": "0.1*0.2*0.3"
+    },
+    {
+      "id": "real_promote",
+      "native": "R2I",
+      "expression": "16777217-1.0-2.0"
+    },
+    {
+      "id": "int_wrap_add",
+      "native": "I2R",
+      "expression": "2147483647+1+1"
+    },
+    {
+      "id": "int_wrap_sub",
+      "native": "I2R",
+      "expression": "-2147483648-1-1"
+    },
+    {
+      "id": "int_wrap_mul",
+      "native": "I2R",
+      "expression": "2147483647*3*3"
+    }
+  ]
+}

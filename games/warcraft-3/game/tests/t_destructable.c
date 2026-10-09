@@ -9,6 +9,9 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "retail_widget_overlap.h"
+#include "retail_bridge_terrain.h"
+#include "../../common/wc3_pathing_regions.h"
 
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
@@ -25,6 +28,9 @@ bool run_test_jass(cstring_t src);
 bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
+unsigned G_TestStaticPathMask(unsigned x, unsigned y);
+unsigned G_TestMoveTerrainByte(unsigned x,unsigned y);
+int G_TestMovePathClass(uint8_t mask, unsigned level, unsigned x, unsigned y);
 
 TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
     edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('d', 'u', 'm', 'y') };
@@ -209,8 +215,8 @@ static edict_t *make_destructable_test_attacker(float x, float y) {
     ent->health.value = 100.0f;
     ent->health.max_value = 100.0f;
     ent->svflags |= SVF_MONSTER;
-    ent->attack1.type = ATK_NORMAL;
-    ent->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
+    S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
     return ent;
 }
 
@@ -330,7 +336,7 @@ TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
     dest->targtype = TARG_WALL;
     attacker = make_destructable_test_attacker(10.0f, 0.0f);
     attacker->s.player = 0;
-    attacker->attack1.targetsAllowed = 128u; /* TARGET_FLAG_WALL */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 128u; /* TARGET_FLAG_WALL */
     game.clients[0].cheat_instant_kill = true;
 
     dest->s.renderfx |= RF_HIDDEN;
@@ -403,7 +409,7 @@ TEST(wc3_destructable, smart_order_requires_destructable_target_mask) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
-    attacker->attack1.targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(attacker->goalentity == NULL);
@@ -416,23 +422,30 @@ TEST(wc3_destructable, tree_requires_explicit_attack) {
     dest->targtype = TARG_TREE;
     /* Standard melee targs1 commonly contains debris but not tree. Retail
      * still lets explicit Attack cut a tree down. */
-    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
     T_ASSERT(attacker->goalentity == dest);
 }
 
-TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
+TEST(wc3_destructable, explicit_attack_converts_disallowed_destructable_to_point) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
-    attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
-    T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
-    T_ASSERT(attacker->goalentity == NULL);
+    /*207160 snapshots an invalid explicit Attack target's point before
+     *admission. Smart still rejects; Attack owns a point head, not the widget. */
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_NOT_NULL(attacker->goalentity);
+    T_ASSERT(attacker->goalentity != dest);
+    T_NULL(attacker->combatentity);
+    T_EQ(attacker->current_order_id,G_OrderId("attack"));
+    T_EQ(attacker->goalentity->s.origin2.x,dest->s.origin2.x);
+    T_EQ(attacker->goalentity->s.origin2.y,dest->s.origin2.y);
 }
 
 TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
@@ -440,21 +453,25 @@ TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
     edict_t *dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
-    attacker->attack1.targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
     T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
     T_ASSERT(attacker->goalentity == dest);
 }
 
-TEST(wc3_destructable, dead_remains_reject_attack_orders) {
+TEST(wc3_destructable, dead_remains_reject_smart_and_convert_explicit_attack_to_point) {
     edict_t *attacker = make_destructable_test_attacker(0.0f, 0.0f);
     edict_t *dest = make_test_destructable(1.0f, 32.0f, 0.0f);
 
     G_KillDestructable(dest, attacker);
 
     T_ASSERT(!unit_issuetargetorder(attacker, "smart", dest));
-    T_ASSERT(!unit_issuetargetorder(attacker, "attack", dest));
+    T_ASSERT(unit_issuetargetorder(attacker, "attack", dest));
+    T_NOT_NULL(attacker->goalentity);
+    T_ASSERT(attacker->goalentity != dest);
+    T_NULL(attacker->combatentity);
+    T_EQ(attacker->current_order_id,G_OrderId("attack"));
 }
 
 TEST(wc3_destructable, death_removes_alive_static_footprint) {
@@ -469,6 +486,25 @@ TEST(wc3_destructable, death_removes_alive_static_footprint) {
 
     G_KillDestructable(dest, NULL);
     T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
+}
+
+TEST(wc3_destructable, death_and_restore_retire_regions_without_inverse_links) {
+    uint8_t cells[8*8]={0};setup_test_pathmap(8,8,cells);
+    edict_t *dest=make_test_destructable(10,4,4);
+    one_cell_pathtex_t alive={1,1,{{255,0,255,255}}};
+    dest->pathtex=dest->destructable->alive_pathtex=(pathTex_t *)&alive;
+    dest->destructable->death_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    CM_BakeStaticObstacles();wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+    wc3RegionCollection_t const *collection=S_GetMoveRegions(dest-g_edicts);
+    T_EQ(collection->count,3);T_EQ(map->records,3);
+    uint32_t ids[3];memcpy(ids,collection->objects,sizeof(ids));
+    T_ASSERT(G_KillDestructable(dest,NULL));T_EQ(map->records,4);
+    FOR_LOOP(i,3){T_EQ(wc3_records_object(map,ids[i])->stamp,UINT32_MAX);T_EQ(wc3_records_object(map,ids[i])->refs,1);}
+    uint32_t death=collection->objects[0];T_ASSERT(death!=ids[0]);
+    T_ASSERT(G_RestoreDestructable(dest,10,false));T_EQ(map->records,7);
+    T_EQ(wc3_records_object(map,death)->stamp,UINT32_MAX);
+    FOR_LOOP(word,(map->width*map->height+31)/32)T_EQ(map->dirty[word],0);
+    S_CompactMoveFineSpatial();T_EQ(map->records,3);
 }
 
 TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
@@ -489,7 +525,231 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
     T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
 }
 
-TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
+/* Free is also a pathing producer: callers need not issue a separate bake.
+ * Keep a field alive across the removal so stale cache reuse is observable. */
+TEST(wc3_destructable, final_free_retires_static_footprint_and_cached_field) {
+    uint8_t cells[32 * 32] = {0};
+    vec2_t center = {272,272}, source = {144,272}, target = {496,272}, out;
+
+    FOR_LOOP(dead,2) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+        CM_SetupTestPathmap(32,32,cells);
+        edict_t *dest=make_test_destructable(10,center.x,center.y);
+        dest->pathtex=dest->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+        if(dead) {
+            dest->destructable->death_pathtex=dest->pathtex;
+            T_ASSERT(G_KillDestructable(dest,NULL));
+        } else CM_BakeStaticObstacles();
+        edict_t *goal=Waypoint_add(&target);
+        uint32_t generation=CM_BuildHeatmapForRadius(goal,16);
+        CM_ProcessPathJobs(8192);
+        T_ASSERT(CM_ActivateCachedFlow(generation));
+        T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+
+        G_FreeEdict(dest);
+        T_ASSERT(!dest->inuse);
+        T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+        T_ASSERT(!CM_ActivateCachedFlow(generation));
+        edict_t *mover=make_destructable_test_attacker(source.x,source.y);
+        mover->collision=16;
+        movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                              .mover=mover,.units=true};
+        moveFineRoute_t route={0};
+        T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+        T_ASSERT(route.adaptive_count>0);
+        T_ASSERT(!route.partial);
+        mover->movement.fine_route=route;
+        S_FreeMoveRoute(mover);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_destructable, death_restore_remove_preserve_overlapping_blocker_and_terrain) {
+    uint8_t cells[32 * 32]={0};
+    vec2_t center={272,272}, terrain={592,272}, target={496,272};
+    reset_entities(); setup_test_world();
+    cells[18+8*32]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+    CM_SetupTestPathmap(32,32,cells);
+    edict_t *a=make_test_destructable(10,center.x,center.y);
+    edict_t *b=make_test_destructable(10,center.x,center.y);
+    a->pathtex=a->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    b->pathtex=b->destructable->alive_pathtex=a->pathtex;
+    b->destructable->death_pathtex=b->pathtex;
+    CM_BakeStaticObstacles();
+    edict_t *goal=Waypoint_add(&target);
+    uint32_t old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+
+    T_ASSERT(G_DestructableApplyDamage(a,NULL,10));
+    T_ASSERT(a->destructable->dead);
+    T_ASSERT(!a->destructable->pathing_active);
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_RestoreDestructable(a,10,false));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(G_KillDestructable(b,NULL));
+    T_ASSERT(b->destructable->pathing_active);
+    T_ASSERT(G_RemoveDestructable(a));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    old=CM_BuildHeatmapForRadius(goal,16);
+    CM_ProcessPathJobs(8192); T_ASSERT(CM_ActivateCachedFlow(old));
+    G_FreeEdict(b);
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(old));
+    T_ASSERT(!CM_PointIsPathableForRadius(&terrain,0));
+    reset_entities(); setup_test_world();
+}
+
+static void assert_widget_overlap_grid(unsigned state) {
+    FOR_LOOP(y,32) FOR_LOOP(x,32)
+        T_EQ(G_TestStaticPathMask(144+x,64+y)&0xc6,retail_widget_masks[state][y*32+x]);
+    uint8_t const lanes[]={2,0x80,0x40,4};
+    unsigned at=0;
+    FOR_LOOP(level,4) {
+        unsigned size=16>>level, ox=144>>(level+1), oy=64>>(level+1);
+        FOR_LOOP(y,size) FOR_LOOP(x,size) FOR_LOOP(lane,4)
+            T_EQ(G_TestMovePathClass(lanes[lane],level,ox+x,oy+y),retail_widget_classes[state][at++]);
+    }
+}
+
+/* Original public LTlt/LTg1 creation snaps (-1936,-560) to (-1920,-512)
+ * using its file-backed texture dimensions and authored fixedRot270. */
+TEST(wc3_destructable, authored_overlapping_creations_snap_pose_and_rotation) {
+    char const *slk="ID;PWXL;N;E\nB;Y3;X8;D0\n"
+        "C;Y1;X1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"targType\"\nC;X4;K\"HP\"\n"
+        "C;X5;K\"radius\"\nC;X6;K\"pathTex\"\nC;X7;K\"fixedRot\"\nC;X8;K\"numVar\"\n"
+        "C;Y2;X1;K\"B4DF\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"tree\"\nC;X4;K50\nC;X5;K0\nC;X6;K\"PathTextures\\4x4Default.tga\"\nC;X7;K270\nC;X8;K1\n"
+        "C;Y3;X1;K\"B20G\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"debris\"\nC;X4;K500\nC;X5;K50\nC;X6;K\"PathTextures\\Gate1Path.tga\"\nC;X7;K270\nC;X8;K1\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk), *saved=G_SetSLKRows("DestructableData",rows);
+    uint32_t ids[]={MAKEFOURCC('B','4','D','F'),MAKEFOURCC('B','2','0','G')};
+    uint8_t cells[384*256]={0};
+    FOR_LOOP(y,32) FOR_LOOP(x,32) cells[(64+y)*384+144+x]=retail_widget_masks[0][y*32+x];
+    FOR_LOOP(order,2) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&(box2_t){{-7168,-3072},{5120,5120}});
+        CM_SetupTestPathmap(384,256,cells);
+        assert_widget_overlap_grid(0);
+        edict_t *objects[2];
+        FOR_LOOP(i,2) {
+            unsigned index=i^order;
+            objects[index]=G_CreateDestructable(ids[index],-1936,-560,0,0,1,0);
+            T_ASSERT(objects[index]);
+            T_EQ(objects[index]->s.origin2.x,-1920);
+            T_EQ(objects[index]->s.origin2.y,-512);
+            T_EQ(objects[index]->data.DestructableData->fixedRot,270);
+            T_FEQ(objects[index]->s.angle,wc3_degrees_to_radians(270),0.000001f);
+            assert_widget_overlap_grid(i ? 3 : index+1);
+        }
+        vec2_t gate_edge={-2160,-496}, tree_center={-1904,-528};
+        T_ASSERT(!CM_PointIsPathableForRadius(&gate_edge,0));
+        T_ASSERT(!CM_PointIsPathableForRadius(&tree_center,0));
+        T_ASSERT(G_RemoveDestructable(objects[order]));
+        assert_widget_overlap_grid((order^1)+1);
+        T_EQ(CM_PointIsPathableForRadius(&gate_edge,0),order!=0);
+        T_ASSERT(!CM_PointIsPathableForRadius(&tree_center,0));
+        T_ASSERT(G_RemoveDestructable(objects[order^1]));
+        assert_widget_overlap_grid(0);
+        T_ASSERT(CM_PointIsPathableForRadius(&tree_center,0));
+    }
+    /* The generated script's original off-grid request must find its already
+     * snapped hidden placeholder, rather than create a second blocker. */
+    edict_t *placed=G_CreateDestructable(ids[0],-1936,-560,0,0,1,0);
+    G_InitializeDestructablePlacement(placed,&(doodad_t){.flags=0,.treeLife=100,.unitID=99});
+    uint32_t before=globals.num_edicts;
+    G_SetDestructableScriptBinding(true);
+    edict_t *created=G_CreateDestructable(ids[0],-1936,-560,0,0,1,0);
+    G_SetDestructableScriptBinding(false);
+    T_ASSERT(created==placed); T_EQ(globals.num_edicts,before);
+    T_ASSERT(placed->destructable->script_bound); T_ASSERT(placed->destructable->pathing_active);
+    T_EQ(placed->s.origin2.x,-1920); T_EQ(placed->s.origin2.y,-512);
+    T_ASSERT(G_RemoveDestructable(placed));
+    assert_widget_overlap_grid(0);
+    /* Negative fixedRot retains the caller's angle; no texture retains pose.
+     * Noninteger angles must survive the SLK schema, rather than becoming bool. */
+    DestructableData_t data={.fixedRot=-1};
+    edict_t *bound=make_test_destructable(50,-1936,-560);
+    bound->data.DestructableData=&data;
+    bound->s.angle=wc3_degrees_to_radians(90);
+    G_ApplyDestructableCreationPose(bound);
+    T_EQ(bound->s.origin2.x,-1936); T_EQ(bound->s.origin2.y,-560);
+    T_EQ(bound->s.angle,wc3_degrees_to_radians(90));
+    bound->pathtex=bound->destructable->alive_pathtex=(pathTex_t *)&destructable_blocked_death_pathtex;
+    data.fixedRot=37.5f;
+    bound->s.origin2=(vec2_t){100000,-100000};
+    G_ApplyDestructableCreationPose(bound);
+    T_EQ(bound->s.angle,wc3_degrees_to_radians(37.5f));
+    T_EQ(bound->s.origin2.x,5072); T_EQ(bound->s.origin2.y,-3088);
+    reset_entities(); setup_test_world();
+    G_SetSLKRows("DestructableData",saved); free_slk_rows(rows);
+}
+
+/* MAP-02.2: deck support and terrain admission are independent. A bridge
+ * adds region identities; it never edits the fine cell's authored top byte. */
+TEST(wc3_destructable, bridge_keeps_all_authored_terrain_lanes) {
+    static DestructableData_t const data={.walkable=true};
+    struct {uint16_t width,height; color32_t map[64];} texture={.width=8,.height=8};
+    uint8_t cells[64*64],masks[]={2,4,0x40,0x80};
+    vec2_t point={1024,1024}; float fine[]={32,32};
+    reset_entities();setup_test_world();
+    FOR_LOOP(y,8)FOR_LOOP(x,8)
+        texture.map[y*8+x]=(color32_t){.b=(y==0||y==7)?255:0,.a=255};
+    edict_t *bridge=make_test_destructable(10,point.x,point.y);
+    bridge->data.DestructableData=&data;
+    bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t *)&texture;
+    G_RegisterGroundSurface(bridge);
+    FOR_LOOP(byte,256) {
+        memset(cells,byte,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        CM_SetupTestPathmap(64,64,cells);CM_BakeStaticObstacles();
+        T_EQ(G_TestStaticPathMask(32,32),byte);
+        FOR_LOOP(lane,4) {
+            movePathQuery_t query={.geometry={&point,&point,0,masks[lane]}};
+            T_EQ(G_UnitMovePathFinePointIsPathable(&query,fine),!(byte&masks[lane]));
+            /* Ground hierarchy reads06, including the flight restriction. */
+            T_EQ(G_TestMovePathClass(masks[lane],0,16,16),!!(byte&(lane?masks[lane]:6)));
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_destructable, file_backed_bridge_terrain_stays_independent_through_save_and_death) {
+    static DestructableData_t const data={.walkable=true};
+    struct {uint16_t width,height; color32_t map[32*18];} texture={.width=32,.height=18};
+    uint8_t cells[64*64];
+    cstring_t file=Test_TempPath("wc3-bridge-terrain-authority.bin");
+    FOR_LOOP(y,18)FOR_LOOP(x,32)
+        texture.map[y*32+x]=(color32_t){.b=(y<2||y>=16)?255:0,.a=255};
+    FOR_LOOP(k,3) {
+        reset_entities();setup_test_world();
+        unsigned at=0;
+        FOR_LOOP(i,retail_bridge_terrain_cases[k][1]) {
+            uint16_t const *run=retail_bridge_terrain_runs[retail_bridge_terrain_cases[k][0]+i];
+            memset(cells+at,run[1],run[0]);at+=run[0];
+        }
+        T_EQ(at,sizeof(cells));
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        edict_t *bridge=make_test_destructable(10,1024,640);
+        bridge->data.DestructableData=&data;
+        bridge->pathtex=bridge->destructable->alive_pathtex=(pathTex_t *)&texture;
+        G_RegisterGroundSurface(bridge);CM_BakeStaticObstacles();
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+        unsigned number=bridge->s.number;
+        /* The game save contains terrain and sparse regions independently. */
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        bridge=g_edicts+number;
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+        G_KillDestructable(bridge,NULL);
+        FOR_LOOP(y,64)FOR_LOOP(x,64)T_EQ(G_TestMoveTerrainByte(x,y),cells[y*64+x]);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_destructable, alive_walkable_bridge_preserves_blocked_terrain_until_death) {
     static DestructableData_t const bridge_data = { .walkable = true };
     uint8_t cells[8 * 8] = { 0 };
     vec2_t center = { 4.0f, 4.0f };
@@ -515,8 +775,8 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
 
     CM_BakeStaticObstacles();
-    T_ASSERT(CM_PointIsPathableForRadius(&center, 0.0f));
-    T_ASSERT(M_MoveIsValid(unit, &center));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0.0f));
+    T_ASSERT(!M_MoveIsValid(unit, &center));
 
     G_KillDestructable(bridge, NULL);
     T_ASSERT(!(bridge->s.flags & EF_GROUND_SURFACE));
@@ -546,7 +806,7 @@ TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rai
 
     CM_BakeStaticObstacles();
 
-    T_ASSERT(CM_PointIsPathableForRadius(&deck, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&deck, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&left_rail, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&left_outside, 0.0f));
     T_ASSERT(!CM_PointIsPathableForRadius(&right_outside, 0.0f));
@@ -569,7 +829,7 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
         edict_t *bridge, *goal;
         uint32_t generation;
 
-        memset(cells, 2, sizeof(cells));
+        memset(cells, 0, sizeof(cells)); /* Authored WPM permits the crossing. */
         reset_entities();
         setup_test_world();
         setup_test_pathmap(64, 64, cells);
@@ -615,7 +875,6 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     edict_t *bridge;
 
     memset(cells, 0, sizeof(cells));
-    FOR_LOOP(y, 22) FOR_LOOP(x, 64) cells[x + (21 + y) * 64] = 2;
     reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
@@ -643,8 +902,6 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         pathTexTransform_t transform;
 
         memset(cells, 0, sizeof(cells));
-        if (vertical) FOR_LOOP(y, 32) FOR_LOOP(x, 64) cells[x + (y + 16) * 64] = 2;
-        else FOR_LOOP(y, 64) FOR_LOOP(x, 32) cells[x + 16 + y * 64] = 2;
         reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
         CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
         bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
@@ -662,7 +919,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
         T_EQ(transform.height, vertical ? 32 : 22);
         T_ASSERT(CM_LineIsWalkableForRadius(&from, &to, 0.0f));
         G_KillDestructable(bridge, NULL);
-        T_ASSERT(!CM_LineIsWalkableForRadius(&from, &to, 0.0f));
+        T_ASSERT(CM_LineIsWalkableForRadius(&from, &to, 0.0f)); /* WPM unchanged after retirement. */
     }
 }
 
@@ -1280,13 +1537,13 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
     }
     T_NOT_NULL(valid); T_NOT_NULL(missing); T_NOT_NULL(fast);
     if (valid && missing && fast) {
-        T_STREQ(valid->animation_request, "stand alternate");
+        T_STREQ(G_UnitAnimationRequest(valid), "stand alternate");
         T_STREQ(valid->queued_animation, "stand");
         T_FEQ(valid->animation_speed, 0.0f, 0.001f);
         T_FEQ(missing->animation_speed, 2.0f, 0.001f);
         T_FEQ(fast->animation_speed, 2.0f, 0.001f);
         T_FEQ(valid->destructable->occluder_height, 256.0f, 0.001f);
-        T_STREQ(missing->animation_request, "death alternate");
+        T_STREQ(G_UnitAnimationRequest(missing), "death alternate");
         T_NULL(missing->animation);
         T_ASSERT(!missing->animation_override);
         T_NOT_NULL(valid->animation);
@@ -1310,7 +1567,7 @@ TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
             valid->s.frame = valid->animation->interval[1] - 1;
             /* Exercise the live per-frame dispatch, not only the queue helper. */
             G_RunEntities();
-            T_STREQ(valid->animation_request, "stand");
+            T_STREQ(G_UnitAnimationRequest(valid), "stand");
             T_STREQ(valid->queued_animation, "");
             T_NOT_NULL(valid->animation);
             if (valid->animation) T_EQ(valid->s.frame, valid->animation->interval[0]);

@@ -1,0 +1,849 @@
+{
+  "version": 1,
+  "scenario": "same-cell-four-lifetimes-114",
+  "inputs": {
+    "scope": "Compared prefix: first four actor lifetimes, before case4 at 32000ms. Movement inputs only; native hfoo and engine hRTE profiles share the listed values. No full unit, route, RNG or render parity claim.",
+    "world": {
+      "bounds": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "fine_cell_size": 32,
+      "grid": [
+        64,
+        64
+      ],
+      "height": 0,
+      "ground_blocked_columns": [
+        24,
+        25
+      ],
+      "ground_blocked_rows": [
+        0,
+        47
+      ],
+      "native_wpm_byte": 198,
+      "engine_ground_bit": 2
+    },
+    "profiles": [
+      {
+        "life": 0,
+        "rawcode": "hF91",
+        "collision_radius_word": 1090519040,
+        "base_speed_word": 1132920832,
+        "requested_speed_word": 1125515264
+      },
+      {
+        "life": 1,
+        "rawcode": "hF92",
+        "collision_radius_word": 1103101952,
+        "base_speed_word": 1132920832,
+        "requested_speed_word": 1125515264
+      },
+      {
+        "life": 2,
+        "rawcode": "hF93",
+        "collision_radius_word": 1109393408,
+        "base_speed_word": 1132920832,
+        "requested_speed_word": 1125515264
+      },
+      {
+        "life": 3,
+        "rawcode": "hF94",
+        "collision_radius_word": 1113587712,
+        "base_speed_word": 1132920832,
+        "requested_speed_word": 1125515264
+      }
+    ],
+    "producer": {
+      "timer_ms": 100,
+      "primary_step_ms": 5,
+      "owner_interval_ms": 30,
+      "lifetime_ticks": 80,
+      "birth_world": [
+        272,
+        304
+      ],
+      "birth_facing_degrees": 90,
+      "order_tick": 10,
+      "set_world": [
+        257,
+        289
+      ],
+      "point_move_world": [
+        287,
+        319
+      ],
+      "terminal_ms": 32000,
+      "order": 851986
+    },
+    "journal_begin": {
+      "bounds": [
+        0,
+        0,
+        2048,
+        2048
+      ],
+      "grid": [
+        64,
+        64
+      ],
+      "clock": [
+        0,
+        0,
+        1133903872
+      ],
+      "radii": [
+        8,
+        24,
+        40,
+        56
+      ],
+      "base_speed": 1132920832,
+      "min_speed": 1125515264,
+      "max_speed": 1137180672
+    },
+    "units": "Positions and velocities use native fine units; heading is binary32 radians; clock is binary32 time, uint32 epoch, binary32 span. Identity is [producer lifetime, actor ordinal]. Every observed velocity commit is retained, including stopped commits.",
+    "journal_profiles": [
+      {
+        "event": "profile",
+        "actor": [
+          0,
+          0
+        ],
+        "radius": 1048576000,
+        "turn": 1058642330,
+        "window": 1065749137
+      },
+      {
+        "event": "profile",
+        "actor": [
+          1,
+          0
+        ],
+        "radius": 1061158912,
+        "turn": 1058642330,
+        "window": 1065749137
+      },
+      {
+        "event": "profile",
+        "actor": [
+          2,
+          0
+        ],
+        "radius": 1067450368,
+        "turn": 1058642330,
+        "window": 1065749137
+      },
+      {
+        "event": "profile",
+        "actor": [
+          3,
+          0
+        ],
+        "radius": 1071644672,
+        "turn": 1058642330,
+        "window": 1065749137
+      }
+    ]
+  },
+  "events": [
+    {
+      "event": "velocity-commit",
+      "sequence": 0,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1065520980,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090551808,
+        1091600384
+      ],
+      "velocity": [
+        1076454457,
+        1081579960
+      ],
+      "heading": 1064863374
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 1,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1065772638,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090635067,
+        1091722084
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 2,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1066024296,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090741582,
+        1091824052
+      ],
+      "velocity": [
+        1079555454,
+        1078948846
+      ],
+      "heading": 1061386835
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 3,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1066275954,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090848098,
+        1091926019
+      ],
+      "velocity": [
+        1079555535,
+        1078948760
+      ],
+      "heading": 1061386735
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 4,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1066527612,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090954615,
+        1092027985
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 5,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1066779270,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091061130,
+        1092129953
+      ],
+      "velocity": [
+        1079555454,
+        1078948846
+      ],
+      "heading": 1061386835
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 6,
+      "actor": [
+        0,
+        0
+      ],
+      "clock": [
+        1067030928,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091167646,
+        1092231920
+      ],
+      "velocity": [
+        0,
+        0
+      ],
+      "heading": 1061386835
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 7,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091598534,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090551808,
+        1091600384
+      ],
+      "velocity": [
+        1076454457,
+        1081579960
+      ],
+      "heading": 1064863374
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 8,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091629986,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090635053,
+        1091722064
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 9,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091661438,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090741550,
+        1091824015
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 10,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091692890,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090848048,
+        1091925965
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 11,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091724342,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090954546,
+        1092027915
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 12,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091755794,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091061043,
+        1092129866
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 13,
+      "actor": [
+        1,
+        0
+      ],
+      "clock": [
+        1091787246,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091167541,
+        1092231816
+      ],
+      "velocity": [
+        0,
+        0
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 14,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099436207,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090551808,
+        1091600384
+      ],
+      "velocity": [
+        1076454457,
+        1081579960
+      ],
+      "heading": 1064863374
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 15,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099451933,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090635053,
+        1091722064
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 16,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099467659,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090741550,
+        1091824015
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 17,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099483385,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090848048,
+        1091925965
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 18,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099499111,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090954546,
+        1092027915
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 19,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099514837,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091061043,
+        1092129866
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 20,
+      "actor": [
+        2,
+        0
+      ],
+      "clock": [
+        1099530563,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091167541,
+        1092231816
+      ],
+      "velocity": [
+        0,
+        0
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 21,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103635049,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090551808,
+        1091600384
+      ],
+      "velocity": [
+        1076454457,
+        1081579960
+      ],
+      "heading": 1064863374
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 22,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103650775,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090635053,
+        1091722064
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 23,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103666501,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090741550,
+        1091824015
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 24,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103682227,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090848048,
+        1091925965
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 25,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103697953,
+        0,
+        1133903872
+      ],
+      "position": [
+        1090954546,
+        1092027915
+      ],
+      "velocity": [
+        1079555290,
+        1078949017
+      ],
+      "heading": 1061387038
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 26,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103713679,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091061043,
+        1092129866
+      ],
+      "velocity": [
+        1079555372,
+        1078948931
+      ],
+      "heading": 1061386936
+    },
+    {
+      "event": "velocity-commit",
+      "sequence": 27,
+      "actor": [
+        3,
+        0
+      ],
+      "clock": [
+        1103729405,
+        0,
+        1133903872
+      ],
+      "position": [
+        1091167541,
+        1092231816
+      ],
+      "velocity": [
+        0,
+        0
+      ],
+      "heading": 1061386936
+    }
+  ],
+  "provenance": {
+    "adapter": "retail-read-only-frida",
+    "raw_sha256": "5e95ff6e22948d63a856d76b0d181f8be6d848b15f2f83a3bbf6a8087122acb3",
+    "capture": {
+      "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "owned": true,
+      "source_sha256": {
+        "wc3_formation_refresh_probe.j": "2f15749807cd5d570ad5b97be771304c0db450c86d1fd35fb59a57b6652c18fa",
+        "wc3_formation_boundary_probe.j": "18829685462d3f2d3566853c0cb5a0c6043836b429efdaf3c7308babdde7b7c0",
+        "wc3_formation_blocked_probe.j": "254367b1e097ee1dea61b69ff37c2d34e855eeb5c10ff555badac524edc275c5",
+        "wc3_formation_policy_probe.j": "fa3edcff83de127dae2939d9d9e176c8469ca61bd070521548a65e2d273450e1",
+        "wc3_formation_rank_probe.j": "100f707c2d54b09217b19f62e3f9d5e7d411ee46772d7a78580433f066215d1e",
+        "wc3_mover_retirement_probe.j": "a24fd1ecf0049b40bb70c1bbf0c17b5fb09fa43834a08b8f875604bb700fc579",
+        "wc3_scheduler_mutation_probe.j": "e177b2016d6b495ddc3484d45c1cc0ebfeb2a6882cfe4494e53f74e78b522ce5",
+        "wc3_scheduler_nonunit_probe.j": "8991751d17d5f031df08d3e15f22711ac5f6399f9ebe82a6bfd626b118562067",
+        "wc3_scheduler_probe.j": "f46322880faaa000ac98766406f17b4ba31512a47bd2efb0942cb1eebbbbbb2f",
+        "wc3_captain_probe.ai": "207397dcd64ea00eb6ba2d1cec6ea2877d3dfd19864376aa9607f80726e1033a",
+        "trace_wc3_pathfinding.py": "15f461270ebdc75c67372c1399f9cde10a457ba890d20649c5278123094e23f3",
+        "wc3_pathfinding.js": "0bc8e5c9724160e96d395d64ab2a8a5936f5e10973ebf2939b3fc49406e8806a",
+        "wc3_pathfinding_probe.j": "ce5335270010bc273a65a008eba7b41fc8eaf7c952d5a0fa4e9a707af502a621",
+        "wc3_blocker_lifecycle_probe.j": "c2f94662aaebc4ed60b0cc7201fee0b1f5caaf5b12087eeb80b9cd936e2ad51c",
+        "wc3_widget_overlap_probe.j": "03e0049555487e1eb92bc2d2e31ed9ad25f8f55fe710eda6783f58eae912a442",
+        "wc3_adaptive_passage_probe.j": "8dbe6a491052d75ab5ebb4c62e34e854aa0c719e9439bc81b8040a10c328e8aa",
+        "wc3_target_overlap_probe.j": "bd0ffba729aca195b1598c45b0775977d6dd316673e5bf797d7d34e61b035a19",
+        "wc3_terrain_cache_probe.j": "f032b1e7628ce73434b3fb92df2d11a7d1c3dcf1a8aa0243224f38ea32c38fad",
+        "wc3_movement_lifecycle_probe.j": "8262241b5ea1a6016d1c07b4a47bc14655ac827ef4fc444a71e9a89a1fa27b88",
+        "wc3_region_callbacks_probe.j": "527abc90c199dcb8eb3859b9bf05625b7ff5b9e5b6d91ec3d38a7a48cba9dc32",
+        "wc3_movement_bypasses_probe.j": "2c8b13a56c9659fa5d28df811826f60da2b1bd1ca94691ff79c9f39173695101",
+        "wc3_movement_modes_probe.j": "06ad235e36320bf2247776a9427cacf26387b84515bb67f924432705d739f8e9",
+        "wc3_speed_modifiers_probe.j": "a9db4cbbca4ebb5c4a8264f399e60a34aee55122c773444b8d3440d587f18baf",
+        "wc3_fine_results_probe.j": "9bfc9d23b656d557bf435c952a734a6f82db0e65063cde6ac6826b4a5ae9645b",
+        "wc3_waygate_capacity_probe.j": "5c5a62b666ce657c24c789990cf37946f92c87a6d1291d93e6613b98319f65ae",
+        "wc3_waygate_overlap_probe.j": "d938c8872df7db3ddf319dcf6ceed31c116792903cf1eb3be0e9bc644336d94f",
+        "wc3_expression_probe.j": "c22c876bea0eed673de66305388e10b313f4fbcded303954ad974f622a06e646",
+        "wc3_expression_inputs.json": "abbfd0a01f6c42d9c391a135a0fe202b83bf4cf79bfea089a3749ff579174ae4",
+        "make_wc3_pathfinding_map.py": "0d34f74c1a85bed0c823825ef2c805cb5b8332e7f94efa8ecbdb312e62cb6012",
+        "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+        "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+        "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+        "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+        "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+        "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+        "map": "4c41576efbb238138b6333bfce48f68a0c0f293c56c1c5d06d3915ff06a90d10"
+      },
+      "map": "Maps\\PathingRE-RouteCache113.w3m",
+      "seconds": 320.0,
+      "frida": "17.18.0",
+      "timestamp": 1481263518,
+      "imageSize": 15130624,
+      "samples": 30000,
+      "watchCell": null,
+      "blockerPatchSize": 16,
+      "blockers": false,
+      "taskEvents": true,
+      "mapLoadEvents": false,
+      "widgetEvents": false,
+      "motionEvents": true,
+      "velocityEvents": true,
+      "yieldEvents": false,
+      "clockEvents": false,
+      "headingEvents": false,
+      "schedulerEvents": false,
+      "captainApproachEvents": false,
+      "captainMembershipEvents": false,
+      "profileEvents": true,
+      "gatePoolEvents": false,
+      "gateMarkerEvents": false,
+      "adaptiveStorageEvents": false,
+      "fineStorageEvents": false,
+      "fineResultEvents": true,
+      "numericEvents": false,
+      "randomEvents": false,
+      "literalTexts": [],
+      "integerTexts": [],
+      "byteEvents": false
+    },
+    "input_spec_sha256": "e201e8ee1e398e92a78005cbb608e0e54ead3ed36d7b1729e43ed8e554e2f53c"
+  },
+  "presentation": {}
+}

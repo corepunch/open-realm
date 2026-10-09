@@ -1,0 +1,660 @@
+{
+  "version": 1,
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_entry": "6f16c150",
+  "elapsed_bits": 1023410176,
+  "world_origin": [
+    0,
+    0
+  ],
+  "cell_world": 32,
+  "cases": [
+    {
+      "blocked": [
+        [
+          6,
+          2
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "start": [
+        4,
+        4
+      ],
+      "goal": [
+        8,
+        4
+      ],
+      "route": [
+        8.0,
+        4.0,
+        7.5,
+        3.5,
+        7.5,
+        2.5,
+        7.5,
+        1.5,
+        6.5,
+        1.5,
+        5.5,
+        1.5,
+        5.5,
+        2.5,
+        5.5,
+        3.5,
+        4.0,
+        4.0
+      ],
+      "ticks": 34,
+      "initial_motion": {
+        "0x88": 1090519040,
+        "0x8c": 1086243867,
+        "0x90": 1048576000,
+        "0xb0": 1056629064,
+        "0xb4": 1090519040,
+        "0xb8": 1056964608,
+        "0xbc": 1056964608,
+        "0xc0": 1090519040,
+        "0xc4": 3198467456
+      },
+      "radius_bits": 1048576000,
+      "radius_world": 8,
+      "steps": [
+        {
+          "tick": 1,
+          "start_bits": [
+            1082130432,
+            1082130432
+          ],
+          "position_bits": [
+            1082627815,
+            1081798842
+          ],
+          "velocity_bits": [
+            1089657923,
+            3223448675
+          ],
+          "heading_bits": 1086243804,
+          "waypoint": 7
+        },
+        {
+          "tick": 2,
+          "start_bits": [
+            1082627815,
+            1081798842
+          ],
+          "position_bits": [
+            1083125193,
+            1081467222
+          ],
+          "velocity_bits": [
+            1089657827,
+            3223449249
+          ],
+          "heading_bits": 1086243766,
+          "waypoint": 7
+        },
+        {
+          "tick": 3,
+          "start_bits": [
+            1083125193,
+            1081467222
+          ],
+          "position_bits": [
+            1083622568,
+            1081135584
+          ],
+          "velocity_bits": [
+            1089658114,
+            3223447526
+          ],
+          "heading_bits": 1086243880,
+          "waypoint": 7
+        },
+        {
+          "tick": 4,
+          "start_bits": [
+            1083622568,
+            1081135584
+          ],
+          "position_bits": [
+            1084119952,
+            1080804000
+          ],
+          "velocity_bits": [
+            1089658019,
+            3223448100
+          ],
+          "heading_bits": 1086243842,
+          "waypoint": 7
+        },
+        {
+          "tick": 5,
+          "start_bits": [
+            1084119952,
+            1080804000
+          ],
+          "position_bits": [
+            1084617333,
+            1080472398
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1085195266,
+          "waypoint": 5
+        },
+        {
+          "tick": 6,
+          "start_bits": [
+            1084617333,
+            1080472398
+          ],
+          "position_bits": [
+            1084617333,
+            1080472398
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1084146690,
+          "waypoint": 5
+        },
+        {
+          "tick": 7,
+          "start_bits": [
+            1084617333,
+            1080472398
+          ],
+          "position_bits": [
+            1084617333,
+            1080472398
+          ],
+          "velocity_bits": [
+            1066871416,
+            3237818867
+          ],
+          "heading_bits": 1083935144,
+          "waypoint": 5
+        },
+        {
+          "tick": 8,
+          "start_bits": [
+            1084617333,
+            1080472398
+          ],
+          "position_bits": [
+            1084694729,
+            1079435310
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 9,
+          "start_bits": [
+            1084694729,
+            1079435310
+          ],
+          "position_bits": [
+            1084772129,
+            1078398223
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 10,
+          "start_bits": [
+            1084772129,
+            1078398223
+          ],
+          "position_bits": [
+            1084849529,
+            1077361136
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 11,
+          "start_bits": [
+            1084849529,
+            1077361136
+          ],
+          "position_bits": [
+            1084926929,
+            1076324049
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 12,
+          "start_bits": [
+            1084926929,
+            1076324049
+          ],
+          "position_bits": [
+            1085004329,
+            1075286962
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 13,
+          "start_bits": [
+            1085004329,
+            1075286962
+          ],
+          "position_bits": [
+            1085081729,
+            1074249875
+          ],
+          "velocity_bits": [
+            1066871815,
+            3237818852
+          ],
+          "heading_bits": 1083935156,
+          "waypoint": 5
+        },
+        {
+          "tick": 14,
+          "start_bits": [
+            1085081729,
+            1074249875
+          ],
+          "position_bits": [
+            1085159129,
+            1072683753
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1084983732,
+          "waypoint": 3
+        },
+        {
+          "tick": 15,
+          "start_bits": [
+            1085159129,
+            1072683753
+          ],
+          "position_bits": [
+            1085159129,
+            1072683753
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1086032308,
+          "waypoint": 3
+        },
+        {
+          "tick": 16,
+          "start_bits": [
+            1085159129,
+            1072683753
+          ],
+          "position_bits": [
+            1085159129,
+            1072683753
+          ],
+          "velocity_bits": [
+            1090248125,
+            3216459488
+          ],
+          "heading_bits": 1086541280,
+          "waypoint": 3
+        },
+        {
+          "tick": 17,
+          "start_bits": [
+            1085159129,
+            1072683753
+          ],
+          "position_bits": [
+            1085674950,
+            1072308402
+          ],
+          "velocity_bits": [
+            1090248269,
+            3216456310
+          ],
+          "heading_bits": 1086541381,
+          "waypoint": 3
+        },
+        {
+          "tick": 18,
+          "start_bits": [
+            1085674950,
+            1072308402
+          ],
+          "position_bits": [
+            1086190776,
+            1071933150
+          ],
+          "velocity_bits": [
+            1090248269,
+            3216456310
+          ],
+          "heading_bits": 1086541381,
+          "waypoint": 3
+        },
+        {
+          "tick": 19,
+          "start_bits": [
+            1086190776,
+            1071933150
+          ],
+          "position_bits": [
+            1086706602,
+            1071557898
+          ],
+          "velocity_bits": [
+            1090248378,
+            3216453927
+          ],
+          "heading_bits": 1086541457,
+          "waypoint": 3
+        },
+        {
+          "tick": 20,
+          "start_bits": [
+            1086706602,
+            1071557898
+          ],
+          "position_bits": [
+            1087222431,
+            1071182720
+          ],
+          "velocity_bits": [
+            1090248306,
+            3216455516
+          ],
+          "heading_bits": 1086541407,
+          "waypoint": 3
+        },
+        {
+          "tick": 21,
+          "start_bits": [
+            1087222431,
+            1071182720
+          ],
+          "position_bits": [
+            1087738258,
+            1070807493
+          ],
+          "velocity_bits": [
+            1090248161,
+            3216458693
+          ],
+          "heading_bits": 1086541305,
+          "waypoint": 3
+        },
+        {
+          "tick": 22,
+          "start_bits": [
+            1087738258,
+            1070807493
+          ],
+          "position_bits": [
+            1088254081,
+            1070432166
+          ],
+          "velocity_bits": [
+            1090248306,
+            3216455516
+          ],
+          "heading_bits": 1086541407,
+          "waypoint": 3
+        },
+        {
+          "tick": 23,
+          "start_bits": [
+            1088254081,
+            1070432166
+          ],
+          "position_bits": [
+            1088769908,
+            1070056939
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1050929251,
+          "waypoint": 2
+        },
+        {
+          "tick": 24,
+          "start_bits": [
+            1088769908,
+            1070056939
+          ],
+          "position_bits": [
+            1088769908,
+            1070056939
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1062335537,
+          "waypoint": 2
+        },
+        {
+          "tick": 25,
+          "start_bits": [
+            1088769908,
+            1070056939
+          ],
+          "position_bits": [
+            1088769908,
+            1070056939
+          ],
+          "velocity_bits": [
+            1076596904,
+            1089549091
+          ],
+          "heading_bits": 1067275024,
+          "waypoint": 2
+        },
+        {
+          "tick": 26,
+          "start_bits": [
+            1088769908,
+            1070056939
+          ],
+          "position_bits": [
+            1088945590,
+            1072032847
+          ],
+          "velocity_bits": [
+            1076596714,
+            1089549125
+          ],
+          "heading_bits": 1067275075,
+          "waypoint": 2
+        },
+        {
+          "tick": 27,
+          "start_bits": [
+            1088945590,
+            1072032847
+          ],
+          "position_bits": [
+            1089121269,
+            1073875291
+          ],
+          "velocity_bits": [
+            1076596904,
+            1089549091
+          ],
+          "heading_bits": 1067275024,
+          "waypoint": 2
+        },
+        {
+          "tick": 28,
+          "start_bits": [
+            1089121269,
+            1073875291
+          ],
+          "position_bits": [
+            1089296951,
+            1074863245
+          ],
+          "velocity_bits": [
+            1057565332,
+            1090481364
+          ],
+          "heading_bits": 1069579148,
+          "waypoint": 1
+        },
+        {
+          "tick": 29,
+          "start_bits": [
+            1089296951,
+            1074863245
+          ],
+          "position_bits": [
+            1089332065,
+            1075909466
+          ],
+          "velocity_bits": [
+            1057564526,
+            1090481371
+          ],
+          "heading_bits": 1069579198,
+          "waypoint": 1
+        },
+        {
+          "tick": 30,
+          "start_bits": [
+            1089332065,
+            1075909466
+          ],
+          "position_bits": [
+            1089367176,
+            1076955687
+          ],
+          "velocity_bits": [
+            1057564526,
+            1090481371
+          ],
+          "heading_bits": 1069579198,
+          "waypoint": 1
+        },
+        {
+          "tick": 31,
+          "start_bits": [
+            1089367176,
+            1076955687
+          ],
+          "position_bits": [
+            1089402287,
+            1078001908
+          ],
+          "velocity_bits": [
+            1081319104,
+            1088498091
+          ],
+          "heading_bits": 1065981516,
+          "waypoint": 0
+        },
+        {
+          "tick": 32,
+          "start_bits": [
+            1089402287,
+            1078001908
+          ],
+          "position_bits": [
+            1089651754,
+            1078924174
+          ],
+          "velocity_bits": [
+            1081319104,
+            1088498091
+          ],
+          "heading_bits": 1065981516,
+          "waypoint": 0
+        },
+        {
+          "tick": 33,
+          "start_bits": [
+            1089651754,
+            1078924174
+          ],
+          "position_bits": [
+            1089901221,
+            1079846440
+          ],
+          "velocity_bits": [
+            1081319282,
+            1088498043
+          ],
+          "heading_bits": 1065981465,
+          "waypoint": 0
+        },
+        {
+          "tick": 34,
+          "start_bits": [
+            1089901221,
+            1079846440
+          ],
+          "position_bits": [
+            1090150690,
+            1080768703
+          ],
+          "velocity_bits": [
+            0,
+            0
+          ],
+          "heading_bits": 1065981465,
+          "waypoint": 4294967295
+        }
+      ]
+    }
+  ],
+  "scope": "Complete controlled original group/member route setup, fine search, progression, steering, commits and natural arrival. Supplied radius.25/mask02000000; stock hfoo movement profile and primary owner cadence excluded."
+}

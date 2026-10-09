@@ -1,0 +1,3966 @@
+{
+ "version": 1,
+ "task": "BASE-02.1",
+ "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+ "storm_sha256": "36339f69727f0f3dcb4431a9567b84f56007c331cfa3b183862af43e8314eb72",
+ "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+ "oracle": {
+  "name_table": [
+   [
+    "fly",
+    2
+   ],
+   [
+    "hover",
+    8
+   ],
+   [
+    "foot",
+    1
+   ],
+   [
+    "horse",
+    4
+   ],
+   [
+    "unbuild",
+    64
+   ],
+   [
+    "float",
+    16
+   ],
+   [
+    "amph",
+    32
+   ],
+   [
+    "_",
+    0
+   ],
+   [
+    "-",
+    0
+   ],
+   [
+    "none",
+    0
+   ],
+   [
+    "",
+    0
+   ]
+  ],
+  "parse": {
+   "fly": 2,
+   "hover": 8,
+   "foot": 1,
+   "horse": 4,
+   "unbuild": 64,
+   "float": 16,
+   "amph": 32,
+   "_": 0,
+   "-": 0,
+   "none": 0,
+   "": 0,
+   "FLY": 2,
+   "Fly": 2,
+   "fLy": 2,
+   "HOVER": 8,
+   "Hover": 8,
+   "FOOT": 1,
+   "Foot": 1,
+   "HORSE": 4,
+   "UNBUILD": 64,
+   "Unbuild": 64,
+   "FLOAT": 16,
+   "Float": 16,
+   "AMPH": 32,
+   "Amph": 32,
+   "NONE": 0,
+   "None": 0,
+   " foot": 0,
+   "foot ": 0,
+   "foot\t": 0,
+   "foo": 0,
+   "foots": 0,
+   "fl": 0,
+   "flyy": 0,
+   "amphibious": 0,
+   "boat": 0,
+   "naval": 0,
+   "ground": 0,
+   "air": 0,
+   "water": 0,
+   "walk": 0,
+   "build": 0,
+   "foot,fly": 0,
+   "fly,foot": 0,
+   "foot fly": 0,
+   "foot|fly": 0,
+   "hover,float": 0,
+   "0": 0,
+   "1": 0,
+   "2": 0,
+   "__": 0,
+   "--": 0,
+   " ": 0,
+   "n": 0,
+   "nonE": 0,
+   "unbuildable": 0,
+   "unamph": 0,
+   "unfloat": 0,
+   "f\u00f6\u00f6t": 0,
+   "FOOT\u0000junk": 1
+  },
+  "nonzero_lanes": {
+   "01": {
+    "query": 2,
+    "category": 202,
+    "category_any_nonzero_edx": [
+     202,
+     202,
+     202
+    ],
+    "class_flags": 0,
+    "published_class": 0
+   },
+   "02": {
+    "query": 4,
+    "category": 0,
+    "category_any_nonzero_edx": [
+     0,
+     0,
+     0
+    ],
+    "class_flags": 6,
+    "published_class": 3
+   },
+   "04": {
+    "query": 2,
+    "category": 202,
+    "category_any_nonzero_edx": [
+     202,
+     202,
+     202
+    ],
+    "class_flags": 0,
+    "published_class": 0
+   },
+   "08": {
+    "query": 2,
+    "category": 202,
+    "category_any_nonzero_edx": [
+     202,
+     202,
+     202
+    ],
+    "class_flags": 0,
+    "published_class": 0
+   },
+   "10": {
+    "query": 64,
+    "category": 202,
+    "category_any_nonzero_edx": [
+     202,
+     202,
+     202
+    ],
+    "class_flags": 4,
+    "published_class": 2
+   },
+   "20": {
+    "query": 128,
+    "category": 202,
+    "category_any_nonzero_edx": [
+     202,
+     202,
+     202
+    ],
+    "class_flags": 2,
+    "published_class": 1
+   },
+   "40": {
+    "query": 0,
+    "category": 8,
+    "category_any_nonzero_edx": [
+     8,
+     8,
+     8
+    ],
+    "class_flags": 0,
+    "published_class": 0
+   }
+  },
+  "all_other_inputs": "query 0, category 0, class flags 0 (0..7f and 80,81,ff,100,7fffffff,80000000,ffffffff)",
+  "adaptive_lane_mask_table_6fce4570": [
+   "06000006",
+   "80000080",
+   "40000040",
+   "04000004"
+  ],
+  "adaptive_lane_shift": "2*((path+88>>30)&3) = 2*published_class"
+ },
+ "live": {
+  "capture_sha256": "8430d632e23d1749c824f4a899d24c4d56c621965ca63bc1851c2e848cec9445",
+  "repeat_sha256": "54a6e29e4aacb1570762adf6edca2efc97cc452f39a1e89183a2f4fe02de4b13",
+  "births": [
+   {
+    "index": 0,
+    "type": "hM00",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 1,
+    "type": "hM01",
+    "movetp": "horse",
+    "bits": 4,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 2,
+    "type": "hM02",
+    "movetp": "fly",
+    "bits": 2,
+    "class_flags": 6,
+    "published_class": 3,
+    "category": 0,
+    "query": 4,
+    "adaptive": 1
+   },
+   {
+    "index": 3,
+    "type": "hM03",
+    "movetp": "hover",
+    "bits": 8,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 4,
+    "type": "hM04",
+    "movetp": "float",
+    "bits": 16,
+    "class_flags": 4,
+    "published_class": 2,
+    "category": 202,
+    "query": 64,
+    "adaptive": 1
+   },
+   {
+    "index": 5,
+    "type": "hM05",
+    "movetp": "amph",
+    "bits": 32,
+    "class_flags": 2,
+    "published_class": 1,
+    "category": 202,
+    "query": 128,
+    "adaptive": 1
+   },
+   {
+    "index": 6,
+    "type": "hM06",
+    "movetp": "unbuild",
+    "bits": 64,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 8,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 7,
+    "type": "hM07",
+    "movetp": "none",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 8,
+    "type": "hM08",
+    "movetp": "",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 9,
+    "type": "hM09",
+    "movetp": "_",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 10,
+    "type": "hM10",
+    "movetp": "FLY",
+    "bits": 2,
+    "class_flags": 6,
+    "published_class": 3,
+    "category": 0,
+    "query": 4,
+    "adaptive": 1
+   },
+   {
+    "index": 11,
+    "type": "hM11",
+    "movetp": "Float",
+    "bits": 16,
+    "class_flags": 4,
+    "published_class": 2,
+    "category": 202,
+    "query": 64,
+    "adaptive": 1
+   },
+   {
+    "index": 12,
+    "type": "hM12",
+    "movetp": "foot,fly",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 13,
+    "type": "hM13",
+    "movetp": "boat",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 14,
+    "type": "hM14",
+    "movetp": "-",
+    "bits": 0,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 0,
+    "query": 0,
+    "adaptive": 1
+   },
+   {
+    "index": 15,
+    "type": "hfoo",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 16,
+    "type": "hfoo",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 17,
+    "type": "hsor",
+    "movetp": "hover",
+    "bits": 8,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 18,
+    "type": "hfoo",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 19,
+    "type": "edot",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 20,
+    "type": "orai",
+    "movetp": "horse",
+    "bits": 4,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 21,
+    "type": "hgry",
+    "movetp": "fly",
+    "bits": 2,
+    "class_flags": 6,
+    "published_class": 3,
+    "category": 0,
+    "query": 4,
+    "adaptive": 1
+   },
+   {
+    "index": 22,
+    "type": "ucry",
+    "movetp": "foot",
+    "bits": 1,
+    "class_flags": 0,
+    "published_class": 0,
+    "category": 202,
+    "query": 2,
+    "adaptive": 1
+   },
+   {
+    "index": 23,
+    "type": "hgry",
+    "movetp": "fly",
+    "bits": 2,
+    "class_flags": 6,
+    "published_class": 3,
+    "category": 0,
+    "query": 4,
+    "adaptive": 1
+   }
+  ],
+  "runtime_events": [
+   [
+    "publish-profile",
+    0,
+    "hM00",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    0,
+    "hM00",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    1,
+    "hM01",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    1,
+    "hM01",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    2,
+    "hM02",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    2,
+    "hM02",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    3,
+    "hM03",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    3,
+    "hM03",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    4,
+    "hM04",
+    [
+     202,
+     64
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    4,
+    "hM04",
+    [
+     202,
+     64
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    5,
+    "hM05",
+    [
+     202,
+     128
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    5,
+    "hM05",
+    [
+     202,
+     128
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    6,
+    "hM06",
+    [
+     8,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    6,
+    "hM06",
+    [
+     8,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    7,
+    "hM07",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    7,
+    "hM07",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    8,
+    "hM08",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    8,
+    "hM08",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    9,
+    "hM09",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    9,
+    "hM09",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    10,
+    "hM10",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    10,
+    "hM10",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    11,
+    "hM11",
+    [
+     202,
+     64
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    11,
+    "hM11",
+    [
+     202,
+     64
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    12,
+    "hM12",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    12,
+    "hM12",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    13,
+    "hM13",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    13,
+    "hM13",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    14,
+    "hM14",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    14,
+    "hM14",
+    [
+     0,
+     0
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    15,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    15,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    16,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    16,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    17,
+    "hsor",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    17,
+    "hsor",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    18,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    18,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edot",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edot",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "producer",
+    "morph-forms",
+    19,
+    "55d409",
+    {
+     "normal": "65646f74",
+     "alt": "6564746d"
+    },
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "446",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "c46",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-profile",
+    20,
+    "orai",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    20,
+    "orai",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    21,
+    "hgry",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    21,
+    "hgry",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucry",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucry",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "producer",
+    "morph-forms",
+    22,
+    "55d409",
+    {
+     "normal": "75637279",
+     "alt": "7563726d"
+    },
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-profile",
+    23,
+    "hgry",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    23,
+    "hgry",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "producer",
+    "morph-forms",
+    15,
+    "55d409",
+    {
+     "normal": "6e6d6564",
+     "alt": "6e6d646d"
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1646",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1e46",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    15,
+    "2152f1",
+    {
+     "height": 200,
+     "raise": 1,
+     "rate": 0
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1e46",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1e46",
+     "201",
+     200,
+     0,
+     200
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    16,
+    "2152f1",
+    {
+     "height": 200,
+     "raise": 1,
+     "rate": 0
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1646",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1646",
+     "201",
+     200,
+     0,
+     200
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    17,
+    "2152f1",
+    {
+     "height": 200,
+     "raise": 1,
+     "rate": 0
+    },
+    [
+     "68736f72",
+     "8",
+     0,
+     "2",
+     "1646",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "68736f72",
+     "8",
+     0,
+     "2",
+     "1646",
+     "200",
+     200,
+     0,
+     200
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    23,
+    "2152f1",
+    {
+     "height": 300,
+     "raise": 1,
+     "rate": 0
+    },
+    [
+     "68677279",
+     "2",
+     0,
+     "4",
+     "646",
+     "20001001",
+     360,
+     90,
+     360
+    ],
+    [
+     "68677279",
+     "2",
+     0,
+     "4",
+     "646",
+     "20001001",
+     300,
+     90,
+     360
+    ]
+   ],
+   [
+    "producer",
+    "morph-forms",
+    18,
+    "55d409",
+    {
+     "normal": "6e6d6564",
+     "alt": "6e6d646d"
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1646",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1e46",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "producer",
+    "morph-forms",
+    18,
+    "569f72",
+    {
+     "normal": "6e6d6564",
+     "alt": "6e6d646d"
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-class",
+    18,
+    "hfoo",
+    [
+     6
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    18,
+    "nmdm",
+    [
+     0,
+     4
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    18,
+    "nmdm",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "set-adaptive",
+    18,
+    "nmdm",
+    [
+     0
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    18,
+    "544f52",
+    {
+     "newRawcode": "6e6d646d"
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "morph-takeoff",
+    18,
+    "8beb2027",
+    {},
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    18,
+    "569fd8",
+    {
+     "normal": "68666f6f",
+     "alt": "6e6d646d"
+    },
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "morph-forms",
+    19,
+    "569f72",
+    {
+     "normal": "65646f74",
+     "alt": "6564746d"
+    },
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "241",
+     0,
+     0,
+     0
+    ],
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "241",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-class",
+    19,
+    "edot",
+    [
+     6
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edtm",
+    [
+     0,
+     4
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edtm",
+    [
+     0,
+     4
+    ],
+    "694602"
+   ],
+   [
+    "set-adaptive",
+    19,
+    "edtm",
+    [
+     0
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    19,
+    "544f52",
+    {
+     "newRawcode": "6564746d"
+    },
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "241",
+     0,
+     0,
+     0
+    ],
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001041",
+     240,
+     90,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "morph-takeoff",
+    19,
+    "8beb2027",
+    {},
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "241",
+     0,
+     0,
+     0
+    ],
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001041",
+     240,
+     90,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    19,
+    "569fd8",
+    {
+     "normal": "65646f74",
+     "alt": "6564746d"
+    },
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "241",
+     0,
+     0,
+     0
+    ],
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001041",
+     240,
+     90,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "morph-forms",
+    22,
+    "569f72",
+    {
+     "normal": "75637279",
+     "alt": "7563726d"
+    },
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    22,
+    "569fd8",
+    {
+     "normal": "75637279",
+     "alt": "7563726d"
+    },
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "4000406",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "4000406",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "stock-marker",
+    "PATHSTOCK tick=40 label=orders raven18=1 raven19=1 burrow22=1"
+   ],
+   [
+    "producer",
+    "height-set",
+    18,
+    "5522ca",
+    {
+     "height": 100,
+     "raise": 0,
+     "rate": 100
+    },
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "e46",
+     "20001000",
+     100,
+     90,
+     100
+    ],
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "e46",
+     "20001000",
+     100,
+     90,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    19,
+    "5522ca",
+    {
+     "height": 240,
+     "raise": 0,
+     "rate": 240
+    },
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "e46",
+     "20001040",
+     240,
+     90,
+     240
+    ],
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "e46",
+     "20001040",
+     240,
+     90,
+     240
+    ]
+   ],
+   [
+    "publish-class",
+    22,
+    "ucry",
+    [
+     0
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     202,
+     2
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     200,
+     2
+    ],
+    "4ba92e"
+   ],
+   [
+    "producer",
+    "burrow-category",
+    22,
+    "4ede22",
+    {
+     "edx": 1,
+     "stack": 0
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "4000446",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "4000446",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "set-adaptive",
+    22,
+    "ucrm",
+    [
+     1
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    22,
+    "544f52",
+    {
+     "newRawcode": "7563726d"
+    },
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "4000406",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "4000446",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     200,
+     2
+    ],
+    "4ba92e"
+   ],
+   [
+    "producer",
+    "burrow-category",
+    22,
+    "4ede22",
+    {
+     "edx": 1,
+     "stack": 0
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "4000446",
+     "1000200",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "4000446",
+     "1000200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "stock-marker",
+    "PATHSTOCK tick=60 label=ensnare issued=1"
+   ],
+   [
+    "publish-profile",
+    21,
+    "hgry",
+    [
+     202,
+     2
+    ],
+    "687816"
+   ],
+   [
+    "producer",
+    "ground-push",
+    21,
+    "5e81fa",
+    {},
+    [
+     "68677279",
+     "2",
+     0,
+     "4",
+     "646",
+     "20001041",
+     360,
+     90,
+     360
+    ],
+    [
+     "68677279",
+     "2",
+     1,
+     "2",
+     "646",
+     "20001041",
+     360,
+     90,
+     360
+    ]
+   ],
+   [
+    "publish-profile",
+    21,
+    "hgry",
+    [
+     0,
+     4
+    ],
+    "69c899"
+   ],
+   [
+    "producer",
+    "ground-pop",
+    21,
+    "5d92d3",
+    {},
+    [
+     "68677279",
+     "2",
+     1,
+     "2",
+     "644",
+     "20001161",
+     360,
+     90,
+     360
+    ],
+    [
+     "68677279",
+     "2",
+     0,
+     "4",
+     "644",
+     "20001161",
+     360,
+     90,
+     360
+    ]
+   ],
+   [
+    "publish-profile",
+    18,
+    "nmdm",
+    [
+     202,
+     2
+    ],
+    "569ce8"
+   ],
+   [
+    "set-adaptive",
+    18,
+    "nmdm",
+    [
+     1
+    ],
+    "569cf5"
+   ],
+   [
+    "producer",
+    "floor-set",
+    18,
+    "569d49",
+    {
+     "floor": 0
+    },
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ],
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    18,
+    "569dac",
+    {
+     "height": 0,
+     "raise": 0,
+     "rate": 100
+    },
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     100
+    ],
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "morph-land",
+    18,
+    "8beb2027",
+    {},
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ],
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     100
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    18,
+    "569944",
+    {
+     "normal": "68666f6f",
+     "alt": "6e6d646d"
+    },
+    [
+     "6e6d646d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     100,
+     90,
+     100
+    ],
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     100
+    ]
+   ],
+   [
+    "publish-profile",
+    19,
+    "edtm",
+    [
+     202,
+     2
+    ],
+    "569ce8"
+   ],
+   [
+    "set-adaptive",
+    19,
+    "edtm",
+    [
+     1
+    ],
+    "569cf5"
+   ],
+   [
+    "producer",
+    "floor-set",
+    19,
+    "569d49",
+    {
+     "floor": 0
+    },
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     240,
+     90,
+     240
+    ],
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "height-set",
+    19,
+    "569dac",
+    {
+     "height": 0,
+     "raise": 0,
+     "rate": 240
+    },
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     240
+    ],
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "morph-land",
+    19,
+    "8beb2027",
+    {},
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     240,
+     90,
+     240
+    ],
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     240
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    19,
+    "569944",
+    {
+     "normal": "65646f74",
+     "alt": "6564746d"
+    },
+    [
+     "6564746d",
+     "2",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     240,
+     90,
+     240
+    ],
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001001",
+     0,
+     0,
+     240
+    ]
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     202,
+     2
+    ],
+    "4ba92e"
+   ],
+   [
+    "producer",
+    "burrow-category",
+    22,
+    "4ede22",
+    {
+     "edx": 0,
+     "stack": 0
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucrm",
+    [
+     202,
+     2
+    ],
+    "4ba92e"
+   ],
+   [
+    "producer",
+    "burrow-category",
+    22,
+    "4ede22",
+    {
+     "edx": 0,
+     "stack": 0
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "producer",
+    "morph-dispatch",
+    22,
+    "569944",
+    {
+     "normal": "75637279",
+     "alt": "7563726d"
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ],
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "stock-marker",
+    "PATHSTOCK tick=120 label=unorders raven18=1 raven19=1 burrow22=1"
+   ],
+   [
+    "publish-class",
+    22,
+    "ucrm",
+    [
+     0
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucry",
+    [
+     202,
+     2
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucry",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "publish-profile",
+    22,
+    "ucry",
+    [
+     202,
+     2
+    ],
+    "4ba92e"
+   ],
+   [
+    "producer",
+    "burrow-category",
+    22,
+    "4ede22",
+    {
+     "edx": 0,
+     "stack": 0
+    },
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "set-adaptive",
+    22,
+    "ucry",
+    [
+     1
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    22,
+    "544f52",
+    {
+     "newRawcode": "75637279"
+    },
+    [
+     "7563726d",
+     "1",
+     0,
+     "2",
+     "446",
+     "200",
+     0,
+     0,
+     0
+    ],
+    [
+     "75637279",
+     "1",
+     0,
+     "2",
+     "406",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-class",
+    18,
+    "nmdm",
+    [
+     0
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    18,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    18,
+    "hfoo",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "set-adaptive",
+    18,
+    "hfoo",
+    [
+     1
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    18,
+    "544f52",
+    {
+     "newRawcode": "68666f6f"
+    },
+    [
+     "6e6d646d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001000",
+     0,
+     0,
+     100
+    ],
+    [
+     "68666f6f",
+     "1",
+     0,
+     "2",
+     "1e46",
+     "201",
+     0,
+     0,
+     0
+    ]
+   ],
+   [
+    "publish-class",
+    19,
+    "edtm",
+    [
+     0
+    ],
+    "670b1d"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edot",
+    [
+     202,
+     2
+    ],
+    "670e35"
+   ],
+   [
+    "publish-profile",
+    19,
+    "edot",
+    [
+     202,
+     2
+    ],
+    "694602"
+   ],
+   [
+    "set-adaptive",
+    19,
+    "edot",
+    [
+     1
+    ],
+    "670ea7"
+   ],
+   [
+    "producer",
+    "rebind",
+    19,
+    "544f52",
+    {
+     "newRawcode": "65646f74"
+    },
+    [
+     "6564746d",
+     "1",
+     0,
+     "4",
+     "c46",
+     "20001000",
+     0,
+     0,
+     240
+    ],
+    [
+     "65646f74",
+     "1",
+     0,
+     "2",
+     "1c46",
+     "200",
+     0,
+     0,
+     0
+    ]
+   ]
+  ],
+  "stock_markers": [
+   "PATHSTOCK tick=0 label=created i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=0.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=16 type=1751543663 x=-2320.000 y=-944.000 fly=0.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=17 type=1752395634 x=-2000.000 y=-1104.000 fly=0.000 z=552.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=0 label=created i=23 type=1751609977 x=-1952.000 y=-864.000 fly=360.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=0.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=0.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=17 type=1752395634 x=-2000.000 y=-1104.000 fly=0.000 z=552.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=1 label=state i=23 type=1751609977 x=-1952.000 y=-864.000 fly=360.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=12 label=state i=23 type=1751609977 x=-1952.000 y=-864.000 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=852075 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=1 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=852149 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=35 label=state i=23 type=1751609977 x=-1808.693 y=-857.588 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=40 label=orders raven18=1 raven19=1 burrow22=1",
+   "PATHSTOCK tick=55 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=18 type=1852662893 x=-1952.000 y=-1024.000 fly=100.000 z=512.000 air=1 ground=0 order=0 amrf=1 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=19 type=1701082221 x=-1744.000 y=-976.000 fly=240.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=22 type=1969451629 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=55 label=state i=23 type=1751609977 x=-1808.693 y=-857.588 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=60 label=ensnare issued=1",
+   "PATHSTOCK tick=65 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=5 type=1749889077 x=-1632.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=6 type=1749889078 x=-1472.000 y=-1344.000 fly=0.000 z=576.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=12 type=1749889330 x=-1792.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=13 type=1749889331 x=-1632.000 y=-1184.000 fly=0.000 z=544.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=14 type=1749889332 x=-1472.000 y=-1184.000 fly=0.000 z=528.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=18 type=1852662893 x=-1952.000 y=-1024.000 fly=100.000 z=512.000 air=1 ground=0 order=0 amrf=1 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=19 type=1701082221 x=-1744.000 y=-976.000 fly=240.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=852106 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=21 type=1751609977 x=-1344.000 y=-864.000 fly=360.000 z=408.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=22 type=1969451629 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=65 label=state i=23 type=1751609977 x=-1808.693 y=-857.588 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=2 type=1749889074 x=-2112.000 y=-1344.000 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=3 type=1749889075 x=-1952.000 y=-1344.000 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=5 type=1749889077 x=-1834.971 y=-1378.734 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=6 type=1749889078 x=-1617.101 y=-1184.121 fly=0.000 z=544.121 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=9 type=1749889081 x=-2272.000 y=-1184.000 fly=0.000 z=712.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=10 type=1749889328 x=-2112.000 y=-1184.000 fly=0.000 z=568.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=12 type=1749889330 x=-1685.896 y=-983.577 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=13 type=1749889331 x=-1621.537 y=-1006.125 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=14 type=1749889332 x=-1552.183 y=-989.280 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=16 type=1751543663 x=-2320.000 y=-944.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=18 type=1852662893 x=-1952.000 y=-1024.000 fly=100.000 z=512.000 air=1 ground=0 order=0 amrf=1 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=19 type=1701082221 x=-1744.000 y=-976.000 fly=240.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=21 type=1751609977 x=-1616.000 y=-880.000 fly=360.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=1/0",
+   "PATHSTOCK tick=80 label=state i=22 type=1969451629 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=80 label=state i=23 type=1751609977 x=-1808.693 y=-857.588 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=2 type=1749889074 x=-2078.498 y=-1312.837 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=3 type=1749889075 x=-1928.813 y=-1308.502 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=5 type=1749889077 x=-1827.560 y=-1257.361 fly=0.000 z=628.680 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=6 type=1749889078 x=-1635.786 y=-1282.097 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=9 type=1749889081 x=-2289.062 y=-1383.246 fly=0.000 z=753.062 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=10 type=1749889328 x=-2073.079 y=-1161.094 fly=0.000 z=568.899 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=12 type=1749889330 x=-1768.997 y=-1141.088 fly=0.000 z=560.023 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=13 type=1749889331 x=-1629.470 y=-1135.377 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=14 type=1749889332 x=-1490.290 y=-1138.868 fly=0.000 z=507.310 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=16 type=1751543663 x=-2330.550 y=-992.335 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=18 type=1852662893 x=-1952.000 y=-1024.000 fly=100.000 z=512.000 air=1 ground=0 order=0 amrf=1 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=19 type=1701082221 x=-1744.000 y=-976.000 fly=240.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=21 type=1751609977 x=-1616.000 y=-880.000 fly=360.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=22 type=1969451629 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=110 label=state i=23 type=1751609977 x=-1904.029 y=-862.958 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=120 label=unorders raven18=1 raven19=1 burrow22=1",
+   "PATHSTOCK tick=150 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=2 type=1749889074 x=-2078.498 y=-1312.837 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=3 type=1749889075 x=-1928.813 y=-1308.502 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=5 type=1749889077 x=-1675.907 y=-1365.847 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=6 type=1749889078 x=-1515.560 y=-1336.173 fly=0.000 z=619.560 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=9 type=1749889081 x=-2275.704 y=-1227.246 fly=0.000 z=728.042 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=10 type=1749889328 x=-2073.079 y=-1161.094 fly=0.000 z=568.899 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=12 type=1749889330 x=-1768.997 y=-1141.088 fly=0.000 z=560.023 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=13 type=1749889331 x=-1629.470 y=-1135.377 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=14 type=1749889332 x=-1490.290 y=-1138.868 fly=0.000 z=507.310 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=16 type=1751543663 x=-2330.550 y=-992.335 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=21 type=0 x=0.000 y=0.000 fly=0.000 z=384.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=150 label=state i=23 type=1751609977 x=-1904.029 y=-862.958 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=2 type=1749889074 x=-2078.498 y=-1312.837 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=3 type=1749889075 x=-1928.813 y=-1308.502 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=5 type=1749889077 x=-1675.907 y=-1365.847 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=6 type=1749889078 x=-1515.560 y=-1336.173 fly=0.000 z=619.560 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=9 type=1749889081 x=-2275.704 y=-1227.246 fly=0.000 z=728.042 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=10 type=1749889328 x=-2073.079 y=-1161.094 fly=0.000 z=568.899 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=12 type=1749889330 x=-1768.997 y=-1141.088 fly=0.000 z=560.023 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=13 type=1749889331 x=-1629.470 y=-1135.377 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=14 type=1749889332 x=-1490.290 y=-1138.868 fly=0.000 z=507.310 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=16 type=1751543663 x=-2330.550 y=-992.335 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=21 type=0 x=0.000 y=0.000 fly=0.000 z=384.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=200 label=state i=23 type=1751609977 x=-1904.029 y=-862.958 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=0 type=1749889072 x=-2432.000 y=-1344.000 fly=0.000 z=831.250 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=1 type=1749889073 x=-2320.000 y=-1296.000 fly=0.000 z=775.906 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=2 type=1749889074 x=-2078.498 y=-1312.837 fly=150.000 z=640.000 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=3 type=1749889075 x=-1928.813 y=-1308.502 fly=50.000 z=640.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=4 type=1749889076 x=-1792.000 y=-1344.000 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=5 type=1749889077 x=-1675.907 y=-1365.847 fly=0.000 z=640.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=6 type=1749889078 x=-1515.560 y=-1336.173 fly=0.000 z=619.560 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=7 type=1749889079 x=-1312.000 y=-1344.000 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=8 type=1749889080 x=-2432.000 y=-1184.000 fly=0.000 z=783.813 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=9 type=1749889081 x=-2275.704 y=-1227.246 fly=0.000 z=728.042 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=10 type=1749889328 x=-2073.079 y=-1161.094 fly=0.000 z=568.899 air=1 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=11 type=1749889329 x=-1952.000 y=-1184.000 fly=0.000 z=592.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=12 type=1749889330 x=-1768.997 y=-1141.088 fly=0.000 z=560.023 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=13 type=1749889331 x=-1629.470 y=-1135.377 fly=0.000 z=512.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=14 type=1749889332 x=-1490.290 y=-1138.868 fly=0.000 z=507.310 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=15 type=1751543663 x=-2432.000 y=-1024.000 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=16 type=1751543663 x=-2330.550 y=-992.335 fly=200.000 z=768.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=17 type=1752395634 x=-1921.753 y=-1093.987 fly=200.000 z=546.993 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=18 type=1751543663 x=-1952.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=19 type=1701080948 x=-1744.000 y=-976.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=20 type=1869767017 x=-1584.000 y=-816.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=21 type=0 x=0.000 y=0.000 fly=0.000 z=384.000 air=0 ground=0 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=22 type=1969451641 x=-1632.000 y=-1024.000 fly=0.000 z=512.000 air=0 ground=1 order=0 amrf=0 ens=0/0",
+   "PATHSTOCK tick=290 label=state i=23 type=1751609977 x=-1904.029 y=-862.958 fly=300.000 z=512.000 air=1 ground=0 order=0 amrf=0 ens=0/0"
+  ],
+  "support": {
+   "0": {
+    "first": [
+     [
+      -2432,
+      -1344,
+      831.25
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2432,
+      -1344,
+      831.25
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2432,
+       -1344,
+       831.25
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ]
+    ]
+   },
+   "1": {
+    "first": [
+     [
+      -2320,
+      -1296,
+      775.90625
+     ],
+     "10",
+     "4",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2320,
+      -1296,
+      775.90625
+     ],
+     "10",
+     "4",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2320,
+       -1296,
+       775.90625
+      ],
+      "10",
+      "4",
+      "200",
+      0
+     ]
+    ]
+   },
+   "2": {
+    "first": [
+     [
+      -2112,
+      -1344,
+      790
+     ],
+     "10",
+     "2",
+     "20000200",
+     0
+    ],
+    "last": [
+     [
+      -2078.49755859375,
+      -1312.8365478515625,
+      911.8004150390625
+     ],
+     "10",
+     "2",
+     "20000200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2112,
+       -1344,
+       790
+      ],
+      "10",
+      "2",
+      "20000200",
+      0
+     ],
+     [
+      [
+       -2112,
+       -1344,
+       927.71875
+      ],
+      "10",
+      "2",
+      "20000201",
+      0
+     ],
+     [
+      [
+       -2109.7138671875,
+       -1340.6580810546875,
+       926.61181640625
+      ],
+      "10",
+      "2",
+      "20000200",
+      0
+     ]
+    ]
+   },
+   "3": {
+    "first": [
+     [
+      -1952,
+      -1344,
+      690
+     ],
+     "10",
+     "8",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1928.8134765625,
+      -1308.5018310546875,
+      690
+     ],
+     "10",
+     "8",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1952,
+       -1344,
+       690
+      ],
+      "10",
+      "8",
+      "200",
+      0
+     ]
+    ]
+   },
+   "4": {
+    "first": [
+     [
+      -1792,
+      -1344,
+      640
+     ],
+     "10",
+     "10",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1792,
+      -1344,
+      640
+     ],
+     "10",
+     "10",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1792,
+       -1344,
+       640
+      ],
+      "10",
+      "10",
+      "200",
+      0
+     ]
+    ]
+   },
+   "5": {
+    "first": [
+     [
+      -1632,
+      -1344,
+      640
+     ],
+     "10",
+     "20",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1675.90673828125,
+      -1365.8468017578125,
+      640
+     ],
+     "10",
+     "20",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1632,
+       -1344,
+       640
+      ],
+      "10",
+      "20",
+      "200",
+      0
+     ]
+    ]
+   },
+   "6": {
+    "first": [
+     [
+      -1472,
+      -1344,
+      576
+     ],
+     "10",
+     "40",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1515.5595703125,
+      -1336.173095703125,
+      619.5595703125
+     ],
+     "10",
+     "40",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1472,
+       -1344,
+       576
+      ],
+      "10",
+      "40",
+      "200",
+      0
+     ]
+    ]
+   },
+   "7": {
+    "first": [
+     [
+      -1312,
+      -1344,
+      512
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1312,
+      -1344,
+      512
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1312,
+       -1344,
+       512
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "8": {
+    "first": [
+     [
+      -2432,
+      -1184,
+      783.8125
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2432,
+      -1184,
+      783.8125
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2432,
+       -1184,
+       783.8125
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "9": {
+    "first": [
+     [
+      -2272,
+      -1184,
+      712
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2275.70361328125,
+      -1227.246337890625,
+      728.0416259765625
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2272,
+       -1184,
+       712
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "10": {
+    "first": [
+     [
+      -2112,
+      -1184,
+      544
+     ],
+     "10",
+     "2",
+     "20000200",
+     0
+    ],
+    "last": [
+     [
+      -2073.07861328125,
+      -1161.094482421875,
+      736.8209838867188
+     ],
+     "10",
+     "2",
+     "20000200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2112,
+       -1184,
+       544
+      ],
+      "10",
+      "2",
+      "20000200",
+      0
+     ],
+     [
+      [
+       -2112,
+       -1184,
+       762.71875
+      ],
+      "10",
+      "2",
+      "20000201",
+      0
+     ],
+     [
+      [
+       -2103.92138671875,
+       -1175.291015625,
+       757.140625
+      ],
+      "10",
+      "2",
+      "20000200",
+      0
+     ]
+    ]
+   },
+   "11": {
+    "first": [
+     [
+      -1952,
+      -1184,
+      592
+     ],
+     "10",
+     "10",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1952,
+      -1184,
+      592
+     ],
+     "10",
+     "10",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1952,
+       -1184,
+       592
+      ],
+      "10",
+      "10",
+      "200",
+      0
+     ]
+    ]
+   },
+   "12": {
+    "first": [
+     [
+      -1792,
+      -1184,
+      592
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1768.9970703125,
+      -1141.0882568359375,
+      560.0231323242188
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1792,
+       -1184,
+       592
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "13": {
+    "first": [
+     [
+      -1632,
+      -1184,
+      544
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1629.4697265625,
+      -1135.376708984375,
+      512
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1632,
+       -1184,
+       544
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "14": {
+    "first": [
+     [
+      -1472,
+      -1184,
+      528
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1490.28955078125,
+      -1138.867919921875,
+      507.31036376953125
+     ],
+     "10",
+     "0",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1472,
+       -1184,
+       528
+      ],
+      "10",
+      "0",
+      "200",
+      0
+     ]
+    ]
+   },
+   "15": {
+    "first": [
+     [
+      -2432,
+      -1024,
+      768
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2432,
+      -1024,
+      968
+     ],
+     "10",
+     "1",
+     "201",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2432,
+       -1024,
+       768
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ],
+     [
+      [
+       -2432,
+       -1024,
+       968
+      ],
+      "10",
+      "1",
+      "201",
+      0
+     ]
+    ]
+   },
+   "16": {
+    "first": [
+     [
+      -2320,
+      -944,
+      768
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -2330.55029296875,
+      -992.3349609375,
+      768
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2320,
+       -944,
+       768
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ]
+    ]
+   },
+   "17": {
+    "first": [
+     [
+      -2000,
+      -1104,
+      552
+     ],
+     "10",
+     "8",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1921.75341796875,
+      -1093.9869384765625,
+      546.9934692382812
+     ],
+     "10",
+     "8",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -2000,
+       -1104,
+       552
+      ],
+      "10",
+      "8",
+      "200",
+      0
+     ]
+    ]
+   },
+   "18": {
+    "first": [
+     [
+      -1952,
+      -1024,
+      512
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1952,
+      -1024,
+      512
+     ],
+     "10",
+     "1",
+     "201",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1952,
+       -1024,
+       512
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ],
+     [
+      [
+       -1952,
+       -1024,
+       528
+      ],
+      "18",
+      "2",
+      "20001001",
+      0
+     ],
+     [
+      [
+       -1952,
+       -1024,
+       527.93408203125
+      ],
+      "18",
+      "2",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1952,
+       -1024,
+       731.7547607421875
+      ],
+      "18",
+      "1",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1952,
+       -1024,
+       512
+      ],
+      "10",
+      "1",
+      "201",
+      0
+     ]
+    ]
+   },
+   "19": {
+    "first": [
+     [
+      -1744,
+      -976,
+      512
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1744,
+      -976,
+      512
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1744,
+       -976,
+       512
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ],
+     [
+      [
+       -1744,
+       -976,
+       514.3818969726562
+      ],
+      "18",
+      "2",
+      "20001041",
+      0
+     ],
+     [
+      [
+       -1744,
+       -976,
+       531.3897094726562
+      ],
+      "18",
+      "2",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1744,
+       -976,
+       658.9481811523438
+      ],
+      "18",
+      "2",
+      "20001040",
+      0
+     ],
+     [
+      [
+       -1744,
+       -976,
+       846.0594482421875
+      ],
+      "18",
+      "1",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1744,
+       -976,
+       512
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ]
+    ]
+   },
+   "20": {
+    "first": [
+     [
+      -1584,
+      -816,
+      512
+     ],
+     "10",
+     "4",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1584,
+      -816,
+      512
+     ],
+     "10",
+     "4",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1584,
+       -816,
+       512
+      ],
+      "10",
+      "4",
+      "200",
+      0
+     ]
+    ]
+   },
+   "21": {
+    "first": [
+     [
+      -1344,
+      -864,
+      776
+     ],
+     "18",
+     "2",
+     "20001000",
+     0
+    ],
+    "last": [
+     [
+      -1616,
+      -880,
+      620.3595581054688
+     ],
+     "18",
+     "2",
+     "20001161",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1344,
+       -864,
+       776
+      ],
+      "18",
+      "2",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1344,
+       -864,
+       944
+      ],
+      "18",
+      "2",
+      "20001001",
+      0
+     ],
+     [
+      [
+       -1584,
+       -816,
+       971.125
+      ],
+      "18",
+      "2",
+      "20001040",
+      0
+     ],
+     [
+      [
+       -1616,
+       -880,
+       863.305908203125
+      ],
+      "18",
+      "2",
+      "20001040",
+      1
+     ],
+     [
+      [
+       -1616,
+       -880,
+       620.3595581054688
+      ],
+      "18",
+      "2",
+      "20001161",
+      0
+     ]
+    ]
+   },
+   "22": {
+    "first": [
+     [
+      -1632,
+      -1024,
+      512
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "last": [
+     [
+      -1632,
+      -1024,
+      512
+     ],
+     "10",
+     "1",
+     "200",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1632,
+       -1024,
+       512
+      ],
+      "10",
+      "1",
+      "200",
+      0
+     ]
+    ]
+   },
+   "23": {
+    "first": [
+     [
+      -1952,
+      -864,
+      872
+     ],
+     "18",
+     "2",
+     "20001000",
+     0
+    ],
+    "last": [
+     [
+      -1904.02880859375,
+      -862.958251953125,
+      881.3268432617188
+     ],
+     "18",
+     "2",
+     "20001040",
+     0
+    ],
+    "state_changes": [
+     [
+      [
+       -1952,
+       -864,
+       872
+      ],
+      "18",
+      "2",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1952,
+       -864,
+       975.75
+      ],
+      "18",
+      "2",
+      "20001001",
+      0
+     ],
+     [
+      [
+       -1941.4541015625,
+       -860.486328125,
+       892.6527099609375
+      ],
+      "18",
+      "2",
+      "20001000",
+      0
+     ],
+     [
+      [
+       -1810.18798828125,
+       -858.157470703125,
+       887.2025146484375
+      ],
+      "18",
+      "2",
+      "20001040",
+      0
+     ]
+    ]
+   }
+  }
+ }
+}

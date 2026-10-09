@@ -1,0 +1,2 @@
+// ORDER-05.2: proposed MapPathfinding.java rows (applied to Ghidra via _ghidra/gw.py, see ghidra-writes.jsonl). Not applied to the repository.
+        {"6f053710", "SimClock_RearmAgentRequest", "Thiscall ECX clock, stack4 request; RET4. deadline = Math_Add(clock+40 = popped deadline, period+8); flags = (flags&~10000)|20000; heap push 6f04f990; serial kept. Called by 6f054370 after the callback when repeat bit1 is set and cancel bit 10000 is clear. [ORDER-05.2]"},

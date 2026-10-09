@@ -29,6 +29,7 @@
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
+bool run_test_jass(cstring_t source);
 
 
 
@@ -44,6 +45,7 @@ void setup_test_world(void);
 static edict_t *make_collision_unit(float x, float y, float radius) {
     edict_t *ent   = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
+    ent->svflags  |= SVF_MONSTER;
     ent->collision = radius;
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
     ent->stand     = unit_stand;
@@ -97,6 +99,12 @@ TEST(wc3_collision, push_entity_negative_distance_moves_back) {
     T_FEQ(ent->s.origin2.x, 70.0f, 0.01f);
 }
 
+/* Physical point-Move ownership is advanced independently of animation. */
+static void collision_step_move_owner(void) {
+    wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    M_RunScheduledThinks();
+}
+
 /* Step a unit's move-order think loop for up to `frames`, stopping early once
  * it leaves the walk state.  Tracks the closest it ever came to `other` so a
  * test can assert the mover never penetrated another unit's collision circle. */
@@ -105,7 +113,7 @@ static float run_move_tracking_min_dist(edict_t *mover, edict_t *other, int fram
     for (int i = 0; i < frames; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         if (other) {
             float d = dist2(&mover->s.origin2, &other->s.origin2);
             if (d < min_dist) min_dist = d;
@@ -148,30 +156,41 @@ TEST(wc3_collision, idle_unit_is_immovable_obstacle) {
  * far side.  The obstacle stays put. */
 TEST(wc3_collision, mover_slides_around_idle_unit) {
     reset_collision_world();
-    edict_t *blocker = make_collision_unit(60.0f, 0.0f, 16.0f);
+    edict_t *blocker = make_collision_unit(96.0f, 0.0f, 16.0f);
     edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    vec2_t dest = {120.0f, 0.0f};
+    vec2_t dest = {192.0f, 0.0f};
+    /* Use a clear fine-grid source; continuous circles at the old60-unit
+     * spacing were disjoint but their rasterized occupancy overlapped. */
 
+    mover->unitinfo.MoveSpeed = 190.0f;
     unit_issueorder(mover, "move", &dest);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    mover->think = monster_think;
     bool went_lateral = false;
     for (int i = 0; i < 80; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
-        mover->currentmove->think(mover);
+        /* Fine-request waits require the production owner clock to advance. */
+        level.time += FRAMETIME;
+        globals.RunFrame();
         if (fabsf(mover->s.origin2.y) > 1.0f) went_lateral = true;
     }
 
     T_ASSERT(went_lateral);                                  /* slid around */
-    T_FEQ(blocker->s.origin2.x, 60.0f, 0.001f);  /* not pushed */
+    T_FEQ(blocker->s.origin2.x, 96.0f, 0.001f);  /* not pushed */
     T_FEQ(blocker->s.origin2.y,  0.0f, 0.001f);
-    T_ASSERT(mover->s.origin2.x > 60.0f);                    /* got past it */
+    T_ASSERT(mover->s.origin2.x > 96.0f);                    /* got past it */
 }
 
 TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
     reset_collision_world();
-    edict_t *blocker = make_collision_unit(50.0f, 0.0f, 16.0f);
+    /* Start in a legal fine footprint. Public Move now performs retail Stop
+     * recovery before the walk; this test isolates collision during traversal. */
+    edict_t *blocker = make_collision_unit(96.0f, 0.0f, 16.0f);
     edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
-    vec2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {160.0f, 0.0f};
 
     unit_addtimedstatus(mover, "BOwk", 1, 10.0f);
     unit_findstatus(mover, MAKEFOURCC('B','O','w','k'))->data = MAKEFOURCC('A','O','w','k');
@@ -181,7 +200,7 @@ TEST(wc3_collision, wind_walk_mover_ignores_dynamic_unit_collision) {
 
     T_ASSERT(mover->s.origin2.x > blocker->s.origin2.x);
     T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
-    T_FEQ(blocker->s.origin2.x, 50.0f, 0.001f);
+    T_FEQ(blocker->s.origin2.x, 96.0f, 0.001f);
     T_FEQ(blocker->s.origin2.y, 0.0f, 0.001f);
 }
 
@@ -198,7 +217,7 @@ TEST(wc3_collision, overlapped_units_separate_on_move) {
     unit_issueorder(a, "move", &dest);
     for (int i = 0; i < 5; i++) {
         if (!a->currentmove || strcmp(a->currentmove->animation, "walk") != 0) break;
-        a->currentmove->think(a);
+        collision_step_move_owner();
     }
 
     T_ASSERT(dist2(&a->s.origin2, &b->s.origin2) > d0);  /* separated */
@@ -237,36 +256,49 @@ TEST(wc3_collision, mover_passes_through_dead_unit) {
     T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
 }
 
-/* Order a mover east past a stationary *moving* blocker directly in its path and
- * return the mover's peak lateral deviation.  Mover speed is fixed across calls
- * so only the give-way ring count (faster holds line vs slower swings wide)
- * changes the result. */
-static float peak_lateral_against_blocker(float mover_speed, float blocker_speed) {
-    reset_collision_world();
-    edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
-    mover->unitinfo.MoveSpeed   = mover_speed;
-    blocker->unitinfo.MoveSpeed = blocker_speed;
-    vec2_t dest = {300.0f, 0.0f};
-    unit_issueorder(blocker, "move", &dest);   /* blocker is in the walking state */
-    unit_issueorder(mover, "move", &dest);     /* (only the mover is stepped)     */
-    float peak = 0.0f;
-    for (int i = 0; i < 10; i++) {
-        if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
-        mover->currentmove->think(mover);
-        float const lat = fabsf(mover->s.origin2.y);
-        if (lat > peak) peak = lat;
-    }
-    return peak;
-}
-
-/* Speed-priority give-way (RE finding): the slower unit yields to the faster.
- * A faster mover holds its line (narrow slide) against a slower mover; a slower
- * mover swings wide to get around a faster one. */
+/* Original168360 uses committed velocity: a faster same-player requester
+ * delays its peer20; a slower requester holds itself4. Authored speeds alone
+ * cannot establish this policy, and a requester at rest always waits. */
 TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
-    float lateral_when_faster = peak_lateral_against_blocker(200.0f, 100.0f);
-    float lateral_when_slower = peak_lateral_against_blocker(200.0f, 300.0f);
-    T_ASSERT(lateral_when_faster < lateral_when_slower);
+    FOR_LOOP(pass,2) {
+        reset_collision_world(); level.waypoints=(typeof(level.waypoints)){0};
+        edict_t *mover=make_collision_unit(0,0,16);
+        mover->unitinfo.MoveSpeed=200;
+        vec2_t dest={300,0}; T_ASSERT(unit_issueorder(mover,"move",&dest));
+        /* Commit requester motion before introducing the encounter. */
+        collision_step_move_owner();
+        T_ASSERT(mover->movement.velocity.x>0);
+        edict_t *blocker=make_collision_unit(200,0,16);
+        blocker->unitinfo.MoveSpeed=pass ? 300 : 100;
+        T_ASSERT(unit_issueorder(blocker,"move",&dest)); collision_step_move_owner();
+        T_ASSERT(blocker->movement.velocity.x>0);
+        S_SetUnitAxisPosition(blocker,0,45); gi.LinkEntity(blocker);
+        unit_changeangle(mover);
+        if (pass) {
+            T_EQ(mover->movement.wait_delay,4); T_EQ(mover->movement.wait_blocker,blocker);
+            T_ASSERT(mover->movement.turn_blocked); T_EQ(blocker->movement.wait_delay,0);
+        } else {
+            T_EQ(blocker->movement.wait_delay,20); T_EQ(blocker->movement.wait_blocker,mover);
+            /* Clear location routes now own fine progress too. Original165c60
+             * stops this advance after peer20 and retries only the fine leg. */
+            T_EQ(mover->movement.wait_delay,0); T_ASSERT(mover->movement.turn_blocked);
+            T_EQ(mover->movement.fine_route.count,0);
+            T_EQ(mover->movement.fine_route.index,UINT32_MAX);
+            T_ASSERT(!mover->movement.path.valid);
+            T_ASSERT(mover->movement.fine_route.adaptive_count>0);
+        }
+        level.time+=FRAMETIME;
+        collision_step_move_owner();
+        if (pass) {
+            T_EQ(mover->movement.wait_delay,3); T_EQ(mover->movement.velocity.x,0);
+        } else {
+            /* The pinned peer still occupies the step: assigning its wait does
+             * not itself grant collision admission or prove caller retry. */
+            T_EQ(mover->movement.wait_delay,0); T_EQ(blocker->movement.wait_delay,19); /* Peer owner also ran once. */
+            T_ASSERT(mover->current_order_id!=0);
+        }
+    }
+    reset_collision_world();
 }
 
 /* Resource workers sharing a route should form a short queue instead of
@@ -274,13 +306,16 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
  * tolerated; a pinned queue may then take the deterministic right-hand escape. */
 TEST(wc3_collision, resource_worker_queues_then_passes_right) {
     reset_collision_world();
-    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
     vec2_t const dest = { 300.0f, 0.0f };
+    /* Issue before installing the queue: the public Stop recovery must not
+     * displace the synthetic blocker out of the worker's intended lane. */
+    blocker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(unit_issueorder(blocker, "move", &dest));
+    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     vec2_t const origin = mover->s.origin2;
 
-    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
-    unit_issueorder(blocker, "move", &dest);
+    mover->unitinfo.MoveSpeed = 190.0f;
 
     FOR_LOOP(i, 4) {
         unit_changeangle_towards_point_worker(mover, &dest);
@@ -302,13 +337,14 @@ TEST(wc3_collision, resource_worker_queues_then_passes_right) {
  * deadlock in a narrow corridor. */
 TEST(wc3_collision, resource_worker_passes_opposing_traffic_immediately) {
     reset_collision_world();
-    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
     vec2_t const east = { 300.0f, 0.0f };
     vec2_t const west = { -300.0f, 0.0f };
 
-    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
-    unit_issueorder(blocker, "move", &west);
+    blocker->unitinfo.MoveSpeed = 190.0f;
+    T_ASSERT(unit_issueorder(blocker, "move", &west));
+    edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
+    mover->unitinfo.MoveSpeed = 190.0f;
 
     unit_changeangle_towards_point_worker(mover, &east);
     unit_moveindirection(mover);
@@ -333,7 +369,7 @@ TEST(wc3_collision, fast_unit_cannot_jump_through) {
     vec2_t prev = mover->s.origin2;
     for (int i = 0; i < 10; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
-        mover->currentmove->think(mover);
+        collision_step_move_owner();
         T_ASSERT(seg_dist(&prev, &mover->s.origin2, &blocker->s.origin2) >= rr - 1.0f);
         prev = mover->s.origin2;
     }

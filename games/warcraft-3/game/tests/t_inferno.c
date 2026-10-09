@@ -55,7 +55,7 @@ typedef struct {
 } inFix_t;
 
 static uint32_t stun_ms(edict_t const *unit) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
@@ -129,6 +129,10 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     bool accepted, saved;
 
     inferno_setup(&fix, code);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
     caster_slot = (uint32_t)(fix.caster - g_edicts);
     fix.caster->think = monster_think; fix.caster->movetype = MOVETYPE_STEP;
     fix.caster->collision = 16.0f; fix.caster->unitinfo.MoveSpeed = 300.0f;
@@ -162,7 +166,7 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
 
         for (frame = 0; frame < 200 && approach->inuse; frame++) {
             level.time += FRAMETIME;
-            G_RunEntities();
+            globals.RunFrame();
         }
         T_ASSERT(frame < 200);
         T_ASSERT(!approach->inuse);
@@ -173,6 +177,7 @@ TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
     }
 
 cleanup_point_spell_approach:
+    level.started=false;
     remove(path);
     inferno_done(fix);
 }
@@ -221,7 +226,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
     T_EQ(summon->class_id, BZ_HFOO);
     T_EQ(summon->s.player, fix.caster->s.player);
     T_ASSERT(S_UnitHasStatus(summon, BZ_BTLF));
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+    FOR_LOOP(i, G_UnitStatusSlotCount(summon))
         if (summon->abilstatus[i].level && summon->abilstatus[i].code == BZ_BTLF)
             T_EQ(summon->abilstatus[i].duration_ms, (uint32_t)(BZ_LIFE * 1000.0f));
     inferno_done(fix);

@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "jass/jass.h"
+#include "g_entity_set.h"
 
 #define MAX_SPAWN_ITERATIONS 10
 #define MAX_REPOSITION_BLOCKERS 256 // entities; bounded broad-phase results, any hit rejects the point
@@ -375,17 +376,86 @@ TARGTYPE G_GetTargetType(cstring_t str) {
 void SP_monster_unit(edict_t *edict);
 void SP_monster_tree(edict_t *edict);
 
+/* Only bulk-cleared, never initialized slots can omit the constructor clear.
+ * Reused slots retain the full clear regardless of their apparent contents. */
+static uint32_t spawn_zero_count, spawn_initialized_count;
+#ifdef BZ_TESTS
+static uint64_t spawn_clear_bytes;
+#endif
+
+void G_ClearEdictStorage(uint32_t count) {
+    assert(count <= MAX_ENTITIES);
+    memset(g_edicts, 0, (size_t)count * sizeof(*g_edicts));
+    spawn_zero_count = count;
+    spawn_initialized_count = 0;
+    G_ResetSelectionIndex();
+}
+
+void G_MarkEdictStorageUsed(uint32_t count) {
+    spawn_initialized_count = MAX(spawn_initialized_count, count);
+}
+
+static entitySet_t spawn_candidates;
+static uint32_t spawn_scan_count;
+
+void G_ResetSpawnCache(void) {
+    G_ResetAcquisitionPresence();
+    S_ResetLandMineThinkers();
+    S_InvalidateRallyProducers();
+    spawn_candidates=(entitySet_t){0};spawn_scan_count=0;
+    G_ResetUnitResources();
+    G_ResetPlayerTechIndexes();
+    G_ClearUnitRuntimeTypes();
+}
+
+void G_MarkFreeEdict(edict_t *e) {
+    uintptr_t offset=(uintptr_t)e-(uintptr_t)g_edicts;
+    if(offset>=sizeof(*e)*MAX_ENTITIES || offset%sizeof(*e))return;
+    entity_set_put(&spawn_candidates,(uint32_t)(offset/sizeof(*e)),true);
+}
+
 static void G_InitEdict(edict_t *e) {
-    memset(e, 0, sizeof(edict_t));
+    G_SetEntitySelectionMask(e, 0);
+    S_MarkMoveGoals(e);
+    entity_set_put(&spawn_candidates,(uint32_t)(e-g_edicts),false);
+    G_RemoveMoveSpatialObject(e);
+    uint32_t index = (uint32_t)(e - g_edicts);
+    if (index < spawn_initialized_count || index >= spawn_zero_count) {
+        memset(e, 0, sizeof(*e));
+#ifdef BZ_TESTS
+        spawn_clear_bytes += sizeof(*e);
+#endif
+    }
+    G_MarkEdictStorageUsed(index + 1);
     e->inuse = true;
     e->s.scale = 1;
     e->animation_speed = 1.0f;
     e->s.number = (int)(e - g_edicts);
+    M_TrackMove(e);
+    S_TrackMoveTimers(e);
+    G_MarkMoveSpatialObject(e);
 }
 
+#ifdef BZ_TESTS
+static uint32_t spawn_candidate_visits;
+#endif
 edict_t *G_Spawn(void) {
-    for (uint32_t i = game.max_clients; i < globals.num_edicts; i++) {
+    /* Preserve the lowest eligible edict and the original cooldown predicate.
+     * Only unoccupied candidates need inspection between lifecycle changes. */
+    if(spawn_scan_count>globals.num_edicts)G_ResetSpawnCache();
+    for(uint32_t i=MAX(game.max_clients,spawn_scan_count);i<globals.num_edicts;i++) {
+#ifdef BZ_TESTS
+        spawn_candidate_visits++;
+#endif
+        if(!g_edicts[i].inuse)entity_set_put(&spawn_candidates,i,true);
+    }
+    spawn_scan_count=globals.num_edicts;
+    for(uint32_t i=entity_set_next(&spawn_candidates,game.max_clients);i<globals.num_edicts;i=entity_set_next(&spawn_candidates,i+1)) {
+#ifdef BZ_TESTS
+        spawn_candidate_visits++;
+#endif
         edict_t *e = &g_edicts[i];
+        if(e->inuse) {entity_set_put(&spawn_candidates,i,false);continue;}
         if (!e->inuse && e->freetime + 1000 < level.time) {
             G_InitEdict(e);
             return e;
@@ -396,8 +466,16 @@ edict_t *G_Spawn(void) {
         return NULL;
     }
     edict_t *edict = &g_edicts[globals.num_edicts++];
+    spawn_scan_count=globals.num_edicts;
     G_InitEdict(edict);
     return edict;
+}
+
+/* Native owned pools prepend on birth and genuine ownership changes. A saved
+ * sequence preserves this order without retaining process-owned AI list nodes. */
+void G_UnitOwnerInsert(edict_t *unit) {
+    if (level.next_unit_seq==UINT64_MAX) gi.error("WC3 unit owned-pool sequence exhausted\n");
+    unit->own_seq=++level.next_unit_seq;
 }
 
 /* Confirm a candidate variation resolves through the authoritative VFS. */
@@ -545,6 +623,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     }
     edict->movetype = MOVETYPE_NONE;
     edict->svflags |= SVF_STATIC_SCENERY;
+    G_ApplyDestructableCreationPose(edict);
     G_BlightInitializeDestructable(edict);
 }
 
@@ -564,17 +643,20 @@ static bool G_ClassIdIsPrintable(uint32_t class_id) {
     return true;
 }
 
+#ifdef BZ_TESTS
+static unitConstructionTrace_t construction_trace;
+void G_TestSetConstructionTrace(unitConstructionTrace_t trace) { construction_trace = trace; }
+void G_TestTraceConstruction(unitConstructionStage_t stage, edict_t const *unit, edictData_s const *captured) {
+    if (construction_trace) construction_trace(stage, unit, captured);
+}
+#endif
+
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(edict_t *edict) {
-    edict->data.UnitProfile = G_UnitProfile(edict->class_id);
-    edict->data.UnitBalance = G_UnitBalance(edict->class_id);
-    edict->data.UnitData = G_UnitData(edict->class_id);
-    edict->data.UnitUI = G_UnitUI(edict->class_id);
-    edict->data.UnitWeapons = G_UnitWeapons(edict->class_id);
-    edict->data.UnitAbilities = G_UnitAbil(edict->class_id);
-    edict->data.Doodads = G_Doodad(edict->class_id);
-    edict->data.ItemData = G_ItemData(edict->class_id);
-    edict->data.DestructableData = G_DestructableData(edict->class_id);
+    G_MarkMoveSpatialObject(edict);
+    bool had_aura = S_UnitHasAuraSource(edict);
+    edict->data = G_UnitRuntimeType(edict->class_id)->data;
+    if (had_aura || S_UnitHasAuraSource(edict)) S_MarkAuraSource(edict);
 }
 
 /* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks
@@ -595,14 +677,20 @@ void SP_CallSpawn(edict_t *edict) {
         return;
     edict->s.class_id = edict->class_id;
     G_BindEntityData(edict);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_BOUND_DATA, edict, NULL);
     if (edict->data.Doodads->id) {
         SP_SpawnDoodad(edict);
     } else if (edict->data.DestructableData->file) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
     } else if (edict->data.UnitUI->modelFile) {
-        SP_SpawnUnit(edict);
+        bool fresh = !edict->own_seq;
+        if (fresh) G_UnitOwnerInsert(edict);
+        G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_OWNER, edict, NULL);
+        if (fresh) SP_SpawnFreshUnit(edict);
+        else SP_SpawnUnit(edict);
         SP_monster_unit(edict);
+        G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_MONSTER, edict, NULL);
     } else if (edict->data.ItemData->file) {
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
@@ -680,6 +768,24 @@ static uint32_t G_MapControl(mapPlayer_t const *player) {
     }
 }
 
+/* 29e300 selects the fixed word or the stored setup record; 1e9dd0 resolves
+ * exactly12 preferences before main. No gameplay consumer reads host time. */
+void G_InitMapRandom(void) {
+    uint32_t seed = level.setup.map_flags & 0x8000u ? 0x77617233u : level.setup.random_seed;
+    wc3_random_seed(&level.pathing_random,seed);
+    /* 64f9a0/693710 uses the same setup word, independently of race draws. */
+    wc3_random_reseed(level.purpose_random,seed);
+    static uint32_t const prefs[]={0,1,2,8,4,16}; /* a93c84/a93c88; preference bits by resolved race. */
+    FOR_LOOP(i,PLAYER_NEUTRAL_AGGRESSIVE) {
+        gameClient_t *client=G_GetPlayerClientByNumber(i);
+        uint32_t pref=client->jass.race_pref&~0x40u;
+        client->ps.race=0;
+        if (pref&0x20) client->ps.race=(wc3_random_next(&level.pathing_random)>>30)+1;
+        else for (unsigned race=1;race<sizeof(prefs)/sizeof(prefs[0]);race++)
+            if (pref==prefs[race]) { client->ps.race=race; break; }
+    }
+}
+
 /* Race preferences are bit flags, unlike the sequential W3I race enum. */
 static uint32_t G_RacePreference(mapPlayer_t const *player) {
     if (!player) return 0;
@@ -703,6 +809,7 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     G_ClearPlayerAbilityAvailability(clent->client);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
+    G_ResetPlayerTechIndexes();
     memset(ps, 0, sizeof(player_t));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
@@ -752,14 +859,10 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     ps->name = clent->client->jass.name;
 }
 
-void G_SpawnEntities(void) {
-    mapInfo_t const *mapinfo = CM_GetMapInfo();
-    doodad_t const *entities = CM_GetDoodads();
-    uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
-    int32_t difficulty = 1;
-    cstring_t map_path = gi.CvarString("map", "");
-
-    /* Map replacement must release script roots before level pointers are cleared. */
+/* Release level owners while their map, metadata and actor addresses are
+ * still valid. G_LoadMap calls this before replacing either world or rows. */
+void G_ReleaseLevel(void) {
+    CM_FinishPathJobs();G_FlushPrimaryRequests();
     G_BotShutdown();
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearSaveRegistries();
@@ -768,13 +871,52 @@ void G_SpawnEntities(void) {
     G_ClearHashtableRegistry();
     G_FowShutdown();
     G_BlightShutdown();
-    memset(&level, 0, sizeof(level));
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
+    G_ClearMoveSpatial();
+    M_ResetMoveMembers();
+    G_ResetSelectionIndex();
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
+    G_ResetWaypointCache();
+    G_ResetMoveRegionEvents();
+    G_ResetEventSubscribers();
     G_ResetSelectionSoundState();
     G_CommandErrorReset();
     G_ResetHeroPassiveCaches();
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
+    G_ResetDeferredFrees();
+    G_PoolsReset();
+    if(world.map)gi.ClearWorld();
+    G_ClearEdictStorage(globals.max_edicts);
+    globals.num_edicts=game.max_clients;
+    FOR_LOOP(i,game.max_clients) {
+        g_edicts[i].s.number=i;
+        g_edicts[i].client=game.clients+i;
+    }
+    /* Generic fields/frontiers borrow this level too. Drop them before the
+     * world loader can replace dimensions, terrain or object-data storage. */
+    CM_SetupPathMap(0,0,NULL);
+    memset(&level,0,sizeof(level));
+}
+
+void G_SpawnEntities(void) {
+    mapInfo_t const *mapinfo = CM_GetMapInfo();
+    doodad_t const *entities = CM_GetDoodads();
+    uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
+    int32_t difficulty = 1;
+    cstring_t map_path = gi.CvarString("map", "");
+
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();
     level.time = gi.GetTime();
+    level.pathing_msec = level.time;
+    level.pathing_clock.span = 300;
+    level.pathing_counter = BZ_WC3_PATH_OWNER_START;
+    /* 157610's owner exists with this seed while config() is evaluated. */
+    wc3_random_seed(&level.pathing_random,0x69707365u);
+    S_InitMoveFineScheduler();
 
     level.mapinfo = mapinfo;
     G_BlightInit();
@@ -813,7 +955,6 @@ void G_SpawnEntities(void) {
         G_SetCameraBounds(mapinfo->cameraBounds.bounds);
     G_WeatherInitMap();
 
-    G_PoolsReset();
     globals.num_edicts = game.max_clients;
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
@@ -849,6 +990,7 @@ void G_SpawnEntities(void) {
         gi.LinkEntity(ent);
     }
     S_MineOverlayBindPreplaced();
+    FILTER_EDICTS(ent,ent->inuse) G_PublishMoveSpatialObject(ent);
     SP_worldspawn(NULL);
     
     jass_dofile(level.vm, "Scripts\\common.j");
@@ -871,6 +1013,13 @@ void G_SpawnEntities(void) {
         if (!jass_rterror_pending(level.vm)) level.scriptsConfigured = true;
     }
 
+    /* Local test-map startup applies the WorldEdit fixed-seed preference
+     * (default on) after config, then stamps a setup record once (2a46a0).
+     * An explicit seed lets diagnostics reproduce a captured host record. */
+    if (atoi(gi.CvarString("wc3_lock_random_seed", "1"))) level.setup.map_flags |= 0x8000u;
+    cstring_t setup_seed = gi.CvarString("wc3_random_seed", "");
+    level.setup.random_seed = *setup_seed ? (uint32_t)strtoul(setup_seed, NULL, 0) : gi.Milliseconds();
+    G_BotInitPlayers();
     UI_Init();
     CM_BakeStaticObstacles();
     /* Start simulation from the map load itself so dedicated and listen-server restores share one lifecycle. */
@@ -884,6 +1033,7 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     if (!ent) {
         return NULL;
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_ALLOCATED, ent, NULL);
     ent->class_id = class_id;
     ent->s.class_id = class_id;
     ent->spawn_time = G_Time();
@@ -894,10 +1044,16 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     ent->s.scale = 1;
     ent->s.angle = -M_PI / 2;
     ent->s.player = player;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_REQUESTED_POSE, ent, NULL);
     SP_CallSpawn(ent);
+    if (!ent->own_seq) G_UnitOwnerInsert(ent);
     /* SP_SpawnUnit fills collision and the server broad-phase bounds depend on
      * that value. Link only after the class-owned spawn initializer runs. */
     gi.LinkEntity(ent);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_SERVER_LINK, ent, NULL);
+    /* Spatial history starts at this authored spawn pose. */
+    G_PublishMoveSpatialObject(ent);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FINE_PUBLICATION, ent, NULL);
     /* Dynamic unit creation must establish Hero progression independently of
      * presentation data.  SP_SpawnUnit already initializes normal Heroes, but
      * custom/minimal data may omit UnitUI/model rows while still defining Hero
@@ -906,14 +1062,17 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     if (G_UnitIsHero(ent)) {
         G_HeroInitializeProgression(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_HERO, ent, NULL);
     if (play_birth && ent->birth) {
         ent->birth(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_BIRTH, ent, NULL);
     client = G_GetPlayerClientByNumber(player);
     if ((ent->svflags & SVF_MONSTER) && client && client->ps.number == player) {
         G_InvalidateCommands(client);
         G_InvalidateUnitShortcutsForUnit(ent);
     }
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_UI, ent, NULL);
     return ent;
 }
 
@@ -940,8 +1099,7 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * Destructables are neutral-passive, like the map-placed ones.  facing is in
  * radians (the native converts from JASS degrees).
  *
- * Parity note (Ghidra): the original CreateDestructable (FUN_003f80b0 ->
- * worker FUN_00621d90) always creates a fresh instance — its hash lookup
+ * Parity note (Ghidra1.27): constructor6c0d90 always creates a fresh instance — its hash lookup
  * resolves the destructable *type* by objectid, not an existing entity by
  * position.  We diverge with find-or-create because OUR engine already spawns
  * every war3map.doo destructable in G_SpawnEntities, and the map's generated
@@ -949,7 +1107,8 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * gg_dest_* handles + death triggers.  Reusing the pre-placed entity (like
  * unit_createorfind does for CreateUnit) yields the same observable result as
  * the original — one crate/gate carrying the trigger — instead of a stacked
- * duplicate.  Match a same-type destructable within 10 units of the spot. */
+ * duplicate. Match a same-type destructable within10 units of the constructor's
+ * snapped spot, including a hidden placeholder's retained alive texture. */
 /* HACK: Positional binding is required until the map parser exposes the
  * generated script variable's editor creation ID. */
 edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
@@ -969,9 +1128,8 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
                 continue;
             }
 
-            distance = Vector2_distance(
-                &MAKE(vec2_t, x, y),
-                &existing->s.origin2);
+            vec2_t point=G_DestructableCreationPoint(existing,(vec2_t){x,y},facing);
+            distance = Vector2_distance(&point,&existing->s.origin2);
 
             if (distance >= best_distance) {
                 continue;
@@ -1063,7 +1221,7 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
         if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
             continue;
         }
-        if (!M_UnitsShareCollisionDomain(other, unit)) {
+        if (!!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) {
             continue;
         }
         delta = Vector2_sub(&other->s.origin2, point);
@@ -1082,7 +1240,7 @@ static bool G_RepositionBlocker(edict_t const *other) {
     edict_t *unit = reposition_unit;
     if (other == unit || (G_IsItem(unit) && other == unit->item->carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
-        !M_UnitsShareCollisionDomain(other, unit)) return false;
+        !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
     dx = other->s.origin2.x - reposition_point->x;
     dy = other->s.origin2.y - reposition_point->y;
     reach = unit->collision + other->collision;
@@ -1105,11 +1263,9 @@ static bool G_CanRepositionUnitAt(edict_t *unit, vec2_t const *point) {
     return gi.BoxEdicts(&area, blockers, MAX_REPOSITION_BLOCKERS, G_RepositionBlocker) == 0;
 }
 
-/* Warcraft III SetUnitPosition is not the raw X/Y setter. Warsmash models the
- * native through CUnit.setPointAndCheckUnstuck(): test the requested point,
- * then walk a deterministic 64-world-unit square spiral for at most 300
- * candidates. Keep the requested point as the fallback when no candidate is
- * legal, matching Warsmash's outputX/outputY initialization. */
+/* TODO: legacy placement for item drops, cargo, summons and Way Gates retains
+ * Warsmash's300-candidate64-unit spiral until those original producers are
+ * recovered. Public CreateUnit/SetUnitPosition use verified fine rings instead. */
 bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     int check_x = 0, check_y = 0;
 
@@ -1147,6 +1303,8 @@ typedef struct {
     float     spacing;
     vec2_t *out;
     float    *angle;
+    unitExitReservation_t const *reserved;
+    uint32_t reservation_count;
 } unitExitCtx_t;
 
 static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
@@ -1163,6 +1321,11 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
     if (!SP_CanPlaceUnitAt(ctx->unit, &candidate)) {
         return false;
     }
+    FOR_LOOP(i, ctx->reservation_count) {
+        unitExitReservation_t const *spot = ctx->reserved + i;
+        if (Vector2_distance(&candidate, &spot->point) < ctx->unit->collision + spot->radius)
+            return false;
+    }
     *ctx->out = candidate;
     *ctx->angle = atan2f(candidate.y - ctx->producer->s.origin2.y,
                          candidate.x - ctx->producer->s.origin2.x);
@@ -1173,16 +1336,18 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
  * exit point is found. Search deterministic 64-world-unit square rings, using
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
-bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle) {
+bool SP_FindUnitExitPositionReserved(edict_t *producer, edict_t *unit,
+                                    unitExitReservation_t const *reserved, uint32_t count,
+                                    vec2_t *out, float *angle) {
     uint32_t const max_candidates = 300;
     uint32_t tested = 0;
     unitExitCtx_t ctx;
 
-    if (!producer || !unit || !out || !angle) {
+    if (!producer || !unit || !out || !angle || (count && !reserved)) {
         return false;
     }
 
-    ctx = (unitExitCtx_t){ producer, unit, 64.0f, out, angle };
+    ctx = (unitExitCtx_t){ producer, unit, 64.0f, out, angle, reserved, count };
 
     for (int ring = 1; tested < max_candidates; ring++) {
         int const lo = -ring;
@@ -1202,4 +1367,9 @@ bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, floa
         }
     }
     return false;
+}
+
+/* Single-unit callers retain exactly the same candidate order and admission. */
+bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle) {
+    return SP_FindUnitExitPositionReserved(producer, unit, NULL, 0, out, angle);
 }

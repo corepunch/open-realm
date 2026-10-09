@@ -316,8 +316,9 @@ static bool CL_TouchGestureOwnsMouse(SDL_Event const *event) {
 
 static void CL_SendSmartPointCommand(float x, float y) {
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
-        ? "smartpoint %d %d queue" : "smartpoint %d %d", (int)x, (int)y);
+    SZ_Printf(&cls.netchan.message, "smartpoint %d %d%s%s", (int)x, (int)y,
+              CL_OrderQueueModifierDown() ? " queue" : "",
+              (SDL_GetModState() & (KMOD_LALT | KMOD_RALT)) ? " alt" : "");
 }
 
 static void CL_SendSmartCommand(float x, float y) {
@@ -984,8 +985,9 @@ void IN_SelectUp(void) {
         } else if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
             CL_ResetSelectClickChain();
             MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, queue ? "point %d %d queue" : "point %d %d",
-                      (int)point.x, (int)point.y);
+            SZ_Printf(&cls.netchan.message, "point %d %d%s%s",
+                      (int)point.x, (int)point.y, queue ? " queue" : "",
+                      (mods & (KMOD_LALT | KMOD_RALT)) ? " alt" : "");
         } else {
             CL_ResetSelectClickChain();
         }
@@ -1137,6 +1139,9 @@ static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, uint32_
 }
 static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y; *point = (vec3_t){ 123, 456, 0 }; return true;
+}
+static bool CL_TestNoEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
+    (void)view; (void)x; (void)y; (void)number; return false;
 }
 static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y; (void)point; return false;
@@ -1495,6 +1500,43 @@ TEST(client_input, focus_loss_releases_game_order_queue) {
 
     SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); SDL_QuitSubSystem(SDL_INIT_EVENTS);
     cl = *old_cl; MemFree(old_cl); cls = old_cls; input = old_input; mouse = old_mouse;
+    SDL_SetModState(old_mod);
+}
+
+TEST(client_input, point_commands_preserve_alt_and_queue_modifiers) {
+    uint8_t data[256];
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    __typeof__(input) old_input = input;
+    refExport_t old_re = re;
+    SDL_Keymod old_mod = SDL_GetModState();
+    SDL_Keymod const mods[] = { KMOD_NONE, KMOD_LALT, KMOD_RSHIFT, KMOD_RSHIFT | KMOD_RALT };
+    cstring_t const suffix[] = { "", " alt", " queue", " queue alt" };
+    char command[128], expected[128];
+
+    memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
+    input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.TraceEntity = CL_TestNoEntity; re.TraceLocation = CL_TestSmartLocation;
+    FOR_LOOP(i, sizeof(mods) / sizeof(*mods)) {
+        SDL_SetModState(mods[i]);
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        cl.selection.in_progress = true; cl.selection.rect = (rect_t){ 10, 20, 0, 0 };
+        IN_SelectUp();
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        snprintf(expected, sizeof(expected), "point 123 456%s", suffix[i]);
+        T_STREQ(command, expected);
+        T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        CL_SendSmartPointCommand(123, 456);
+        T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+        MSG_ReadString(&cls.netchan.message, command);
+        snprintf(expected, sizeof(expected), "smartpoint 123 456%s", suffix[i]);
+        T_STREQ(command, expected);
+        T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
+    }
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; input = old_input; re = old_re;
     SDL_SetModState(old_mod);
 }
 

@@ -337,9 +337,10 @@ typedef struct {
     uint32_t lookup_cache_size;
     mpqHeaderV1_t header;
     mpqHashEntry_t *hashtable;
+    uint32_t *hash_index;
+    uint32_t hash_index_size;
     mpqBlockEntry_t *blocktable;
     uint32_t sector_size;
-    uint8_t *sector_buffer;
     bool write_mode;
     uint32_t write_hash_table_size;
     struct mpq_write_entry *write_entries;
@@ -359,6 +360,9 @@ typedef struct {
     uint32_t file_key;
     uint32_t sector_count;
     uint32_t *sector_offsets;
+    uint8_t *read_buffer;
+    uint32_t cached_sector, cached_size;
+    bool cache_valid;
 } mpqFile_t;
 
 typedef struct {
@@ -600,70 +604,125 @@ static bool HasArchiveExtensionAt(cstring_t path, size_t dot)
     return false;
 }
 
+#ifdef MPQ_TEST_API
+static uint32_t mpq_test_lookup_scans;
+static uint32_t mpq_test_lookup_probes;
+static uint32_t mpq_test_payload_reads;
+uint32_t Mpq_TestLookupScans(void) { return mpq_test_lookup_scans; }
+uint32_t Mpq_TestLookupProbes(void) { return mpq_test_lookup_probes; }
+uint32_t Mpq_TestPayloadReads(void) { return mpq_test_payload_reads; }
+#endif
+
+static uint32_t MpqHashPair(uint32_t hash1, uint32_t hash2)
+{
+    uint32_t hash = hash1 ^ (hash2 * 0x9e3779b9u);
+    hash ^= hash >> 16; hash *= 0x7feb352du; hash ^= hash >> 15;
+    return hash;
+}
+
+/* Compile the original probe-then-full-scan choice once per name-hash pair.
+ * A free-slot distance preserves duplicate/locale precedence in linear time
+ * for ordinary power-of-two tables, including full tables and deleted slots. */
+static bool MpqBuildHashIndex(mpqArchive_t *mpq)
+{
+    uint32_t count = mpq->header.dwHashTableSize, live = 0, size = 2;
+    bool power_of_two = count && !(count & (count - 1));
+    uint32_t *free_distance = NULL;
+    uint8_t *duplicates = NULL;
+    FOR_LOOP(i, count)
+        if (mpq->hashtable[i].dwBlockIndex != MPQ_HASH_ENTRY_FREE &&
+            mpq->hashtable[i].dwBlockIndex != MPQ_HASH_ENTRY_DELETED) live++;
+    if (live > (1u << 30)) {
+        fprintf(stderr, "MPQ: hash index exceeds supported size\n");
+        return false;
+    }
+    while (size / 2 < live) size *= 2;
+    mpq->hash_index = calloc(size, sizeof(*mpq->hash_index));
+    if (power_of_two) free_distance = malloc((size_t)count * sizeof(*free_distance));
+    else duplicates = calloc(size, sizeof(*duplicates));
+    if (!mpq->hash_index || (power_of_two ? !free_distance : !duplicates)) {
+        fprintf(stderr, "MPQ: cannot allocate hash index (%u slots)\n", size);
+        free(free_distance); free(duplicates);
+        return false;
+    }
+    mpq->hash_index_size = size;
+    if (power_of_two) {
+        uint64_t next_free = (uint64_t)count * 2;
+        FOR_LOOP(i, count) if (mpq->hashtable[i].dwBlockIndex == MPQ_HASH_ENTRY_FREE) {
+            next_free = (uint64_t)count + i; break;
+        }
+        for (uint32_t i = count; i;) {
+            i--;
+            if (mpq->hashtable[i].dwBlockIndex == MPQ_HASH_ENTRY_FREE) next_free = i;
+            free_distance[i] = MIN((uint64_t)count, next_free - i);
+        }
+    }
+    FOR_LOOP(i, count) {
+        mpqHashEntry_t const *entry = mpq->hashtable + i;
+        if (entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE || entry->dwBlockIndex == MPQ_HASH_ENTRY_DELETED)
+            continue;
+        uint32_t slot = MpqHashPair(entry->dwNameHash1, entry->dwNameHash2) & (size - 1);
+        while (mpq->hash_index[slot]) {
+            mpqHashEntry_t const *other = mpq->hashtable + mpq->hash_index[slot] - 1;
+            if (other->dwNameHash1 == entry->dwNameHash1 && other->dwNameHash2 == entry->dwNameHash2)
+                break;
+            slot = (slot + 1) & (size - 1);
+        }
+        if (!mpq->hash_index[slot]) mpq->hash_index[slot] = i + 1;
+        else if (power_of_two) {
+            uint32_t start = entry->dwNameHash1 & (count - 1);
+            uint32_t previous = (mpq->hash_index[slot] - 1 - start) & (count - 1);
+            uint32_t current = (i - start) & (count - 1);
+            if (current < free_distance[start] &&
+                (previous >= free_distance[start] || current < previous)) mpq->hash_index[slot] = i + 1;
+        } else duplicates[slot] = true;
+    }
+    /* Non-power-of-two protected tables retain the old masked probe exactly.
+     * Only duplicate pairs need it, once during open, never during lookup. */
+    if (!power_of_two) FOR_LOOP(slot, size) if (duplicates[slot]) {
+        mpqHashEntry_t const key = mpq->hashtable[mpq->hash_index[slot] - 1];
+        uint32_t start = key.dwNameHash1 & (count - 1);
+        FOR_LOOP(i, count) {
+            uint32_t at = (start + i) & (count - 1);
+            mpqHashEntry_t const *entry = mpq->hashtable + at;
+            if (entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE) break;
+            if (entry->dwBlockIndex != MPQ_HASH_ENTRY_DELETED &&
+                entry->dwNameHash1 == key.dwNameHash1 && entry->dwNameHash2 == key.dwNameHash2) {
+                mpq->hash_index[slot] = at + 1; break;
+            }
+        }
+    }
+    free(free_distance); free(duplicates);
+    return true;
+}
+
 static bool FindBlockIndex(mpqArchive_t *mpq, char const *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
 {
-    uint32_t hash_pos;
-    uint32_t index;
     bool trace = getenv("BZ_MPQ_TRACE") != NULL;
-
-    hash_pos = (hash1 & (mpq->header.dwHashTableSize - 1));
-    if (trace) {
-        fprintf(stderr, "MPQ lookup: %s hash1=%08x hash2=%08x table=%u start=%u\n",
-                fileName, hash1, hash2, mpq->header.dwHashTableSize, hash_pos);
-    }
-    for (index = 0; index < mpq->header.dwHashTableSize; index++) {
-        mpqHashEntry_t *entry = &mpq->hashtable[(hash_pos + index) & (mpq->header.dwHashTableSize - 1)];
-
-        if (trace && index < 8) {
-            fprintf(stderr, "MPQ lookup probe[%u]: block=%08x h1=%08x h2=%08x\n",
-                    index, entry->dwBlockIndex, entry->dwNameHash1, entry->dwNameHash2);
-        }
-        if (entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE) {
-            if (trace) {
-                fprintf(stderr, "MPQ lookup: stopped at free slot after %u probes\n", index);
-            }
-            break;
-        }
-
-        if (entry->dwBlockIndex == MPQ_HASH_ENTRY_DELETED) {
-            continue;
-        }
-
+#ifdef MPQ_TEST_API
+    mpq_test_lookup_scans++;
+#endif
+    uint32_t slot = MpqHashPair(hash1, hash2) & (mpq->hash_index_size - 1);
+    while (mpq->hash_index[slot]) {
+#ifdef MPQ_TEST_API
+        mpq_test_lookup_probes++;
+#endif
+        uint32_t index = mpq->hash_index[slot] - 1;
+        mpqHashEntry_t const *entry = mpq->hashtable + index;
         if (entry->dwNameHash1 == hash1 && entry->dwNameHash2 == hash2) {
             *block_index = entry->dwBlockIndex & MPQ_BLOCK_INDEX_MASK;
-            if (trace) {
-                fprintf(stderr, "MPQ lookup: found via probe at block_index=%u\n", *block_index);
-            }
+            if (trace)
+                fprintf(stderr, "MPQ lookup: %s hash1=%08x hash2=%08x slot=%u block_index=%u\n",
+                        fileName, hash1, hash2, index, *block_index);
             CacheBlockLookup(mpq, fileName, *block_index);
             return true;
         }
+        slot = (slot + 1) & (mpq->hash_index_size - 1);
     }
-
-    if (trace) {
-        fprintf(stderr, "MPQ lookup: falling back to full scan\n");
-    }
-    for (index = 0; index < mpq->header.dwHashTableSize; index++) {
-        mpqHashEntry_t *entry = &mpq->hashtable[index];
-
-        if (entry->dwBlockIndex == MPQ_HASH_ENTRY_DELETED ||
-            entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE) {
-            continue;
-        }
-
-        if (entry->dwNameHash1 == hash1 && entry->dwNameHash2 == hash2) {
-            *block_index = entry->dwBlockIndex & MPQ_BLOCK_INDEX_MASK;
-            if (trace) {
-                fprintf(stderr, "MPQ lookup: found via full scan at slot=%u block_index=%u\n", index, *block_index);
-            }
-            CacheBlockLookup(mpq, fileName, *block_index);
-            return true;
-        }
-    }
-
-    if (trace) {
-        fprintf(stderr, "MPQ lookup: not found after full scan\n");
-    }
-
+    if (trace) fprintf(stderr, "MPQ lookup: %s not found in name-hash index\n", fileName);
+    /* Open archives are immutable. Retain absence in their own name cache;
+     * another mounted archive and a later reopen have independent caches. */
+    CacheBlockLookup(mpq, fileName, MPQ_HASH_ENTRY_FREE);
     return false;
 }
 
@@ -1190,8 +1249,8 @@ static void MpqFreeReadArchive(mpqArchive_t *mpq)
         free(mpq->lookup_cache);
     }
     SAFE_DELETE(mpq->hashtable, free);
+    SAFE_DELETE(mpq->hash_index, free);
     SAFE_DELETE(mpq->blocktable, free);
-    SAFE_DELETE(mpq->sector_buffer, free);
     SAFE_DELETE(mpq->fp, fclose);
     free(mpq);
 }
@@ -1248,12 +1307,6 @@ static bool SFileOpenArchiveSource(mpqArchive_t *mpq, handle_t *archive)
     }
     mpq->sector_size = 1u << (mpq->header.wSectorSizeShift + 9);
 
-    // Allocate sector buffer (one scratch sector; 16 MiB once at open is acceptable)
-    mpq->sector_buffer = (uint8_t *)malloc(mpq->sector_size);
-    if (!mpq->sector_buffer) {
-        fprintf(stderr, "MPQ: failed to allocate %u-byte sector buffer\n", mpq->sector_size);
-        goto fail;
-    }
 
     // Read hash table
     mpq->hashtable = (mpqHashEntry_t *)malloc(mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t));
@@ -1272,6 +1325,7 @@ static bool SFileOpenArchiveSource(mpqArchive_t *mpq, handle_t *archive)
     // Decrypt hash table
     DecryptBlock((uint8_t *)mpq->hashtable, mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t),
                  MPQ_KEY_HASH_TABLE);
+    if (!MpqBuildHashIndex(mpq)) goto fail;
 
     // Read block table
     mpq->blocktable = (mpqBlockEntry_t *)malloc(mpq->header.dwBlockTableSize * sizeof(mpqBlockEntry_t));
@@ -1670,6 +1724,7 @@ bool SFileCloseFile(handle_t file)
         if (mpqfile->sector_offsets) {
             free(mpqfile->sector_offsets);
         }
+        free(mpqfile->read_buffer);
         free(file);
         if (owner_archive) {
             SFileCloseArchive(owner_archive);
@@ -1730,6 +1785,17 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
     }
 
     if (block->dwFlags & MPQ_FILE_SINGLE_UNIT) {
+        if (mpqfile->cache_valid) {
+            if (file_offset >= mpqfile->cached_size) { if(bytesRead)*bytesRead=0; return false; }
+            toRead=MIN(toRead,mpqfile->cached_size-file_offset);
+            memcpy(dest,mpqfile->read_buffer+file_offset,toRead);
+            mpqfile->current_pos+=toRead;
+            if(bytesRead)*bytesRead=toRead;
+            return true;
+        }
+#ifdef MPQ_TEST_API
+        mpq_test_payload_reads++;
+#endif
         uint8_t *compressed;
         uint8_t *whole_file;
         uint32_t bytes_in_file = 0;
@@ -1778,7 +1844,9 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
         if (bytesRead) *bytesRead = toRead;
 
         free(compressed);
-        free(whole_file);
+        mpqfile->read_buffer=whole_file;
+        mpqfile->cached_size=bytes_in_file;
+        mpqfile->cache_valid=true;
         return true;
     }
 
@@ -1790,8 +1858,20 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
 
     sector_start = (file_offset / mpq->sector_size);
     sector_offset = (file_offset % mpq->sector_size);
+    if (!mpqfile->read_buffer) {
+        mpqfile->read_buffer=malloc(MIN(mpq->sector_size,mpqfile->file_size));
+        if(!mpqfile->read_buffer) { if(bytesRead)*bytesRead=0; return false; }
+    }
 
     while (read_so_far < toRead && sector_start < mpqfile->sector_count) {
+        if(mpqfile->cache_valid && mpqfile->cached_sector==sector_start) {
+            bytes_in_sector=mpqfile->cached_size;
+            goto copy_sector;
+        }
+        mpqfile->cache_valid=false;
+#ifdef MPQ_TEST_API
+        mpq_test_payload_reads++;
+#endif
         uint32_t sector_start_offset;
         uint32_t sector_end_offset;
         uint32_t sector_compressed_size;
@@ -1827,13 +1907,13 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
 
         if (mpqfile->flags & MPQ_FILE_ENCRYPTED)
             DecryptBlock(compressed, sector_compressed_size, mpqfile->file_key + sector_start);
-        if (!TryInflateSector(compressed, sector_compressed_size, sector_uncompressed_size, mpq->sector_buffer, &bytes_in_sector)) {
-            mpqDecompress_t dec = { compressed, sector_compressed_size, mpq->sector_buffer,
+        if (!TryInflateSector(compressed, sector_compressed_size, sector_uncompressed_size, mpqfile->read_buffer, &bytes_in_sector)) {
+            mpqDecompress_t dec = { compressed, sector_compressed_size, mpqfile->read_buffer,
                                     sector_uncompressed_size, 0 };
             if (Mpq_DecompressSector(&dec)) {
                 bytes_in_sector = dec.out_size;
             } else if (sector_compressed_size >= sector_uncompressed_size) {
-                memcpy(mpq->sector_buffer, compressed, sector_uncompressed_size);
+                memcpy(mpqfile->read_buffer, compressed, sector_uncompressed_size);
                 bytes_in_sector = sector_uncompressed_size;
             } else {
                 free(compressed);
@@ -1841,7 +1921,11 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
             }
         }
         free(compressed);
+        mpqfile->cached_sector=sector_start;
+        mpqfile->cached_size=bytes_in_sector;
+        mpqfile->cache_valid=true;
 
+copy_sector:
         if (sector_offset >= bytes_in_sector) {
             break;
         }
@@ -1851,7 +1935,7 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytes
             to_read_in_block = (toRead - read_so_far);
         }
 
-        memcpy(dest, &mpq->sector_buffer[sector_offset], to_read_in_block);
+        memcpy(dest, mpqfile->read_buffer + sector_offset, to_read_in_block);
         dest += to_read_in_block;
         read_so_far += to_read_in_block;
         sector_offset = 0;
@@ -2311,6 +2395,8 @@ bool SFileFindNextFile(handle_t find, sfileFindData_t *findData)
                        HashString(name, MPQ_HASH_NAME_A),
                        HashString(name, MPQ_HASH_NAME_B),
                        &block_index)) {
+        if (block_index >= mpqfind->archive->header.dwBlockTableSize)
+            return true; /* Stale listfile name: retain its existing empty record. */
         mpqBlockEntry_t *block = &mpqfind->archive->blocktable[block_index];
 
         findData->dwBlockIndex = block_index;

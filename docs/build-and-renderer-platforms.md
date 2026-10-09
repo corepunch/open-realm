@@ -6,7 +6,7 @@ The Makefile has four independent build choices:
 
 | Variable | Values | Default | Contract |
 |---|---|---|---|
-| `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2`; debug adds `-O0 -g` |
+| `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2 -fno-semantic-interposition`; debug adds `-O0 -g` |
 | `GL_BACKEND` | `gl`, `gles3` | `gl` | Desktop OpenGL 3.1, or Linux OpenGL ES 3.0 |
 | `MSAA` | `0`, `2`, `4`, `8` | `0` | Compile-time default framebuffer sample count |
 | `GLSL` | `120`, `140`, `150` | `140` | GLSL version for descriptor-based shaders (ignored when `GL_BACKEND=gles3`) |
@@ -263,3 +263,43 @@ and model cleanup with intercepted GL buffer/VAO calls in `tests/test_renderer_m
 The SPN fixture loads a real model through `R_LoadModelMDLX`; compiling the loader/buffer sources
 separately bypasses those intercepts and crashes in macOS `glGenBuffers` without a current context.
 Keep their test compilation inside the intercepted translation unit; production builds remain unchanged.
+
+
+## Headless SDL input regression runtime
+
+On Linux, `sdl2-compat`2.32.72 over SDL3 crashes when the input fixture pushes
+an SDL2 `SDL_TEXTINPUT` event. A standalone events-only reproducer and GDB show
+the compatibility converter returning null, followed by the SDL3 event call.
+The [upstream converter](https://github.com/libsdl-org/sdl2-compat/blob/main/src/sdl2_compat.c)
+explicitly rejects text events in this direction. Initializing video does not
+fix the reproduction. Native SDL2.32.10 accepts the same event and the unchanged
+menu input regression passes28 assertions.
+
+For this environment, the installed Steam native SDL2 runtime is copied alone
+into `/GitHub/wc3-analysis/native-sdl2`; its SONAME link is
+`libSDL2-2.0.so.0`. Running `LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 make test`
+uses that native ABI for headless input coverage. Keep the fixture's queue and
+text assertions intact; do not remove text coverage or alter gameplay input to
+accommodate the compatibility library. This is a validation runtime selection,
+not a project-owned replacement library or a required production deployment.
+
+## Matching engine and game-module builds
+
+The October 5 Rise of the Naga startup crash (PID 397464) was an engine/game import
+table mismatch, not a shader or SDL failure. The default `build/bin/openwarcraft3`
+was dated October 4 while `build/lib/libgame.so` had been rebuilt October 5.
+`G_InitGame` crashed on its first `gi.CvarString` call; the core contained a stack
+canary in that callback slot rather than `Cvar_String`. Building tests or a game
+module alone does not update an existing normal executable.
+
+`tools/parity/wc3.sh openrealm` now refreshes the complete `openwarcraft3` Make
+target before launching its default executable. A failed build stops the launch.
+`WC3_DRY_RUN=1` remains read-only, and an explicit `WC3_BINARY` remains a
+caller-supplied build. The refresh respects the Make build settings; it is not a
+conversion of an existing debug build into a performance benchmark. Performance
+captures use the explicit, matching release output directory documented in the
+WC3 performance workflow.
+
+After rebuilding, the same TFT `NightElfX01.w3x` launch with `+com_frame_limit 20`
+started and exited normally under GDB using the ordinary system SDL libraries.
+The launcher regression checks both build-failure propagation and dry-run behavior.

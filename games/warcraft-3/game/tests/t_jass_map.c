@@ -40,6 +40,31 @@ static bool event_in_queue(EVENTTYPE type) {
     return false;
 }
 
+/* Original source expressions must preserve left association and operand
+ * evaluation order before their results reach Move or timer natives. */
+TEST(wc3_jass_map, chained_arithmetic_association_and_operand_order) {
+    T_ASSERT(run_test_jass(
+        "globals\ninteger calls=0\nendglobals\n"
+        "function operand takes integer tag, integer value returns integer\n"
+        "set calls=calls*10+tag\nreturn value\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "call BJassAssert(100-10-5==85,\"integer subtraction\")\n"
+        "call BJassAssert(100-10+5==95,\"mixed additive\")\n"
+        "call BJassAssert(120/4/3==10,\"integer division\")\n"
+        "call BJassAssert(9/2*2==8,\"integer division before multiply\")\n"
+        "call BJassAssert(41-1-2*20==0,\"timer tick remainder\")\n"
+        "call BJassAssert(100-(10-5)==95,\"explicit right parentheses\")\n"
+        "call BJassAssert((100-10)-5==85,\"explicit left parentheses\")\n"
+        "call BJassAssert(-100-10-5==-115,\"negative subtraction\")\n"
+        "call BJassAssert(100.0-10.0-5.0==85.0,\"real subtraction\")\n"
+        "call BJassAssert(120.0/4.0/3.0==10.0,\"real division\")\n"
+        "call BJassAssert(9.0/2.0*2.0==9.0,\"real intermediate\")\n"
+        "call BJassAssert(120.0/4/3.0==10.0,\"mixed typed division\")\n"
+        "call BJassAssert(operand(1,100)-operand(2,10)-operand(3,5)==85,\"side effects result\")\n"
+        "call BJassAssert(calls==123,\"left to right operand calls\")\n"
+        "endfunction\n"));
+}
+
 static char victory_menu_action[32];
 static char victory_menu_arg[256];
 static char cinematic_movie_path[MAX_PATHLEN];
@@ -280,6 +305,20 @@ TEST(wc3_jass_map, bjassassert_true_passes) {
     ));
 }
 
+/* A comma terminates the whole logical expression. It must not attach the
+ * following string to the right operand or consume a nested call's delimiter. */
+TEST(wc3_jass_map, logical_call_arguments_preserve_outer_delimiters) {
+    T_ASSERT(run_test_jass(
+        "function check takes boolean condition, string message returns boolean\n"
+        "  call BJassAssert(condition, message)\n"
+        "  return condition\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(check(1 < 2 and 2 < 3, \"and argument\"), \"nested call\")\n"
+        "  call BJassAssert(check(1 > 2 or 3 > 2, \"or argument\"), \"second call\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_jass_map, bjassassert_false_is_caught) {
     T_ASSERT(run_test_jass_error(
         "function main takes nothing returns nothing\n"
@@ -437,7 +476,7 @@ TEST(wc3_jass_map, nightelfx01_cleanup_removes_every_tracker) {
         "  call BJassAssert(FirstOfGroup(first) == null, \"first tracker group is empty\")\n"
         "  call BJassAssert(FirstOfGroup(second) == null, \"second tracker group is empty\")\n"
         "endfunction\n"));
-    G_RunDeferredFrees();
+    G_TestFinishDeferredFrees();
     jass_callbyname(level.vm, "VerifyCleanup", false);
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
@@ -873,7 +912,7 @@ TEST(wc3_jass_map, player_configuration_roundtrip) {
         "  call SetPlayerHandicapXPBJ(Player(0), 300.0)\n"
         "  call SetPlayerOnScoreScreen(Player(0), true)\n"
         "  call BJassAssert(GetPlayerName(Player(0)) == \"Jaina\", \"player name\")\n"
-        "  call BJassAssert(IsPlayerRacePrefSet(Player(0), RACE_PREF_HUMAN), \"human pref\")\n"
+        "  call BJassAssert(not IsPlayerRacePrefSet(Player(0), RACE_PREF_HUMAN), \"human pref replaced\")\n"
         "  call BJassAssert(IsPlayerRacePrefSet(Player(0), RACE_PREF_RANDOM), \"random pref\")\n"
         "  call BJassAssert(not IsPlayerRacePrefSet(Player(0), RACE_PREF_ORC), \"orc absent\")\n"
         "  call BJassAssert(not GetPlayerSelectable(Player(0)), \"race locked\")\n"
@@ -891,14 +930,14 @@ TEST(wc3_jass_map, region_rectangles_add_query_and_clear) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local region area = CreateRegion()\n"
-        "  local rect west = Rect(0.0, 0.0, 10.0, 10.0)\n"
-        "  local rect east = Rect(20.0, 20.0, 30.0, 30.0)\n"
-        "  local location point = Location(25.0, 25.0)\n"
+        "  local rect west = Rect(0.0, 0.0, 31.0, 31.0)\n"
+        "  local rect east = Rect(64.0, 64.0, 95.0, 95.0)\n"
+        "  local location point = Location(75.0, 75.0)\n"
         "  call RegionAddRect(area, west)\n"
         "  call RegionAddRect(area, east)\n"
         "  call BJassAssert(IsPointInRegion(area, 5.0, 5.0), \"west point\")\n"
         "  call BJassAssert(IsLocationInRegion(area, point), \"east location\")\n"
-        "  call BJassAssert(not IsPointInRegion(area, 15.0, 15.0), \"union gap\")\n"
+        "  call BJassAssert(not IsPointInRegion(area, 45.0, 45.0), \"union gap\")\n"
         "  call RegionClearRect(area, west)\n"
         "  call BJassAssert(not IsPointInRegion(area, 5.0, 5.0), \"cleared west\")\n"
         "  call BJassAssert(IsLocationInRegion(area, point), \"east remains\")\n"
@@ -1167,7 +1206,7 @@ TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_suppl
     g_edicts[0].inuse = true;
     g_edicts[0].health.value = 1.0f;
     g_edicts[0].s.player = 0;
-    g_edicts[0].selected = 1u << game.clients[0].ps.number;
+    G_SetEntitySelectionMask(g_edicts + 0, 1u << game.clients[0].ps.number);
 
     old_cvar = gi.CvarString;
     gi.CvarString = result_cheats_cvar;

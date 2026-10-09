@@ -23,6 +23,20 @@ bool SV_IsActive(void) {
     return svs.initialized && (sv.state == ss_lobby || sv.state == ss_game);
 }
 
+static const struct { uint32_t start, count; } media_pools[] = {
+    { CS_MODELS, MAX_MODELS }, { CS_IMAGES, MAX_IMAGES },
+    { CS_SOUNDS, MAX_SOUNDS }, { CS_FONTS, MAX_FONTSTYLES }
+};
+_Static_assert(MAX_MODELS <= MAX_IMAGES && MAX_SOUNDS <= MAX_IMAGES && MAX_FONTSTYLES <= MAX_IMAGES,
+               "Media index storage must cover every namespace");
+_Static_assert(MAX_IMAGES <= UINT16_MAX, "Media indexes must fit their wire identity");
+
+static uint64_t media_revision;
+uint64_t SV_MediaRevision(void) { return media_revision; }
+void SV_ResetMediaRevision(void) {
+    if (++media_revision == 0) Com_Error(ERR_FATAL, "Server media revision exhausted");
+}
+
 /* Store one server-owned configstring and force reliable client resynchronization. */
 void SV_SetConfigString(uint32_t index, cstring_t value, uint32_t len) {
     if (index >= MAX_CONFIGSTRINGS) {
@@ -35,8 +49,18 @@ void SV_SetConfigString(uint32_t index, cstring_t value, uint32_t len) {
     }
     uint32_t max = sizeof(sv.configstrings[index]) - 1;
     if (len > max) len = max;
+    /* An append leaves every resolved handle valid. Only changing an occupied
+     * slot invalidates game-owned resource bindings; namespace resets use the
+     * explicit reset hook. Hash tables still rebuild for every authored write. */
+    bool replacement = sv.configstrings[index][0] &&
+        (memcmp(sv.configstrings[index], value, len) || sv.configstrings[index][len]);
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
+    FOR_LOOP(i, sizeof(media_pools) / sizeof(*media_pools))
+        if (index >= media_pools[i].start && index < media_pools[i].start + media_pools[i].count) {
+            sv.media_indices[i].valid = false;
+            if (replacement) SV_ResetMediaRevision();
+        }
     /* Q2 publishes loading-time values through signon, not a second bulk live update that overflows UDP. */
     sv.syncstrings[index] = sv.state == ss_loading;
 }
@@ -172,25 +196,77 @@ static void SV_ReadPackets(void) {
     }
 }
 
-static int SV_FindIndex(cstring_t name, int start, int max, bool create) {
-    if (!name || !name[0])
-        return 0;
-    int i;
-    for (i=1 ; i<max && sv.configstrings[start+i][0] ; i++)
-        if (!strcmp(sv.configstrings[start+i], name))
-            return i;
-    if (!create)
-        return 0;
-    if (i >= max) {
-        fprintf(stderr,
-                "SV_FindIndex: pool full start=%d max=%d name=%s\n",
-                start,
-                max,
-                name);
+#if defined(BZ_TESTS) || defined(TOOL_COMMON_NO_MPQ)
+static uint32_t media_comparisons;
+uint32_t SV_TestMediaComparisons(void) { return media_comparisons; }
+#define MEDIA_COMPARE() media_comparisons++
+#else
+#define MEDIA_COMPARE() ((void)0)
+#endif
+
+/* Preserve exact strings, aliases, first-match order and the first-hole
+ * allocation rule. Derived tables live in sv so all map resets clear them. */
+static uint32_t SV_MediaHash(cstring_t name, cstring_t alias, uint32_t mask) {
+    uint32_t hash = 2166136261u;
+    for (unsigned char const *p = (unsigned char const *)name; *p; p++) hash = (hash ^ *p) * 16777619u;
+    hash *= 16777619u; /* Separate name and alias, including empty aliases. */
+    for (unsigned char const *p = (unsigned char const *)alias; *p; p++) hash = (hash ^ *p) * 16777619u;
+    return hash & mask;
+}
+
+static uint32_t SV_MediaSlot(mediaIndex_t *pool, cstring_t name, cstring_t alias, int start, int max) {
+    uint32_t mask = max * 2 - 1, slot = SV_MediaHash(name, alias, mask);
+    while (pool->slots[slot]) {
+        uint32_t index = pool->slots[slot];
+        MEDIA_COMPARE();
+        if (!strcmp(sv.configstrings[start + index], name) &&
+            (start != CS_SOUNDS || !strcmp(sv.sound_aliases[index], alias))) break;
+        slot = (slot + 1) & mask;
+    }
+    return slot;
+}
+
+static void SV_MediaInsert(mediaIndex_t *pool, uint32_t index, int start, int max) {
+    cstring_t alias = start == CS_SOUNDS ? sv.sound_aliases[index] : "";
+    uint32_t slot = SV_MediaSlot(pool, sv.configstrings[start + index], alias, start, max);
+    if (!pool->slots[slot]) pool->slots[slot] = index;
+}
+
+static int SV_FindMediaIndex(cstring_t name, cstring_t alias, int start, int max, bool create) {
+    if (!name || !name[0]) return 0;
+    unsigned namespace = 0;
+    while (namespace < sizeof(media_pools) / sizeof(*media_pools) && media_pools[namespace].start != start) namespace++;
+    if (namespace == sizeof(media_pools) / sizeof(*media_pools)) {
+        Com_Error(ERR_FATAL, "SV_FindIndex: invalid media namespace %d", start);
         return 0;
     }
+    mediaIndex_t *pool = sv.media_indices + namespace;
+    if (!pool->valid) {
+        memset(pool->slots, 0, max * 2 * sizeof(*pool->slots));
+        uint32_t i;
+        for (i = 1; i < max && sv.configstrings[start + i][0]; i++) SV_MediaInsert(pool, i, start, max);
+        pool->first_free = i; pool->valid = true;
+    }
+    uint32_t slot = SV_MediaSlot(pool, name, alias, start, max);
+    if (pool->slots[slot]) return pool->slots[slot];
+    if (!create) return 0;
+    uint32_t i = pool->first_free;
+    if (i >= max) {
+        fprintf(stderr, "SV_FindIndex: pool full start=%d max=%d name=%s alias=%s\n", start, max, name, alias);
+        return 0;
+    }
+    if (start == CS_SOUNDS) strlcpy(sv.sound_aliases[i], alias, sizeof(sv.sound_aliases[i]));
     SV_SetConfigString(start + i, name, (uint32_t)(strlen(name) + 1));
+    SV_MediaInsert(pool, i, start, max);
+    pool->first_free = i + 1;
+    /* Normal registration appends in constant time. Filling a manually edited
+     * hole can reveal a later populated suffix; rebuild it on the next query. */
+    pool->valid = i + 1 >= max || !sv.configstrings[start + i + 1][0];
     return i;
+}
+
+static int SV_FindIndex(cstring_t name, int start, int max, bool create) {
+    return SV_FindMediaIndex(name, "", start, max, create);
 }
 
 int SV_ModelIndex(cstring_t name) {
@@ -232,16 +308,7 @@ int SV_SoundIndexAlias(cstring_t name, cstring_t alias) {
         fprintf(stderr, "SV_SoundIndexAlias: alias too long: %s\n", alias);
         return 0;
     }
-    int i;
-    for (i = 1; i < MAX_SOUNDS && sv.configstrings[CS_SOUNDS + i][0]; i++)
-        if (!strcmp(sv.configstrings[CS_SOUNDS + i], name) && !strcmp(sv.sound_aliases[i], alias)) return i;
-    if (i == MAX_SOUNDS) {
-        fprintf(stderr, "SV_SoundIndexAlias: pool full for %s (%s)\n", name, alias);
-        return 0;
-    }
-    strlcpy(sv.sound_aliases[i], alias, sizeof(sv.sound_aliases[i]));
-    SV_SetConfigString(CS_SOUNDS + i, name, strlen(name) + 1);
-    return i;
+    return SV_FindMediaIndex(name, alias, CS_SOUNDS, MAX_SOUNDS, true);
 }
 
 int SV_SoundIndex(cstring_t name) { return SV_SoundIndexAlias(name, NULL); }

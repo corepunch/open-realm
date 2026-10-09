@@ -5,6 +5,20 @@
 
 #define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
 
+/* Only broadcast dispatch consumes these subscriptions. Direct calls retain
+ * the procedure's complete interface. Unqueried procedures keep all events. */
+static inline intptr_t S_UnitMessageSubscriptions(abilityCall_t const *call,
+                                                abilityMsg_t const *messages, size_t count) {
+    if (!call || !call->unit_messages) return false;
+    *call->unit_messages = (abilityMessageSet_t){0};
+    for (size_t i = 0; i < count; i++)
+        call->unit_messages->bits[messages[i] / 64] |= UINT64_C(1) << (messages[i] % 64);
+    return true;
+}
+#define UNIT_MESSAGE_SUBSCRIPTIONS(...) \
+    S_UnitMessageSubscriptions(call, (abilityMsg_t const[]){__VA_ARGS__}, \
+        sizeof((abilityMsg_t const[]){__VA_ARGS__}) / sizeof(abilityMsg_t))
+
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
     static void NAME##_Execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \
@@ -55,6 +69,16 @@ BZ_ABILITY_PROC(CAbilityPower);
 BZ_ABILITY_PROC(CAbilityMove);
 BZ_ABILITY_PROC(CAbilityRavenForm);
 BZ_ABILITY_PROC(CAbilityAttack);
+BZ_ABILITY_PROC(CAbilityTimedLife);
+void S_ApplyTimedLife(edict_t *,uint32_t,float);
+void S_PauseTimedLife(edict_t *,bool);
+bool S_RemoveTimedLife(edict_t *,uint32_t);
+uint32_t S_TimedLifeLevel(edict_t const *,uint32_t);
+bool S_UnitHasTimedLife(edict_t const *);
+void S_ReleaseTimedLives(edict_t *);
+void S_ClearTimedLives(void);
+bool S_WriteTimedLives(FILE *);
+bool S_ReadTimedLives(FILE *);
 BZ_ABILITY_PROC(CAbilityAttackGround);
 BZ_ABILITY_PROC(CAbilityBuild);
 BZ_ABILITY_PROC(CAbilityTrain);
@@ -66,6 +90,7 @@ BZ_ABILITY_PROC(CAbilityEntangledGoldMine);
 BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
 BZ_ABILITY_PROC(CAbilityStop);
+bool S_IssueStopOrder(edict_t *);
 BZ_ABILITY_PROC(CAbilityHoldPosition);
 BZ_ABILITY_PROC(CAbilityPatrol);
 BZ_ABILITY_PROC(CAbilityRally);
@@ -81,6 +106,7 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
 intptr_t S_UnitStatusAbilityEvent(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload);
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
+BZ_ABILITY_PROC(CAbilityEnduranceAura);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);
 BZ_ABILITY_PROC(CAbilityWindWalk);
 BZ_ABILITY_PROC(CAbilityShadowMeld);
@@ -187,6 +213,8 @@ BZ_ABILITY_PROC(CAbilityItemHeal);
 BZ_ABILITY_PROC(CAbilityItemManaRestore);
 BZ_ABILITY_PROC(CAbilityItemInvis);
 BZ_ABILITY_PROC(CAbilityAttackBonus);
+BZ_ABILITY_PROC(CAbilityMoveSpeedBonus);
+float S_MoveSpeedBonus(edict_t *unit);
 BZ_ABILITY_PROC(CAbilityAttributeBonus);
 BZ_ABILITY_PROC(CAbilityStrengthMod);
 BZ_ABILITY_PROC(CAbilityDefenseBonus);
@@ -198,6 +226,8 @@ BZ_ABILITY_PROC(CAbilityExperienceMod);
 BZ_ABILITY_PROC(CAbilityLevelMod);
 BZ_ABILITY_PROC(CAbilityItemDefenseAoe);
 BZ_ABILITY_PROC(CAbilityItemHealAoe);
+BZ_ABILITY_PROC(CAbilityMechanicalCritter);
+bool S_UnitMechanicalCritter(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityItemManaAoe);
 BZ_ABILITY_PROC(CAbilityItemResurrection);
 BZ_ABILITY_PROC(CAbilityItemGold);
@@ -387,6 +417,13 @@ bool S_UnitStatusIsTemporaryInvisibility(heroabilitystatus_t const *status);
 bool S_UnitHasTemporaryInvisibility(edict_t const *unit, heroabilitystatus_t const *except);
 bool S_UnitHasInvisibilityState(edict_t const *unit);
 bool S_AuraUnitActive(edict_t const *unit);
+void S_InvalidateAuraSources(void);
+void S_MarkAuraSource(edict_t const *unit);
+bool S_UnitHasAuraSource(edict_t *);
+void S_InvalidateEnduranceSources(void);
+void S_MarkEnduranceSource(edict_t const *unit);
+float S_ApplyEnduranceMoveSpeed(edict_t *,float);
+float S_ApplyEnduranceAttackBonus(edict_t *,float);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 bool S_GhostActive(edict_t const *unit);
@@ -409,8 +446,6 @@ float S_BrillianceManaRegen(edict_t *unit);
 float S_DevotionArmorBonus(edict_t *unit);
 float S_UnholyHealthRegen(edict_t *unit);
 float S_UnholyMoveBonus(edict_t *unit);
-float S_EnduranceMoveBonus(edict_t *unit);
-float S_EnduranceAttackBonus(edict_t *unit);
 float S_VampiricLifeSteal(edict_t *unit);
 float S_TrueshotAttackBonus(edict_t *unit);
 int S_SearingArrowDamage(edict_t *attacker, int damage);
@@ -436,6 +471,10 @@ edict_t *S_SummonAt(edict_t *caster, uint32_t unit_id, vec2_t const *loc, float 
 edict_t *S_SummonAbilityAt(edict_t *caster, uint32_t code, uint32_t unit_id, vec2_t const *loc, float duration);
 uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint32_t max_count);
 bool S_UnitHasStatus(edict_t const *unit, uint32_t code);
+void S_AttackAdjustPrevention(edict_t *unit, uint32_t mask, bool release);
+heroabilitystatus_t *S_ApplyAttackPrevention(edict_t *caster, edict_t *target,
+    abilityitem_t const *spell, cstring_t buff, float duration);
+BZ_ABILITY_PROC(CAbilityAttackPrevention);
 bool S_UnitPolymorphed(edict_t const *unit);
 void S_PolymorphRemove(edict_t *unit);
 int S_BlackArrowDamage(edict_t *attacker, int damage);

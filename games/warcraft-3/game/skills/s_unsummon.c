@@ -4,7 +4,7 @@
 
 static void unsummon_remove_status(edict_t *building) {
     if (!building) return;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(building)) {
         if (building->abilstatus[i].level && building->abilstatus[i].code == ID_UNSUMMON_BUFF)
             memset(building->abilstatus + i, 0, sizeof(building->abilstatus[i]));
     }
@@ -46,7 +46,7 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindApproachPointToFootprintForRadius(
             building, &worker->s.origin2, route_band, worker->collision, &approach) &&
         CM_DistanceToPathingFootprint(building, &approach) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
@@ -58,12 +58,12 @@ static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
     if (CM_FindInnerApproachPointToFootprintForRadius(
             building, &worker->s.origin2, worker->collision, 0.0f, &approach) &&
         (footprint = CM_DistanceToPathingFootprint(building, &approach)) <= worker->collision) {
-        worker->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(worker, &worker->goalentity, Waypoint_add(&approach));
         move_reset_progress(worker);
         return worker->goalentity != NULL;
     }
     if (!building->pathtex) {
-        worker->goalentity = building;
+        S_SetMoveGoal(worker, &worker->goalentity, building);
         move_reset_progress(worker);
         return true;
     }
@@ -89,7 +89,7 @@ static void unsummon_cancel_approach(edict_t *worker) {
     worker->unsummon->target_spawn_time = 0;
     worker->unsummon->ability = worker->unsummon->level = 0;
     worker->unsummon->approaching = worker->unsummon->starting = false;
-    if (worker->goalentity) worker->goalentity = NULL;
+    if (worker->goalentity) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     move_reset_progress(worker);
 }
 
@@ -193,7 +193,7 @@ static void unsummon_start(edict_t *worker, edict_t *thinker) {
     worker->unsummon->approaching = false;
     thinker->unsummon->approaching = false;
     worker->channel->origin = worker->s.origin2;
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     unit_setmove(worker, &unsummon_move_channel);
     worker->unsummon->starting = false;
     unsummon_add_status(building);
@@ -298,7 +298,7 @@ static void unsummon_cancel_owned(edict_t *caster, uint32_t code) {
         if (target) unsummon_remove_status(target);
         thinker->unsummon->target = NULL;
         thinker->unsummon->approaching = false;
-        thinker->goalentity = NULL;
+        S_SetMoveGoal(thinker, &thinker->goalentity, NULL);
         if (thinker->owner == caster) unsummon_cancel_approach(caster);
     }
 }

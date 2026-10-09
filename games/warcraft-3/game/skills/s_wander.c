@@ -161,6 +161,12 @@ static void wander_on_damage(edict_t *unit, edict_t *attacker);
 
 BZ_ABILITY_PROC(CAbilityWander) {
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        if (ent || !call) return UNIT_INIT_UNKNOWN;
+        return UNIT_INIT_SKIP_FALSE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_DAMAGED, A_IDLE, A_NO_RETALIATE, A_ORDER_ACCEPTED,
+            A_MOVE_ARRIVE, A_MOVE_BLOCKED, A_MOVE_LEAVE, A_MOVE_START, A_DISABLE, A_DEATH, A_UNIT_REMOVE);
     case A_DAMAGED:
         wander_on_damage(ent, call ? call->attacker : NULL);
         return false;

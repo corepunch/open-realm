@@ -391,6 +391,7 @@ void SV_Map(cstring_t mapFilename) {
     SV_InitGame();
     SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
+    SV_ResetMediaRevision();
     memset(&sv, 0, sizeof(struct server));
     Online_CloseAdmission();
     sv.state = ss_loading;
@@ -452,6 +453,7 @@ void SV_StartLobby(cstring_t mapFilename) {
     SAFE_DELETE(sv.loading.data, MemFree);
     SAFE_DELETE(sv.baselines, MemFree);
     SV_ClearLobbyClients();
+    SV_ResetMediaRevision();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_lobby;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]), "%s", mapFilename);
@@ -528,10 +530,12 @@ void SV_Shutdown(void) {
     if (ge && ge->Shutdown) {
         ge->Shutdown();
     }
+    SV_ShutdownWorld();
 }
 
 void SV_Init(void) {
     memset(&svs, 0, sizeof(struct server_static));
+    SV_ResetMediaRevision();
     memset(&sv, 0, sizeof(struct server));
 
 #ifndef TOOL_COMMON_NO_MPQ

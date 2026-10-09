@@ -109,7 +109,24 @@ static unsigned int gal_TestFail(jass_t *j) {
     return 0;
 }
 
+static uint32_t gal_captured_real;
+/* A host observer makes mixed-language literal checks independent of script comparisons. */
+static uint32_t gal_capture_real(jass_t *j) {
+    float value = jass_checknumber(j, 1);
+    memcpy(&gal_captured_real, &value, sizeof(value));
+    return 0;
+}
+
+static uint32_t gal_captured_integer;
+/* Preserve raw source integer words without a script-level expected integer. */
+static uint32_t gal_capture_integer(jass_t *j) {
+    gal_captured_integer = (uint32_t)jass_checkinteger(j, 1);
+    return 0;
+}
+
 static jassModule_t gal_test_natives[] = {
+    { "CaptureInteger", gal_capture_integer },
+    { "CaptureReal", gal_capture_real },
     { "TestFail", gal_TestFail },
     { "NoValue", gal_void },
     { "SaveCode", gal_save_code },
@@ -286,6 +303,72 @@ static int gal_run_mode(gal_state_t *s, char const *src, JASSMODE mode) {
 }
 
 static int gal_run(gal_state_t *s, char const *src) { return gal_run_mode(s, src, JASS_MODE_GALAXY); }
+
+/* Galaxy's host-width conversion cannot change previously parsed retail integer tokens. */
+TEST(galaxy, integer_literals_retain_source_language) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native CaptureInteger takes integer value returns nothing\n"
+        "function RetailInteger takes nothing returns nothing\n"
+        "  call CaptureInteger(18446744073709551617)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\nendfunction\n", JASS_MODE_JASS));
+    jass_callbyname(s.j, "RetailInteger", true);
+    jass_runevents(s.j);
+    T_EQ(gal_captured_integer, 1);
+    T_ASSERT(gal_run_mode(&s,
+        "native void CaptureInteger(int value);\n"
+        "void main() { CaptureInteger(18446744073709551617); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_integer, 0xffffffffu);
+    jass_callbyname(s.j, "RetailInteger", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    T_EQ(gal_captured_integer, 1);
+    T_ASSERT(gal_run_mode(&s,
+        "void main() { CaptureInteger(-0x80000000); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_integer, 0x80000000u);
+    gal_destroy(&s);
+}
+
+/* Token arithmetic remains attached to its source language after another parser runs. */
+TEST(galaxy, real_literals_retain_source_language) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native CaptureReal takes real value returns nothing\n"
+        "function RetailLiteral takes nothing returns nothing\n"
+        "  call CaptureReal(0.59999999999999998)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\nendfunction\n", JASS_MODE_JASS));
+    jass_callbyname(s.j, "RetailLiteral", true);
+    jass_runevents(s.j);
+    T_EQ(gal_captured_real, 0xbf85635d);
+    T_ASSERT(gal_run_mode(&s,
+        "native void CaptureReal(fixed value);\n"
+        "void main() { CaptureReal(0.59999999999999998); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_real, 0x3f19999a);
+    jass_callbyname(s.j, "RetailLiteral", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    T_EQ(gal_captured_real, 0xbf85635d);
+    gal_destroy(&s);
+}
+
+TEST(galaxy, chained_arithmetic_retains_source_language) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native CaptureReal takes real value returns nothing\n"
+        "function RetailExpression takes nothing returns nothing\n"
+        "call CaptureReal(16777217-1.0-2.0)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall RetailExpression()\nendfunction\n", JASS_MODE_JASS));
+    T_EQ(gal_captured_real,0x4b800000);
+    T_ASSERT(gal_run_mode(&s,
+        "native void CaptureReal(fixed value);\n"
+        "void main() { CaptureReal(16777217-1.0-2.0); }\n", JASS_MODE_GALAXY));
+    T_EQ(gal_captured_real,0x4b7ffffd);
+    jass_callbyname(s.j,"RetailExpression",true);jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));T_EQ(gal_captured_real,0x4b800000);
+    gal_destroy(&s);
+}
 
 /* Parse-only: load but don't call main(). */
 static int gal_parse_mode(gal_state_t *s, char const *src, JASSMODE mode) {

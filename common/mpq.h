@@ -62,6 +62,9 @@ bool SFileFindNextFile(handle_t find, sfileFindData_t *findData);
 bool SFileFindClose(handle_t find);
 
 #ifdef MPQ_TEST_API
+uint32_t Mpq_TestLookupScans(void);
+uint32_t Mpq_TestLookupProbes(void);
+uint32_t Mpq_TestPayloadReads(void);
 bool Mpq_TestDecompressSector(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t dst_size, uint32_t *out_size);
 uint32_t Mpq_TestHashString(char const *str, uint32_t hash_type);
 bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed);

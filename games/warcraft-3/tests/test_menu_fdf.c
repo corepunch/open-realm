@@ -3086,7 +3086,7 @@ static void test_glue_sequence_exists(cstring_t anim) {
     int size = test_fs_read_file("UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx", &data);
     char name[80];
     bool found = false;
-    snprintf(name, sizeof(name), "%s", anim);
+    strlcpy(name, anim, sizeof(name));
     char *ratio = strchr(name, '@');
     if (ratio) *ratio = 0;
     T_ASSERT(size >= 12);

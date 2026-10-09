@@ -11,12 +11,12 @@
  * date.
  */
 #include <stdlib.h>
+#include <limits.h>
 
 #include "server.h"
 
 #define VISUAL_DISTANCE 1500
 #define SNAPSHOT_NEAR_ENTITY_DISTANCE 256 // world units; nearby world presentation outranks distant contacts under saturation
-#define HIGH_NUMBER 9999
 #define OWNED_ENTITY_SCORE_BIAS 1000000000.0f
 
 typedef struct {
@@ -244,13 +244,13 @@ void SV_EmitPacketEntities(clientFrame_t const *from, clientFrame_t const *to, s
         entityState_t *oldent = NULL;
         int newnum = 0, oldnum = 0;
         if (newindex >= to->num_entities) {
-            newnum = HIGH_NUMBER;
+            newnum = INT_MAX;
         } else{
             newent = &svs.client_entities[(to->first_entity+newindex)%svs.num_client_entities];
             newnum = newent->number;
         }
         if (oldindex >= from_num_entities) {
-            oldnum = HIGH_NUMBER;
+            oldnum = INT_MAX;
         } else {
             oldent = &svs.client_entities[(from->first_entity+oldindex)%svs.num_client_entities];
             oldnum = oldent->number;

@@ -66,7 +66,7 @@ static cstring_t G_RemoveQuotes(cstring_t text) {
     if (len >= 2 && text[0] == '"' && text[len - 1] == '"') {
         snprintf(out, sizeof(buffers[0]), "%.*s", (int)(len - 2), text + 1);
     } else {
-        snprintf(out, sizeof(buffers[0]), "%s", text);
+        strlcpy(out, text, sizeof(buffers[0]));
     }
     return out;
 }
@@ -537,8 +537,8 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         ((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
          (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
-        if ((S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.weapon == WPN_ARTILLERY) ||
-            (S_UnitAttackSlotEnabled(ent, 1) && ent->attack2.weapon == WPN_ARTILLERY))
+        if ((S_UnitAttackSlotEnabled(ent, 0) && S_AttackProfileRead(ent, 0)->weapon == WPN_ARTILLERY) ||
+            (S_UnitAttackSlotEnabled(ent, 1) && S_AttackProfileRead(ent, 1)->weapon == WPN_ARTILLERY))
             G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities

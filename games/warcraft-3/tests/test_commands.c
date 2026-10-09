@@ -14,6 +14,49 @@
 #include "common.h"
 #include "test.h"
 #include "common/video_modes.h"
+#include "common/frame_budget.h"
+
+TEST(frame_budget, reserves_recent_render_cost_and_expires_old_peaks) {
+    hostFrameBudget_t frame = { .start = 100000, .frequency = 1000000, .period = 16000 };
+    T_EQ(Host_FrameWorkBudget(&frame), 15000);
+    T_ASSERT(!Host_FrameCheckpointDue(&frame, 114999));
+    T_ASSERT(Host_FrameCheckpointDue(&frame, 115000));
+    Host_FrameRendered(&frame, 6000);
+    T_EQ(Host_FrameWorkBudget(&frame), 9000);
+    T_ASSERT(Host_FrameCheckpointDue(&frame, 109000));
+    frame.start = 116000;
+    T_ASSERT(!Host_FrameCheckpointDue(&frame, 124999));
+    T_ASSERT(Host_FrameCheckpointDue(&frame, 125000));
+    FOR_LOOP(i, 15) Host_FrameRendered(&frame, 2000);
+    T_EQ(Host_FrameWorkBudget(&frame), 9000);
+    Host_FrameRendered(&frame, 2000);
+    T_EQ(Host_FrameWorkBudget(&frame), 13000);
+    Host_FrameRendered(&frame, 25000);
+    T_EQ(Host_FrameWorkBudget(&frame), 16000);
+    T_ASSERT(!Host_FrameCheckpointDue(&frame, 131999));
+    T_ASSERT(Host_FrameCheckpointDue(&frame, 132000));
+}
+
+TEST(frame_budget, expensive_presentation_does_not_starve_simulation) {
+    hostFrameBudget_t frame = { .frequency = 1000000, .period = 16000 };
+    Host_FrameRendered(&frame, 25000);
+    uint64_t now = 0, work = 0;
+    uint32_t frames = 0;
+    /* Model safe checkpoints every 250 us during a 100 ms simulation job.
+     * The old clamp inserted 400 expensive redraws (10 s) into this job. */
+    while (work < 100000) {
+        work += 250; now += 250;
+        if (!Host_FrameCheckpointDue(&frame, now)) continue;
+        frames++;
+        now += 25000;
+        Host_FrameRendered(&frame, 25000);
+        frame.start = now;
+    }
+    T_EQ(frames, 6);
+    T_EQ(now, 250000);
+    FOR_LOOP(i, 16) Host_FrameRendered(&frame, 2000);
+    T_EQ(Host_FrameWorkBudget(&frame), 13000);
+}
 
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
@@ -536,6 +579,9 @@ typedef struct {
     bool twin_w3x;
     bool overlay;
     bool transport;
+    bool pathing_reload;
+    bool pathing_changelevel;
+    bool pathing_seed_mixed, pathing_seed_fixed, pathing_seed_triad;
 } mapListState_t;
 
 static void count_fixture_map(cstring_t path, void *userData) {
@@ -554,6 +600,16 @@ static void count_fixture_map(cstring_t path, void *userData) {
         state->overlay = true;
     } else if (!strcmp(path, "Maps\\Transport.w3m")) {
         state->transport = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingReload.w3m")) {
+        state->pathing_reload = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingChangeLevel.w3m")) {
+        state->pathing_changelevel = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingSeedMixed.w3m")) {
+        state->pathing_seed_mixed = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingSeedFixed.w3m")) {
+        state->pathing_seed_fixed = true;
+    } else if (!strcmp(path, "Maps\\Test\\PathingSeedTriad.w3m")) {
+        state->pathing_seed_triad = true;
     }
 }
 
@@ -563,14 +619,19 @@ TEST(commands, fixture_maps_are_listed_from_mpq) {
 
     setup_command_tests();
 
-    T_EQ(FS_ListMaps(count_fixture_map, &state), 6);
-    T_EQ(state.count, 6);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 11);
+    T_EQ(state.count, 11);
     T_ASSERT(state.human02);
     T_ASSERT(state.orc01);
     T_ASSERT(state.twin_w3m);
     T_ASSERT(state.twin_w3x);
     T_ASSERT(state.overlay);
     T_ASSERT(state.transport);
+    T_ASSERT(state.pathing_reload);
+    T_ASSERT(state.pathing_changelevel);
+    T_ASSERT(state.pathing_seed_mixed);
+    T_ASSERT(state.pathing_seed_fixed);
+    T_ASSERT(state.pathing_seed_triad);
 }
 
 TEST(commands, short_map_name_resolves_from_fixture_mpq) {

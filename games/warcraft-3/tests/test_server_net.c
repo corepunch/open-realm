@@ -27,6 +27,7 @@ void Cbuf_CopyToDefer(void) { T_EQ(sv.state, ss_game); map_defer_count++; }
 void SV_InitGameProgs(void) {}
 void CL_LoadingFrame(void) { if (cm_loading) cm_loading_frame_calls++; }
 void SV_ClearWorld(void) {}
+void SV_ShutdownWorld(void) {}
 bool CM_LoadMap(cstring_t mapFilename, cmLoadYield_t yield) {
     (void)mapFilename;
     cm_loading = true; yield(); cm_loading = false;
@@ -649,6 +650,83 @@ TEST(server_net, image_registry_exceeds_legacy_255_slot_limit) {
     T_STREQ(sv.configstrings[CS_IMAGES + image], "UI\\CommandButtons\\BTNTest300.blp");
 }
 
+TEST(server_net, repeated_sound_alias_lookup_avoids_media_pool_scans) {
+    char alias[64];
+    reset_server_state(1);
+    for (unsigned i = 1; i <= 600; i++) {
+        snprintf(alias, sizeof(alias), "Response%u", i);
+        T_EQ(SV_SoundIndexAlias("Sound\\Shared.wav", alias), i);
+    }
+    uint32_t comparisons = SV_TestMediaComparisons();
+    FOR_LOOP(i, 1024) T_EQ(SV_SoundIndexAlias("Sound\\Shared.wav", "Response599"), 599);
+    T_ASSERT(SV_TestMediaComparisons() - comparisons < 1024 * 8);
+    T_EQ(SV_SoundIndex("Sound\\Shared.wav"), 601);
+    SV_SetConfigString(CS_SOUNDS + 599, "Sound\\Changed.wav", sizeof("Sound\\Changed.wav"));
+    T_EQ(SV_SoundIndexAlias("Sound\\Changed.wav", "Response599"), 599);
+    T_EQ(SV_SoundIndexAlias("Sound\\Shared.wav", "Response599"), 602);
+    /* Original registration stops at the first hole, even if a matching
+     * value exists later. Keep that first-free allocation contract. */
+    SV_SetConfigString(CS_SOUNDS + 50, "", 1);
+    T_EQ(SV_SoundIndexAlias("Sound\\Shared.wav", "Response599"), 50);
+    reset_server_state(1);
+    T_EQ(SV_SoundIndexAlias("Sound\\Shared.wav", "Response599"), 1);
+}
+
+TEST(server_net, indexed_media_keeps_first_match_after_configstring_edits) {
+    reset_server_state(1);
+    FOR_LOOP(i, 300) {
+        char name[64]; snprintf(name, sizeof(name), "UI\\Image%u.blp", i);
+        T_EQ(SV_ImageIndex(name), i + 1);
+    }
+    T_EQ(SV_ImageIndex("UI\\Image299.blp"), 300);
+    SV_SetConfigString(CS_IMAGES + 42, "UI\\Image299.blp", sizeof("UI\\Image299.blp"));
+    T_EQ(SV_ImageIndex("UI\\Image299.blp"), 42);
+    SV_SetConfigString(CS_IMAGES + 42, "", 1);
+    T_EQ(SV_ImageIndex("UI\\Image299.blp"), 42);
+    T_EQ(SV_FontIndex("Review", 12), 1);
+    T_EQ(SV_ModelIndex("Model.mdl"), 1);
+    T_EQ(SV_ModelIndex("Model.mdx"), 1);
+}
+
+TEST(server_net, derived_game_resource_revision_tracks_edits_and_world_replacement) {
+    reset_server_state(1);
+    uint64_t before = SV_MediaRevision();
+    T_EQ(SV_SoundIndexAlias("Sound\\Revision.wav", "Probe"), 1);
+    uint64_t registered = SV_MediaRevision();
+    T_EQ(registered, before);
+    T_EQ(SV_ModelIndex("Revision.mdx"), 1);
+    T_EQ(SV_ImageIndex("Revision.blp"), 1);
+    T_EQ(SV_MediaRevision(), registered);
+    T_EQ(SV_SoundIndexAlias("Sound\\Revision.wav", "Probe"), 1);
+    T_EQ(SV_MediaRevision(), registered);
+    SV_SetConfigString(CS_SOUNDS + 1, "Sound\\Edited.wav", sizeof("Sound\\Edited.wav"));
+    T_ASSERT(SV_MediaRevision() > registered);
+    uint64_t edited = SV_MediaRevision();
+    SV_ResetMediaRevision();
+    T_ASSERT(SV_MediaRevision() > edited);
+    uint64_t reset = SV_MediaRevision();
+    SV_SetConfigString(CS_WORLD, "Revision", sizeof("Revision"));
+    T_EQ(SV_MediaRevision(), reset);
+}
+
+TEST(server_net, resource_epoch_preserves_append_and_noop_but_invalidates_removal) {
+    reset_server_state(1);
+    uint64_t before = SV_MediaRevision();
+    T_EQ(SV_ModelIndex("First.mdx"), 1);
+    T_EQ(SV_ModelIndex("Second.mdx"), 2);
+    T_EQ(SV_MediaRevision(), before);
+    SV_SetConfigString(CS_MODELS + 1, "First.mdx", sizeof("First.mdx"));
+    T_EQ(SV_MediaRevision(), before);
+    SV_SetConfigString(CS_MODELS + 1, "", 1);
+    T_ASSERT(SV_MediaRevision() > before);
+    uint64_t removed = SV_MediaRevision();
+    T_EQ(SV_ModelIndex("Replacement.mdx"), 1);
+    T_EQ(SV_MediaRevision(), removed);
+    T_EQ(SV_ModelIndex("Second.mdx"), 2);
+    SV_ResetMediaRevision();
+    T_ASSERT(SV_MediaRevision() > removed);
+}
+
 TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     uint8_t copy[MAX_MSGLEN];
     char name[MAX_PATHLEN];
@@ -984,6 +1062,36 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
     T_EQ(svs.num_client_entities, (uint32_t)(test_ge.max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP));
     T_ASSERT(svs.num_client_entities < (uint32_t)(UPDATE_BACKUP * test_ge.max_clients * MAX_GAME_ENTITIES));
     T_ASSERT(svs.client_entities != NULL);
+}
+
+void SV_EmitPacketEntities(clientFrame_t const *from, clientFrame_t const *to, sizeBuf_t *msg);
+
+TEST(server_net, snapshot_add_and_remove_accept_every_game_entity_number) {
+    uint8_t bytes[4096];
+    sizeBuf_t msg={bytes,sizeof(bytes),0,0};
+    reset_server_state(1);SV_InitGame();
+    clientFrame_t empty={0},frame={.first_entity=0,.num_entities=3};
+    uint32_t numbers[]={9999,10000,MAX_GAME_ENTITIES-1};
+    for(uint32_t i=0;i<3;i++) svs.client_entities[i]=(entityState_t){.number=numbers[i],.model=1};
+    SV_EmitPacketEntities(&empty,&frame,&msg);
+    T_EQ(MSG_ReadByte(&msg),svc_packetentities);
+    for(uint32_t i=0;i<3;i++) {
+        uint32_t bits;entityState_t state={0};
+        T_EQ(MSG_ReadEntityBits(&msg,&bits),numbers[i]);
+        MSG_ReadDeltaEntity(&msg,&state,numbers[i],bits);
+        T_EQ(state.model,1);
+    }
+    T_EQ(MSG_ReadShort(&msg),0);
+    msg.cursize=msg.readcount=0;
+    SV_EmitPacketEntities(&frame,&empty,&msg);
+    T_EQ(MSG_ReadByte(&msg),svc_packetentities);
+    for(uint32_t i=0;i<3;i++) {
+        uint32_t bits;
+        T_EQ(MSG_ReadEntityBits(&msg,&bits),numbers[i]);
+        T_ASSERT(bits&(1u<<U_REMOVE));
+    }
+    T_EQ(MSG_ReadShort(&msg),0);
+    SV_Shutdown();
 }
 
 TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {

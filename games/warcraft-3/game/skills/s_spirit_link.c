@@ -61,7 +61,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritLink) { spirit_link_execute(caster, st, spell)
 
 static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 	if (!unit) return NULL;
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL &&
 		    (!unit->abilstatus[i].timestamp || unit->abilstatus[i].timestamp > G_Time()))
 			return unit->abilstatus + i;
@@ -69,7 +69,7 @@ static heroabilitystatus_t *spirit_link_slot(edict_t *unit) {
 }
 
 static void spirit_link_strip(edict_t *unit) {
-	FOR_LOOP(i, MAX_UNIT_STATUSES)
+	FOR_LOOP(i, G_UnitStatusSlotCount(unit))
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL)
 			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
 }

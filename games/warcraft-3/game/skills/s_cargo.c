@@ -12,20 +12,44 @@ static bool cargo_unload_move_arrive(edict_t *, abilityCall_t const *);
 
 BZ_ABILITY_PROC(CAbilityCargoDrop);
 
+static entitySet_t cargo_holders;
+static edict_t *cargo_holder_edicts;
+static uint32_t cargo_holder_highwater;
+static bool cargo_holders_valid;
+
+void S_InvalidateCargoHolders(void) { cargo_holders_valid = false; }
+
+void S_CargoForgetHolder(edict_t const *ent) {
+    uintptr_t offset = (uintptr_t)ent - (uintptr_t)globals.edicts;
+    if (offset < sizeof(*ent) * MAX_ENTITIES && !(offset % sizeof(*ent)))
+        entity_set_put(&cargo_holders, offset / sizeof(*ent), false);
+}
+
+/* Allocation/restoration changes holder discovery; passenger writes and live
+ * eligibility do not. Keep empty holders so filling an existing hold is live,
+ * and retain original edict order even for duplicate saved references. */
+static void cargo_prepare_holders(void) {
+    if (cargo_holders_valid && cargo_holder_edicts == globals.edicts &&
+        cargo_holder_highwater <= globals.num_edicts) return;
+    cargo_holders = (entitySet_t){0};
+    FOR_LOOP(i, globals.num_edicts)
+        if (globals.edicts[i].cargo) entity_set_put(&cargo_holders, i, true);
+    cargo_holder_edicts = globals.edicts;
+    cargo_holder_highwater = globals.num_edicts;
+    cargo_holders_valid = true;
+}
+
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
 static uint32_t cargo_actor_ability_alias(edict_t *ent, uint32_t base_code) {
     char alias[5] = {0};
 
     if (!ent) return 0;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t code = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&code, token, 4);
-            if (G_AbilityCode(code) == base_code) return code;
-        }
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens=G_UnitAbilityTokens(ent->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)
+        if(tokens[i].length==4 && tokens[i].base==base_code &&
+           G_ActorHasAbilityCode(ent,tokens[i].code))return tokens[i].code;
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
@@ -139,13 +163,14 @@ static void cargo_update_burrow_attacks(edict_t *transport) {
     weapons = G_UnitWeapons(transport->class_id);
     divisor = (float)(1u << MIN(transport->cargo->count, 30u));
     if (weapons->attack1.cooldown > 0.0f)
-        transport->attack1.cooldown = weapons->attack1.cooldown / divisor;
+        S_AttackProfileWrite(transport, 0)->cooldown = weapons->attack1.cooldown / divisor;
     if (weapons->attack2.cooldown > 0.0f)
-        transport->attack2.cooldown = weapons->attack2.cooldown / divisor;
+        S_AttackProfileWrite(transport, 1)->cooldown = weapons->attack2.cooldown / divisor;
 }
 
 void S_CargoInitUnit(edict_t *unit) {
     if (!unit) return;
+    if (unit->cargo) S_InvalidateCargoHolders();
     /* Empty Burrows retain authored weapon data for HUD/upgrades but combat
      * gates attacks through S_CargoAttacksEnabled(). */
     if (unit->cargo && unit->cargo->count > 0) cargo_update_burrow_attacks(unit);
@@ -162,10 +187,13 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
     old_count = transport->cargo->count;
     transport->cargo->units[transport->cargo->count++] = unit;
     G_ClearUnitOrderQueue(unit);
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
+    S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
     unit_stand(unit);
-    unit->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(unit,true);
+    /* Cargo membership precedes TargetLost, so the observer sees loaded a9
+     * rather than ordinary hidden aa before Load returns. */
+    S_UnitTargetLost(unit);
     unit->paused = true;
     G_InvalidateUnitShortcutsForUnit(unit);
     cargo_update_burrow_attacks(transport);
@@ -206,7 +234,7 @@ static edict_t *cargo_drop_unit(edict_t *transport, uint32_t index) {
     {
         bool const was_corpse = S_CorpseCargoIsStored(unit);
         cargo_place_unloaded_unit(transport, unit);
-        unit->s.renderfx &= ~RF_HIDDEN;
+        G_SetEntityHidden(unit,false);
         unit->paused = false;
         unit->aiflags &= ~AI_CORPSE_IN_CARGO;
         if (was_corpse) G_RestartCorpseBoneDecayAfterCargo(unit);
@@ -276,7 +304,7 @@ static void cargo_clear_pending_unload(edict_t *transport) {
     if (!transport) return;
     transport->movement.cargo_unload_pending = false;
     transport->movement.cargo_unload_ability = 0;
-    transport->movement.cargo_unload_goal = NULL;
+    S_SetMoveGoal(transport, &transport->movement.cargo_unload_goal, NULL);
     transport->movement.cargo_unload_goal_spawn_time = 0;
 }
 
@@ -294,7 +322,7 @@ static bool cargo_begin_unload_at(edict_t *transport, vec2_t const *point, uint3
     order_move(transport, waypoint);
     if (!move_is_active_order_walk(transport) || transport->goalentity != waypoint) return false;
     transport->movement.cargo_unload_ability = ability_code;
-    transport->movement.cargo_unload_goal = transport->goalentity;
+    S_SetMoveGoal(transport, &transport->movement.cargo_unload_goal, transport->goalentity);
     transport->movement.cargo_unload_goal_spawn_time = transport->goalentity->spawn_time;
     transport->movement.cargo_unload_pending = true;
     return true;
@@ -314,15 +342,59 @@ static bool cargo_unload_move_arrive(edict_t *transport, abilityCall_t const *ca
     return true;
 }
 
+#ifdef BZ_TESTS
+static uint32_t cargo_holder_visits;
+#endif
 edict_t *S_CargoTransportForUnit(edict_t const *unit) {
     if (!unit) return NULL;
-    FILTER_EDICTS(transport, transport->inuse && transport->cargo && transport->cargo->count > 0) {
+    cargo_prepare_holders();
+    for (uint32_t index = entity_set_next(&cargo_holders, 0); index < globals.num_edicts;
+         index = entity_set_next(&cargo_holders, index + 1)) {
+#ifdef BZ_TESTS
+        cargo_holder_visits++;
+#endif
+        edict_t *transport = globals.edicts + index;
+        if (!transport->inuse || !transport->cargo || !transport->cargo->count) continue;
         FOR_LOOP(i, transport->cargo->count) {
             if (transport->cargo->units[i] == unit) return transport;
         }
     }
     return NULL;
 }
+
+#ifdef BZ_TESTS
+#include "shared/test.h"
+void reset_entities(void);
+void setup_test_world(void);
+edict_t *alloc_test_unit(uint32_t, float, float);
+TEST(wc3_movement, cargo_holder_queries_skip_unrelated_entities_and_keep_holder_order_live) {
+    reset_entities(); setup_test_world();
+    edict_t *first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    edict_t *passenger = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    edict_t *outside = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 192, 0);
+    first->cargo = G_AllocCargo(); second->cargo = G_AllocCargo();
+    first->cargo->units[0] = second->cargo->units[0] = passenger;
+    first->cargo->count = second->cargo->count = 1;
+    uint32_t old_count = globals.num_edicts;
+    globals.num_edicts += 2048;
+    FOR_LOOP(i, 2048) { g_edicts[old_count + i].inuse = true; g_edicts[old_count + i].s.number = old_count + i; }
+    T_ASSERT(S_CargoTransportForUnit(passenger) == first);
+    cargo_holder_visits = 0;
+    FOR_LOOP(i, 128) T_ASSERT(!S_CargoTransportForUnit(outside));
+    T_EQ(cargo_holder_visits, 256);
+    G_FreeCargo(first);
+    T_ASSERT(S_CargoTransportForUnit(passenger) == second);
+    first->cargo = G_AllocCargo(); first->cargo->units[0] = passenger; first->cargo->count = 1;
+    T_ASSERT(S_CargoTransportForUnit(passenger) == first);
+    first->cargo->count = 0;
+    T_ASSERT(S_CargoTransportForUnit(passenger) == second);
+    second->cargo->units[0] = outside;
+    T_ASSERT(!S_CargoTransportForUnit(passenger));
+    T_ASSERT(S_CargoTransportForUnit(outside) == second);
+    reset_entities(); setup_test_world();
+}
+#endif
 
 /* Release a worker from its transport before the worker edict is removed or retasked. */
 void S_CargoReleaseUnit(edict_t *unit) {
@@ -410,7 +482,7 @@ bool S_CorpseCargoTryLoad(edict_t *transport, edict_t *target) {
     move = target->currentmove;
     wait = target->wait;
     cargo_add_unit(transport, target);
-    target->currentmove = move;
+    M_SetMove(target,move);
     target->wait = wait;
     target->aiflags |= AI_CORPSE_IN_CARGO;
     return S_CargoTransportForUnit(target) == transport;
@@ -471,7 +543,7 @@ static bool corpse_cargo_start(edict_t *transport, edict_t *corpse, uint32_t cod
     thinker = G_Spawn();
     if (!thinker) return false;
     thinker->owner = transport;
-    thinker->goalentity = corpse;
+    S_SetMoveGoal(thinker, &thinker->goalentity, corpse);
     thinker->class_id = code;
     if (!thinker->channel) thinker->channel = G_AllocChannel();
     assert(thinker->channel);
@@ -565,20 +637,20 @@ static bool cargo_prepare_board_approach(edict_t *unit, edict_t *transport) {
     if (G_UnitIsStructure(transport) && transport->pathtex &&
         CM_FindApproachPointToFootprintForRadius(transport, &unit->s.origin2,
                                                  interaction_range, unit->collision, &approach)) {
-        unit->goalentity = Waypoint_add(&approach);
+        S_SetMoveGoal(unit, &unit->goalentity, Waypoint_add(&approach));
     } else {
-        unit->goalentity = transport;
+        S_SetMoveGoal(unit, &unit->goalentity, transport);
     }
     if (!unit->goalentity) return false;
-    unit->secondarygoal = transport;
+    S_SetMoveGoal(unit, &unit->secondarygoal, transport);
     move_reset_progress(unit);
     return true;
 }
 
 static void cargo_board_cancel(edict_t *unit) {
     if (!unit) return;
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
+    S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
     move_reset_progress(unit);
     unit_stand(unit);
 }
@@ -598,8 +670,8 @@ static void ai_cargo_board_walk(edict_t *unit) {
             if (unit->goalentity && unit->goalentity != transport &&
                 unit->goalentity->class_id == 0)
                 G_FreeEdict(unit->goalentity);
-            unit->goalentity = transport;
-            unit->secondarygoal = transport;
+            S_SetMoveGoal(unit, &unit->goalentity, transport);
+            S_SetMoveGoal(unit, &unit->secondarygoal, transport);
             move_reset_progress(unit);
             /* Keep the boarding owner active while presenting a stand pose.
              * The same behavior retries on the first tick after construction
@@ -638,8 +710,8 @@ bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
     if (cargo_target_in_range(transport, unit)) {
         if (cargo_is_entangled_mine(transport) && transport->construction) {
             G_ClearUnitOrderQueue(unit);
-            unit->goalentity = transport;
-            unit->secondarygoal = transport;
+            S_SetMoveGoal(unit, &unit->goalentity, transport);
+            S_SetMoveGoal(unit, &unit->secondarygoal, transport);
             move_reset_progress(unit);
             unit_setmove(unit, &cargo_board_move_wait);
             return true;
@@ -647,11 +719,11 @@ bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
         return S_CargoTryLoad(transport, unit);
     }
     G_ClearUnitOrderQueue(unit);
-    unit->movement.follow_target = NULL;
-    unit->movement.attackmove_waypoint = NULL;
-    unit->movement.patrol_a = NULL;
-    unit->movement.patrol_b = NULL;
-    unit->movement.patrol_target = NULL;
+    S_SetFollowTarget(unit,NULL);
+    S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);
+    S_SetMoveGoal(unit, &unit->movement.patrol_target, NULL);
     unit->movement.holding_position = false;
     if (!cargo_prepare_board_approach(unit, transport)) return false;
     unit_setmove(unit, &cargo_board_move_walk);
@@ -789,7 +861,7 @@ void S_CargoStandDown(edict_t *caster) {
      * Reuse normal Stop semantics so attack-move/patrol/follow state and queued
      * orders are retired consistently with the command-card Stop button. */
     order_stop_cleanup(caster);
-    caster->goalentity = NULL;
+    S_SetMoveGoal(caster, &caster->goalentity, NULL);
     cargo_drop_all(caster);
 }
 

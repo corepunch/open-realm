@@ -78,7 +78,7 @@ void G_ClearBuildPreview(edict_t *builder) {
 #define WC3_PATH_UNWALKABLE 0x02
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLOCKVISION 0x10
-#define WC3_PATH_UNFLOAT     CM_PATHING_UNSWIMMABLE
+#define WC3_PATH_UNFLOAT     CM_PATHING_UNFLOATABLE
 #define WC3_PATH_UNAMPH      0x80 /* placement predicate: UNWALKABLE && UNSWIMMABLE */
 #define WC3_PATH_NAGA_SHALLOW 0x01 /* preview policy: allow shallow-water UNBUILDABLE */
 #define ID_UPGRADE_EFFECT_ATTACK_DAMAGE MAKEFOURCC('r', 'a', 't', 'x')
@@ -143,7 +143,7 @@ static bool G_PlacementPathingPrevented(uint8_t pathing, uint8_t prevented, bool
     if (pathing & simple) return true;
     return (prevented & WC3_PATH_UNAMPH) &&
            (pathing & CM_PATHING_UNWALKABLE) &&
-           (pathing & CM_PATHING_UNSWIMMABLE);
+           (pathing & CM_PATHING_UNFLOATABLE);
 }
 
 static bool G_PlacementPathingRequired(uint8_t pathing, uint8_t required) {
@@ -151,7 +151,7 @@ static bool G_PlacementPathingRequired(uint8_t pathing, uint8_t required) {
     if ((pathing & simple) != simple) return false;
     if (!(required & WC3_PATH_UNAMPH)) return true;
     return (pathing & CM_PATHING_UNWALKABLE) &&
-           (pathing & CM_PATHING_UNSWIMMABLE);
+           (pathing & CM_PATHING_UNFLOATABLE);
 }
 
 static uint32_t G_CsvToken(cstring_t list, uint32_t index, string_t out, uint32_t out_size) {
@@ -184,22 +184,73 @@ bool G_BuildAllEnabled(void) {
     return atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
-static int32_t G_FindTechSlot(gameClient_t *client, uint32_t techid, bool create) {
-    int32_t free_slot = -1;
+#ifdef BZ_TESTS
+static uint32_t tech_lookup_work;
+#define TECH_LOOKUP_WORK() tech_lookup_work++
+#else
+#define TECH_LOOKUP_WORK() ((void)0)
+#endif
+typedef struct {
+    gameClient_t const *client;
+    uint16_t slots[MAX_PLAYER_TECH_STATE * 2], first_free, researched;
+    bool valid;
+} playerTechIndex_t;
+static playerTechIndex_t player_tech_indexes[MAX_CLIENTS];
+_Static_assert(MAX_PLAYER_TECH_STATE < UINT16_MAX, "Player tech index must fit slot identity");
 
-    if (!client || !techid) return -1;
-    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
-        if (client->tech[i].id == techid) return (int32_t)i;
-        if (!client->tech[i].id && free_slot < 0) free_slot = (int32_t)i;
+void G_ResetPlayerTechIndexes(void) { memset(player_tech_indexes, 0, sizeof(player_tech_indexes)); }
+
+static uint32_t player_tech_hash(uint32_t code) {
+    code ^= code >> 16;
+    code *= 0x7feb352du;
+    code ^= code >> 15;
+    return code & (MAX_PLAYER_TECH_STATE * 2 - 1);
+}
+
+static uint32_t player_tech_position(playerTechIndex_t const *index, uint32_t code) {
+    uint32_t at = player_tech_hash(code);
+    while (index->slots[at]) {
+        TECH_LOOKUP_WORK();
+        if (index->client->tech[index->slots[at] - 1].id == code) break;
+        at = (at + 1) & (MAX_PLAYER_TECH_STATE * 2 - 1);
     }
+    return at;
+}
+
+static playerTechIndex_t *player_tech_index(gameClient_t const *client) {
+    playerTechIndex_t *index = player_tech_indexes + client->ps.number % MAX_CLIENTS;
+    if (index->valid && index->client == client) return index;
+    *index = (playerTechIndex_t){ .client = client, .first_free = MAX_PLAYER_TECH_STATE, .valid = true };
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        TECH_LOOKUP_WORK();
+        if (!client->tech[i].id) {
+            if (index->first_free == MAX_PLAYER_TECH_STATE) index->first_free = i;
+            continue;
+        }
+        uint32_t at = player_tech_position(index, client->tech[i].id);
+        if (!index->slots[at]) index->slots[at] = i + 1;
+        if (client->tech[i].researched > 0) index->researched++;
+    }
+    return index;
+}
+
+static int32_t G_FindTechSlot(gameClient_t *client, uint32_t techid, bool create) {
+    if (!client || !techid) return -1;
+    playerTechIndex_t *index = player_tech_index(client);
+    uint32_t at = player_tech_position(index, techid);
+    if (index->slots[at]) return index->slots[at] - 1;
     if (!create) return -1;
-    if (free_slot < 0) {
+    uint32_t free_slot = index->first_free;
+    if (free_slot == MAX_PLAYER_TECH_STATE) {
         fprintf(stderr, "G_FindTechSlot: player %u tech state capacity %u exhausted for 0x%08x\n",
                 (unsigned)client->ps.number, (unsigned)MAX_PLAYER_TECH_STATE, (unsigned)techid);
         return -1;
     }
     client->tech[free_slot].id = techid;
     client->tech[free_slot].max_allowed = -1;
+    index->slots[at] = free_slot + 1;
+    do { index->first_free++; }
+    while (index->first_free < MAX_PLAYER_TECH_STATE && client->tech[index->first_free].id);
     return free_slot;
 }
 
@@ -392,7 +443,7 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
             int32_t const delta = new_value - old_value;
 
-            if (delta && (unit->attack1.numberOfDice || unit->attack2.numberOfDice)) {
+            if (delta && (S_AttackProfileRead(unit, 0)->numberOfDice || S_AttackProfileRead(unit, 1)->numberOfDice)) {
                 G_ApplyPermanentAttackDamageBonus(unit, (float)delta);
                 changed = true;
             }
@@ -401,23 +452,23 @@ static void G_ApplyUpgradeLevelDelta(edict_t *unit, UpgradeData_t const *upgrade
             int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
             int32_t const delta = new_value - old_value;
 
-            if (delta && unit->attack1.numberOfDice) {
-                unit->attack1.numberOfDice = MAX(0, (int32_t)unit->attack1.numberOfDice + delta);
+            if (delta && S_AttackProfileRead(unit, 0)->numberOfDice) {
+                S_AttackProfileWrite(unit, 0)->numberOfDice = MAX(0, (int32_t)S_AttackProfileRead(unit, 0)->numberOfDice + delta);
                 changed = true;
             }
-            if (delta && unit->attack2.numberOfDice) {
-                unit->attack2.numberOfDice = MAX(0, (int32_t)unit->attack2.numberOfDice + delta);
+            if (delta && S_AttackProfileRead(unit, 1)->numberOfDice) {
+                S_AttackProfileWrite(unit, 1)->numberOfDice = MAX(0, (int32_t)S_AttackProfileRead(unit, 1)->numberOfDice + delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ATTACK_RANGE) {
             float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
-            if (delta != 0.0f && unit->attack1.numberOfDice) {
-                unit->attack1.range = MAX(0.0f, unit->attack1.range + delta);
+            if (delta != 0.0f && S_AttackProfileRead(unit, 0)->numberOfDice) {
+                S_AttackProfileWrite(unit, 0)->range = MAX(0.0f, S_AttackProfileRead(unit, 0)->range + delta);
                 changed = true;
             }
-            if (delta != 0.0f && unit->attack2.numberOfDice) {
-                unit->attack2.range = MAX(0.0f, unit->attack2.range + delta);
+            if (delta != 0.0f && S_AttackProfileRead(unit, 1)->numberOfDice) {
+                S_AttackProfileWrite(unit, 1)->range = MAX(0.0f, S_AttackProfileRead(unit, 1)->range + delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
@@ -469,10 +520,11 @@ static void G_ApplyTechLevelToOwnedUnits(gameClient_t *client, uint32_t techid,
 
     if (!client || !techid || old_level == new_level) return;
     upgrade = G_UpgradeData(techid);
-    if (!upgrade || upgrade->id != techid) return;
     player = client->ps.number;
     FILTER_EDICTS(unit, unit->inuse && unit->s.player == player && unit->data.UnitBalance) {
-        G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        if (upgrade && upgrade->id == techid)
+            G_ApplyUpgradeLevelDelta(unit, upgrade, old_level, new_level);
+        S_UnitAbilityEvent(unit, A_REQUIREMENTS_CHANGED);
     }
 }
 
@@ -484,6 +536,7 @@ void G_ApplyPlayerUpgradesToUnit(edict_t *unit) {
     if (!unit || !unit->data.UnitBalance) return;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (!client || client->ps.number != unit->s.player) return;
+    if (!player_tech_index(client)->researched) return;
     upgrades = unit->data.UnitBalance->upgrades;
     for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         uint32_t upgrade_id;
@@ -529,6 +582,7 @@ void G_SetPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, level_value);
     client->tech[slot].researched = new_level;
+    player_tech_index(client)->researched += (new_level > 0) - (old_level > 0);
     G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
@@ -546,6 +600,7 @@ void G_AddPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
         /* Returning to the default of 0; clear the slot without allocating. */
         if (slot >= 0) {
             client->tech[slot].researched = 0;
+            if (old_level > 0) player_tech_index(client)->researched--;
             G_ApplyTechLevelToOwnedUnits(client, techid, old_level, 0);
             G_InvalidateCommands(client);
         }
@@ -556,6 +611,7 @@ void G_AddPlayerTechResearched(gameClient_t *client, uint32_t techid, int32_t le
     old_level = MAX(0, client->tech[slot].researched);
     new_level = MAX(0, old_level + levels);
     client->tech[slot].researched = new_level;
+    player_tech_index(client)->researched += (new_level > 0) - (old_level > 0);
     G_ApplyTechLevelToOwnedUnits(client, techid, old_level, new_level);
     G_InvalidateCommands(client);
 }
@@ -846,6 +902,14 @@ static bool G_RequirementsListSatisfied(gameClient_t *client, uint32_t type_id, 
     }
 
     return true;
+}
+
+bool G_AbilityRequirementsSatisfied(edict_t const *unit, uint32_t code) {
+    cstring_t requirements = G_AbilityRequirementField(code, false);
+    if (!requirements || !*requirements || !strcmp(requirements, "_") || !strcmp(requirements, "-")) return true;
+    if (!unit) return false;
+    return G_RequirementsListSatisfied(G_GetPlayerClientByNumber(unit->s.player), code,
+                                      requirements, G_AbilityRequirementField(code, true), NULL, 0);
 }
 
 static bool G_RequirementsSatisfied(gameClient_t *client, uint32_t type_id, string_t reason, uint32_t reason_size) {
@@ -1327,7 +1391,7 @@ static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vec2_t const *point)
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     edict_t * *units;
-    vec2_t *positions;
+    unitExitReservation_t *positions;
     uint32_t count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
@@ -1353,7 +1417,9 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
                 ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
         float angle;
-        if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
+        /* Reserve candidates in the plan, without publishing speculative poses or
+         * changing units before every destination has been admitted. */
+        if (!SP_FindUnitExitPositionReserved(building, ent, positions, count, &positions[count].point, &angle)) {
 #ifdef WC3_DEBUG_BUILD
             fprintf(stderr, "WC3_BUILD displace-failed builder=%ld building=%ld unit=%ld reason=no-exit\n",
                     (long)(builder - g_edicts), (long)(building - g_edicts), (long)(ent - g_edicts));
@@ -1361,63 +1427,22 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
             gi.MemFree(positions); gi.MemFree(units); return false;
         }
         (void)angle;
+        positions[count].radius = ent->collision;
         units[count++] = ent;
-    }
-    FOR_LOOP(i, count) {
-        FOR_LOOP(j, i) {
-            if (Vector2_distance(&positions[i], &positions[j]) < units[i]->collision + units[j]->collision) {
-                gi.MemFree(positions); gi.MemFree(units); return false;
-            }
-        }
     }
     FOR_LOOP(i, count) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD displace-apply building=%ld unit=%ld old=(%.1f,%.1f) new=(%.1f,%.1f) move=%s project=%.4s goal=%ld\n",
                 (long)(building - g_edicts), (long)(units[i] - g_edicts),
-                units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].x, positions[i].y,
+                units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].point.x, positions[i].point.y,
                 units[i]->currentmove && units[i]->currentmove->animation ? units[i]->currentmove->animation : "<none>",
                 units[i]->build_project ? (cstring_t)&units[i]->build_project : "----",
                 units[i]->goalentity ? (long)(units[i]->goalentity - g_edicts) : -1L);
 #endif
-        move_start_displacement(units[i], &positions[i]);
+        move_start_displacement(units[i], &positions[i].point);
     }
     gi.MemFree(positions); gi.MemFree(units);
     return true;
-}
-
-/* Construction sites are walk-through until completion, so units can enter
- * after the placement-time exit walk.  Once the footprint becomes solid,
- * move any remaining occupants directly to a legal exit while retaining
- * their current orders. */
-static void G_TeleportBuildingOccupants(edict_t *building, edict_t *excluded_unit) {
-    if (!building || !globals.num_edicts) return;
-    FOR_LOOP(i, globals.num_edicts) {
-        edict_t *ent = g_edicts + i;
-        if (ent == building || ent == excluded_unit || !ent->inuse ||
-            !(ent->svflags & SVF_MONSTER) || (ent->svflags & SVF_DEADMONSTER) || M_IsDead(ent) ||
-            ent->movetype == MOVETYPE_NONE || ent->collision <= 0.0f ||
-            CM_DistanceToPathingFootprint(building, &ent->s.origin2) >= ent->collision)
-            continue;
-        float angle;
-        vec2_t position;
-        if (!SP_FindUnitExitPosition(building, ent, &position, &angle)) {
-            fprintf(stderr, "WC3: unable to find exit for unit %ld inside construction %ld\n",
-                    (long)(ent - g_edicts), (long)(building - g_edicts));
-            continue;
-        }
-        /* Move each occupant before selecting the next exit. The exit search
-         * sees this unit as a dynamic blocker, so a crowd cannot reserve the
-         * same legal point and strand all but the first unit inside. */
-        vec2_t old_position = ent->s.origin2;
-        move_cancel_displacement(ent);
-        move_reset_progress(ent);
-        ent->s.origin2 = position;
-        ent->s.origin.x = position.x;
-        ent->s.origin.y = position.y;
-        M_CheckGround(ent);
-        gi.LinkEntity(ent);
-        G_UnitPositionChanged(ent, &old_position);
-    }
 }
 
 static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, uint32_t building_id,
@@ -1493,7 +1518,7 @@ static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, u
                 bool shallow_water = false;
                 if ((prevented & WC3_PATH_NAGA_SHALLOW) &&
                     (flags & WC3_PATH_UNBUILDABLE) &&
-                    !(flags & (CM_PATHING_UNSWIMMABLE | CM_PATHING_UNFLYABLE))) {
+                    !(flags & (CM_PATHING_UNFLOATABLE | CM_PATHING_UNFLYABLE))) {
                     shallow_water = CM_GetWaterHeightAtPoint(sample.x, sample.y) >
                                     CM_GetHeightAtPoint(sample.x, sample.y);
                 }
@@ -1635,7 +1660,6 @@ static bool G_StartConstruction(edict_t *builder, edict_t *building, constructio
      * real construction footprint becomes a route obstacle before the worker
      * begins Repair/build work. */
     CM_BakeStaticObstacles();
-    G_TeleportBuildingOccupants(building, worker_inside ? builder : NULL);
 
     G_UpdateConstructionAnimation(building);
     return true;
@@ -1651,10 +1675,10 @@ static void G_AssignConstructionWorker(edict_t *building, edict_t *worker, bool 
     building->construction->restore_paused = worker->paused;
     building->construction->restore_hidden = worker->s.renderfx & RF_HIDDEN;
     worker->build = building;
-    worker->goalentity = building;
+    S_SetMoveGoal(worker, &worker->goalentity, building);
     if (!inside) return;
 
-    worker->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(worker,true);
     worker->paused = true;
     worker->invulnerable = true;
     G_InvalidateUnitShortcutsForUnit(worker);
@@ -1752,8 +1776,8 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
 
     worker->paused = building->construction->restore_paused;
     worker->invulnerable = building->construction->restore_invulnerable;
-    if (building->construction->restore_hidden) worker->s.renderfx |= RF_HIDDEN;
-    else worker->s.renderfx &= ~RF_HIDDEN;
+    if (building->construction->restore_hidden) G_SetEntityHidden(worker,true);
+    else G_SetEntityHidden(worker,false);
     G_InvalidateUnitShortcutsForUnit(worker);
     if (consumes && worker->data.UnitBalance)
         G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);
@@ -1768,7 +1792,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
     }
     gi.LinkEntity(worker);
     worker->build = NULL;
-    if (worker->goalentity == building) worker->goalentity = NULL;
+    if (worker->goalentity == building) S_SetMoveGoal(worker, &worker->goalentity, NULL);
     if (worker->stand) worker->stand(worker);
 }
 
@@ -1890,7 +1914,6 @@ bool G_CancelStructureConstruction(edict_t *building) {
 
 void G_CompleteConstruction(edict_t *building) {
     gameClient_t *client;
-    edict_t *hidden_construction_worker = NULL;
     bool legacy;
 
     if (!building) return;
@@ -1912,20 +1935,16 @@ void G_CompleteConstruction(edict_t *building) {
     }
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number != building->s.player) client = NULL;
-    if (building->construction && building->construction->worker_inside)
-        hidden_construction_worker = G_ConstructionWorker(building);
     if (building->construction) G_ReleaseConstructionWorker(building, true);
     G_SetConstructionLoopSound(building, false);
     G_FreeConstruction(building);
     building->aiflags &= ~AI_HOLD_FRAME;
     if (building->build == building) building->build = NULL;
     G_SetHealth(building, building->health.max_value);
-	/* A Birth construction site is walk-through in retail.  Its authored
-	 * footprint becomes a static route obstacle only when the building is
-	 * complete. */
+    /* The real construction footprint was already solid. Rebuild the completed
+     * structure while retaining occupant poses and Move-owned escape orders. */
     CM_BakeStaticObstacles();
 	if (building->stand) building->stand(building);
-    G_TeleportBuildingOccupants(building, hidden_construction_worker);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);

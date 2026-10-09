@@ -9,7 +9,9 @@ GL_BACKEND ?= gl
 GLSL      ?= 140
 
 ifeq ($(BUILD),release)
-	CFLAGS += -O2
+	# Unity modules own their procedures; imported behavior crosses explicit APIs.
+	# Allow local calls to inline without permitting floating-point reassociation.
+	CFLAGS += -O2 -fno-semantic-interposition
 else ifneq ($(BUILD),debug)
 	$(error BUILD must be debug or release)
 else
@@ -160,7 +162,7 @@ $(LUA_LIB): $(LUA_SRCS) $(wildcard $(LUA_DIR)/*.h) | $(LIB_DIR)
 		$(CC) $(CFLAGS) $(LUA_CFLAGS) -c -x c -o $(LUA_OBJ) -
 	@ar rcs $@ $(LUA_OBJ)
 
-TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
+TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' ! -name 'wc3_cpu_sampler.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
 TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h

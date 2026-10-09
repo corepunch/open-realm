@@ -1,0 +1,580 @@
+{
+ "layouts": [
+  {
+   "name": "WC3RandData",
+   "length": 364,
+   "fields": [
+    {
+     "offset": 0,
+     "name": "vtable",
+     "type": "ptr:void",
+     "evidence": "65c7c0 stores 6fb7a69c (RTTI .?AVCRandData@@; slot0 672050 empty loop, slot1 679ac0 'Random val: %u' dump)"
+    },
+    {
+     "offset": 4,
+     "name": "stream00",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 12,
+     "name": "stream01",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 20,
+     "name": "stream02",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 28,
+     "name": "stream03",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 36,
+     "name": "stream04",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 44,
+     "name": "stream05",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 52,
+     "name": "stream06",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 60,
+     "name": "stream07",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 68,
+     "name": "stream08",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 76,
+     "name": "stream09",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 84,
+     "name": "stream10",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 92,
+     "name": "stream11",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 100,
+     "name": "stream12",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 108,
+     "name": "stream13",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 116,
+     "name": "stream14",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 124,
+     "name": "stream15",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 132,
+     "name": "stream16",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 140,
+     "name": "stream17",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 148,
+     "name": "stream18",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 156,
+     "name": "stream19",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 164,
+     "name": "stream20",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 172,
+     "name": "stream21",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 180,
+     "name": "stream22",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 188,
+     "name": "stream23",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 196,
+     "name": "stream24",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 204,
+     "name": "stream25",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 212,
+     "name": "stream26",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 220,
+     "name": "stream27",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 228,
+     "name": "stream28",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 236,
+     "name": "stream29",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 244,
+     "name": "stream30",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 252,
+     "name": "stream31",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 260,
+     "name": "stream32",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 268,
+     "name": "stream33",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 276,
+     "name": "stream34",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 284,
+     "name": "stream35",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 292,
+     "name": "stream36",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 300,
+     "name": "stream37",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 308,
+     "name": "stream38",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 316,
+     "name": "stream39",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 324,
+     "name": "stream40",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 332,
+     "name": "stream41",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 340,
+     "name": "stream42",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 348,
+     "name": "stream43",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    },
+    {
+     "offset": 356,
+     "name": "stream44",
+     "type": "WC3PathRandomState",
+     "evidence": "693710 reseed loop table+4+8*i; 693660/6936a0/695c70 index addressing; NUM-04.6 oracle + live words"
+    }
+   ]
+  },
+  {
+   "name": "WC3AttackRangePrefix",
+   "length": 720,
+   "fields": [
+    {
+     "offset": 136,
+     "name": "damage_dice0",
+     "type": "u32",
+     "evidence": "498960 AbilityAttack_GetDamageAmount pushes [this+0x88+4*weapon] as RandData_RollDice dice"
+    },
+    {
+     "offset": 140,
+     "name": "damage_dice1",
+     "type": "u32",
+     "evidence": "same, weapon 1"
+    },
+    {
+     "offset": 148,
+     "name": "damage_sides0",
+     "type": "u32",
+     "evidence": "498960 pushes [this+0x94+4*weapon] as sides"
+    },
+    {
+     "offset": 152,
+     "name": "damage_sides1",
+     "type": "u32",
+     "evidence": "same, weapon 1"
+    },
+    {
+     "offset": 160,
+     "name": "damage_base0",
+     "type": "i32",
+     "evidence": "498960 bonus argument = [+0xac+4w]+[+0xa0+4w]"
+    },
+    {
+     "offset": 164,
+     "name": "damage_base1",
+     "type": "i32",
+     "evidence": "same, weapon 1"
+    },
+    {
+     "offset": 172,
+     "name": "damage_bonus0",
+     "type": "i32",
+     "evidence": "498960 bonus argument = [+0xac+4w]+[+0xa0+4w]"
+    },
+    {
+     "offset": 176,
+     "name": "damage_bonus1",
+     "type": "i32",
+     "evidence": "same, weapon 1"
+    },
+    {
+     "offset": 696,
+     "name": "damage_weapon",
+     "type": "u32",
+     "evidence": "498960 weapon index w=[this+0x2b8]"
+    }
+   ]
+  }
+ ],
+ "methods": [
+  {
+   "address": "6f693710",
+   "name": "RandData_ReseedStreams",
+   "returns": "void",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "seed",
+     "type": "u32",
+     "storage": "ECX"
+    }
+   ]
+  },
+  {
+   "address": "6f693660",
+   "name": "RandData_StreamRange",
+   "returns": "u32",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "index",
+     "type": "u32",
+     "storage": "ECX"
+    },
+    {
+     "name": "span",
+     "type": "u32",
+     "storage": "EDX"
+    }
+   ]
+  },
+  {
+   "address": "6f6936a0",
+   "name": "RandData_StreamUnitReal",
+   "returns": "ptr:WC3PathScalar",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "output",
+     "type": "ptr:WC3PathScalar",
+     "storage": "ECX"
+    },
+    {
+     "name": "index",
+     "type": "u32",
+     "storage": "EDX"
+    }
+   ]
+  },
+  {
+   "address": "6f695c70",
+   "name": "RandData_RollDice",
+   "returns": "ptr:WC3PathScalar",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "output",
+     "type": "ptr:WC3PathScalar",
+     "storage": "ECX"
+    },
+    {
+     "name": "index",
+     "type": "u32",
+     "storage": "EDX"
+    },
+    {
+     "name": "dice",
+     "type": "i32",
+     "storage": 4
+    },
+    {
+     "name": "sides",
+     "type": "u32",
+     "storage": 8
+    },
+    {
+     "name": "bonus",
+     "type": "i32",
+     "storage": 12
+    },
+    {
+     "name": "scale",
+     "type": "ptr:WC3PathScalar",
+     "storage": 16
+    }
+   ]
+  },
+  {
+   "address": "6f1ec180",
+   "name": "PathRandom_RollDiceSum",
+   "returns": "u32",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "sides",
+     "type": "u32",
+     "storage": "ECX"
+    },
+    {
+     "name": "dice",
+     "type": "u32",
+     "storage": "EDX"
+    },
+    {
+     "name": "state",
+     "type": "ptr:WC3PathRandomState",
+     "storage": 4
+    }
+   ]
+  },
+  {
+   "address": "6f65c7c0",
+   "name": "RandData_Construct",
+   "returns": "ptr:WC3RandData",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "registryIndex",
+     "type": "u32",
+     "storage": "ECX"
+    }
+   ]
+  },
+  {
+   "address": "6f693690",
+   "name": "RandData_Create",
+   "returns": "ptr:WC3RandData",
+   "convention": "__fastcall",
+   "parameters": []
+  },
+  {
+   "address": "6f693620",
+   "name": "RandData_Destroy",
+   "returns": "void",
+   "convention": "__fastcall",
+   "parameters": []
+  },
+  {
+   "address": "6f64f9a0",
+   "name": "RandData_ReseedForGame",
+   "returns": "void",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "seed",
+     "type": "u32",
+     "storage": "ECX"
+    }
+   ]
+  },
+  {
+   "address": "6f06c180",
+   "name": "TlsSlots_Get",
+   "returns": "ptr:void",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "slot",
+     "type": "u32",
+     "storage": "ECX"
+    }
+   ]
+  },
+  {
+   "address": "6f06c1e0",
+   "name": "TlsSlots_Set",
+   "returns": "void",
+   "convention": "__fastcall",
+   "parameters": [
+    {
+     "name": "slot",
+     "type": "u32",
+     "storage": "ECX"
+    },
+    {
+     "name": "value",
+     "type": "ptr:void",
+     "storage": "EDX"
+    }
+   ]
+  },
+  {
+   "address": "6f06c1b0",
+   "name": "TlsSlots_AllocIndex",
+   "returns": "void",
+   "convention": "__fastcall",
+   "parameters": []
+  },
+  {
+   "address": "6f498960",
+   "name": "AbilityAttack_GetDamageAmount",
+   "returns": "ptr:WC3PathScalar",
+   "convention": "__thiscall",
+   "parameters": [
+    {
+     "name": "ability",
+     "type": "ptr:WC3AttackRangePrefix",
+     "storage": "ECX"
+    },
+    {
+     "name": "output",
+     "type": "ptr:WC3PathScalar",
+     "storage": 4
+    }
+   ]
+  }
+ ],
+ "globals": [
+  {
+   "address": "6fd685ac",
+   "name": "SpriteAnimationRandom",
+   "type": "WC3PathRandomState",
+   "evidence": "CRT init 00565a Seed(0x53705269), never reseeded by the game seed; 1d6320 via 1d62f0 from Sprite_ResolvePendingAnimation/1c0c40 and 9aa3c0; NUM-04.6 live draw counts differ between identical runs (214-423), presentation only"
+  },
+  {
+   "address": "6fd6a674",
+   "name": "AudioRandom",
+   "type": "WC3PathRandomState",
+   "evidence": "CRT init 008e87 Seed(0), then 3575be Seed(GetTickCount 092a10) at boot; Audio_ChooseVariant 34ff35, Audio_PlayLabel path 342320, Audio_PlayWarcryResponse 690f28, 358c70; NUM-04.6 live counts differ between identical runs"
+  },
+  {
+   "address": "6fd77d18",
+   "name": "LightningJitterRandom",
+   "type": "WC3PathRandomState",
+   "evidence": "CRT init 019267 Seed(0); 9a3b40 jitters lightning polyline points with three draws per point"
+  },
+  {
+   "address": "6fb7a69c",
+   "name": "CRandData_vftable",
+   "type": "ptr:void",
+   "evidence": "RTTI .?AVCRandData@@; written by 65c7c0"
+  }
+ ]
+}

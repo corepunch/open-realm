@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "skills/s_skills.h"
 
 //void unit_die(edict_t *self);
 //void unit_decay2(edict_t *self);
@@ -49,7 +50,7 @@ static void hero_become_revivable(edict_t *self) {
     assert(self->revival);
     self->revival->awaiting = true;
     self->revival->reviving = false;
-    self->s.renderfx |= RF_HIDDEN;
+    G_SetEntityHidden(self,true);
     G_PublishEvent(self, EVENT_PLAYER_HERO_REVIVABLE);
     G_PublishEvent(self, EVENT_UNIT_HERO_REVIVABLE);
     owner = G_GetPlayerClientByNumber(self->s.player);
@@ -188,6 +189,7 @@ bool unit_affectingcombat(edict_t *self) {
 }
 
 static void unit_prepare_stand(edict_t *self) {
+    self->current_order_id = 0;
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
@@ -285,21 +287,21 @@ void G_ApplyTemporaryArmorBonus(edict_t *ent, float amount) {
 
 void G_ApplyPermanentAttackDamageBonus(edict_t *ent, float amount) {
     if (!ent || amount == 0.0f) return;
-    if (ent->attack1.numberOfDice) {
-        ent->attack1.permanentDamageBonus += amount;
-        ent->attack1.damageBase = (uint32_t)MAX(0, (int32_t)ent->attack1.damageBase + (int32_t)amount);
+    if (S_AttackProfileRead(ent, 0)->numberOfDice) {
+        S_AttackProfileWrite(ent, 0)->permanentDamageBonus += amount;
+        S_AttackProfileWrite(ent, 0)->damageBase = (uint32_t)MAX(0, (int32_t)S_AttackProfileRead(ent, 0)->damageBase + (int32_t)amount);
     }
-    if (ent->attack2.numberOfDice) {
-        ent->attack2.permanentDamageBonus += amount;
-        ent->attack2.damageBase = (uint32_t)MAX(0, (int32_t)ent->attack2.damageBase + (int32_t)amount);
+    if (S_AttackProfileRead(ent, 1)->numberOfDice) {
+        S_AttackProfileWrite(ent, 1)->permanentDamageBonus += amount;
+        S_AttackProfileWrite(ent, 1)->damageBase = (uint32_t)MAX(0, (int32_t)S_AttackProfileRead(ent, 1)->damageBase + (int32_t)amount);
     }
     G_InvalidateUnitInfoPanel(ent);
 }
 
 void G_ApplyTemporaryAttackDamageBonus(edict_t *ent, float amount) {
     if (!ent || amount == 0.0f) return;
-    ent->attack1.temporaryDamageBonus += amount;
-    ent->attack2.temporaryDamageBonus += amount;
+    S_AttackProfileWrite(ent, 0)->temporaryDamageBonus += amount;
+    S_AttackProfileWrite(ent, 1)->temporaryDamageBonus += amount;
     G_InvalidateUnitInfoPanel(ent);
 }
 
@@ -328,8 +330,10 @@ int32_t G_CorpseUnitLevel(edict_t const *ent) {
 static void revive_corpse_state(edict_t *ent, float life_fraction, bool temporary_summon) {
     if (!ent) return;
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
-    ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
-    ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
+    ent->aiflags &= ~AI_HOLD_FRAME; G_SetEntityHidden(ent,false);
+    S_SetMoveGoal(ent, &ent->secondarygoal, NULL);
+    S_SetMoveGoal(ent, &ent->goalentity, NULL);
+    ent->combatentity = NULL;
     ent->wait = 0; G_ClearUnitOrderQueue(ent);
     ent->aiflags &= ~(AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO);
     if (temporary_summon) ent->aiflags |= AI_CORPSE_UNRAISABLE | AI_CORPSE_NO_DECAY;
@@ -428,6 +432,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * death, but retire the reversible morph contract immediately. */
     G_FreePolymorph(self);
     G_ClearUnitOrderQueue(self);
+    self->current_order_id = 0;
     G_InvalidateUnitShortcutsForUnit(self);
     G_SetHealth(self, 0.0f);
     /* Marks belong to their applying abilities, even when another unit lands the killing blow. */
@@ -462,7 +467,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
         self->revival->progress = 0.0f;
     }
     unit_leavecombat(self);
-    self->selected = 0;
+    G_SetEntitySelectionMask(self, 0);
     self->s.flags |= EF_NOT_SELECTABLE;
     self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, &unit_move_death);
@@ -471,8 +476,8 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * override active until the death move reaches its decay transition. */
     self->animation_override = true;
     if (self->animation) self->s.frame = self->animation->interval[0];
-    if (self->sound.death) {
-        self->sound.world_pending = self->sound.death;
+    if (G_UnitSoundProfile(self)->death) {
+        self->sound.world_pending = G_UnitSoundProfile(self)->death;
         self->sound.world_pending_event = EV_DEATH;
     }
     /* Destroying a transport ejects its passengers at the wreck. */
@@ -486,10 +491,12 @@ void unit_die(edict_t *self, edict_t *attacker) {
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
      * the mission win check that counts the player's dying naga. */
-    G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
-    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    G_MarkMoveSpatialObject(self);
+    S_UnitAbilityEvent(self,A_UNIT_RETIRE);
     S_UnitAbilityEvent(self, A_DEATH);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_DEATH,.source=attacker },EVENT_UNIT_DEATH,false);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
@@ -583,13 +590,23 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "stop", 851972, 0 },
     { "attack", 851983, 0 },
     { "attackground", 851984, 0 },
+    { "attackonce", 851985, 0 },
     { "move", 851986, 0 },
-    { "patrol", 851990, 0 },
+    { "patrol", WC3_ORDER_ID_PATROL, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
+    { "board", 852043, 0 }, /* Public retail OrderId; Captain speed excludes this head. */
     { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
+    { "renew", 852161, 0 },
+    { "renewon", 852162, 0 },
+    { "renewoff", 852163, 0 },
+    { "restoration", 852202, 0 },
+    { "restorationon", 852203, 0 },
+    { "restorationoff", 852204, 0 },
+    { "defend", 852055, 0 },
+    { "undefend", 852056, 0 },
 
     { "avatar", 852086, MAKEFOURCC('A','H','a','v') },
     { "blizzard", 852089, MAKEFOURCC('A','H','b','z') },
@@ -735,8 +752,9 @@ void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *p
                 (cstring_t)&self->class_id, debug_order ? debug_order : "",
                 (unsigned)order_id, point->x, point->y);
     }
-    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
-    G_PublishEvent(self, EVENT_UNIT_ISSUED_POINT_ORDER);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict = self, .type = EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER,
+        .value = order_id, .point = point }, EVENT_UNIT_ISSUED_POINT_ORDER,true);
 }
 
 void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
@@ -744,8 +762,8 @@ void G_PublishIssuedImmediateOrder(edict_t *self, uint32_t order_id,
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
     issued_order_point_valid[self->s.number] = false;
-    G_PublishEvent(self, EVENT_PLAYER_UNIT_ISSUED_ORDER);
-    G_PublishEvent(self, EVENT_UNIT_ISSUED_ORDER);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_ORDER,.value=order_id }, EVENT_UNIT_ISSUED_ORDER,true);
 }
 
 static void unit_publish_target_order(edict_t *self, cstring_t order,
@@ -763,8 +781,8 @@ static void unit_publish_target_order(edict_t *self, cstring_t order,
                 (unsigned)order_id, target ? (unsigned)target->s.number : 0u,
                 target ? (cstring_t)&target->class_id : "----");
     }
-    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER, target);
-    G_PublishEventWithSource(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target);
+    G_DispatchUnitEventFamilies(&(gameEventPointParams_t){
+        .edict=self,.type=EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER,.source=target,.value=order_id }, EVENT_UNIT_ISSUED_TARGET_ORDER,true);
 }
 
 bool G_UnitHasActiveOrder(edict_t const *self) {
@@ -772,33 +790,36 @@ bool G_UnitHasActiveOrder(edict_t const *self) {
            !move_is_terminal_hold(self);
 }
 
+/* Internal continuations have the same FIFO representation and observation
+ * order as user commands, with one reserved physical slot. */
+bool G_AppendUnitOrder(edict_t *self, unitOrder_t const *order) {
+    if (!self || !order || !unit_order_name_valid(order->order)) return false;
+    unitOrderQueue_t *queue=&self->order_queue;
+    if (queue->count>=UNIT_ORDER_STORAGE_CAPACITY) return false;
+    if (!G_ReserveUnitOrders(self,queue->count+1)) return false;
+    unsigned slot=(queue->head+queue->count)%queue->capacity;
+    queue->entries[slot]=*order;queue->count++;
+    return true;
+}
+
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
                       vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
-    unitOrderQueue_t *queue;
-    unitOrder_t *queued;
-    uint32_t slot;
-
     if (!self || !unit_order_name_valid(order)) return false;
-    queue = &self->order_queue;
-    if (queue->count >= MAX_UNIT_ORDER_QUEUE) return false;
-    slot = (queue->head + queue->count) % MAX_UNIT_ORDER_QUEUE;
-    queued = &queue->entries[slot];
-    memset(queued, 0, sizeof(*queued));
-    snprintf(queued->order, sizeof(queued->order), "%s", order);
-    queued->target_type = target_type;
-    queued->issuer_player = issuer_player;
-    queued->order_id = order_id;
-    queued->group_speed = group_speed;
-    if (point) queued->point = *point;
+    /*693490 counts the active user head. A suspended head lives in this ring
+     * instead, so only an executing head consumes the extra user slot. */
+    uint32_t limit=MAX_UNIT_ORDER_QUEUE+(G_IsDeferredFree(self) || !G_UnitHasActiveOrder(self));
+    if(self->order_queue.count>=limit)return false;
+    unitOrder_t queued={.target_type=target_type,.issuer_player=issuer_player,
+                        .order_id=order_id,.group_speed=group_speed};
+    snprintf(queued.order,sizeof(queued.order),"%s",order);
+    if (point) queued.point=*point;
     if (target) {
-        uint32_t const number = target->s.number;
-        if (number >= globals.num_edicts || globals.edicts + number != target) return false;
-        queued->target_number = number;
-        queued->target_spawn_time = target->spawn_time;
+        uint32_t number=target->s.number;
+        if (number>=globals.num_edicts || globals.edicts+number!=target) return false;
+        queued.target_number=number;queued.target_spawn_time=target->spawn_time;
     }
-    queue->count++;
-    return true;
+    return G_AppendUnitOrder(self,&queued);
 }
 
 static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
@@ -809,9 +830,10 @@ static bool unit_queue_pop(edict_t *self, unitOrder_t *out) {
     if (!queue->count) return false;
     *out = queue->entries[queue->head];
     memset(&queue->entries[queue->head], 0, sizeof(queue->entries[queue->head]));
-    queue->head = (queue->head + 1) % MAX_UNIT_ORDER_QUEUE;
+    queue->head = (queue->head + 1) % queue->capacity;
     queue->count--;
-    if (!queue->count) queue->head = 0;
+    /* The caller owns the copied command before any successor callback runs. */
+    if (!queue->count) G_FreeUnitOrders(self);
     return true;
 }
 
@@ -821,10 +843,13 @@ void G_ClearUnitOrderQueue(edict_t *self) {
     if (!self) return;
     queue = &self->order_queue;
     FOR_LOOP(i, queue->count) {
-        uint32_t const slot = (queue->head + i) % MAX_UNIT_ORDER_QUEUE;
+        uint32_t const slot = (queue->head + i) % queue->capacity;
         S_UnitQueuedOrderEvent(self, &queue->entries[slot], A_QUEUE_ORDER_CANCEL);
     }
-    memset(queue, 0, sizeof(*queue));
+    /* Each handler owns its command snapshot through callback unwind.
+     * Return the current backing allocation after cancellation completes. */
+    G_FreeUnitOrders(self);
+    queue->head = queue->count = 0;
 }
 
 uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
@@ -839,9 +864,6 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (S_GoldMineWorkerIsInside(self)) return false;
 
     self->movement.holding_position = false;
-    if (!strcmp(order, "repair")) {
-        return S_OrderRepair(self, target, 0);
-    }
     if (!strcmp(order, "smart")) {
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
@@ -850,7 +872,7 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
             if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
         }
-        if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
+        if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','a','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m'))) {
             return S_AcolyteHarvestOrder(self, target);
         }
         if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
@@ -891,14 +913,12 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
             return true;
         }
         if ((target->svflags & SVF_MONSTER) && unit_smart_target_is_followable(self, target)) {
-            order_follow(self, target);
-            return self->movement.follow_target == target;
+            return S_IssueFollowOrder(self, target, G_OrderId(order));
         }
         return unit_issueorder_now(self, "move", &target->s.origin2, 0.0f);
     }
     if (!strcmp(order, "move") && (target->svflags & SVF_MONSTER)) {
-        order_follow(self, target);
-        return self->movement.follow_target == target;
+        return S_IssueFollowOrder(self, target, G_OrderId(order));
     }
     if (!strcmp(order, "attack")) {
         if (S_UnitPolymorphed(self)) return false;
@@ -924,33 +944,37 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     vec2_t target;
     edict_t *waypoint;
 
-    if (!self || !order || !point) return false;
+    if (!self || !order || !point || G_IsDeferredFree(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
-    /* Attack Ground is an artillery firing order, not movement. Keep the exact
-     * clicked point and allow immobile artillery to accept it. */
+    /* The Attack owner keeps the exact clicked point, including range-hold
+     * orders on ordinary weapons and in-range immobile artillery. */
     if (!strcmp(order, "attackground")) return S_OrderAttackGround(self, point);
     if (self->aiflags & AI_IMMOBILE) return false;
     if (!strcmp(order, "attack") && S_UnitPolymorphed(self)) return false;
 
-    target = *point;
-    CM_ClosestPathablePointForRadiusFlags(point, self->collision, M_UnitStaticPathingFlags(self), &target);
-    waypoint = Waypoint_add(&target);
-    if (!waypoint) return false;
-    if (!strcmp(order, "patrol")) {
-        order_patrol(self, waypoint);
-        return true;
-    }
-    self->movement.holding_position = false;
     if (!strcmp(order, "smart") || !strcmp(order, "move")) {
-        order_move(self, waypoint);
+        /* A point Move retains the public click. Its owning path/formation
+         * code admits intermediate and adjusted destinations; correcting the
+         * user head here erases retail's blocked-goal retry lifetime. */
+        waypoint = Waypoint_add(point);
+        if (!waypoint) return false;
+        self->movement.holding_position = false;
+        S_IssueMoveOrder(self, waypoint, G_OrderId(order));
         self->movement.group_speed = group_speed;
         return true;
     }
+    target = *point;
+    pathAccelParams_t query = { point, NULL, self->collision, M_UnitStaticPathingFlags(self) };
+    G_ClosestMovePathPoint(&query, &target);
+    waypoint = Waypoint_add(&target);
+    if (!waypoint) return false;
+    self->movement.holding_position = false;
     if (!strcmp(order, "attack")) {
         order_attackmove(self, waypoint);
         return true;
     }
+    if (!strcmp(order, "patrol")) return S_IssuePatrolOrder(self, waypoint);
     return false;
 }
 
@@ -962,21 +986,39 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
     }
-    /* Rally is producer metadata rather than an interruptible unit behavior. */
+    /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
-        if (!queue) G_ClearUnitOrderQueue(self);
-        return G_SetRallyEntity(self, target);
+        return S_IssueRallyTargetOrder(self,target,queue);
     }
     if (S_GoldMineWorkerIsInside(self)) {
         return false;
     }
+    /* Validate/intercept through the owner before clearing pending work. A
+     * same-target interaction can retain its current task and public head. */
+    {
+        ability_t const *owner = FindAbilityByOrder(order);
+        abilityProc_t const active = self->currentmove ? self->currentmove->proc : NULL;
+        vec2_t point;
+        abilityCall_t call = {.issued_target_order = {target, order, queue, &point}};
+        intptr_t result = ABILITY_ORDER_UNHANDLED;
+        if (owner) result = owner->proc(self, A_TARGET_ORDER_ADMIT, &call);
+        if (result == ABILITY_ORDER_UNHANDLED && active && (!owner || owner->proc != active))
+            result = active(self, A_TARGET_ORDER_ADMIT, &call);
+        if (result == ABILITY_ORDER_REJECTED) return false;
+        if (result == ABILITY_ORDER_POINT)
+            return G_IssueUnitPointOrder(self,order,&point,queue,issuer_player,0);
+        if (result == ABILITY_ORDER_INTERCEPTED) {
+            unit_publish_target_order(self, order, target, issuer_player);
+            return true;
+        }
+    }
     if (!strcmp(order, "harvest")) {
         bool accepted = false;
-        if (G_ActorHasSkill(self, "Awha") && G_ActorHasSkill(target, "Aegm"))
+        if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','w','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','e','g','m')))
             accepted = S_CargoOrderBoard(self, target);
-        else if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm"))
+        else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','a','h','a')) && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m')))
             accepted = S_AcolyteHarvestOrder(self, target);
-        else if (G_ActorHasSkill(self, "Ahar") && S_GoldMineCanHarvest(target))
+        else if (G_ActorHasAbilityCode(self, MAKEFOURCC('A','h','a','r')) && S_GoldMineCanHarvest(target))
             accepted = harvest_gold_order(self, target);
         if (accepted) S_UnitAbilityOrderAccepted(self, order);
         return accepted;
@@ -1025,12 +1067,27 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
 bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
+    /* Removal leaves an internal task that suspends the new user chain. The
+     * order is retained without execution or notification (original693490). */
+    if(G_IsDeferredFree(self)) {
+        if(M_IsDead(self) || self->aiflags&AI_IMMOBILE ||
+            (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack") && strcmp(order,"patrol")))
+            return false;
+        uint32_t const order_id=G_OrderId(order);
+        if(!queue && self->order_queue.count>1) {
+            unitOrder_t head=self->order_queue.entries[self->order_queue.head];
+            G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
+        }
+        if(!G_QueueUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,issuer_player,group_speed,order_id))
+            return false;
+        if(!self->current_order_id)self->current_order_id=order_id;
+        return true;
+    }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
-    /* Rally-point changes are metadata and apply immediately even when Shift is down. */
+    /* Rally's owner decides whether this producer replaces active work. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
-        if (!queue) G_ClearUnitOrderQueue(self);
-        accepted = G_SetRallyPoint(self, point);
+        accepted = S_IssueRallyPointOrder(self,point,queue);
         if (accepted) {
             G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,
                                       issuer_player, order);
@@ -1054,8 +1111,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         }
     }
     if ((self->aiflags & AI_IMMOBILE) && strcmp(order, "attackground")) return false;
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
-        strcmp(order, "patrol") &&
+    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") && strcmp(order, "patrol") &&
         strcmp(order, "attackground")) return false;
 
     if (queue && G_UnitHasActiveOrder(self)) {
@@ -1082,8 +1138,15 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
 bool G_UnitStartNextQueuedOrder(edict_t *self) {
     unitOrder_t queued;
 
-    if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
+    if (!self || M_IsDead(self) || G_IsDeferredFree(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
+        if (queued.owner_context) {
+            if (S_UnitQueuedOrderEvent(self,&queued,A_QUEUE_ORDER_START)) {
+                S_UnitAbilityOrderAccepted(self,queued.order);
+                return true;
+            }
+            continue;
+        }
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed)) {
                 S_UnitAbilityOrderAccepted(self, queued.order);
@@ -1093,7 +1156,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
             edict_t *target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
-            if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
+            if (!target->inuse || G_IsDeferredFree(target) || target->spawn_time != queued.target_spawn_time) continue;
             if (unit_issuetargetorder_now(self, queued.order, target)) {
                 S_UnitAbilityOrderAccepted(self, queued.order);
                 return true;
@@ -1124,6 +1187,34 @@ bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point) {
                                  self ? self->s.player : 0, 0.0f);
 }
 
+/* Give the registered order owner the retained batch before ordinary per-unit
+ * admission. Unhandled orders keep the same spell/build/point dispatch. */
+bool G_IssueGroupPointOrder(groupPointOrder_t const *request) {
+    if (!request || !request->point || request->count>BZ_WC3_GROUP_ORDER_UNITS) return false;
+    /* Native23acd0 owns point words before attachment/admission. Stopping a
+     * moving candidate or an issued-order callback may change caller storage;
+     * nested orders must not change this batch's point or retained identities. */
+    vec2_t point=*request->point;
+    groupPointOrder_t retained=*request;
+    retained.point=&point;request=&retained;
+    ability_t const *owner=FindAbilityByOrder(request->order);
+    if (owner) {
+        abilityitem_t item={.code=FS_SLKKey(owner->classname),.ability=owner};
+        abilityCall_t call={.item=&item,.group_order=request};
+        intptr_t result=S_AbilityMessage(NULL,A_GROUP_POINT_ORDER,&call);
+        if (result!=ABILITY_ORDER_UNHANDLED) return result==ABILITY_ORDER_ACCEPTED;
+    }
+    bool any=false;
+    FOR_LOOP(i,request->count) {
+        edict_t *unit=request->units[i].unit;
+        if (!unit->inuse || unit->spawn_time!=request->units[i].spawn || G_IsDeferredFree(unit)) continue;
+        if (G_UnitIsBuilding(request->order_id)) {
+            if (G_IssueBuildOrder(unit,request->order_id,request->point)) any=true;
+        } else if (unit_issueorder(unit,request->order,request->point)) any=true;
+    }
+    return any;
+}
+
 /* Rebind an existing edict to another WC3 unit type while retaining its
  * authoritative identity and runtime ownership.  Transformation abilities
  * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
@@ -1141,13 +1232,14 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     /* Keep pathing/lifecycle ownership coherent: morphs may stay within the
      * mobile-unit family or within the building family, but never cross it. */
     if (source_building != target_building) return false;
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGING);
     health_ratio = unit->health.max_value > 0.0f ? unit->health.value / unit->health.max_value : 1.0f;
     mana_ratio = unit->mana.max_value > 0.0f ? unit->mana.value / unit->mana.max_value : 0.0f;
     temporary_armor = unit->temporary_armor_bonus;
     temporary_health = unit->temporary_health_bonus;
     temporary_mana = unit->temporary_mana_bonus;
-    temporary_attack1 = unit->attack1.temporaryDamageBonus;
-    temporary_attack2 = unit->attack2.temporaryDamageBonus;
+    temporary_attack1 = S_AttackProfileRead(unit, 0)->temporaryDamageBonus;
+    temporary_attack2 = S_AttackProfileRead(unit, 1)->temporaryDamageBonus;
     old_flags = unit->s.flags;
 
     G_ClearUnitFood(unit);
@@ -1161,8 +1253,10 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     unit->s.flags &= ~(EF_BUILDING | EF_FOW_BLOCKER | EF_FOW_REVEALER);
     unit->aiflags &= ~(AI_FLYING | AI_IMMOBILE);
     unit->s.shadow = 0;
-    memset(&unit->attack1, 0, sizeof(unit->attack1));
-    memset(&unit->attack2, 0, sizeof(unit->attack2));
+    G_FreeAttackOne(unit);
+    unit->attack_profiles[0] = NULL;
+    G_FreeAttackTwo(unit);
+    unit->attack_profiles[1] = NULL;
     unit->permanent_armor_bonus = 0.0f;
     unit->permanent_health_bonus = 0.0f;
     unit->temporary_armor_bonus = 0.0f;
@@ -1174,8 +1268,8 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     G_SetHealth(unit, MIN(unit->health.max_value, MAX(0.0f, unit->health.max_value * health_ratio)));
     unit->mana.value = MIN(unit->mana.max_value, MAX(0.0f, unit->mana.max_value * mana_ratio));
     G_ApplyTemporaryArmorBonus(unit, temporary_armor);
-    unit->attack1.temporaryDamageBonus = temporary_attack1;
-    unit->attack2.temporaryDamageBonus = temporary_attack2;
+    S_AttackProfileWrite(unit, 0)->temporaryDamageBonus = temporary_attack1;
+    S_AttackProfileWrite(unit, 1)->temporaryDamageBonus = temporary_attack2;
     G_ActivateUnitFood(unit);
     unit->animation = NULL;
     gi.LinkEntity(unit);
@@ -1185,6 +1279,7 @@ bool G_TransformUnitType(edict_t *unit, uint32_t type) {
     G_InvalidateUnitInfoPanel(unit);
     G_InvalidateUnitPortrait(unit);
     G_InvalidateUnitShortcutsForUnit(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_TYPE_CHANGED);
     return true;
 }
 
@@ -1199,11 +1294,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (S_GoldMineWorkerIsInside(self))
         return false;
     if (!strcmp(order, "stop")) {
-        G_ClearUnitOrderQueue(self);
-        order_stop(self);
-        S_UnitAbilityOrderAccepted(self, order);
-        G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return true;
+        return S_IssueStopOrder(self);
     }
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
@@ -1221,8 +1312,11 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
         if (accepted) {
             S_UnitAbilityOrderAccepted(self, order);
             G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-            return true;
         }
+        /* A registered order owner also owns rejection. Falling through to
+         * generic spell execution would turn a rejected direction into a
+         * second, opposite toggle. */
+        return accepted;
     }
     {
         uint32_t const spell_code = unit_spell_code_for_order(self, order);
@@ -1234,16 +1328,6 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
             }
             return accepted;
         }
-    }
-    if (!strcmp(order, "repairon")) {
-        bool const accepted = S_SetRepairAutocast(self, true);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return accepted;
-    }
-    if (!strcmp(order, "repairoff")) {
-        bool const accepted = S_SetRepairAutocast(self, false);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
-        return accepted;
     }
     if (!strcmp(order, "autoharvestgold")) {
         bool const accepted = harvest_auto_start_gold(self);
@@ -1268,24 +1352,24 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, f
     if (!unit) {
         return NULL;
     }
-    /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
-     * spawned unit against static pathing and nudges it to a legal point. */
-    vec2_t position;
-    if (G_FindUnitUnstuckPosition(unit, location, &position)) {
-        unit->s.origin2 = position;
-        unit->s.origin.x = position.x;
-        unit->s.origin.y = position.y;
-        M_CheckGround(unit);
-        gi.LinkEntity(unit);
-    } else fprintf(stderr, "WC3 CreateUnit: no legal spawn point for %c%c%c%c player %u at (%.1f, %.1f); retaining requested position\n",
-                   unitid & 255, (unitid >> 8) & 255, (unitid >> 16) & 255, (unitid >> 24) & 255,
-                   player, location->x, location->y);
+    /* Retail public creation uses Move's32-ring admission and initial scalar
+     * commit; the former64-unit circle spiral chose different destinations. */
+    S_InitUnitPosition(unit,location);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_PLACEMENT, unit, NULL);
     if (unit->stand) {
         unit->stand(unit);
     }
-    unit->s.angle = facing * M_PI / 180;
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_PUBLIC_STAND, unit, NULL);
+    /* Public1fc930 multiplies by cd5444 with software truncation; host radians
+     * leave the first group-request heading one word apart from retail. */
+    unit->s.angle = wc3_mul(facing,wc3_float(0x3c8efa35));
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FACING, unit, NULL);
     G_ActivateUnitFood(unit);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_FOOD, unit, NULL);
     G_BotUnitReady(unit);
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_AI, unit, NULL);
+    gi.FrameCheckpoint();
+    G_CONSTRUCTION_TRACE(UNIT_CONSTRUCT_CHECKPOINT, unit, NULL);
     return unit;
 }
 
@@ -1374,7 +1458,7 @@ heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *ent) {
 
     if (!ent) return NULL;
     now = G_Time();
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (!status->level || !status->timestamp || !status->duration_ms) continue;
         if (status->timestamp <= now || !unit_statusshowstimedbar(status->code)) continue;
@@ -1396,7 +1480,7 @@ float G_UnitArmorValue(edict_t const *ent) {
      * amount in AbilityData (AIda/DataA) rather than baking it into the unit or
      * status record; status expiry then removes the bonus automatically from
      * both combat and HUD calculations without adding save-state fields. */
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         if (status->level && status->code == MAKEFOURCC('B', 'd', 'e', 'f')) {
             armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
@@ -1416,7 +1500,7 @@ float G_UnitArmorValue(edict_t const *ent) {
 static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
     abilityitem_t item;
     abilityCall_t call;
-    if (!ent || !slot || !slot->level || !ability) return;
+    if (!ent || !slot || (!slot->level && msg != A_STATUS_REMOVED) || !ability) return;
     item = S_AbilityItem(ability);
     if (!item.ability || !item.ability->proc) return;
     call = MAKE(abilityCall_t, .item = &item);
@@ -1426,14 +1510,14 @@ static void UnitDispatchStatus(edict_t *ent, heroabilitystatus_t *slot, uint32_t
 
 /* Return the live slot so an ability can attach its applying rawcode/source after insertion. */
 heroabilitystatus_t *unit_findstatus(edict_t *ent, uint32_t code) {
-    if (ent) FOR_LOOP(i, MAX_UNIT_STATUSES)
+    if (ent) FOR_LOOP(i, G_UnitStatusSlotCount(ent))
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code) return ent->abilstatus + i;
     return NULL;
 }
 
 /* Notify active victim statuses before death cleanup can discard their applying state. */
 void unit_statusdeath(edict_t *ent) {
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
             UnitDispatchStatus(ent, slot, slot->data, A_STATUS_DEATH);
@@ -1444,9 +1528,10 @@ void unit_statusdeath(edict_t *ent) {
  * reconcile their own flight/height state through A_STATUS_REFRESH. */
 void unit_refreshstatusflags(edict_t *ent) {
     bool stunned = false;
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level) continue;
+        if(status->code==MAKEFOURCC('A','O','a','e'))S_MarkAuraSource(ent);
         if (unit_status_stuns(status->code)) stunned = true;
         UnitDispatchStatus(ent, status, status->data, A_STATUS_REFRESH);
     }
@@ -1461,6 +1546,50 @@ void unit_expirestatus(edict_t *ent, heroabilitystatus_t *status) {
     origin = status->data;
     UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVE);
     memset(status, 0, sizeof(*status));
+    UnitDispatchStatus(ent, status, origin, A_STATUS_REMOVED);
+}
+
+/* The native filter asks the applying owner, not the victim's ability list.
+ * Magic/physical selectors are independent requirements, as in48eb10.
+ * Restart after an inverse: an owner may change other attached statuses. */
+uint32_t unit_removebuffs(edict_t *ent, bool positive, bool negative,
+                         bool magic, bool physical, bool timed_life,
+                         bool aura, bool auto_dispel) {
+    uint32_t removed = 0;
+    if (!ent || (!positive && !negative)) return 0;
+    for (unsigned i = 0; i < G_UnitStatusSlotCount(ent);) {
+        heroabilitystatus_t *status = ent->abilstatus + i++;
+        abilityitem_t item;
+        abilityCall_t call;
+        uint32_t policy;
+        if (!status->level) continue;
+        item = S_AbilityItem(status->data);
+        policy = 0;
+        if (item.ability && (item.ability->flags & AB_STATUS_POLICY)) {
+            call = MAKE(abilityCall_t, .item = &item);
+            call.status.slot = status; call.status.ability = status->data;
+            policy = (uint32_t)S_AbilityMessage(ent, A_STATUS_POLICY, &call);
+        }
+        if (!(policy & UNIT_BUFF_KNOWN)) {
+            fprintf(stderr, "UnitRemoveBuffs: unclassified status %.4s, applying ability %.4s on %s\n",
+                    (char const *)&status->code, (char const *)&status->data, GetClassName(ent->class_id));
+            continue;
+        }
+        if (!((positive && (policy & UNIT_BUFF_POSITIVE)) ||
+              (negative && (policy & UNIT_BUFF_NEGATIVE)))) continue;
+        if (!aura && (policy & UNIT_BUFF_AURA)) continue;
+        if (!timed_life && (policy & UNIT_BUFF_TIMED_LIFE)) continue;
+        if (physical && !(policy & UNIT_BUFF_PHYSICAL)) continue;
+        if (magic && !(policy & UNIT_BUFF_MAGIC)) continue;
+        if (auto_dispel && !(policy & UNIT_BUFF_AUTO_DISPEL)) continue;
+        unit_expirestatus(ent, status);
+        removed++; i = 0;
+    }
+    if (removed) {
+        unit_refreshstatusflags(ent);
+        G_InvalidateUnitInfoPanel(ent);
+    }
+    return removed;
 }
 
 void unit_updatestatuses(edict_t *ent) {
@@ -1469,7 +1598,7 @@ void unit_updatestatuses(edict_t *ent) {
     bool kill = false;
     bool militia_expired = false;
 
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (!status->level || !status->timestamp) {
             continue;
@@ -1501,6 +1630,12 @@ void unit_updatestatuses(edict_t *ent) {
     }
 }
 
+heroabilitystatus_t *G_EnsureUnitStatusSlots(edict_t *ent) {
+    assert(ent);
+    if (!ent->abilstatus) ent->abilstatus = G_AllocUnitStatus()->slots;
+    return ent->abilstatus;
+}
+
 void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float duration) {
     uint32_t code;
     uint32_t now;
@@ -1516,8 +1651,9 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
     now = G_Time();
     duration_ms = duration > 0.0f ? (uint32_t)(duration * 1000.0f) : 0;
     stacktype = S_SpellString(code, "BuffStackType", 0);
+    G_EnsureUnitStatusSlots(ent);
 
-    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (status->level && status->code == code) {
             /* Existing buff of same code found — apply stacking rule. */
@@ -1534,6 +1670,7 @@ void unit_addtimedstatus(edict_t *ent, cstring_t skill, uint32_t level, float du
                 }
             } else {
                 /* "Replace" (default): overwrite level and timestamp. */
+                UnitDispatchStatus(ent, status, status->data, A_STATUS_REPLACE);
                 status->level = level;
                 status->data = 0;
                 status->source = NULL;
@@ -1575,12 +1712,60 @@ void unit_addstatus(edict_t *ent, cstring_t skill, uint32_t level) {
     unit_addtimedstatus(ent, skill, level, 0);
 }
 
+unitStatusQuery_t *g_unit_status_query;
+#ifdef BZ_TESTS
+static uint32_t unit_status_queries;
+static uint32_t unit_status_slot_visits;
+uint32_t G_TestUnitStatusSlotVisits(bool reset) {
+    uint32_t count = unit_status_slot_visits;
+    if (reset) unit_status_slot_visits = 0;
+    return count;
+}
+uint32_t G_TestUnitStatusQueries(bool reset) {
+    uint32_t count = unit_status_queries;
+    if (reset) unit_status_queries = 0;
+    return count;
+}
+#endif
+
+/* A pure mechanical calculation can resolve many status families from the
+ * same unit. Discover occupied status/rank slots and decoded authored ownership
+ * once, retaining slot order and live expiration checks. The scope never
+ * crosses a gameplay callback or an ownership mutation. */
+void G_BeginUnitStatusQuery(edict_t const *unit,unitStatusQuery_t *query) {
+    *query=(unitStatusQuery_t){.unit=unit,.previous=g_unit_status_query};
+    FOR_LOOP(i, G_UnitStatusSlotCount(unit))if(unit->abilstatus[i].level)query->slots|=1u<<i;
+    FOR_LOOP(i,MAX_HERO_ABILITIES)if(unit->heroabilities[i].level)query->hero_slots|=1u<<i;
+    query->abilities=G_UnitAbilityCodeSet(unit->data.UnitAbilities,&query->ability_count,&query->ability_membership);
+    g_unit_status_query=query;
+}
+
+void G_EndUnitStatusQuery(unitStatusQuery_t *query) {
+    assert(g_unit_status_query==query);
+    g_unit_status_query=query->previous;
+}
+
 uint32_t G_UnitStatusLevel(edict_t const *ent, uint32_t code) {
-    if (!ent || !code) return 0;
-    FOR_LOOP(i, MAX_UNIT_STATUSES)
+#ifdef BZ_TESTS
+    unit_status_queries++;
+#endif
+    if (!ent || !code || !ent->abilstatus) return 0;
+    if(g_unit_status_query && g_unit_status_query->unit==ent) {
+        for(uint32_t slots=g_unit_status_query->slots;slots;slots&=slots-1) {
+            heroabilitystatus_t const *status=ent->abilstatus+__builtin_ctz(slots);
+            if(status->level && status->code==code && (!status->timestamp || status->timestamp>G_Time()))
+                return status->level;
+        }
+        return 0;
+    }
+    FOR_LOOP(i, G_UnitStatusSlotCount(ent)) {
+#ifdef BZ_TESTS
+        unit_status_slot_visits++;
+#endif
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
             (!ent->abilstatus[i].timestamp || ent->abilstatus[i].timestamp > G_Time()))
             return ent->abilstatus[i].level;
+    }
     return 0;
 }
 
@@ -1597,14 +1782,34 @@ static heroability_t *G_FindRuntimeAbility(edict_t *ent, uint32_t abilcode) {
     return NULL;
 }
 
+/* Empty rank arrays are the common mechanical query. Read their levels
+ * together before entering alias resolution; no cached ownership is involved. */
+static inline bool G_HeroHasRanks(edict_t const *ent) {
+    uint32_t levels = 0;
+    FOR_LOOP(i, MAX_HERO_ABILITIES) levels |= ent->heroabilities[i].level;
+    return levels != 0;
+}
+
 static uint32_t G_HeroSkillLevel(edict_t const *ent, uint32_t abilcode) {
-    uint32_t const base_code = G_AbilityCode(abilcode);
-    if (!ent || !abilcode) {
+    uint32_t base_code = 0;
+    bool resolved = false;
+    if (!ent || !abilcode) return 0;
+    if (g_unit_status_query && g_unit_status_query->unit == ent) {
+        if (!g_unit_status_query->hero_slots) return 0;
+        for (uint32_t slots = g_unit_status_query->hero_slots; slots; slots &= slots - 1) {
+            heroability_t const *ha = ent->heroabilities + __builtin_ctz(slots);
+            if (!ha->level) continue;
+            if (!resolved) { base_code = G_AbilityCode(abilcode); resolved = true; }
+            if (G_AbilityCode(ha->code) == base_code) return ha->level;
+        }
         return 0;
     }
+    if (!G_HeroHasRanks(ent)) return 0;
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
-        if (ha->level && G_AbilityCode(ha->code) == base_code) {
+        if (!ha->level) continue;
+        if (!resolved) { base_code = G_AbilityCode(abilcode); resolved = true; }
+        if (G_AbilityCode(ha->code) == base_code) {
             return ha->level;
         }
     }
@@ -1662,14 +1867,17 @@ bool G_HeroModifySkillPoints(edict_t *ent, int32_t delta) {
 }
 
 uint32_t G_UnitAbilityLevel(edict_t const *ent, uint32_t abilcode) {
-    uint32_t const hero_level = G_HeroSkillLevel(ent, abilcode);
-    char id[5] = { 0 };
+    uint32_t const timed_level=S_TimedLifeLevel(ent,abilcode);
+    if(timed_level)return timed_level;
+    uint32_t const hero_level = g_unit_status_query && g_unit_status_query->unit == ent &&
+        !g_unit_status_query->hero_slots ? 0 : G_HeroSkillLevel(ent, abilcode);
     if (hero_level) {
         return hero_level;
     }
     if (!ent || !abilcode) return 0;
-    memcpy(id, &abilcode, 4);
-    return G_ActorHasSkill(ent, id) ? 1 : 0;
+    uint32_t const status_level = G_QueryUnitStatusLevel(ent, abilcode);
+    if (status_level) return status_level;
+    return G_ActorHasAbilityCode(ent, abilcode) ? 1 : 0;
 }
 
 /* SetUnitAbilityLevel / IncUnitAbilityLevel: rank lives in heroabilities[].
@@ -1686,6 +1894,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
     existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level = (uint32_t)level;
+        S_MarkAuraSource(ent);
         return existing->level;
     }
     /* Unit owns the skill via abilList/added but has no heroabilities slot yet. */
@@ -1696,6 +1905,7 @@ uint32_t G_UnitSetAbilityLevel(edict_t *ent, uint32_t abilcode, int32_t level) {
         if (ha->level == 0) {
             ha->code = abilcode;
             ha->level = (uint32_t)level;
+            S_MarkAuraSource(ent);
             return ha->level;
         }
     }
@@ -1706,6 +1916,7 @@ void unit_learnability(edict_t *ent, uint32_t abilcode) {
     heroability_t *existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level++;
+        S_MarkAuraSource(ent);
         return;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
@@ -1713,6 +1924,7 @@ void unit_learnability(edict_t *ent, uint32_t abilcode) {
         if (ha->level == 0) {
             ha->level = 1;
             ha->code = abilcode;
+            S_MarkAuraSource(ent);
             return;
         }
     }
@@ -1868,12 +2080,12 @@ void G_RecomputeHeroStats(edict_t *ent) {
         }
         primaryDamage = (int32_t)((float)primVal * strAttackBonus);
         if (ent->data.UnitWeapons) {
-            ent->attack1.damageBase = (uint32_t)MAX(0,
+            S_AttackProfileWrite(ent, 0)->damageBase = (uint32_t)MAX(0,
                 (int32_t)ent->data.UnitWeapons->attack1.damageBase + primaryDamage
-                + (int32_t)ent->attack1.permanentDamageBonus);
-            ent->attack2.damageBase = (uint32_t)MAX(0,
+                + (int32_t)S_AttackProfileRead(ent, 0)->permanentDamageBonus);
+            S_AttackProfileWrite(ent, 1)->damageBase = (uint32_t)MAX(0,
                 (int32_t)ent->data.UnitWeapons->attack2.damageBase + primaryDamage
-                + (int32_t)ent->attack2.permanentDamageBonus);
+                + (int32_t)S_AttackProfileRead(ent, 1)->permanentDamageBonus);
         }
     }
 }
@@ -2530,7 +2742,7 @@ bool G_ReviveHero(edict_t *ent, float x, float y) {
     ent->revival->player = 0;
     ent->revival->gold = ent->revival->lumber = 0;
     ent->revival->progress = 0.0f;
-    ent->s.renderfx &= ~RF_HIDDEN;
+    G_SetEntityHidden(ent,false);
     G_SetHealth(ent, MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor)));
     mana = ent->mana.max_value * manaFactor;
     if (ent->data.UnitBalance) mana += ent->data.UnitBalance->initialMana * manaStart;

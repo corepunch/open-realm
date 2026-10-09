@@ -498,9 +498,10 @@ TEST(wc3_wander, saved_private_destination_continues_after_reload) {
 static void wander_tick_until_arrival(edict_t *unit, edict_t *goal) {
     bool translated = false;
     vec2_t const start = unit->s.origin2;
+    if (!level.vm) T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    unit->think = monster_think;
     for (int tick = 0; tick < 400 && move_is_active_order_walk(unit); ++tick) {
-        level.time += 50;
-        monster_think(unit);
+        wander_run_frames(1);
         if (Vector2_distance(&unit->s.origin2, &start) > 0.01f)
             translated = true;
         T_ASSERT(goal->inuse);

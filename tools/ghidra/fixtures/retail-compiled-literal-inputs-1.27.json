@@ -1,0 +1,559 @@
+{
+  "target_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "3a698ad3857ebc6e4e0d3a1135bdc0b5fdd1777ccfa212553f74ca931518c8ca",
+    "wc3_pathfinding.js": "824c5dee53991f109678db3e50bde10a0cf5e5b3b4188b2ee07f752f5ebdeca2",
+    "wc3_pathfinding_probe.j": "627ca432ae63bbc88f7826a57433e26ab7ba143dc460112be42d05d73edb9ec6",
+    "make_wc3_pathfinding_map.py": "cb8ac3adda7d46bbb38ca38146c044234cb971496db88976fe34966e3b5022e8",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "map": "cdc1931ab2d5239aa3f91edfb98b54d88919447471307e0c9914a08459a0ac82"
+  },
+  "cases": [
+    {
+      "id": "literal_0",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.0",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "literal_1",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.0",
+      "input_word": 2147483648,
+      "output": 0
+    },
+    {
+      "id": "literal_2",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.6",
+      "input_word": 1058642330,
+      "output": 0
+    },
+    {
+      "id": "literal_3",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.6",
+      "input_word": 3206125978,
+      "output": 0
+    },
+    {
+      "id": "literal_4",
+      "native": "R2I",
+      "producer": "literal",
+      "input": ".5",
+      "input_word": 1056964608,
+      "output": 0
+    },
+    {
+      "id": "literal_5",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-.5",
+      "input_word": 3204448256,
+      "output": 0
+    },
+    {
+      "id": "literal_6",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "literal_7",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.",
+      "input_word": 2147483648,
+      "output": 0
+    },
+    {
+      "id": "literal_8",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.25",
+      "input_word": 1067450368,
+      "output": 1
+    },
+    {
+      "id": "literal_9",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-1.25",
+      "input_word": 3214934016,
+      "output": 4294967295
+    },
+    {
+      "id": "literal_10",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1936.25",
+      "input_word": 1156712448,
+      "output": 1936
+    },
+    {
+      "id": "literal_11",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "144.125",
+      "input_word": 1125130240,
+      "output": 144
+    },
+    {
+      "id": "literal_12",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.59999999999999998",
+      "input_word": 3213189981,
+      "output": 4294967295
+    },
+    {
+      "id": "literal_13",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.59999999999999998",
+      "input_word": 1065706333,
+      "output": 1
+    },
+    {
+      "id": "literal_14",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.56463992595672607421875",
+      "input_word": 1086056591,
+      "output": 5
+    },
+    {
+      "id": "literal_15",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.99999999999999999",
+      "input_word": 1073741824,
+      "output": 2
+    },
+    {
+      "id": "literal_16",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483647.0",
+      "input_word": 1325400063,
+      "output": 2147483520
+    },
+    {
+      "id": "literal_17",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483648.0",
+      "input_word": 3472883712,
+      "output": 2147483648
+    },
+    {
+      "id": "literal_18",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-2147483648.0",
+      "input_word": 1325400064,
+      "output": 2147483647
+    },
+    {
+      "id": "literal_19",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967295.5",
+      "input_word": 3204448256,
+      "output": 0
+    },
+    {
+      "id": "literal_20",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967296.5",
+      "input_word": 1056964608,
+      "output": 0
+    },
+    {
+      "id": "literal_21",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "4294967297.5",
+      "input_word": 1069547520,
+      "output": 1
+    },
+    {
+      "id": "literal_22",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "9999999999999999999999999999999999999999.25",
+      "input_word": 3208642560,
+      "output": 0
+    },
+    {
+      "id": "literal_23",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.0000000001",
+      "input_word": 809693338,
+      "output": 0
+    },
+    {
+      "id": "literal_24",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.00000000001",
+      "input_word": 811735256,
+      "output": 0
+    },
+    {
+      "id": "literal_25",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.1234567890",
+      "input_word": 1063265115,
+      "output": 0
+    },
+    {
+      "id": "literal_26",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.12345678901",
+      "input_word": 3202553452,
+      "output": 0
+    },
+    {
+      "id": "literal_27",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.12345678901234567890123456789012",
+      "input_word": 0,
+      "output": 0
+    },
+    {
+      "id": "literal_28",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "0.00000000000000000000000000000001",
+      "input_word": 2130706432,
+      "output": 2147483647
+    },
+    {
+      "id": "literal_29",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "-0.00000000000000000000000000000001",
+      "input_word": 4278190080,
+      "output": 2147483648
+    },
+    {
+      "id": "literal_30",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "1.00000000000000000000000000000000",
+      "input_word": 1073741824,
+      "output": 2
+    },
+    {
+      "id": "literal_31",
+      "native": "R2I",
+      "producer": "literal",
+      "input": "2147483648.00000000000000000000000000000001",
+      "input_word": 2130706432,
+      "output": 2147483647
+    }
+  ],
+  "literal_sequence": [
+    {
+      "event": "numeric-literal",
+      "text": "0.59999999999999998",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3213189981
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.59999999999999998",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3213189981
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.56463992595672607421875",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1086056591
+    },
+    {
+      "event": "numeric-literal",
+      "text": "1.99999999999999999",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1073741824
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483647.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1325400063
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3472883712
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3472883712
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967295.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3204448256
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967296.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1056964608
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967297.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1069547520
+    },
+    {
+      "event": "numeric-literal",
+      "text": "9999999999999999999999999999999999999999.25",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3208642560
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.0000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 809693338
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 811735256
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.1234567890",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1063265115
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.12345678901",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3202553452
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.12345678901234567890123456789012",
+      "caller": 9588340,
+      "token": 265,
+      "output": 0
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    },
+    {
+      "event": "numeric-literal",
+      "text": "1.00000000000000000000000000000000",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1073741824
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.59999999999999998",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3213189981
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.59999999999999998",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3213189981
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.56463992595672607421875",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1086056591
+    },
+    {
+      "event": "numeric-literal",
+      "text": "1.99999999999999999",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1073741824
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483647.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1325400063
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3472883712
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.0",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3472883712
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967295.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3204448256
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967296.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1056964608
+    },
+    {
+      "event": "numeric-literal",
+      "text": "4294967297.5",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1069547520
+    },
+    {
+      "event": "numeric-literal",
+      "text": "9999999999999999999999999999999999999999.25",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3208642560
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.0000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 809693338
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 811735256
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.1234567890",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1063265115
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.12345678901",
+      "caller": 9588340,
+      "token": 265,
+      "output": 3202553452
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.12345678901234567890123456789012",
+      "caller": 9588340,
+      "token": 265,
+      "output": 0
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    },
+    {
+      "event": "numeric-literal",
+      "text": "0.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    },
+    {
+      "event": "numeric-literal",
+      "text": "1.00000000000000000000000000000000",
+      "caller": 9588340,
+      "token": 265,
+      "output": 1073741824
+    },
+    {
+      "event": "numeric-literal",
+      "text": "2147483648.00000000000000000000000000000001",
+      "caller": 9588340,
+      "token": 265,
+      "output": 2130706432
+    }
+  ],
+  "move_destination_words": [
+    3304194048,
+    3272605696
+  ],
+  "scope": "Original compiled JASS literal words and unary sign execution, bracketed public R2I inputs/outputs; original lexer producer observed read-only, matching repeated captures. No full movement trajectory parity claim."
+}

@@ -25,7 +25,97 @@
 #include <math.h>
 #include "test.h"
 #include "../g_local.h"
+#include "../../common/wc3_pathing_records.h"
 #include "games/warcraft-3/common/terrain.h"
+#include "games/warcraft-3/common/wc3_pathing_segment.h"
+#include "retail_public_oblique.h"
+#include "retail_formation_boundary_111.h"
+#include "retail_public_pair.h"
+#include "retail_selected_point.h"
+#include "retail_selected_idle_shift.h"
+#include "retail_selected_queued.h"
+#include "retail_selected_double_queued.h"
+#include "retail_selected_mixed.h"
+#include "retail_selected_independent.h"
+#include "retail_follow_velocity.h"
+#include "retail_follow_target_reuse.h"
+#include "retail_follow_target_teleport.h"
+#include "retail_follow_target_resize.h"
+#include "retail_moving_radius.h"
+#include "retail_group_radius.h"
+#include "retail_captain_shared.h"
+#include "retail_captain_reentry_shared.h"
+#include "retail_captain_cancel_late.h"
+#include "retail_captain_cancel_early.h"
+#include "retail_captain_cancel_all.h"
+#include "retail_captain_lifetime_120.h"
+#include "retail_captain_go_home.h"
+#include "retail_captain_go_home_retry.h"
+#include "retail_captain_go_home_refill.h"
+#include "retail_captain_go_home_complete.h"
+#include "retail_blocked_goal.h"
+#include "retail_adaptive_passage.h"
+#include "retail_target_overlap.h"
+#include "retail_expressions.h"
+#include "retail_terrain_cache.h"
+#include "retail_movement_lifecycle.h"
+#include "retail_region_callbacks.h"
+#include "retail_movement_bypasses.h"
+#include "retail_movement_modes.h"
+#include "retail_speed_modifiers.h"
+#include "retail_outside_goal.h"
+#include "retail_captain_home.h"
+#include "retail_captain_range_far.h"
+#include "retail_attack_prevention.h"
+#include "retail_captain_pair.h"
+#include "retail_captain_mixed.h"
+#include "retail_captain_blocked.h"
+#include "retail_captain_pool.h"
+#include "retail_captain_three.h"
+#include "retail_captain_thirteen.h"
+#include "retail_captain_thirteen_mixed.h"
+#include "retail_public_twelve.h"
+#include "retail_owner_change.h"
+#include "retail_scheduler_contention.h"
+#include "retail_scheduler_work.h"
+#include "retail_route_invalid_consumers.h"
+#include "retail_ground_support.h"
+#include "retail_group_target_speed.h"
+#include "retail_yield_composed163.h"
+#include "retail_dynamic_blocker163.h"
+#include "retail_target_approach164.h"
+#include "fixtures/retail_spell_approach185.h"
+#include "fixtures/retail_flying_follow186.h"
+#include "fixtures/retail_ground_air_follow187.h"
+#include "retail_target_fog166.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
+
+/* Older small movement tests drive one controlled owner interval directly.
+ * Public point admission now owns a physical group, so its entity callback
+ * cannot stand in for that owner. Frozen clock fixtures keep their own time. */
+static void movement_test_tick(edict_t *unit) {
+    moveGroup_t const *group=move_unit_group(unit);
+    if (!group || group->individual) {
+        unit->currentmove->think(unit);
+        return;
+    }
+    bool scheduled=level.scheduled_think;
+    if (!scheduled) wc3_clock_advance(&level.pathing_clock,10.0f/FRAMETIME,0);
+    level.scheduled_think=true;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    level.scheduled_think=scheduled;
+}
+
+/* Fine legs belong to the member; hierarchy legs belong to its physical owner. */
+static moveFineRoute_t const *movement_test_coarse_route(edict_t const *unit) {
+    moveGroup_t const *group=move_unit_group(unit);
+    return group && !group->individual ? &group->route : &unit->movement.fine_route;
+}
+
+static bool movement_test_forced_arrival(edict_t const *unit) {
+    moveGroupMember_t const *member=move_find_member(unit);
+    return member ? member->forced_arrival : unit->movement.point_forced_arrival;
+}
 
 /* Helpers defined in t_utils.c */
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -34,6 +124,9 @@ void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(box2_t const *bounds);
 void CM_ProcessPathJobs(uint32_t work_budget);
+bool run_test_jass(cstring_t src);
+void G_TestMovePathRefresh(point2_t,point2_t);
+int G_TestMovePathClass(uint8_t,unsigned,unsigned,unsigned);
 uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius);
 extern void ai_train_build(edict_t *ent);
 
@@ -51,16 +144,9 @@ extern void ai_train_build(edict_t *ent);
  * (movement tests don't want unintended push-apart).  Resets entity pool
  * so each test starts from a clean slate. */
 static edict_t *make_moving_unit(float x, float y) {
-    static UnitData_t movement_unit_data;
     reset_entities();
     setup_test_world();
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
-    movement_unit_data = *ent->data.UnitData;
-    /* Synthetic rows need a permissive default; individual PropWindow tests
-     * override it with the authored boundary under test. */
-    movement_unit_data.propWin = 360.0f;
-    ent->data.UnitData = &movement_unit_data;
-    ent->unitinfo.PropWindow = DEG2RAD(movement_unit_data.propWin);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -70,6 +156,5127 @@ static edict_t *make_moving_unit(float x, float y) {
     ent->health.max_value = 250.0f;
     unit_stand(ent);
     return ent;
+}
+
+/* Unlike the route-only seam, the physical member decision runs the real
+ * next-step collector, blocker resolver and retry owner before publishing speed. */
+TEST(wc3_movement, invalid_start_decisions_match_original_public_consumers) {
+    uint32_t counter=level.pathing_counter;bool responsive=level.move_fine_responsive;
+    wc3Random_t random=level.pathing_random;
+    FOR_LOOP(c,sizeof(retail_invalid_consumers)/sizeof(*retail_invalid_consumers)) {
+        retailInvalidConsumer_t const *row=retail_invalid_consumers+c;
+        edict_t *unit=make_moving_unit(30.125f*32,33.875f*32);
+        uint8_t cells[64*64]={0};
+        if(row->wall)for(unsigned y=8;y<58;y++)if(y<30 || y>33)cells[y*64+40]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        unit->collision=8+16*row->cls;
+        vec2_t goal={51.25f*32,42.75f*32},direction;
+        groupPointOrder_t request={.count=1,.units={{unit,unit->spawn_time}},.point=&goal,
+            .order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)continue;
+        group->flags=0;group->initialized=true;
+        moveGroupMember_t *member=group->members;
+        member->destination=(vec2_t){51.25f,42.75f};member->world_destination=goal;member->flags=0;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        unit->movement.adaptive_disabled=!row->adaptive;
+        route->index=route->adaptive_index=UINT32_MAX;
+        level.move_fine_responsive=false;level.pathing_counter=100;
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,unit->collision,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+        /* Construct a fresh path owner while retaining the preceding search
+         * kernels, exactly as the original oracle's path constructor does. */
+        free(route->points);free(route->adaptive_points);
+        route->points=route->adaptive_points=NULL;route->count=route->adaptive_count=0;
+        route->capacity=route->adaptive_capacity=0;route->index=route->adaptive_index=UINT32_MAX;
+        route->partial=false;route->adaptive_admission.time=0;
+        unit->movement.path.valid=false;unit->movement.fine_request_time=0;
+        unit->movement.retry_count=unit->movement.wait_delay=0;
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        S_SetUnitAxisPosition(unit,0,wc3_float(row->source[0])*32);
+        S_SetUnitAxisPosition(unit,1,wc3_float(row->source[1])*32);
+        level.pathing_random=(wc3Random_t){row->rng[0],row->rng[1]};
+        FOR_LOOP(pass,2) {
+            retailInvalidState_t const *expected=retail_invalid_states+row->state[pass];
+            level.pathing_counter=200+pass*10;
+            move_group_decide(group,member);
+            T_EQ(route->count,expected->count);T_EQ(route->capacity,expected->capacity);
+            T_EQ(route->index,expected->index);T_EQ(route->adaptive_count,expected->coarse_count);
+            T_EQ(route->adaptive_capacity,expected->coarse_capacity);T_EQ(route->adaptive_index,expected->coarse_index);
+            T_EQ(unit->movement.fine_request_time,expected->fine_time);
+            T_EQ(route->adaptive_admission.time,expected->coarse_time);
+            T_EQ(unit->movement.wait_delay,expected->delay);T_EQ(unit->movement.retry_count,expected->retry);
+            T_EQ(level.move_fine_budgets[0].work,expected->fine_work);
+            T_EQ(level.move_coarse_budgets[0][2].work,expected->coarse_work);
+            T_EQ(level.pathing_random.sum,expected->rng[0]);T_EQ(level.pathing_random.index,expected->rng[1]);
+            if(expected->result) { T_EQ(member->speed,0);T_ASSERT(unit->movement.turn_blocked); }
+            if(route->count==expected->count)FOR_LOOP(i,route->count) {
+                T_EQ(wc3_float_bits(route->points[i].x),expected->points[i*2]);
+                T_EQ(wc3_float_bits(route->points[i].y),expected->points[i*2+1]);
+            }
+            if(route->adaptive_count==expected->coarse_count)FOR_LOOP(i,route->adaptive_count) {
+                T_EQ(wc3_float_bits(route->adaptive_points[i].x),expected->coarse_points[i*2]);
+                T_EQ(wc3_float_bits(route->adaptive_points[i].y),expected->coarse_points[i*2+1]);
+            }
+        }
+    }
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;level.pathing_random=random;
+}
+
+/* Retail reconstructs both search owners on load. A different query after
+ * saving must not become the loaded game's initialized invalid-source history. */
+wc3FineSearch_t const *G_TestMoveFineSearch(void);
+wc3AccSearch_t const *G_TestMoveAdaptiveSearch(void);
+TEST(wc3_movement, load_rebuilds_search_owners_without_unsaved_query_history) {
+    edict_t *unit=make_moving_unit(30.125f*32,33.875f*32);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    unit->collision=8;
+    vec2_t goal={51.25f*32,42.75f*32},direction;
+    order_move(unit,Waypoint_add(&goal));
+    uint32_t counter=level.pathing_counter,number=unit->s.number;
+    bool responsive=level.move_fine_responsive;
+    level.move_fine_responsive=false;level.pathing_counter=100;
+    T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,8,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+    T_ASSERT(G_TestMoveFineSearch()->query_initialized);
+    T_ASSERT(G_TestMoveAdaptiveSearch()->work.query_initialized);
+    moveFineRoute_t const *route=&unit->movement.fine_route;
+    uint32_t count=route->count,index=route->index,coarse=route->adaptive_count;
+    cstring_t file=Test_TempPath("wc3-search-owner-load.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+    T_ASSERT(!G_TestMoveFineSearch()->query_initialized);
+    T_ASSERT(!G_TestMoveAdaptiveSearch()->work.query_initialized);
+    T_EQ(G_TestMoveFineSearch()->initialized,0);
+    T_EQ(G_TestMoveAdaptiveSearch()->work.initialized,0);
+    T_NULL(G_TestMoveFineSearch()->nodes);T_NULL(G_TestMoveAdaptiveSearch()->work.nodes);
+    /* Saved unit-owned curves remain usable without an immediate new search. */
+    route=&unit->movement.fine_route;
+    T_EQ(route->count,count);T_EQ(route->index,index);T_EQ(route->adaptive_count,coarse);
+    level.pathing_counter=110;
+    T_EQ(unit_accel_direction(unit,(moveRoutePoint_t){&goal,8,MOVE_AVOID_GENERIC},&direction),MOVE_ROUTE_READY);
+    T_ASSERT(!G_TestMoveFineSearch()->query_initialized);
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+    level.pathing_counter=counter;level.move_fine_responsive=responsive;
+}
+
+/* Drive the native setters before steering, as a map script does. */
+static edict_t *make_scripted_turn_unit(void) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "  call SetUnitTurnSpeed(u, 0.125)\n"
+        "  call SetUnitPropWindow(u, 0.5)\n"
+        "endfunction\n"));
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) {
+            /* The minimal fixture lacks the retail model; install the same live lifecycle as make_moving_unit. */
+            g_edicts[i].collision = 0; g_edicts[i].health.value = 250;
+            g_edicts[i].movetype = MOVETYPE_STEP; g_edicts[i].stand = unit_stand;
+            unit_stand(&g_edicts[i]);
+            return &g_edicts[i];
+        }
+    return NULL;
+}
+
+/* Oblique motion exposes the nearest-rounded host trig and multiply/add used by the old step. */
+TEST(wc3_movement, retail_vector_heading_words) {
+    edict_t *unit = make_moving_unit(0, 0);
+    vec2_t const point = {4, 0.125f};
+    unit_changeangle_towards_point(unit, &point);
+    /* Full original16f630 vector/length/acos/shortest-error chain, current heading0. */
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3d00f7e3u);
+    T_EQ(wc3_float_bits(unit->movement.heading), 0x3d00f7e3u);
+    T_ASSERT(!unit->movement.turn_blocked);
+}
+
+/* Actual game-owner dispatch must move idle authored repulsors; Footman opts out. */
+TEST(wc3_movement, repulsion_reaches_idle_units_through_owner_scheduler) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit a=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "local unit b=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "local unit c=CreateUnit(Player(0),'hfoo',1024,512,0)\n"
+        "local unit d=CreateUnit(Player(0),'hfoo',1024,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetUnitX(c,1024)\ncall SetUnitY(c,512)\ncall SetUnitX(d,1024)\ncall SetUnitY(d,512)\n"
+        "call SetRandomSeed(12345)\nendfunction\n"));
+    edict_t *fly[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y')) {
+        if (count<2) fly[count++]=ent;
+    }
+    T_EQ(count,2); if (count!=2) return;
+    /* Synthetic models do not supply a birth sequence; establish the ordinary idle lifecycle. */
+    FOR_LOOP(i,2) unit_stand(fly[i]);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    level.repulse_phase=0; level.time=35; globals.RunFrame();
+    /* Original first-overlap composition: saved owner seed, one direction draw, then damping. */
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[0]),1031535248u);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[1]),1043093862u);
+    T_EQ(level.pathing_random.sum,815324285u); T_EQ(level.pathing_random.index,1957431332u);
+    T_EQ(fly[1]->movement.repulse.state.vector[0],0); T_EQ(fly[1]->movement.repulse.state.vector[1],0);
+    cstring_t file=Test_TempPath("openwarcraft3-repulsion-save.bin");
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    vec2_t positions[2]={fly[0]->s.origin2,fly[1]->s.origin2};
+    wc3Repulse_t pending[2]={fly[0]->movement.repulse.state,fly[1]->movement.repulse.state};
+    wc3Random_t random=level.pathing_random;
+    T_ASSERT(Vector2_distance(&fly[0]->s.origin2,&fly[1]->s.origin2)>1);
+    FOR_LOOP(i,2) { T_EQ(fly[i]->current_order_id,0); T_EQ(fly[i]->movement.velocity.x,0); T_EQ(fly[i]->movement.velocity.y,0); }
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) {
+        T_EQ(ent->s.origin2.x,1024); T_EQ(ent->s.origin2.y,512);
+    }
+    T_ASSERT(ReadGame(file));
+    T_EQ(level.repulse_phase,1); T_ASSERT(level.repulse_head==fly[1]);
+    T_ASSERT(fly[1]->movement.repulse.next==fly[0]); T_ASSERT(!fly[0]->movement.repulse.next);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[0]),1031535248u);
+    T_EQ(wc3_float_bits(fly[0]->movement.repulse.state.vector[1]),1043093862u);
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    FOR_LOOP(i,2) {
+        T_EQ(wc3_float_bits(fly[i]->s.origin2.x),wc3_float_bits(positions[i].x));
+        T_EQ(wc3_float_bits(fly[i]->s.origin2.y),wc3_float_bits(positions[i].y));
+        FOR_LOOP(k,2) T_EQ(wc3_float_bits(fly[i]->movement.repulse.state.vector[k]),wc3_float_bits(pending[i].vector[k]));
+        T_EQ(fly[i]->movement.repulse.state.packed,pending[i].packed);
+    }
+    T_EQ(level.pathing_random.sum,random.sum); T_EQ(level.pathing_random.index,random.index);
+    remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Public owner transfer must replace policy and membership before the next owner visit. */
+TEST(wc3_movement, repulsion_owner_change_pause_and_removal) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hgry',512,512,0)\nset b=CreateUnit(Player(1),'hgry',512,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetRandomSeed(12345)\nendfunction\n"
+        "function transfer takes nothing returns nothing\ncall SetUnitOwner(b,Player(0),false)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(a,true)\nendfunction\n"
+        "function transfer_source takes nothing returns nothing\ncall SetUnitOwner(a,Player(2),false)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(a,false)\nendfunction\n"
+        "function retire takes nothing returns nothing\ncall RemoveUnit(b)\nset b=null\nendfunction\n"));
+    edict_t *fly[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y'))
+        if (count<2) fly[count++]=ent;
+    T_EQ(count,2); if (count!=2) return;
+    FOR_LOOP(i,2) unit_stand(fly[i]);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=level.repulse_phase=0; level.pathing_due=false;
+    level.time=65; globals.RunFrame();
+    FOR_LOOP(i,2) {
+        T_EQ(fly[i]->s.origin2.x,512); T_EQ(fly[i]->s.origin2.y,512);
+        T_EQ(fly[i]->movement.repulse.state.packed & 65535,7);
+    }
+    T_EQ(level.pathing_random.sum,2689401862u); T_EQ(level.pathing_random.index,2025332800u);
+    jass_callbyname(level.vm,"transfer",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(fly[1]->movement.repulse.state.packed,0); T_ASSERT(level.repulse_head==fly[1]);
+    level.time=125; globals.RunFrame();
+    T_ASSERT(fly[1]->movement.repulse.state.vector[0]!=0 || fly[1]->movement.repulse.state.vector[1]!=0);
+    jass_callbyname(level.vm,"freeze",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!fly[0]->movement.repulse.active); T_ASSERT(level.repulse_head==fly[1]);
+    jass_callbyname(level.vm,"transfer_source",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(fly[0]->s.player,2);T_ASSERT(!fly[0]->movement.repulse.active);T_ASSERT(level.repulse_head==fly[1]);
+    vec2_t frozen=fly[0]->s.origin2;
+    level.time=335; globals.RunFrame();
+    T_EQ(fly[0]->s.origin2.x,frozen.x); T_EQ(fly[0]->s.origin2.y,frozen.y);
+    jass_callbyname(level.vm,"retire",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time+=100; globals.RunFrame();
+    T_NULL(level.repulse_head); T_ASSERT(!fly[0]->movement.repulse.active);
+    cstring_t file=Test_TempPath("wc3-repulse-paused-membership.bin");T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    T_NULL(level.repulse_head);T_ASSERT(fly[0]->paused);T_ASSERT(!fly[0]->movement.repulse.active);
+    jass_callbyname(level.vm,"resume",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(level.repulse_head==fly[0]);T_ASSERT(fly[0]->movement.repulse.active);
+    T_EQ(fly[0]->movement.repulse.state.packed,0x02000000u);T_EQ(fly[0]->movement.repulse.state.vector[0],0);
+    T_EQ(fly[0]->movement.repulse.state.vector[1],0);remove(file);
+    T_ASSERT(!fly[1]->movement.repulse.active);
+    reset_entities(); setup_test_world();
+}
+
+/* A non-stock SLK row must select authored configuration, group and priority, rather than Gryphon defaults. */
+TEST(wc3_movement, repulsion_uses_authored_nonstock_policy) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "local unit a=CreateUnit(Player(0),'hRPL',512,512,0)\n"
+        "local unit b=CreateUnit(Player(0),'hRPL',512,512,0)\n"
+        "local unit c=CreateUnit(Player(0),'hgry',512,512,0)\n"
+        "call SetUnitX(a,512)\ncall SetUnitY(a,512)\ncall SetUnitX(b,512)\ncall SetUnitY(b,512)\n"
+        "call SetUnitX(c,512)\ncall SetUnitY(c,512)\ncall SetRandomSeed(12345)\nendfunction\n"));
+    edict_t *first=NULL, *stock=NULL; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','P','L')) {
+        if (!first) first=ent;
+        count++; unit_stand(ent); T_EQ(ent->movement.repulse.state.packed,0x30310000u);
+    }
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','g','r','y')) stock=ent;
+    T_EQ(count,2); T_NOT_NULL(stock); if (!first || !stock) return;
+    unit_stand(stock);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=level.repulse_phase=0; level.pathing_due=false;
+    level.time=65; globals.RunFrame();
+    T_ASSERT(first->movement.repulse.state.vector[0]!=0 || first->movement.repulse.state.vector[1]!=0);
+    T_EQ(stock->movement.repulse.state.vector[0],0); T_EQ(stock->movement.repulse.state.vector[1],0);
+    T_EQ(stock->movement.repulse.state.packed & 65535,7);
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(first->s.origin2.x!=512 || first->s.origin2.y!=512);
+    T_EQ(stock->s.origin2.x,512); T_EQ(stock->s.origin2.y,512);
+    reset_entities(); setup_test_world();
+}
+
+/* A long location order must retain a retail adaptive turn rather than discard it for a flow field. */
+TEST(wc3_movement, retail_adaptive_long_move_reaches_engine) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=2;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',272,304,0)\n"
+        "call SetUnitMoveSpeed(mover,200)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",1936,1776)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    vec2_t target={1936,1776}, waypoint;
+    movePathQuery_t query={{&unit->s.origin2,&target,unit->collision,M_UnitStaticPathingFlags(unit)},unit,NULL,true};
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){272,304})>1);
+    cstring_t file=Test_TempPath("openwarcraft3-adaptive-move-save.bin");
+    uint32_t continued[180][6];
+    T_NOT_NULL(unit->movement.fine_route.adaptive_points);
+    uint32_t coarse_count=unit->movement.fine_route.adaptive_count,coarse_index=unit->movement.fine_route.adaptive_index;
+    T_ASSERT(coarse_count>1);
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i,180) {
+        level.time+=100; globals.RunFrame();
+        movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,M_UnitStaticPathingFlags(unit)},unit,NULL,true};
+        float fine[2]={unit->s.origin2.x/32,unit->s.origin2.y/32};
+        T_ASSERT(G_UnitMovePathFinePointIsPathable(&legal,fine));
+        continued[i][0]=wc3_float_bits(unit->s.origin2.x); continued[i][1]=wc3_float_bits(unit->s.origin2.y);
+        continued[i][2]=wc3_float_bits(unit->s.angle); continued[i][3]=wc3_float_bits(unit->movement.velocity.x);
+        continued[i][4]=wc3_float_bits(unit->movement.velocity.y); continued[i][5]=unit->current_order_id;
+    }
+    /* Public task stays1936; original05b970 clips the route to max-128. */
+    vec2_t clipped={1920,1776};
+    T_EQ(unit->current_order_id,0);T_EQ(unit->goalentity->s.origin2.x,target.x);
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&clipped)<=32*wc3_float(0x3efae148));
+    T_ASSERT(ReadGame(file));
+    T_NOT_NULL(unit->movement.fine_route.adaptive_points);
+    T_EQ(unit->movement.fine_route.adaptive_count,coarse_count);
+    T_EQ(unit->movement.fine_route.adaptive_index,coarse_index);
+    FOR_LOOP(i,180) {
+        level.time+=100; globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->s.origin2.x),continued[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y),continued[i][1]);
+        T_EQ(wc3_float_bits(unit->s.angle),continued[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.x),continued[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y),continued[i][4]); T_EQ(unit->current_order_id,continued[i][5]);
+    }
+    remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Initial adaptive-to-fine route buffers from complete original165ae0 calls.
+ * Coarse destination selection follows route length, before the fine request. */
+TEST(wc3_movement, retail_adaptive_handoff_route_words) {
+    static uint32_t const handoff_words[]={
+        0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,
+        0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,
+        0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,
+        0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,
+        0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x42060000u,0x42060000u,0x42020000u,0x42020000u,
+        0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,
+        0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,
+        0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,
+        0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,
+        0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,
+        0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,
+        0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,
+        0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,
+        0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,
+        0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,
+        0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,
+        0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x420a0000u,0x420a0000u,
+        0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,
+        0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,
+        0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,
+        0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,
+        0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41780000u,0x42060000u,0x41680000u,0x42020000u,
+        0x41680000u,0x41fc0000u,0x41580000u,0x41f40000u,0x41480000u,0x41ec0000u,0x41380000u,0x41e40000u,
+        0x41280000u,0x41dc0000u,0x41280000u,0x41d40000u,0x41180000u,0x41cc0000u,0x41080000u,0x41c40000u,
+        0x40f00000u,0x41bc0000u,0x40d00000u,0x41b40000u,0x40d00000u,0x41ac0000u,0x40d00000u,0x41a40000u,
+        0x40d00000u,0x419c0000u,0x40d00000u,0x41940000u,0x40d00000u,0x418c0000u,0x40d00000u,0x41840000u,
+        0x40b00000u,0x41780000u,0x40900000u,0x41680000u,0x40900000u,0x41580000u,0x40900000u,0x41480000u,
+        0x40900000u,0x41380000u,0x40900000u,0x41280000u,0x40900000u,0x41180000u,0x40900000u,0x41080000u,
+        0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x41780000u,0x42060000u,0x41680000u,0x42020000u,0x41680000u,0x41fc0000u,0x41580000u,0x41f40000u,
+        0x41480000u,0x41ec0000u,0x41380000u,0x41e40000u,0x41280000u,0x41dc0000u,0x41280000u,0x41d40000u,
+        0x41180000u,0x41cc0000u,0x41080000u,0x41c40000u,0x40f00000u,0x41bc0000u,0x40d00000u,0x41b40000u,
+        0x40d00000u,0x41ac0000u,0x40d00000u,0x41a40000u,0x40d00000u,0x419c0000u,0x40d00000u,0x41940000u,
+        0x40d00000u,0x418c0000u,0x40d00000u,0x41840000u,0x40b00000u,0x41780000u,0x40900000u,0x41680000u,
+        0x40900000u,0x41580000u,0x40900000u,0x41480000u,0x40900000u,0x41380000u,0x40900000u,0x41280000u,
+        0x40900000u,0x41180000u,0x40900000u,0x41080000u,0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,
+        0x40900000u,0x40b00000u,0x40880000u,0x40980000u,0x41680000u,0x420a0000u,0x41580000u,0x42060000u,
+        0x41480000u,0x42020000u,0x41380000u,0x41fc0000u,0x41380000u,0x41f40000u,0x41380000u,0x41ec0000u,
+        0x41280000u,0x41e40000u,0x41280000u,0x41dc0000u,0x41180000u,0x41d40000u,0x41080000u,0x41cc0000u,
+        0x41080000u,0x41c40000u,0x41080000u,0x41bc0000u,0x40f00000u,0x41b40000u,0x40d00000u,0x41ac0000u,
+        0x40b00000u,0x41a40000u,0x40900000u,0x419c0000u,0x40900000u,0x41940000u,0x40900000u,0x418c0000u,
+        0x40900000u,0x41840000u,0x40900000u,0x41780000u,0x40900000u,0x41680000u,0x40900000u,0x41580000u,
+        0x40900000u,0x41480000u,0x40900000u,0x41380000u,0x40900000u,0x41280000u,0x40900000u,0x41180000u,
+        0x40900000u,0x41080000u,0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,
+        0x40880000u,0x40980000u,0x41680000u,0x420a0000u,0x41580000u,0x42060000u,0x41480000u,0x42020000u,
+        0x41380000u,0x41fc0000u,0x41380000u,0x41f40000u,0x41380000u,0x41ec0000u,0x41280000u,0x41e40000u,
+        0x41280000u,0x41dc0000u,0x41180000u,0x41d40000u,0x41080000u,0x41cc0000u,0x41080000u,0x41c40000u,
+        0x41080000u,0x41bc0000u,0x40f00000u,0x41b40000u,0x40d00000u,0x41ac0000u,0x40b00000u,0x41a40000u,
+        0x40900000u,0x419c0000u,0x40900000u,0x41940000u,0x40900000u,0x418c0000u,0x40900000u,0x41840000u,
+        0x40900000u,0x41780000u,0x40900000u,0x41680000u,0x40900000u,0x41580000u,0x40900000u,0x41480000u,
+        0x40900000u,0x41380000u,0x40900000u,0x41280000u,0x40900000u,0x41180000u,0x40900000u,0x41080000u,
+        0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x42060000u,0x41fc0000u,0x42020000u,0x41f40000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41f40000u,
+        0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,
+        0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,
+        0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,
+        0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x42060000u,0x41fc0000u,0x42020000u,0x41f40000u,
+        0x41fc0000u,0x41f40000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,
+        0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,
+        0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,
+        0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,
+        0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,
+        0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,
+        0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x420a0000u,0x42020000u,0x42060000u,0x41fc0000u,0x42020000u,0x41f40000u,0x41fc0000u,0x41f40000u,
+        0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,
+        0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,
+        0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,
+        0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,
+        0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x420a0000u,0x42020000u,
+        0x42060000u,0x41fc0000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41fc0000u,
+        0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,
+        0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,
+        0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,
+        0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,
+        0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+    };
+    static uint32_t const cases[12][4]={
+        {0,0,0,30},
+        {0,1,60,30},
+        {0,2,120,31},
+        {0,3,182,31},
+        {1,0,244,30},
+        {1,1,304,30},
+        {1,2,364,31},
+        {1,3,426,31},
+        {2,0,488,30},
+        {2,1,548,30},
+        {2,2,608,31},
+        {2,3,670,32},
+    };
+    static uint8_t const masks[]={2,4,0x40,0x80};
+    FOR_LOOP(c,12) FOR_LOOP(lane,4) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64) if (cases[c][0] && (cases[c][0]==1 || y<29 || y>34)) cells[y*64+32]=0xc6;
+        box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        vec2_t goal={1896,1912},waypoint;
+        unit->collision=8+cases[c][1]*16;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,masks[lane]},unit,NULL,true};
+        moveFineRoute_t route={0};
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&waypoint));
+        T_EQ(route.count,cases[c][3]);
+        T_EQ(route.index,cases[c][0]==2 ? cases[c][3]-2 : 0);
+        if (route.count==cases[c][3]) FOR_LOOP(i,route.count) {
+            T_EQ(wc3_float_bits(route.points[i].x),handoff_words[cases[c][2]+2*i]);
+            T_EQ(wc3_float_bits(route.points[i].y),handoff_words[cases[c][2]+2*i+1]);
+        }
+        free(route.points); free(route.adaptive_points);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Public Move must consume the same initial local leg as the original full path advance. */
+TEST(wc3_movement, retail_adaptive_handoff_reaches_public_move) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64) cells[y*64+32]=0xc6;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",1896,1912)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    T_NOT_NULL(unit->movement.fine_route.points); if (!unit->movement.fine_route.points) return;
+    T_EQ(unit->movement.fine_route.count,30); T_EQ(unit->movement.fine_route.index,0);
+    T_EQ(wc3_float_bits(unit->movement.fine_route.points[0].x),wc3_float_bits(15.5f));
+    T_EQ(wc3_float_bits(unit->movement.fine_route.points[0].y),wc3_float_bits(33.5f));
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.x),wc3_float_bits(496));
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.y),wc3_float_bits(1072));
+    T_EQ(unit->goalentity->s.origin2.x,1896); T_EQ(unit->goalentity->s.origin2.y,1912);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    reset_entities(); setup_test_world();
+}
+
+/* Original coarse approach threshold is measured before fine-route progression:
+ * .48 coarse units (.96 fine) already selects/refills the following local leg. */
+TEST(wc3_movement, retail_adaptive_progress_refills_before_fine_endpoint) {
+    static uint32_t const progress_words[]={
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x426d0000u,0x426f0000u,
+        0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,
+        0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,
+        0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,0x42460000u,0x423e0000u,0x42420000u,
+        0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,
+        0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,
+        0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,
+        0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,
+        0x426a0000u,0x42660000u,0x42660000u,0x42620000u,0x42620000u,0x425e0000u,0x425e0000u,0x425a0000u,
+        0x425a0000u,0x42560000u,0x42560000u,0x42520000u,0x42520000u,0x424e0000u,0x424e0000u,0x424a0000u,
+        0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,0x423e0000u,0x423a0000u,
+        0x423a0000u,0x42360000u,0x42360000u,0x42320000u,0x42320000u,0x422e0000u,0x422e0000u,0x422a0000u,
+        0x422a0000u,0x42260000u,0x42260000u,0x42220000u,0x42220000u,0x421e0000u,0x421e0000u,0x421a0000u,
+        0x421a0000u,0x42160000u,0x42160000u,0x42120000u,0x42120000u,0x420e0000u,0x420e0000u,0x420a0000u,
+        0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x420228f6u,0x41fc0000u,0x426d0000u,0x426f0000u,
+        0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x42660000u,0x42620000u,0x42620000u,0x425e0000u,
+        0x425e0000u,0x425a0000u,0x425a0000u,0x42560000u,0x42560000u,0x42520000u,0x42520000u,0x424e0000u,
+        0x424e0000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,
+        0x423e0000u,0x423a0000u,0x423a0000u,0x42360000u,0x42360000u,0x42320000u,0x42320000u,0x422e0000u,
+        0x422e0000u,0x422a0000u,0x422a0000u,0x42260000u,0x42260000u,0x42220000u,0x42220000u,0x421e0000u,
+        0x421e0000u,0x421a0000u,0x421a0000u,0x42160000u,0x42160000u,0x42120000u,0x42120000u,0x420e0000u,
+        0x420e0000u,0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x420228f6u,0x41fc0000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x42660000u,0x42620000u,
+        0x42620000u,0x425e0000u,0x425e0000u,0x425a0000u,0x425a0000u,0x42560000u,0x42560000u,0x42520000u,
+        0x42520000u,0x424e0000u,0x424e0000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,
+        0x42420000u,0x423e0000u,0x423e0000u,0x423a0000u,0x423a0000u,0x42360000u,0x42360000u,0x42320000u,
+        0x42320000u,0x422e0000u,0x422e0000u,0x422a0000u,0x422a0000u,0x42260000u,0x42260000u,0x42220000u,
+        0x42220000u,0x421e0000u,0x421e0000u,0x421a0000u,0x421a0000u,0x42160000u,0x42160000u,0x42120000u,
+        0x42120000u,0x420e0000u,0x420e0000u,0x420a0000u,0x420a0000u,0x42060000u,0x420628f6u,0x42020000u,
+        0x426d0000u,0x426f0000u,0x426a0000u,0x426a0000u,0x426a0000u,0x42660000u,0x426a0000u,0x42620000u,
+        0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,
+        0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x42420000u,
+        0x42460000u,0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,
+        0x42360000u,0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,
+        0x42260000u,0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,
+        0x42160000u,0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x42060000u,
+        0x420628f6u,0x42020000u,
+    };
+    static uint32_t const cases[8][6]={
+        {0x00000000u,0x00000000u,0x00000000u,0x0000001cu,0x420228f6u,0x42060000u},
+        {0x00000000u,0x00000001u,0x00000038u,0x0000001cu,0x420228f6u,0x42060000u},
+        {0x00000000u,0x00000002u,0x00000070u,0x0000001bu,0x420628f6u,0x420a0000u},
+        {0x00000000u,0x00000003u,0x000000a6u,0x0000001bu,0x420628f6u,0x420a0000u},
+        {0x00000001u,0x00000000u,0x000000dcu,0x0000001du,0x420228f6u,0x41fc0000u},
+        {0x00000001u,0x00000001u,0x00000116u,0x0000001du,0x420228f6u,0x41fc0000u},
+        {0x00000001u,0x00000002u,0x00000150u,0x0000001cu,0x420628f6u,0x42020000u},
+        {0x00000001u,0x00000003u,0x00000188u,0x0000001du,0x420628f6u,0x42020000u},
+    };
+    static uint8_t const masks[]={2,4,0x40,0x80};
+    FOR_LOOP(c,8) FOR_LOOP(lane,4) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64) if (cases[c][0] && (y<29 || y>34)) cells[y*64+32]=0xc6;
+        box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        vec2_t goal={1896,1912},waypoint;
+        unit->collision=8+cases[c][1]*16;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,masks[lane]},unit,NULL,true};
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_count,cases[c][0]?8:4);
+        T_EQ(route->adaptive_index,cases[c][0]?5:1);
+        /* Supply the same terminal fine index and published native source as the original caller. */
+        route->index=0;
+        vec2_t source={wc3_float(cases[c][4]),wc3_float(cases[c][5])};
+        unit->s.origin2=(vec2_t){wc3_mul(source.x,32),wc3_mul(source.y,32)};
+        query.fine=&source;
+        /* The original controlled refill advances its owner counter ten visits and resets work. */
+        level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+        if (!G_AdvanceUnitMoveFineRoute(&query,route,&waypoint))
+            T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_index,0);
+        T_EQ(route->count,cases[c][3]);
+        T_EQ(route->index,cases[c][0] ? cases[c][3]-2 : 0);
+        if (route->count==cases[c][3]) FOR_LOOP(i,route->count) {
+            T_EQ(wc3_float_bits(route->points[i].x),progress_words[cases[c][2]+2*i]);
+            T_EQ(wc3_float_bits(route->points[i].y),progress_words[cases[c][2]+2*i+1]);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Full original165ae0 buffers on128-cell maps; frozen fixture: retail-adaptive-long-progress-1.27.json. */
+TEST(wc3_movement, retail_long_adaptive_refill_words_and_indices) {
+    static uint32_t const long_words[]={
+        0x42768000u,0x42778000u,0x42430000u,0x42430000u,0x42230000u,0x42230000u,0x42030000u,0x42030000u,
+        0x41c60000u,0x41c60000u,0x41860000u,0x41860000u,0x410c0000u,0x410c0000u,0x40080000u,0x40180000u,
+        0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,
+        0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,
+        0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,
+        0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,
+        0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x42830000u,0x42830000u,0x42810000u,0x42810000u,0x427e0000u,0x42810000u,0x427a0000u,0x427e0000u,
+        0x42760000u,0x427a0000u,0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,
+        0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,
+        0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,
+        0x42460000u,0x424a0000u,0x424228f6u,0x42460000u,0x42a30000u,0x42a30000u,0x42a10000u,0x42a10000u,
+        0x429f0000u,0x42a10000u,0x429d0000u,0x429f0000u,0x429b0000u,0x429d0000u,0x42990000u,0x429b0000u,
+        0x42970000u,0x42990000u,0x42950000u,0x42970000u,0x42930000u,0x42950000u,0x42910000u,0x42930000u,
+        0x428f0000u,0x42910000u,0x428d0000u,0x428f0000u,0x428b0000u,0x428d0000u,0x42890000u,0x428b0000u,
+        0x42870000u,0x42890000u,0x42850000u,0x42870000u,0x42830000u,0x42850000u,0x4281147bu,0x42830000u,
+        0x42c30000u,0x42c30000u,0x42c10000u,0x42c10000u,0x42bf0000u,0x42c10000u,0x42bd0000u,0x42bf0000u,
+        0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,0x42b50000u,0x42b70000u,
+        0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,0x42ad0000u,0x42af0000u,
+        0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,0x42a50000u,0x42a70000u,
+        0x42a30000u,0x42a50000u,0x42a1147bu,0x42a30000u,0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,
+        0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,
+        0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,
+        0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,
+        0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,
+        0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,
+        0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,
+        0x42c30000u,0x42c50000u,0x42c1147bu,0x42c30000u,0x42768000u,0x42778000u,0x42430000u,0x42430000u,
+        0x42230000u,0x42230000u,0x42030000u,0x42030000u,0x41c60000u,0x41c60000u,0x41860000u,0x41860000u,
+        0x410c0000u,0x410c0000u,0x40080000u,0x40180000u,0x42060000u,0x42060000u,0x42020000u,0x42020000u,
+        0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,
+        0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,
+        0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,
+        0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,
+        0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,
+        0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,
+        0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,
+        0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,
+        0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,
+        0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,
+        0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,0x42830000u,0x42830000u,0x42810000u,0x42810000u,
+        0x427e0000u,0x42810000u,0x427a0000u,0x427e0000u,0x42760000u,0x427a0000u,0x42720000u,0x42760000u,
+        0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,0x424228f6u,0x42460000u,
+        0x42a30000u,0x42a30000u,0x42a10000u,0x42a10000u,0x429f0000u,0x42a10000u,0x429d0000u,0x429f0000u,
+        0x429b0000u,0x429d0000u,0x42990000u,0x429b0000u,0x42970000u,0x42990000u,0x42950000u,0x42970000u,
+        0x42930000u,0x42950000u,0x42910000u,0x42930000u,0x428f0000u,0x42910000u,0x428d0000u,0x428f0000u,
+        0x428b0000u,0x428d0000u,0x42890000u,0x428b0000u,0x42870000u,0x42890000u,0x42850000u,0x42870000u,
+        0x42830000u,0x42850000u,0x4281147bu,0x42830000u,0x42c30000u,0x42c30000u,0x42c10000u,0x42c10000u,
+        0x42bf0000u,0x42c10000u,0x42bd0000u,0x42bf0000u,0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,
+        0x42b70000u,0x42b90000u,0x42b50000u,0x42b70000u,0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,
+        0x42af0000u,0x42b10000u,0x42ad0000u,0x42af0000u,0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,
+        0x42a70000u,0x42a90000u,0x42a50000u,0x42a70000u,0x42a30000u,0x42a50000u,0x42a1147bu,0x42a30000u,
+        0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,
+        0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,
+        0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,
+        0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,
+        0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,
+        0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,
+        0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,0x42c30000u,0x42c50000u,0x42c1147bu,0x42c30000u,
+        0x42768000u,0x42778000u,0x42450000u,0x42450000u,0x42250000u,0x42250000u,0x42050000u,0x42050000u,
+        0x41ca0000u,0x41ca0000u,0x418a0000u,0x418a0000u,0x41140000u,0x41140000u,0x40080000u,0x40180000u,
+        0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,
+        0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,
+        0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,
+        0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,
+        0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,
+        0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x424a0000u,0x424a0000u,
+        0x42460000u,0x42460000u,0x42420000u,0x42460000u,0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,
+        0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,
+        0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,
+        0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,
+        0x420628f6u,0x420a0000u,0x42850000u,0x42850000u,0x42830000u,0x42830000u,0x42810000u,0x42830000u,
+        0x427e0000u,0x42810000u,0x427a0000u,0x427e0000u,0x42760000u,0x427a0000u,0x42720000u,0x42760000u,
+        0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,0x42660000u,0x426a0000u,0x42620000u,0x42660000u,
+        0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,0x42520000u,0x42560000u,
+        0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x424628f6u,0x424a0000u,0x42a50000u,0x42a50000u,
+        0x42a30000u,0x42a30000u,0x42a10000u,0x42a30000u,0x429f0000u,0x42a10000u,0x429d0000u,0x429f0000u,
+        0x429b0000u,0x429d0000u,0x42990000u,0x429b0000u,0x42970000u,0x42990000u,0x42950000u,0x42970000u,
+        0x42930000u,0x42950000u,0x42910000u,0x42930000u,0x428f0000u,0x42910000u,0x428d0000u,0x428f0000u,
+        0x428b0000u,0x428d0000u,0x42890000u,0x428b0000u,0x42870000u,0x42890000u,0x42850000u,0x42870000u,
+        0x4283147bu,0x42850000u,0x42c50000u,0x42c50000u,0x42c30000u,0x42c30000u,0x42c10000u,0x42c30000u,
+        0x42bf0000u,0x42c10000u,0x42bd0000u,0x42bf0000u,0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,
+        0x42b70000u,0x42b90000u,0x42b50000u,0x42b70000u,0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,
+        0x42af0000u,0x42b10000u,0x42ad0000u,0x42af0000u,0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,
+        0x42a70000u,0x42a90000u,0x42a50000u,0x42a70000u,0x42a3147bu,0x42a50000u,0x42f68000u,0x42f78000u,
+        0x42f50000u,0x42f50000u,0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,
+        0x42ed0000u,0x42ef0000u,0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,
+        0x42e50000u,0x42e70000u,0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,
+        0x42dd0000u,0x42df0000u,0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,
+        0x42d50000u,0x42d70000u,0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,
+        0x42cd0000u,0x42cf0000u,0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,
+        0x42c50000u,0x42c70000u,0x42c3147bu,0x42c50000u,0x42768000u,0x42778000u,0x42450000u,0x42450000u,
+        0x42250000u,0x42250000u,0x42050000u,0x42050000u,0x41ca0000u,0x41ca0000u,0x418a0000u,0x418a0000u,
+        0x41140000u,0x41140000u,0x40080000u,0x40180000u,0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,
+        0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,
+        0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,
+        0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,
+        0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,
+        0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,
+        0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,
+        0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,
+        0x40880000u,0x40980000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x42850000u,0x42850000u,
+        0x42830000u,0x42830000u,0x42810000u,0x42830000u,0x427e0000u,0x42810000u,0x427a0000u,0x427e0000u,
+        0x42760000u,0x427a0000u,0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,
+        0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,
+        0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,
+        0x424628f6u,0x424a0000u,0x42a50000u,0x42a50000u,0x42a30000u,0x42a30000u,0x42a10000u,0x42a30000u,
+        0x429f0000u,0x42a10000u,0x429d0000u,0x429f0000u,0x429b0000u,0x429d0000u,0x42990000u,0x429b0000u,
+        0x42970000u,0x42990000u,0x42950000u,0x42970000u,0x42930000u,0x42950000u,0x42910000u,0x42930000u,
+        0x428f0000u,0x42910000u,0x428d0000u,0x428f0000u,0x428b0000u,0x428d0000u,0x42890000u,0x428b0000u,
+        0x42870000u,0x42890000u,0x42850000u,0x42870000u,0x4283147bu,0x42850000u,0x42c50000u,0x42c50000u,
+        0x42c30000u,0x42c30000u,0x42c10000u,0x42c30000u,0x42bf0000u,0x42c10000u,0x42bd0000u,0x42bf0000u,
+        0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,0x42b50000u,0x42b70000u,
+        0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,0x42ad0000u,0x42af0000u,
+        0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,0x42a50000u,0x42a70000u,
+        0x42a3147bu,0x42a50000u,0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,0x42f30000u,0x42f50000u,
+        0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,0x42eb0000u,0x42ed0000u,
+        0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,0x42e30000u,0x42e50000u,
+        0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,0x42db0000u,0x42dd0000u,
+        0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,0x42d30000u,0x42d50000u,
+        0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,0x42cb0000u,0x42cd0000u,
+        0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,0x42c3147bu,0x42c50000u,
+        0x42768000u,0x42778000u,0x42430000u,0x42430000u,0x42230000u,0x42230000u,0x42130000u,0x42130000u,
+        0x420b0000u,0x420b0000u,0x42070000u,0x42070000u,0x42070000u,0x42030000u,0x42030000u,0x41fe0000u,
+        0x41c60000u,0x41c60000u,0x41860000u,0x41860000u,0x410c0000u,0x410c0000u,0x40080000u,0x40180000u,
+        0x42060000u,0x42060000u,0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,
+        0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,
+        0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,
+        0x41580000u,0x41580000u,0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,
+        0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,
+        0x42830000u,0x427e0000u,0x42810000u,0x427a0000u,0x427e0000u,0x427a0000u,0x427a0000u,0x427a0000u,
+        0x42760000u,0x427a0000u,0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,
+        0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,
+        0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,
+        0x42460000u,0x424a0000u,0x424228f6u,0x42460000u,0x42a30000u,0x42a30000u,0x42a10000u,0x42a10000u,
+        0x42a10000u,0x429f0000u,0x429f0000u,0x429d0000u,0x429d0000u,0x429b0000u,0x429b0000u,0x42990000u,
+        0x42990000u,0x42970000u,0x42970000u,0x42950000u,0x42950000u,0x42930000u,0x42930000u,0x42910000u,
+        0x42910000u,0x428f0000u,0x428f0000u,0x428d0000u,0x428d0000u,0x428b0000u,0x428b0000u,0x42890000u,
+        0x42890000u,0x42870000u,0x42870000u,0x42850000u,0x42850000u,0x42830000u,0x42830000u,0x42810000u,
+        0x4281147bu,0x427e0000u,0x42c30000u,0x42c30000u,0x42c10000u,0x42c10000u,0x42bf0000u,0x42c10000u,
+        0x42bd0000u,0x42bf0000u,0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,
+        0x42b50000u,0x42b70000u,0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,
+        0x42ad0000u,0x42af0000u,0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,
+        0x42a50000u,0x42a70000u,0x42a30000u,0x42a50000u,0x42a1147bu,0x42a30000u,0x42f68000u,0x42f78000u,
+        0x42f50000u,0x42f50000u,0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,
+        0x42ed0000u,0x42ef0000u,0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,
+        0x42e50000u,0x42e70000u,0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,
+        0x42dd0000u,0x42df0000u,0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,
+        0x42d50000u,0x42d70000u,0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,
+        0x42cd0000u,0x42cf0000u,0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,
+        0x42c50000u,0x42c70000u,0x42c30000u,0x42c50000u,0x42c1147bu,0x42c30000u,0x42768000u,0x42778000u,
+        0x42430000u,0x42430000u,0x42230000u,0x42230000u,0x42130000u,0x42130000u,0x420b0000u,0x420b0000u,
+        0x42070000u,0x42070000u,0x42070000u,0x42030000u,0x42030000u,0x41fe0000u,0x41c60000u,0x41c60000u,
+        0x41860000u,0x41860000u,0x410c0000u,0x410c0000u,0x40080000u,0x40180000u,0x42060000u,0x42060000u,
+        0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,
+        0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,
+        0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,
+        0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,
+        0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,
+        0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,
+        0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,
+        0x40880000u,0x40980000u,0x42460000u,0x42460000u,0x42420000u,0x42420000u,0x423e0000u,0x42420000u,
+        0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,
+        0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,
+        0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,
+        0x420a0000u,0x420e0000u,0x42060000u,0x420a0000u,0x420228f6u,0x42060000u,0x42830000u,0x427e0000u,
+        0x42810000u,0x427a0000u,0x427e0000u,0x427a0000u,0x427a0000u,0x427a0000u,0x42760000u,0x427a0000u,
+        0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,0x42660000u,0x426a0000u,
+        0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,
+        0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x42460000u,0x424a0000u,
+        0x424228f6u,0x42460000u,0x42a30000u,0x42a30000u,0x42a10000u,0x42a10000u,0x42a10000u,0x429f0000u,
+        0x429f0000u,0x429d0000u,0x429d0000u,0x429b0000u,0x429b0000u,0x42990000u,0x42990000u,0x42970000u,
+        0x42970000u,0x42950000u,0x42950000u,0x42930000u,0x42930000u,0x42910000u,0x42910000u,0x428f0000u,
+        0x428f0000u,0x428d0000u,0x428d0000u,0x428b0000u,0x428b0000u,0x42890000u,0x42890000u,0x42870000u,
+        0x42870000u,0x42850000u,0x42850000u,0x42830000u,0x42830000u,0x42810000u,0x4281147bu,0x427e0000u,
+        0x42c30000u,0x42c30000u,0x42c10000u,0x42c10000u,0x42bf0000u,0x42c10000u,0x42bd0000u,0x42bf0000u,
+        0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,0x42b50000u,0x42b70000u,
+        0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,0x42ad0000u,0x42af0000u,
+        0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,0x42a50000u,0x42a70000u,
+        0x42a30000u,0x42a50000u,0x42a1147bu,0x42a30000u,0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,
+        0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,
+        0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,
+        0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,
+        0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,
+        0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,
+        0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,
+        0x42c30000u,0x42c50000u,0x42c1147bu,0x42c30000u,0x42768000u,0x42778000u,0x42450000u,0x42450000u,
+        0x42250000u,0x42250000u,0x42150000u,0x42150000u,0x420d0000u,0x420d0000u,0x420d0000u,0x42050000u,
+        0x42090000u,0x42010000u,0x42050000u,0x42010000u,0x41ca0000u,0x41ca0000u,0x418a0000u,0x418a0000u,
+        0x41140000u,0x41140000u,0x40080000u,0x40180000u,0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,
+        0x42020000u,0x42020000u,0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,
+        0x41e40000u,0x41e40000u,0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,
+        0x41c40000u,0x41c40000u,0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,
+        0x41a40000u,0x41a40000u,0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,
+        0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,
+        0x41480000u,0x41480000u,0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,
+        0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,
+        0x40880000u,0x40980000u,0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42460000u,
+        0x423e0000u,0x42420000u,0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,
+        0x422e0000u,0x42320000u,0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,
+        0x421e0000u,0x42220000u,0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,
+        0x420e0000u,0x42120000u,0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x42850000u,0x42810000u,
+        0x42830000u,0x427e0000u,0x42810000u,0x427e0000u,0x427e0000u,0x427a0000u,0x427a0000u,0x427a0000u,
+        0x42760000u,0x42760000u,0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,
+        0x42660000u,0x426a0000u,0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,
+        0x42560000u,0x425a0000u,0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,
+        0x424628f6u,0x424a0000u,0x42a50000u,0x42a50000u,0x42a30000u,0x42a30000u,0x42a30000u,0x42a10000u,
+        0x42a10000u,0x429f0000u,0x429f0000u,0x429d0000u,0x429d0000u,0x429b0000u,0x429b0000u,0x42990000u,
+        0x42990000u,0x42970000u,0x42970000u,0x42950000u,0x42950000u,0x42930000u,0x42930000u,0x42910000u,
+        0x42910000u,0x428f0000u,0x428f0000u,0x428d0000u,0x428d0000u,0x428b0000u,0x428b0000u,0x42890000u,
+        0x42890000u,0x42870000u,0x42870000u,0x42850000u,0x42850000u,0x42830000u,0x4283147bu,0x42810000u,
+        0x42c50000u,0x42c50000u,0x42c30000u,0x42c30000u,0x42c10000u,0x42c30000u,0x42bf0000u,0x42c10000u,
+        0x42bd0000u,0x42bf0000u,0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,
+        0x42b50000u,0x42b70000u,0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,
+        0x42ad0000u,0x42af0000u,0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,
+        0x42a50000u,0x42a70000u,0x42a3147bu,0x42a50000u,0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,
+        0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,
+        0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,
+        0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,
+        0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,
+        0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,
+        0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,
+        0x42c3147bu,0x42c50000u,0x42768000u,0x42778000u,0x42450000u,0x42450000u,0x42250000u,0x42250000u,
+        0x42150000u,0x42150000u,0x420d0000u,0x420d0000u,0x420d0000u,0x42050000u,0x42090000u,0x42010000u,
+        0x42050000u,0x42010000u,0x41ca0000u,0x41ca0000u,0x418a0000u,0x418a0000u,0x41140000u,0x41140000u,
+        0x40080000u,0x40180000u,0x420a0000u,0x420a0000u,0x42060000u,0x42060000u,0x42020000u,0x42020000u,
+        0x41fc0000u,0x41fc0000u,0x41f40000u,0x41f40000u,0x41ec0000u,0x41ec0000u,0x41e40000u,0x41e40000u,
+        0x41dc0000u,0x41dc0000u,0x41d40000u,0x41d40000u,0x41cc0000u,0x41cc0000u,0x41c40000u,0x41c40000u,
+        0x41bc0000u,0x41bc0000u,0x41b40000u,0x41b40000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41a40000u,
+        0x419c0000u,0x419c0000u,0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,
+        0x41780000u,0x41780000u,0x41680000u,0x41680000u,0x41580000u,0x41580000u,0x41480000u,0x41480000u,
+        0x41380000u,0x41380000u,0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,
+        0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x424a0000u,0x424a0000u,0x42460000u,0x42460000u,0x42420000u,0x42460000u,0x423e0000u,0x42420000u,
+        0x423a0000u,0x423e0000u,0x42360000u,0x423a0000u,0x42320000u,0x42360000u,0x422e0000u,0x42320000u,
+        0x422a0000u,0x422e0000u,0x42260000u,0x422a0000u,0x42220000u,0x42260000u,0x421e0000u,0x42220000u,
+        0x421a0000u,0x421e0000u,0x42160000u,0x421a0000u,0x42120000u,0x42160000u,0x420e0000u,0x42120000u,
+        0x420a0000u,0x420e0000u,0x420628f6u,0x420a0000u,0x42850000u,0x42810000u,0x42830000u,0x427e0000u,
+        0x42810000u,0x427e0000u,0x427e0000u,0x427e0000u,0x427a0000u,0x427e0000u,0x42760000u,0x427a0000u,
+        0x42720000u,0x42760000u,0x426e0000u,0x42720000u,0x426a0000u,0x426e0000u,0x42660000u,0x426a0000u,
+        0x42620000u,0x42660000u,0x425e0000u,0x42620000u,0x425a0000u,0x425e0000u,0x42560000u,0x425a0000u,
+        0x42520000u,0x42560000u,0x424e0000u,0x42520000u,0x424a0000u,0x424e0000u,0x424628f6u,0x424a0000u,
+        0x42a50000u,0x42a50000u,0x42a30000u,0x42a30000u,0x42a30000u,0x42a10000u,0x42a30000u,0x429f0000u,
+        0x42a10000u,0x429d0000u,0x429f0000u,0x429b0000u,0x429d0000u,0x42990000u,0x429b0000u,0x42970000u,
+        0x42990000u,0x42950000u,0x42970000u,0x42930000u,0x42950000u,0x42910000u,0x42930000u,0x428f0000u,
+        0x42910000u,0x428d0000u,0x428f0000u,0x428b0000u,0x428d0000u,0x42890000u,0x428b0000u,0x42870000u,
+        0x42890000u,0x42850000u,0x42870000u,0x42830000u,0x42850000u,0x42830000u,0x4283147bu,0x42810000u,
+        0x42c50000u,0x42c50000u,0x42c30000u,0x42c30000u,0x42c10000u,0x42c30000u,0x42bf0000u,0x42c10000u,
+        0x42bd0000u,0x42bf0000u,0x42bb0000u,0x42bd0000u,0x42b90000u,0x42bb0000u,0x42b70000u,0x42b90000u,
+        0x42b50000u,0x42b70000u,0x42b30000u,0x42b50000u,0x42b10000u,0x42b30000u,0x42af0000u,0x42b10000u,
+        0x42ad0000u,0x42af0000u,0x42ab0000u,0x42ad0000u,0x42a90000u,0x42ab0000u,0x42a70000u,0x42a90000u,
+        0x42a50000u,0x42a70000u,0x42a3147bu,0x42a50000u,0x42f68000u,0x42f78000u,0x42f50000u,0x42f50000u,
+        0x42f30000u,0x42f50000u,0x42f10000u,0x42f30000u,0x42ef0000u,0x42f10000u,0x42ed0000u,0x42ef0000u,
+        0x42eb0000u,0x42ed0000u,0x42e90000u,0x42eb0000u,0x42e70000u,0x42e90000u,0x42e50000u,0x42e70000u,
+        0x42e30000u,0x42e50000u,0x42e10000u,0x42e30000u,0x42df0000u,0x42e10000u,0x42dd0000u,0x42df0000u,
+        0x42db0000u,0x42dd0000u,0x42d90000u,0x42db0000u,0x42d70000u,0x42d90000u,0x42d50000u,0x42d70000u,
+        0x42d30000u,0x42d50000u,0x42d10000u,0x42d30000u,0x42cf0000u,0x42d10000u,0x42cd0000u,0x42cf0000u,
+        0x42cb0000u,0x42cd0000u,0x42c90000u,0x42cb0000u,0x42c70000u,0x42c90000u,0x42c50000u,0x42c70000u,
+        0x42c3147bu,0x42c50000u,
+    };
+    static uint32_t const long_cases[8][5]={
+        {0,0,0,8,0},
+        {0,1,276,8,6},
+        {0,2,552,8,12},
+        {0,3,828,8,18},
+        {1,0,1104,12,24},
+        {1,1,1390,12,30},
+        {1,2,1676,12,36},
+        {1,3,1962,12,42},
+    };
+    static uint32_t const long_legs[48][6]={
+        {0x40880000u,0x40980000u,0x00000005u,0x0000001eu,0x00000000u,0x00000010u},
+        {0x420228f6u,0x42060000u,0x00000004u,0x00000012u,0x00000000u,0x0000004cu},
+        {0x424228f6u,0x42460000u,0x00000003u,0x00000012u,0x00000000u,0x00000070u},
+        {0x4281147bu,0x42830000u,0x00000002u,0x00000012u,0x00000000u,0x00000094u},
+        {0x42a1147bu,0x42a30000u,0x00000001u,0x00000012u,0x00000000u,0x000000b8u},
+        {0x42c1147bu,0x42c30000u,0x00000000u,0x0000001cu,0x00000000u,0x000000dcu},
+        {0x40880000u,0x40980000u,0x00000005u,0x0000001eu,0x00000000u,0x00000124u},
+        {0x420228f6u,0x42060000u,0x00000004u,0x00000012u,0x00000000u,0x00000160u},
+        {0x424228f6u,0x42460000u,0x00000003u,0x00000012u,0x00000000u,0x00000184u},
+        {0x4281147bu,0x42830000u,0x00000002u,0x00000012u,0x00000000u,0x000001a8u},
+        {0x42a1147bu,0x42a30000u,0x00000001u,0x00000012u,0x00000000u,0x000001ccu},
+        {0x42c1147bu,0x42c30000u,0x00000000u,0x0000001cu,0x00000000u,0x000001f0u},
+        {0x40880000u,0x40980000u,0x00000005u,0x0000001fu,0x00000000u,0x00000238u},
+        {0x420628f6u,0x420a0000u,0x00000004u,0x00000012u,0x00000000u,0x00000276u},
+        {0x424628f6u,0x424a0000u,0x00000003u,0x00000012u,0x00000000u,0x0000029au},
+        {0x4283147bu,0x42850000u,0x00000002u,0x00000012u,0x00000000u,0x000002beu},
+        {0x42a3147bu,0x42a50000u,0x00000001u,0x00000012u,0x00000000u,0x000002e2u},
+        {0x42c3147bu,0x42c50000u,0x00000000u,0x0000001bu,0x00000000u,0x00000306u},
+        {0x40880000u,0x40980000u,0x00000005u,0x0000001fu,0x00000000u,0x0000034cu},
+        {0x420628f6u,0x420a0000u,0x00000004u,0x00000012u,0x00000000u,0x0000038au},
+        {0x424628f6u,0x424a0000u,0x00000003u,0x00000012u,0x00000000u,0x000003aeu},
+        {0x4283147bu,0x42850000u,0x00000002u,0x00000012u,0x00000000u,0x000003d2u},
+        {0x42a3147bu,0x42a50000u,0x00000001u,0x00000012u,0x00000000u,0x000003f6u},
+        {0x42c3147bu,0x42c50000u,0x00000000u,0x0000001bu,0x00000000u,0x0000041au},
+        {0x40880000u,0x40980000u,0x00000009u,0x0000001eu,0x00000000u,0x00000468u},
+        {0x420228f6u,0x42060000u,0x00000008u,0x00000012u,0x00000000u,0x000004a4u},
+        {0x424228f6u,0x42460000u,0x00000007u,0x00000012u,0x00000010u,0x000004c8u},
+        {0x4281147bu,0x427e0000u,0x00000002u,0x00000013u,0x00000011u,0x000004ecu},
+        {0x42a1147bu,0x42a30000u,0x00000001u,0x00000012u,0x00000000u,0x00000512u},
+        {0x42c1147bu,0x42c30000u,0x00000000u,0x0000001cu,0x00000000u,0x00000536u},
+        {0x40880000u,0x40980000u,0x00000009u,0x0000001eu,0x00000000u,0x00000586u},
+        {0x420228f6u,0x42060000u,0x00000008u,0x00000012u,0x00000000u,0x000005c2u},
+        {0x424228f6u,0x42460000u,0x00000007u,0x00000012u,0x00000010u,0x000005e6u},
+        {0x4281147bu,0x427e0000u,0x00000002u,0x00000013u,0x00000011u,0x0000060au},
+        {0x42a1147bu,0x42a30000u,0x00000001u,0x00000012u,0x00000000u,0x00000630u},
+        {0x42c1147bu,0x42c30000u,0x00000000u,0x0000001cu,0x00000000u,0x00000654u},
+        {0x40880000u,0x40980000u,0x00000009u,0x0000001fu,0x00000000u,0x000006a4u},
+        {0x420628f6u,0x420a0000u,0x00000008u,0x00000012u,0x00000000u,0x000006e2u},
+        {0x424628f6u,0x424a0000u,0x00000007u,0x00000012u,0x00000010u,0x00000706u},
+        {0x4283147bu,0x42810000u,0x00000002u,0x00000013u,0x00000011u,0x0000072au},
+        {0x42a3147bu,0x42a50000u,0x00000001u,0x00000012u,0x00000000u,0x00000750u},
+        {0x42c3147bu,0x42c50000u,0x00000000u,0x0000001bu,0x00000000u,0x00000774u},
+        {0x40880000u,0x40980000u,0x00000009u,0x0000001fu,0x00000000u,0x000007c2u},
+        {0x420628f6u,0x420a0000u,0x00000008u,0x00000012u,0x00000000u,0x00000800u},
+        {0x424628f6u,0x424a0000u,0x00000007u,0x00000012u,0x00000010u,0x00000824u},
+        {0x4283147bu,0x42810000u,0x00000002u,0x00000014u,0x00000012u,0x00000848u},
+        {0x42a3147bu,0x42a50000u,0x00000001u,0x00000012u,0x00000000u,0x00000870u},
+        {0x42c3147bu,0x42c50000u,0x00000000u,0x0000001bu,0x00000000u,0x00000894u},
+    };
+    static uint8_t const masks[]={2,4,0x40,0x80};
+    FOR_LOOP(c,8) FOR_LOOP(lane,4) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[128*128]={0};
+        FOR_LOOP(y,128) if (long_cases[c][0] && (y<61 || y>66)) cells[y*128+64]=0xc6;
+        box2_t bounds={{0,0},{4096,4096}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(128,128,cells);
+        unit->collision=8+long_cases[c][1]*16;
+        vec2_t goal={3944,3960},waypoint;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,masks[lane]},unit,NULL,true};
+        FOR_LOOP(leg,6) {
+            uint32_t const *row=long_legs[long_cases[c][4]+leg];
+            vec2_t source={wc3_float(row[0]),wc3_float(row[1])};
+            unit->s.origin2=(vec2_t){wc3_mul(source.x,32),wc3_mul(source.y,32)}; query.fine=&source;
+            /* Match the frozen original supplied counter/work controls for each local leg. */
+            level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+            if (!leg || !G_AdvanceUnitMoveFineRoute(&query,route,&waypoint))
+                T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+            T_EQ(route->adaptive_count,long_cases[c][3]); T_EQ(route->adaptive_index,row[2]);
+            T_EQ(route->count,row[3]); T_EQ(route->index,row[4]);
+            if (route->adaptive_count==long_cases[c][3]) FOR_LOOP(i,route->adaptive_count) {
+                T_EQ(wc3_float_bits(route->adaptive_points[i].x),long_words[long_cases[c][2]+2*i]);
+                T_EQ(wc3_float_bits(route->adaptive_points[i].y),long_words[long_cases[c][2]+2*i+1]);
+            }
+            if (route->count==row[3]) FOR_LOOP(i,route->count) {
+                T_EQ(wc3_float_bits(route->points[i].x),long_words[row[5]+2*i]);
+                T_EQ(wc3_float_bits(route->points[i].y),long_words[row[5]+2*i+1]);
+            }
+            if (route->count==row[3] && route->index==row[4]) {
+                T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(wc3_mul(wc3_float(long_words[row[5]+2*row[4]]),32)));
+                T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(wc3_mul(wc3_float(long_words[row[5]+2*row[4]+1]),32)));
+            }
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* A real point command must steer at clear leg endpoints, retain multiple coarse
+ * transitions and replay the same native movement after a saved nonzero index. */
+TEST(wc3_movement, public_long_move_clear_legs_and_saved_progress) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[128*128]={0};
+    FOR_LOOP(y,128) if (y<77 || y>82) cells[y*128+64]=0xc6;
+    box2_t bounds={{0,0},{4096,4096}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(128,128,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",3944,3960)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); unit_changeangle(unit);
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    T_ASSERT(unit->movement.path.valid); T_ASSERT(route->adaptive_index>0); T_EQ(route->index,0);
+    T_EQ(unit->movement.path.waypoint.x,wc3_mul(route->points[0].x,32));
+    T_EQ(unit->movement.path.waypoint.y,wc3_mul(route->points[0].y,32));
+    T_ASSERT(unit->movement.path.waypoint.x!=unit->goalentity->s.origin2.x);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid); T_ASSERT(movement_test_coarse_route(unit)->group_index>0);
+    T_EQ(route->adaptive_index,0); /* The member routes to the group stage. */
+    T_EQ(route->index,0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
+    uint32_t continued[260][11],changes=0,prior=movement_test_coarse_route(unit)->group_index;
+    cstring_t file=Test_TempPath("openwarcraft3-long-refills-save.bin"); T_ASSERT(WriteGame(file));
+    FOR_LOOP(pass,2) {
+        if (pass) T_ASSERT(ReadGame(file));
+        FOR_LOOP(i,260) {
+            level.time+=100; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->current_order_id,route->adaptive_index,route->index,movement_test_coarse_route(unit)->group_index};
+            if (pass) FOR_LOOP(j,11) T_EQ(row[j],continued[i][j]);
+            else {
+                memcpy(continued[i],row,sizeof(row));
+                if (unit->current_order_id && movement_test_coarse_route(unit)->group_index!=prior) { changes++; prior=movement_test_coarse_route(unit)->group_index; }
+            }
+            if (unit->current_order_id) {
+                movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,2},unit,NULL,true};
+                float fine[]={unit->movement.fine_pose.x,unit->movement.fine_pose.y};
+                T_ASSERT(G_UnitMovePathFinePointIsPathable(&legal,fine));
+            }
+        }
+        T_EQ(unit->current_order_id,0);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){3944,3960})<=32*wc3_float(0x3efae148));
+    }
+    T_ASSERT(changes>=3); remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Original700-attempt partial buffers;2048-attempt controls have different endpoints. */
+TEST(wc3_movement, ordinary_fine_budget_retains_original_partial_words) {
+    static uint32_t const unit_budget_words[]={
+        0x41380000u,0x422a0000u,0x41380000u,0x42260000u,0x41380000u,0x42220000u,0x41380000u,0x421e0000u,
+        0x41380000u,0x421a0000u,0x41380000u,0x42160000u,0x41380000u,0x42120000u,0x41380000u,0x420e0000u,
+        0x41380000u,0x420a0000u,0x41380000u,0x42060000u,0x41380000u,0x42020000u,0x41380000u,0x41fc0000u,
+        0x41380000u,0x41f40000u,0x41380000u,0x41ec0000u,0x41380000u,0x41e40000u,0x41380000u,0x41dc0000u,
+        0x41380000u,0x41d40000u,0x41380000u,0x41cc0000u,0x41380000u,0x41c40000u,0x41380000u,0x41bc0000u,
+        0x41380000u,0x41b40000u,0x41380000u,0x41ac0000u,0x41380000u,0x41a40000u,0x41380000u,0x419c0000u,
+        0x41380000u,0x41940000u,0x41380000u,0x418c0000u,0x41380000u,0x41840000u,0x41380000u,0x41780000u,
+        0x41380000u,0x41680000u,0x41380000u,0x41580000u,0x41380000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41380000u,0x422e0000u,
+        0x41380000u,0x422a0000u,0x41380000u,0x42260000u,0x41380000u,0x42220000u,0x41380000u,0x421e0000u,
+        0x41380000u,0x421a0000u,0x41380000u,0x42160000u,0x41380000u,0x42120000u,0x41380000u,0x420e0000u,
+        0x41380000u,0x420a0000u,0x41380000u,0x42060000u,0x41380000u,0x42020000u,0x41380000u,0x41fc0000u,
+        0x41380000u,0x41f40000u,0x41380000u,0x41ec0000u,0x41380000u,0x41e40000u,0x41380000u,0x41dc0000u,
+        0x41380000u,0x41d40000u,0x41380000u,0x41cc0000u,0x41380000u,0x41c40000u,0x41380000u,0x41bc0000u,
+        0x41380000u,0x41b40000u,0x41380000u,0x41ac0000u,0x41380000u,0x41a40000u,0x41380000u,0x419c0000u,
+        0x41380000u,0x41940000u,0x41380000u,0x418c0000u,0x41380000u,0x41840000u,0x41380000u,0x41780000u,
+        0x41380000u,0x41680000u,0x41380000u,0x41580000u,0x41380000u,0x41480000u,0x41380000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41280000u,0x422e0000u,
+        0x41280000u,0x422a0000u,0x41280000u,0x42260000u,0x41280000u,0x42220000u,0x41280000u,0x421e0000u,
+        0x41280000u,0x421a0000u,0x41280000u,0x42160000u,0x41280000u,0x42120000u,0x41280000u,0x420e0000u,
+        0x41280000u,0x420a0000u,0x41280000u,0x42060000u,0x41280000u,0x42020000u,0x41280000u,0x41fc0000u,
+        0x41280000u,0x41f40000u,0x41280000u,0x41ec0000u,0x41280000u,0x41e40000u,0x41280000u,0x41dc0000u,
+        0x41280000u,0x41d40000u,0x41280000u,0x41cc0000u,0x41280000u,0x41c40000u,0x41280000u,0x41bc0000u,
+        0x41280000u,0x41b40000u,0x41280000u,0x41ac0000u,0x41280000u,0x41a40000u,0x41280000u,0x419c0000u,
+        0x41280000u,0x41940000u,0x41280000u,0x418c0000u,0x41280000u,0x41840000u,0x41280000u,0x41780000u,
+        0x41280000u,0x41680000u,0x41280000u,0x41580000u,0x41280000u,0x41480000u,0x41280000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41280000u,0x422e0000u,
+        0x41280000u,0x422a0000u,0x41280000u,0x42260000u,0x41280000u,0x42220000u,0x41280000u,0x421e0000u,
+        0x41280000u,0x421a0000u,0x41280000u,0x42160000u,0x41280000u,0x42120000u,0x41280000u,0x420e0000u,
+        0x41280000u,0x420a0000u,0x41280000u,0x42060000u,0x41280000u,0x42020000u,0x41280000u,0x41fc0000u,
+        0x41280000u,0x41f40000u,0x41280000u,0x41ec0000u,0x41280000u,0x41e40000u,0x41280000u,0x41dc0000u,
+        0x41280000u,0x41d40000u,0x41280000u,0x41cc0000u,0x41280000u,0x41c40000u,0x41280000u,0x41bc0000u,
+        0x41280000u,0x41b40000u,0x41280000u,0x41ac0000u,0x41280000u,0x41a40000u,0x41280000u,0x419c0000u,
+        0x41280000u,0x41940000u,0x41280000u,0x418c0000u,0x41280000u,0x41840000u,0x41280000u,0x41780000u,
+        0x41280000u,0x41680000u,0x41280000u,0x41580000u,0x41280000u,0x41480000u,0x41280000u,0x41380000u,
+        0x41280000u,0x41280000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41ac0000u,0x41f40000u,
+        0x41ac0000u,0x41ec0000u,0x41ac0000u,0x41e40000u,0x41ac0000u,0x41dc0000u,0x41ac0000u,0x41d40000u,
+        0x41ac0000u,0x41cc0000u,0x41ac0000u,0x41c40000u,0x41ac0000u,0x41bc0000u,0x41ac0000u,0x41b40000u,
+        0x41ac0000u,0x41ac0000u,0x41ac0000u,0x41a40000u,0x41ac0000u,0x419c0000u,0x41ac0000u,0x41940000u,
+        0x41ac0000u,0x418c0000u,0x41a40000u,0x41840000u,0x419c0000u,0x41780000u,0x41940000u,0x41680000u,
+        0x418c0000u,0x41580000u,0x41840000u,0x41480000u,0x41780000u,0x41380000u,0x41680000u,0x41280000u,
+        0x41580000u,0x41180000u,0x41480000u,0x41080000u,0x41380000u,0x41080000u,0x41280000u,0x40f00000u,
+        0x41180000u,0x40d00000u,0x41080000u,0x40b00000u,0x40f00000u,0x40b00000u,0x40d00000u,0x40900000u,
+        0x40b00000u,0x40900000u,0x40880000u,0x40980000u,0x41ac0000u,0x41f40000u,0x41ac0000u,0x41ec0000u,
+        0x41ac0000u,0x41e40000u,0x41ac0000u,0x41dc0000u,0x41ac0000u,0x41d40000u,0x41ac0000u,0x41cc0000u,
+        0x41ac0000u,0x41c40000u,0x41ac0000u,0x41bc0000u,0x41ac0000u,0x41b40000u,0x41ac0000u,0x41ac0000u,
+        0x41ac0000u,0x41a40000u,0x41ac0000u,0x419c0000u,0x41ac0000u,0x41940000u,0x41ac0000u,0x418c0000u,
+        0x41a40000u,0x41840000u,0x419c0000u,0x41780000u,0x41940000u,0x41680000u,0x418c0000u,0x41580000u,
+        0x418c0000u,0x41480000u,0x41840000u,0x41380000u,0x41780000u,0x41280000u,0x41680000u,0x41180000u,
+        0x41580000u,0x41180000u,0x41480000u,0x41080000u,0x41380000u,0x41080000u,0x41280000u,0x40f00000u,
+        0x41180000u,0x40d00000u,0x41080000u,0x40b00000u,0x40f00000u,0x40b00000u,0x40d00000u,0x40900000u,
+        0x40b00000u,0x40900000u,0x40880000u,0x40980000u,0x41a40000u,0x42020000u,0x41a40000u,0x41fc0000u,
+        0x41a40000u,0x41f40000u,0x41a40000u,0x41ec0000u,0x41a40000u,0x41e40000u,0x41a40000u,0x41dc0000u,
+        0x41a40000u,0x41d40000u,0x41a40000u,0x41cc0000u,0x41a40000u,0x41c40000u,0x41a40000u,0x41bc0000u,
+        0x41a40000u,0x41b40000u,0x41a40000u,0x41ac0000u,0x41a40000u,0x41a40000u,0x41a40000u,0x419c0000u,
+        0x41a40000u,0x41940000u,0x41a40000u,0x418c0000u,0x41a40000u,0x41840000u,0x419c0000u,0x41780000u,
+        0x419c0000u,0x41680000u,0x419c0000u,0x41580000u,0x41940000u,0x41480000u,0x418c0000u,0x41380000u,
+        0x41840000u,0x41280000u,0x41780000u,0x41180000u,0x41680000u,0x41080000u,0x41580000u,0x41080000u,
+        0x41480000u,0x41080000u,0x41380000u,0x41080000u,0x41280000u,0x40f00000u,0x41180000u,0x40d00000u,
+        0x41080000u,0x40b00000u,0x40f00000u,0x40b00000u,0x40d00000u,0x40900000u,0x40b00000u,0x40900000u,
+        0x40880000u,0x40980000u,0x41a40000u,0x420a0000u,0x41a40000u,0x42060000u,0x41a40000u,0x42020000u,
+        0x41a40000u,0x41fc0000u,0x41a40000u,0x41f40000u,0x41a40000u,0x41ec0000u,0x41a40000u,0x41e40000u,
+        0x41a40000u,0x41dc0000u,0x41a40000u,0x41d40000u,0x41a40000u,0x41cc0000u,0x41a40000u,0x41c40000u,
+        0x41a40000u,0x41bc0000u,0x41a40000u,0x41b40000u,0x41a40000u,0x41ac0000u,0x41a40000u,0x41a40000u,
+        0x41a40000u,0x419c0000u,0x41a40000u,0x41940000u,0x41a40000u,0x418c0000u,0x41a40000u,0x41840000u,
+        0x419c0000u,0x41780000u,0x419c0000u,0x41680000u,0x419c0000u,0x41580000u,0x419c0000u,0x41480000u,
+        0x41940000u,0x41380000u,0x418c0000u,0x41280000u,0x41840000u,0x41180000u,0x41780000u,0x41080000u,
+        0x41680000u,0x41080000u,0x41580000u,0x41080000u,0x41480000u,0x41080000u,0x41380000u,0x41080000u,
+        0x41280000u,0x40f00000u,0x41180000u,0x40d00000u,0x41080000u,0x40b00000u,0x40f00000u,0x40b00000u,
+        0x40d00000u,0x40900000u,0x40b00000u,0x40900000u,0x40880000u,0x40980000u,
+    };
+    static uint32_t const unit_budget_cases[8][5]={
+        {0,0,0,39,37},
+        {0,1,78,40,38},
+        {0,2,158,40,38},
+        {0,3,238,40,38},
+        {1,0,318,31,29},
+        {1,1,380,32,30},
+        {1,2,444,35,33},
+        {1,3,514,38,36},
+    };
+    FOR_LOOP(c,8) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[64*64]={0};
+        int const walls[]={12,22,32,42};
+        FOR_LOOP(i,4) FOR_LOOP(y,64) if ((i+unit_budget_cases[c][0])%2==0 ? y<54 : y>9) cells[y*64+walls[i]]=2;
+        box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        unit->collision=8+16*unit_budget_cases[c][1];
+        vec2_t goal={1512,1400},waypoint;
+        moveFineRoute_t *route=&unit->movement.fine_route;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,2},unit,NULL,true};
+        T_ASSERT(G_BuildUnitMoveLocalRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_count,0); T_EQ(route->count,unit_budget_cases[c][3]); T_EQ(route->index,unit_budget_cases[c][4]);
+        if (route->count==unit_budget_cases[c][3]) FOR_LOOP(i,route->count) {
+            T_EQ(wc3_float_bits(route->points[i].x),unit_budget_words[unit_budget_cases[c][2]+2*i]);
+            T_EQ(wc3_float_bits(route->points[i].y),unit_budget_words[unit_budget_cases[c][2]+2*i+1]);
+        }
+        T_EQ(goal.x,1512); T_EQ(goal.y,1400);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Retail1489a0 recognizes a target only before the first eligible foreign
+ * blocker. Leaving/re-entering its rectangle changes that order per cell. */
+TEST(wc3_movement, overlapping_target_reinsertion_changes_fine_termination) {
+    edict_t *mover=make_moving_unit(272,304);
+    uint8_t cells[64*64]={0};
+    box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    mover->collision=40;
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1008,1040);
+    edict_t *blocker=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1136,1040);
+    target->collision=blocker->collision=40;
+    target->s.model=blocker->s.model=1;
+    /* Publish both actors through the public axis writer, in birth order. */
+    S_SetUnitAxisPosition(target,0,1008); S_SetUnitAxisPosition(blocker,0,1008);
+    vec2_t fine={31.5f,32.5f},waypoint;
+    movePathQuery_t query={.geometry={&mover->s.origin2,&target->s.origin2,40,2},
+        .mover=mover,.target=target,.units=true,.fine_target=&fine};
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&mover->movement.fine_route,&waypoint));
+    T_ASSERT(mover->movement.fine_route.partial);
+    T_EQ(mover->movement.fine_route.count,24);
+    T_EQ(mover->movement.fine_route.points[0].x,31.5f);
+    T_EQ(mover->movement.fine_route.points[0].y,29.5f);
+    S_SetUnitAxisPosition(target,0,1136); S_SetUnitAxisPosition(target,0,1008);
+    S_ClearMoveFineRequests(); level.pathing_counter+=BZ_WC3_FINE_REQUEST_INTERVAL;
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&mover->movement.fine_route,&waypoint));
+    /* Target identity succeeds before the click: native10000000 still records
+     * endpoint mismatch, independently of the successful search result. */
+    T_ASSERT(mover->movement.fine_route.partial);
+    T_EQ(mover->movement.fine_route.count,21);
+    T_EQ(mover->movement.fine_route.points[0].x,28.5f);
+    T_EQ(mover->movement.fine_route.points[0].y,29.5f);
+    reset_entities(); setup_test_world();
+}
+
+/* Exhausting an ordinary native Move query keeps the issued destination while
+ * the unit traverses its original partial chain, refills and eventually arrives. */
+TEST(wc3_movement, public_move_budget_partial_refills_and_save) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; int const walls[]={12,22,32,42};
+    FOR_LOOP(i,4) FOR_LOOP(y,64) if (i%2==0 ? y<54 : y>9) cells[y*64+walls[i]]=2;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",1512,1400)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid); T_EQ(unit->movement.fine_route.adaptive_count,65);
+    T_EQ(unit->movement.fine_route.adaptive_index,61); T_EQ(unit->movement.fine_route.count,22);
+    T_EQ(unit->movement.fine_route.index,0);
+    T_EQ(unit->movement.fine_route.points[0].x,7.5f); T_EQ(unit->movement.fine_route.points[0].y,25.5f);
+    T_EQ(unit->goalentity->s.origin2.x,1512); T_EQ(unit->goalentity->s.origin2.y,1400);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,10) { level.time+=100; globals.RunFrame(); }
+    T_ASSERT(unit->current_order_id!=0); T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>1);
+    cstring_t file=Test_TempPath("openwarcraft3-fine-budget-save.bin"); T_ASSERT(WriteGame(file));
+    uint32_t continued[600][9]; uint32_t refills=0; vec2_t prior=unit->movement.fine_route.points[0];
+    FOR_LOOP(pass,2) {
+        if (pass) T_ASSERT(ReadGame(file));
+        FOR_LOOP(i,600) {
+            level.time+=100; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->current_order_id,unit->movement.fine_route.index};
+            if (pass) FOR_LOOP(j,9) T_EQ(row[j],continued[i][j]);
+            else {
+                memcpy(continued[i],row,sizeof(row));
+                moveFineRoute_t const *route=&unit->movement.fine_route;
+                if (unit->current_order_id && route->count && (route->points[0].x!=prior.x || route->points[0].y!=prior.y)) {
+                    prior=route->points[0]; refills++;
+                }
+            }
+            if (unit->current_order_id) {
+                T_EQ(unit->goalentity->s.origin2.x,1512); T_EQ(unit->goalentity->s.origin2.y,1400);
+                movePathQuery_t legal={{&unit->s.origin2,NULL,unit->collision,2},unit,NULL,true};
+                float fine[]={unit->movement.fine_pose.x,unit->movement.fine_pose.y};
+                T_ASSERT(G_UnitMovePathFinePointIsPathable(&legal,fine));
+            }
+        }
+        T_EQ(unit->current_order_id,0);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){1512,1400})<=32*wc3_float(0x3efae148));
+    }
+    T_ASSERT(refills>=2); remove(file); reset_entities(); setup_test_world();
+}
+
+/* Original default-enabled400/700 full165ae0 composition on winding maps. */
+TEST(wc3_movement, ordinary_default_route_matches_original_maze_handoff) {
+    static uint32_t const unit_default_words[]={
+        0x41bd0000u,0x41af0000u,0x41b60000u,0x41960000u,0x41b60000u,0x41860000u,0x41b60000u,0x416c0000u,
+        0x41b60000u,0x414c0000u,0x41b60000u,0x412c0000u,0x41b60000u,0x410c0000u,0x41b60000u,0x40d80000u,
+        0x41b60000u,0x40980000u,0x41ae0000u,0x40980000u,0x41a60000u,0x40980000u,0x419e0000u,0x40b80000u,
+        0x419e0000u,0x40f80000u,0x419e0000u,0x411c0000u,0x419e0000u,0x413c0000u,0x419e0000u,0x415c0000u,
+        0x419e0000u,0x417c0000u,0x419e0000u,0x418e0000u,0x419e0000u,0x419e0000u,0x419e0000u,0x41ae0000u,
+        0x41960000u,0x41be0000u,0x41960000u,0x41ce0000u,0x418e0000u,0x41d60000u,0x418e0000u,0x41de0000u,
+        0x41860000u,0x41de0000u,0x414c0000u,0x41c60000u,0x414c0000u,0x41a60000u,0x414c0000u,0x41860000u,
+        0x414c0000u,0x414c0000u,0x414c0000u,0x410c0000u,0x414c0000u,0x40980000u,0x413c0000u,0x40980000u,
+        0x412c0000u,0x40980000u,0x412c0000u,0x40b80000u,0x412c0000u,0x40d80000u,0x412c0000u,0x40f80000u,
+        0x412c0000u,0x410c0000u,0x412c0000u,0x411c0000u,0x412c0000u,0x412c0000u,0x412c0000u,0x413c0000u,
+        0x412c0000u,0x414c0000u,0x412c0000u,0x415c0000u,0x412c0000u,0x416c0000u,0x412c0000u,0x417c0000u,
+        0x412c0000u,0x41860000u,0x412c0000u,0x418e0000u,0x412c0000u,0x41960000u,0x412c0000u,0x419e0000u,
+        0x412c0000u,0x41a60000u,0x412c0000u,0x41ae0000u,0x412c0000u,0x41b60000u,0x412c0000u,0x41be0000u,
+        0x412c0000u,0x41c60000u,0x410c0000u,0x41ce0000u,0x40f80000u,0x41d60000u,0x40f80000u,0x41de0000u,
+        0x40d80000u,0x41de0000u,0x40980000u,0x41d60000u,0x40980000u,0x41c60000u,0x40700000u,0x41a60000u,
+        0x40700000u,0x41860000u,0x40700000u,0x414c0000u,0x40700000u,0x410c0000u,0x40300000u,0x40980000u,
+        0x40080000u,0x40180000u,0x40f00000u,0x41cc0000u,0x40d00000u,0x41c40000u,0x40d00000u,0x41bc0000u,
+        0x40b00000u,0x41b40000u,0x40900000u,0x41ac0000u,0x40900000u,0x41a40000u,0x40900000u,0x419c0000u,
+        0x40900000u,0x41940000u,0x40900000u,0x418c0000u,0x40900000u,0x41840000u,0x40900000u,0x41780000u,
+        0x40900000u,0x41680000u,0x40900000u,0x41580000u,0x40900000u,0x41480000u,0x40900000u,0x41380000u,
+        0x40900000u,0x41280000u,0x40900000u,0x41180000u,0x40900000u,0x41080000u,0x40900000u,0x40f00000u,
+        0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,0x40880000u,0x40980000u,0x41bd0000u,0x41af0000u,
+        0x41b60000u,0x41960000u,0x41b60000u,0x41860000u,0x41b60000u,0x416c0000u,0x41b60000u,0x414c0000u,
+        0x41b60000u,0x412c0000u,0x41b60000u,0x410c0000u,0x41b60000u,0x40d80000u,0x41b60000u,0x40980000u,
+        0x41ae0000u,0x40980000u,0x41a60000u,0x40980000u,0x419e0000u,0x40b80000u,0x419e0000u,0x40f80000u,
+        0x419e0000u,0x411c0000u,0x419e0000u,0x413c0000u,0x419e0000u,0x415c0000u,0x419e0000u,0x417c0000u,
+        0x419e0000u,0x418e0000u,0x419e0000u,0x419e0000u,0x419e0000u,0x41ae0000u,0x41960000u,0x41be0000u,
+        0x41960000u,0x41ce0000u,0x418e0000u,0x41d60000u,0x418e0000u,0x41de0000u,0x41860000u,0x41de0000u,
+        0x414c0000u,0x41c60000u,0x414c0000u,0x41a60000u,0x414c0000u,0x41860000u,0x414c0000u,0x414c0000u,
+        0x414c0000u,0x410c0000u,0x414c0000u,0x40980000u,0x413c0000u,0x40980000u,0x412c0000u,0x40980000u,
+        0x412c0000u,0x40b80000u,0x412c0000u,0x40d80000u,0x412c0000u,0x40f80000u,0x412c0000u,0x410c0000u,
+        0x412c0000u,0x411c0000u,0x412c0000u,0x412c0000u,0x412c0000u,0x413c0000u,0x412c0000u,0x414c0000u,
+        0x412c0000u,0x415c0000u,0x412c0000u,0x416c0000u,0x412c0000u,0x417c0000u,0x412c0000u,0x41860000u,
+        0x412c0000u,0x418e0000u,0x412c0000u,0x41960000u,0x412c0000u,0x419e0000u,0x412c0000u,0x41a60000u,
+        0x412c0000u,0x41ae0000u,0x412c0000u,0x41b60000u,0x412c0000u,0x41be0000u,0x412c0000u,0x41c60000u,
+        0x410c0000u,0x41ce0000u,0x40f80000u,0x41d60000u,0x40f80000u,0x41de0000u,0x40d80000u,0x41de0000u,
+        0x40980000u,0x41d60000u,0x40980000u,0x41c60000u,0x40700000u,0x41a60000u,0x40700000u,0x41860000u,
+        0x40700000u,0x414c0000u,0x40700000u,0x410c0000u,0x40300000u,0x40980000u,0x40080000u,0x40180000u,
+        0x40f00000u,0x41cc0000u,0x40d00000u,0x41c40000u,0x40d00000u,0x41bc0000u,0x40b00000u,0x41b40000u,
+        0x40900000u,0x41ac0000u,0x40900000u,0x41a40000u,0x40900000u,0x419c0000u,0x40900000u,0x41940000u,
+        0x40900000u,0x418c0000u,0x40900000u,0x41840000u,0x40900000u,0x41780000u,0x40900000u,0x41680000u,
+        0x40900000u,0x41580000u,0x40900000u,0x41480000u,0x40900000u,0x41380000u,0x40900000u,0x41280000u,
+        0x40900000u,0x41180000u,0x40900000u,0x41080000u,0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,
+        0x40900000u,0x40b00000u,0x40880000u,0x40980000u,0x41bd0000u,0x41af0000u,0x41ba0000u,0x419a0000u,
+        0x41ba0000u,0x418a0000u,0x41ba0000u,0x41740000u,0x41ba0000u,0x41540000u,0x41ba0000u,0x41340000u,
+        0x41ba0000u,0x41140000u,0x41ba0000u,0x40e80000u,0x41ba0000u,0x40a80000u,0x41aa0000u,0x40500000u,
+        0x419a0000u,0x40500000u,0x419a0000u,0x40a80000u,0x419a0000u,0x40e80000u,0x419a0000u,0x41140000u,
+        0x419a0000u,0x41340000u,0x419a0000u,0x41540000u,0x419a0000u,0x41740000u,0x419a0000u,0x418a0000u,
+        0x419a0000u,0x419a0000u,0x419a0000u,0x41aa0000u,0x419a0000u,0x41ba0000u,0x419a0000u,0x41ca0000u,
+        0x41920000u,0x41da0000u,0x41920000u,0x41e20000u,0x418a0000u,0x41e20000u,0x41540000u,0x41ca0000u,
+        0x41540000u,0x41aa0000u,0x41540000u,0x418a0000u,0x41540000u,0x41540000u,0x41540000u,0x41140000u,
+        0x41540000u,0x40a80000u,0x41540000u,0x40500000u,0x41140000u,0x40500000u,0x41140000u,0x40a80000u,
+        0x41140000u,0x40e80000u,0x41140000u,0x41140000u,0x41140000u,0x41340000u,0x41140000u,0x41540000u,
+        0x41140000u,0x41740000u,0x41140000u,0x418a0000u,0x41140000u,0x419a0000u,0x41140000u,0x41aa0000u,
+        0x41140000u,0x41ba0000u,0x41140000u,0x41ca0000u,0x41040000u,0x41da0000u,0x41040000u,0x41e20000u,
+        0x40e80000u,0x41e20000u,0x40a80000u,0x41da0000u,0x40a80000u,0x41ca0000u,0x40a80000u,0x41ba0000u,
+        0x40a80000u,0x41aa0000u,0x40a80000u,0x419a0000u,0x40a80000u,0x418a0000u,0x40a80000u,0x41740000u,
+        0x40a80000u,0x41540000u,0x40500000u,0x41140000u,0x40500000u,0x40a80000u,0x40080000u,0x40180000u,
+        0x41280000u,0x41d40000u,0x41180000u,0x41cc0000u,0x41180000u,0x41c40000u,0x41080000u,0x41bc0000u,
+        0x40f00000u,0x41b40000u,0x40f00000u,0x41ac0000u,0x40d00000u,0x41a40000u,0x40d00000u,0x419c0000u,
+        0x40b00000u,0x41940000u,0x40900000u,0x418c0000u,0x40900000u,0x41840000u,0x40900000u,0x41780000u,
+        0x40900000u,0x41680000u,0x40900000u,0x41580000u,0x40900000u,0x41480000u,0x40900000u,0x41380000u,
+        0x40900000u,0x41280000u,0x40900000u,0x41180000u,0x40900000u,0x41080000u,0x40900000u,0x40f00000u,
+        0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,0x40880000u,0x40980000u,0x41bd0000u,0x41af0000u,
+        0x41ba0000u,0x419a0000u,0x41ba0000u,0x418a0000u,0x41ba0000u,0x41740000u,0x41ba0000u,0x41540000u,
+        0x41ba0000u,0x41340000u,0x41ba0000u,0x41140000u,0x41ba0000u,0x40e80000u,0x41ba0000u,0x40a80000u,
+        0x41aa0000u,0x40500000u,0x419a0000u,0x40500000u,0x419a0000u,0x40a80000u,0x419a0000u,0x40e80000u,
+        0x419a0000u,0x41140000u,0x419a0000u,0x41340000u,0x419a0000u,0x41540000u,0x419a0000u,0x41740000u,
+        0x419a0000u,0x418a0000u,0x419a0000u,0x419a0000u,0x419a0000u,0x41aa0000u,0x419a0000u,0x41ba0000u,
+        0x419a0000u,0x41ca0000u,0x41920000u,0x41da0000u,0x41920000u,0x41e20000u,0x418a0000u,0x41e20000u,
+        0x41540000u,0x41ca0000u,0x41540000u,0x41aa0000u,0x41540000u,0x418a0000u,0x41540000u,0x41540000u,
+        0x41540000u,0x41140000u,0x41540000u,0x40a80000u,0x41540000u,0x40500000u,0x41140000u,0x40500000u,
+        0x41140000u,0x40a80000u,0x41140000u,0x40e80000u,0x41140000u,0x41140000u,0x41140000u,0x41340000u,
+        0x41140000u,0x41540000u,0x41140000u,0x41740000u,0x41140000u,0x418a0000u,0x41140000u,0x419a0000u,
+        0x41140000u,0x41aa0000u,0x41140000u,0x41ba0000u,0x41140000u,0x41ca0000u,0x41040000u,0x41da0000u,
+        0x41040000u,0x41e20000u,0x40e80000u,0x41e20000u,0x40a80000u,0x41da0000u,0x40a80000u,0x41ca0000u,
+        0x40a80000u,0x41ba0000u,0x40a80000u,0x41aa0000u,0x40a80000u,0x419a0000u,0x40a80000u,0x418a0000u,
+        0x40a80000u,0x41740000u,0x40a80000u,0x41540000u,0x40500000u,0x41140000u,0x40500000u,0x40a80000u,
+        0x40080000u,0x40180000u,0x41280000u,0x41d40000u,0x41180000u,0x41cc0000u,0x41180000u,0x41c40000u,
+        0x41080000u,0x41bc0000u,0x40f00000u,0x41b40000u,0x40f00000u,0x41ac0000u,0x40d00000u,0x41a40000u,
+        0x40d00000u,0x419c0000u,0x40b00000u,0x41940000u,0x40900000u,0x418c0000u,0x40900000u,0x41840000u,
+        0x40900000u,0x41780000u,0x40900000u,0x41680000u,0x40900000u,0x41580000u,0x40900000u,0x41480000u,
+        0x40900000u,0x41380000u,0x40900000u,0x41280000u,0x40900000u,0x41180000u,0x40900000u,0x41080000u,
+        0x40900000u,0x40f00000u,0x40900000u,0x40d00000u,0x40900000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x41bd0000u,0x41af0000u,0x41b60000u,0x41be0000u,0x41b60000u,0x41ce0000u,0x41b60000u,0x41de0000u,
+        0x41ae0000u,0x41de0000u,0x41a60000u,0x41de0000u,0x41a60000u,0x41d60000u,0x41a60000u,0x41ce0000u,
+        0x41a60000u,0x41c60000u,0x41a60000u,0x41be0000u,0x41a60000u,0x41b60000u,0x41a60000u,0x41ae0000u,
+        0x419e0000u,0x41a60000u,0x41960000u,0x41960000u,0x41960000u,0x41860000u,0x41960000u,0x416c0000u,
+        0x41960000u,0x414c0000u,0x41960000u,0x412c0000u,0x41960000u,0x410c0000u,0x41960000u,0x40d80000u,
+        0x418e0000u,0x40b80000u,0x418e0000u,0x40980000u,0x41860000u,0x40980000u,0x414c0000u,0x40f80000u,
+        0x414c0000u,0x413c0000u,0x414c0000u,0x417c0000u,0x414c0000u,0x419e0000u,0x414c0000u,0x41be0000u,
+        0x414c0000u,0x41de0000u,0x413c0000u,0x41de0000u,0x412c0000u,0x41de0000u,0x412c0000u,0x41d60000u,
+        0x412c0000u,0x41ce0000u,0x412c0000u,0x41c60000u,0x412c0000u,0x41be0000u,0x412c0000u,0x41b60000u,
+        0x412c0000u,0x41ae0000u,0x412c0000u,0x41a60000u,0x412c0000u,0x419e0000u,0x412c0000u,0x41960000u,
+        0x412c0000u,0x418e0000u,0x412c0000u,0x41860000u,0x412c0000u,0x417c0000u,0x412c0000u,0x416c0000u,
+        0x412c0000u,0x415c0000u,0x411c0000u,0x414c0000u,0x410c0000u,0x412c0000u,0x410c0000u,0x410c0000u,
+        0x410c0000u,0x40d80000u,0x40f80000u,0x40b80000u,0x40f80000u,0x40980000u,0x40980000u,0x40300000u,
+        0x40080000u,0x40180000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41840000u,0x41780000u,
+        0x41840000u,0x41680000u,0x41840000u,0x41580000u,0x41840000u,0x41480000u,0x41780000u,0x41380000u,
+        0x41680000u,0x41280000u,0x41580000u,0x41180000u,0x41480000u,0x41180000u,0x41380000u,0x41180000u,
+        0x41280000u,0x41180000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41bd0000u,0x41af0000u,
+        0x41b60000u,0x41be0000u,0x41b60000u,0x41ce0000u,0x41b60000u,0x41de0000u,0x41ae0000u,0x41de0000u,
+        0x41a60000u,0x41de0000u,0x41a60000u,0x41d60000u,0x41a60000u,0x41ce0000u,0x41a60000u,0x41c60000u,
+        0x41a60000u,0x41be0000u,0x41a60000u,0x41b60000u,0x41a60000u,0x41ae0000u,0x419e0000u,0x41a60000u,
+        0x41960000u,0x41960000u,0x41960000u,0x41860000u,0x41960000u,0x416c0000u,0x41960000u,0x414c0000u,
+        0x41960000u,0x412c0000u,0x41960000u,0x410c0000u,0x41960000u,0x40d80000u,0x418e0000u,0x40b80000u,
+        0x418e0000u,0x40980000u,0x41860000u,0x40980000u,0x414c0000u,0x40f80000u,0x414c0000u,0x413c0000u,
+        0x414c0000u,0x417c0000u,0x414c0000u,0x419e0000u,0x414c0000u,0x41be0000u,0x414c0000u,0x41de0000u,
+        0x413c0000u,0x41de0000u,0x412c0000u,0x41de0000u,0x412c0000u,0x41d60000u,0x412c0000u,0x41ce0000u,
+        0x412c0000u,0x41c60000u,0x412c0000u,0x41be0000u,0x412c0000u,0x41b60000u,0x412c0000u,0x41ae0000u,
+        0x412c0000u,0x41a60000u,0x412c0000u,0x419e0000u,0x412c0000u,0x41960000u,0x412c0000u,0x418e0000u,
+        0x412c0000u,0x41860000u,0x412c0000u,0x417c0000u,0x412c0000u,0x416c0000u,0x412c0000u,0x415c0000u,
+        0x411c0000u,0x414c0000u,0x410c0000u,0x412c0000u,0x410c0000u,0x410c0000u,0x410c0000u,0x40d80000u,
+        0x40f80000u,0x40b80000u,0x40f80000u,0x40980000u,0x40980000u,0x40300000u,0x40080000u,0x40180000u,
+        0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,
+        0x41680000u,0x41580000u,0x41680000u,0x41480000u,0x41680000u,0x41380000u,0x41680000u,0x41280000u,
+        0x41680000u,0x41180000u,0x41580000u,0x41180000u,0x41480000u,0x41180000u,0x41380000u,0x41180000u,
+        0x41280000u,0x41180000u,0x41180000u,0x41180000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,
+        0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,0x41bd0000u,0x41af0000u,
+        0x41ba0000u,0x41ba0000u,0x41ba0000u,0x41ca0000u,0x41ba0000u,0x41da0000u,0x41b20000u,0x41e20000u,
+        0x41aa0000u,0x41e20000u,0x419a0000u,0x41da0000u,0x419a0000u,0x41ca0000u,0x419a0000u,0x41ba0000u,
+        0x419a0000u,0x41aa0000u,0x419a0000u,0x419a0000u,0x419a0000u,0x418a0000u,0x419a0000u,0x41740000u,
+        0x419a0000u,0x41540000u,0x419a0000u,0x41340000u,0x419a0000u,0x41140000u,0x419a0000u,0x40e80000u,
+        0x41920000u,0x40c80000u,0x41920000u,0x40a80000u,0x418a0000u,0x40500000u,0x41540000u,0x40500000u,
+        0x41540000u,0x40e80000u,0x41540000u,0x41340000u,0x41540000u,0x41740000u,0x41540000u,0x419a0000u,
+        0x41540000u,0x41ba0000u,0x41540000u,0x41da0000u,0x41440000u,0x41e20000u,0x41340000u,0x41e20000u,
+        0x41140000u,0x41da0000u,0x41140000u,0x41ca0000u,0x41140000u,0x41ba0000u,0x41140000u,0x41aa0000u,
+        0x41140000u,0x419a0000u,0x41140000u,0x418a0000u,0x41140000u,0x41740000u,0x41140000u,0x41540000u,
+        0x41140000u,0x41340000u,0x41140000u,0x41140000u,0x41140000u,0x40e80000u,0x41040000u,0x40c80000u,
+        0x41040000u,0x40a80000u,0x40a80000u,0x40500000u,0x40080000u,0x40180000u,0x41940000u,0x41940000u,
+        0x418c0000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,0x41780000u,0x41680000u,
+        0x41680000u,0x41580000u,0x41680000u,0x41480000u,0x41680000u,0x41380000u,0x41680000u,0x41280000u,
+        0x41680000u,0x41180000u,0x41680000u,0x41080000u,0x41580000u,0x41080000u,0x41480000u,0x41080000u,
+        0x41380000u,0x41080000u,0x41280000u,0x41080000u,0x41180000u,0x41080000u,0x41080000u,0x41080000u,
+        0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+        0x41bd0000u,0x41af0000u,0x41ba0000u,0x41ba0000u,0x41ba0000u,0x41ca0000u,0x41ba0000u,0x41da0000u,
+        0x41b20000u,0x41e20000u,0x41aa0000u,0x41e20000u,0x419a0000u,0x41da0000u,0x419a0000u,0x41ca0000u,
+        0x419a0000u,0x41ba0000u,0x419a0000u,0x41aa0000u,0x419a0000u,0x419a0000u,0x419a0000u,0x418a0000u,
+        0x419a0000u,0x41740000u,0x419a0000u,0x41540000u,0x419a0000u,0x41340000u,0x419a0000u,0x41140000u,
+        0x419a0000u,0x40e80000u,0x41920000u,0x40c80000u,0x41920000u,0x40a80000u,0x418a0000u,0x40500000u,
+        0x41540000u,0x40500000u,0x41540000u,0x40e80000u,0x41540000u,0x41340000u,0x41540000u,0x41740000u,
+        0x41540000u,0x419a0000u,0x41540000u,0x41ba0000u,0x41540000u,0x41da0000u,0x41440000u,0x41e20000u,
+        0x41340000u,0x41e20000u,0x41140000u,0x41da0000u,0x41140000u,0x41ca0000u,0x41140000u,0x41ba0000u,
+        0x41140000u,0x41aa0000u,0x41140000u,0x419a0000u,0x41140000u,0x418a0000u,0x41140000u,0x41740000u,
+        0x41140000u,0x41540000u,0x41140000u,0x41340000u,0x41140000u,0x41140000u,0x41140000u,0x40e80000u,
+        0x41040000u,0x40c80000u,0x41040000u,0x40a80000u,0x40a80000u,0x40500000u,0x40080000u,0x40180000u,
+        0x41940000u,0x41940000u,0x418c0000u,0x418c0000u,0x418c0000u,0x41840000u,0x41840000u,0x41780000u,
+        0x41780000u,0x41680000u,0x41780000u,0x41580000u,0x41780000u,0x41480000u,0x41780000u,0x41380000u,
+        0x41780000u,0x41280000u,0x41780000u,0x41180000u,0x41780000u,0x41080000u,0x41680000u,0x41080000u,
+        0x41580000u,0x41080000u,0x41480000u,0x41080000u,0x41380000u,0x41080000u,0x41280000u,0x41080000u,
+        0x41180000u,0x41080000u,0x41080000u,0x41080000u,0x40f00000u,0x40f00000u,0x40d00000u,0x40d00000u,
+        0x40b00000u,0x40b00000u,0x40880000u,0x40980000u,
+    };
+    static uint32_t const unit_default_cases[8][8]={
+        {0,0,0,65,61,130,22,0},
+        {0,1,174,65,61,304,22,0},
+        {0,2,348,58,54,464,23,0},
+        {0,3,510,58,54,626,23,0},
+        {1,0,672,53,47,778,18,16},
+        {1,1,814,53,47,920,19,17},
+        {1,2,958,44,38,1046,21,19},
+        {1,3,1088,44,38,1176,22,20},
+    };
+    FOR_LOOP(c,8) {
+        edict_t *unit=make_moving_unit(136,152);
+        uint8_t cells[64*64]={0}; int const walls[]={12,22,32,42};
+        FOR_LOOP(i,4) FOR_LOOP(y,64) if ((i+unit_default_cases[c][0])%2==0 ? y<54 : y>9) cells[y*64+walls[i]]=2;
+        box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        unit->collision=8+16*unit_default_cases[c][1];
+        vec2_t goal={1512,1400},waypoint; moveFineRoute_t *route=&unit->movement.fine_route;
+        movePathQuery_t query={{&unit->s.origin2,&goal,unit->collision,2},unit,NULL,true};
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&waypoint));
+        T_EQ(route->adaptive_count,unit_default_cases[c][3]); T_EQ(route->adaptive_index,unit_default_cases[c][4]);
+        T_EQ(route->count,unit_default_cases[c][6]); T_EQ(route->index,unit_default_cases[c][7]);
+        if (route->adaptive_count==unit_default_cases[c][3]) FOR_LOOP(i,route->adaptive_count) {
+            T_EQ(wc3_float_bits(route->adaptive_points[i].x),unit_default_words[unit_default_cases[c][2]+2*i]);
+            T_EQ(wc3_float_bits(route->adaptive_points[i].y),unit_default_words[unit_default_cases[c][2]+2*i+1]);
+        }
+        if (route->count==unit_default_cases[c][6]) FOR_LOOP(i,route->count) {
+            T_EQ(wc3_float_bits(route->points[i].x),unit_default_words[unit_default_cases[c][5]+2*i]);
+            T_EQ(wc3_float_bits(route->points[i].y),unit_default_words[unit_default_cases[c][5]+2*i+1]);
+        }
+        T_EQ(goal.x,1512); T_EQ(goal.y,1400);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Fine edits retain adaptive publication until an explicit regional producer;
+ * independent requests still select their own lane and footprint size. */
+TEST(wc3_movement, retail_adaptive_lanes_sizes_and_terrain_edits) {
+    edict_t *unit=make_moving_unit(272,304);
+    uint8_t cells[64*64]={0};
+    /* Ground coarse mask6 also sees no-fly4. Keep this wall ground/float/amph
+     * only so editing ground2 opens the intended new coarse passage. */
+    FOR_LOOP(y,64) FOR_LOOP(x,2) if (y<44 || y>=52) cells[y*64+32+x]=0xc2;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    vec2_t target={1936,1776}, waypoint, before, before_air;
+    uint8_t masks[4]={2,4,0x40,0x80};
+    FOR_LOOP(round,2) FOR_LOOP(lane,4) FOR_LOOP(size,2) {
+        movePathQuery_t query={{&unit->s.origin2,&target,size?32:31,masks[lane]},unit,NULL,true};
+        /* Geometry cases use independent admitted searches; owner timing has separate public coverage. */
+        level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+        T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+        movePathQuery_t leg=query; leg.geometry.target=&waypoint;
+        T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
+    }
+    movePathQuery_t query={{&unit->s.origin2,&target,31,2},unit,NULL,true};
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&before));
+    movePathQuery_t air_query=query; air_query.geometry.blocked_flags=4;
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&air_query,&before_air));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nlocal integer y=0\n"
+        "loop\nexitwhen y==64\ncall SetTerrainPathable(1040,y*32+16,ConvertPathingType(1),y>=12 and y<20)\n"
+        "call SetTerrainPathable(1072,y*32+16,ConvertPathingType(1),y>=12 and y<20)\nset y=y+1\nendloop\nendfunction\n"));
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_EQ(G_TestMovePathClass(2,0,16,8),1);
+    movePathQuery_t leg=query; leg.geometry.target=&waypoint;
+    T_ASSERT(G_UnitMovePathLineIsPathable(&leg));
+    G_TestMovePathRefresh((point2_t){32,0},(point2_t){34,64});
+    T_EQ(G_TestMovePathClass(2,0,16,8),0);
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_ASSERT(waypoint.y<before.y);
+    query.geometry.blocked_flags=4;
+    level.pathing_counter+=10; level.move_fine_budgets[0].work=0;
+    T_ASSERT(G_FindUnitMovePathWaypoint(&query,&waypoint));
+    T_EQ(wc3_float_bits(waypoint.x),wc3_float_bits(before_air.x));
+    T_EQ(wc3_float_bits(waypoint.y),wc3_float_bits(before_air.y));
+    reset_entities(); setup_test_world();
+}
+
+/* Full original16c150/165ae0 starts with fine index count-2; lookahead occurs after .49-cell approach. */
+TEST(wc3_movement, retail_fine_route_first_point_is_not_skipped) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    T_EQ(unit->collision,8); T_EQ(unit_current_speed(unit),256);
+    T_EQ(unit->data.UnitData->turnRate,0.6f); T_EQ(unit->data.UnitData->propWin,60);
+    unit_stand(unit); jass_callbyname(level.vm,"go",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    unit_changeangle(unit);
+    T_ASSERT(unit->movement.path.valid);
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.x),wc3_float_bits(176));
+    T_EQ(wc3_float_bits(unit->movement.path.waypoint.y),wc3_float_bits(112));
+    reset_entities(); setup_test_world();
+}
+
+
+/* Complete original controlled singleton wall trajectory; adaptive routing is
+ * disabled in the original fixture, and clock advances use its 1/32 input. */
+TEST(wc3_movement, retail_fine_route_wall_trajectory_words) {
+    static uint32_t const expected[34][6]={
+        {0x408796e7u,0x407af0bau,0x40f2dc43u,0xc021ec63u,0x40bec3dcu,0x00000007u},
+        {0x408f2dc9u,0x4075e156u,0x40f2dbe3u,0xc021eea1u,0x40bec3b6u,0x00000007u},
+        {0x4096c4a8u,0x4070d1e0u,0x40f2dd02u,0xc021e7e6u,0x40bec428u,0x00000007u},
+        {0x409e5b90u,0x406bc2a0u,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u},
+        {0x40a5f275u,0x4066b34eu,0x00000000u,0x00000000u,0x40aec402u,0x00000005u},
+        {0x40a5f275u,0x4066b34eu,0x00000000u,0x00000000u,0x409ec402u,0x00000005u},
+        {0x40a5f275u,0x4066b34eu,0x3f972a78u,0xc0fd31f3u,0x409b89a8u,0x00000005u},
+        {0x40a720c9u,0x4056e02eu,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40a84f21u,0x40470d0fu,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40a97d79u,0x403739f0u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40aaabd1u,0x402766d1u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40abda29u,0x401793b2u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40ad0881u,0x4007c093u,0x3f972c07u,0xc0fd31e4u,0x409b89b4u,0x00000005u},
+        {0x40ae36d9u,0x3fefdae9u,0x00000000u,0x00000000u,0x40ab89b4u,0x00000003u},
+        {0x40ae36d9u,0x3fefdae9u,0x00000000u,0x00000000u,0x40bb89b4u,0x00000003u},
+        {0x40ae36d9u,0x3fefdae9u,0x40fbddbdu,0xbfb746e0u,0x40c34de0u,0x00000003u},
+        {0x40b615c6u,0x3fea20b2u,0x40fbde4du,0xbfb73a76u,0x40c34e45u,0x00000003u},
+        {0x40bdf4b8u,0x3fe466deu,0x40fbde4du,0xbfb73a76u,0x40c34e45u,0x00000003u},
+        {0x40c5d3aau,0x3fdead0au,0x40fbdebau,0xbfb73127u,0x40c34e91u,0x00000003u},
+        {0x40cdb29fu,0x3fd8f380u,0x40fbde72u,0xbfb7375cu,0x40c34e5fu,0x00000003u},
+        {0x40d59192u,0x3fd339c5u,0x40fbdde1u,0xbfb743c5u,0x40c34df9u,0x00000003u},
+        {0x40dd7081u,0x3fcd7fa6u,0x40fbde72u,0xbfb7375cu,0x40c34e5fu,0x00000003u},
+        {0x40e54f74u,0x3fc7c5ebu,0x00000000u,0x00000000u,0x3ea3e863u,0x00000002u},
+        {0x40e54f74u,0x3fc7c5ebu,0x00000000u,0x00000000u,0x3f51f431u,0x00000002u},
+        {0x40e54f74u,0x3fc7c5ebu,0x402b90a8u,0x40f13323u,0x3f9d5310u,0x00000002u},
+        {0x40e7fdb6u,0x3fe5ec4fu,0x402b8feau,0x40f13345u,0x3f9d5343u,0x00000002u},
+        {0x40eaabf5u,0x4002095bu,0x402b90a8u,0x40f13323u,0x3f9d5310u,0x00000002u},
+        {0x40ed5a37u,0x40111c8du,0x3f092a94u,0x40ff6cd4u,0x3fc07b8cu,0x00000001u},
+        {0x40ede361u,0x4021135au,0x3f09276eu,0x40ff6cdbu,0x3fc07bbeu,0x00000001u},
+        {0x40ee6c88u,0x40310a27u,0x3f09276eu,0x40ff6cdbu,0x3fc07bbeu,0x00000001u},
+        {0x40eef5afu,0x404100f4u,0x40739ec0u,0x40e129abu,0x3f89964cu,0x00000000u},
+        {0x40f2c42au,0x404f138eu,0x40739ec0u,0x40e129abu,0x3f89964cu,0x00000000u},
+        {0x40f692a5u,0x405d2628u,0x40739f72u,0x40e1297bu,0x3f899619u,0x00000000u},
+        {0x40fa6122u,0x406b38bfu,0x00000000u,0x00000000u,0x3f899619u,0xffffffffu}
+    };
+    /* Original motion/path points are native fine coordinates. Their words
+     * are independent of the world projection; test translated publications
+     * against the same authoritative trace rather than rounded world deltas. */
+    static vec2_t const origins[]={{0,0},{-256,-256},{-2048,512},{.125f,-19.25f}};
+    FOR_LOOP(k,sizeof(origins)/sizeof(*origins)) {
+        vec2_t origin=origins[k];
+        reset_entities(); setup_test_world();
+        level.waypoints=(typeof(level.waypoints)){0};
+        level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+        uint8_t cells[16*16]={0};
+        for (int y=2;y<=6;y++) cells[y*16+6]=2;
+        box2_t bounds={origin,{origin.x+512,origin.y+512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+        char script[1024];
+        snprintf(script,sizeof(script),"globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+            "set mover=CreateUnit(Player(0),'hRTE',%.9g,%.9g,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
+            "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",%.9g,%.9g)\nendfunction\n",
+            origin.x+128,origin.y+128,origin.x+256,origin.y+128);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+        T_NOT_NULL(unit); if (!unit) return;
+        unit->movement.adaptive_disabled=true;
+        unit_stand(unit); jass_callbyname(level.vm,"go",false);
+        level.scheduled_think=true; level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        cstring_t file=Test_TempPath("openwarcraft3-retail-fine-route-save.bin");
+        FOR_LOOP(i,34) {
+            level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+            S_PublishMovement(unit);S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+            if (i==11) T_ASSERT(WriteGame(file));
+        }
+        T_EQ(unit->current_order_id,0);
+        T_ASSERT(ReadGame(file));
+        /* Save clears this transient dispatch flag; a real owner callback installs it again. */
+        level.scheduled_think=true;
+        T_NOT_NULL(unit->movement.fine_route.points);
+        for (int i=12;i<34;i++) {
+            level.pathing_clock.time=(i+1)/32.f; level.time=(i+1)*32;
+            S_PublishMovement(unit);S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,expected[i][5]);
+        }
+        T_EQ(unit->current_order_id,0); remove(file);
+        level.scheduled_think=false; reset_entities(); setup_test_world();
+    }
+}
+
+/* Original15aa80 detour under six authentic5ms clock advances per owner pass.
+ * Supply the same fresh callback atclock0, then use actual engine frames. */
+TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
+    static uint32_t const primary_expected[34][9]={
+        {0x4087492fu,0x407b248au,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u,0x3cf5c28eu,0x00000000u,0x41000000u},
+        {0x408e925cu,0x40764909u,0x40f2dce2u,0xc021e8a5u,0x40bec41bu,0x00000007u,0x3d75c28du,0x00000000u,0x41000000u},
+        {0x4095db8bu,0x40716d93u,0x40f2dcc3u,0xc021e965u,0x40bec40fu,0x00000007u,0x3db851e7u,0x00000000u,0x41000000u},
+        {0x409d24b9u,0x406c9217u,0x40f2dca3u,0xc021ea24u,0x40bec402u,0x00000007u,0x3df5c287u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x00000000u,0x00000000u,0x40aec402u,0x00000005u,0x3e199993u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x00000000u,0x00000000u,0x409ec402u,0x00000005u,0x3e3851e3u,0x00000000u,0x41000000u},
+        {0x40a46de6u,0x4067b696u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e570a33u,0x00000000u,0x41000000u},
+        {0x40a5b85eu,0x40589260u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e75c283u,0x00000000u,0x41000000u},
+        {0x40a702d6u,0x40496e2au,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e8a3d69u,0x00000000u,0x41000000u},
+        {0x40a84d4eu,0x403a49f4u,0x3fac1ee0u,0xc0fc5b90u,0x409c336du,0x00000005u,0x3e999991u,0x00000000u,0x41000000u},
+        {0x40a997c6u,0x402b25beu,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3ea8f5b9u,0x00000000u,0x41000000u},
+        {0x40aae241u,0x401c0189u,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3eb851e1u,0x00000000u,0x41000000u},
+        {0x40ac2cbcu,0x400cdd54u,0x3fac206du,0xc0fc5b7fu,0x409c3379u,0x00000005u,0x3ec7ae09u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x00000000u,0x00000000u,0x40ac3379u,0x00000003u,0x3ed70a31u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x00000000u,0x00000000u,0x40bc3379u,0x00000003u,0x3ee66659u,0x00000000u,0x41000000u},
+        {0x40ad7737u,0x3ffb723eu,0x40f9d706u,0xbfdf489cu,0x40c20737u,0x00000003u,0x3ef5c281u,0x00000000u,0x41000000u},
+        {0x40b4f5fbu,0x3ff4bf6du,0x40f9d7e2u,0xbfdf3939u,0x40c207b5u,0x00000003u,0x3f028f54u,0x00000000u,0x41000000u},
+        {0x40bc74c6u,0x3fee0d12u,0x40f9d78au,0xbfdf3f60u,0x40c20783u,0x00000003u,0x3f0a3d68u,0x00000000u,0x41000000u},
+        {0x40c3f38eu,0x3fe75a87u,0x40f9d83au,0xbfdf3311u,0x40c207e8u,0x00000003u,0x3f11eb7cu,0x00000000u,0x41000000u},
+        {0x40cb725cu,0x3fe0a85bu,0x40f9d732u,0xbfdf4588u,0x40c20750u,0x00000003u,0x3f199990u,0x00000000u,0x41000000u},
+        {0x40d2f122u,0x3fd9f5a1u,0x40f9d774u,0xbfdf40eau,0x40c20776u,0x00000003u,0x3f2147a4u,0x00000000u,0x41000000u},
+        {0x40da6feau,0x3fd3430bu,0x40f9d7b6u,0xbfdf3c4cu,0x40c2079cu,0x00000003u,0x3f28f5b8u,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x00000000u,0x00000000u,0x3e8f7c30u,0x00000002u,0x3f30a3ccu,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x00000000u,0x00000000u,0x3f47be18u,0x00000002u,0x3f3851e0u,0x00000000u,0x41000000u},
+        {0x40e1eeb4u,0x3fcc9098u,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f3ffff4u,0x00000000u,0x41000000u},
+        {0x40e54c2fu,0x3fe82dbfu,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f47ae08u,0x00000000u,0x41000000u},
+        {0x40e8a9aau,0x4001e573u,0x4060582eu,0x40e61dafu,0x3f8f016du,0x00000002u,0x3f4f5c1cu,0x00000000u,0x41000000u},
+        {0x40ec0725u,0x400fb406u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f570a30u,0x00000000u,0x41000000u},
+        {0x40ecc8b6u,0x401efd13u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f5eb844u,0x00000000u,0x41000000u},
+        {0x40ed8a47u,0x402e4620u,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f666658u,0x00000000u,0x41000000u},
+        {0x40ee4bd8u,0x403d8f2du,0x3f49a250u,0x40fec195u,0x3fbc7079u,0x00000001u,0x3f6e146cu,0x00000000u,0x41000000u},
+        {0x40ef0d69u,0x404cd83au,0x408d6677u,0x40d567d2u,0x3f7c51b0u,0x00000000u,0x3f75c280u,0x00000000u,0x41000000u},
+        {0x40f34b5cu,0x4059a621u,0x408d66cbu,0x40d5679au,0x3f7c514cu,0x00000000u,0x3f7d7094u,0x00000000u,0x41000000u},
+        {0x40f78952u,0x40667405u,0x00000000u,0x00000000u,0x3f7c514cu,0xffffffffu,0x3f828f54u,0x00000000u,0x41000000u},
+    };
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=0;
+    level.pathing_msec=level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.5)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    /* The original controlled owner fixture uses path88=400000: no adaptive
+     * bit200000. Its stock/public admission profile is explicitly excluded. */
+    unit->movement.adaptive_disabled=true;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("openwarcraft3-retail-primary-owner-route-save.bin");
+    FOR_LOOP(pass,2) {
+        int first=pass?12:0;
+        if (pass) { T_ASSERT(ReadGame(file)); T_NOT_NULL(unit->movement.fine_route.points); }
+        for (int i=first;i<34;i++) {
+            level.time+=30; globals.RunFrame();
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),primary_expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),primary_expected[i][1]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),primary_expected[i][2]);
+            T_EQ(wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),primary_expected[i][3]);
+            T_EQ(wc3_float_bits(unit->s.angle),primary_expected[i][4]);
+            if (i<33) T_EQ(unit->movement.fine_route.index,primary_expected[i][5]);
+            T_EQ(wc3_float_bits(level.pathing_clock.time),primary_expected[i][6]);
+            T_EQ(level.pathing_clock.epoch,primary_expected[i][7]);
+            T_EQ(wc3_float_bits(level.pathing_clock.span),primary_expected[i][8]);
+            if (!pass && i==11) T_ASSERT(WriteGame(file));
+        }
+        T_EQ(unit->current_order_id,0);
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+/* Use the real order owner and scheduler to check retained curves through pause,
+ * Stop, replacement and deferred public removal; inactive storage is not an order. */
+/* Retail SetUnitPathing clears the mover query, retaining its own occupancy category. */
+TEST(wc3_movement, public_pathing_toggle_keeps_occupancy_and_crosses_wall) {
+    reset_entities(); setup_test_world();
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit blocker\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\n"
+        "set blocker=CreateUnit(Player(0),'hRTE',352,320,0)\n"
+        "call SetUnitPathing(blocker,false)\nendfunction\n"
+        "function disable takes nothing returns nothing\ncall SetUnitPathing(mover,false)\nendfunction\n"
+        "function enable takes nothing returns nothing\ncall SetUnitPathing(mover,true)\nendfunction\n"));
+    edict_t *unit=NULL,*blocker=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->no_pathing) blocker=ent; else unit=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(blocker); if (!unit || !blocker) return;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP; unit_stand(unit);
+    gi.LinkEntity(blocker);
+    vec2_t from={288,320},to={416,320};
+    movePathQuery_t query={{&from,&to,unit->collision,2},unit,NULL,true};
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,128}));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid); T_NOT_NULL(unit->movement.fine_route.points);
+    jass_callbyname(level.vm,"disable",false);
+    /* The acquired detour survives a query change; a later fine leg can cross
+     * terrain with query zero while the authored hierarchy lane stays ground. */
+    unit_changeangle(unit); T_ASSERT(!unit->movement.flow_direct);
+    T_ASSERT(unit->movement.path.valid);
+    T_EQ(movement_test_coarse_route(unit)->group_mask,2);
+    cstring_t file=Test_TempPath("openwarcraft3-pathing-toggle-save.bin");
+    T_ASSERT(WriteGame(file));
+    uint32_t words[60][4]; bool crossed=false;
+    FOR_LOOP(i,60) {
+        level.time+=FRAMETIME; globals.RunFrame();
+        crossed |= unit->s.origin2.x>=192 && unit->s.origin2.x<224 &&
+                   unit->s.origin2.y>=64 && unit->s.origin2.y<224;
+        words[i][0]=wc3_float_bits(unit->s.origin2.x); words[i][1]=wc3_float_bits(unit->s.origin2.y);
+        words[i][2]=wc3_float_bits(unit->movement.velocity.x); words[i][3]=wc3_float_bits(unit->movement.velocity.y);
+    }
+    T_EQ(unit->current_order_id,0); T_ASSERT(unit->s.origin2.x>224); T_ASSERT(crossed);
+    T_ASSERT(ReadGame(file)); T_ASSERT(unit->no_pathing); T_ASSERT(blocker->no_pathing);
+    FOR_LOOP(i,60) {
+        level.time+=FRAMETIME; globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->s.origin2.x),words[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y),words[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x),words[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y),words[i][3]);
+    }
+    jass_callbyname(level.vm,"enable",false); T_ASSERT(!unit->no_pathing);
+    /* Return across the same wall with collision restored; the route must detour. */
+    T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){128,128}));
+    unit_changeangle(unit); T_ASSERT(!unit->movement.flow_direct); T_ASSERT(unit->movement.path.valid);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world(); remove(file);
+}
+
+TEST(wc3_movement, retained_fine_route_public_lifecycle) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[16*16]={0};
+    for (int y=2;y<=6;y++) cells[y*16+6]=2;
+    box2_t bounds={{0,0},{512,512}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16,16,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\nfunction main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',128,128,0)\ncall IssuePointOrder(mover,\"move\",256,128)\nendfunction\n"
+        "function freeze takes nothing returns nothing\ncall PauseUnit(mover,true)\nendfunction\n"
+        "function resume takes nothing returns nothing\ncall PauseUnit(mover,false)\nendfunction\n"
+        "function stop takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"
+        "function replace takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",128,384)\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall RemoveUnit(mover)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->stand=unit_stand; unit->think=monster_think;
+    unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
+    unit_stand(unit); T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){256,128}));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(unit->movement.path.valid); T_NOT_NULL(unit->movement.fine_route.points);
+    vec2_t frozen=unit->s.origin2;
+    jass_callbyname(level.vm,"freeze",false);
+    FOR_LOOP(i,4) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_EQ(unit->s.origin2.x,frozen.x); T_EQ(unit->s.origin2.y,frozen.y);
+    T_EQ(unit->movement.fine_route.count,0);
+    T_EQ(unit->movement.fine_route.group_count,0);
+    T_EQ(unit->movement.fine_route.index,UINT32_MAX);
+    T_EQ(unit->movement.group_id,0); T_NOT_NULL(unit->goalentity);
+    T_EQ(unit->current_order_id,851973u);
+    T_EQ(unit->movement.pause_order_id,G_OrderId("move"));
+    T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+    jass_callbyname(level.vm,"resume",false);
+    T_ASSERT(!unit->paused); T_ASSERT(unit->movement.pause_resume_pending);
+    T_EQ(unit->current_order_id,851973u);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(Vector2_distance(&frozen,&unit->s.origin2)>0);
+    jass_callbyname(level.vm,"stop",false); frozen=unit->s.origin2;
+    T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+    T_EQ(unit->current_order_id,0);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_EQ(unit->s.origin2.x,frozen.x); T_EQ(unit->s.origin2.y,frozen.y);
+    jass_callbyname(level.vm,"replace",false);
+    FOR_LOOP(i,3) { level.time+=FRAMETIME; globals.RunFrame(); }
+    T_NOT_NULL(unit->goalentity);
+    T_EQ(unit->goalentity->s.origin2.y,384); T_ASSERT(unit->current_order_id!=0);
+    jass_callbyname(level.vm,"remove",false);
+    level.time+=FRAMETIME; globals.RunFrame();
+    T_ASSERT(!unit->inuse); T_ASSERT(!unit->movement.fine_route.points);
+    T_EQ(unit->movement.fine_route.count,0); T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, retail_oblique_velocity_and_step_words) {
+    edict_t *unit = make_moving_unit(320, 320);
+    /* Original fixture starts in fine cell10 with a zero world origin. */
+    box2_t bounds = {{0, 0}, {4096, 4096}}; CM_SetupTestWorldBounds(&bounds);
+    unit->unitinfo.MoveSpeed = 100;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0x43a4f603u);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a09f94u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.x), 0x42c67084u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.y), 0x41477a18u);
+    /* Original160060 reconstructs facing from the committed velocity, not requested0.125. */
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3dfffadcu);
+    move_reset_progress(unit);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+}
+
+/* Complete original16fe20/1603d0 commits from retail-native-pose-1.27.json.
+ * A nonzero map origin exposes world-space rounding through the real Move entry. */
+TEST(wc3_movement, native_fine_pose_retains_original_commits) {
+    uint32_t const expected[16][5] = {
+        {0x412ec060u, 0x404fca00u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41996710u, 0x410e4a20u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x41e8c740u, 0x41223ca0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42156710u, 0x417c9440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x423d1728u, 0x41884360u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425e1a98u, 0x41b56f30u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4282e558u, 0x41bf6870u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42936710u, 0x41ec9440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42a73f1cu, 0x41f68d80u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b7c0d4u, 0x4211dca8u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42cb98e0u, 0x4216d948u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42dc1a98u, 0x422d6f30u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x42eff2a4u, 0x42326bd0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x43003a2eu, 0x424901b8u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x430a2634u, 0x424dfe58u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x43126710u, 0x42649440u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+    };
+    edict_t *unit = make_moving_unit(1, 2);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-256, -256}, {256, 256}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
+    FOR_LOOP(i, 16) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][4]);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Original168360 compares committed velocity and player class, not authored speed. */
+TEST(wc3_movement, moving_blocker_yield_uses_original_velocity_policy) {
+    reset_entities(); setup_test_world();
+    edict_t *self=make_moving_unit(0,0);
+    /* make_moving_unit resets the pool; additional actors must use the allocator. */
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','p','e','a'),32,0);
+    peer->movetype=MOVETYPE_STEP; peer->stand=unit_stand; peer->die=unit_die;
+    unit_stand(peer); T_ASSERT(self!=peer);
+    level.waypoints=(typeof(level.waypoints)){0};
+    vec2_t goal={256,0}; T_ASSERT(unit_issueorder(self,"move",&goal)); T_ASSERT(unit_issueorder(peer,"move",&goal));
+    T_ASSERT(unit_is_walking(self)); T_ASSERT(unit_is_walking(peer));
+    self->unitinfo.MoveSpeed=100; peer->unitinfo.MoveSpeed=400;
+    self->movement.velocity=(vec2_t){256,0}; peer->movement.velocity=(vec2_t){64,0};
+    edict_t *candidates[]={peer};
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_PEER);
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,self);
+    T_EQ(self->movement.wait_delay,0); T_EQ(self->movement.wait_blocker,NULL);
+    /* The first decision must persist on the peer: a second visit skips it. */
+    self->movement.velocity=(vec2_t){32,0};
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SKIP);
+    /* A new order owns a fresh wait/blocker state. */
+    unit_stand(peer); T_ASSERT(unit_issueorder(peer,"move",&goal));
+    peer->movement.velocity=(vec2_t){64,0};
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SELF);
+    T_EQ(self->movement.wait_delay,4); T_EQ(self->movement.wait_blocker,peer);
+    self->movement.wait_delay=25;
+    T_EQ(S_ResolveMoveBlockers(self,candidates,1),WC3_YIELD_SELF); T_EQ(self->movement.wait_delay,25);
+    G_FreeEdict(peer); T_EQ(self->movement.wait_blocker,NULL); T_EQ(self->movement.wait_delay,25);
+    reset_entities(); setup_test_world();
+}
+
+/* ROUTE-05.1 UI captures: only Alt changes the same-group yield branch.
+ * Replay literal committed fine velocities through actual selected admission,
+ * including a cold save. Authored speeds do not decide the encounter. */
+TEST(wc3_movement, selected_formation_yield_uses_saved_group_policy) {
+    uint32_t const velocity[2][4]={
+        {1083483402u,3206607405u,1083462824u,1060274401u},
+        {1090897749u,3213939408u,1083462824u,1060274401u}
+    };
+    FOR_LOOP(alt,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,8};
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        T_ASSERT(run_test_jass("globals\nunit first\nunit second\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set first=CreateUnit(Player(0),'hRTE',600,1024,0)\n"
+            "set second=CreateUnit(Player(0),'hRTE',680,1024,0)\nendfunction\n"));
+        edict_t *unit=NULL,*peer=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(ent->s.origin2.x==600)unit=ent;else peer=ent;
+            G_SetEntitySelectionMask(ent,1);
+        }
+        T_NOT_NULL(unit);T_NOT_NULL(peer);if(!unit || !peer)continue;
+        clent->client->menu.on_location_selected=move_selectlocation;
+        clent->client->menu.supports_order_queue=true;
+        cstring_t args[]={"point","1300.132","1023.309","alt"};
+        G_ClientCommand(clent,alt ? 4 : 3,args);
+        moveGroup_t *group=move_unit_group(unit);
+        T_NOT_NULL(group);if(!group)continue;
+        T_EQ(group->count,2);T_EQ(group->flags&8u,alt ? 8u : 0);
+        T_EQ(unit->movement.group_id,peer->movement.group_id);
+        cstring_t file=Test_TempPath("wc3-selected-yield162.bin");
+        T_ASSERT(WriteGame(file));
+        FOR_LOOP(pass,2) {
+            if(pass)T_ASSERT(ReadGame(file));
+            unit->movement.velocity=(vec2_t){wc3_mul(wc3_float(velocity[alt][0]),32),wc3_mul(wc3_float(velocity[alt][1]),32)};
+            peer->movement.velocity=(vec2_t){wc3_mul(wc3_float(velocity[alt][2]),32),wc3_mul(wc3_float(velocity[alt][3]),32)};
+            edict_t *blockers[]={peer};
+            T_EQ(S_ResolveMoveBlockers(unit,blockers,1),alt ? WC3_YIELD_PEER : WC3_YIELD_SELF);
+            T_EQ(unit->movement.wait_delay,alt ? 0 : 4);
+            T_EQ(peer->movement.wait_delay,alt ? 20 : 0);
+            T_EQ(unit->movement.wait_blocker,alt ? NULL : peer);
+            T_EQ(peer->movement.wait_blocker,alt ? unit : NULL);
+        }
+        remove(file);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* A removed blocker cannot release the countdown or lend its identity to a
+ * replacement. Owner ticks consume the original4/20 visits; a later ordinary
+ * allocation reuses the freed edict without inheriting that relationship. */
+/* Entire public crossing/tunnel/three-mover owner streams, not resolver seeds. */
+static uint32_t const (*yield163_rows)[27];
+static unsigned yield163_count,yield163_cursor;
+static edict_t *yield163_units[3];
+static bool yield163_mismatch;
+
+static void yield163_compare(uint32_t const *actual,uint32_t const *expected,unsigned count) {
+    FOR_LOOP(i,count) {
+        T_EQ(actual[i],expected[i]);
+        if(actual[i]!=expected[i]) {
+            fprintf(stderr,"yield163 row=%u counter=%u member=%u field=%u actual=%08x expected=%08x\n",
+                yield163_cursor,yield163_rows[yield163_cursor][0],yield163_rows[yield163_cursor][1],i,actual[i],expected[i]);
+            yield163_mismatch=true;
+        }
+    }
+}
+
+static void yield163_before(moveGroup_t const *group,edict_t *unit) {
+    if(group && group->count==1)unit=group->members[0].unit;
+    if(!unit || yield163_mismatch)return;
+    if(!yield163_units[1] && unit!=yield163_units[0])yield163_units[1]=unit;
+    T_ASSERT(yield163_cursor<yield163_count);if(yield163_cursor>=yield163_count)return;
+    unsigned member=0;while(member<3 && yield163_units[member]!=unit)member++;
+    uint32_t actual[]={level.pathing_counter,member,wc3_float_bits(unit->movement.fine_pose.x),
+        wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    yield163_compare(actual,yield163_rows[yield163_cursor],7);
+    uint32_t wait[]={unit->movement.wait_delay,unit->movement.retry_count};
+    yield163_compare(wait,yield163_rows[yield163_cursor]+17,2);
+}
+
+static void yield163_after(edict_t *unit) {
+    if(yield163_mismatch)return;
+    T_ASSERT(yield163_cursor<yield163_count);if(yield163_cursor>=yield163_count)return;
+    uint32_t const *row=yield163_rows[yield163_cursor];
+    T_EQ(unit,yield163_units[row[1]]);
+    uint32_t pose[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),
+        wc3_float_bits(unit->s.angle)};
+    yield163_compare(pose,row+7,row[19] ? 5 : 4);
+    unsigned blocker=UINT32_MAX;
+    FOR_LOOP(i,3)if(yield163_units[i] && unit->movement.wait_blocker==yield163_units[i])blocker=i;
+    uint32_t route[]={unit->movement.fine_route.count,unit->movement.fine_route.index,
+        unit->movement.wait_delay,unit->movement.retry_count,blocker};
+    yield163_compare(route,row+12,5);
+    unsigned player=unit->movement.fine_class;
+    uint32_t work[]={unit->movement.fine_route.adaptive_count,unit->movement.fine_route.adaptive_index,
+        unit->movement.fine_request_time,unit->movement.fine_route.adaptive_admission.time,
+        level.move_fine_budgets[player].work,level.move_coarse_budgets[player][2].work,
+        level.move_coarse_budgets[player][0].work};
+    yield163_compare(work,row+20,7);
+    yield163_cursor++;
+}
+
+TEST(wc3_movement, public_composed_yield_matches_retail_owner_streams) {
+    uint32_t const (*rows[])[27]={yield163_cross_same,yield163_cross_diff,yield163_tunnel_same,
+        yield163_tunnel_diff,yield163_tri_converge};
+    unsigned counts[]={(sizeof(yield163_cross_same)/sizeof(yield163_cross_same[0])),(sizeof(yield163_cross_diff)/sizeof(yield163_cross_diff[0])),
+        (sizeof(yield163_tunnel_same)/sizeof(yield163_tunnel_same[0])),(sizeof(yield163_tunnel_diff)/sizeof(yield163_tunnel_diff[0])),(sizeof(yield163_tri_converge)/sizeof(yield163_tri_converge[0]))};
+    cstring_t starts[]={"400,1024,0","1024,677,90","320,1024,0","1728,1024,180",
+        "1024,1280,270","802.3,896,30","1245.7,896,150"};
+    cstring_t goals[]={"1700,1024","1024,1700","1792,1024","256,1024",
+        "1024,640","1356.6,1216","691.4,1216"};
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','Y','L','D'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,5){
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+        if(c==2 || c==3)FOR_LOOP(y,64)FOR_LOOP(x,64)if(x>=20 && x<=43 && y!=31 && y!=32)cells[y*64+x]=2;
+        CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+        level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+        level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+        G_InitMapRandom();
+        char script[1900];unsigned base=c==4 ? 4 : c>=2 ? 2 : 0;
+        snprintf(script,sizeof(script),"globals\nunit array u\ninteger tick=0\nendglobals\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\nif tick==100 then\n"
+            "call IssuePointOrder(u[0],\"move\",%s)\ncall IssuePointOrder(u[1],\"move\",%s)\n%s\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set u[0]=CreateUnit(Player(0),'hYLD',%s)\nset u[1]=CreateUnit(Player(%u),'hYLD',%s)\n"
+            "%s\ncall TimerStart(CreateTimer(),0.01,true,function on_tick)\nendfunction\n",
+            goals[base],goals[base+1],c==4 ? "call IssuePointOrder(u[2],\"move\",691.4,1216)" : "",
+            starts[base],c==1 || c==3 ? 1 : 0,starts[base+1],c==4 ?
+            "set u[2]=CreateUnit(Player(0),'hYLD',1245.7,896,150)" : "call SetUnitMoveSpeed(u[1],150)");
+        T_ASSERT(run_test_jass(script));memset(yield163_units,0,sizeof(yield163_units));unsigned n=0;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(n<3)yield163_units[n++]=ent;
+        T_EQ(n,c==4 ? 3 : 2);
+        yield163_rows=rows[c];yield163_count=counts[c];yield163_cursor=0;yield163_mismatch=false;
+        move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        unsigned saved=0;uint32_t save_counter=c==4 ? 1106 : c>=2 ? 1165 : 1133;
+        cstring_t file=Test_TempPath("wc3-yield163-composed.bin");
+        while(level.time<15000 && yield163_cursor<yield163_count && !yield163_mismatch){
+            level.time+=5;globals.RunFrame();
+            if(!saved && !yield163_mismatch && level.pathing_counter>=save_counter){
+                saved=yield163_cursor;T_ASSERT(WriteGame(file));
+            }
+        }
+        T_EQ(yield163_cursor,yield163_count);T_ASSERT(saved>0);
+        if(!yield163_mismatch && saved){
+            reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+            CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+            T_ASSERT(ReadGame(file));yield163_cursor=saved;
+            while(level.time<15000 && yield163_cursor<yield163_count && !yield163_mismatch){level.time+=5;globals.RunFrame();}
+        }
+        remove(file);
+        move_test_group_route=NULL;move_test_motion_commit=NULL;
+        T_EQ(yield163_cursor,yield163_count);
+        FOR_LOOP(i,n)T_EQ(yield163_units[i]->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));level.started=false;
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+TEST(wc3_movement, public_dynamic_blockers_match_retail_owner_streams) {
+    uint32_t const (*rows[])[27]={dynamic163_after,dynamic163_before,dynamic163_peer,dynamic163_remove_wait,
+        dynamic163_remove_leg,dynamic163_remove_far,dynamic163_terrain,dynamic163_terrain_remove};
+    unsigned counts[]={sizeof(dynamic163_after)/sizeof(dynamic163_after[0]),sizeof(dynamic163_before)/sizeof(dynamic163_before[0]),
+        sizeof(dynamic163_peer)/sizeof(dynamic163_peer[0]),sizeof(dynamic163_remove_wait)/sizeof(dynamic163_remove_wait[0]),
+        sizeof(dynamic163_remove_leg)/sizeof(dynamic163_remove_leg[0]),sizeof(dynamic163_remove_far)/sizeof(dynamic163_remove_far[0]),
+        sizeof(dynamic163_terrain)/sizeof(dynamic163_terrain[0]),sizeof(dynamic163_terrain_remove)/sizeof(dynamic163_terrain_remove[0])};
+    unsigned inserts[]={1430,1394,1300,1430,1430,1430,1430,1430},removes[]={0,0,0,1445,1659,1890,0,1445};
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','D','Y','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,8){
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[128*128]={0};box2_t bounds={{0,0},{4096,4096}};
+        FOR_LOOP(y,128)FOR_LOOP(x,128)if((y==62 || y==63) && (x<112 || x>=116))cells[y*128+x]=2;
+        CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+        level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+        level.setup.map_flags|=0x8000u;FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+        G_InitMapRandom();
+        char script[2200];
+        snprintf(script,sizeof(script),"globals\nunit mover\nunit blocker\ninteger tick=0\nendglobals\n"
+            "function terrain takes boolean walk returns nothing\nlocal integer i=0\nlocal integer j=0\n"
+            "loop\nexitwhen i>=4\nset j=0\nloop\nexitwhen j>=2\n"
+            "call SetTerrainPathable(32.0*(112+i)+16.0,32.0*(62+j)+16.0,PATHING_TYPE_WALKABILITY,walk)\n"
+            "set j=j+1\nendloop\nset i=i+1\nendloop\nendfunction\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+            "if tick==100 then\ncall IssuePointOrder(mover,\"move\",528,3536)\nendif\n"
+            "if tick==%u then\n%s\nendif\nif tick==%u then\n%s\nendif\nendfunction\n"
+            "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hDYN',528,528,0)\n"
+            "call TimerStart(CreateTimer(),0.01,true,function on_tick)\nendfunction\n",
+            inserts[c],c>=6 ? "call terrain(false)" : c==2 ?
+                "set blocker=CreateUnit(Player(0),'hDYN',3648,2304,270)\ncall SetUnitMoveSpeed(blocker,150)\ncall IssuePointOrder(blocker,\"move\",3648,1600)" :
+                "set blocker=CreateUnit(Player(15),'hDYN',3648,2016,0)",
+            removes[c],c>=6 ? "call terrain(true)" : "call RemoveUnit(blocker)\nset blocker=null");
+        T_ASSERT(run_test_jass(script));memset(yield163_units,0,sizeof(yield163_units));
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)yield163_units[0]=ent;
+        T_NOT_NULL(yield163_units[0]);
+        yield163_rows=rows[c];yield163_count=counts[c];yield163_cursor=0;yield163_mismatch=false;
+        move_test_group_route=yield163_before;move_test_motion_commit=yield163_after;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        uint32_t const save_counters[]={1777,1771,1508,1505,1576,1653,1777,1505};
+        unsigned saved=0;bool written=false;cstring_t file=Test_TempPath("wc3-dynamic163-composed.bin");
+        while(level.time<35000 && yield163_cursor<yield163_count && !yield163_mismatch){
+            level.time+=5;globals.RunFrame();
+            if(!saved && !yield163_mismatch && level.pathing_counter>=save_counters[c]){
+                saved=yield163_cursor;written=WriteGame(file);T_ASSERT(written);
+            }
+        }
+        T_EQ(yield163_cursor,yield163_count);T_ASSERT(saved>0);
+        if(!yield163_mismatch && written){
+            reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+            CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+            T_ASSERT(ReadGame(file));yield163_cursor=saved;
+            while(level.time<35000 && yield163_cursor<yield163_count && !yield163_mismatch){level.time+=5;globals.RunFrame();}
+        }
+        remove(file);
+        move_test_group_route=NULL;move_test_motion_commit=NULL;
+        fprintf(stderr,"dynamic163 case=%u rows=%u/%u\n",c,yield163_cursor,yield163_count);
+        T_EQ(yield163_cursor,yield163_count);T_EQ(yield163_units[0]->current_order_id,0);
+        if(c==2)T_EQ(yield163_units[1]->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));level.started=false;
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+TEST(wc3_movement, yield_removal_reuse_preserves_wait_and_saved_countdown) {
+    FOR_LOOP(long_wait,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+        level.pathing_clock=(wc3Clock_t){0,0,8};
+        T_ASSERT(run_test_jass("globals\nunit waiter\nunit blocker\nunit replacement\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set waiter=CreateUnit(Player(0),'hRTE',256,256,0)\n"
+            "set blocker=CreateUnit(Player(0),'hRTE',256,1024,0)\n"
+            "call IssuePointOrder(waiter,\"move\",1536,256)\n"
+            "call IssuePointOrder(blocker,\"move\",1536,1024)\nendfunction\n"
+            "function remove takes nothing returns nothing\n"
+            "call RemoveUnit(blocker)\nendfunction\n"
+            "function replace takes nothing returns nothing\n"
+            "set replacement=CreateUnit(Player(0),'hRTE',256,1024,0)\nendfunction\n"));
+        edict_t *waiter=NULL,*blocker=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(ent->s.origin2.y==256)waiter=ent;else blocker=ent;
+        }
+        T_NOT_NULL(waiter);T_NOT_NULL(blocker);if(!waiter || !blocker)continue;
+        waiter->movement.velocity=(vec2_t){32,0};blocker->movement.velocity=(vec2_t){64,0};
+        edict_t *candidates[]={long_wait ? waiter : blocker};
+        T_EQ(S_ResolveMoveBlockers(long_wait ? blocker : waiter,candidates,1),long_wait ? WC3_YIELD_PEER : WC3_YIELD_SELF);
+        uint32_t delay=long_wait ? 20 : 4,slot=blocker->s.number,spawn=blocker->spawn_time;
+        T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        cstring_t file=Test_TempPath("wc3-yield-reuse162.bin");T_ASSERT(WriteGame(file));
+        FOR_LOOP(pass,2) {
+            if(pass)T_ASSERT(ReadGame(file));
+            T_EQ(waiter->movement.wait_delay,delay);T_EQ(waiter->movement.wait_blocker,blocker);
+            jass_callbyname(level.vm,"remove",false);
+            T_EQ(waiter->movement.wait_delay,delay);
+            FOR_LOOP(frame,delay) {
+                level.time+=30;globals.RunFrame();
+                T_EQ(waiter->movement.wait_delay,delay-frame-1);
+                T_EQ(waiter->movement.wait_blocker,NULL);
+                T_EQ(waiter->movement.velocity.x,0);T_EQ(waiter->movement.velocity.y,0);
+            }
+            level.time+=30;globals.RunFrame();
+            T_EQ(waiter->movement.wait_delay,0);T_ASSERT(waiter->movement.velocity.x>0);
+            T_ASSERT(!blocker->inuse);
+            /* Respect G_Spawn's reuse cooldown rather than forcing an ID. */
+            FOR_LOOP(frame,40) {level.time+=30;globals.RunFrame();}
+            jass_callbyname(level.vm,"replace",false);
+            edict_t *replacement=g_edicts+slot;
+            T_ASSERT(replacement->inuse);T_EQ(replacement->class_id,MAKEFOURCC('h','R','T','E'));
+            T_ASSERT(replacement->spawn_time!=spawn);T_EQ(waiter->movement.wait_blocker,NULL);
+            T_EQ(waiter->movement.wait_delay,0);
+        }
+        remove(file);
+    }
+    level.started=false;reset_entities();setup_test_world();
+}
+
+/* After assigning a peer20 wait, original165c60 restores the final caller goal
+ * and167290 clears only fine storage. The current advance stops; coarse state
+ * remains owned for the next admitted refill. */
+TEST(wc3_movement, peer_yield_retries_fine_route_and_restores_goal) {
+    edict_t *self=make_moving_unit(136,152); self->collision=16; self->s.model=1;
+    level.waypoints=(typeof(level.waypoints)){0};
+    uint8_t cells[64*64]={0}; FOR_LOOP(y,41) cells[y*64+20]=2;
+    box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    vec2_t goal={1512,152}; T_ASSERT(unit_issueorder(self,"move",&goal));
+    self->unitinfo.TurnSpeed=self->unitinfo.PropWindow=6;
+    self->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_changeangle(self);
+    moveFineRoute_t *curve=&self->movement.fine_route;
+    T_ASSERT(self->movement.path.valid); T_ASSERT(curve->count>1); T_ASSERT(curve->adaptive_count>0);
+    if (!curve->count || !curve->adaptive_count) return;
+    vec2_t source={4.25f,4.75f}, point=curve->points[curve->index];
+    wc3FineSegment_t segment={.start={source.x,source.y},
+        .direction={wc3_sub(point.x,source.x),wc3_sub(point.y,source.y)}};
+    wc3_segment_normalize(segment.direction);
+    wc3FinePoint_t next=wc3_segment_point(&segment,1);
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','p','e','a'),(next.x+.5f)*32,(next.y+.5f)*32);
+    peer->movetype=MOVETYPE_STEP; peer->stand=unit_stand; peer->die=unit_die; peer->collision=16;
+    peer->s.model=1; unit_stand(peer); T_ASSERT(unit_issueorder(peer,"move",&goal)); gi.LinkEntity(peer);
+    self->movement.velocity=(vec2_t){64,0}; peer->movement.velocity=(vec2_t){32,0};
+    self->s.angle=0; self->movement.wait_delay=0;
+    edict_t *candidates[32]; float fine[]={point.x,point.y};
+    movePathQuery_t query={{&self->s.origin2,&goal,self->collision,M_UnitStaticPathingFlags(self)},self,self->goalentity,true,&source};
+    uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,candidates); bool found=false;
+    FOR_LOOP(i,count) found|=candidates[i]==peer;
+    T_ASSERT(found);
+    uint32_t coarse_count=curve->adaptive_count,coarse_index=curve->adaptive_index;
+    vec2_t *coarse=malloc(coarse_count*sizeof(*coarse)); T_NOT_NULL(coarse);
+    if (!coarse) return;
+    memcpy(coarse,curve->adaptive_points,coarse_count*sizeof(*coarse));
+    unit_changeangle(self); unit_moveindirection(self);
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,self);
+    T_EQ(self->movement.wait_delay,0); T_EQ(self->movement.wait_blocker,NULL);
+    T_ASSERT(self->movement.turn_blocked); T_EQ(wc3_float_bits(self->movement.heading),0x3b508f4bu);
+    T_EQ(self->movement.velocity.x,0); T_EQ(self->movement.velocity.y,0);
+    T_EQ(curve->count,0); T_ASSERT(!self->movement.path.valid);
+    T_EQ(curve->adaptive_count,coarse_count); T_EQ(curve->adaptive_index,coarse_index);
+    T_EQ(memcmp(coarse,curve->adaptive_points,coarse_count*sizeof(*coarse)),0);
+    free(coarse); reset_entities(); setup_test_world();
+}
+
+/* Public orders retry an obstructed fine leg, retain its coarse plan across a
+ * save and resume through the actual movement thinker rather than a helper. */
+TEST(wc3_movement, public_peer_retry_save_and_resume) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; FOR_LOOP(y,41) cells[y*64+20]=2;
+    box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit peer\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\n"
+        "set peer=CreateUnit(Player(0),'hRTE',1700,1700,0)\n"
+        "call IssuePointOrder(mover,\"move\",1512,152)\nendfunction\n"
+        "function go takes nothing returns nothing\n"
+        "call IssuePointOrder(peer,\"move\",1512,152)\nendfunction\n"));
+    edict_t *unit=NULL,*peer=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->s.origin2.x==136) unit=ent; else peer=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(peer);
+    if (!unit || !peer) return;
+    unit->collision=peer->collision=16;
+    unit->unitinfo.TurnSpeed=unit->unitinfo.PropWindow=6;
+    unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_changeangle(unit);
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    T_ASSERT(route->count>1); T_ASSERT(route->adaptive_count>0);
+    if (!route->count || !route->adaptive_count) return;
+    vec2_t point=route->points[route->index];
+    wc3FineSegment_t segment={.start={4.25f,4.75f},
+        .direction={wc3_sub(point.x,4.25f),wc3_sub(point.y,4.75f)}};
+    wc3_segment_normalize(segment.direction);
+    wc3FinePoint_t next=wc3_segment_point(&segment,1);
+    S_SetUnitAxisPosition(peer,0,(next.x+.5f)*32); S_SetUnitAxisPosition(peer,1,(next.y+.5f)*32);
+    unit_stand(peer);
+    jass_callbyname(level.vm,"go",false);
+    unit->movement.velocity=(vec2_t){64,0}; peer->movement.velocity=(vec2_t){32,0};
+    unit_changeangle(unit); unit_moveindirection(unit);
+    T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,unit);
+    T_EQ(route->count,0); T_EQ(route->index,UINT32_MAX); T_ASSERT(route->adaptive_count>0);
+    T_ASSERT(unit->movement.retry_count==6 || unit->movement.retry_count==7);
+    uint32_t retry=unit->movement.retry_count,coarse=route->adaptive_count;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("openwarcraft3-peer-retry-save.bin"); T_ASSERT(WriteGame(file));
+    uint32_t words[120][12];
+    FOR_LOOP(pass,2) {
+        bool resumed=false;
+        if (pass) {
+            T_ASSERT(ReadGame(file)); T_EQ(unit->movement.retry_count,retry);
+            T_EQ(route->count,0); T_EQ(route->index,UINT32_MAX); T_EQ(route->adaptive_count,coarse);
+            T_EQ(peer->movement.wait_delay,20); T_EQ(peer->movement.wait_blocker,unit);
+        }
+        FOR_LOOP(i,120) {
+            level.time+=30; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->movement.retry_count,unit->current_order_id,
+                wc3_float_bits(peer->s.origin2.x),wc3_float_bits(peer->s.origin2.y),
+                peer->movement.wait_delay,level.pathing_random.sum,level.pathing_random.index};
+            if (pass) FOR_LOOP(j,12) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            if (unit->movement.velocity.x || unit->movement.velocity.y) resumed=true;
+        }
+        T_ASSERT(resumed); T_EQ(peer->movement.wait_delay,0);
+        T_ASSERT(Vector2_distance(&unit->s.origin2,&(vec2_t){136,152})>64);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+/* Complete original16fbd0 waiting calls retain their native source. The world
+ * subtraction differs even at origin0 and differs by ten float units
+ * at positive origins. Countdown1 still turns while stopping translation. */
+TEST(wc3_movement, waiting_heading_preserves_native_source) {
+    uint32_t const cases[4][4] = {
+        {0x45816f60u,0x4581c9f9u,0x458c0000u,0x45880000u},
+        {0xc4fa4280u,0x440e4fcau,0xc4d00000u,0x44400000u},
+        {0x47c366f6u,0x47c36c9fu,0x47c41000u,0x47c3d000u},
+        {0x4237b01au,0x4264fca7u,0x43c00000u,0x43800000u},
+    };
+    vec2_t const origins[]={{4096,4096},{-2048,512},{100000,100000},{0,0}};
+    FOR_LOOP(i,4) {
+        edict_t *unit=make_moving_unit(wc3_float(cases[i][0]),wc3_float(cases[i][1]));
+        uint8_t cells[64*64]={0};
+        box2_t bounds={origins[i],{origins[i].x+2048,origins[i].y+2048}};
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+        vec2_t goal={wc3_float(cases[i][2]),wc3_float(cases[i][3])};
+        T_ASSERT(unit_issueorder(unit,"move",&goal));
+        unit->movement.fine_pose=unit->movement.sampled_pose=(vec2_t){wc3_float(0x3fb7b01a),wc3_float(0x3fe4fca7)};
+        unit->movement.pose_world=unit->s.origin2; unit->movement.pose_valid=true;
+        unit->movement.clock_valid=false; unit->movement.wait_delay=1;
+        unit->unitinfo.TurnSpeed=0.5f; unit->unitinfo.PropWindow=0.25f;
+        unit->unitinfo.move_flags|=BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->s.angle=0.25f;
+        unit_changeangle(unit); unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.heading),0x3f08101bu);
+        T_EQ(wc3_float_bits(unit->s.angle),0x3f08101bu);
+        T_EQ(unit->movement.wait_delay,0); T_ASSERT(unit->movement.turn_blocked);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),cases[i][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),cases[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),0x3fb7b01au);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),0x3fe4fca7u);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Seed the verified retained fine pose as a prior movement commit, then use
+ * public Move, the real owner scheduler and the normal save serializer. */
+TEST(wc3_movement, public_waiting_heading_save_continuation) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=level.pathing_msec=0;
+    level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; box2_t bounds={{4096,4096},{6144,6144}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',4144,4160,0)\n"
+        "call SetUnitTurnSpeed(mover,0.5)\ncall SetUnitPropWindow(mover,0.25)\nendfunction\n"
+        "function go takes nothing returns nothing\ncall IssuePointOrder(mover,\"move\",4480,4352)\nendfunction\n"));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    unit->s.origin2=(vec2_t){wc3_float(0x45816f60),wc3_float(0x4581c9f9)};
+    unit->s.origin.x=unit->s.origin2.x; unit->s.origin.y=unit->s.origin2.y; gi.LinkEntity(unit);
+    unit->movement.fine_pose=unit->movement.sampled_pose=(vec2_t){wc3_float(0x3fb7b01a),wc3_float(0x3fe4fca7)};
+    unit->movement.pose_world=unit->s.origin2; unit->movement.pose_valid=true;
+    unit->movement.clock_valid=false; unit->movement.velocity=(vec2_t){0};
+    unit->movement.wait_delay=4; unit->s.angle=0.25f;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("openwarcraft3-wait-heading-save.bin"); T_ASSERT(WriteGame(file));
+    uint32_t words[12][10]; bool moved=false;
+    FOR_LOOP(pass,2) {
+        if (pass) { T_ASSERT(ReadGame(file)); T_EQ(unit->movement.wait_delay,4); }
+        FOR_LOOP(i,12) {
+            level.time+=30; globals.RunFrame();
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),wc3_float_bits(unit->movement.heading),
+                unit->movement.wait_delay,unit->current_order_id};
+            if (pass) FOR_LOOP(j,10) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            if (i<4) {
+                T_EQ(row[0],0x45816f60u); T_EQ(row[1],0x4581c9f9u);
+                T_EQ(row[2],0x3fb7b01au); T_EQ(row[3],0x3fe4fca7u);
+                T_EQ(row[4],0); T_EQ(row[5],0);
+                T_EQ(row[6],0x3f08101bu); T_EQ(row[7],0x3f08101bu); T_EQ(row[8],3-i);
+            } else moved|=row[0]!=0x45816f60u || row[1]!=0x4581c9f9u;
+            T_ASSERT(unit->current_order_id!=0);
+        }
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    T_ASSERT(moved); remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+/* An ordinary public Move collects a moving blocker; its owned wait survives
+ * save/load and removal without losing the remaining eligible advances. */
+TEST(wc3_movement, public_move_yield_wait_and_save) {
+    reset_entities(); setup_test_world();
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    uint8_t cells[64*64]={0}; box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit peer\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hRTE',136,152,0)\n"
+        "set peer=CreateUnit(Player(0),'hRTE',176,152,0)\nendfunction\n"
+        "function go takes nothing returns nothing\n"
+        "call IssuePointOrder(mover,\"move\",1512,152)\n"
+        "call IssuePointOrder(peer,\"move\",1512,152)\nendfunction\n"
+        "function remove takes nothing returns nothing\ncall RemoveUnit(peer)\nendfunction\n"
+        "function disable takes nothing returns nothing\ncall SetUnitPathing(mover,false)\nendfunction\n"));
+    edict_t *unit=NULL,*peer=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if (ent->s.origin2.x==136) unit=ent; else peer=ent;
+    }
+    T_NOT_NULL(unit); T_NOT_NULL(peer);
+    if (!unit || !peer) return;
+    unit_stand(unit); unit_stand(peer); jass_callbyname(level.vm,"go",false);
+    /* The decision must use the committed velocities, not equal authored speeds. */
+    unit->movement.velocity=(vec2_t){32,0}; peer->movement.velocity=(vec2_t){64,0};
+    unit_changeangle(unit);
+    T_EQ(unit->movement.wait_delay,4); T_EQ(unit->movement.wait_blocker,peer);
+    T_ASSERT(unit->movement.turn_blocked); T_EQ(peer->movement.wait_delay,0);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("openwarcraft3-moving-yield-save.bin"); T_ASSERT(WriteGame(file));
+    uint32_t words[6][8];
+    FOR_LOOP(pass,2) {
+        if (pass) {
+            T_ASSERT(ReadGame(file)); T_EQ(unit->movement.wait_delay,4);
+            T_EQ(unit->movement.wait_blocker,peer); T_ASSERT(peer->inuse);
+        }
+        jass_callbyname(level.vm,"remove",false);
+        /* RemoveUnit defers reclamation; Move clears identity at A_UNIT_REMOVE. */
+        T_EQ(unit->movement.wait_delay,4);
+        /* Query0 is SetUnitPathing(false), not original Path_Advance's disabled flag. */
+        jass_callbyname(level.vm,"disable",false); T_ASSERT(unit->no_pathing);
+        FOR_LOOP(i,6) {
+            level.time+=30; globals.RunFrame();
+            T_EQ(unit->movement.wait_blocker,NULL);
+            uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                wc3_float_bits(unit->s.angle),unit->current_order_id,unit->movement.wait_delay,
+                unit->movement.turn_blocked};
+            if (pass) FOR_LOOP(j,8) T_EQ(row[j],words[i][j]); else memcpy(words[i],row,sizeof(row));
+            T_EQ(unit->movement.wait_delay,i<4 ? 3-i : 0);
+            T_ASSERT(unit->current_order_id!=0);
+            if (i<4) { T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0); }
+            else T_ASSERT(unit->movement.velocity.x>0);
+        }
+        T_ASSERT(!peer->inuse); T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+/* Positive world origins discard native pose bits; persist the fine words rather than reprojecting a save. */
+TEST(wc3_movement, native_fine_pose_survives_save_and_reposition) {
+    uint32_t const expected[16][7] = {
+        {0x3fb7b01au, 0x3fe4fca7u, 0xc4fa4280u, 0x440e4fcau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x3fd8b38du, 0x3ffb9290u, 0xc4f93a64u, 0x440fb929u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x400031d3u, 0x4000479bu, 0xc4f7fce3u, 0x441008f3u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4010b38cu, 0x400b928fu, 0xc4f6f4c8u, 0x44117251u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x40248b99u, 0x400e10e2u, 0xc4f5b747u, 0x4411c21cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40350d52u, 0x40195bd6u, 0xc4f4af2bu, 0x44132b7au, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4048e55fu, 0x401bda29u, 0xc4f371abu, 0x44137b45u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40596718u, 0x4027251du, 0xc4f2698fu, 0x4414e4a3u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x406d3f25u, 0x4029a370u, 0xc4f12c0eu, 0x4415346eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x407dc0deu, 0x4034ee64u, 0xc4f023f3u, 0x44169dccu, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x4088cc75u, 0x40376cb7u, 0xc4eee672u, 0x4416ed96u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40910d51u, 0x4042b7abu, 0xc4edde56u, 0x441856f5u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x409af957u, 0x404535feu, 0xc4eca0d6u, 0x4418a6bfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40a33a33u, 0x405080f2u, 0xc4eb98bau, 0x441a101eu, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x40ad2639u, 0x4052ff45u, 0xc4ea5b39u, 0x441a5fe8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40b56715u, 0x405e4a39u, 0xc4e9531eu, 0x441bc947u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+    };
+    edict_t *unit = make_moving_unit(-2012, 568);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    cstring_t file = Test_TempPath("openwarcraft3-native-fine-pose-save.bin");
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
+    FOR_LOOP(i, 16) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+        T_ASSERT(unit->movement.pose_valid);
+        if (i == 7) T_ASSERT(WriteGame(file));
+    }
+    T_ASSERT(ReadGame(file));
+    T_ASSERT(unit->movement.pose_valid);
+    FOR_LOOP(k, 8) {
+        unsigned i = k + 8;
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+    }
+    vec2_t fine = unit->movement.fine_pose, world = unit->s.origin2;
+    memset(cells, 2, sizeof(cells)); CM_SetupTestPathmap(16, 16, cells);
+    unit->s.angle = 0.125f; unit_moveindirection(unit);
+    T_ASSERT(unit->movement.pose_valid);
+    T_EQ(unit->movement.fine_pose.x, fine.x); T_EQ(unit->movement.fine_pose.y, fine.y);
+    T_EQ(unit->s.origin2.x, world.x); T_EQ(unit->s.origin2.y, world.y);
+    memset(cells, 0, sizeof(cells)); CM_SetupTestPathmap(16, 16, cells);
+    /* External world repositioning must discard stale axes on the next accepted preview. */
+    unit->s.origin2 = (vec2_t){-2012, 568}; gi.LinkEntity(unit);
+    unit->s.angle = 0.125f; unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[0][0]);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[0][1]);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), expected[0][2]);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), expected[0][3]);
+    world = unit->s.origin2; world.x += 1;
+    T_ASSERT(unit_snap_to_point_ignore_units(unit, &world));
+    T_ASSERT(!unit->movement.pose_valid);
+    remove(file); reset_entities(); setup_test_world();
+}
+
+/* Public X/Y wrappers write both native fine axes, even when the requested world word is unchanged. */
+TEST(wc3_movement, public_axis_position_retains_original_write_and_next_step_words) {
+    uint32_t const expected[4][4] = {
+        {0x3fb7b000u, 0x3fe4fca0u, 0xc4fa4280u, 0x440e4fcau},
+        {0x3fb7b000u, 0x3fe4fca0u, 0xc4fa4280u, 0x440e4fcau},
+        {0x3fb83000u, 0x3fe4fca0u, 0xc4fa3e80u, 0x440e4fcau},
+        {0x3fb7b000u, 0x3fe57ca0u, 0xc4fa4280u, 0x440e57cau}
+    };
+    uint32_t const next[4][7] = {
+        {0x3fd8b373u, 0x3ffb9289u, 0xc4f93a65u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd8b373u, 0x3ffb9289u, 0xc4f93a65u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd93373u, 0x3ffb9289u, 0xc4f93665u, 0x440fb928u, 0x42a51143u, 0x4261db20u, 0x3f19994fu},
+        {0x3fd8b373u, 0x3ffc1289u, 0xc4f93a65u, 0x440fc128u, 0x42a51143u, 0x4261db20u, 0x3f19994fu}
+    };
+    cstring_t const calls[4] = {"same_x", "same_y", "shift_x", "shift_y"};
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    cstring_t file = Test_TempPath("openwarcraft3-public-axis-pose-save.bin");
+    FOR_LOOP(i, 4) {
+        reset_entities(); setup_test_world();
+        memset(&level.waypoints, 0, sizeof(level.waypoints));
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+        T_ASSERT(run_test_jass(
+            "globals\n unit axisUnit = null\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            " set axisUnit = CreateUnit(Player(0), 'hfoo', -2012.0, 568.0, 0.0)\nendfunction\n"
+            "function same_x takes nothing returns nothing\n"
+            " call SetUnitX(axisUnit, GetUnitX(axisUnit))\nendfunction\n"
+            "function same_y takes nothing returns nothing\n"
+            " call SetUnitY(axisUnit, GetUnitY(axisUnit))\nendfunction\n"
+            "function shift_x takes nothing returns nothing\n"
+            " call SetUnitX(axisUnit, GetUnitX(axisUnit) + 0.125)\nendfunction\n"
+            "function shift_y takes nothing returns nothing\n"
+            " call SetUnitY(axisUnit, GetUnitY(axisUnit) + 0.125)\nendfunction\n"));
+        edict_t *unit = NULL;
+        FOR_LOOP(n, globals.num_edicts)
+            if (g_edicts[n].inuse && g_edicts[n].class_id == MAKEFOURCC('h','f','o','o')) unit = &g_edicts[n];
+        T_NOT_NULL(unit);
+        if (!unit) continue;
+        unit->collision = 0; unit->movetype = MOVETYPE_STEP; unit->stand = unit_stand; unit_stand(unit);
+        unit->unitinfo.MoveSpeed = 100;
+        vec2_t target = {-1800, 600}; T_ASSERT(unit_issueorder(unit, "move", &target));
+        unit->s.angle = .125f; unit->movement.flow_direct = true; unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), 0x3fb7b01au);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), 0x3fe4fca7u);
+        vec2_t velocity = unit->movement.velocity; float facing = unit->s.angle;
+        edict_t *goal = unit->goalentity;
+        unit->movement.worker_avoid_blocked_frames = 3;
+        jass_callbyname(level.vm, calls[i], false);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(unit->movement.velocity.x, velocity.x); T_EQ(unit->movement.velocity.y, velocity.y);
+        T_EQ(unit->s.angle, facing); T_EQ(unit->current_order_id, G_OrderId("move"));
+        T_ASSERT(unit->goalentity == goal); T_ASSERT(unit->movement.pose_valid);
+        T_EQ(unit->movement.worker_avoid_blocked_frames, 3);
+        T_ASSERT(WriteGame(file));
+        FOR_LOOP(round, 2) {
+            if (round) T_ASSERT(ReadGame(file));
+            unit->s.angle = .6f; unit_moveindirection(unit);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x), next[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y), next[i][1]);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), next[i][2]);
+            T_EQ(wc3_float_bits(unit->s.origin2.y), next[i][3]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), next[i][4]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.y), next[i][5]);
+            T_EQ(wc3_float_bits(unit->s.angle), next[i][6]);
+        }
+        remove(file);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Complete original primary clock:20 five-ms advances per server frame,
+ * Move commits each sixth advance before the next one; queries predict the residue. */
+static void fixed_oblique_clock_move(edict_t *unit) {
+    /* Constant requested input for the original kernel trajectory. */
+    unit->s.angle = .125f;
+    unit_moveindirection(unit);
+}
+
+static umove_t fixed_oblique_clock_walk = { .animation = "walk",
+    .think = fixed_oblique_clock_move, .proc = CAbilityMove,
+    .scheduled_think = true, .sample_pose = S_PublishMovement };
+
+TEST(wc3_movement, primary_clock_and_previous_velocity_match_fixed_oblique_frames) {
+    /* Complete original producer/mover/query words from retail-primary-clock-trajectory. */
+    uint32_t const expected[300][7] = {
+        {0x3fa7d00eu, 0x3fe2fdfcu, 0xc4faa1c0u, 0x440e37dau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x3fcb8822u, 0x3fe77af6u, 0xc4f9643fu, 0x440e87a4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x3ffb283du, 0x3fed76eeu, 0xc4f826bfu, 0x440ed76eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x400f7028u, 0x3ff1f3e8u, 0xc4f6e93eu, 0x440f2739u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40214c31u, 0x3ff670e2u, 0xc4f5abbdu, 0x440f7703u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40391c3du, 0x3ffc6cdau, 0xc4f46e3du, 0x440fc6cdu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x404af846u, 0x400074eau, 0xc4f330bcu, 0x44101697u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x405cd44fu, 0x4002b367u, 0xc4f1f33bu, 0x44106662u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4074a45bu, 0x4005b163u, 0xc4f0b5bbu, 0x4410b62cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40834031u, 0x4007efe0u, 0xc4ef783au, 0x441105f6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x408c2e34u, 0x400a2e5du, 0xc4ee3abau, 0x441155c0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40981638u, 0x400d2c59u, 0xc4ecfd39u, 0x4411a58bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40a1043bu, 0x400f6ad6u, 0xc4ebbfb9u, 0x4411f555u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40a9f23eu, 0x4011a953u, 0xc4ea8239u, 0x4412451fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40b5da42u, 0x4014a74fu, 0xc4e944b8u, 0x441294e9u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40bec845u, 0x4016e5ccu, 0xc4e80738u, 0x4412e4b4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40c7b648u, 0x40192449u, 0xc4e6c9b7u, 0x4413347eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40d39e4cu, 0x401c2245u, 0xc4e58c37u, 0x44138448u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40dc8c4fu, 0x401e60c2u, 0xc4e44eb7u, 0x4413d412u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40e57a52u, 0x40209f3fu, 0xc4e31136u, 0x441423ddu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40f16249u, 0x40239d38u, 0xc4e1d3b7u, 0x441473a7u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x40fa5040u, 0x4025dbb2u, 0xc4e09639u, 0x4414c370u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41019f1bu, 0x40281a2cu, 0xc4df58bau, 0x4415133au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41079313u, 0x402b1824u, 0xc4de1b3cu, 0x44156304u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x410c0a0du, 0x402d569eu, 0xc4dcddbdu, 0x4415b2ceu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41108107u, 0x402f9518u, 0xc4dba03fu, 0x44160298u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x411674ffu, 0x40329310u, 0xc4da62c1u, 0x44165262u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x411aebf9u, 0x4034d18au, 0xc4d92542u, 0x4416a22bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x411f62f3u, 0x40371004u, 0xc4d7e7c4u, 0x4416f1f5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x412556ebu, 0x403a0dfcu, 0xc4d6aa46u, 0x441741bfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4129cde5u, 0x403c4c76u, 0xc4d56cc7u, 0x44179189u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x412e44dfu, 0x403e8af0u, 0xc4d42f49u, 0x4417e153u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x413438d7u, 0x404188e8u, 0xc4d2f1cbu, 0x4418311du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4138afd1u, 0x4043c762u, 0xc4d1b44cu, 0x441880e6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x413d26cbu, 0x404605dcu, 0xc4d076ceu, 0x4418d0b0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41431ac3u, 0x404903d4u, 0xc4cf3950u, 0x4419207au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x414791bdu, 0x404b424eu, 0xc4cdfbd1u, 0x44197044u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x414c08b7u, 0x404d80c8u, 0xc4ccbe53u, 0x4419c00eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4151fcafu, 0x40507ec0u, 0xc4cb80d5u, 0x441a0fd8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x415673a9u, 0x4052bd3au, 0xc4ca4356u, 0x441a5fa1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x415aea96u, 0x4054fbacu, 0xc4c905dcu, 0x441aaf6au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4160de7au, 0x4057f998u, 0xc4c7c862u, 0x441aff33u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41655565u, 0x405a3809u, 0xc4c68ae8u, 0x441b4efbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4169cc50u, 0x405c767au, 0xc4c54d6eu, 0x441b9ec4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x416fc034u, 0x405f7466u, 0xc4c40ff3u, 0x441bee8cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4174371fu, 0x4061b2d7u, 0xc4c2d279u, 0x441c3e55u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4178ae0au, 0x4063f148u, 0xc4c194ffu, 0x441c8e1du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x417ea1eeu, 0x4066ef34u, 0xc4c05785u, 0x441cdde6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41818c6bu, 0x40692da5u, 0xc4bf1a0cu, 0x441d2dafu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4183c7dfu, 0x406b6c16u, 0xc4bddc92u, 0x441d7d77u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4186c1cfu, 0x406e6a02u, 0xc4bc9f19u, 0x441dcd40u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4188fd43u, 0x4070a873u, 0xc4bb61a0u, 0x441e1d08u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x418b38b7u, 0x4072e6e4u, 0xc4ba2426u, 0x441e6cd1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x418e32a7u, 0x4075e4d0u, 0xc4b8e6adu, 0x441ebc9au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41906e1bu, 0x40782341u, 0xc4b7a934u, 0x441f0c62u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4192a98fu, 0x407a61b2u, 0xc4b66bbau, 0x441f5c2bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4195a37fu, 0x407d5f9eu, 0xc4b52e41u, 0x441fabf3u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4197def3u, 0x407f9e0fu, 0xc4b3f0c8u, 0x441ffbbcu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x419a1a67u, 0x4080ee3fu, 0xc4b2b34eu, 0x44204b84u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x419d1457u, 0x40826d33u, 0xc4b175d5u, 0x44209b4cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x419f4fcbu, 0x40838c6au, 0xc4b0385cu, 0x4420eb14u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41a18b3fu, 0x4084aba1u, 0xc4aefae2u, 0x44213addu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41a4852fu, 0x40862a95u, 0xc4adbd69u, 0x44218aa5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41a6c0a3u, 0x408749ccu, 0xc4ac7ff0u, 0x4421da6du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41a8fc17u, 0x40886903u, 0xc4ab4276u, 0x44222a35u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41abf607u, 0x4089e7f7u, 0xc4aa04fdu, 0x442279fdu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41ae317bu, 0x408b072eu, 0xc4a8c784u, 0x4422c9c5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41b06cefu, 0x408c2665u, 0xc4a78a0au, 0x4423198eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41b366dfu, 0x408da559u, 0xc4a64c91u, 0x44236956u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41b5a253u, 0x408ec490u, 0xc4a50f18u, 0x4423b91eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41b7ddc7u, 0x408fe3c7u, 0xc4a3d19eu, 0x442408e6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41bad7b7u, 0x409162bbu, 0xc4a29425u, 0x442458aeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41bd132bu, 0x409281f2u, 0xc4a156acu, 0x4424a876u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41bf4e9fu, 0x4093a129u, 0xc4a01932u, 0x4424f83fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41c2488fu, 0x4095201du, 0xc49edbb9u, 0x44254807u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41c48403u, 0x40963f54u, 0xc49d9e40u, 0x442597cfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41c6bf77u, 0x40975e8bu, 0xc49c60c6u, 0x4425e797u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41c9b967u, 0x4098dd7fu, 0xc49b234du, 0x4426375fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41cbf4dbu, 0x4099fcb6u, 0xc499e5d4u, 0x44268727u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41ce304fu, 0x409b1bedu, 0xc498a85au, 0x4426d6f0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41d12a32u, 0x409c9adbu, 0xc4976ae7u, 0x442726b6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41d3659au, 0x409dba0cu, 0xc4962d75u, 0x4427767du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41d5a102u, 0x409ed93du, 0xc494f002u, 0x4427c643u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41d89ae2u, 0x40a05829u, 0xc493b28fu, 0x4428160au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41dad64au, 0x40a1775au, 0xc492751du, 0x442865d0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41dd11b2u, 0x40a2968bu, 0xc49137aau, 0x4428b597u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41e00b92u, 0x40a41577u, 0xc48ffa37u, 0x4429055du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41e246fau, 0x40a534a8u, 0xc48ebcc5u, 0x44295524u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41e48262u, 0x40a653d9u, 0xc48d7f52u, 0x4429a4eau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41e77c42u, 0x40a7d2c5u, 0xc48c41dfu, 0x4429f4b1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41e9b7aau, 0x40a8f1f6u, 0xc48b046du, 0x442a4477u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41ebf312u, 0x40aa1127u, 0xc489c6fau, 0x442a943eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41eeecf2u, 0x40ab9013u, 0xc4888987u, 0x442ae404u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41f1285au, 0x40acaf44u, 0xc4874c15u, 0x442b33cbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41f363c2u, 0x40adce75u, 0xc4860ea2u, 0x442b8391u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41f65da2u, 0x40af4d61u, 0xc484d12fu, 0x442bd358u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41f8990au, 0x40b06c92u, 0xc48393bdu, 0x442c231eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41fad472u, 0x40b18bc3u, 0xc482564au, 0x442c72e5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x41fdce52u, 0x40b30aafu, 0xc48118d7u, 0x442cc2abu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420004ddu, 0x40b429e0u, 0xc47fb6cau, 0x442d1272u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42012291u, 0x40b54911u, 0xc47d3be4u, 0x442d6238u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42029f81u, 0x40b6c7fdu, 0xc47ac0feu, 0x442db1ffu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4203bd35u, 0x40b7e72eu, 0xc478461au, 0x442e01c5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4204dae9u, 0x40b9065fu, 0xc475cb34u, 0x442e518cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420657d9u, 0x40ba854bu, 0xc473504eu, 0x442ea152u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4207758du, 0x40bba47cu, 0xc470d56au, 0x442ef119u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42089341u, 0x40bcc3adu, 0xc46e5a84u, 0x442f40dfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420a1031u, 0x40be4299u, 0xc46bdf9eu, 0x442f90a6u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420b2de5u, 0x40bf61cau, 0xc46964bau, 0x442fe06cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420c4b99u, 0x40c080fbu, 0xc466e9d4u, 0x44303033u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420dc889u, 0x40c1ffe7u, 0xc4646eeeu, 0x44307ff9u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x420ee63du, 0x40c31f18u, 0xc461f40au, 0x4430cfc0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421003f1u, 0x40c43e49u, 0xc45f7924u, 0x44311f86u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421180e1u, 0x40c5bd35u, 0xc45cfe3eu, 0x44316f4du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42129e95u, 0x40c6dc66u, 0xc45a835au, 0x4431bf13u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4213bc49u, 0x40c7fb97u, 0xc4580874u, 0x44320edau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42153939u, 0x40c97a83u, 0xc4558d8eu, 0x44325ea0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421656edu, 0x40ca99b4u, 0xc45312aau, 0x4432ae67u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421774a1u, 0x40cbb8e5u, 0xc45097c4u, 0x4432fe2du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4218f191u, 0x40cd37d1u, 0xc44e1cdeu, 0x44334df4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421a0f45u, 0x40ce5702u, 0xc44ba1fau, 0x44339dbau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421b2cf9u, 0x40cf7633u, 0xc4492714u, 0x4433ed81u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421ca9e9u, 0x40d0f51fu, 0xc446ac2eu, 0x44343d47u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421dc79du, 0x40d21450u, 0xc444314au, 0x44348d0eu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x421ee551u, 0x40d33381u, 0xc441b664u, 0x4434dcd4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42206241u, 0x40d4b26du, 0xc43f3b7eu, 0x44352c9bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42217ff5u, 0x40d5d19eu, 0xc43cc09au, 0x44357c61u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42229da9u, 0x40d6f0cfu, 0xc43a45b4u, 0x4435cc28u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42241a99u, 0x40d86fbbu, 0xc437caceu, 0x44361beeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4225384du, 0x40d98eecu, 0xc4354feau, 0x44366bb5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42265601u, 0x40daae1du, 0xc432d504u, 0x4436bb7bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4227d2f1u, 0x40dc2d09u, 0xc4305a1eu, 0x44370b42u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4228f0a5u, 0x40dd4c3au, 0xc42ddf3au, 0x44375b08u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x422a0e59u, 0x40de6b6bu, 0xc42b6454u, 0x4437aacfu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x422b8b49u, 0x40dfea57u, 0xc428e96eu, 0x4437fa95u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x422ca8fdu, 0x40e10988u, 0xc4266e8au, 0x44384a5cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x422dc6b1u, 0x40e228b9u, 0xc423f3a4u, 0x44389a22u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x422f43a1u, 0x40e3a7a5u, 0xc42178beu, 0x4438e9e9u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42306155u, 0x40e4c6d6u, 0xc41efddau, 0x443939afu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42317f09u, 0x40e5e607u, 0xc41c82f4u, 0x44398976u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4232fbf9u, 0x40e764f3u, 0xc41a080eu, 0x4439d93cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423419adu, 0x40e88424u, 0xc4178d2au, 0x443a2903u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42353761u, 0x40e9a355u, 0xc4151244u, 0x443a78c9u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4236b451u, 0x40eb2241u, 0xc412975eu, 0x443ac890u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4237d205u, 0x40ec4172u, 0xc4101c7au, 0x443b1856u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4238efb9u, 0x40ed60a3u, 0xc40da194u, 0x443b681du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423a6ca9u, 0x40eedf8fu, 0xc40b26aeu, 0x443bb7e3u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423b8a5du, 0x40effec0u, 0xc408abcau, 0x443c07aau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423ca811u, 0x40f11df1u, 0xc40630e4u, 0x443c5770u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423e2501u, 0x40f29cddu, 0xc403b5feu, 0x443ca737u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x423f42b5u, 0x40f3bc0eu, 0xc4013b1au, 0x443cf6fdu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42406069u, 0x40f4db3fu, 0xc3fd8068u, 0x443d46c4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4241dd59u, 0x40f65a2bu, 0xc3f88a9cu, 0x443d968au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4242fb0du, 0x40f7795cu, 0xc3f394d4u, 0x443de651u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424418c1u, 0x40f8988du, 0xc3ee9f08u, 0x443e3617u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424595b1u, 0x40fa1779u, 0xc3e9a93cu, 0x443e85deu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4246b365u, 0x40fb36aau, 0xc3e4b374u, 0x443ed5a4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4247d119u, 0x40fc55dbu, 0xc3dfbda8u, 0x443f256bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42494e09u, 0x40fdd4c7u, 0xc3dac7dcu, 0x443f7531u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424a6bbdu, 0x40fef3f8u, 0xc3d5d214u, 0x443fc4f8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424b8971u, 0x41000994u, 0xc3d0dc48u, 0x444014beu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424d0661u, 0x4100c908u, 0xc3cbe67cu, 0x44406484u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424e2415u, 0x4101589fu, 0xc3c6f0b4u, 0x4440b449u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x424f41c9u, 0x4101e836u, 0xc3c1fae8u, 0x4441040fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4250beb9u, 0x4102a7aau, 0xc3bd051cu, 0x444153d5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4251dc6du, 0x41033741u, 0xc3b80f54u, 0x4441a39au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4252fa21u, 0x4103c6d8u, 0xc3b31988u, 0x4441f360u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42547711u, 0x4104864cu, 0xc3ae23bcu, 0x44424326u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425594c5u, 0x410515e3u, 0xc3a92df4u, 0x444292ebu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4256b279u, 0x4105a57au, 0xc3a43828u, 0x4442e2b1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42582f69u, 0x410664eeu, 0xc39f425cu, 0x44433277u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42594d1du, 0x4106f485u, 0xc39a4c94u, 0x4443823cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425a6ad1u, 0x4107841cu, 0xc39556c8u, 0x4443d202u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425be7c1u, 0x41084390u, 0xc39060fcu, 0x444421c8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425d0575u, 0x4108d327u, 0xc38b6b34u, 0x4444718du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425e2329u, 0x410962beu, 0xc3867568u, 0x4444c153u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x425fa019u, 0x410a2232u, 0xc3817f9cu, 0x44451119u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4260bdcdu, 0x410ab1c9u, 0xc37913a8u, 0x444560deu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4261db81u, 0x410b4160u, 0xc36f2810u, 0x4445b0a4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42635871u, 0x410c00d4u, 0xc3653c78u, 0x4446006au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42647625u, 0x410c906bu, 0xc35b50e8u, 0x4446502fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426593d9u, 0x410d2002u, 0xc3516550u, 0x44469ff5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426710c9u, 0x410ddf76u, 0xc34779b8u, 0x4446efbbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42682e7du, 0x410e6f0du, 0xc33d8e28u, 0x44473f80u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42694c31u, 0x410efea4u, 0xc333a290u, 0x44478f46u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426ac921u, 0x410fbe18u, 0xc329b6f8u, 0x4447df0cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426be6d5u, 0x41104dafu, 0xc31fcb68u, 0x44482ed1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426d0489u, 0x4110dd46u, 0xc315dfd0u, 0x44487e97u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426e8179u, 0x41119cbau, 0xc30bf438u, 0x4448ce5du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x426f9f2du, 0x41122c51u, 0xc30208a8u, 0x44491e22u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4270bce1u, 0x4112bbe8u, 0xc2f03a20u, 0x44496de8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427239d1u, 0x41137b5cu, 0xc2dc62f0u, 0x4449bdaeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42735785u, 0x41140af3u, 0xc2c88bd0u, 0x444a0d73u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42747539u, 0x41149a8au, 0xc2b4b4a0u, 0x444a5d39u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4275f229u, 0x411559feu, 0xc2a0dd70u, 0x444aacffu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42770fddu, 0x4115e995u, 0xc28d0650u, 0x444afcc4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42782d91u, 0x4116792cu, 0xc2725e40u, 0x444b4c8au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4279aa81u, 0x411738a0u, 0xc24aafe0u, 0x444b9c50u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427ac835u, 0x4117c837u, 0xc22301a0u, 0x444bec15u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427be5e9u, 0x411857ceu, 0xc1f6a680u, 0x444c3bdbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427d62d9u, 0x41191742u, 0xc1a749c0u, 0x444c8ba1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427e808du, 0x4119a6d9u, 0xc12fda80u, 0x444cdb66u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x427f9e41u, 0x411a3670u, 0xbf890800u, 0x444d2b2cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42808d98u, 0x411af5e4u, 0x410d9800u, 0x444d7af2u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42811c72u, 0x411b857bu, 0x41962880u, 0x444dcab7u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4281ab4cu, 0x411c1512u, 0x41e58500u, 0x444e1a7du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428269c4u, 0x411cd486u, 0x421a7100u, 0x444e6a43u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4282f89eu, 0x411d641du, 0x42421f40u, 0x444eba08u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42838778u, 0x411df3b4u, 0x4269cd80u, 0x444f09ceu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428445f0u, 0x411eb328u, 0x4288be00u, 0x444f5994u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4284d4cau, 0x411f42bfu, 0x429c9520u, 0x444fa959u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428563a4u, 0x411fd256u, 0x42b06c40u, 0x444ff91fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4286221cu, 0x412091cau, 0x42c44380u, 0x445048e5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4286b0f6u, 0x41212161u, 0x42d81aa0u, 0x445098aau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42873fd0u, 0x4121b0f8u, 0x42ebf1c0u, 0x4450e870u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4287fe48u, 0x4122706cu, 0x42ffc900u, 0x44513836u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42888d22u, 0x41230003u, 0x4309d010u, 0x445187fbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42891bfcu, 0x41238f9au, 0x4313bba0u, 0x4451d7c1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4289da74u, 0x41244f0eu, 0x431da740u, 0x44522787u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428a694eu, 0x4124dea5u, 0x432792d0u, 0x4452774cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428af828u, 0x41256e3cu, 0x43317e60u, 0x4452c712u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428bb6a0u, 0x41262db0u, 0x433b6a00u, 0x445316d8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428c457au, 0x4126bd47u, 0x43455590u, 0x4453669du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428cd454u, 0x41274cdeu, 0x434f4120u, 0x4453b663u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428d92ccu, 0x41280c52u, 0x43592cc0u, 0x44540629u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428e21a6u, 0x41289be9u, 0x43631850u, 0x445455eeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428eb080u, 0x41292b80u, 0x436d03e0u, 0x4454a5b4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428f6ef8u, 0x4129eaf4u, 0x4376ef80u, 0x4454f57au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x428ffdd2u, 0x412a7a8bu, 0x43806d88u, 0x4455453fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42908cacu, 0x412b0a22u, 0x43856350u, 0x44559505u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42914b24u, 0x412bc996u, 0x438a5920u, 0x4455e4cbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4291d9feu, 0x412c592du, 0x438f4ee8u, 0x44563490u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429268d8u, 0x412ce8c4u, 0x439444b0u, 0x44568456u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42932750u, 0x412da838u, 0x43993a80u, 0x4456d41cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4293b62au, 0x412e37cfu, 0x439e3048u, 0x445723e1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42944504u, 0x412ec766u, 0x43a32610u, 0x445773a7u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4295037cu, 0x412f86dau, 0x43a81be0u, 0x4457c36du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42959256u, 0x41301671u, 0x43ad11a8u, 0x44581332u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42962130u, 0x4130a608u, 0x43b20770u, 0x445862f8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4296dfa8u, 0x4131657cu, 0x43b6fd40u, 0x4458b2beu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42976e82u, 0x4131f513u, 0x43bbf308u, 0x44590283u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4297fd5cu, 0x413284aau, 0x43c0e8d0u, 0x44595249u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4298bbd4u, 0x4133441eu, 0x43c5dea0u, 0x4459a20fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42994aaeu, 0x4133d3b5u, 0x43cad468u, 0x4459f1d4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x4299d988u, 0x4134634cu, 0x43cfca30u, 0x445a419au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429a9800u, 0x413522c0u, 0x43d4c000u, 0x445a9160u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429b26dau, 0x4135b257u, 0x43d9b5c8u, 0x445ae125u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429bb5b4u, 0x413641eeu, 0x43deab90u, 0x445b30ebu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429c742cu, 0x41370162u, 0x43e3a160u, 0x445b80b1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429d0306u, 0x413790f9u, 0x43e89728u, 0x445bd076u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429d91e0u, 0x41382090u, 0x43ed8cf0u, 0x445c203cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429e5058u, 0x4138e004u, 0x43f282c0u, 0x445c7002u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429edf32u, 0x41396f9bu, 0x43f77888u, 0x445cbfc7u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x429f6e0cu, 0x4139ff32u, 0x43fc6e50u, 0x445d0f8du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a02c84u, 0x413abea6u, 0x4400b210u, 0x445d5f53u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a0bb5eu, 0x413b4e3du, 0x44032cf4u, 0x445daf18u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a14a38u, 0x413bddd4u, 0x4405a7d8u, 0x445dfedeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a208b0u, 0x413c9d48u, 0x440822c0u, 0x445e4ea4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a2978au, 0x413d2cdfu, 0x440a9da4u, 0x445e9e69u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a32664u, 0x413dbc76u, 0x440d1888u, 0x445eee2fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a3e4dcu, 0x413e7beau, 0x440f9370u, 0x445f3df5u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a473b6u, 0x413f0b81u, 0x44120e54u, 0x445f8dbau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a50290u, 0x413f9b18u, 0x44148938u, 0x445fdd80u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a5c108u, 0x41405a8cu, 0x44170420u, 0x44602d46u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a64fe2u, 0x4140ea23u, 0x44197f04u, 0x44607d0bu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a6debcu, 0x414179bau, 0x441bf9e8u, 0x4460ccd1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a79d34u, 0x4142392eu, 0x441e74d0u, 0x44611c97u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a82c0eu, 0x4142c8c5u, 0x4420efb4u, 0x44616c5cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a8bae8u, 0x4143585cu, 0x44236a98u, 0x4461bc22u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42a97960u, 0x414417d0u, 0x4425e580u, 0x44620be8u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42aa083au, 0x4144a767u, 0x44286064u, 0x44625badu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42aa9714u, 0x414536feu, 0x442adb48u, 0x4462ab73u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42ab558cu, 0x4145f672u, 0x442d5630u, 0x4462fb39u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42abe466u, 0x41468609u, 0x442fd114u, 0x44634afeu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42ac7340u, 0x414715a0u, 0x44324bf8u, 0x44639ac4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42ad31b8u, 0x4147d514u, 0x4434c6e0u, 0x4463ea8au, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42adc092u, 0x414864abu, 0x443741c4u, 0x44643a4fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42ae4f6cu, 0x4148f442u, 0x4439bca8u, 0x44648a15u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42af0de4u, 0x4149b3b6u, 0x443c3790u, 0x4464d9dbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42af9cbeu, 0x414a434du, 0x443eb274u, 0x446529a0u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b02b98u, 0x414ad2e4u, 0x44412d58u, 0x44657966u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b0ea10u, 0x414b9258u, 0x4443a840u, 0x4465c92cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b178eau, 0x414c21efu, 0x44462324u, 0x446618f1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b207c4u, 0x414cb186u, 0x44489e08u, 0x446668b7u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b2c63cu, 0x414d70fau, 0x444b18f0u, 0x4466b87du, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b35516u, 0x414e0091u, 0x444d93d4u, 0x44670842u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b3e3f0u, 0x414e9028u, 0x44500eb8u, 0x44675808u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b4a268u, 0x414f4f9cu, 0x445289a0u, 0x4467a7ceu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b53142u, 0x414fdf33u, 0x44550484u, 0x4467f793u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b5c01cu, 0x41506ecau, 0x44577f68u, 0x44684759u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b67e94u, 0x41512e3eu, 0x4459fa50u, 0x4468971fu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b70d6eu, 0x4151bdd5u, 0x445c7534u, 0x4468e6e4u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b79c48u, 0x41524d6cu, 0x445ef018u, 0x446936aau, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b85ac0u, 0x41530ce0u, 0x44616b00u, 0x44698670u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b8e99au, 0x41539c77u, 0x4463e5e4u, 0x4469d635u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42b97874u, 0x41542c0eu, 0x446660c8u, 0x446a25fbu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42ba36ecu, 0x4154eb82u, 0x4468dbb0u, 0x446a75c1u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42bac5c6u, 0x41557b19u, 0x446b5694u, 0x446ac586u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42bb54a0u, 0x41560ab0u, 0x446dd178u, 0x446b154cu, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+        {0x42bc1318u, 0x4156ca24u, 0x44704c60u, 0x446b6512u, 0x42c67084u, 0x41477a18u, 0x3dfffadcu},
+    };
+    edict_t *unit = make_moving_unit(-2012, 568);
+    uint8_t cells[128 * 128] = {0};
+    box2_t bounds = {{-2048, 512}, {2048, 4608}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(128, 128, cells);
+    unit->unitinfo.MoveSpeed = 100; unit->movement.flow_direct = true;
+    unit->think = monster_think;
+    M_SetMove(unit,&fixed_oblique_clock_walk);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    FOR_LOOP(i, 300) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+        T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Exercise the production point-order owner and serializer at all three snapshot phases. */
+TEST(wc3_movement, primary_clock_public_move_save_pause_and_stop) {
+    cstring_t file = Test_TempPath("openwarcraft3-primary-clock-move.bin");
+    FOR_LOOP(phase, 3) {
+        reset_entities(); setup_test_world();
+        /* This tests clock/Stop/region entry, so keep its1800-unit click inside
+         * the synthetic world instead of relying on destination correction. */
+        static uint8_t cells[128*128];
+        CM_SetupTestWorldBounds(&MAKE(box2_t,.min={-2048,-2048},.max={2048,2048}));
+        CM_SetupTestPathmap(128,128,cells);
+        level.waypoints = (typeof(level.waypoints)){0};
+        /* These phases create independent VMs: retire their native registries
+         * before run_test_jass closes the previous VM and its trigger code. */
+        G_ClearRegionRegistry();
+        memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
+        memset(&level.events, 0, sizeof(level.events));
+        T_ASSERT(run_test_jass(
+            "globals\nunit mover\nboolean entered = false\nendglobals\n"
+            "function onEnter takes nothing returns nothing\nset entered = true\nendfunction\n"
+            "function verifyEnter takes nothing returns nothing\n"
+            "call BJassAssert(entered, \"scheduled Move missed region entry\")\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "local trigger t = CreateTrigger()\nlocal region r = CreateRegion()\n"
+            "call RegionAddRect(r, Rect(32, -100, 2000, 500))\n"
+            "call TriggerRegisterEnterRegion(t, r, null)\ncall TriggerAddAction(t, function onEnter)\n"
+            "set mover = CreateUnit(Player(0), 'hpea', 0, 0, 0)\nendfunction\n"
+            "function freeze takes nothing returns nothing\ncall PauseUnit(mover, true)\nendfunction\n"
+            "function resume takes nothing returns nothing\ncall PauseUnit(mover, false)\nendfunction\n"));
+        edict_t *unit = NULL;
+        FOR_LOOP(i, globals.num_edicts)
+            if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+        T_NOT_NULL(unit); if (!unit) continue;
+        unit->collision = 0; unit->stand = unit_stand; unit->think = monster_think;
+        unit->svflags |= SVF_MONSTER; unit->movetype = MOVETYPE_STEP;
+        unit->health.value = unit->health.max_value = 250;
+        unit_stand(unit); S_SetUnitMoveSpeed(unit, 173);
+        T_ASSERT(unit_issueorder(unit, "move", &(vec2_t){1800, 256}));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(i, phase + 1) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_ASSERT(unit->movement.clock_valid);
+        T_ASSERT(unit->movement.velocity.x > 0);
+        wc3Clock_t before_cap = unit->movement.pose_clock;
+        vec2_t before_fine = unit->movement.fine_pose;
+        S_SetUnitMoveSpeed(unit, 200);
+        T_EQ(wc3_float_bits(unit->movement.pose_clock.time), wc3_float_bits(before_cap.time));
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x), wc3_float_bits(before_fine.x));
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y), wc3_float_bits(before_fine.y));
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[6][10];
+        FOR_LOOP(i, 6) {
+            level.time += FRAMETIME; globals.RunFrame();
+            expected[i][0] = wc3_float_bits(unit->movement.fine_pose.x);
+            expected[i][1] = wc3_float_bits(unit->movement.fine_pose.y);
+            expected[i][2] = wc3_float_bits(unit->s.origin2.x);
+            expected[i][3] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][4] = wc3_float_bits(unit->movement.velocity.x);
+            expected[i][5] = wc3_float_bits(unit->movement.velocity.y);
+            expected[i][6] = wc3_float_bits(unit->s.angle);
+            expected[i][7] = wc3_float_bits(level.pathing_clock.time);
+            expected[i][8] = level.pathing_phase;
+            expected[i][9] = wc3_float_bits(unit->movement.pose_clock.time);
+        }
+        jass_callbyname(level.vm, "verifyEnter", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_ASSERT(ReadGame(file));
+        FOR_LOOP(i, 6) {
+            level.time += FRAMETIME; globals.RunFrame();
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x), expected[i][0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][2]);
+            T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][3]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][4]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][5]);
+            T_EQ(wc3_float_bits(unit->s.angle), expected[i][6]);
+            T_EQ(wc3_float_bits(level.pathing_clock.time), expected[i][7]);
+            T_EQ(level.pathing_phase, expected[i][8]);
+            T_EQ(wc3_float_bits(unit->movement.pose_clock.time), expected[i][9]);
+        }
+        jass_callbyname(level.vm, "freeze", false);
+        vec2_t frozen = unit->s.origin2;
+        FOR_LOOP(i, 4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(wc3_float_bits(unit->s.origin2.x), wc3_float_bits(frozen.x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y), wc3_float_bits(frozen.y));
+        jass_callbyname(level.vm, "resume", false);
+        level.time += FRAMETIME; globals.RunFrame();
+        T_ASSERT(Vector2_distance(&frozen, &unit->s.origin2) < 25);
+        T_ASSERT(unit->s.origin2.x > frozen.x);
+        frozen = unit->s.origin2; unit->stunned = true;
+        FOR_LOOP(i, 4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(wc3_float_bits(unit->s.origin2.x), wc3_float_bits(frozen.x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y), wc3_float_bits(frozen.y));
+        box2_t bounds = CM_GetWorldBounds();
+        T_EQ(wc3_float_bits(wc3_world_coordinate(unit->movement.fine_pose.x, bounds.min.x, 32)), wc3_float_bits(frozen.x));
+        T_EQ(wc3_float_bits(wc3_world_coordinate(unit->movement.fine_pose.y, bounds.min.y, 32)), wc3_float_bits(frozen.y));
+        unit->stunned = false;
+        level.time += FRAMETIME; globals.RunFrame();
+        T_ASSERT(Vector2_distance(&frozen, &unit->s.origin2) < 25);
+        T_ASSERT(unit_issueimmediateorder(unit, "stop"));
+        frozen = unit->s.origin2;
+        T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+        FOR_LOOP(i, 3) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(wc3_float_bits(unit->s.origin2.x), wc3_float_bits(frozen.x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y), wc3_float_bits(frozen.y));
+        remove(file); level.started = false;
+    }
+}
+
+/* Retail SetUnitPosition replaces the active order before placement; even a
+ * same-position call cancels Move. Exercise the public native, real frame
+ * scheduler, queued replacement and a save made after the placement. */
+TEST(wc3_movement, forced_position_retires_move_and_queued_orders) {
+    uint8_t cells[64 * 64] = {0};
+    box2_t bounds = {{0,0},{2048,2048}};
+    cstring_t file = Test_TempPath("openwarcraft3-forced-position-save.bin");
+    reset_entities(); setup_test_world();
+    memset(level.regions, 0, sizeof(level.regions)); level.num_regions = 0;
+    memset(level.triggers, 0, sizeof(level.triggers)); level.num_triggers = 0;
+    memset(&level.events, 0, sizeof(level.events));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass(
+        "globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set mover = CreateUnit(Player(0), 'hpea', 128, 128, 0)\nendfunction\n"
+        "function same takes nothing returns nothing\n"
+        "call SetUnitPosition(mover, GetUnitX(mover), GetUnitY(mover))\nendfunction\n"
+        "function shift takes nothing returns nothing\n"
+        "call SetUnitPosition(mover, 640.125, 704.375)\nendfunction\n"
+        "function shiftLoc takes nothing returns nothing\n"
+        "local location p = Location(640.125, 704.375)\n"
+        "call SetUnitPositionLoc(mover, p)\ncall RemoveLocation(p)\nendfunction\n"
+        "function verifyStopped takes nothing returns nothing\n"
+        "call BJassAssert(GetUnitCurrentOrder(mover) == 0, \"forced placement retained order\")\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision = 0; unit->stand = unit_stand; unit->think = monster_think;
+    unit->svflags |= SVF_MONSTER; unit->movetype = MOVETYPE_STEP;
+    unit->health.value = unit->health.max_value = 250; unit_stand(unit);
+    S_SetUnitMoveSpeed(unit,173);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    for (unsigned mode = 0; mode < 5; mode++) {
+        vec2_t goal = {1800,1536}, queued = {1600,128};
+        T_ASSERT(unit_issueorder(unit, mode == 2 ? "patrol" : "move", &goal));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&queued,true,0,0));
+        T_EQ(G_UnitQueuedOrderCount(unit),1);
+        FOR_LOOP(i,4) { level.time += FRAMETIME; globals.RunFrame(); }
+        if (mode != 2) T_ASSERT(unit->movement.clock_valid);
+        if (mode == 3) S_SetUnitPaused(unit,true);
+        if (!unit->movement.group_id) unit->movement.group_id = 123;
+        unit->movement.group_speed = 139;
+        vec2_t before = unit->s.origin2;
+        jass_callbyname(level.vm, mode == 4 ? "shiftLoc" : mode ? "shift" : "same", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,0); T_EQ(G_UnitQueuedOrderCount(unit),0);
+        T_EQ(unit->movement.group_id,0); T_EQ(unit->movement.group_speed,0);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_ASSERT(!unit->movement.clock_valid);
+        T_ASSERT(!move_is_active_order_walk(unit));
+        jass_callbyname(level.vm,"verifyStopped",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        vec2_t placed = unit->s.origin2;
+        if (mode) { T_FEQ(placed.x,640.125f,0.001f); T_FEQ(placed.y,704.375f,0.001f); }
+        else { T_EQ(placed.x,before.x); T_EQ(placed.y,before.y); }
+        T_ASSERT(WriteGame(file)); T_ASSERT(ReadGame(file));
+        if (mode == 3) S_SetUnitPaused(unit,false);
+        FOR_LOOP(i,4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(unit->s.origin2.x,placed.x); T_EQ(unit->s.origin2.y,placed.y);
+        T_EQ(unit->current_order_id,0); T_EQ(G_UnitQueuedOrderCount(unit),0);
+    }
+    remove(file); level.started = false;
+}
+
+/* Captured before-Stop clocks and fine poses drive the actual public native.
+ * Exact expected placement words come from original38, not the C helper. */
+TEST(wc3_movement, forced_position_matches_original_native_pose_words) {
+    static uint8_t cells[256 * 128];
+    box2_t bounds = {{-7168,-3072},{1024,1024}};
+    static uint32_t const cases[][19] = {
+        {0x3ffd7094u,0x00000000u,0x43244b1cu,0x428bd688u,0x3f71e3f6u,0x4092eba4u,0x40960000u,0x3faf1514u,0x3ffffff0u,0x00000000u,0x43960000u,0xc4eec038u,0xc44fe9d4u,0x43244ff2u,0x428c058bu,0xc4eec038u,0xc44fe9d4u,0xc4eec038u,0xc44fe9d4u},
+        {0x407f5b52u,0x00000000u,0x4325271cu,0x4294db4bu,0x3f78dd65u,0x4092bd05u,0x40960000u,0x3fae5285u,0x407fff28u,0x00000000u,0x43960000u,0xc4eb559cu,0xc42c3cecu,0x43252a99u,0x4294f0c5u,0xc4eb559cu,0xc42c3cecu,0xc4eb599cu,0xc42c34ecu},
+        {0x407fff28u,0x00000000u,0x43252a99u,0x4294f0c5u,0x00000000u,0x00000000u,0x40960000u,0x3fae5285u,0x409ffefcu,0x00000000u,0x43960000u,0xc4eb559cu,0xc42c3cecu,0x43252a99u,0x4294f0c5u,0xc4eb559cu,0xc42c3cecu,0xc4eb559cu,0xc42c3cecu},
+        {0x40dfabe2u,0x00000000u,0x43262491u,0x429db7a9u,0x3f7041c7u,0x4092f65cu,0x40960000u,0x3faf429du,0x40dffdccu,0x00000000u,0x43960000u,0xc4e76020u,0xc408cb50u,0x432627f8u,0x429dcd2cu,0xc4e76020u,0xc408cb50u,0xc4e76420u,0xc408c350u},
+    };
+    for (unsigned i = 0; i < 4; i++) {
+        reset_entities(); setup_test_world();
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+        memset(level.regions,0,sizeof(level.regions)); level.num_regions = 0;
+        memset(level.triggers,0,sizeof(level.triggers)); level.num_triggers = 0;
+        memset(&level.events,0,sizeof(level.events));
+        T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set mover = CreateUnit(Player(0),'hfoo',0,0,0)\nendfunction\n"
+            "function same takes nothing returns nothing\n"
+            "call SetUnitPosition(mover,GetUnitX(mover),GetUnitY(mover))\nendfunction\n"
+            "function shift takes nothing returns nothing\n"
+            "call SetUnitPosition(mover,GetUnitX(mover)+0.125,GetUnitY(mover)-0.125)\nendfunction\n"));
+        edict_t *unit = NULL;
+        FOR_LOOP(n,globals.num_edicts) if (g_edicts[n].inuse && g_edicts[n].class_id == MAKEFOURCC('h','f','o','o')) unit = g_edicts + n;
+        T_NOT_NULL(unit); if (!unit) continue;
+        unit->collision = 0; unit->stand = unit_stand; unit_stand(unit);
+        unit->s.origin2 = (vec2_t){wc3_float(cases[i][17]),wc3_float(cases[i][18])};
+        level.pathing_clock = (wc3Clock_t){wc3_float(cases[i][8]),cases[i][9],wc3_float(cases[i][10])};
+        vec2_t goal = {-1600,-144}; T_ASSERT(unit_issueorder(unit,"move",&goal));
+        unit->movement.pose_clock = (wc3Clock_t){wc3_float(cases[i][0]),cases[i][1],300};
+        unit->movement.fine_pose = (vec2_t){wc3_float(cases[i][2]),wc3_float(cases[i][3])};
+        unit->movement.velocity = (vec2_t){wc3_float(cases[i][4])*32.f,wc3_float(cases[i][5])*32.f};
+        unit->movement.clock_valid = unit->movement.pose_valid = true;
+        unit->movement.pose_world = unit->s.origin2;
+        jass_callbyname(level.vm,i == 1 || i == 3 ? "shift" : "same",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),cases[i][13]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),cases[i][14]);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),cases[i][15]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),cases[i][16]);
+        T_EQ(wc3_float_bits(unit->movement.pose_clock.time),cases[i][8]);
+        T_EQ(unit->movement.pose_clock.epoch,cases[i][9]);
+        T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        T_EQ(unit->current_order_id,0); T_ASSERT(!unit->movement.clock_valid);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Actual scene44 spawn-to-Move trajectories through the production thinker.
+ * Initial primary phase is a measured control, not a phase-producer claim. */
+static uint32_t const spawn_motion[][6]={
+        {0x3df5c287u,0x43228000u,0x427e0000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x3e199993u,0x4322c0ccu,0x427e0000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x3e3851e3u,0x43230198u,0x427e0000u,0x4106fef5u,0x3d3c8fa0u,0x3be630a0u},
+        {0x3e570a33u,0x43234264u,0x427e016au,0x4106fef9u,0xbd397151u,0x40c8d6cdu},
+        {0x3e75c283u,0x43238330u,0x427e0005u,0x4106fef6u,0xbd3beff8u,0x40c8d673u},
+        {0x3e8a3d69u,0x4323c3fcu,0x427dfe9cu,0x4106fee5u,0x3d47fec3u,0x3beea663u},
+        {0x3e999991u,0x432404c8u,0x427e001bu,0x4106fecfu,0xbd576117u,0x40c8d181u},
+        {0x3ea8f5b9u,0x43244594u,0x427dfe7du,0x4106ff2au,0x3d129104u,0x3bc87052u},
+        {0x3eb851e1u,0x43248660u,0x427dff96u,0x4106fef3u,0x3d3dcef3u,0x3be74cd8u},
+        {0x3ec7ae09u,0x4324c72cu,0x427e0102u,0x4106fecau,0xbd5a14f4u,0x40c8d0dfu},
+        {0x3ed70a31u,0x432507f8u,0x427dff5fu,0x40e000ceu,0x4096bb9bu,0x3f17a275u},
+        {0x3ee66659u,0x43253dbau,0x427e9013u,0x40deff7fu,0x4098373eu,0x3f195552u},
+        {0x3ef5c281u,0x4325733eu,0x427f2233u,0x40deff43u,0x40983796u,0x3f1955b7u},
+        {0x3f028f54u,0x4325a8c2u,0x427fb453u,0x40deff43u,0x40983796u,0x3f1955b7u},
+        {0x3f0a3d68u,0x4325de46u,0x42802339u,0x40deff43u,0x40983796u,0x3f1955b7u},
+        {0x3f11eb7cu,0x432613cau,0x42806c49u,0x40df00e8u,0x4098352fu,0x3f1952f4u},
+        {0x3f199990u,0x4326494fu,0x4280b558u,0x40c45206u,0x40b95a9du,0x3f41b602u},
+        {0x3f2147a4u,0x4326786cu,0x42810e50u,0x40c4524fu,0x40b95a4fu,0x3f41b59eu},
+        {0x3f28f5b8u,0x4326a789u,0x42816748u,0x40c45373u,0x40b9591au,0x3f41b40au},
+        {0x3f30a3ccu,0x4326d6a7u,0x4281c03fu,0x40c45373u,0x40b9591au,0x3f41b40au},
+        {0x3f3851e0u,0x432705c5u,0x42821936u,0x40c4532au,0x40b95967u,0x3f41b46fu},
+        {0x3f3ffff4u,0x432734e3u,0x4282722du,0x410400c4u,0x3fe23997u,0x3e58227bu},
+        {0x3f47ae08u,0x4327743fu,0x42828d52u,0x41040112u,0x3fe22e34u,0x3e581763u},
+        {0x3f4f5c1cu,0x4327b39bu,0x4282a876u,0x410400fcu,0x3fe23173u,0x3e581a89u},
+        {0x3f570a30u,0x4327f2f7u,0x4282c39au,0x4104014au,0x3fe22612u,0x3e580f71u},
+        {0x3f5eb844u,0x43283253u,0x4282debdu,0x4106d484u,0x3ed7513eu,0x3d4d008du},
+        {0x3f666658u,0x4328730au,0x4282e532u,0x4106d45fu,0x3ed7ae44u,0x3d4d5703u},
+        {0x3f6e146cu,0x4328b3c1u,0x4282ebaau,0x4106d499u,0x3ed71c15u,0x3d4ccf24u},
+        {0x3f75c280u,0x4328f478u,0x4282f21eu,0x4106d447u,0x3ed7ea0fu,0x3d4d8e98u},
+        {0x3f7d7094u,0x4329352fu,0x4282f898u,0x4106fd4au,0x3dc2466bu,0x3c45d7dbu},
+        {0x3f828f54u,0x432975fau,0x4282fa0du,0x4106fcedu,0x3dd1f85du,0x3c53a5e8u},
+        {0x3f86665eu,0x4329b6c5u,0x4282fba0u,0x4106fcd4u,0x3dd6061bu,0x3c57370fu},
+        {0x3f8a3d68u,0x4329f790u,0x4282fd3au,0x4106fd2cu,0x3dc75e40u,0x3c4a76d7u},
+        {0x3f8e1472u,0x432a385bu,0x4282feb8u,0x4106fee9u,0x3d4515adu,0x3bec78e5u},
+        {0x3f91eb7cu,0x432a7927u,0x4282ff75u,0x4106ff29u,0x3d139b20u,0x3bc9167eu},
+        {0x3f95c286u,0x432ab9f3u,0x42830002u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x3f999990u,0x432afabfu,0x42830002u,0x4106fed9u,0xbd50ef42u,0x40c8d2bdu},
+        {0x3f9d709au,0x432b3b8bu,0x4282ff39u,0x4106ff32u,0x3d0a0af3u,0x3bc39205u},
+        {0x3fa147a4u,0x432b7c57u,0x4282ffbdu,0x4106ff2au,0x3d129105u,0x3bc87052u},
+        {0x3fa51eaeu,0x432bbd23u,0x42830049u,0x4106ff33u,0xbd08cba1u,0x40c8df20u},
+        {0x3fa8f5b8u,0x432bfdefu,0x4282ffc5u,0x4106fecau,0x3d59dfbbu,0x3bfbefa3u},
+        {0x3facccc2u,0x432c3ebbu,0x42830096u,0x4106fed2u,0xbd55821bu,0x40c8d1d2u},
+        {0x3fb0a3ccu,0x432c7f87u,0x4282ffc9u,0x4106fed5u,0x3d540d90u,0x3bf68ee9u},
+        {0x3fb47ad6u,0x432cc053u,0x42830094u,0x00000000u,0x00000000u,0x3bf68ee9u},
+        {0x400851d6u,0x43258000u,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x400a3d58u,0x4325c0ccu,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x400c28dau,0x43260198u,0x42810000u,0x4106fef5u,0x3d3c8fa0u,0x3be630a0u},
+        {0x400e145cu,0x43264263u,0x428100b5u,0x40ddc2d4u,0x409a032eu,0x3f1b66c7u},
+        {0x400fffdeu,0x4326779bu,0x42814aa1u,0x40d00cb9u,0x40ac15a7u,0x3f30ea8du},
+        {0x4011eb60u,0x4326a989u,0x42819d3au,0x40d00c31u,0x40ac164bu,0x3f30eb57u},
+        {0x4013d6e2u,0x4326db77u,0x4281efd3u,0x40d00d40u,0x40ac1503u,0x3f30e9c4u},
+        {0x4015c264u,0x43270d65u,0x4282426bu,0x40d00d84u,0x40ac14b1u,0x3f30e95fu},
+        {0x4017ade6u,0x43273f53u,0x42829503u,0x41052847u,0x3fb1bb57u,0x3e29583eu},
+        {0x40199968u,0x43277f3cu,0x4282aa56u,0x41052858u,0x3fb1b810u,0x3e295527u},
+        {0x401b84eau,0x4327bf25u,0x4282bfa9u,0x410527f0u,0x3fb1cbc0u,0x3e29682cu},
+        {0x401d706cu,0x4327ff0eu,0x4282d4feu,0x410528b0u,0x3fb1a7a8u,0x3e294507u},
+        {0x401f5beeu,0x43283ef8u,0x4282ea4fu,0x4106eb39u,0x3e93dd08u,0x3d0d59e3u},
+        {0x40214770u,0x43287fbau,0x4282eebeu,0x4106ebc4u,0x3e91e3b8u,0x3d0b76f6u},
+        {0x402332f2u,0x4328c07cu,0x4282f31eu,0x4106ebceu,0x3e91c27au,0x3d0b5412u},
+        {0x40251e74u,0x4329013eu,0x4282f77du,0x4106ebd1u,0x3e91b52du,0x3d0b490eu},
+        {0x402709f6u,0x43294200u,0x4282fbdcu,0x4106fe63u,0x3d890092u,0x3c14acccu},
+        {0x4028f578u,0x432982cbu,0x4282fce3u,0x4106fe70u,0x3d864cbau,0x3c11f24cu},
+        {0x402ae0fau,0x4329c396u,0x4282fde4u,0x4106fecfu,0x3d57964fu,0x3bf9654eu},
+        {0x402ccc7cu,0x432a0461u,0x4282feb2u,0x4106ff29u,0x3d1330aeu,0x3bc9167eu},
+        {0x402eb7feu,0x432a452cu,0x4282ff3fu,0x4106fee2u,0x3d4a4831u,0x3beffdedu},
+        {0x4030a380u,0x432a85f7u,0x42830001u,0x4106fef3u,0xbd3d99bcu,0x40c8d607u},
+        {0x40328f02u,0x432ac6c2u,0x4282ff4au,0x4106fec9u,0x3d5a7f63u,0x3bfc71b3u},
+        {0x40347a84u,0x432b078du,0x4283001bu,0x4106ff39u,0xbd02f971u,0x40c8e01cu},
+        {0x40366606u,0x432b4859u,0x4282ff9du,0x4106ff31u,0x3d0b150fu,0x3bc3e51bu},
+        {0x40385188u,0x432b8925u,0x42830022u,0x4106ff28u,0xbd147004u,0x40c8dd6bu},
+        {0x403a3d0au,0x432bc9f0u,0x4282ff93u,0x4106ff15u,0x3d25b158u,0x3bd4dab1u},
+        {0x403c288cu,0x432c0abbu,0x42830032u,0x4106fef1u,0xbd3f78b7u,0x40c8d5c2u},
+        {0x403e140eu,0x432c4b86u,0x4282ff7au,0x4106ff39u,0x3d03ce52u,0x3bbef888u},
+        {0x403fff90u,0x432c8c52u,0x4282fff8u,0x00000000u,0x00000000u,0x3bbef888u},
+        {0x408384a2u,0x43258000u,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x40847a60u,0x4325c0cbu,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x4085701eu,0x43260196u,0x42810000u,0x4106fef5u,0x3d3c8fa0u,0x3be630a0u},
+        {0x408665dcu,0x43264261u,0x428100b5u,0x40ddc2d4u,0x409a032eu,0x3f1b66c7u},
+        {0x40875b9au,0x43267799u,0x42814aa0u,0x40d00d40u,0x40ac1503u,0x3f30e9c4u},
+        {0x40885158u,0x4326a986u,0x42819d37u,0x40d00cfcu,0x40ac1554u,0x3f30ea2au},
+        {0x40894716u,0x4326db73u,0x4281efcfu,0x40d00d40u,0x40ac1503u,0x3f30e9c4u},
+        {0x408a3cd4u,0x43270d60u,0x42824266u,0x40d00e93u,0x40ac1369u,0x3f30e7ccu},
+        {0x408b3292u,0x43273f4eu,0x428294fdu,0x41052809u,0x3fb1c6d3u,0x3e29638au},
+        {0x408c2850u,0x43277f37u,0x4282aa51u,0x41052809u,0x3fb1c6d4u,0x3e29638au},
+        {0x408d1e0eu,0x4327bf20u,0x4282bfa5u,0x41052801u,0x3fb1c877u,0x3e296515u},
+        {0x408e13ccu,0x4327ff09u,0x4282d4fau,0x41052812u,0x3fb1c530u,0x3e2961e6u},
+        {0x408f098au,0x43283ef2u,0x4282ea4eu,0x4106eb5du,0x3e93580cu,0x3d0cdd06u},
+        {0x408fff48u,0x43287fb3u,0x4282eeb9u,0x4106ebbbu,0x3e9204f7u,0x3d0b962du},
+        {0x4090f506u,0x4328c074u,0x4282f31au,0x4106ebceu,0x3e91c27au,0x3d0b5412u},
+        {0x4091eac4u,0x43290135u,0x4282f779u,0x4106ebd1u,0x3e91b52du,0x3d0b490eu},
+        {0x4092e082u,0x432941f6u,0x4282fbd7u,0x4106fe71u,0x3d85fce5u,0x3c11d65bu},
+        {0x4093d640u,0x432982c0u,0x4282fcd8u,0x4106fe70u,0x3d864cbau,0x3c11f24cu},
+        {0x4094cbfeu,0x4329c38au,0x4282fdd9u,0x4106fecdu,0x3d5835f8u,0x3bfa6970u},
+        {0x4095c1bcu,0x432a0455u,0x4282fea8u,0x4106ff28u,0x3d140592u,0x3bc9bcaau},
+        {0x4096b77au,0x432a4520u,0x4282ff36u,0x4106ff2du,0x3d0f3d7bu,0x3bc67dcdu},
+        {0x4097ad38u,0x432a85ebu,0x4282ffbfu,0x4106fef3u,0x3d3dcef3u,0x3be74cd8u},
+        {0x4098a2f6u,0x432ac6b6u,0x42830075u,0x4106fecbu,0xbd59aa83u,0x40c8d0ffu},
+        {0x409998b4u,0x432b0781u,0x4282ffa4u,0x4106ff39u,0x3d032ea9u,0x3bbef888u},
+        {0x409a8e72u,0x432b484cu,0x42830021u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x409b8430u,0x432b8917u,0x42830021u,0x4106ff28u,0xbd14da75u,0x40c8dd6bu},
+        {0x409c79eeu,0x432bc9e2u,0x4282ff92u,0x4106ff03u,0x3d322a97u,0x3bded5a3u},
+        {0x409d6facu,0x432c0aadu,0x4283003du,0x4106fef1u,0xbd3f0e47u,0x40c8d5c2u},
+        {0x409e656au,0x432c4b78u,0x4282ff85u,0x4106ff20u,0x3d1c8ba0u,0x3bce662eu},
+        {0x409f5b28u,0x432c8c43u,0x4283001bu,0x00000000u,0x00000000u,0x3bce662eu},
+        {0x40c3d55cu,0x43258000u,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x40c4cb1au,0x4325c0cbu,0x42810000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x40c5c0d8u,0x43260196u,0x42810000u,0x4106fef5u,0x3d3c8fa0u,0x3be630a0u},
+        {0x40c6b696u,0x43264261u,0x428100b5u,0x40ddc2d4u,0x409a032eu,0x3f1b66c7u},
+        {0x40c7ac54u,0x43267799u,0x42814aa0u,0x40d00d40u,0x40ac1503u,0x3f30e9c4u},
+        {0x40c8a212u,0x4326a986u,0x42819d37u,0x40d00cfcu,0x40ac1554u,0x3f30ea2au},
+        {0x40c997d0u,0x4326db73u,0x4281efcfu,0x40d00d40u,0x40ac1503u,0x3f30e9c4u},
+        {0x40ca8d8eu,0x43270d60u,0x42824266u,0x40d00e93u,0x40ac1369u,0x3f30e7ccu},
+        {0x40cb834cu,0x43273f4eu,0x428294fdu,0x41052809u,0x3fb1c6d3u,0x3e29638au},
+        {0x40cc790au,0x43277f37u,0x4282aa51u,0x41052809u,0x3fb1c6d4u,0x3e29638au},
+        {0x40cd6ec8u,0x4327bf20u,0x4282bfa5u,0x41052801u,0x3fb1c877u,0x3e296515u},
+        {0x40ce6486u,0x4327ff09u,0x4282d4fau,0x41052812u,0x3fb1c530u,0x3e2961e6u},
+        {0x40cf5a44u,0x43283ef2u,0x4282ea4eu,0x4106eb5du,0x3e93580cu,0x3d0cdd06u},
+        {0x40d05002u,0x43287fb3u,0x4282eeb9u,0x4106ebbbu,0x3e9204f7u,0x3d0b962du},
+        {0x40d145c0u,0x4328c074u,0x4282f31au,0x4106ebceu,0x3e91c27au,0x3d0b5412u},
+        {0x40d23b7eu,0x43290135u,0x4282f779u,0x4106ebd1u,0x3e91b52du,0x3d0b490eu},
+        {0x40d3313cu,0x432941f6u,0x4282fbd7u,0x4106fe71u,0x3d85fce5u,0x3c11d65bu},
+        {0x40d426fau,0x432982c0u,0x4282fcd8u,0x4106fe70u,0x3d864cbau,0x3c11f24cu},
+        {0x40d51cb8u,0x4329c38au,0x4282fdd9u,0x4106fecdu,0x3d5835f8u,0x3bfa6970u},
+        {0x40d61276u,0x432a0455u,0x4282fea8u,0x4106ff28u,0x3d140592u,0x3bc9bcaau},
+        {0x40d70834u,0x432a4520u,0x4282ff36u,0x4106ff2du,0x3d0f3d7bu,0x3bc67dcdu},
+        {0x40d7fdf2u,0x432a85ebu,0x4282ffbfu,0x4106fef3u,0x3d3dcef3u,0x3be74cd8u},
+        {0x40d8f3b0u,0x432ac6b6u,0x42830075u,0x4106fecbu,0xbd59aa83u,0x40c8d0ffu},
+        {0x40d9e96eu,0x432b0781u,0x4282ffa4u,0x4106ff39u,0x3d032ea9u,0x3bbef888u},
+        {0x40dadf2cu,0x432b484cu,0x42830021u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x40dbd4eau,0x432b8917u,0x42830021u,0x4106ff28u,0xbd14da75u,0x40c8dd6bu},
+        {0x40dccaa8u,0x432bc9e2u,0x4282ff92u,0x4106ff03u,0x3d322a97u,0x3bded5a3u},
+        {0x40ddc066u,0x432c0aadu,0x4283003du,0x4106fef1u,0xbd3f0e47u,0x40c8d5c2u},
+        {0x40deb624u,0x432c4b78u,0x4282ff85u,0x4106ff20u,0x3d1c8ba0u,0x3bce662eu},
+        {0x40dfabe2u,0x432c8c43u,0x4283001bu,0x00000000u,0x00000000u,0x3bce662eu},
+        {0x410212feu,0x43256000u,0x42830000u,0x4106ff37u,0x3d04d86du,0x3bc05328u},
+        {0x41028ddau,0x4325a0c9u,0x4283007fu,0x4106fee6u,0xbd475f1bu,0x40c8d454u},
+        {0x410308b6u,0x4325e192u,0x4282ffbfu,0x4106ff50u,0x3cd7cbc8u,0x3baffd6cu},
+        {0x41038392u,0x4326225bu,0x42830026u,0x4106ff44u,0xbcef1491u,0x40c8e1eau},
+        {0x4103fe6eu,0x43266324u,0x4282ffb3u,0x4106ff2fu,0x3d0d2945u,0x3bc53174u},
+        {0x4104794au,0x4326a3edu,0x4283003au,0x4106ff19u,0xbd225dd3u,0x40c8db40u},
+        {0x4104f426u,0x4326e4b6u,0x4282ff9eu,0x4106fefeu,0x3d361dc9u,0x3be16171u},
+        {0x41056f02u,0x4327257fu,0x4283004cu,0x4106fee3u,0xbd4a12fau,0x40c8d3fdu},
+        {0x4105e9deu,0x43276648u,0x4282ff8au,0x4106ff56u,0x3cc65533u,0x3bab8e94u},
+        {0x410664bau,0x4327a711u,0x4282ffe9u,0x4106ff6cu,0x3c77cff1u,0x3b9b841fu},
+        {0x4106df96u,0x4327e7dau,0x42830024u,0x4106feedu,0xbd4261ceu,0x40c8d548u},
+        {0x41075a72u,0x432828a3u,0x4282ff69u,0x4106feffu,0x3d35b357u,0x3be0d099u},
+        {0x4107d54eu,0x4328696cu,0x42830017u,0x4106ff14u,0xbd25e691u,0x40c8da91u},
+        {0x4108502au,0x4328aa35u,0x4282ff77u,0x4106ff2au,0x3d122694u,0x3bc87052u},
+        {0x4108cb06u,0x4328eafeu,0x42830003u,0x4106ff43u,0xbcf19335u,0x40c8e1beu},
+        {0x410945e2u,0x43292bc7u,0x4282ff8fu,0x4106ff15u,0x3d2546e8u,0x3bd4dab1u},
+        {0x4109c0beu,0x43296c90u,0x4283002du,0x4106fee8u,0xbd45b557u,0x40c8d499u},
+        {0x410a3b9au,0x4329ad59u,0x4282ff6fu,0x4106ff59u,0x3cbbf023u,0x3ba9b321u},
+        {0x410ab676u,0x4329ee22u,0x4282ffc9u,0x4106ff2au,0x3d122694u,0x3bc87052u},
+        {0x410b3152u,0x432a2eebu,0x42830055u,0x4106ff71u,0xbc444111u,0x40c8ea04u},
+        {0x410bac2eu,0x432a6fb4u,0x42830025u,0x4106ff0au,0xbd2d2d4du,0x40c8d92au},
+        {0x410c270au,0x432ab07du,0x4282ff7eu,0x4106ff33u,0x3d0900d9u,0x3bc2ebd9u},
+        {0x410ca1e6u,0x432af146u,0x42830001u,0x4106ff68u,0xbc886143u,0x40c8e843u},
+        {0x410d1cc2u,0x432b320fu,0x4282ffbfu,0x4106ff34u,0x3d07f6bdu,0x3bc245adu},
+        {0x410d979eu,0x432b72d8u,0x42830041u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x410e127au,0x432bb3a1u,0x42830041u,0x4106ff44u,0xbcef7f04u,0x40c8e1eau},
+        {0x410e8d56u,0x432bf46au,0x4282ffceu,0x4106fef7u,0x3d3b1b14u,0x3be50eefu},
+        {0x410f0832u,0x432c3533u,0x42830081u,0x4106fedau,0xbd5084d1u,0x40c8d2dfu},
+        {0x410f830eu,0x432c75fcu,0x4282ffb8u,0x4106fed2u,0x3d554ce3u,0x3bf82024u},
+        {0x410ffdeau,0x432cb6c5u,0x42830084u,0x00000000u,0x00000000u,0x3bf82024u},
+        {0x4121bfb6u,0x43257e00u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x41223a92u,0x4325bec9u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x4122b56eu,0x4325ff92u,0x42830000u,0x4106ff28u,0x3d140592u,0x3bc9bcaau},
+        {0x4123304au,0x4326405bu,0x4283008eu,0x4106ff45u,0xbcee3fb0u,0x40c8e200u},
+        {0x4123ab26u,0x43268124u,0x4283001bu,0x4106ff2du,0xbd0f3d7cu,0x40c8de3bu},
+        {0x41242602u,0x4326c1edu,0x4282ff91u,0x4106ff17u,0x3d2367ebu,0x3bd3a59fu},
+        {0x4124a0deu,0x432702b6u,0x4283002du,0x4106fefbu,0xbd37c78eu,0x40c8d716u},
+        {0x41251bbau,0x4327437fu,0x4282ff7cu,0x4106fee0u,0x3d4bf1f5u,0x3bf10ae2u},
+        {0x41259696u,0x43278448u,0x4283003fu,0x4106fefbu,0xbd37c78eu,0x40c8d716u},
+        {0x41261172u,0x4327c511u,0x4282ff8eu,0x4106ff0cu,0x3d2c2330u,0x3bd9de56u},
+        {0x41268c4eu,0x432805dau,0x42830033u,0x4106ff22u,0xbd1ae1dfu,0x40c8dc90u},
+        {0x4127072au,0x432846a3u,0x4282ff9eu,0x4106ff36u,0x3d05e288u,0x3bc0f954u},
+        {0x41278206u,0x4328876cu,0x4283001eu,0x4106ff50u,0xbcd7615cu,0x40c8e3dbu},
+        {0x4127fce2u,0x4328c835u,0x4282ffb6u,0x4106ff69u,0x3c8721ecu,0x3b9d9151u},
+        {0x412877beu,0x432908feu,0x4282fff6u,0x4106ff39u,0x3d02c437u,0x3bbef888u},
+        {0x4128f29au,0x432949c7u,0x42830073u,0x4106ff13u,0xbd26bb74u,0x40c8da6bu},
+        {0x41296d76u,0x43298a90u,0x4282ffd2u,0x4106fee4u,0x3d48d3a6u,0x3beeec13u},
+        {0x4129e852u,0x4329cb59u,0x42830092u,0x4106ff59u,0xbcbb85b5u,0x40c8e56eu},
+        {0x412a632eu,0x432a0c22u,0x42830038u,0x4106ff29u,0xbd139b21u,0x40c8dd95u},
+        {0x412ade0au,0x432a4cebu,0x4282ffaau,0x4106ff47u,0x3ce9acceu,0x3bb60c8bu},
+        {0x412b58e6u,0x432a8db4u,0x4283001au,0x4106ff74u,0xbc168455u,0x40c8eaa8u},
+        {0x412bd3c2u,0x432ace7du,0x4282fff5u,0x4106fefdu,0x3d368839u,0x3be1f249u},
+        {0x412c4e9eu,0x432b0f46u,0x428300a4u,0x4106fef1u,0xbd3f0e47u,0x40c8d5c2u},
+        {0x412cc97au,0x432b500fu,0x4282ffecu,0x4106ff31u,0x3d0bb4b9u,0x3bc3e51bu},
+        {0x412d4456u,0x432b90d8u,0x42830072u,0x4106fec9u,0xbd5ab49eu,0x40c8d0beu},
+        {0x412dbf32u,0x432bd1a1u,0x4282ffa0u,0x4106fee3u,0x3d49734eu,0x3bef7773u},
+        {0x412e3a0eu,0x432c126au,0x42830061u,0x4106feeeu,0xbd41f75du,0x40c8d559u},
+        {0x412eb4eau,0x432c5333u,0x4282ffa6u,0x4106ff41u,0x3cf5bb9eu,0x3bb9d2d9u},
+        {0x412f2fc6u,0x432c93fcu,0x4283001bu,0x00000000u,0x00000000u,0x3bb9d2d9u},
+        {0x4141e74au,0x43258000u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x41426226u,0x4325c0c9u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x4142dd02u,0x43260192u,0x42830000u,0x4106fef3u,0x3d3dcef3u,0x3be74cd8u},
+        {0x414357deu,0x4326425bu,0x428300b6u,0x4106ff45u,0xbcee3faeu,0x40c8e200u},
+        {0x4143d2bau,0x43268324u,0x42830043u,0x4106ff2eu,0xbd0e3362u,0x40c8de65u},
+        {0x41444d96u,0x4326c3edu,0x4282ffbau,0x4106ff17u,0x3d240794u,0x3bd3a59fu},
+        {0x4144c872u,0x432704b6u,0x42830057u,0x4106fefcu,0xbd379255u,0x40c8d73au},
+        {0x4145434eu,0x4327457fu,0x4282ffa6u,0x4106fedfu,0x3d4c5c66u,0x3bf1915du},
+        {0x4145be2au,0x43278648u,0x4283006au,0x4106ff3fu,0xbcf8a4bau,0x40c8e10eu},
+        {0x41463906u,0x4327c711u,0x4282fff2u,0x4106ff54u,0x3cca7da3u,0x3bad0af1u},
+        {0x4146b3e2u,0x432807dau,0x42830053u,0x4106ff6cu,0xbc71fdbeu,0x40c8e8f9u},
+        {0x41472ebeu,0x432848a3u,0x42830018u,0x4106fee3u,0xbd497350u,0x40c8d3fdu},
+        {0x4147a99au,0x4328896cu,0x4282ff56u,0x4106fef7u,0x3d3b1b14u,0x3be50eefu},
+        {0x41482476u,0x4328ca35u,0x42830009u,0x4106ff0cu,0xbd2bedf8u,0x40c8d963u},
+        {0x41489f52u,0x43290afeu,0x4282ff63u,0x4106ff39u,0x3d02c436u,0x3bbef888u},
+        {0x41491a2eu,0x43294bc7u,0x4282ffe0u,0x4106ff13u,0x3d26f0acu,0x3bd5bd38u},
+        {0x4149950au,0x43298c90u,0x42830080u,0x4106fee3u,0xbd49a889u,0x40c8d3fdu},
+        {0x414a0fe6u,0x4329cd59u,0x4282ffbeu,0x4106ff57u,0x3cc08302u,0x3baad066u},
+        {0x414a8ac2u,0x432a0e22u,0x4283001au,0x4106ff28u,0xbd147004u,0x40c8dd6bu},
+        {0x414b059eu,0x432a4eebu,0x4282ff8bu,0x4106ff44u,0x3cef7effu,0x3bb7c3c6u},
+        {0x414b807au,0x432a8fb4u,0x4282fffdu,0x4106ff73u,0x3c32ca74u,0x3b95a828u},
+        {0x414bfb56u,0x432ad07du,0x42830027u,0x4106fef9u,0xbd397151u,0x40c8d6cdu},
+        {0x414c7632u,0x432b1146u,0x4282ff75u,0x4106fef2u,0x3d3ea3d5u,0x3be7d838u},
+        {0x414cf10eu,0x432b520fu,0x4283002bu,0x4106ff30u,0xbd0be9f2u,0x40c8deb8u},
+        {0x414d6beau,0x432b92d8u,0x4282ffa4u,0x4106fec8u,0x3d5b5446u,0x3bfcf3c4u},
+        {0x414de6c6u,0x432bd3a1u,0x42830076u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x414e61a2u,0x432c146au,0x42830076u,0x4106feedu,0xbd42cc40u,0x40c8d548u},
+        {0x414edc7eu,0x432c5533u,0x4282ffbbu,0x4106ff36u,0x3d068231u,0x3bc0f954u},
+        {0x414f575au,0x432c95fcu,0x4283003cu,0x00000000u,0x00000000u,0x3bc0f954u},
+        {0x41620edeu,0x43268000u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x416289bau,0x4326c0c9u,0x42830000u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x41630496u,0x43270192u,0x42830000u,0x4106fef3u,0x3d3dcef3u,0x3be74cd8u},
+        {0x41637f72u,0x4327425bu,0x428300b6u,0x4106ff62u,0xbc9e0044u,0x40c8e710u},
+        {0x4163fa4eu,0x43278324u,0x4283006au,0x4106fef3u,0xbd3dcef4u,0x40c8d607u},
+        {0x4164752au,0x4327c3edu,0x4282ffb3u,0x4106feccu,0x3d58a069u,0x3bfaeb81u},
+        {0x4164f006u,0x432804b6u,0x42830082u,0x4106fecfu,0xbd576117u,0x40c8d181u},
+        {0x41656ae2u,0x4328457fu,0x4282ffb3u,0x4106ff13u,0x3d26f0acu,0x3bd5bd38u},
+        {0x4165e5beu,0x43288648u,0x42830053u,0x4106fef3u,0xbd3d99bbu,0x40c8d607u},
+        {0x4166609au,0x4328c711u,0x4282ff9du,0x4106fecau,0x3d59dfbbu,0x3bfbefa3u},
+        {0x4166db76u,0x432907dau,0x4283006eu,0x4106fecdu,0xbd586b32u,0x40c8d140u},
+        {0x41675652u,0x432948a3u,0x4282ff9eu,0x4106ff5du,0x3cac2350u,0x3ba6a22du},
+        {0x4167d12eu,0x4329896cu,0x4282fff0u,0x4106fef2u,0x3d3ed90du,0x3be7d838u},
+        {0x41684c0au,0x4329ca35u,0x428300a7u,0x4106fec8u,0xbd5b1f0fu,0x40c8d09eu},
+        {0x4168c6e6u,0x432a0afeu,0x4282ffd4u,0x4106feccu,0x3d590ad9u,0x3bfaeb81u},
+        {0x416941c2u,0x432a4bc7u,0x428300a4u,0x4106ff0bu,0xbd2cc2dau,0x40c8d93du},
+        {0x4169bc9eu,0x432a8c90u,0x4282fffeu,0x4106fef0u,0x3d404d98u,0x3be8eef7u},
+        {0x416a377au,0x432acd59u,0x428300b6u,0x4106fefcu,0xbd3727e3u,0x40c8d73au},
+        {0x416ab256u,0x432b0e22u,0x42830006u,0x4106fef4u,0xbd3d6483u,0x40c8d62au},
+        {0x416b2d32u,0x432b4eebu,0x4282ff50u,0x4106ff31u,0x3d0bb4b9u,0x3bc3e51bu},
+        {0x416ba80eu,0x432b8fb4u,0x4282ffd6u,0x4106ff7bu,0x00000000u,0x3b8f1bc4u},
+        {0x416c22eau,0x432bd07du,0x4282ffd6u,0x4106ff2fu,0x3d0dc8f0u,0x3bc53174u},
+        {0x416c9dc6u,0x432c1146u,0x4283005eu,0x4106feeeu,0xbd418cedu,0x40c8d559u},
+        {0x416d18a2u,0x432c520fu,0x4282ffa4u,0x4106ff3bu,0x3d0184e3u,0x3bbdf0ffu},
+        {0x416d937eu,0x432c92d8u,0x42830020u,0x00000000u,0x00000000u,0x3bbdf0ffu},
+    };
+    /* First row, commits, initial clock, first elapsed milliseconds, phase. */
+static uint32_t const spawn_motion_cases[][5]={
+        {0x00000000u,0x0000002cu,0x3dccccc7u,0x00000014u,0x00000002u},
+        {0x0000002cu,0x0000001eu,0x40066654u,0x0000001eu,0x00000000u},
+        {0x0000004au,0x0000001eu,0x408332b8u,0x0000000au,0x00000004u},
+        {0x00000068u,0x0000001eu,0x40c33188u,0x00000014u,0x00000002u},
+        {0x00000086u,0x0000001eu,0x41019822u,0x0000001eu,0x00000000u},
+        {0x000000a4u,0x0000001du,0x412196c2u,0x0000000au,0x00000004u},
+        {0x000000c1u,0x0000001du,0x41419562u,0x00000014u,0x00000002u},
+        {0x000000deu,0x00000019u,0x41619402u,0x0000001eu,0x00000000u},
+    };
+static uint32_t const spawn_terrain_rows[]={0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu};
+
+TEST(wc3_movement, public_spawn_move_matches_retained_retail_motion_and_resumes) {
+    cstring_t offsets[]={"0","16","31","32","60","63.9999","64","96"};
+    float radius=31,speed=270;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','P','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    /* Ground walk-bit clip of scene44 WPM, x152..183/y56..71. */
+    cstring_t file=Test_TempPath("openwarcraft3-spawn-motion-save.bin");
+    FOR_LOOP(c,8) {
+        reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        memset(cells,0,sizeof(cells));
+        FOR_LOOP(y,16) FOR_LOOP(x,32) if (spawn_terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+        level.waypoints=(typeof(level.waypoints)){0};
+        level.pathing_clock=(wc3Clock_t){wc3_float(spawn_motion_cases[c][2]),0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=spawn_motion_cases[c][4]; level.pathing_due=false;
+        /* This older fixture supplies an already-running primary clock. Seed
+         * its actual periodic owner deadline as well; phase alone is no longer
+         * the scheduler state. Native births occur after20+400*c advances. */
+        level.pathing_owner_deadline=(wc3Clock_t){0,0,300};
+        FOR_LOOP(i,(20+400*c)/6+1)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+        level.pathing_owner_clock_valid=true;
+        char script[800];
+        snprintf(script,sizeof(script),"globals\nunit source\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set source=CreateUnit(Player(0),'hSPN',-1936,-976,0)\n"
+            "set mover=CreateUnit(Player(0),'hSPN',-1936+%s,-976,0)\n"
+            "call IssuePointOrder(mover,\"move\",-1632,-976)\nendfunction\n",offsets[c]);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL,*source=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {
+            if (!source) source=ent; else unit=ent;
+        }
+        T_NOT_NULL(unit); T_NOT_NULL(source); if (!unit || !source) continue;
+        T_EQ(unit->collision,31); T_EQ(unit->unitinfo.MoveSpeed,270);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        FOR_LOOP(pass,c==5 ? 2 : 1) {
+            if (pass) T_ASSERT(ReadGame(file));
+            for (unsigned i=pass ? 8 : 0;i<spawn_motion_cases[c][1];i++) {
+                level.time+=i ? 30 : spawn_motion_cases[c][3]; globals.RunFrame();
+                uint32_t const *expected=spawn_motion[spawn_motion_cases[c][0]+i];
+                T_EQ(wc3_float_bits(level.pathing_clock.time),expected[0]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+                T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+                if (!pass && c==5 && i==7) T_ASSERT(WriteGame(file));
+            }
+            T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        level.started=false;
+    }
+    remove(file); reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+/* Same eight public orders, now admitted by normal periodic JASS callbacks.
+ * Start at zero; no captured per-actor clock or primary phase is supplied. */
+/* Actual scene37: retained original owner-clock and oblique route, no phase seed. */
+
+TEST(wc3_movement, periodic_public_oblique_three_lifetimes_match_retail) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','O','B','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    /* Read-only original geometry control after the explicit near-zero clear.
+     * Static scenery remains blocked; terrain edits cannot erase its occupancy.
+     * This fixture supplies scene geometry, not the scenery loading producer. */
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==1 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",-1600,-144)\n"
+        "elseif tick==101 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-0.125,-0.125,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",479.875,832.25)\n"
+        "elseif tick==201 then\ncall RemoveUnit(mover)\nset mover=CreateUnit(Player(0),'hOBL',-6000.125,-1500.25,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall IssuePointOrder(mover,\"move\",-5200.375,-832.5)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    unsigned cases=0,steps[3]={0}; edict_t *unit=NULL; int birth=-1; uint32_t clock=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={Test_TempPath("wc3-public-oblique-first-leg.bin"),Test_TempPath("wc3-public-oblique-handoff.bin")};
+    unsigned continuations=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1]));
+            unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+            T_NOT_NULL(unit); if (!unit) break;
+            birth=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+            steps[2]=pass==1 ? 81 : 159;
+            T_EQ(movement_test_coarse_route(unit)->group_count,6);
+            T_EQ(movement_test_coarse_route(unit)->group_index,pass==1 ? 1 : 0);
+            T_EQ(unit->current_order_id,G_OrderId("move"));
+        }
+        while (level.time<30000) {
+            level.time+=5; globals.RunFrame();
+            FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+            T_NOT_NULL(unit); if (!unit) break;
+            if (unit->spawn_time!=birth) {
+                birth=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+                if (birth) { T_ASSERT(cases<3); if (cases>=3) break; T_EQ(clock,public_oblique_cases[cases][2]); cases++; }
+                continue;
+            }
+            uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+            if (now==clock || !cases) continue;
+            clock=now; unsigned c=cases-1,i=steps[c]++;
+            T_ASSERT(i<public_oblique_cases[c][1]); if (i>=public_oblique_cases[c][1]) continue;
+            uint32_t const *expected=public_oblique_motion[public_oblique_cases[c][0]+i];
+            if (pass) continuations++;
+            T_EQ(now,expected[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+            if (!pass && c==2 && (i==80 || i==158)) {
+                T_EQ(movement_test_coarse_route(unit)->group_count,6);
+                T_EQ(movement_test_coarse_route(unit)->group_index,i==80 ? 1 : 0);
+                T_EQ(unit->movement.fine_route.count,i==80 ? 20 : 0);
+                T_EQ(unit->current_order_id,G_OrderId("move"));
+                T_EQ(wc3_float_bits(wc3_grid_coordinate(unit->goalentity->s.origin2.x,-7168,32)),0x4275f400u);
+                T_EQ(wc3_float_bits(wc3_grid_coordinate(unit->goalentity->s.origin2.y,-3072,32)),0x428bf800u);
+                T_ASSERT(WriteGame(saves[i==80 ? 0 : 1]));
+            }
+        }
+        T_EQ(cases,3); FOR_LOOP(c,3) T_EQ(steps[c],public_oblique_cases[c][1]);
+    }
+    T_EQ(continuations,260);
+    remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+
+/* Original public scene47: supplied observed static geometry, stock profile,
+ * two public creations and a timer-admitted group Move from clock/phase zero. */
+/* Exercise the shared coarse handoff and pause through ordinary owner frames;
+ * this is an engine lifecycle regression, not a new original trajectory claim. */
+TEST(wc3_movement, public_group_long_route_regroups_and_respects_pause) {
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit a\nunit b\ngroup g\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hRTE',-6000.125,-1500.25,90)\n"
+        "set b=CreateUnit(Player(0),'hRTE',-5920.125,-1500.25,90)\n"
+        "call SetUnitMoveSpeed(a,100)\ncall SetUnitMoveSpeed(b,350)\n"
+        "set g=CreateGroup()\ncall GroupAddUnit(g,a)\ncall GroupAddUnit(g,b)\n"
+        "call BJassAssert(GroupPointOrder(g,\"move\",-5200.375,-832.5),\"long group Move accepted\")\n"
+        "call DestroyGroup(g)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *units[2]={0}; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) { if (count<2) units[count]=ent; count++; }
+    T_EQ(count,2); if (count!=2) return;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    bool intermediate=false,advanced=false;
+    while (level.time<30000) {
+        level.time+=5; globals.RunFrame();
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+            moveGroup_t *group=level.move_groups[i];
+            if (!group->inuse) continue;
+            if (group->route.group_index>0 && group->route.group_index!=UINT32_MAX) intermediate=true;
+            if (intermediate && !group->route.group_index) advanced=true;
+        }
+        if (level.time==1000) {
+            S_SetUnitPaused(units[0],true); vec2_t saved=units[0]->movement.fine_pose;
+            FOR_LOOP(i,20) { level.time+=5; globals.RunFrame(); }
+            T_EQ(wc3_float_bits(units[0]->movement.fine_pose.x),wc3_float_bits(saved.x));
+            T_EQ(wc3_float_bits(units[0]->movement.fine_pose.y),wc3_float_bits(saved.y));
+            T_EQ(units[0]->current_order_id,851973u);
+            T_EQ(units[0]->movement.pause_order_id,G_OrderId("move"));
+            S_SetUnitPaused(units[0],false);
+        }
+    }
+    T_ASSERT(intermediate); T_ASSERT(advanced);
+    FOR_LOOP(i,2) {
+        T_EQ(units[i]->current_order_id,0);
+        T_ASSERT(Vector2_distance(&units[i]->s.origin2,&(vec2_t){-5200.375,-832.5})<128);
+    }
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.started=false; reset_entities(); setup_test_world();
+}
+
+
+typedef struct {
+    edict_t *units[14];
+    uint32_t rows[52][7];
+    unsigned count;
+} followCommitTrace_t;
+static followCommitTrace_t *follow_commit_trace;
+
+static void record_follow_commit(edict_t *unit) {
+    followCommitTrace_t *trace=follow_commit_trace;
+    unsigned i=0;
+    while(i<sizeof(trace->units)/sizeof(*trace->units) && trace->units[i]!=unit)i++;
+    T_ASSERT(i<sizeof(trace->units)/sizeof(*trace->units));
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if (i>=sizeof(trace->units)/sizeof(*trace->units) || trace->count>=sizeof(trace->rows)/sizeof(*trace->rows)) return;
+    uint32_t words[]={i,wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+TEST(wc3_movement, periodic_public_twelve_members_match_retail) {
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) { old_prefs[i]=game.clients[i].jass.race_pref; old_races[i]=game.clients[i].ps.race; }
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','D','Z','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nboolean armed=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1872,-528)\nendif\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\nif not armed then\nreturn\nendif\nset cohort=CreateGroup()\n"
+        "loop\nexitwhen i==12\n"
+        "set movers[i]=CreateUnit(Player(0),'hDZN',-1936+I2R((i-(i/4)*4))*80,-976+I2R(i/4)*80,90)\n"
+        "call SetUnitMoveSpeed(movers[i],100+I2R((i-(i/3)*3))*100)\n"
+        "call GroupAddUnit(cohort,movers[i])\nset i=i+1\nendloop\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12) game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true; level.scriptsStarted=false;
+    globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u); T_EQ(level.pathing_random.index,209508436u);
+    edict_t *units[12]={0}; unsigned count=0,steps=0; uint32_t clocks[12]={0}; bool mismatch=false;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<12) units[count]=ent; count++; }
+    T_EQ(count,12); level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={Test_TempPath("wc3-public-twelve-pending.bin"),Test_TempPath("wc3-public-twelve-partial.bin")};
+    followCommitTrace_t trace={0};memcpy(trace.units,units,sizeof(units));
+    follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned resume[2]={0},suffixes=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1])); steps=resume[pass-1]; mismatch=false;
+            FOR_LOOP(i,12) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+            if (pass==1) { T_EQ(level.move_fine_budgets[0].count,1); T_EQ(level.move_fine_budgets[0].head,units[11]); }
+        }
+        while (level.time<30000 && count==12 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            /* Observe actual commits after retail reverse preparation pruning,
+             * rather than predicting their order from the previous owner. */
+            FOR_LOOP(v,trace.count) {
+                uint32_t const *actual=trace.rows[v];unsigned member=actual[0];
+                T_ASSERT(member<12);if(member>=12)continue;
+                uint32_t now=actual[1];
+                if(now==clocks[member])continue;
+                clocks[member]=now;
+                if(now==0x3f7ffff0u)continue;
+                T_ASSERT(steps<1953);if(steps>=1953){mismatch=true;break;}
+                uint32_t const *expected=public_twelve_motion[steps++];
+                if (pass) suffixes++;
+                FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if (actual[k]!=expected[k]) mismatch=true; }
+                if (mismatch) break;
+            }
+            if (!pass && !mismatch) FOR_LOOP(i,2) if (!resume[i] && steps>=(i ? 1260u : 12u)) {
+                resume[i]=steps; T_ASSERT(WriteGame(saves[i]));
+                if (!i) { T_EQ(steps,12); T_ASSERT(units[11]->movement.fine_queued); }
+            }
+        }
+        T_EQ(steps,1953); FOR_LOOP(i,12) if (units[i]) T_EQ(units[i]->current_order_id,0);
+    }
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    T_EQ(suffixes,3906-resume[0]-resume[1]); remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12) { game.clients[i].jass.race_pref=old_prefs[i]; game.clients[i].ps.race=old_races[i]; }
+}
+
+/* Frozen phase-begin rows belong after preparation and route admission.
+ * Completion leaves invalid rows until then; frame-end is a different boundary. */
+static void record_public_pair_before(moveGroup_t const *group,edict_t *singleton) {
+    if(!group)return;
+    uint32_t age=group->age;
+    T_ASSERT(age<60);if(age>=60)return;
+    uint32_t const *state=public_pair_group_before[age];
+    T_EQ(group->flags,state[0]);T_EQ(age,state[1]);
+    T_EQ(group->completion_counter,state[2]);T_EQ(group->count,state[3]);
+    T_EQ(wc3_float_bits(group->point.x),state[4]);T_EQ(wc3_float_bits(group->point.y),state[5]);
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *member=group->members+i;
+        uint32_t const *row=public_pair_members_before[age][i];
+        T_EQ(wc3_float_bits(member->offset.x),row[0]);T_EQ(wc3_float_bits(member->offset.y),row[1]);
+        T_EQ(wc3_float_bits(member->destination.x),row[2]);T_EQ(wc3_float_bits(member->destination.y),row[3]);
+        T_EQ(wc3_float_bits(wc3_div(member->speed,32)),row[4]);T_EQ(wc3_float_bits(member->heading),row[5]);
+        T_EQ(member->flags,row[6]);T_EQ(member->forced_arrival,row[7]);
+    }
+}
+
+static void periodic_shared_pair_matches_retail(bool selected) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','P','P','R'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit array movers\ngroup cohort\ninteger tick=0\nboolean selected=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 and not selected then\ncall GroupPointOrder(cohort,\"move\",-1936,-720)\nendif\nendfunction\n"
+        "function selectProducer takes nothing returns nothing\nset selected=true\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set movers[0]=CreateUnit(Player(0),'hPPR',-1936,-976,90)\n"
+        "set movers[1]=CreateUnit(Player(0),'hPPR',-1856,-976,90)\n"
+        "call SetUnitMoveSpeed(movers[0],100)\ncall SetUnitMoveSpeed(movers[1],350)\n"
+        "set cohort=CreateGroup()\ncall GroupAddUnit(cohort,movers[0])\ncall GroupAddUnit(cohort,movers[1])\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+    T_EQ(count,2);
+    edict_t *clent=NULL;
+    if (selected) {
+        jass_callbyname(level.vm,"selectProducer",false);
+        clent=alloc_test_unit(0,0,0); clent->client=game.clients;
+        clent->client->ps.number=0; clent->client->menu.order_queued=false;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1);
+    }
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={Test_TempPath("wc3-public-pair-moving.bin"),Test_TempPath("wc3-public-pair-retry.bin")};
+    move_test_group_route=record_public_pair_before;
+    unsigned suffixes=0;
+    FOR_LOOP(pass,3) {
+        if (pass) {
+            T_ASSERT(ReadGame(saves[pass-1]));
+            steps=pass==1 ? 30 : 113;
+            FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+            T_EQ(ARRAY_COUNT(level.move_groups),1);
+            T_EQ(level.move_groups[0]->count,pass==1 ? 2 : 1);
+            T_EQ(units[0]->current_order_id,G_OrderId("move"));
+            if (pass==2) { T_EQ(units[0]->movement.retry_count,1); T_ASSERT(units[0]->movement.fine_route.partial); }
+        }
+        while (level.time<30000 && count==2) {
+            level.time+=5; globals.RunFrame();
+            if (selected && level.time==1000) T_ASSERT(move_selectlocation(clent,&(vec2_t){-1936,-720}));
+            FOR_LOOP(i,2) {
+                edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                if (now==clocks[i]) continue;
+                clocks[i]=now;
+                if (now==0x3f7ffff0u) continue; /* Public admission materializes the idle pose. */
+                T_ASSERT(steps<115); if (steps>=115) continue;
+                uint32_t const *expected=public_pair_motion[steps++];
+                if (pass) suffixes++;
+                T_EQ(i,expected[0]); T_EQ(now,expected[1]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[2]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[3]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[4]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[5]);
+                T_EQ(wc3_float_bits(unit->s.angle),expected[6]);
+                if (!pass && (steps==30 || steps==113)) {
+                    T_EQ(ARRAY_COUNT(level.move_groups),1);
+                    T_EQ(level.move_groups[0]->count,steps==30 ? 2 : 1);
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.x),wc3_float_bits(-1936));
+                    T_EQ(wc3_float_bits(level.move_groups[0]->goal.y),wc3_float_bits(-720));
+                    T_ASSERT(WriteGame(saves[steps==30 ? 0 : 1]));
+                }
+            }
+        }
+        T_EQ(steps,115); FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+    }
+    move_test_group_route=NULL;
+    T_EQ(suffixes,87); remove(saves[0]); remove(saves[1]);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, periodic_public_shared_pair_matches_retail) {
+    periodic_shared_pair_matches_retail(false);
+}
+
+/* Same frozen native group trajectory, through the actual selected-unit producer. */
+TEST(wc3_movement, selected_shared_pair_matches_retail_and_saved_continuations) {
+    periodic_shared_pair_matches_retail(true);
+}
+
+TEST(wc3_movement, periodic_public_oblique_move_matches_retail_from_zero_clock) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    /* Captured retail Misc clamps the public100 input to150, unlike the minimal fixture. */
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','O','B','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    uint32_t const terrain_rows[]={0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0x0fff00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0f00ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xff0000ffu,0xfff000ffu,0xfff000ffu,0xfff000ffu,0xfff000ffu,0x00ff00ffu,0x00ff00ffu,0x00ff00ffu,0x00ff00ffu,0x00ff000fu,0x00ff000fu,0x00ff000fu,0x00ff000fu,0xfff0000fu,0xfff0000fu,0xfff0000fu,0xfff0000fu,0xff00000fu,0xff00000fu,0xff00000fu,0xff00000fu,0xff000000u,0xff000000u,0xff003c00u,0xff003c00u};
+    memset(cells,0,sizeof(cells));
+    FOR_LOOP(y,40) FOR_LOOP(x,32) if (terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1600,-144)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hOBL',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *unit=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    uint32_t const oblique_motion[206][6]={
+        {0x3f828f54u,0x43238000u,0x42830000u,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f86665eu,0x43238000u,0x428347ffu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f8a3d68u,0x43238000u,0x42838ffeu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f8e1472u,0x43238000u,0x4283d7fdu,0x3115ffe5u,0x4095ffe4u,0x3fc90fdau},
+        {0x3f91eb7cu,0x43238000u,0x42841ffcu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3f95c286u,0x43238741u,0x42846681u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3f999990u,0x43238e82u,0x4284ad06u,0x3f71de89u,0x4092ebc7u,0x3faf15abu},
+        {0x3f9d709au,0x432395c3u,0x4284f38bu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa147a4u,0x43239d04u,0x42853a10u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa51eaeu,0x4323a445u,0x42858095u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fa8f5b8u,0x4323ab86u,0x4285c71au,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3facccc2u,0x4323b2c7u,0x42860d9fu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb0a3ccu,0x4323ba08u,0x42865424u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb47ad6u,0x4323c149u,0x42869aa9u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fb851e0u,0x4323c88au,0x4286e12eu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fbc28eau,0x4323cfcbu,0x428727b3u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fbffff4u,0x4323d70cu,0x42876e38u,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fc3d6feu,0x4323de4du,0x4287b4bdu,0x3f71e059u,0x4092ebbcu,0x3faf1579u},
+        {0x3fc7ae08u,0x4323e58eu,0x4287fb42u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fcb8512u,0x4323eccfu,0x428841c7u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fcf5c1cu,0x4323f410u,0x4288884cu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fd33326u,0x4323fb51u,0x4288ced1u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fd70a30u,0x43240292u,0x42891556u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fdae13au,0x432409d3u,0x42895bdbu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fdeb844u,0x43241114u,0x4289a260u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fe28f4eu,0x43241855u,0x4289e8e5u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fe66658u,0x43241f96u,0x428a2f6au,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fea3d62u,0x432426d7u,0x428a75efu,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3fee146cu,0x43242e18u,0x428abc74u,0x3f71e228u,0x4092ebb0u,0x3faf1546u},
+        {0x3ff1eb76u,0x43243559u,0x428b02f9u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ff5c280u,0x43243c9au,0x428b497eu,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ff9998au,0x432443dbu,0x428b9003u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x3ffd7094u,0x43244b1cu,0x428bd688u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x4000a3ceu,0x4324525du,0x428c1d0du,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40028f50u,0x4324599eu,0x428c6392u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40047ad2u,0x432460dfu,0x428caa17u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x40066654u,0x43246820u,0x428cf09cu,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400851d6u,0x43246f61u,0x428d3721u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400a3d58u,0x432476a2u,0x428d7da6u,0x3f71e3f6u,0x4092eba4u,0x3faf1514u},
+        {0x400c28dau,0x43247de3u,0x428dc42bu,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x400e145cu,0x43248524u,0x428e0ab0u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x400fffdeu,0x43248c65u,0x428e5135u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4011eb60u,0x432493a6u,0x428e97bau,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4013d6e2u,0x43249ae7u,0x428ede3fu,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4015c264u,0x4324a228u,0x428f24c4u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x4017ade6u,0x4324a969u,0x428f6b49u,0x3f71e5c6u,0x4092eb98u,0x3faf14e1u},
+        {0x40199968u,0x4324b0aau,0x428fb1ceu,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401b84eau,0x4324b7ebu,0x428ff853u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401d706cu,0x4324bf2cu,0x42903ed8u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x401f5beeu,0x4324c66du,0x4290855du,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x40214770u,0x4324cdaeu,0x4290cbe2u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x402332f2u,0x4324d4efu,0x42911267u,0x3f71e795u,0x4092eb8cu,0x3faf14afu},
+        {0x40251e74u,0x4324dc30u,0x429158ecu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402709f6u,0x4324e371u,0x42919f71u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x4028f578u,0x4324eab2u,0x4291e5f6u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402ae0fau,0x4324f1f3u,0x42922c7bu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402ccc7cu,0x4324f934u,0x42927300u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x402eb7feu,0x43250075u,0x4292b985u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x4030a380u,0x432507b6u,0x4293000au,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40328f02u,0x43250ef7u,0x4293468fu,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40347a84u,0x43251638u,0x42938d14u,0x3f71e965u,0x4092eb80u,0x3faf147cu},
+        {0x40366606u,0x43251d79u,0x4293d399u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x40385188u,0x432524bau,0x42941a1eu,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403a3d0au,0x43252bfbu,0x429460a3u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403c288cu,0x4325333cu,0x4294a728u,0x3f71eb34u,0x4092eb74u,0x3faf144au},
+        {0x403e140eu,0x43253a7du,0x4294edadu,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x403fff90u,0x432541beu,0x42953432u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4041eb12u,0x432548ffu,0x42957ab7u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4043d694u,0x43255040u,0x4295c13cu,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4045c216u,0x43255781u,0x429607c1u,0x3f71ed03u,0x4092eb68u,0x3faf1418u},
+        {0x4047ad98u,0x43255ec2u,0x42964e46u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4049991au,0x43256603u,0x429694cbu,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x404b849cu,0x43256d44u,0x4296db50u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x404d701eu,0x43257485u,0x429721d5u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x404f5ba0u,0x43257bc7u,0x42976859u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40514722u,0x43258309u,0x4297aeddu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405332a4u,0x43258a4bu,0x4297f561u,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x40551e26u,0x4325918cu,0x42983be6u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405709a8u,0x432598ceu,0x4298826au,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4058f52au,0x4325a010u,0x4298c8eeu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405ae0acu,0x4325a752u,0x42990f72u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405ccc2eu,0x4325ae94u,0x429955f6u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x405eb7b0u,0x4325b5d6u,0x42999c7au,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4060a332u,0x4325bd18u,0x4299e2feu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40628eb4u,0x4325c45au,0x429a2982u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40647a36u,0x4325cb9cu,0x429a7006u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406665b8u,0x4325d2deu,0x429ab68au,0x3f71eed3u,0x4092eb5cu,0x3faf13e5u},
+        {0x4068513au,0x4325da1fu,0x429afd0fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406a3cbcu,0x4325e161u,0x429b4393u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406c283eu,0x4325e8a3u,0x429b8a17u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406e13c0u,0x4325efe5u,0x429bd09bu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x406fff42u,0x4325f727u,0x429c171fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4071eac4u,0x4325fe69u,0x429c5da3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4073d646u,0x432605abu,0x429ca427u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4075c1c8u,0x43260cedu,0x429ceaabu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4077ad4au,0x4326142fu,0x429d312fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407998ccu,0x43261b71u,0x429d77b3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407b844eu,0x432622b3u,0x429dbe37u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407d6fd0u,0x432629f5u,0x429e04bbu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x407f5b52u,0x43263137u,0x429e4b3fu,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x4080a368u,0x43263878u,0x429e91c3u,0x3f71f0a2u,0x4092eb51u,0x3faf13b3u},
+        {0x40819926u,0x43263fb9u,0x429ed847u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40828ee4u,0x432646fbu,0x429f1ecbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408384a2u,0x43264e3du,0x429f654fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40847a60u,0x4326557fu,0x429fabd3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4085701eu,0x43265cc1u,0x429ff257u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408665dcu,0x43266403u,0x42a038dbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40875b9au,0x43266b45u,0x42a07f5fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40885158u,0x43267287u,0x42a0c5e3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x40894716u,0x432679c9u,0x42a10c67u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408a3cd4u,0x4326810bu,0x42a152ebu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408b3292u,0x4326884du,0x42a1996fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408c2850u,0x43268f8fu,0x42a1dff3u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408d1e0eu,0x432696d1u,0x42a22677u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408e13ccu,0x43269e13u,0x42a26cfbu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408f098au,0x4326a555u,0x42a2b37fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x408fff48u,0x4326ac97u,0x42a2fa03u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4090f506u,0x4326b3d9u,0x42a34087u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4091eac4u,0x4326bb1bu,0x42a3870bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4092e082u,0x4326c25du,0x42a3cd8fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4093d640u,0x4326c99fu,0x42a41413u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4094cbfeu,0x4326d0e1u,0x42a45a97u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4095c1bcu,0x4326d823u,0x42a4a11bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4096b77au,0x4326df65u,0x42a4e79fu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4097ad38u,0x4326e6a7u,0x42a52e23u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x4098a2f6u,0x4326ede9u,0x42a574a7u,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409998b4u,0x4326f52bu,0x42a5bb2bu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409a8e72u,0x4326fc6du,0x42a601afu,0x3f71f271u,0x4092eb44u,0x3faf1380u},
+        {0x409b8430u,0x432703afu,0x42a64833u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409c79eeu,0x43270af1u,0x42a68eb7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409d6facu,0x43271233u,0x42a6d53bu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409e656au,0x43271975u,0x42a71bbfu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x409f5b28u,0x432720b7u,0x42a76243u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a050e6u,0x432727f9u,0x42a7a8c7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a146a4u,0x43272f3bu,0x42a7ef4bu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a23c62u,0x4327367du,0x42a835cfu,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a33220u,0x43273dbfu,0x42a87c53u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a427deu,0x43274501u,0x42a8c2d7u,0x3f71f441u,0x4092eb39u,0x3faf134eu},
+        {0x40a51d9cu,0x43274c43u,0x42a9095bu,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a6135au,0x43275385u,0x42a94fdfu,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a70918u,0x43275ac7u,0x42a99663u,0x3f71f610u,0x4092eb2du,0x3faf131bu},
+        {0x40a7fed6u,0x43276209u,0x42a9dce7u,0x3f71f7e0u,0x4092eb20u,0x3faf12e9u},
+        {0x40a8f494u,0x4327694bu,0x42aa236bu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40a9ea52u,0x43277f17u,0x42aa5cb6u,0x4035a896u,0x406ebefbu,0x3f6b9d47u},
+        {0x40aae010u,0x432794e3u,0x42aa9601u,0x4035a7dau,0x406ebf8bu,0x3f6b9e11u},
+        {0x40abd5ceu,0x4327aaafu,0x42aacf4cu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40accb8cu,0x4327c07bu,0x42ab0897u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40adc14au,0x4327d647u,0x42ab41e2u,0x4035a7dau,0x406ebf8bu,0x3f6b9e11u},
+        {0x40aeb708u,0x4327ec13u,0x42ab7b2du,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40afacc6u,0x432801dfu,0x42abb478u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b0a284u,0x432817abu,0x42abedc3u,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b19842u,0x43282d77u,0x42ac270eu,0x4035a838u,0x406ebf44u,0x3f6b9dabu},
+        {0x40b28e00u,0x43284343u,0x42ac6059u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40b383beu,0x43285c7eu,0x42ac93b2u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b4797cu,0x432875b9u,0x42acc70bu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b56f3au,0x43288ef4u,0x42acfa64u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b664f8u,0x4328a82fu,0x42ad2dbdu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b75ab6u,0x4328c16au,0x42ad6116u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b85074u,0x4328daa5u,0x42ad946fu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40b94632u,0x4328f3e0u,0x42adc7c8u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40ba3bf0u,0x43290d1bu,0x42adfb21u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bb31aeu,0x43292656u,0x42ae2e7au,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bc276cu,0x43293f91u,0x42ae61d3u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bd1d2au,0x432958ccu,0x42ae952cu,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40be12e8u,0x43297207u,0x42aec885u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40bf08a6u,0x43298b42u,0x42aefbdeu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40bffe64u,0x4329a47du,0x42af2f37u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c0f422u,0x4329bdb8u,0x42af6290u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c1e9e0u,0x4329d6f3u,0x42af95e9u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40c2df9eu,0x4329f02eu,0x42afc942u,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40c3d55cu,0x432a0968u,0x42affc9bu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c4cb1au,0x432a22a3u,0x42b02ff4u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c5c0d8u,0x432a3bdeu,0x42b0634du,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40c6b696u,0x432a5518u,0x42b096a6u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c7ac54u,0x432a6e53u,0x42b0c9ffu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40c8a212u,0x432a878eu,0x42b0fd58u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40c997d0u,0x432aa0c9u,0x42b130b1u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40ca8d8eu,0x432aba04u,0x42b1640au,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40cb834cu,0x432ad33fu,0x42b19763u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40cc790au,0x432aec7au,0x42b1cabcu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40cd6ec8u,0x432b05b5u,0x42b1fe15u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40ce6486u,0x432b1ef0u,0x42b2316eu,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40cf5a44u,0x432b382au,0x42b264c7u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d05002u,0x432b5165u,0x42b29820u,0x40524491u,0x4055fa8bu,0x3f4b4d70u},
+        {0x40d145c0u,0x432b6a9fu,0x42b2cb79u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40d23b7eu,0x432b83dau,0x42b2fed2u,0x4052458fu,0x4055f993u,0x3f4b4c41u},
+        {0x40d3313cu,0x432b9d15u,0x42b3322bu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d426fau,0x432bb650u,0x42b36584u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d51cb8u,0x432bcf8bu,0x42b398ddu,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40d61276u,0x432be8c5u,0x42b3cc36u,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d70834u,0x432c0200u,0x42b3ff8fu,0x4052453au,0x4055f9e6u,0x3f4b4ca6u},
+        {0x40d7fdf2u,0x432c1b3bu,0x42b432e8u,0x405244e6u,0x4055fa38u,0x3f4b4d0bu},
+        {0x40d8f3b0u,0x432c3475u,0x42b46641u,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40d9e96eu,0x432c519cu,0x42b4907du,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40dadf2cu,0x432c6ec2u,0x42b4bab9u,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40dbd4eau,0x432c8be9u,0x42b4e4f5u,0x4072f49bu,0x402ffd23u,0x3f207c8du},
+        {0x40dccaa8u,0x432ca910u,0x42b50f30u,0x4072f527u,0x402ffc63u,0x3f207bc2u},
+        {0x40ddc066u,0x432cc637u,0x42b5396bu,0x4072f456u,0x402ffd84u,0x3f207cf1u},
+        {0x40deb624u,0x432ce35eu,0x42b563a7u,0x4072f4e2u,0x402ffcc3u,0x3f207c27u},
+        {0x40dfabe2u,0x432d0085u,0x42b58de2u,0x4072f4e2u,0x402ffcc3u,0x3f207c27u},
+        {0x40e0a1a0u,0x432d1dacu,0x42b5b81du,0x4072f49bu,0x402ffd23u,0x3f207c8du},
+        {0x40e1975eu,0x432d3ad3u,0x42b5e258u,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40e28d1cu,0x432d57f9u,0x42b60c94u,0x4072f411u,0x402ffde2u,0x3f207d56u},
+        {0x40e382dau,0x432d751fu,0x42b636d0u,0x4072f56cu,0x402ffc04u,0x3f207b5du},
+        {0x40e47898u,0x432d9246u,0x42b6610bu,0x4072f527u,0x402ffc63u,0x3f207bc2u},
+        {0x40e56e56u,0x432daf6du,0x42b68b46u,0x00000000u,0x00000000u,0x3f207bc2u},
+    };
+    unsigned steps=0; uint32_t clock=wc3_float_bits(unit->movement.pose_clock.time);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(frame,6000) {
+        level.time+=5; globals.RunFrame();
+        uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+        if (now==clock) continue;
+        clock=now;
+        /* The point order materializes the idle pose at its admission clock. */
+        if (now==0x3f7ffff0u) continue;
+        T_ASSERT(steps<206); if (steps>=206) break;
+        uint32_t const *expected=oblique_motion[steps++];
+        T_EQ(now,expected[0]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+        T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+        T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+        T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+    }
+    T_EQ(steps,206); T_ASSERT(!jass_rterror_pending(level.vm));
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, periodic_public_spawn_orders_match_retail_from_zero_clock) {
+    float radius=31,speed=270;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','P','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    memset(cells,0,sizeof(cells));
+    FOR_LOOP(y,16) FOR_LOOP(x,32) if (spawn_terrain_rows[y]&(1u<<x)) cells[(y+56)*384+x+152]=2;
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit source\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nlocal integer i\nlocal real offset=0\n"
+        "set tick=tick+1\nset i=(tick-1)/20\n"
+        "if (tick-1)-i*20!=0 or i>7 then\nreturn\nendif\n"
+        "if mover!=null then\ncall RemoveUnit(mover)\nendif\n"
+        "if i==1 then\nset offset=16\nelseif i==2 then\nset offset=31\n"
+        "elseif i==3 then\nset offset=32\nelseif i==4 then\nset offset=60\n"
+        "elseif i==5 then\nset offset=63.9999\nelseif i==6 then\nset offset=64\n"
+        "elseif i==7 then\nset offset=96\nendif\n"
+        "set mover=CreateUnit(Player(0),'hSPN',-1936+offset,-976,0)\n"
+        "call IssuePointOrder(mover,\"move\",-1632,-976)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set source=CreateUnit(Player(0),'hSPN',-1936,-976,90)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    edict_t *source=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) source=ent;
+    T_NOT_NULL(source); if (!source) return;
+    edict_t *previous=NULL; uint32_t born=UINT32_MAX,clock=0;
+    unsigned cases=0,steps[8]={0},saved_cases=0,saved_steps[8]={0};
+    uint32_t saved_born=0,saved_clock=0,previous_index=0,saved_remaining=0;
+    cstring_t file=Test_TempPath("openwarcraft3-public-spawn-phase.bin");
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(pass,2) {
+        if (pass) {
+            T_ASSERT(ReadGame(file)); cases=saved_cases; memcpy(steps,saved_steps,sizeof(steps));
+            born=saved_born; clock=saved_clock; previous=&g_edicts[previous_index];
+            T_EQ(level.time,10300u);
+            wc3Clock_t timer_clock=G_TimerQueryClock(NULL);
+            T_EQ(wc3_float_bits(G_TimerRemainingScalar(level.timers,&timer_clock)),saved_remaining);
+        }
+        for (unsigned frame=pass ? 2060 : 0;frame<3000;frame++) {
+            level.time+=5; globals.RunFrame();
+            edict_t *unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && ent!=source && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID) unit=ent;
+            if (!unit) continue;
+            if (unit!=previous || unit->spawn_time!=born) {
+                T_ASSERT(cases<8); if (cases>=8) break;
+                previous=unit; born=unit->spawn_time; clock=wc3_float_bits(unit->movement.pose_clock.time);
+                T_EQ(clock,spawn_motion_cases[cases][2]); cases++;
+            }
+            uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+            if (!pass && frame==2059) {
+                wc3Clock_t timer_clock=G_TimerQueryClock(NULL);
+                saved_remaining=wc3_float_bits(G_TimerRemainingScalar(level.timers,&timer_clock));
+                T_ASSERT(WriteGame(file)); saved_cases=cases; memcpy(saved_steps,steps,sizeof(steps));
+                saved_born=born; saved_clock=clock; previous_index=previous-g_edicts;
+            }
+            if (now==clock) continue;
+            clock=now; unsigned c=cases-1,i=steps[c]++;
+            T_ASSERT(i<spawn_motion_cases[c][1]); if (i>=spawn_motion_cases[c][1]) continue;
+            uint32_t const *expected=spawn_motion[spawn_motion_cases[c][0]+i];
+            T_EQ(now,expected[0]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+            T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+            T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+            T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+        }
+        T_EQ(cases,8); FOR_LOOP(c,8) T_EQ(steps[c],spawn_motion_cases[c][1]);
+        if (jass_rterror_pending(level.vm)) fprintf(stderr,"WC3 periodic spawn regression: %s\n",jass_rterror_message(level.vm));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+/* Scene44's public spawn endpoints include the initial sentinel cancellation.
+ * The custom row gives the visible route fixture the captured31-unit footprint. */
+TEST(wc3_movement, public_spawn_admission_matches_retail_and_resumes) {
+    uint32_t const requested[]={0xc4f20000u,0xc4f00000u,0xc4ee2000u,0xc4ee0000u,
+        0xc4ea8000u,0xc4ea0001u,0xc4ea0000u,0xc4e60000u,0xc4f20000u};
+    uint32_t const expected[][4]={
+        {0xc4f60000u,0xc4820000u,0x43228000u,0x427e0000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea0000u,0xc47c0000u,0x43258000u,0x42810000u},
+        {0xc4ea8000u,0xc4740000u,0x43256000u,0x42830000u},
+        {0xc4ea0800u,0xc4740000u,0x43257e00u,0x42830000u},
+        {0xc4ea0000u,0xc4740000u,0x43258000u,0x42830000u},
+        {0xc4e60000u,0xc4740000u,0x43268000u,0x42830000u},
+        {0xc4f20000u,0xc47c0000u,0x43238000u,0x42810000u},
+    };
+    float radius=31;
+    unitModification_t mod={.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','P','N'),
+        .numbeOfModifications=1,.modifications=&mod};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    static uint8_t cells[256*128];
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    FOR_LOOP(c,9) {
+        reset_entities(); setup_test_world();
+        /* A nonstock8-unit authored radius selects class0, not Footman's class1. */
+        radius=c==8 ? 8 : 31;
+        level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,8};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+        char script[1400];
+        /* Use original requested words, including the JASS addition's low bit. */
+        char call[160];
+        snprintf(call,sizeof(call),c&1 ? "CreateUnitAtLoc(Player(0),'hSPN',Location(%.9g,-976),0)" :
+            "CreateUnit(Player(0),'hSPN',%.9g,-976,0)",wc3_float(requested[c]));
+        if (c==5) strcpy(call,"CreateUnitAtLoc(Player(0),'hSPN',Location(-1936+63.9999,-976),0)");
+        snprintf(script,sizeof(script),"globals\nunit source\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set source=CreateUnit(Player(0),'hSPN',-1936,-976,0)\nset mover=%s\nendfunction\n"
+            "function go takes nothing returns nothing\n"
+            "call IssuePointOrder(mover,\"move\",-1632,-976)\nendfunction\n",call);
+        T_ASSERT(run_test_jass(script));
+        edict_t *unit=NULL,*source=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {
+            if (!source) source=ent; else unit=ent;
+        }
+        T_NOT_NULL(unit); T_NOT_NULL(source);
+        if (!unit || !source) continue;
+        T_EQ(unit->collision,radius); T_EQ(source->collision,radius);
+        T_EQ(source->s.origin2.x,-1936); T_EQ(source->s.origin2.y,-976);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),expected[c][0]);
+        T_EQ(wc3_float_bits(unit->s.origin2.y),expected[c][1]);
+        T_ASSERT(unit->movement.pose_valid);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[c][2]);
+        T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[c][3]);
+        T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        if (c!=5) continue;
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        cstring_t file=Test_TempPath("openwarcraft3-spawn-admission-save.bin");
+        T_ASSERT(WriteGame(file)); uint32_t state[80][8];
+        FOR_LOOP(pass,2) {
+            if (pass) {
+                T_ASSERT(ReadGame(file));
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[c][2]);
+                T_EQ(wc3_float_bits(unit->s.origin2.x),expected[c][0]);
+            }
+            jass_callbyname(level.vm,"go",false);
+            FOR_LOOP(i,80) {
+                level.time+=30; globals.RunFrame();
+                uint32_t row[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),
+                    wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                    wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),
+                    wc3_float_bits(unit->s.angle),unit->current_order_id};
+                if (pass) FOR_LOOP(j,8) T_EQ(row[j],state[i][j]); else memcpy(state[i],row,sizeof(row));
+            }
+            T_ASSERT(unit->s.origin2.x>wc3_float(expected[c][0])+64);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        remove(file); level.started=false;
+    }
+    reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+/* Public Stop recovers a blocked mover within five placement attempts; queryzero and exhaustion stay put. */
+TEST(wc3_movement, public_stop_recovers_embedded_unit_with_bounded_query) {
+    static uint8_t cells[256*128];
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    for (int x=161;x<=164;x++) cells[78*256+x]=2;
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function prepare takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function enabled takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call IssueImmediateOrder(mover,\"stop\")\nendfunction\n"
+        "function disabled takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"));
+    edict_t *unit=NULL; FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision=31; unit->stand=unit_stand; unit_stand(unit);
+    jass_callbyname(level.vm,"prepare",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560);
+    T_ASSERT(WriteGame(Test_TempPath("openwarcraft3-embedded-stop-save.bin")));
+    for (unsigned pass=0;pass<2;pass++) {
+        if (pass) T_ASSERT(ReadGame(Test_TempPath("openwarcraft3-embedded-stop-save.bin")));
+        jass_callbyname(level.vm,"enabled",false);
+        T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(-1936));
+        T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(-592));
+        T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+        jass_callbyname(level.vm,"prepare",false); jass_callbyname(level.vm,"disabled",false);
+        T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    }
+    /* Eleven-cell patch has no legal footprint in the five-attempt ring domain. */
+    for (int y=73;y<=83;y++) for (int x=158;x<=168;x++) cells[y*256+x]=2;
+    CM_SetupTestPathmap(256,128,cells);
+    jass_callbyname(level.vm,"enabled",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    /* Map release must leave Stop able to retire a unit without querying stale geometry. */
+    void *saved_map=world.map; world.map=NULL;
+    jass_callbyname(level.vm,"enabled",false);
+    T_EQ(unit->s.origin2.x,-1936); T_EQ(unit->s.origin2.y,-560); T_EQ(unit->current_order_id,0);
+    world.map=saved_map;
+    remove(Test_TempPath("openwarcraft3-embedded-stop-save.bin")); reset_entities(); setup_test_world();
+}
+
+void S_TestMoveRecoveryTrace(void (*)(void *,unsigned,edict_t const *),void *);
+typedef struct { unsigned outer,stages;bool moved;wc3FineBox_t before; } recovery183Trace_t;
+static void check_recovery183_scope(void *data,unsigned stage,edict_t const *unit) {
+    recovery183Trace_t *trace=data;
+    wc3RecordObject_t const *record=G_GetMoveSpatialObject(unit-g_edicts);
+    T_NOT_NULL(record);if(!record)return;
+    T_EQ(stage,trace->stages++);
+    T_EQ(record->flags,trace->outer+((stage==1 || stage==2)?1:0));
+    if(stage==2)T_EQ(memcmp(&record->box,&trace->before,sizeof(record->box))!=0,trace->moved);
+}
+
+/* Recovery holds a captured identity through admission AND publication. The
+ * clear, admitted and exhausted exits preserve an existing outer exclusion. */
+TEST(wc3_movement, recovery183_holds_spatial_identity_through_commit_and_all_exits) {
+    FOR_LOOP(outer,2) FOR_LOOP(exit,4) {
+        uint8_t cells[64*64]={0};reset_entities();setup_test_world();
+        if(exit==1)cells[20*64+20]=2;
+        if(exit==2)for(unsigned y=12;y<29;y++)for(unsigned x=12;x<29;x++)cells[y*64+x]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set mover=CreateUnit(Player(0),'hfoo',272,272,0)\n"
+            "call SetUnitPathing(mover,false)\ncall SetUnitPosition(mover,656,656)\nendfunction\n"
+            "function stop takes nothing returns nothing\ncall IssueImmediateOrder(mover,\"stop\")\nendfunction\n"));
+        edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o'))unit=ent;
+        T_NOT_NULL(unit);if(!unit)continue;
+        unit->collision=8;unit->no_pathing=exit==3;G_PublishMoveSpatialObject(unit);
+        wc3RecordObject_t *record=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+        record->flags=outer;
+        recovery183Trace_t trace={outer,0,exit==1,record->box};
+        S_TestMoveRecoveryTrace(check_recovery183_scope,&trace);
+        jass_callbyname(level.vm,"stop",false);
+        S_TestMoveRecoveryTrace(NULL,NULL);
+        T_EQ(trace.stages,4);T_EQ(record->flags,outer);T_EQ(unit->current_order_id,0);
+        if(exit!=1){T_EQ(unit->s.origin2.x,656);T_EQ(unit->s.origin2.y,656);}
+        record->flags=0;
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, public_pathing_toggle_controls_blocked_placement) {
+    static uint8_t cells[256*128];
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    for (int x=161;x<=164;x++) cells[78*256+x]=2;
+    box2_t bounds={{-7168,-3072},{1024,1024}};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells);
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function enabled takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function disabled takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPosition(mover,-1936,-560)\nendfunction\n"
+        "function fractional takes nothing returns nothing\ncall SetUnitPathing(mover,false)\n"
+        "call SetUnitPositionLoc(mover,Location(-1935.875,-560.125))\nendfunction\n"
+        "function restored takes nothing returns nothing\ncall SetUnitPathing(mover,true)\n"
+        "call SetUnitPosition(mover,-1935.875,-560.125)\nendfunction\n"));
+    edict_t *unit=NULL; FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','f','o','o')) unit=ent;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision=31; unit->stand=unit_stand; unit_stand(unit);
+    static cstring_t const names[]={"enabled","disabled","enabled","fractional","restored"};
+    static vec2_t const expected[]={{-1936,-592},{-1936,-560},{-1936,-592},{-1935.875,-560.125},{-1936,-592}};
+    for (unsigned pass=0;pass<2;pass++) {
+        if (pass) { T_ASSERT(ReadGame(Test_TempPath("openwarcraft3-disabled-placement-save.bin"))); T_ASSERT(unit->no_pathing); }
+        FOR_LOOP(i,5) {
+            jass_callbyname(level.vm,names[i],false); T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
+            T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
+            T_EQ(unit->current_order_id,0); T_EQ(unit->movement.velocity.x,0); T_EQ(unit->movement.velocity.y,0);
+            if (!pass && i==3) T_ASSERT(WriteGame(Test_TempPath("openwarcraft3-disabled-placement-save.bin")));
+        }
+    }
+    remove(Test_TempPath("openwarcraft3-disabled-placement-save.bin")); reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, blocked_position_matches_original_ring_endpoints) {
+    static uint8_t cells[256 * 128];
+    box2_t bounds = {{-7168,-3072},{1024,1024}};
+    static vec2_t const expected[] = {{-1968,-560},{-1936,-560},{-2000,-464},
+                                    {-1936,-560},{-1872,-400},{-2000,-592}};
+    static cstring_t const functions[] = {"centre","fractional","west","east","north","centre"};
+    reset_entities(); setup_test_world(); memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(256,128,cells); G_BlightInit();
+    memset(level.regions,0,sizeof(level.regions)); level.num_regions = 0;
+    memset(level.triggers,0,sizeof(level.triggers)); level.num_triggers = 0;
+    memset(&level.events,0,sizeof(level.events));
+    T_ASSERT(run_test_jass("globals\nunit mover\nendglobals\n"
+        "function patch takes integer radius returns nothing\n"
+        "local integer y = 80-radius\nlocal integer x\n"
+        "loop\nexitwhen y>80+radius\nset x=163-radius\n"
+        "loop\nexitwhen x>163+radius\n"
+        "call SetTerrainPathable(-7168+x*32+16,-3072+y*32+16,ConvertPathingType(1),false)\n"
+        "set x=x+1\nendloop\nset y=y+1\nendloop\nendfunction\n"
+        "function small takes nothing returns nothing\ncall patch(1)\nendfunction\n"
+        "function large takes nothing returns nothing\ncall patch(2)\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover = CreateUnit(Player(0),'hfoo',-1936,-976,0)\nendfunction\n"
+        "function centre takes nothing returns nothing\ncall SetUnitPosition(mover,-1936,-512)\nendfunction\n"
+        "function fractional takes nothing returns nothing\ncall SetUnitPosition(mover,-1935.875,-512.125)\nendfunction\n"
+        "function west takes nothing returns nothing\ncall SetUnitPosition(mover,-1968,-512)\nendfunction\n"
+        "function east takes nothing returns nothing\ncall SetUnitPosition(mover,-1904,-512)\nendfunction\n"
+        "function north takes nothing returns nothing\ncall SetUnitPosition(mover,-1936,-480)\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i,globals.num_edicts) if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) unit = g_edicts+i;
+    T_NOT_NULL(unit); if (!unit) return;
+    unit->collision = 31; unit->stand = unit_stand; unit_stand(unit);
+    for (unsigned i=0;i<6;i++) {
+        jass_callbyname(level.vm,i==5 ? "large" : "small",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        jass_callbyname(level.vm,functions[i],false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->s.origin2.x),wc3_float_bits(expected[i].x));
+        T_EQ(wc3_float_bits(unit->s.origin2.y),wc3_float_bits(expected[i].y));
+        T_EQ(unit->current_order_id,0);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, terrain_native_edits_redirect_active_move_and_invalidate_cached_route) {
+    edict_t *unit = make_moving_unit(80,176);
+    uint8_t cells[32*32] = {0};
+    vec2_t target = {400,176};
+    unit->svflags |= SVF_MONSTER; unit->unitinfo.MoveSpeed = 256;
+    /* Leave sufficient coarse/fine clearance above the authored wall and
+     * keep400/176 inside the original four-cell point routing bounds. */
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{1024,1024}});
+    CM_SetupTestPathmap(32,32,cells); G_BlightInit(); gi.LinkEntity(unit);
+    T_ASSERT(unit_issueorder(unit,"move",&target));
+    uint32_t generation = CM_BuildHeatmap(unit->goalentity);
+    CM_ProcessPathJobs(4096);
+    T_ASSERT(CM_ActivateCachedFlow(generation));
+    movement_test_tick(unit);
+    T_ASSERT(unit->movement.path.valid && unit->movement.fine_route.count);
+    T_ASSERT(run_test_jass(
+        "function wall takes boolean passable returns nothing\nlocal integer y=0\n"
+        "loop\nexitwhen y>12\n"
+        "call SetTerrainPathable(272,y*32+16,ConvertPathingType(1),passable)\n"
+        "set y=y+1\nendloop\nendfunction\n"
+        "function clear takes nothing returns nothing\ncall wall(true)\nendfunction\n"
+        "function main takes nothing returns nothing\ncall wall(false)\nendfunction\n"));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    for (unsigned frame=0;frame<15;frame++) {
+        level.time += FRAMETIME; movement_test_tick(unit); CM_ProcessPathJobs(4096);
+        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2,0));
+    }
+    T_ASSERT(fabsf(unit->s.origin2.y-176)>2);
+    T_ASSERT(!unit->movement.flow_direct);
+    jass_callbyname(level.vm,"clear",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    for (unsigned frame=0;frame<160 && unit->current_order_id;frame++) {
+        level.time += FRAMETIME; movement_test_tick(unit); CM_ProcessPathJobs(4096);
+    }
+    T_EQ(unit->current_order_id,0);
+    /* Ordinary zero-range Move finishes inside the recovered0.49 fine-cell gate. */
+    T_ASSERT(Vector2_distance(&unit->s.origin2,&target)<=wc3_mul(wc3_float(0x3efae148),32));
+    reset_entities(); setup_test_world();
+}
+
+/* The point-arrival consumer integrates its retained fine pose before publishing zero velocity. */
+TEST(wc3_movement, native_fine_pose_reaches_final_point_commit) {
+    edict_t *unit = make_moving_unit(-2012, 568);
+    uint8_t cells[16 * 16] = {0};
+    box2_t bounds = {{-2048, 512}, {-1536, 1024}};
+    vec2_t target = {-1800, 600};
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(16, 16, cells);
+    unit->unitinfo.MoveSpeed = 100;
+    /* The isolated constant-heading consumer has no physical group layout.
+     * Admit its private waypoint through the internal Move owner. */
+    order_move(unit,Waypoint_add(&target));
+    unit->current_order_id=G_OrderId("move");
+    unit->movement.flow_direct = true;
+    FOR_LOOP(i, 2) { unit->s.angle = .125f; unit_moveindirection(unit); }
+    /* Third controlled constant-heading commit in retail-native-pose-1.27.json.
+     * Exercise its arrival consumer directly; public world-bound admission is
+     * covered by the complete blocked/outside point-order journeys. */
+    target = (vec2_t){wc3_float(0xc4f7c77e) + 5, wc3_float(0x440eef5f)};
+    unit->goalentity->s.origin2 = target;
+    T_ASSERT(move_point_arrival(unit));
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0xc4f7c77eu);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x440eef5fu);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x), 0x40038827u);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y), 0x3feef5f5u);
+    T_ASSERT(unit->movement.pose_valid);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+    T_EQ(unit->current_order_id, 0); T_STREQ(unit->currentmove->animation, "stand");
+    reset_entities(); setup_test_world();
+}
+
+/* Original160060 measures squared velocity in fine-grid units, with32 world units per cell. */
+TEST(wc3_movement, retail_committed_facing_guard_uses_grid_velocity) {
+    edict_t *unit = make_moving_unit(320, 320);
+    /* An authored Misc minimum override exposes these sub-bound guards. */
+    float minimum = game.constants.minUnitSpeed; game.constants.minUnitSpeed = 0.01f;
+    unit->unitinfo.MoveSpeed = 0.016f;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_ASSERT(unit->movement.velocity.x > 0);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
+    game.constants.minUnitSpeed = minimum;
+}
+
+/* Original16fe20 clears squared fine velocity below2e-7, before the distinct facing guard. */
+TEST(wc3_movement, retail_velocity_guard_uses_fine_grid_scale) {
+    edict_t *unit = make_moving_unit(320, 320);
+    /* An authored Misc minimum override exposes these sub-bound guards. */
+    float minimum = game.constants.minUnitSpeed; game.constants.minUnitSpeed = 0.01f;
+    unit->unitinfo.MoveSpeed = 0.01f;
+    unit->s.angle = 0.125f;
+    unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_EQ(wc3_float_bits(unit->movement.velocity.x), 0u);
+    T_EQ(wc3_float_bits(unit->movement.velocity.y), 0u);
+    T_EQ(wc3_float_bits(unit->s.origin2.x), 0x43a00000u);
+    T_EQ(wc3_float_bits(unit->s.origin2.y), 0x43a00000u);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3e000000u);
+    game.constants.minUnitSpeed = minimum;
+}
+
+/* Saved velocity must resume with the same cancellation words, not a fresh zero-velocity approximation. */
+TEST(wc3_movement, retail_velocity_resume_is_deterministic) {
+    edict_t *unit = make_moving_unit(320, 320);
+    cstring_t file = Test_TempPath("openwarcraft3-retail-velocity-save.bin");
+    uint32_t expected[12][4];
+    unit->unitinfo.MoveSpeed = 100; unit->s.angle = 0.125f; unit->movement.flow_direct = true;
+    unit_moveindirection(unit);
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(i, 12) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+        expected[i][2] = wc3_float_bits(unit->movement.velocity.x);
+        expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+    }
+    T_ASSERT(ReadGame(file));
+    FOR_LOOP(i, 12) {
+        unit->s.angle = (i & 1) ? 0.6f : 0.125f;
+        unit_moveindirection(unit);
+        T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]);
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+    }
+    remove(file);
+}
+
+/* Retail 170880 tests the heading error BEFORE turning; equality stops travel. */
+TEST(wc3_movement, stock_window_stops_translation_while_turning) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.6f; data.propWin = 60;
+    unit->data.UnitData = &data;
+    T_EQ(wc3_float_bits(unit_propwindow(unit)), 0x3f860a91u);
+    vec2_t const north = {0, 512};
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.6f);
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_ASSERT(!unit->movement.turn_blocked);
+    T_ASSERT(unit->s.origin2.y > 0);
+}
+
+TEST(wc3_movement, stock_window_turns_before_close_goal_arrival) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.6f; data.propWin = 60;
+    unit->data.UnitData = &data;
+    unit->s.angle = 2;
+    vec2_t const east = {10, 0};
+    T_ASSERT(unit_issueorder(unit, "move", &east));
+    movement_test_tick(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, wc3_sub(2, 0.6f));
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    FOR_LOOP(i, 4) movement_test_tick(unit);
+    T_EQ(unit->s.origin2.x, 0);
+    T_STREQ(unit->currentmove->animation, "stand");
+}
+
+TEST(wc3_movement, stock_getters_keep_authored_defaults_after_setters) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        " call BJassAssert(GetUnitTurnSpeed(u) == 0.6, \"stock turn speed\")\n"
+        " call BJassAssert(GetUnitPropWindow(u) > 1.047 and GetUnitPropWindow(u) < 1.048, \"stock radians\")\n"
+        " call BJassAssert(GetUnitDefaultTurnSpeed(u) == 0.6, \"authored turn speed\")\n"
+        " call BJassAssert(GetUnitDefaultPropWindow(u) == 60.0, \"authored degrees\")\n"
+        " call SetUnitTurnSpeed(u, 0.125)\n"
+        " call SetUnitPropWindow(u, 0.5)\n"
+        " call BJassAssert(GetUnitTurnSpeed(u) == 0.125 and GetUnitPropWindow(u) == 0.5, \"current overrides\")\n"
+        " call BJassAssert(GetUnitDefaultTurnSpeed(u) == 0.6 and GetUnitDefaultPropWindow(u) == 60.0, \"defaults immutable\")\n"
+        "endfunction\n"));
+}
+
+/* Same authored clone as the retail speed-input witness: integer w3u fields,
+ * immutable237 default and173..389 limits. Exercise real natives and Move. */
+TEST(wc3_movement, public_speed_setter_uses_authored_limits_and_keeps_default) {
+    int32_t speed = 237, minimum = 173, maximum = 389;
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','s'), .type = mod_int, .data = &speed },
+        { .modID = MAKEFOURCC('u','m','i','s'), .type = mod_int, .data = &minimum },
+        { .modID = MAKEFOURCC('u','m','a','s'), .type = mod_int, .data = &maximum }
+    };
+    unitData_t custom = { .originalUnitID = MAKEFOURCC('h','f','o','o'),
+        .newUnitID = MAKEFOURCC('h','0','0','1'), .numbeOfModifications = 3, .modifications = mods };
+    reset_entities();
+    setup_test_world();
+    mapInfo_t const *saved_mapinfo = level.mapinfo;
+    mapInfo_t info = *saved_mapinfo;
+    info.num_userCreatedUnits = 1;
+    info.userCreatedUnits = &custom;
+    level.mapinfo = &info;
+    G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'h001', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 100.0)\n"
+        " call IssuePointOrder(speedUnit, \"move\", 600.0, 320.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 173.0, \"authored speed minimum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"immutable authored speed\")\n"
+        "endfunction\n"
+        "function SetZeroSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 0.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 173.0, \"explicit zero clamps to minimum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"zero keeps default\")\n"
+        "endfunction\n"
+        "function SetHighSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 1000.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 389.0, \"authored speed maximum\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(speedUnit) == 237.0, \"high keeps default\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].inuse && g_edicts[i].class_id == custom.newUnitID) unit = g_edicts + i;
+    }
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_FEQ(unit->data.UnitBalance->speed, 237.f, .00001f);
+        T_FEQ(unit->data.UnitBalance->minSpeed, 173.f, .00001f);
+        T_FEQ(unit->data.UnitBalance->maxSpeed, 389.f, .00001f);
+        T_FEQ(unit_movedistance(unit), 17.3f, .001f);
+        movement_test_tick(unit);
+        movement_test_tick(unit);
+        T_FEQ(unit->s.origin2.x, 337.3f, .001f);
+        jass_callbyname(level.vm, "SetZeroSpeed", true); jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(unit_movedistance(unit), 17.3f, .001f);
+        jass_callbyname(level.vm, "SetHighSpeed", true); jass_runevents(level.vm);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(unit_movedistance(unit), 38.9f, .001f);
+    }
+    reset_entities();
+    G_SetMapUnitOverrides(NULL);
+    level.mapinfo = saved_mapinfo;
+    setup_test_world();
+}
+
+TEST(wc3_movement, public_speed_disabled_owner_ignores_setter) {
+    int32_t speed = 0;
+    char move_type[] = "_";
+    unitModification_t mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','s'), .type = mod_int, .data = &speed },
+        { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = move_type }
+    };
+    unitData_t custom = { .originalUnitID = MAKEFOURCC('h','f','o','o'),
+        .newUnitID = MAKEFOURCC('h','0','0','2'), .numbeOfModifications = 2, .modifications = mods };
+    reset_entities(); setup_test_world();
+    mapInfo_t const *saved = level.mapinfo;
+    mapInfo_t info = *saved;
+    info.num_userCreatedUnits = 1; info.userCreatedUnits = &custom;
+    level.mapinfo = &info; G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit u = CreateUnit(Player(0), 'h002', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(u, 1000.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(u) == 0.0, \"disabled owner speed remains zero\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(u) == 0.0, \"disabled authored default\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == custom.newUnitID) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        T_ASSERT(M_UnitMoveDisabled(unit));
+        T_EQ(unit->unitinfo.MoveSpeed, 0); T_EQ(unit->unitinfo.move_flags & BZ_UNIT_SPEED_SET, 0);
+        T_EQ(unit_movedistance(unit), 0);
+    }
+    reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo = saved; setup_test_world();
+}
+
+TEST(wc3_movement, public_speed_drop_clamps_existing_velocity_before_next_think) {
+    reset_entities(); setup_test_world();
+    cstring_t file = Test_TempPath("openwarcraft3-speed-drop-save.bin");
+    float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'hpea', 320.0, 320.0, 90.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 401.0)\n"
+        "endfunction\n"
+        "function BeginSpeedMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(speedUnit, \"move\", 320.0, 1500.0), \"moving speed drop admitted\")\n"
+        "endfunction\n"
+        "function DropSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 100.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 150.0, \"lower cap effective\")\n"
+        "endfunction\n"
+        "function RaiseSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(speedUnit, 401.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 400.0, \"raised cap effective\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        unit->health.value = unit->health.max_value = 250; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginSpeedMove", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_NOT_NULL(unit->currentmove->think);
+        if (!unit->currentmove->think) goto done;
+        movement_test_tick(unit);
+        T_ASSERT(unit->movement.velocity.y > 300);
+        vec2_t position = unit->s.origin2;
+        uint32_t facing = wc3_float_bits(unit->s.angle);
+        jass_callbyname(level.vm, "DropSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_FEQ(Vector2_len(&unit->movement.velocity), 150, .01f);
+        T_EQ(unit->s.origin2.x, position.x); T_EQ(unit->s.origin2.y, position.y);
+        T_EQ(wc3_float_bits(unit->s.angle), facing);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        T_ASSERT(ReadGame(file));
+        T_FEQ(Vector2_len(&unit->movement.velocity), 150, .01f);
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+        vec2_t velocity = unit->movement.velocity;
+        position = unit->s.origin2;
+        jass_callbyname(level.vm, "RaiseSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(wc3_float_bits(unit->movement.velocity.x), wc3_float_bits(velocity.x));
+        T_EQ(wc3_float_bits(unit->movement.velocity.y), wc3_float_bits(velocity.y));
+        T_EQ(unit->s.origin2.x, position.x); T_EQ(unit->s.origin2.y, position.y);
+    }
+done:
+    remove(file);
+    game.constants.minUnitSpeed = old_minimum; game.constants.maxUnitSpeed = old_maximum;
+}
+
+/* Original AIms virtual184 and live TFT Boots on a RoC-format map supply60; list aggregation
+ * keeps the largest nonnegative flat bonus before multiplication and clamps. */
+TEST(wc3_movement, public_boots_pickup_and_removal_reach_current_speed_and_steps) {
+    reset_entities(); setup_test_world();
+    static uint8_t cells[128*128];
+    CM_SetupTestWorldBounds(&MAKE(box2_t,.min={-2048,-2048},.max={2048,2048}));
+    CM_SetupTestPathmap(128,128,cells);
+    const char ability_slk[] =
+        "ID;PWXL;N;EBB;Y3;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y1;X4;K\"DataC1\"\nC;Y1;X5;K\"DataD1\"\nC;Y1;X6;K\"DataE1\"\n"
+        "C;Y2;X1;K\"AIms\"\nC;Y2;X2;K\"AIms\"\nC;Y2;X3;K\"60\"\n"
+        "C;Y3;X1;K\"AInv\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\n"
+        "C;Y3;X4;K\"1\"\nC;Y3;X5;K\"1\"\nC;Y3;X6;K\"1\"\nE\n";
+    const char item_slk[] =
+        "ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\nC;Y1;X3;K\"droppable\"\nC;Y1;X4;K\"file\"\n"
+        "C;Y2;X1;K\"bspd\"\nC;Y2;X2;K\"AIms\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"Objects\\\\InventoryItems\\\\TreasureChest\\\\treasurechest.mdl\"\nE\n";
+    slkTestData_t *abilities = parse_slk_string(ability_slk), *old_abilities = G_SetSLKRows("AbilityData", abilities);
+    slkTestData_t *items = parse_slk_string(item_slk), *old_items = G_SetSLKRows("ItemData", items);
+    T_ASSERT(run_test_jass(
+        "globals\n unit bootsUnit\n item bootsOne\n item bootsTwo\n real bootsDefault\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set bootsUnit = CreateUnit(Player(0), 'Hpal', 320.0, 320.0, 90.0)\n"
+        " call UnitAddAbility(bootsUnit, 'AInv')\n call SetUnitMoveSpeed(bootsUnit, 270.0)\n"
+        " set bootsDefault = GetUnitDefaultMoveSpeed(bootsUnit)\n"
+        " set bootsOne = CreateItem('bspd', 256.0, 320.0)\n set bootsTwo = CreateItem('bspd', 192.0, 320.0)\nendfunction\n"
+        "function BeginBootsMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(bootsUnit, \"move\", 320.0, 1800.0), \"boots move admitted\")\nendfunction\n"
+        "function PickupBootsOne takes nothing returns nothing\n"
+        " call BJassAssert(UnitAddItem(bootsUnit, bootsOne), \"first boots admitted\")\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"first flat bonus reaches public getter\")\nendfunction\n"
+        "function PickupBootsTwo takes nothing returns nothing\n"
+        " call BJassAssert(UnitAddItem(bootsUnit, bootsTwo), \"second boots admitted\")\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"duplicate flat bonuses use maximum\")\nendfunction\n"
+        "function RemoveBootsOne takes nothing returns nothing\n"
+        " call UnitRemoveItem(bootsUnit, bootsOne)\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 330.0, \"remaining boots retain bonus\")\nendfunction\n"
+        "function PublishBootsSpeed takes nothing returns nothing\n"
+        " call SetUnitMoveSpeed(bootsUnit, 270.0)\nendfunction\n"
+        "function RemoveBootsTwo takes nothing returns nothing\n"
+        " call UnitRemoveItem(bootsUnit, bootsTwo)\n"
+        " call BJassAssert(GetUnitMoveSpeed(bootsUnit) == 270.0, \"last boots restore base\")\n"
+        " call BJassAssert(GetUnitDefaultMoveSpeed(bootsUnit) == bootsDefault, \"item bonus keeps immutable default\")\nendfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('H','p','a','l')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginBootsMove", false);
+        movement_test_tick(unit);
+        char const *phases[] = {"PickupBootsOne", "PickupBootsTwo", "RemoveBootsOne", "RemoveBootsTwo"};
+        FOR_LOOP(i, sizeof(phases) / sizeof(*phases)) {
+            jass_callbyname(level.vm, phases[i], false);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_FEQ(S_UnitMoveSpeed(unit), i == 3 ? 270 : 330, .001f);
+            if (i == 1) {
+                jass_callbyname(level.vm, "PublishBootsSpeed", false);
+                jass_callbyname(level.vm, "BeginBootsMove", false);
+                T_ASSERT(!jass_rterror_pending(level.vm));
+                movement_test_tick(unit);
+            }
+            vec2_t before = unit->s.origin2;
+            movement_test_tick(unit);
+            T_FEQ(Vector2_distance(&unit->s.origin2, &before), i == 0 ? 27 : 33, .01f);
+        }
+        /* The last item has gone but its published cap remains until a setter.
+         * Saving must retain that distinction as well as the following steps. */
+        cstring_t file = Test_TempPath("openwarcraft3-boots-published-speed-save.bin");
+        T_EQ(unit->movement.flat_speed_bonus, 60);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        T_ASSERT(ReadGame(file));
+        T_EQ(unit->movement.flat_speed_bonus, 60);
+        T_EQ(S_UnitMoveSpeed(unit), 270);
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+        jass_callbyname(level.vm, "PublishBootsSpeed", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->movement.flat_speed_bonus, 0);
+        T_FEQ(Vector2_len(&unit->movement.velocity), 270, .01f);
+        vec2_t before = unit->s.origin2;
+        movement_test_tick(unit);
+        T_FEQ(Vector2_distance(&unit->s.origin2, &before), 27, .01f);
+        remove(file);
+    }
+    reset_entities();
+    G_SetSLKRows("AbilityData", old_abilities); free_slk_rows(abilities);
+    G_SetSLKRows("ItemData", old_items); free_slk_rows(items);
+}
+
+TEST(wc3_movement, flat_speed_bonus_aliases_reduce_all_sources_and_ignore_transport_items) {
+    reset_entities(); setup_test_world();
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y8;X4\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"6\"\nC;Y2;X4;K\"1\"\n"
+        "C;Y3;X1;K\"Aivb\"\nC;Y3;X2;K\"AInv\"\nC;Y3;X3;K\"6\"\nC;Y3;X4;K\"0\"\n"
+        "C;Y4;X1;K\"A001\"\nC;Y4;X2;K\"AIms\"\nC;Y4;X3;K\"50\"\n"
+        "C;Y5;X1;K\"A002\"\nC;Y5;X2;K\"AIms\"\nC;Y5;X3;K\"25\"\n"
+        "C;Y6;X1;K\"A003\"\nC;Y6;X2;K\"AIms\"\nC;Y6;X3;K\"-10\"\n"
+        "C;Y7;X1;K\"A004\"\nC;Y7;X2;K\"AIms\"\nC;Y7;X3;K\"25\"\n"
+        "C;Y8;X1;K\"A005\"\nC;Y8;X2;K\"AIms\"\nC;Y8;X3;K\"75\"\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    UnitAbilities_t native = {.abilList = "AInv,A004,A005"}, lower = {.abilList = "AInv,A004"};
+    UnitAbilities_t transport = {.abilList = "Aivb"};
+    ItemData_t stronger = {.abilList = "A001"}, weaker = {.abilList = "A002"}, negative = {.abilList = "A003"};
+    edict_t *unit = make_moving_unit(320, 320);
+    unit->data.UnitAbilities = &native;
+    S_SetUnitMoveSpeed(unit, 270);
+    T_EQ(S_UnitMoveSpeed(unit), 345); /* All native contributors must be visited. */
+    T_EQ(unit->movement.flat_speed_bonus, 75);
+    ItemData_t *profiles[] = {&stronger, &weaker, &negative};
+    FOR_LOOP(i, sizeof(profiles) / sizeof(*profiles)) {
+        edict_t *item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64 + i * 32, 320);
+        item->targtype = TARG_ITEM; item->data.ItemData = profiles[i];
+        item->item=G_AllocItem();
+        item->item->inventory_slot = -1; item->item->in_world = true;
+        T_ASSERT(G_PickupItem(unit, item));
+    }
+    T_EQ(S_UnitMoveSpeed(unit), 345);
+    unit->data.UnitAbilities = &lower;
+    T_EQ(S_UnitMoveSpeed(unit), 320); /* Item50 beats native25, never sums. */
+    T_ASSERT(G_DetachItemAtScripted(unit, 0));
+    T_EQ(S_UnitMoveSpeed(unit), 295);
+    unit->data.UnitAbilities = &transport;
+    T_ASSERT(!G_InventoryCanUseItems(unit));
+    T_EQ(S_UnitMoveSpeed(unit), 270);
+    S_SetUnitMoveSpeed(unit, 270);
+    T_EQ(unit->movement.flat_speed_bonus, 0);
+    reset_entities(); G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_movement, map_movement_profiles_inherit_and_bind_to_created_units) {
+    reset_entities(); setup_test_world();
+    uint32_t base_id = MAKEFOURCC('h','f','o','o');
+    UnitData_t const *stock = G_UnitData(base_id);
+    float turn = .125f, window = .25f;
+    char amphibious[] = "amph", floating[] = "float", flying[] = "fly";
+    unitModification_t original_mods[] = {
+        { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = amphibious },
+        { .modID = MAKEFOURCC('u','m','v','r'), .type = mod_real, .data = &turn },
+        { .modID = MAKEFOURCC('u','p','r','w'), .type = mod_real, .data = &window }
+    };
+    unitModification_t float_mod = { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = floating };
+    unitModification_t fly_mod = { .modID = MAKEFOURCC('u','m','v','t'), .type = mod_string, .data = flying };
+    unitData_t original = { .originalUnitID = base_id, .numbeOfModifications = 3, .modifications = original_mods };
+    unitData_t custom[] = {
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','3') },
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','4'), .numbeOfModifications = 1, .modifications = &float_mod },
+        { .originalUnitID = base_id, .newUnitID = MAKEFOURCC('h','0','0','5'), .numbeOfModifications = 1, .modifications = &fly_mod }
+    };
+    mapInfo_t const *saved = level.mapinfo;
+    mapInfo_t info = *saved;
+    info.num_originalUnits = 1; info.originalUnits = &original;
+    info.num_userCreatedUnits = 3; info.userCreatedUnits = custom;
+    level.mapinfo = &info; G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit a = CreateUnit(Player(0), 'h003', 320.0, 320.0, 0.0)\n"
+        " local unit b = CreateUnit(Player(0), 'h004', 480.0, 320.0, 0.0)\n"
+        " local unit c = CreateUnit(Player(0), 'h005', 640.0, 320.0, 0.0)\n"
+        "endfunction\n"));
+    uint32_t found = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *unit = g_edicts + i;
+        if (!unit->inuse) continue;
+        FOR_LOOP(j, 3) {
+            if (unit->class_id != custom[j].newUnitID) continue;
+            cstring_t types[] = { amphibious, floating, flying };
+            uint8_t masks[] = { CM_PATHING_UNAMPHIBIOUS, CM_PATHING_UNFLOATABLE, CM_PATHING_UNFLYABLE };
+            ++found;
+            T_EQ(unit->data.UnitData, G_UnitData(custom[j].newUnitID));
+            T_STREQ(unit->data.UnitData->moveTypeName, types[j]);
+            T_EQ(unit->data.UnitData->turnRate, turn); T_EQ(unit->data.UnitData->propWin, window);
+            T_EQ(M_UnitStaticPathingFlags(unit), masks[j]);
+        }
+    }
+    T_EQ(found, 3); T_STREQ(G_UnitData(base_id)->moveTypeName, amphibious);
+    reset_entities(); G_SetMapUnitOverrides(NULL); level.mapinfo = saved; setup_test_world();
+    T_EQ(G_UnitData(base_id), stock);
+}
+
+/* Explicit zero is a setter value, and must survive the normal save image. */
+TEST(wc3_movement, public_speed_zero_survives_save_and_resumes_identically) {
+    reset_entities(); setup_test_world();
+    float old_minimum = game.constants.minUnitSpeed, old_maximum = game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed = 150; game.constants.maxUnitSpeed = 400;
+    cstring_t file = Test_TempPath("openwarcraft3-speed-zero-save.bin");
+    T_ASSERT(run_test_jass(
+        "globals\n unit speedUnit\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        " set speedUnit = CreateUnit(Player(0), 'hpea', 320.0, 320.0, 0.0)\n"
+        " call SetUnitMoveSpeed(speedUnit, 0.0)\n"
+        " call BJassAssert(GetUnitMoveSpeed(speedUnit) == 150.0, \"zero selects configured minimum\")\n"
+        "endfunction\n"
+        "function BeginSpeedMove takes nothing returns nothing\n"
+        " call BJassAssert(IssuePointOrder(speedUnit, \"move\", 800.0, 320.0), \"saved Move accepted\")\n"
+        "endfunction\n"));
+    edict_t *unit = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (g_edicts[i].inuse && g_edicts[i].class_id == MAKEFOURCC('h','p','e','a')) unit = g_edicts + i;
+    T_NOT_NULL(unit);
+    if (unit) {
+        /* Minimal fixture needs the ordinary active lifecycle before public orders. */
+        unit->health.value = unit->health.max_value = 250; unit->stand = unit_stand; unit_stand(unit);
+        jass_callbyname(level.vm, "BeginSpeedMove", false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        T_NOT_NULL(unit->currentmove->think);
+        if (!unit->currentmove->think) goto done;
+        movement_test_tick(unit);
+        T_ASSERT(WriteGame(file));
+        uint32_t expected[8][4];
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            expected[i][0] = wc3_float_bits(unit->s.origin2.x); expected[i][1] = wc3_float_bits(unit->s.origin2.y);
+            expected[i][2] = wc3_float_bits(unit->movement.velocity.x); expected[i][3] = wc3_float_bits(unit->movement.velocity.y);
+        }
+        S_SetUnitMoveSpeed(unit, 1000);
+        T_ASSERT(ReadGame(file));
+        T_EQ(unit->unitinfo.MoveSpeed, 0); T_ASSERT(unit->unitinfo.move_flags & BZ_UNIT_SPEED_SET);
+        T_EQ(S_UnitMoveSpeed(unit), 150); T_FEQ(unit_movedistance(unit), 15, .001f);
+        FOR_LOOP(i, 8) {
+            movement_test_tick(unit);
+            T_EQ(wc3_float_bits(unit->s.origin2.x), expected[i][0]); T_EQ(wc3_float_bits(unit->s.origin2.y), expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x), expected[i][2]); T_EQ(wc3_float_bits(unit->movement.velocity.y), expected[i][3]);
+        }
+    }
+done:
+    remove(file);
+    game.constants.minUnitSpeed = old_minimum; game.constants.maxUnitSpeed = old_maximum;
+}
+
+TEST(wc3_movement, authored_zero_window_and_turn_rate_keep_their_meaning) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0; data.propWin = 0;
+    unit->data.UnitData = &data;
+    vec2_t const north = {0, 512};
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_EQ(unit->unitinfo.move_flags, 0);
+    T_EQ(wc3_float_bits(unit_turnspeed(unit)), 0x3a83126fu);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3a83126fu);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+}
+
+TEST(wc3_movement, scripted_window_stops_translation_while_turning) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const goal = {0, 512};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit_changeangle_towards_point(unit, &goal);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.125f);
+    T_EQ(unit->movement.velocity.x, 0); T_EQ(unit->movement.velocity.y, 0);
+    FOR_LOOP(i, 16) {
+        unit_changeangle_towards_point(unit, &goal);
+        unit_moveindirection(unit);
+    }
+    T_ASSERT(unit->s.origin2.y > 0);
+}
+
+TEST(wc3_movement, scripted_window_equality_and_zero_keep_turning) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const east = {512, 0};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit->s.angle = 0.5f;
+    unit_changeangle_towards_point(unit, &east);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.375f);
+    unit->unitinfo.PropWindow = 0;
+    unit_changeangle_towards_point(unit, &east);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.25f);
+}
+
+/* Point arrival keeps turning inside its minimum range without translation. */
+TEST(wc3_movement, scripted_point_order_turns_before_arriving) {
+    edict_t *unit = make_scripted_turn_unit();
+    vec2_t const goal = {10, 0};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit->s.angle = 1;
+    bool accepted = unit_issueorder(unit, "move", &goal);
+    T_ASSERT(accepted);
+    if (!accepted) return;
+    movement_test_tick(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.875f);
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    FOR_LOOP(i, 8) movement_test_tick(unit);
+    T_EQ(unit->s.origin2.x, 0);
+    T_STREQ(unit->currentmove->animation, "stand");
+}
+
+/* Primitive override flags and the pre-turn decision travel in the ordinary edict save image. */
+TEST(wc3_movement, scripted_turn_state_survives_save_load) {
+    edict_t *unit = make_scripted_turn_unit();
+    cstring_t file = Test_TempPath("openwarcraft3-scripted-turn-save.bin");
+    vec2_t const goal = {0, 512};
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    unit_changeangle_towards_point(unit, &goal);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_ASSERT(WriteGame(file));
+    unit->unitinfo.move_flags = 0; unit->unitinfo.TurnSpeed = 0; unit->unitinfo.PropWindow = 0;
+    unit->movement.turn_blocked = false;
+    T_ASSERT(ReadGame(file));
+    T_EQ(unit->unitinfo.move_flags, BZ_UNIT_TURN_SET | BZ_UNIT_WINDOW_SET);
+    T_EQ(unit->unitinfo.TurnSpeed, 0.125f); T_EQ(unit->unitinfo.PropWindow, 0.5f);
+    T_ASSERT(unit->movement.turn_blocked);
+    unit_moveindirection(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    remove(file);
 }
 
 /* Harvest damage now uses the authoritative destructable lifecycle, so test
@@ -689,7 +5896,7 @@ TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -1043,6 +6250,10 @@ TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
         for (int x = 38; x < 46; x++)
             pathmap[x + y * CELLS] = 0x02;
     }
+    /* An actual wall separates the worker from the interaction boundary.
+     * The mine footprint alone leaves a legal class1 approach: its two-cell
+     * query can advance to cell37 and enter at the authored distance. */
+    for (int y = 0; y < CELLS; y++) pathmap[37 + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
     CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
@@ -1121,7 +6332,7 @@ TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
 TEST(wc3_movement, lumber_final_chop_fells_tree) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 10.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
@@ -1271,7 +6482,7 @@ TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
 
     chopper->collision = follower->collision = 16.0f;
     chopper->unitinfo.MoveSpeed = follower->unitinfo.MoveSpeed = 190.0f;
-    chopper->attack1.damagePoint = follower->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(chopper, 0)->damagePoint = S_AttackProfileWrite(follower, 0)->damagePoint = 0.01f;
     chopper->s.model = follower->s.model = 1;
     tree->collision = 0.0f;
     gi.LinkEntity(chopper);
@@ -1331,12 +6542,19 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     unit->unitinfo.MoveSpeed = 190.0f;
     unit->s.angle = 0.0f;
     order_move(unit, Waypoint_add(&dest));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     T_EQ(unit->movement.flow_generation, 0);
     T_ASSERT(!unit->movement.flow_direct);
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path.waypoint, unit->collision));
+    /* Routing is available immediately, but a westward detour from east-facing must turn first. */
+    T_ASSERT(unit->movement.turn_blocked);
+    T_FEQ(Vector2_distance(&unit->s.origin2, &origin), 0, 0.001f);
+    FOR_LOOP(i, 8) {
+        movement_test_tick(unit);
+        if (Vector2_distance(&unit->s.origin2, &origin) > 0.001f) break;
+    }
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
     T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
     T_FEQ(unit->s.origin.y, unit->s.origin2.y, 0.001f);
@@ -1359,8 +6577,15 @@ TEST(wc3_movement, turn_lag_does_not_step_away_from_route_heading) {
     unit->s.angle = 0.0f;
     order_move(unit, Waypoint_add(&dest));
     before = Vector2_distance(&unit->s.origin2, &dest);
-    unit->currentmove->think(unit);
-    after = Vector2_distance(&unit->s.origin2, &dest);
+    /* The verified propagation window may stop the first turning ticks.
+     * No stopped tick may drift away; the first admitted step must progress. */
+    after = before;
+    FOR_LOOP(frame, 16) {
+        movement_test_tick(unit);
+        after = Vector2_distance(&unit->s.origin2, &dest);
+        T_ASSERT(after <= before);
+        if (after < before) break;
+    }
 
     T_ASSERT(after < before);
     T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
@@ -1381,10 +6606,17 @@ TEST(wc3_movement, turn_lag_facing_must_agree_with_resolved_route_heading) {
     unit->unitinfo.MoveSpeed = 190.0f;
     unit->s.angle = 0.0f;
     order_move(unit, Waypoint_add(&dest));
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     T_ASSERT(Vector2_dot(&(vec2_t){cosf(unit->s.angle), sinf(unit->s.angle)},
                          &(vec2_t){cosf(unit->movement.heading), sinf(unit->movement.heading)}) < 0.0f);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_FEQ(unit->s.origin2.x, 320.0f, 0.001f);
+    FOR_LOOP(frame, 16) {
+        movement_test_tick(unit);
+        T_ASSERT(unit->s.origin2.x <= 320.0f);
+        if (unit->s.origin2.x < 320.0f) break;
+    }
     T_ASSERT(unit->s.origin2.x < 320.0f);
     T_FEQ(unit->s.origin.x, unit->s.origin2.x, 0.001f);
 }
@@ -1403,7 +6635,7 @@ TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     edge->collision = interior->collision = 0.0f;
 
     /* Seven blocked rows/columns model a dense forest around the clicked
@@ -1462,7 +6694,7 @@ TEST(wc3_movement, lumber_tree_dying_during_approach_retargets_immediately) {
 TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 500.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     tree->pain = test_tree_pain; tree->die = test_tree_die;
     tree_pained = 0; tree_died = false;
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
@@ -1493,7 +6725,7 @@ TEST(wc3_movement, lumber_final_chop_clamps_to_capacity) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
     HARVEST_LUMBER_CAPACITY = 25.0f;
@@ -1522,7 +6754,7 @@ TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     tree->invulnerable = true;
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
@@ -1543,7 +6775,7 @@ TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
     HARVEST_RANGE = 64.0f;
@@ -1568,7 +6800,7 @@ TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_lumber = 3;
     worker->s.renderfx |= RF_HAS_LUMBER;
     HARVEST_RANGE = 64.0f;
@@ -1622,7 +6854,7 @@ TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
     HARVEST_RANGE = 64.0f;
@@ -1781,7 +7013,7 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -1830,7 +7062,7 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     worker->unitinfo.MoveSpeed = 190.0f;
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -1897,7 +7129,7 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     worker->s.angle = 0.0f; /* stale facing points east, away from hall */
     worker->harvested_gold = 10;
     worker->s.renderfx |= RF_HAS_GOLD;
-    worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     hall->collision = 64.0f;
     hall->s.model = 1;
     hall->s.player = worker->s.player;
@@ -2176,8 +7408,8 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
     gi.unicast = movement_noop_unicast;
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     attacker->stand = unit_stand;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_WALL;
     unit_stand(attacker);
     gate = make_smart_destructable(256.0f, 64.0f, &gate_data, TARG_WALL);
     G_SelectEntity(client, attacker);
@@ -2211,9 +7443,9 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
         .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
     attacker->collision = 16.0f;
     attacker->unitinfo.MoveSpeed = 80.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_WALL;
-    attacker->attack1.range = 64.0f;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_WALL;
+    S_AttackProfileWrite(attacker, 0)->range = 64.0f;
     gi.LinkEntity(attacker);
 
     T_ASSERT(S_OrderAttack(attacker, gate));
@@ -2234,7 +7466,12 @@ TEST(wc3_movement, attacking_unreachable_gate_keeps_gate_at_authored_position) {
     /* The attacker starts off the gate's row, so only steering reaches the
      * approach point in front of the wall (column 7 spans x 224..256). */
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &attacker->movement.flow_fallback_approach) < 16.0f);
-    T_ASSERT(attacker->s.origin2.x < 224.0f - attacker->collision);
+    /* Complete original16ee80 admits x=210.5/223.5 at radius16 beside this
+     * wall: class1 covers columns5/6, not a continuous collision circle. */
+    T_ASSERT(attacker->s.origin2.x < 224.0f);
+    T_ASSERT(G_MovePathPointIsPathable(&(pathAccelParams_t){
+        .from = &attacker->s.origin2, .radius = attacker->collision,
+        .blocked_flags = CM_PATHING_UNWALKABLE }));
     T_FEQ(attacker->movement.flow_fallback_approach.y, authored_gate_position.y, 16.0f);
     T_FEQ(gate->s.origin2.x, authored_gate_position.x, 0.01f);
     T_FEQ(gate->s.origin2.y, authored_gate_position.y, 0.01f);
@@ -2300,8 +7537,8 @@ TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     unit->stand = unit_stand;
     unit_stand(unit);
-    unit->attack1.type = ATK_NORMAL;
-    unit->attack1.targetsAllowed = 256u; /* debris */
+    S_AttackProfileWrite(unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(unit, 0)->targetsAllowed = 256u; /* debris */
     debris = make_smart_destructable(256.0f, 64.0f, &debris_data, TARG_DEBRIS);
     G_SelectEntity(client, unit);
     snprintf(debris_number, sizeof(debris_number), "%u", (unsigned)debris->s.number);
@@ -2343,7 +7580,7 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
     setup_test_world();
     edict_t *worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     worker->movetype = MOVETYPE_STEP; worker->stand = unit_stand; worker->die = unit_die;
-    worker->collision = 0.0f; worker->attack1.damagePoint = 0.01f;
+    worker->collision = 0.0f; S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     edict_t *tree1 = make_harvest_tree(20.0f, 0.0f, 10.0f);
     tree1->s.model = G_RegisterModel("Doodads\\Terrain\\LordaeronTree\\LordaeronTree0.mdx");
     edict_t *tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
@@ -2398,7 +7635,7 @@ TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 1.0f);
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
-    worker->attack1.damagePoint = 0.01f;
+    S_AttackProfileWrite(worker, 0)->damagePoint = 0.01f;
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
@@ -2450,7 +7687,7 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
     old_tree->health.value = 0.0f;
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = old_tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, old_tree);
     HARVEST_SEARCH_RANGE = 1000.0f;
 
     harvest_walkback(worker);
@@ -2722,7 +7959,7 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
     gi.LinkEntity(worker); gi.LinkEntity(tree); gi.LinkEntity(hall);
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
 
     harvest_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
@@ -2774,7 +8011,7 @@ TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
 
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
     harvest_walkback(worker);
 
     T_ASSERT(worker->goalentity == mill);
@@ -2823,7 +8060,7 @@ TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
 
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->secondarygoal = tree;
+    S_SetMoveGoal(worker, &worker->secondarygoal, tree);
     harvest_walkback(worker);
 
     FOR_LOOP(i, 80) {
@@ -3128,7 +8365,7 @@ TEST(wc3_movement, gold_pickup_replaces_lumber_carry_state) {
     HARVEST_GOLD_CAPACITY = 10.0f;
     worker->harvested_lumber = 5;
     worker->s.renderfx |= RF_HAS_LUMBER;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
 
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
@@ -3158,7 +8395,7 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = mine; worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, mine); S_SetMoveGoal(worker, &worker->secondarygoal, mine);
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
@@ -3175,6 +8412,153 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     T_EQ(mine->resources, 90);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+/* Drive the registered public JASS producer, not just the scalar helper.
+ * The admitted poses are native layout-entry inputs; moving velocity with a
+ * zero elapsed interval exercises stopping without inventing earlier history. */
+TEST(wc3_movement, group_point_request_twelve_boundary_matches_retail_layouts) {
+    FOR_LOOP(c,sizeof(retail_formation_boundary_111)/sizeof(*retail_formation_boundary_111)) {
+        typeof(*retail_formation_boundary_111) const *fixture=retail_formation_boundary_111+c;
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        currentplayer=&game.clients[0].ps;
+        char script[1800];
+        snprintf(script,sizeof(script),
+            "globals\ngroup boundary=null\nunit array members\nendglobals\n"
+            "function issueBoundary takes nothing returns nothing\n"
+            "call BJassAssert(GroupPointOrder(boundary,\"move\",%.9g,%.9g),\"boundary accepted\")\nendfunction\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nset boundary=CreateGroup()\n"
+            "loop\nexitwhen i==%u\nset members[i]=CreateUnit(Player(0),'hfoo',128+I2R(i)*64,128,0)\n"
+            "call GroupAddUnit(boundary,members[i])\nset i=i+1\nendloop\nendfunction\n",
+            wc3_float(fixture->goal[0]),wc3_float(fixture->goal[1]),fixture->count);
+        T_ASSERT(run_test_jass(script));
+        ggroup_t *collection=level.groups[0];T_EQ(collection->num_units,fixture->count);
+        edict_t *units[25],*old_goals[25];uint32_t n=MIN(fixture->count,12);
+        level.pathing_clock=(wc3Clock_t){.time=.5f,.span=8};
+        FOR_LOOP(i,fixture->count) {
+            edict_t *unit=units[i]=collection->units[i];
+            unit->collision=31;unit->stand=unit_stand;unit->movetype=MOVETYPE_STEP;
+            S_SetMoveFormationRank(unit,i%4);
+            T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){1792,128}));
+            old_goals[i]=unit->goalentity;
+            if(i<n) {
+                unit->movement.fine_pose=(vec2_t){wc3_float(fixture->rows[i][0]),wc3_float(fixture->rows[i][1])};
+                unit->s.origin2=(vec2_t){wc3_mul(unit->movement.fine_pose.x,32),wc3_mul(unit->movement.fine_pose.y,32)};
+                unit->movement.pose_world=unit->s.origin2;unit->movement.pose_valid=true;
+            }
+            unit->movement.velocity=(vec2_t){64,0};unit->movement.clock_valid=true;
+            unit->movement.pose_clock=level.pathing_clock;gi.LinkEntity(unit);
+        }
+        jass_callbyname(level.vm,"issueBoundary",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        moveGroup_t *group=move_find_group(units[0]->movement.group_id);
+        T_NOT_NULL(group);if(!group)continue;T_EQ(group->count,n);
+        FOR_LOOP(i,n) {
+            T_EQ(group->members[i].unit,units[i]);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x),fixture->goal[0]);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y),fixture->goal[1]);
+            T_EQ(units[i]->movement.velocity.x,0);
+        }
+        for(uint32_t i=n;i<fixture->count;i++) {
+            T_NE(units[i]->movement.group_id,0);
+            moveGroup_t const *retained=move_unit_group(units[i]);
+            T_ASSERT(!retained->individual);T_EQ(retained->count,1);
+            T_NE(retained->id,group->id);T_EQ(retained->members[0].unit,units[i]);
+            T_EQ(units[i]->goalentity,old_goals[i]);T_EQ(units[i]->movement.velocity.x,64);
+            T_ASSERT(units[i]->movement.clock_valid);
+        }
+        T_ASSERT(move_group_route(group));
+        T_EQ(wc3_float_bits(group->heading),fixture->heading);
+        FOR_LOOP(i,n) {
+            T_EQ(wc3_float_bits(group->members[i].offset.x),fixture->rows[i][3]);
+            T_EQ(wc3_float_bits(group->members[i].offset.y),fixture->rows[i][4]);
+        }
+        G_FreeJassGroup(collection);currentplayer=NULL;
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Native23acd0 copies point words into its request and stack context before
+ * admission. A moving producer's point storage may change during admission;
+ * every retained member must still receive the same entry-time destination. */
+TEST(wc3_movement, group_point_request_owns_destination_during_moving_admission) {
+    static uint32_t const sizes[]={1,11,12};
+    static cstring_t const orders[]={"move","patrol"};
+    FOR_LOOP(o,sizeof(orders)/sizeof(*orders)) FOR_LOOP(c,sizeof(sizes)/sizeof(*sizes)) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *units[12];
+        groupPointOrder_t request={.count=sizes[c],.order=orders[o],.order_id=G_OrderId(orders[o])};
+        FOR_LOOP(i,request.count) {
+            units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128+i*128);
+            units[i]->collision=0;units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;
+            unit_stand(units[i]);
+            request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+        }
+        level.pathing_clock=(wc3Clock_t){.time=.5f,.span=8};
+        units[0]->movement.velocity=(vec2_t){64,0};
+        units[0]->movement.pose_clock=(wc3Clock_t){.time=0,.span=8};
+        units[0]->movement.clock_valid=true;
+        vec2_t expected=units[0]->s.origin2;
+        request.point=&units[0]->s.origin2;
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        if(!o)T_ASSERT(units[0]->s.origin2.x>expected.x);
+        FOR_LOOP(i,request.count) {
+            if(o && !i) {
+                T_NULL(units[i]->goalentity);T_EQ(units[i]->current_order_id,0);
+                continue; /* Retail short Patrol completes at the producer's own position. */
+            }
+            T_NOT_NULL(units[i]->goalentity);
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.x),wc3_float_bits(expected.x));
+            T_EQ(wc3_float_bits(units[i]->goalentity->s.origin2.y),wc3_float_bits(expected.y));
+        }
+        if(!o) {
+            moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+            T_NOT_NULL(group);T_EQ(group->count,request.count);
+            T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(expected.x));
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, retry_members_follow_physical_ownership_without_scanning_scenery) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,1900) {edict_t *scenery=G_Spawn();scenery->svflags=SVF_STATIC_SCENERY;}
+    edict_t *units[3];vec2_t point={512,256};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    FOR_LOOP(i,3) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128.f+i*64.f,128.f);
+        units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;
+        units[i]->birth=unit_birth;units[i]->die=unit_die;units[i]->collision=0;
+        unit_stand(units[i]);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    units[1]->paused=true;
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),3u);
+    T_ASSERT(move_retry_member_visits<=BZ_WC3_GROUP_ORDER_UNITS);
+    G_FreeEdict(units[2]);
+    T_EQ(move_retry_members(units[0]),2u);
+    cstring_t file=Test_TempPath("wc3-retry-member-index.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),2u);
+    T_ASSERT(move_retry_member_visits<=BZ_WC3_GROUP_ORDER_UNITS);
+    units[1]->paused=false;order_stop(units[1]);
+    T_EQ(move_retry_members(units[0]),1u);
+    /* Old larger/mixed selection cohorts retain their independent ID owner. */
+    units[0]->movement.group_id=UINT32_MAX;
+    units[1]->movement.group_id=UINT32_MAX;
+    move_retry_member_visits=0;
+    T_EQ(move_retry_members(units[0]),2u);
+    T_EQ(move_retry_member_visits,globals.num_edicts);
+    remove(file);reset_entities();setup_test_world();
 }
 
 /* Return-to-building range must use the authored footprint, not only the
@@ -3211,7 +8595,7 @@ TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
 
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     harvestgold_minegold(worker);
     harvestgold_walkback(worker);
 
@@ -3246,7 +8630,7 @@ TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall); gi.LinkEntity(mill);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     harvestgold_minegold(worker); /* registers worker in mine */
 
     harvestgold_walkback(worker);
@@ -3316,6 +8700,122 @@ TEST(wc3_movement, waypoint_add_sets_origin) {
     T_FEQ(wp->s.origin.y, 256.0f, 0.01f);
 }
 
+/* Independent old collector: compare all eligible identities, including
+ * unreachable cycles, rather than only checking the next allocated slot. */
+static void waypoint_test_reclamation(void) {
+    entitySet_t retained={0},expected={0};
+    FILTER_EDICTS(unit,unit->inuse && !(unit->svflags&SVF_MOVE_WAYPOINT)) {
+        waypoint_retain(&retained,unit->goalentity);
+        waypoint_retain(&retained,unit->secondarygoal);
+        waypoint_retain(&retained,unit->movement.attackmove_waypoint);
+        waypoint_retain(&retained,unit->movement.patrol_a);
+        waypoint_retain(&retained,unit->movement.patrol_b);
+        waypoint_retain(&retained,unit->movement.patrol_target);
+        waypoint_retain(&retained,unit->movement.waygate_goal);
+        waypoint_retain(&retained,unit->movement.cargo_unload_goal);
+        waypoint_retain(&retained,unit->movement.flow_fallback_goal);
+        if(unit->movement.route_resume_valid)waypoint_retain(&retained,unit->movement.route_resume_goal);
+        if(unit->ancient_root)waypoint_retain(&retained,unit->ancient_root->approach_goal);
+    }
+    FILTER_EDICTS(point,point->inuse && (point->svflags&SVF_MOVE_WAYPOINT)) {
+        uint32_t i=point-g_edicts;
+        if(!(retained.bits[i/64]&(UINT64_C(1)<<(i%64))))entity_set_put(&expected,i,true);
+    }
+    waypoint_collect_available();
+    T_EQ(memcmp(&expected,&waypoint_available,sizeof(expected)),0);
+}
+
+TEST(wc3_movement, waypoint_root_changes_preserve_shared_chains_and_cycles) {
+    reset_entities();setup_test_world();G_InitWaypoints();
+    edict_t *unit=G_Spawn(),*other=G_Spawn(),*points[4];
+    vec2_t position={0,0};
+    FOR_LOOP(i,4)points[i]=Waypoint_add(&position);
+    S_SetMoveGoal(points[0],&points[0]->secondarygoal,points[1]);
+    S_SetMoveGoal(points[1],&points[1]->secondarygoal,points[2]);
+    S_SetMoveGoal(points[2],&points[2]->secondarygoal,points[1]);
+    S_SetMoveGoal(unit,&unit->goalentity,points[0]);
+    S_SetMoveGoal(unit,&unit->movement.patrol_a,points[0]);
+    S_SetMoveGoal(other,&other->movement.cargo_unload_goal,points[1]);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(unit,&unit->goalentity,NULL);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(unit,&unit->movement.patrol_a,NULL);
+    waypoint_test_reclamation();
+    S_SetMoveGoal(other,&other->movement.cargo_unload_goal,NULL);
+    waypoint_test_reclamation(); /* The now-unrooted cycle is reclaimable. */
+    S_SetMoveGoal(unit,&unit->goalentity,other);
+    S_SetMoveGoal(other,&other->secondarygoal,points[3]);
+    waypoint_test_reclamation();
+    /* Sparse owner state and its release participate in the same barrier. */
+    unit->ancient_root=G_AllocAncientRoot();
+    S_SetMoveGoal(unit,&unit->ancient_root->approach_goal,points[0]);
+    waypoint_test_reclamation();
+    G_FreeAncientRoot(unit);waypoint_test_reclamation();
+    G_FreeEdict(other);waypoint_test_reclamation();
+    G_ResetWaypointCache();waypoint_test_reclamation();
+    reset_entities();
+}
+
+TEST(wc3_movement, waypoint_bulk_orders_reconcile_only_changed_owners) {
+    reset_entities();setup_test_world();G_InitWaypoints();
+    /* Unrelated scenery must be visited only by the initial index build. */
+    FOR_LOOP(i,4096)G_Spawn();
+    uint32_t initial=globals.num_edicts;
+    waypoint_owner_visits=0;
+    FOR_LOOP(i,1024) {
+        edict_t *unit=G_Spawn();vec2_t point={(float)i,0};
+        S_SetMoveGoal(unit,&unit->goalentity,Waypoint_add(&point));
+    }
+    waypoint_test_reclamation();
+    T_ASSERT(waypoint_owner_visits<=initial+3072);
+    uint32_t visits=waypoint_owner_visits;
+    waypoint_test_reclamation();T_EQ(waypoint_owner_visits,visits);
+    reset_entities();
+}
+
+/* New requests must never retarget an earlier live point head when storage wraps. */
+TEST(wc3_movement, public_group_points_survive_waypoint_capacity_and_restore) {
+    enum { COUNT=MAX_WAYPOINTS+48 };
+    edict_t *units[COUNT]; vec2_t goals[COUNT];
+    reset_entities(); setup_test_world(); level.waypoints=(typeof(level.waypoints)){0};
+    FOR_LOOP(i,COUNT) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128+(i%8)*64,128+(i/8)*16);
+        units[i]->movetype=MOVETYPE_STEP;units[i]->stand=unit_stand;units[i]->collision=0;
+        unit_stand(units[i]);
+    }
+    for(unsigned first=0;first<COUNT;first+=12) {
+        vec2_t goal={384+(first%8)*16,512+(first/12)*8};
+        groupPointOrder_t request={.count=MIN(12,COUNT-first),.order_id=G_OrderId("move"),
+            .order="move",.point=&goal};
+        FOR_LOOP(i,request.count) {
+            request.units[i]=(typeof(request.units[0])){units[first+i],units[first+i]->spawn_time};
+            goals[first+i]=goal;
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        G_RunEvents();
+    }
+    FOR_LOOP(i,COUNT) {
+        T_EQ(units[i]->current_order_id,G_OrderId("move"));
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(units[i]->goalentity->s.origin2.x,goals[i].x);
+        T_EQ(units[i]->goalentity->s.origin2.y,goals[i].y);
+    }
+    cstring_t file=Test_TempPath("wc3-waypoint-capacity.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    FOR_LOOP(i,MAX_WAYPOINTS*2)Waypoint_add(&(vec2_t){8,16});
+    FOR_LOOP(i,COUNT) {
+        T_EQ(units[i]->goalentity->s.origin2.x,goals[i].x);
+        T_EQ(units[i]->goalentity->s.origin2.y,goals[i].y);
+        unit_issueimmediateorder(units[i],"stop");
+        G_RunEvents();
+    }
+    FOR_LOOP(i,MAX_WAYPOINTS)Waypoint_add(&(vec2_t){16,8});
+    uint32_t count=globals.num_edicts;
+    FOR_LOOP(i,MAX_WAYPOINTS*4)Waypoint_add(&(vec2_t){16,8});
+    T_EQ(globals.num_edicts,count);
+    remove(file); reset_entities(); setup_test_world();
+}
+
 /* -----------------------------------------------------------------------
  * unit_movedistance tests
  * --------------------------------------------------------------------- */
@@ -3342,21 +8842,21 @@ TEST(wc3_movement, unit_movedistance_uses_scripted_move_speed) {
 TEST(wc3_movement, distance_to_goal_along_x_axis) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *wp   = alloc_test_unit(0, 100.0f, 0.0f);
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 100.0f, 0.01f);
 }
 
 TEST(wc3_movement, distance_to_goal_diagonal) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 50.0f, 0.1f);
 }
 
 TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
     edict_t *unit = make_moving_unit(10.0f, 10.0f);
     edict_t *wp   = alloc_test_unit(0, 10.0f, 10.0f);
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
     T_FEQ(M_DistanceToGoal(unit), 0.0f, 0.01f);
 }
 
@@ -3535,7 +9035,7 @@ TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
     T_FEQ(unit->s.origin.z, 364.0f, 0.01f);
 }
 
-TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
+TEST(wc3_movement, float_unit_uses_higher_walkable_deck) {
     static UnitData_t const float_data = { .moveTypeName = "float" };
     static DestructableData_t const bridge_data = { .walkable = true };
     struct { uint16_t width, height; color32_t map[4]; } bridge_path = { .width = 2, .height = 2 };
@@ -3544,6 +9044,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
 
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
+    bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
     if (!bridge->destructable) bridge->destructable = G_AllocDestructable();
     assert(bridge->destructable);
@@ -3551,9 +9052,127 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     bridge->pathtex = (pathTex_t *)&bridge_path;
     bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
+    T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
     M_CheckGround(unit);
 
-    T_FEQ(unit->s.origin.z, 32.0f, 0.01f);
+    /* MAP-02.2:66d780 has no float exclusion from deck support. */
+    T_FEQ(unit->s.origin.z, 96.0f, 0.01f);
+}
+
+/* MAP-02.2:684480 writes deep-water state AFTER querying support. These
+ * observations exercise production refreshes, including the first entry and
+ * departure; querying the current cell before height selection loses the lag. */
+TEST(wc3_support, amphibious_refresh_retains_previous_deep_state) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    edict_t *unit = make_moving_unit(128, 128);
+    float const ground = CM_GetHeightAtPoint(128, 128);
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    memset(cells, 0, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+}
+
+TEST(wc3_support, deep_state_survives_save_before_second_refresh) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    cstring_t file = Test_TempPath("wc3-support-deep-refresh.bin");
+    edict_t *unit = make_moving_unit(128, 128);
+    uint32_t number = unit->s.number;
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    float const ground = CM_GetHeightAtPoint(128, 128);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    T_ASSERT(WriteGame(file));
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    T_ASSERT(ReadGame(file));
+    unit = g_edicts + number;
+    /* Metadata rows are rebuilt by load; this synthetic type has no rawcode. */
+    unit->data.UnitData = &data;
+    T_FEQ(unit->s.origin.z, ground, 0);
+    G_RunEntity(unit);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    M_CheckGround(unit);
+    T_FEQ(unit->s.origin.z, 32, 0);
+    remove(file);
+}
+
+TEST(wc3_support, axis_commit_preserves_first_height_during_idle_physics) {
+    static UnitData_t const data = { .moveTypeName = "amph" };
+    uint8_t cells[64 * 64];
+    edict_t *unit = make_moving_unit(128, 128);
+    unit->data.UnitData = &data;
+    set_uniform_test_water_height(32);
+    memset(cells, CM_PATHING_UNWALKABLE, sizeof(cells));
+    CM_SetupTestPathmap(64, 64, cells);
+    float const ground = CM_GetHeightAtPoint(160, 128);
+    S_SetUnitAxisPosition(unit, 0, 160);
+    T_FEQ(unit->s.origin.z, ground, 0);
+    FOR_LOOP(i, 3) {
+        level.time += FRAMETIME;
+        G_RunEntity(unit);
+        T_FEQ(unit->s.origin.z, ground, 0);
+    }
+    /* The same-position explicit writer forces another support query. */
+    S_SetUnitAxisPosition(unit, 0, 160);
+    T_FEQ(unit->s.origin.z, 32, 0);
+}
+
+TEST(wc3_support, native_ground_matrix_and_all_terrain_bytes) {
+    static DestructableData_t const deck_data = { .walkable = true };
+    struct { uint16_t width, height; color32_t map[4]; } texture = { .width = 2, .height = 2 };
+    uint8_t cells[64 * 64];
+    FOR_LOOP(c, sizeof(retail_ground_support) / sizeof(*retail_ground_support)) {
+        edict_t *unit = make_moving_unit(128, 128);
+        UnitData_t data = { .moveTypeName = retail_ground_support[c].type };
+        war3mapVertex_t *vertices = world.map->vertices;
+        FOR_LOOP(i, world.map->width * world.map->height) {
+            vertices[i].accurate_height = 0x2000 - 192 * 4;
+            vertices[i].level = 2;
+        }
+        unit->data.UnitData = &data;
+        unit->unitinfo.FlyHeight = retail_ground_support[c].fly;
+        set_uniform_test_water_height(300);
+        if (retail_ground_support[c].deck) {
+            edict_t *deck = G_Spawn();
+            deck->class_id = MAKEFOURCC('L', 'T', '0', '5');
+            deck->data.DestructableData = &deck_data;
+            deck->destructable = G_AllocDestructable();
+            deck->destructable->placement_solid = true;
+            deck->pathtex = (pathTex_t *)&texture;
+            deck->s.origin = (vec3_t){128, 128, 84};
+            G_RegisterGroundSurface(deck);
+            T_ASSERT(deck->s.flags & EF_GROUND_SURFACE);
+        }
+        FOR_LOOP(byte, 256) {
+            /* Produce the prior flag through an actual refresh, independently
+             * of the new cell's byte. The next getter must consume that state. */
+            memset(cells, retail_ground_support[c].prior_deep ? 2 : 0x40, sizeof(cells));
+            CM_SetupTestPathmap(64, 64, cells);
+            M_CheckGround(unit);
+            memset(cells, byte, sizeof(cells));
+            CM_SetupTestPathmap(64, 64, cells);
+            M_CheckGround(unit);
+            T_EQ(wc3_float_bits(unit->s.origin.z), retail_ground_support[c].z);
+            T_EQ(!!(unit->movement.support_flags & WC3_SUPPORT_IN_DEEP_WATER), retail_support_deep[byte]);
+        }
+        /* The row on the stack must not survive into the next save or reset. */
+        unit->data.UnitData = NULL;
+    }
 }
 
 TEST(wc3_movement, tileset_water_slk_height_places_the_water_surface) {
@@ -3617,8 +9236,9 @@ TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
     T_NOT_NULL(unit->currentmove);
     T_NOT_NULL(unit->currentmove->think);
 
+    movement_test_tick(unit);
     float dist_before = M_DistanceToGoal(unit);
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
     float dist_after = M_DistanceToGoal(unit);
 
     T_ASSERT(dist_after < dist_before);
@@ -3635,7 +9255,7 @@ TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
     for (int i = 0; i < 10; i++) {
         if (!unit->currentmove || !unit->currentmove->think) break;
         if (strcmp(unit->currentmove->animation, "walk") != 0) break;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");
@@ -3646,16 +9266,16 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
     vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
+    movement_test_tick(unit);
     float x0 = unit->s.origin2.x;
-    unit->currentmove->think(unit);
+    movement_test_tick(unit);
 
     /* Unit must have moved in the X direction. */
     T_ASSERT(unit->s.origin2.x > x0);
 }
 
-/* Route generation must expand obstacles by the mover radius, matching the
- * move-time collision test.  The point route hugs this wall too closely; a
- * Peasant-sized route has room to detour above it and reach the destination. */
+/* A radius16 mover is retail class1: a 2x2 footprint. Verify its actual covered
+ * cells throughout the detour, independently of the router's point predicate. */
 TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
@@ -3672,9 +9292,11 @@ TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     order_move(unit, Waypoint_add(&dest));
 
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         CM_ProcessPathJobs(4096);
-        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+        int cx = (int)floorf(unit->s.origin.x / 32), cy = (int)floorf(unit->s.origin.y / 32);
+        for (int y = cy - 1; y <= cy; y++) for (int x = cx - 1; x <= cx; x++)
+            T_ASSERT(x >= 0 && y >= 0 && x < CELLS && y < CELLS && !pathmap[y * CELLS + x]);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");
@@ -3701,9 +9323,13 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     order_move(unit, Waypoint_add(&dest));
 
     for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         CM_ProcessPathJobs(4096);
-        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+        /* This mover covers class1's four cells, including its newly closer
+         * reachable boundary. Check the fixture independently of routing. */
+        int cx = (int)floorf(unit->s.origin.x / 32), cy = (int)floorf(unit->s.origin.y / 32);
+        for (int y = cy - 1; y <= cy; y++) for (int x = cx - 1; x <= cx; x++)
+            T_ASSERT(x >= 0 && y >= 0 && x < CELLS && y < CELLS && !pathmap[y * CELLS + x]);
     }
 
     T_STREQ(unit->currentmove->animation, "stand");
@@ -3719,7 +9345,7 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     vec2_t const origin = unit->s.origin2;
     float const angle = unit->s.angle;
     unit->aiflags |= AI_IMMOBILE;
-    unit->goalentity = wp;
+    S_SetMoveGoal(unit, &unit->goalentity, wp);
 
     unit_changeangle(unit);
     unit_moveindirection(unit);
@@ -3760,18 +9386,18 @@ TEST(wc3_movement, propwin_turning_keeps_stand_animation_advancing) {
     unit->data.UnitData = &data;
     unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
     unit->unitinfo.MoveSpeed = 100.0f;
-    unit->goalentity = alloc_test_unit(0, target.x, target.y);
+    S_SetMoveGoal(unit, &unit->goalentity, alloc_test_unit(0, target.x, target.y));
     unit->s.angle = 0.0f;
     unit_issueorder(unit, "move", &target);
     unit->animation = &stand;
-    strlcpy(unit->animation_request, "stand", sizeof(unit->animation_request));
+    G_StoreUnitAnimationRequest(unit, "stand");
     unit->s.frame = stand.interval[0];
 
     monster_think(unit);
-    T_STREQ(unit->animation_request, "stand");
+    T_STREQ(G_UnitAnimationRequest(unit), "stand");
     uint32_t const stand_frame = unit->s.frame;
     monster_think(unit);
-    T_STREQ(unit->animation_request, "stand");
+    T_STREQ(G_UnitAnimationRequest(unit), "stand");
     T_ASSERT(unit->s.frame > stand_frame);
 }
 
@@ -3786,7 +9412,7 @@ TEST(wc3_movement, propwin_large_window_allows_translation_while_turning) {
     unit->data.UnitData = &data;
     unit->unitinfo.PropWindow = DEG2RAD(data.propWin);
     unit->unitinfo.MoveSpeed = 100.0f;
-    unit->s.angle = 0.0f;
+    unit->s.angle = 0.1f; /* strictly inside180 degrees before turning */
 
     unit_changeangle_towards_point(unit, &target);
     unit_moveindirection(unit);
@@ -3804,6 +9430,7 @@ TEST(wc3_movement, propwin_uses_mutable_runtime_unit_value) {
     data.propWin = 180.0f;
     unit->data.UnitData = &data;
     unit->unitinfo.PropWindow = DEG2RAD(10.0f);
+    unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET; /* explicit native override, including zero */
     unit->unitinfo.MoveSpeed = 100.0f;
     unit->s.angle = 0.0f;
 
@@ -3822,6 +9449,7 @@ TEST(wc3_movement, zero_propwin_blocks_translation) {
 
     unit->data.UnitData = &data;
     unit->unitinfo.PropWindow = 0.0f;
+    unit->unitinfo.move_flags |= BZ_UNIT_WINDOW_SET; /* explicit native override, including zero */
     unit->unitinfo.MoveSpeed = 100.0f;
     unit->s.angle = 0.0f;
     unit_changeangle_towards_point(unit, &target);
@@ -3840,7 +9468,7 @@ TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
-TEST(wc3_movement, unit_does_not_overshoot_goal) {
+TEST(wc3_movement, unit_stops_inside_goal_arrival_range) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
@@ -3849,19 +9477,132 @@ TEST(wc3_movement, unit_does_not_overshoot_goal) {
     for (int i = 0; i < 20; i++) {
         if (!unit->currentmove || !unit->currentmove->think) break;
         if (strcmp(unit->currentmove->animation, "walk") != 0) break;
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
     }
 
-    /* After reaching the goal the unit should be exactly at the waypoint,
-     * which keeps scripted cutscene units from visibly stopping short. */
+    /* Retail point Move stops within .49 fine cells without snapping. */
     float dist = M_DistanceToGoal(unit);
-    T_FEQ(dist, 0.0f, 0.01f);
+    T_ASSERT(dist <= .49f * CM_PathCellWorldSize() + .001f);
+    T_EQ(unit->movement.velocity.x, 0);
+    T_EQ(unit->movement.velocity.y, 0);
+    T_EQ(unit->current_order_id, 0);
+}
+
+/* Frozen complete original16a5b0 engine-order-rank-witness: two front-rank
+ * members and one rear rank. The old preserved-source-offset heuristic puts
+ * all three at the same X and cannot reproduce this row assignment. */
+TEST(wc3_movement, group_move_uses_retail_ranked_formation_destinations) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[128 * 128] = {0};
+    CM_SetupTestPathmap(128, 128, cells);
+    CM_SetupTestWorldBounds(&(box2_t){ .min = {-2048, -2048}, .max = {2048, 2048} });
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false; clent->client->ps.number = 0;
+    edict_t *units[3];
+    UnitData_t rows[3];
+    FOR_LOOP(i, 3) {
+        units[i] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -640, (int)i * 200 - 200);
+        rows[i] = *units[i]->data.UnitData; rows[i].formationRank = i == 2 ? 1 : 0;
+        units[i]->data.UnitData = rows + i;
+        S_SetMoveFormationRank(units[i], rows[i].formationRank);
+        units[i]->collision = 16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags |= SVF_MONSTER;
+        units[i]->stand = unit_stand; units[i]->movetype = MOVETYPE_STEP;
+        unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t const destination = {1000, 0};
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.pathing_clock=(wc3Clock_t){0,0,8}; level.time=level.pathing_msec=0; level.pathing_phase=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,3) T_ASSERT(unit_issueorder(units[i],"move",&(vec2_t){-1000,0}));
+    /* Pending selected ground requests retain the common point even when
+     * current orders have independent owners. Formation belongs to activation. */
+    clent->client->menu.order_queued=true;
+    T_ASSERT(move_selectlocation(clent,&destination));
+    FOR_LOOP(i,3) {
+        T_EQ(units[i]->order_queue.count,1);
+        unitOrder_t const *queued=units[i]->order_queue.entries+units[i]->order_queue.head;
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(destination.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(destination.y));
+        T_NE(queued->owner_context,0);
+        T_EQ(queued->owner_context,units[0]->order_queue.entries[units[0]->order_queue.head].owner_context);
+        T_EQ(units[i]->movement.previous_request_id,queued->owner_context);
+    }
+    clent->client->menu.order_queued=false;
+    T_ASSERT(move_selectlocation(clent, &destination));
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=move_unit_group(units[0]);
+    T_NOT_NULL(group); if (!group) return;
+    T_EQ(group->count,3);
+    FOR_LOOP(i, 3) {
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(units[i]->order_queue.count,0);
+        T_EQ(group->members[i].unit,units[i]);
+        T_EQ(units[i]->goalentity->s.origin2.x, destination.x);
+        T_EQ(units[i]->goalentity->s.origin2.y, destination.y);
+    }
+    clent->client->menu.order_queued = true;
+    T_ASSERT(move_selectlocation(clent, &destination));
+    FOR_LOOP(i, 3) {
+        T_EQ(units[i]->order_queue.count, 1);
+        unitOrder_t const *queued = units[i]->order_queue.entries + units[i]->order_queue.head;
+        /* Current shared owners retain the same common-point admission. */
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(destination.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(destination.y));
+        T_EQ(queued->owner_context,units[0]->order_queue.entries[units[0]->order_queue.head].owner_context);
+        T_NE(queued->owner_context,0); T_NE(queued->owner_context,group->id);
+        T_EQ(queued->group_speed,0);
+        T_EQ(units[i]->goalentity->s.origin2.x,destination.x);
+    }
+    clent->client->menu.order_queued = false;
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+    }
+    FOR_LOOP(i, 3) T_ASSERT(units[i]->s.origin2.x > -640);
+    cstring_t file = Test_TempPath("openwarcraft3-ranked-formation-save.bin");
+    uint32_t expected[8][3][8];
+    T_ASSERT(WriteGame(file));
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+        FOR_LOOP(i, 3) {
+            expected[frame][i][0] = wc3_float_bits(units[i]->s.origin2.x);
+            expected[frame][i][1] = wc3_float_bits(units[i]->s.origin2.y);
+            expected[frame][i][2] = wc3_float_bits(units[i]->movement.velocity.x);
+            expected[frame][i][3] = wc3_float_bits(units[i]->movement.velocity.y);
+            expected[frame][i][4] = wc3_float_bits(group->members[i].world_destination.x);
+            expected[frame][i][5] = wc3_float_bits(group->members[i].world_destination.y);
+            expected[frame][i][6] = wc3_float_bits(group->members[i].offset.x);
+            expected[frame][i][7] = wc3_float_bits(group->members[i].offset.y);
+        }
+    }
+    T_ASSERT(ReadGame(file));
+    group=level.move_groups[0];
+    FOR_LOOP(frame, 8) {
+        level.time += FRAMETIME;
+        globals.RunFrame();
+        FOR_LOOP(i, 3) {
+            T_EQ(wc3_float_bits(units[i]->s.origin2.x), expected[frame][i][0]);
+            T_EQ(wc3_float_bits(units[i]->s.origin2.y), expected[frame][i][1]);
+            T_EQ(wc3_float_bits(units[i]->movement.velocity.x), expected[frame][i][2]);
+            T_EQ(wc3_float_bits(units[i]->movement.velocity.y), expected[frame][i][3]);
+            T_EQ(wc3_float_bits(group->members[i].world_destination.x),expected[frame][i][4]);
+            T_EQ(wc3_float_bits(group->members[i].world_destination.y),expected[frame][i][5]);
+            T_EQ(wc3_float_bits(group->members[i].offset.x),expected[frame][i][6]);
+            T_EQ(wc3_float_bits(group->members[i].offset.y),expected[frame][i][7]);
+        }
+    }
+    FOR_LOOP(i,3) {
+        T_EQ(units[i]->goalentity->s.origin2.x,destination.x);
+        T_EQ(units[i]->goalentity->s.origin2.y,destination.y);
+    }
+    remove(file); reset_entities();
 }
 
 TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
@@ -3870,7 +9611,7 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
 
     FOR_LOOP(i, 3) {
         units[i]->collision = 16.0f;
-        units[i]->selected = 1 << clent->client->ps.number;
+        G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
         units[i]->stand = unit_stand;
         unit_stand(units[i]);
     }
@@ -3878,33 +9619,35 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     vec2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    T_NOT_NULL(a->goalentity);
-    T_NOT_NULL(b->goalentity);
-    T_NOT_NULL(c->goalentity);
-    T_NOT_NULL(a->goalentity->secondarygoal);
-    T_ASSERT(a->goalentity->secondarygoal == b->goalentity->secondarygoal);
-    T_ASSERT(a->goalentity->secondarygoal == c->goalentity->secondarygoal);
-    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
-    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
-    T_ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    moveGroup_t const *group=level.move_groups[0];
+    T_EQ(group->count,3);
+    FOR_LOOP(i,3) {
+        T_NOT_NULL(units[i]->goalentity);
+        T_EQ(units[i]->goalentity->s.origin2.x,dest.x);
+        T_EQ(units[i]->goalentity->s.origin2.y,dest.y);
+    }
+    FOR_LOOP(i,3) for (uint32_t j=i+1;j<3;j++)
+        T_ASSERT(Vector2_distance(&group->members[i].world_destination,&group->members[j].world_destination)>=32);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_movement, group_move_ignores_selected_buildings) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     edict_t *peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
 
     building->collision = 64.0f;
     building->aiflags |= AI_IMMOBILE;
-    building->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(building, 1 << clent->client->ps.number);
     building->stand = unit_stand;
     unit_stand(building);
 
     peasant->collision = 16.0f;
-    peasant->selected = 1 << clent->client->ps.number;
+    G_SetEntitySelectionMask(peasant, 1 << clent->client->ps.number);
     peasant->stand = unit_stand;
     unit_stand(peasant);
 
@@ -3918,9 +9661,9 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
 /* A mixed-speed group travels at its slowest member's speed so it stays
  * together instead of stringing out (WC3 group movement). */
 TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
-    reset_entities();
+    reset_entities(); setup_test_world();
     edict_t *clent = alloc_test_unit(0, 0.0f, 0.0f);
-    clent->client = &game.clients[0];
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
 
     edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
@@ -3929,7 +9672,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     edict_t *units[] = { fast, slow };
     FOR_LOOP(i, 2) {
         units[i]->collision = 16.0f;
-        units[i]->selected = 1 << clent->client->ps.number;
+        G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
         units[i]->stand = unit_stand;
         unit_stand(units[i]);
     }
@@ -3937,11 +9680,589 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     vec2_t dest = {400.0f, 0.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
-    /* Both units adopt the slowest member's speed for the group move... */
-    T_FEQ(fast->movement.group_speed, 100.0f, 0.01f);
-    T_FEQ(slow->movement.group_speed, 100.0f, 0.01f);
-    /* ...so the fast unit's per-frame travel is capped to the slow speed. */
-    T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (float)FRAMETIME, 0.01f);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    /* Member decisions keep their own maximum; the separate commit phase shares the cap. */
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.01f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&slow->movement.velocity)),100,0.01f);
+    T_EQ(fast->movement.group_speed,0); T_EQ(slow->movement.group_speed,0);
+}
+
+/* GROUP-03.2 lane D: being hit releases the entire physical group's cap,
+ * even while its members keep their explicit Move instead of retaliating. */
+TEST(wc3_movement, group_move_attack_notification_releases_shared_cap) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0);
+    clent->client=game.clients; clent->client->menu.order_queued=false;
+    edict_t *fast=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *slow=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,0);
+    edict_t *attacker=alloc_test_unit(MAKEFOURCC('h','p','e','a'),-128,0);
+    G_SetUnitPlayer(attacker,1);
+    fast->unitinfo.MoveSpeed=350; slow->unitinfo.MoveSpeed=150;
+    edict_t *units[]={fast,slow};
+    FOR_LOOP(i,2) {
+        units[i]->collision=16; units[i]->stand=unit_stand;
+        G_SetEntitySelectionMask(units[i],1<<clent->client->ps.number);
+        unit_stand(units[i]);
+    }
+    T_ASSERT(move_selectlocation(clent,&(vec2_t){800,0}));
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),150,.001f);
+    T_Damage(fast,attacker,1);
+    T_ASSERT(fast->attack_speed_cap.active);
+    T_EQ(fast->current_order_id,G_OrderId("move"));
+    vec2_t old[2]={fast->movement.velocity,slow->movement.velocity};
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=move_find_group(fast->movement.group_id);T_NOT_NULL(group);
+    T_EQ(group->cooldown,65); /* Exemption denies classification and seeds66. */
+    FOR_LOOP(i,2) {
+        moveGroupMember_t const *member=group->members+i;
+        wc3Velocity_t expected={.vel={old[i].x,old[i].y},.speed=i ? 150 : 350,
+            .heading=member->heading,.limit=i ? 150 : 350};
+        wc3_velocity_update_world(&expected);
+        T_EQ(wc3_float_bits(units[i]->movement.velocity.x),wc3_float_bits(expected.vel[0]));
+        T_EQ(wc3_float_bits(units[i]->movement.velocity.y),wc3_float_bits(expected.vel[1]));
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Delivered GROUP-03.2 laneD: the attacked member and both alerted peers
+ * receive the exemption while retaining the explicit movement order. */
+TEST(wc3_movement, group_move_alerts_unhit_peer_without_replacing_order) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *clent=alloc_test_unit(0,0,0);clent->client=game.clients;
+    clent->client->menu.order_queued=false;
+    edict_t *fast=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *slow=alloc_test_unit(MAKEFOURCC('h','p','e','a'),64,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    G_SetUnitPlayer(source,1);
+    edict_t *units[]={fast,slow};
+    FOR_LOOP(i,2) {
+        units[i]->collision=16;units[i]->stand=unit_stand;
+        units[i]->svflags|=SVF_MONSTER;units[i]->s.model=1;
+        units[i]->unitinfo.MoveSpeed=i ? 150 : 350;
+        G_SetEntitySelectionMask(units[i],1<<clent->client->ps.number);unit_stand(units[i]);
+        gi.LinkEntity(units[i]);G_PublishMoveSpatialObject(units[i]);
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_ASSERT(move_selectlocation(clent,&(vec2_t){800,0}));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    T_Damage(slow,source,1);
+    T_ASSERT(slow->attack_speed_cap.active);
+    T_ASSERT(fast->attack_speed_cap.active);
+    T_EQ(fast->current_order_id,G_OrderId("move"));
+    T_EQ(slow->current_order_id,G_OrderId("move"));
+    reset_entities();setup_test_world();
+}
+
+/* Fresh native help witness: admission moves the near-overlapping helpers;
+ * use their observed committed positions, not the requested input positions. */
+TEST(wc3_movement, combat_help_uses_spatial_order_authored_radius_and_saved_cooldown) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    float old=game.constants.callForHelp;game.constants.callForHelp=173;
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),800,800);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,800);
+    G_SetUnitPlayer(source,3);
+    vec2_t positions[]={{970,800},{944,752},{1008,752},{1040,816},{1040,880},{976,880},{912,880}};
+    edict_t *helpers[7];
+    FOR_LOOP(i,7) {
+        helpers[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),positions[i].x,positions[i].y);
+        G_SetUnitPlayer(helpers[i],1);helpers[i]->s.model=1;helpers[i]->collision=31;
+        helpers[i]->svflags|=SVF_MONSTER;S_AttackProfileWrite(helpers[i],0)->type=ATK_NORMAL;
+        G_PublishMoveSpatialObject(helpers[i]);
+        helpers[i]->current_order_id=G_OrderId("holdposition");
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    /* An unarmed victim still broadcasts; recipients own Attack eligibility. */
+    victim->data.UnitWeapons=NULL;
+    FOR_LOOP(i,2)S_AttackProfileWrite(victim,i)->type=ATK_NONE;
+    level.pathing_clock.time=.25f;T_Damage(victim,source,0);
+    T_ASSERT(victim->combat_help.active);T_ASSERT(!victim->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(3.25f));
+    unsigned order[]={1,6,5,0};
+    FOR_LOOP(i,7) {
+        bool accepted=i==0 || i==1 || i==5 || i==6;
+        T_EQ(helpers[i]->attack_speed_cap.active,accepted);
+        T_EQ(helpers[i]->current_order_id,G_OrderId("holdposition"));
+    }
+    FOR_LOOP(i,3)T_ASSERT(helpers[order[i]]->attack_speed_cap.sequence<helpers[order[i+1]]->attack_speed_cap.sequence);
+    T_ASSERT(helpers[0]->attack_speed_cap.sequence<victim->combat_help.sequence);
+    uint32_t serial=victim->combat_help.sequence,peer_serial=helpers[0]->attack_speed_cap.sequence;
+    level.pathing_clock.time=1;T_Damage(victim,source,0);
+    T_EQ(victim->combat_help.sequence,serial);T_EQ(helpers[0]->attack_speed_cap.sequence,peer_serial);
+    cstring_t file=Test_TempPath("wc3-combat-help152.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(victim->combat_help.active);T_EQ(victim->combat_help.sequence,serial);
+    T_EQ(wc3_float_bits(victim->combat_help.deadline.time),wc3_float_bits(3.25f));
+    level.scheduled_frame=true;level.pathing_clock.time=3.245f;
+    level.pathing_owner_sequence=level.timer_sequence+1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3.25f,0,300});
+    T_ASSERT(!victim->combat_help.active);
+    FOR_LOOP(i,7)T_ASSERT(!helpers[i]->attack_speed_cap.active);
+    level.scheduled_frame=false;level.timer_clock_valid=false;level.pathing_clock.time=3.25f;
+    T_Damage(victim,source,0);T_ASSERT(victim->combat_help.active);
+    T_ASSERT(helpers[0]->attack_speed_cap.active);
+    G_FreeEdict(victim);T_ASSERT(!victim->combat_help.active);
+    game.constants.callForHelp=old;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, combat_help_visits_columns_before_rows) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    float old=game.constants.callForHelp;game.constants.callForHelp=512;
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),800,800);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1800,800);G_SetUnitPlayer(source,3);
+    edict_t *lower_x=alloc_test_unit(MAKEFOURCC('h','f','o','o'),720,1040);
+    edict_t *lower_y=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1040,720);
+    edict_t *helpers[]={lower_x,lower_y};
+    FOR_LOOP(i,2) {
+        G_SetUnitPlayer(helpers[i],1);helpers[i]->s.model=1;helpers[i]->collision=31;
+        S_AttackProfileWrite(helpers[i],0)->type=ATK_NORMAL;G_PublishMoveSpatialObject(helpers[i]);
+    }
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[1].ps,ALLIANCE_HELP_REQUEST,true);
+    G_SetPlayerAlliance(&game.clients[1].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,true);
+    T_Damage(victim,source,0);
+    T_ASSERT(lower_x->attack_speed_cap.active);T_ASSERT(lower_y->attack_speed_cap.active);
+    T_ASSERT(lower_x->attack_speed_cap.sequence<lower_y->attack_speed_cap.sequence);
+    game.constants.callForHelp=old;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, combat_help_defaults_allow_own_units_and_can_be_revoked) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *helper=alloc_test_unit(MAKEFOURCC('h','f','o','o'),96,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,0);G_SetUnitPlayer(source,3);
+    helper->s.model=1;helper->collision=31;G_PublishMoveSpatialObject(helper);
+    T_Damage(victim,source,0);T_ASSERT(helper->attack_speed_cap.active);
+    S_ResetAbilityTimers();helper->attack_speed_cap.active=false;victim->attack_speed_cap.active=false;
+    victim->combat_help.active=false;
+    G_SetPlayerAlliance(&game.clients[0].ps,&game.clients[0].ps,ALLIANCE_HELP_RESPONSE,false);
+    T_Damage(victim,source,0);T_ASSERT(!helper->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, ally_combat_alert_uses_directional_help_permissions) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *helper=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *victim=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),256,0);
+    G_SetUnitPlayer(helper,1);G_SetUnitPlayer(source,3);
+    player_t *a=&game.clients[0].ps,*b=&game.clients[1].ps,*c=&game.clients[3].ps;
+    FOR_LOOP(i,8) {
+        G_SetPlayerAlliance(a,b,ALLIANCE_HELP_REQUEST,i&1);
+        G_SetPlayerAlliance(b,a,ALLIANCE_HELP_RESPONSE,i&2);
+        G_SetPlayerAlliance(b,c,ALLIANCE_PASSIVE,i&4);
+        /* Opposite permissions cannot replace either native directional gate. */
+        G_SetPlayerAlliance(b,a,ALLIANCE_HELP_REQUEST,true);
+        G_SetPlayerAlliance(a,b,ALLIANCE_HELP_RESPONSE,true);
+        S_ResetAbilityTimers();helper->attack_speed_cap.active=false;
+        S_UnitAllyCombatAlert(helper,victim,source);
+        T_EQ(helper->attack_speed_cap.active,(i&3)==3 && !(i&4));
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "retail_attack_exemption.h"
+TEST(wc3_movement, attack_speed_cap_rearm_matches_original_remaining_query) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    FOR_LOOP(i,sizeof(retail_attack_exemption)/sizeof(*retail_attack_exemption)) {
+        typeof(*retail_attack_exemption) const *row=retail_attack_exemption+i;
+        S_ResetAbilityTimers();level.timer_clock_valid=false;
+        level.pathing_clock=(wc3Clock_t){wc3_float(row->now),0,300};
+        unit->attack_speed_cap.active=row->active;
+        unit->attack_speed_cap.deadline=(wc3Clock_t){wc3_float(row->deadline),0,300};
+        unit->attack_speed_cap.sequence=17;level.timer_sequence=17;
+        S_RebuildAbilityTimers();
+        S_UnitCombatAlert(unit,source,0);
+        T_EQ(unit->attack_speed_cap.sequence,row->armed ? 18 : 17);
+        T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),row->armed ?
+            wc3_float_bits(wc3_add(wc3_float(row->now),3)) : row->deadline);
+        T_EQ(unit->attack_speed_cap.active,row->active || row->armed);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_guard_expiry_save_and_reuse) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    S_AttackProfileWrite(unit,0)->type=ATK_NORMAL;
+    S_UnitCombatAlert(unit,NULL,0);T_ASSERT(!unit->attack_speed_cap.active);
+    S_UnitCombatAlert(unit,source,2);T_ASSERT(!unit->attack_speed_cap.active);
+    unit->paused=true;S_UnitCombatAlert(unit,source,0);T_ASSERT(!unit->attack_speed_cap.active);unit->paused=false;
+    /* Zero amount still delivers the pre-transform notification; it does not
+     * publish positive damage or force a retaliation. */
+    T_Damage(unit,source,0);T_ASSERT(unit->attack_speed_cap.active);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(3));
+    uint32_t sequence=unit->attack_speed_cap.sequence;
+    cstring_t file=Test_TempPath("wc3-attack-speed-cap151.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
+    abilityTimerRequest_t request;T_ASSERT(S_NextAbilityPrimaryTimer(&request));
+    T_EQ(request.sequence,sequence);T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(3));
+    level.scheduled_frame=true;level.pathing_clock.time=2.995f;
+    level.pathing_owner_sequence=sequence-1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
+    T_ASSERT(unit->attack_speed_cap.active); /* Later equal-deadline request. */
+    level.pathing_owner_sequence=level.timer_sequence+1;
+    G_RunTimersBeforePathOwner(&(wc3Clock_t){3,0,300});
+    T_ASSERT(!unit->attack_speed_cap.active);T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
+    level.scheduled_frame=false;level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){299,0,300};S_UnitCombatAlert(unit,source,0);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(302));
+    S_RebaseAbilityPrimaryTimers(300);
+    T_EQ(unit->attack_speed_cap.deadline.epoch,1);
+    T_EQ(wc3_float_bits(unit->attack_speed_cap.deadline.time),wc3_float_bits(2));
+    uint32_t number=unit->s.number;
+    G_FreeEdict(unit);T_ASSERT(!S_NextAbilityPrimaryTimer(&request));
+    level.time+=1001;
+    edict_t *replacement=G_Spawn();T_EQ(replacement->s.number,number);
+    T_ASSERT(!replacement->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_regroup_matches_original_exemptions) {
+    FOR_LOOP(c,(sizeof(retail_attack_group_status)/sizeof(*retail_attack_group_status))) {
+        typeof(*retail_attack_group_status) const *row=retail_attack_group_status+c;
+        edict_t *a=make_moving_unit(0,0);
+        edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),8,0);
+        a->collision=b->collision=8;b->movetype=MOVETYPE_STEP;b->stand=unit_stand;
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        groupPointOrder_t order={.count=2,.units={{a,a->spawn_time},{b,b->spawn_time}},
+            .point=&(vec2_t){384,256},.order="move",.order_id=G_OrderId("move")};
+        T_ASSERT(G_IssueGroupPointOrder(&order));
+        moveGroup_t *group=move_find_group(a->movement.group_id);T_NOT_NULL(group);
+        if(!group)continue;
+        T_ASSERT(move_group_route(group));
+        free(group->route.group_points);group->route.group_points=malloc(3*sizeof(vec2_t));
+        group->route.group_points[0]=(vec2_t){12,8};group->route.group_points[1]=(vec2_t){10,8};
+        group->route.group_points[2]=(vec2_t){8,8};group->route.group_count=3;group->route.group_index=2;
+        group->flags=row->flags;group->age=22;group->completion_counter=0;group->cooldown=row->cooldown;
+        FOR_LOOP(i,2) {
+            group->members[i].destination=(vec2_t){row->near ? 0 : 100,0};
+            group->members[i].flags=i==0 && row->arrived ? 0x10000 : 0;
+            group->members[i].unit->attack_speed_cap.active=row->exempt==i+1;
+        }
+        move_group_regroup(group);
+        T_EQ(group->route.group_index,row->status ? 2 : 0);
+        T_EQ(group->completion_counter,row->status && row->arrived ? 1 : 0);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, attack_speed_cap_heap_orders_mass_arm_cancel_and_rebuild) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_sequence=UINT32_MAX-2047;
+    edict_t *source=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,0);
+    edict_t *units[4096];
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units))) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),0,0);
+        S_UnitCombatAlert(units[i],source,0);T_ASSERT(units[i]->attack_speed_cap.active);
+    }
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units)))if(!(i%3))S_UnitAbilityEvent(units[i],A_UNIT_REMOVING);
+    S_ResetAbilityTimers();S_RebuildAbilityTimers();
+    uint32_t previous=0,popped=0;abilityTimerRequest_t request;
+    while(S_NextAbilityPrimaryTimer(&request)) {
+        T_ASSERT(!popped || previous<request.sequence);previous=request.sequence;
+        T_EQ(wc3_float_bits(request.deadline.time),wc3_float_bits(3));
+        request.proc(NULL,A_PRIMARY_TIMER_FIRE,NULL);popped++;
+    }
+    T_EQ(popped,4096-1366);
+    FOR_LOOP(i,(sizeof(units)/sizeof(*units)))T_ASSERT(!units[i]->attack_speed_cap.active);
+    reset_entities();setup_test_world();
+}
+
+/* A selection's cap follows its active members, not the speed captured at
+ * submission. Retail PrepareMembers re-resolves ownership before each commit. */
+TEST(wc3_movement, group_move_refreshes_survivor_speed) {
+    FOR_LOOP(change, 6) {
+        reset_entities(); setup_test_world();
+        edict_t *clent = alloc_test_unit(0, 0, 0);
+        clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
+        edict_t *fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+        edict_t *slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+        edict_t *units[] = { fast, slow };
+        FOR_LOOP(i, 2) {
+            G_SetEntitySelectionMask(units[i], 1 << clent->client->ps.number);
+            units[i]->stand = unit_stand;
+            unit_stand(units[i]);
+        }
+        fast->unitinfo.MoveSpeed = 300; slow->unitinfo.MoveSpeed = 100;
+        T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+        S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+        T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),100,0.001f);
+        switch (change) {
+        case 0: T_ASSERT(unit_issueimmediateorder(slow, "stop")); break;
+        case 1: G_FreeEdict(slow); break;
+        case 2: slow->stand(slow); break;
+        case 3: T_ASSERT(unit_issueorder(slow, "move", &(vec2_t){800, 0})); break;
+        case 4: G_SetHealth(slow, 0); break;
+        case 5: slow->unitinfo.MoveSpeed = 200; break;
+        }
+        S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+        T_FEQ(sqrtf(Vector2_lengthsq(&fast->movement.velocity)),change==5 ? 200 : 300,0.001f);
+    }
+}
+
+TEST(wc3_movement, predicted_pose_cache_observes_all_inputs_and_clock_wrap) {
+    edict_t *unit=make_moving_unit(128,256);
+    unit->movement.fine_pose=(vec2_t){4,8};unit->movement.pose_world=unit->s.origin2;
+    unit->movement.pose_valid=unit->movement.clock_valid=true;
+    unit->movement.velocity=(vec2_t){270,180};
+    level.pathing_clock=(wc3Clock_t){.time=.03f,.span=300,.epoch=1};
+    unit->movement.pose_clock=(wc3Clock_t){.time=299.98f,.span=300,.epoch=0};
+    typeof(unit->movement) movement=unit->movement;
+    wc3Clock_t clock=level.pathing_clock;box2_t bounds=CM_GetWorldBounds();
+    vec2_t world=unit->s.origin2;
+    FOR_LOOP(change,20) {
+        S_MarkMoveGoals(unit);
+        unit->movement=movement;unit->s.origin2=world;level.pathing_clock=clock;
+        CM_SetupTestWorldBounds(&bounds);
+        if(change==19)unit->s.origin2.x=unit->movement.pose_world.x=unit->movement.fine_pose.x=0;
+        wc3GridPose_t first,again,raw;
+        unit_predicted_pose(unit,&first);
+        uint32_t hits=move_pose_cache_hits;
+        unit_predicted_pose(unit,&again);
+        T_EQ(memcmp(&first,&again,sizeof(first)),0);T_EQ(move_pose_cache_hits,hits+1);
+        switch(change) {
+        case 0: unit->s.origin2.x+=32;break;
+        case 1: unit->s.origin2.y+=32;break;
+        case 2: unit->movement.fine_pose.x+=.25f;break;
+        case 3: unit->movement.fine_pose.y+=.25f;break;
+        case 4: unit->movement.pose_world.x+=32;break;
+        case 5: unit->movement.pose_world.y+=32;break;
+        case 6: unit->movement.velocity.x+=10;break;
+        case 7: unit->movement.velocity.y+=10;break;
+        case 8: unit->movement.pose_valid=false;break;
+        case 9: unit->movement.clock_valid=false;break;
+        case 10: unit->movement.pose_clock.time-=.01f;break;
+        case 11: unit->movement.pose_clock.epoch--;break;
+        case 12: unit->movement.pose_clock.span+=1;break;
+        case 13: level.pathing_clock.time+=.01f;break;
+        case 14: level.pathing_clock.epoch++;break;
+        case 15: level.pathing_clock.span+=1;break;
+        case 16: {box2_t next=bounds;next.min.x-=128;CM_SetupTestWorldBounds(&next);break;}
+        case 17: {box2_t next=bounds;next.min.y-=128;CM_SetupTestWorldBounds(&next);break;}
+        case 18: unit->movement.velocity.x=wc3_float(0x80000000);break;
+        case 19: unit->s.origin2.x=wc3_float(0x80000000);break;
+        }
+        uint32_t misses=move_pose_cache_misses;
+        unit_predicted_pose(unit,&again);unit_predicted_pose_raw(unit,&raw);
+        T_EQ(memcmp(&again,&raw,sizeof(raw)),0);T_EQ(move_pose_cache_misses,misses+1);
+    }
+    CM_SetupTestWorldBounds(&bounds);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, stationary_predictions_scale_to_4096_owners) {
+    edict_t *units[4096];
+    reset_entities();setup_test_world();
+    level.pathing_clock=(wc3Clock_t){.time=299.99f,.span=300,.epoch=0};
+    FOR_LOOP(i,4096) {
+        edict_t *unit=units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128+i*.03125f,256);
+        unit->movement.pose_valid=unit->movement.clock_valid=true;
+        unit->movement.pose_world=unit->s.origin2;
+        unit->movement.fine_pose=(vec2_t){4+i*.0009765625f,8};
+        unit->movement.pose_clock=level.pathing_clock;
+        unit->movement.velocity=(vec2_t){0,wc3_float(0x80000000)};
+        wc3GridPose_t pose;
+        unit_predicted_pose(unit,&pose);
+    }
+    uint32_t hits=move_pose_cache_hits;
+    level.pathing_clock=(wc3Clock_t){.time=.03f,.span=300,.epoch=1};
+    FOR_LOOP(i,4096) {
+        wc3GridPose_t cached,raw;
+        unit_predicted_pose(units[i],&cached);unit_predicted_pose_raw(units[i],&raw);
+        T_EQ(memcmp(&cached,&raw,sizeof(raw)),0);
+    }
+    T_EQ(move_pose_cache_hits,hits+4096);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, physical_owner_order_retains_creation_sequence_after_slot_reuse) {
+    reset_entities();setup_test_world();
+    moveGroup_t *groups[128];
+    FOR_LOOP(i,128) {groups[i]=move_alloc_group();groups[i]->inuse=true;}
+    moveGroup_t *at=move_group_head;
+    for(uint32_t i=128;i>0;i--) {T_ASSERT(at==groups[i-1]);if(at)at=at->older;}
+    T_ASSERT(!at);
+    for(uint32_t i=0;i<128;i+=2)move_release_group(groups[i]);
+    FOR_LOOP(i,64) {
+        moveGroup_t *group=move_alloc_group();group->inuse=true;
+        T_ASSERT(group==groups[i*2]);T_ASSERT(move_group_head==group);
+    }
+    uint64_t previous=UINT64_MAX;uint32_t count=0;
+    for(at=move_group_head;at;at=at->older) {
+        T_ASSERT(at->sequence<previous);previous=at->sequence;count++;
+        T_ASSERT(!at->older || at->older->newer==at);
+    }
+    T_EQ(count,128u);
+    /* Reconstruct the same order from saved sequences, with no runtime links. */
+    move_group_order_valid=false;move_group_head=NULL;
+    FOR_LOOP(i,128)groups[i]->newer=groups[i]->older=NULL;
+    move_prepare_group_order();previous=UINT64_MAX;count=0;
+    for(at=move_group_head;at;at=at->older) {
+        T_ASSERT(at->sequence<previous);previous=at->sequence;count++;
+        T_ASSERT(at->slot<128 && level.move_groups[at->slot]==at);
+    }
+    T_EQ(count,128u);
+    move_run_group_updates();T_ASSERT(!move_group_head);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, group_id_allocation_scales_with_requests_and_restores_reserved_ids) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    FOR_LOOP(i,1900) {edict_t *scenery=G_Spawn();scenery->svflags=SVF_STATIC_SCENERY;}
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128);
+    /* Restored/queued identities may lie ahead of the allocation counter. */
+    unit->movement.previous_request_id=17;
+    T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,NULL,NULL,0,0,0));
+    unit->order_queue.entries[0].owner_context=19;
+    level.next_move_group_id=16;
+    T_EQ(move_allocate_group_id(),18u);
+    T_EQ(move_allocate_group_id(),20u);
+    uint32_t visits=move_group_id_visits;
+    FOR_LOOP(i,128) T_EQ(move_allocate_group_id(),21u+i);
+    T_ASSERT(move_group_id_visits-visits<=globals.num_edicts);
+    /* ReadGame reconstructs the bound from restored authoritative IDs. */
+    cstring_t file=Test_TempPath("wc3-group-id-bound.bin");
+    level.next_move_group_id=16;
+    unit->movement.previous_request_id=21;
+    T_ASSERT(WriteGame(file));
+    unit->movement.previous_request_id=0;unit->order_queue.count=0;
+    T_ASSERT(ReadGame(file));
+    T_EQ(move_allocate_group_id(),17u);
+    level.next_move_group_id=20;
+    T_EQ(move_allocate_group_id(),22u);
+    /* A bound is conservative: removing a reference must permit its reuse. */
+    unit->movement.previous_request_id=0;level.next_move_group_id=20;
+    T_EQ(move_allocate_group_id(),21u);
+    unit->movement.previous_request_id=1;level.next_move_group_id=UINT32_MAX;
+    T_EQ(move_allocate_group_id(),2u);
+    remove(file);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, group_move_identity_survives_counter_wrap_and_unit_reuse) {
+    reset_entities(); setup_test_world();
+    edict_t *clent = alloc_test_unit(0, 0, 0);
+    clent->client = &game.clients[0]; clent->client->menu.order_queued=false;
+    edict_t *a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t *b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    edict_t *c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 128);
+    edict_t *d = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
+    edict_t *units[] = {a,b,c,d};
+    FOR_LOOP(i, 4) { units[i]->stand = unit_stand; unit_stand(units[i]); }
+    a->unitinfo.MoveSpeed = c->unitinfo.MoveSpeed = 300;
+    b->unitinfo.MoveSpeed = 100; d->unitinfo.MoveSpeed = 200;
+    G_SetEntitySelectionMask(a, G_SetEntitySelectionMask(b, 1 << clent->client->ps.number));
+    level.next_move_group_id = 0;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    uint32_t first_group = a->movement.group_id;
+    T_ASSERT(first_group != 0 && first_group == b->movement.group_id);
+    G_SetEntitySelectionMask(a, G_SetEntitySelectionMask(b, 0));
+    G_SetEntitySelectionMask(c, G_SetEntitySelectionMask(d, 1 << clent->client->ps.number));
+    level.next_move_group_id = UINT32_MAX;
+    T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+    T_ASSERT(c->movement.group_id != 0 && c->movement.group_id != first_group);
+    T_EQ(c->movement.group_id, d->movement.group_id);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),100,0.001f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
+    uint32_t saved_time = level.time;
+    G_FreeEdict(b); level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    T_ASSERT(replacement == b);
+    replacement->stand = unit_stand; unit_stand(replacement);
+    replacement->unitinfo.MoveSpeed = 50;
+    T_ASSERT(unit_issueorder(replacement, "move", &(vec2_t){400, 0}));
+    T_NE(replacement->movement.group_id, 0);
+    T_NE(replacement->movement.group_id, first_group);
+    moveGroup_t const *fresh=move_unit_group(replacement);
+    T_ASSERT(!fresh->individual);T_EQ(fresh->count,1);
+    T_EQ(fresh->members[0].unit,replacement);T_EQ(fresh->members[0].spawn,replacement->spawn_time);
+    S_BeginAbilityOwnerUpdates(); S_RunAbilityOwnerUpdates();
+    T_FEQ(sqrtf(Vector2_lengthsq(&a->movement.velocity)),300,0.001f);
+    T_FEQ(sqrtf(Vector2_lengthsq(&c->movement.velocity)),200,0.001f);
+    level.time = saved_time;
+}
+
+/* Retail keeps the surviving slot until an actual replacement order creates
+ * a fresh request. Exercise the same ownership boundary through server frames. */
+TEST(wc3_movement, group_survivor_reorder_after_member_reuse_reaches_new_goal) {
+    FOR_LOOP(victim, 2) {
+        edict_t *first = make_moving_unit(0, 0);
+        edict_t *second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+        edict_t *clent = alloc_test_unit(0, 0, 0);
+        edict_t *units[] = {first, second};
+        FOR_LOOP(i, game.max_clients) game.clients[i].connected = false;
+        clent->client = &game.clients[0]; clent->client->ps.number = 0;
+        FOR_LOOP(i, 2) {
+            units[i]->movetype = MOVETYPE_STEP;
+            units[i]->svflags |= SVF_MONSTER;
+            units[i]->stand = unit_stand; units[i]->die = unit_die;
+            units[i]->think = monster_think;
+            units[i]->health.value = units[i]->health.max_value = 250;
+            units[i]->collision = 8;
+            G_SetEntitySelectionMask(units[i], 1);
+            unit_stand(units[i]);
+            gi.LinkEntity(units[i]);
+        }
+        first->unitinfo.MoveSpeed = 256; second->unitinfo.MoveSpeed = 128;
+        T_ASSERT(move_selectlocation(clent, &(vec2_t){400, 0}));
+        edict_t *survivor = units[1-victim];
+        edict_t *old_goal = survivor->goalentity;
+        vec2_t old_slot = old_goal->s.origin2;
+        uint32_t old_group = survivor->movement.group_id;
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_ASSERT(first->s.origin2.x != 0 || first->s.origin2.y != 0);
+        T_ASSERT(second->s.origin2.x != 64 || second->s.origin2.y != 0);
+        T_ASSERT(unit_issueimmediateorder(units[victim], "stop"));
+        G_FreeEdict(units[victim]); level.time += 1001;
+        edict_t *reused = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
+        T_ASSERT(reused == units[victim]);
+        T_EQ(reused->movement.group_id, 0);
+        T_ASSERT(survivor->goalentity == old_goal);
+        T_FEQ(old_goal->s.origin2.x, old_slot.x, 0);
+        T_FEQ(old_goal->s.origin2.y, old_slot.y, 0);
+        T_EQ(survivor->movement.group_id, old_group);
+        vec2_t new_goal = {384, 448};
+        T_ASSERT(unit_issueorder(survivor, "move", &new_goal));
+        T_NE(survivor->movement.group_id, 0);
+        T_NE(survivor->movement.group_id, old_group);
+        moveGroup_t const *fresh=move_unit_group(survivor);
+        T_ASSERT(!fresh->individual);T_EQ(fresh->count,1);
+        T_EQ(fresh->members[0].unit,survivor);T_EQ(fresh->members[0].spawn,survivor->spawn_time);
+        T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
+        T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
+        for (int frame = 0; frame < 240 && move_is_active_order_walk(survivor); frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_ASSERT(!move_is_active_order_walk(survivor));
+        /* Move's idle transition retains the last goal as cached state, as
+         * retail Stop retains its original goal. Activity is owned by Move. */
+        T_NOT_NULL(survivor->goalentity);
+        T_FEQ(survivor->goalentity->s.origin2.x, new_goal.x, 0);
+        T_FEQ(survivor->goalentity->s.origin2.y, new_goal.y, 0);
+        T_ASSERT(Vector2_distance(&survivor->s.origin2, &new_goal) <= survivor->collision + 16);
+        T_EQ(survivor->order_queue.count, 0);
+        level.started = false;
+    }
 }
 
 /* A lone unit keeps its own speed (no group cap). */
@@ -3975,14 +10296,19 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
         .max = { 1024.0f,  1024.0f}));
 
     T_ASSERT(unit_issueorder(unit, "move", &dest));
-    unit->currentmove->think(unit); /* queues the resumable radius field */
+    movement_test_tick(unit); /* admits the collision-sized route */
     CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit); /* completed field retargets the private waypoint */
+    movement_test_tick(unit); /* keeps the public click and follows its partial route */
 
     T_STREQ(unit->currentmove->animation, "walk");
     T_ASSERT(!unit->movement.flow_unreachable);
     T_ASSERT(unit->goalentity->s.origin2.x > unit->s.origin2.x);
-    T_ASSERT(unit->goalentity->s.origin2.x < 0.0f);
+    T_FEQ(unit->goalentity->s.origin2.x, dest.x, 0);
+    T_FEQ(unit->goalentity->s.origin2.y, dest.y, 0);
+    moveFineRoute_t *route = &unit->movement.fine_route;
+    T_ASSERT(route->partial);
+    T_ASSERT(route->count > 0);
+    T_ASSERT(route->points[0].x < 32.0f); /* retained endpoint stays west of the wall */
 }
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
@@ -3998,7 +10324,7 @@ TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         unit->s.origin2 = origin;
         unit->s.origin.x = origin.x;
         unit->s.origin.y = origin.y;
@@ -4037,9 +10363,9 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
     attacker->class_id = MAKEFOURCC('h','f','o','o');
     attacker->s.player = 0;
     attacker->collision = 31.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
 
     tower = alloc_test_unit(MAKEFOURCC('h','c','t','w'), tower_pos.x, tower_pos.y);
     tower->s.player = 0;
@@ -4087,7 +10413,7 @@ TEST(wc3_movement, attack_chase_progresses_with_captured_tower_corridor) {
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) < start_distance - 1000.0f);
     T_ASSERT(attacker->goalentity == target);
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &target->s.origin2) <=
-        attacker->attack1.range + attacker->collision + target->collision + 16.0f);
+        S_AttackProfileRead(attacker, 0)->range + attacker->collision + target->collision + 16.0f);
 }
 
 TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes) {
@@ -4113,9 +10439,9 @@ TEST(wc3_movement, attack_chase_waits_through_competing_route_jobs_then_resumes)
     attacker->s.player = 0;
     attacker->collision = 31.0f;
     attacker->unitinfo.MoveSpeed = 300.0f;
-    attacker->attack1.type = ATK_NORMAL;
-    attacker->attack1.range = 100.0f;
-    attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(attacker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(attacker, 0)->range = 100.0f;
+    S_AttackProfileWrite(attacker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
 
     target = alloc_test_unit(MAKEFOURCC('h','c','t','w'), target_pos.x, target_pos.y);
     target->s.player = 1;
@@ -4207,7 +10533,7 @@ TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        movement_test_tick(unit);
         unit->s.origin2 = jitter;
         unit->s.origin.x = jitter.x;
         unit->s.origin.y = jitter.y;
@@ -4225,7 +10551,11 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
     vec2_t dest = {100.0f, 0.0f};
 
+    unit->svflags |= SVF_MONSTER;
+    unit->s.model = 1;
+    unit->think = monster_think;
     unit->collision = 16.0f;
+    blocker->svflags |= SVF_MONSTER;
     blocker->collision = 16.0f;
     blocker->s.model = 1;            /* non-hollow so it is a collision obstacle */
     blocker->stand = unit_stand;
@@ -4235,27 +10565,47 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     gi.LinkEntity(unit);
     gi.LinkEntity(blocker);
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     unit_issueorder(unit, "move", &dest);
 
     /* Move-time collision blocks the unit short of the occupied goal (it never
-     * steps into the blocker), then the blocked-frame accumulator settles it to
-     * stand.  No post-move solver is involved any more.  Track the closest the
-     * unit ever comes to the goal: it should reach right up against the blocker
-     * (just outside the combined collision radius) but never inside it. */
+     * steps into the blocker), then the production partial-route retry chain settles it to
+     * stand. Track actual approach and nonpenetration. The fine footprint and
+     * partial endpoint own the stopping distance; a circle-only step budget
+     * is not an upper bound on the retail grid's failure endpoint. */
     float min_goal_dist = M_DistanceToGoal(unit);
-    for (int i = 0; i < 40; i++) {
+    bool saw_partial=false;
+    for (int i = 0; i < 120; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
-        unit->currentmove->think(unit);
+        level.time += FRAMETIME;
+        globals.RunFrame();
         float d = M_DistanceToGoal(unit);
         if (d < min_goal_dist) min_goal_dist = d;
+        if (unit->movement.fine_route.partial && unit->movement.fine_route.count) {
+            saw_partial=true;
+        }
     }
 
     float combined = unit->collision + blocker->collision;
     T_STREQ(unit->currentmove->animation, "stand");/* settled, didn't walk forever */
     T_ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
-    T_ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
+    T_ASSERT(min_goal_dist < Vector2_distance(&(vec2_t){0,0}, &dest));
+    T_ASSERT(saw_partial);
+    /* Reset retires the logical route while retaining its endpoint allocation. */
+    T_NOT_NULL(unit->movement.fine_route.points);
+    if (unit->movement.fine_route.points) {
+        T_FEQ(unit->movement.fine_pose.x, unit->movement.fine_route.points[0].x, 0.00001f);
+        T_FEQ(unit->movement.fine_pose.y, unit->movement.fine_route.points[0].y, 0.00001f);
+    }
+    /* The partial endpoint survives as the final pose, not an active route. */
+    T_EQ(unit->movement.fine_route.count,0);
+    T_EQ(unit->movement.fine_route.index,UINT32_MAX);
+    T_ASSERT(!unit->movement.path.valid);
+    T_EQ(unit->current_order_id, 0);
 }
 
 /* Without a town hall the worker exits the mine carrying gold but has nowhere
@@ -4361,7 +10711,7 @@ TEST(wc3_movement, gold_mine_stock_capacity_never_exceeds_one_with_six_workers) 
     T_EQ(S_GoldMineCapacity(mine), 1);
     FOR_LOOP(i, 6) {
         edict_t *worker = add_gold_worker(150.0f + (float)i, 0.0f);
-        worker->goalentity = worker->secondarygoal = mine;
+        S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
         harvestgold_minegold(worker);
         T_ASSERT(mine->peonsinside <= 1);
         if (i == 0) {
@@ -4404,8 +10754,8 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
     edict_t *c = add_gold_worker(500.0f, 0.0f);
     edict_t *d = add_gold_worker(500.0f, 0.0f);
     edict_t *e = add_gold_worker(500.0f, 0.0f);
-    a->goalentity = b->goalentity = mine1;
-    c->goalentity = d->goalentity = e->goalentity = mine2;
+    S_SetMoveGoal(a, &a->goalentity, S_SetMoveGoal(b, &b->goalentity, mine1));
+    S_SetMoveGoal(c, &c->goalentity, S_SetMoveGoal(d, &d->goalentity, S_SetMoveGoal(e, &e->goalentity, mine2)));
     harvestgold_minegold(a);
     harvestgold_minegold(b);
     harvestgold_minegold(c);
@@ -4433,12 +10783,12 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     edict_t *worker = add_gold_worker(0.0f, 0.0f);
     vec2_t point = { 100.0f, 100.0f };
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
-    worker->goalentity = worker->secondarygoal = mine;
+    S_SetMoveGoal(worker, &worker->goalentity, S_SetMoveGoal(worker, &worker->secondarygoal, mine));
     HARVEST_GOLD_CAPACITY = 10.0f;
 
     harvestgold_minegold(worker);
     T_EQ(mine->peonsinside, 1);
-    T_ASSERT(strstr(mine->animation_props, "work") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "work") != NULL);
     T_ASSERT(worker->invulnerable);
     T_ASSERT(S_GoldMineWorkerIsInside(worker));
     harvestgold_minegold(worker);
@@ -4450,7 +10800,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
 
     harvestgold_walkback(worker);
     T_EQ(mine->peonsinside, 0);
-    T_ASSERT(strstr(mine->animation_props, "work") == NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "work") == NULL);
     T_ASSERT(!S_GoldMineWorkerIsInside(worker));
     T_ASSERT(!worker->invulnerable);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
@@ -4459,7 +10809,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     T_EQ(mine->peonsinside, 0);
 
     edict_t *removed = add_gold_worker(0.0f, 0.0f);
-    removed->goalentity = removed->secondarygoal = mine;
+    S_SetMoveGoal(removed, &removed->goalentity, S_SetMoveGoal(removed, &removed->secondarygoal, mine));
     harvestgold_minegold(removed);
     T_EQ(mine->peonsinside, 1);
     G_FreeEdict(removed);
@@ -4475,13 +10825,37 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
-    edict_t *miner = add_gold_worker(0.0f, 0.0f);
-    edict_t *waiter = add_gold_worker(0.0f, 0.0f);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 1024,1024);
+    edict_t *miner = add_gold_worker(752,1024);
+    edict_t *waiter = add_gold_worker(752,1152);
     setup_test_goldmine(mine, &test_goldmine_cap1, 6);
+    mine->svflags|=SVF_MONSTER;
+    miner->svflags|=SVF_MONSTER;
+    waiter->svflags|=SVF_MONSTER;
+    mine->pathtex=movement_make_goldmine_pathtex();
+    mine->s.flags|=EF_BUILDING;
+    mine->die=unit_die;
+    CM_BakeStaticObstacles();
+    vec2_t center=mine->s.origin2, source={752,1024}, target={1296,1024}, out;
+    uint32_t generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536);
+    T_ASSERT(CM_ActivateCachedFlow(generation));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                          .mover=miner,.units=true};
+    moveFineRoute_t route={0};
+    T_ASSERT(!G_UnitMovePathLineIsPathable(&query));
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0);
+    miner->movement.fine_route=route;
+    S_FreeMoveRoute(miner);
+    memset(&route,0,sizeof(route));
     HARVEST_GOLD_CAPACITY = 10.0f;
-    miner->goalentity = miner->secondarygoal = mine;
-    waiter->goalentity = waiter->secondarygoal = mine;
+    S_SetMoveGoal(miner, &miner->goalentity, S_SetMoveGoal(miner, &miner->secondarygoal, mine));
+    S_SetMoveGoal(waiter, &waiter->goalentity, S_SetMoveGoal(waiter, &waiter->secondarygoal, mine));
 
     harvestgold_minegold(miner);
     harvestgold_minegold(waiter);
@@ -4496,9 +10870,79 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     T_ASSERT(!S_GoldMineWorkerIsInside(waiter));
     T_ASSERT(!(waiter->s.renderfx & RF_HIDDEN));
     T_STREQ(waiter->currentmove->animation, "stand");
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    /* The pre-depletion query charged this mover's ordinary fine-search
+     * throttle; the next request runs at its next admissible pathing tick. */
+    level.pathing_counter+=BZ_WC3_FINE_REQUEST_INTERVAL;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0 && !route.partial);
+    miner->movement.fine_route=route;
+    S_FreeMoveRoute(miner);
+    gi.MemFree(mine->pathtex);
+    mine->pathtex=NULL;
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+    reset_entities(); setup_test_world();
+}
+
+/* Public RemoveUnit hides the building before deferred reclamation. Both the
+ * same-callback request and the following normal frames must use that grid. */
+TEST(wc3_movement, removed_buildings_refresh_same_callback_route_and_field) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    T_ASSERT(run_test_jass("globals\nunit b\nunit c\nunit mover\nendglobals\n"
+        "function main takes nothing returns nothing\n"
+        "set b=CreateUnit(Player(0),'hbar',1024,1024,0)\n"
+        "set c=CreateUnit(Player(0),'hbar',1024,1024,0)\n"
+        "set mover=CreateUnit(Player(0),'hfoo',752,1024,0)\nendfunction\n"
+        "function first takes nothing returns nothing\ncall RemoveUnit(b)\nendfunction\n"
+        "function second takes nothing returns nothing\ncall RemoveUnit(c)\n"
+        "call IssuePointOrder(mover,\"move\",1296,1024)\nendfunction\n"));
+    edict_t *buildings[2]={0}, *mover=NULL; unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse) {
+        if(ent->class_id==MAKEFOURCC('h','b','a','r') && count<2) buildings[count++]=ent;
+        if(ent->class_id==MAKEFOURCC('h','f','o','o')) mover=ent;
+    }
+    T_EQ(count,2); T_ASSERT(mover);
+    if(count!=2 || !mover) return;
+    pathTex_t *texture=movement_make_goldmine_pathtex();
+    FOR_LOOP(i,2) { buildings[i]->pathtex=texture; buildings[i]->s.flags|=EF_BUILDING; }
+    CM_BakeStaticObstacles();
+    vec2_t center={1024,1024}, source=mover->s.origin2, target={1296,1024};
+    uint32_t generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536); T_ASSERT(CM_ActivateCachedFlow(generation));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    movePathQuery_t query={.geometry={.from=&source,.target=&target,.radius=16,.blocked_flags=2},
+                          .mover=mover,.units=true};
+    moveFineRoute_t route={0}; vec2_t out;
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&route,&out));
+    T_ASSERT(route.adaptive_count>0);
+    mover->movement.fine_route=route;
+    S_FreeMoveRoute(mover);
+    jass_callbyname(level.vm,"first",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IsDeferredFree(buildings[0]));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    generation=CM_BuildHeatmapForRadius(Waypoint_add(&target),16);
+    CM_ProcessPathJobs(65536); T_ASSERT(CM_ActivateCachedFlow(generation));
+    jass_callbyname(level.vm,"second",false); T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(G_IsDeferredFree(buildings[1]));
+    T_ASSERT(CM_PointIsPathableForRadius(&center,0));
+    T_ASSERT(!CM_ActivateCachedFlow(generation));
+    T_ASSERT(G_UnitMovePathLineIsPathable(&query));
+    G_TestFinishDeferredFrees();
+    FOR_LOOP(i,2) T_ASSERT(!buildings[i]->inuse);
+    gi.MemFree(texture);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,100) {level.time+=100;globals.RunFrame();}
+    T_ASSERT(Vector2_distance(&mover->s.origin2,&target)<16);
+    T_EQ(mover->current_order_id,0);
+    reset_entities(); setup_test_world();
 }
 
 /* Haunted mining keeps the underlying Agld unit as the sole resource pool.
@@ -4689,7 +11133,10 @@ TEST(wc3_movement, replaced_goldmine_restores_after_haunted_mine_dies) {
     S_GoldMineSetResourceAmount(haunted, gold);
     T_EQ(restored->resources, gold);
     T_ASSERT(G_IsDeferredFree(old_mine));
+    wc3_clock_advance(&level.pathing_clock, G_ClockMinimumDelay(), 0);
+    level.scheduled_frame = true;
     G_RunDeferredFrees();
+    level.scheduled_frame = false;
     T_ASSERT(!old_mine->inuse);
     T_ASSERT(restored->inuse);
     T_EQ(haunted->mineoverlay->parent, restored);
@@ -4765,7 +11212,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
 
     T_ASSERT(S_MineOverlayBind(mine, parent));
     S_CargoInitUnit(mine);
-    T_ASSERT(strstr(mine->animation_props, "second") != NULL);
+    T_ASSERT(strstr(G_UnitAnimationProperties(mine), "second") != NULL);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
 
     level.time = 0;
@@ -4903,13 +11350,13 @@ TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishe
     movement_prepare_rooted_entangle_caster(caster, 0);
     parent->s.player = PLAYER_NEUTRAL_PASSIVE;
     setup_test_goldmine(parent, &test_goldmine_stock, 5000);
-    caster->currentmove = &active_order;
+    M_SetMove(caster,&active_order);
 
     T_ASSERT(G_IssueUnitTargetOrder(caster, "entangleinstant", parent, true, 0));
     T_EQ(G_UnitQueuedOrderCount(caster), 1);
     T_NULL(movement_find_entangle_overlay(caster, parent));
 
-    caster->currentmove = NULL;
+    M_SetMove(caster,NULL);
     T_ASSERT(G_UnitStartNextQueuedOrder(caster));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
@@ -5561,6 +12008,9 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     transport->movetype = MOVETYPE_STEP;
     transport->collision = 0;
     G_SelectEntity(clent->client, transport);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     level.time = 1000;
     G_ClientCommand(clent, 2, drop);
     T_ASSERT(clent->client->menu.on_location_selected(clent, &unload_point));
@@ -5570,7 +12020,7 @@ TEST(wc3_movement, replacement_point_order_cancels_pending_cargo_unload) {
     T_EQ(transport->goalentity->s.origin2.y, replacement.y);
     for (int i = 0; i < 600 && transport->currentmove && transport->currentmove->proc == CAbilityMove; i++) {
         level.time += FRAMETIME;
-        G_RunEntities();
+        globals.RunFrame();
     }
     T_EQ(transport->cargo->count, 3);
     T_ASSERT(!transport->movement.cargo_unload_pending);
@@ -5822,8 +12272,8 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
     burrow->cargo->count = 1;
     peon->s.renderfx |= RF_HIDDEN;
     peon->paused = true;
-    burrow->attack1.type = ATK_PIERCE;
-    burrow->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(burrow, 0)->type = ATK_PIERCE;
+    S_AttackProfileWrite(burrow, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
 
     order_attack(burrow, target);
@@ -5888,4 +12338,7570 @@ TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaini
  * Suite runner
  * --------------------------------------------------------------------- */
 
+/* Synthetic work boundaries execute the same unsigned charge/admission
+ * operations as the original x86; they are not claimed as public wrap cases. */
+TEST(wc3_movement, scheduler_work_wrap_matches_original_charge_and_clean_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    FOR_LOOP(player,MAX_PLAYERS)FOR_LOOP(i,sizeof(retail_scheduler_work)/sizeof(retail_scheduler_work[0])) {
+        uint32_t const *row=retail_scheduler_work[i];unsigned kind=row[0];
+        S_ClearMoveFineRequests();S_ClearMoveCoarseRequests();
+        unit->s.player=player;unit->movement.fine_class=player;
+        level.pathing_counter=2000;
+        if(kind==3) {
+            moveFineBudget_t *budget=level.move_fine_budgets+player;
+            unit->movement.fine_request_time=1037;budget->work=row[1];
+            S_ChargeUnitMoveFineRequest(unit,row[2]);
+            T_EQ(budget->work,row[3]);T_EQ(unit->movement.fine_request_time,row[4]);
+            T_EQ(S_AdmitUnitMoveFineRequest(unit),row[5]);
+            T_EQ(budget->count,!row[5]);
+            T_EQ(budget->head,row[5]?NULL:unit);T_EQ(budget->tail,budget->head);
+            S_CancelUnitMoveFineRequest(unit);
+            budget->work=row[3];unit->movement.fine_request_time=row[4];
+            T_EQ(S_AdmitUnitMoveFineRequest(unit),row[5]);
+            T_EQ(budget->count,!row[5]);
+        } else {
+            moveCoarseBudget_t *budget=&level.move_coarse_budgets[player][kind];
+            moveCoarseRequest_t *request=&unit->movement.fine_route.adaptive_admission;
+            *request=(moveCoarseRequest_t){.player=player,.policy=kind,.time=1037};
+            budget->work=row[1];S_ChargeMoveCoarseRequest(request,row[2]);
+            T_EQ(budget->work,row[3]);T_EQ(request->time,row[4]);
+            T_EQ(S_AdmitMoveCoarseRequest(unit,request,kind),row[5]);
+            T_EQ(budget->count,!row[5]);
+            T_EQ(budget->head,row[5]?NULL:request);T_EQ(budget->tail,budget->head);
+            S_CancelMoveCoarseRequest(request);
+            budget->work=row[3];request->time=row[4];
+            T_EQ(S_AdmitMoveCoarseRequest(unit,request,kind),row[5]);
+            T_EQ(budget->count,!row[5]);
+        }
+    }
+    reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+TEST(wc3_movement, projectile_fine_search_uses_shared_class15_and_preserves_owner) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,896);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),384,896);
+    caster->s.player=3;target->s.player=1;target->collision=31;
+    target->s.model=1;
+    G_PublishMoveSpatialObject(target);
+    fire_rocket(caster,&(rocketDesc_t){.start={228,896,0},.target=target,.speed=1000,.damage=1});
+    edict_t *missile=NULL;
+    FILTER_EDICTS(ent,ent->inuse && ent->owner==caster && ent->movetype==MOVETYPE_FLYMISSILE)missile=ent;
+    T_NOT_NULL(missile);
+    if(missile) {
+        T_EQ(missile->s.player,3);T_ASSERT(missile->movement.adaptive_disabled);
+        level.move_fine_budgets[3].work=1101;
+        vec2_t source={7.1171875f,28},goal={12,28},point;
+        movePathQuery_t query={.geometry={&missile->s.origin2,&target->s.origin2,0,0},
+            .mover=missile,.target=target,.units=true,.fine=&source,.fine_target=&goal};
+        moveFineRoute_t *route=&missile->movement.fine_route;
+        T_ASSERT(G_BuildUnitMoveFineRoute(&query,route,&point));
+        T_EQ(level.move_fine_budgets[3].work,1101);T_EQ(level.move_fine_budgets[3].count,0);
+        T_EQ(missile->movement.fine_class,15);T_EQ(level.move_fine_budgets[15].work,4);
+        T_EQ(route->count,4);T_EQ(missile->s.player,3);
+        if(route->count!=4) {
+            fprintf(stderr,"Class15 fine route work=%u count=%u target data=%p disabled=%u structure=%u\n",
+                level.move_fine_budgets[15].work,route->count,(void *)target->data.UnitData,M_UnitMoveDisabled(target),G_UnitIsStructure(target));
+            FOR_LOOP(i,route->count)fprintf(stderr,"  point%u=%08x/%08x\n",i,wc3_float_bits(route->points[i].x),wc3_float_bits(route->points[i].y));
+        }
+        /* Original CMissileSpiderAttack repeats this same zero-radius route. */
+        uint32_t const expected[][2]={{0x41280000u,0x41e40000u},{0x41180000u,0x41e40000u},
+            {0x41080000u,0x41e40000u},{0x40e3c000u,0x41e00000u}};
+        if(route->count==4)FOR_LOOP(i,4){T_EQ(wc3_float_bits(route->points[i].x),expected[i][0]);T_EQ(wc3_float_bits(route->points[i].y),expected[i][1]);}
+        /* The non-unit class shares the native player15 row, including saves. */
+        level.move_fine_budgets[15].work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(missile));
+        edict_t *unit15=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+        unit15->s.player=15;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(unit15));
+        T_EQ(level.move_fine_budgets[15].count,2);
+        unsigned number=missile->s.number;
+        cstring_t save=Test_TempPath("wc3-missile-class15-queue.bin");
+        T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));
+        missile=g_edicts+number;
+        T_EQ(missile->s.player,3);T_EQ(missile->movement.fine_class,15);
+        T_ASSERT(missile->movement.adaptive_disabled);
+        T_EQ(level.move_fine_budgets[15].head,missile);
+        T_EQ(level.move_fine_budgets[15].tail,unit15);
+        G_FreeEdict(missile);
+        T_EQ(level.move_fine_budgets[15].count,1);T_EQ(level.move_fine_budgets[15].head,unit15);
+        level.move_fine_budgets[15].work=0;
+        T_ASSERT(S_AdmitUnitMoveFineRequest(unit15));
+        T_EQ(level.move_fine_budgets[15].count,0);
+        remove(save);
+    }
+    reset_entities();setup_test_world();
+}
+
 #endif /* BZ_TESTS */
+
+#ifdef BZ_TESTS
+/* Exhausting player0 must not block an ordinary fine request owned by player1. */
+/* Native16c5d0 stops members and unlinks their pending individual path. */
+TEST(wc3_movement, public_stop_retires_pending_fine_head_before_next_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==3\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+        "call SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.move_fine_budgets[0].work=1101;level.move_fine_budgets[0].countdown=1;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35){level.time+=5;globals.RunFrame();}
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    T_EQ(budget->count,3);
+    edict_t *head=budget->head,*next=head?head->movement.fine_next:NULL,*tail=budget->tail;
+    T_NOT_NULL(head);T_NOT_NULL(next);T_NOT_NULL(tail);
+    if(head && next && tail) {
+        T_ASSERT(unit_issueimmediateorder(head,"stop"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!head->movement.fine_queued);T_NULL(head->movement.fine_prev);T_NULL(head->movement.fine_next);
+        T_ASSERT(WriteGame(Test_TempPath("wc3-stop-fine-queue.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-stop-fine-queue.bin")));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!head->movement.fine_queued);
+        budget->work=0;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(tail));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(next));T_EQ(budget->head,tail);
+        T_ASSERT(S_AdmitUnitMoveFineRequest(tail));T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        budget->work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(head));T_EQ(budget->head,head);T_EQ(budget->count,1);
+        G_SetUnitPlayer(head,1);
+        T_EQ(head->movement.fine_class,1);T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        level.move_fine_budgets[1].work=1101;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(head));
+        G_FreeEdict(head);T_EQ(level.move_fine_budgets[1].count,0);
+    }
+    remove(Test_TempPath("wc3-stop-fine-queue.bin"));
+    level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+/* Native16c5d0 stops members and unlinks their pending individual path. */
+TEST(wc3_movement, public_stop_retires_pending_member_coarse_head_before_next_admission) {
+    bool saved_policy=level.move_fine_responsive;
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==3\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+        "call SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.move_coarse_budgets[0][2].work=901;level.move_coarse_budgets[0][2].countdown=2;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35){level.time+=5;globals.RunFrame();}
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[0][2];
+    T_EQ(budget->count,3);
+    moveCoarseRequest_t *request=budget->head,*next=request?request->next:NULL,*tail=budget->tail;
+    T_NOT_NULL(request);T_NOT_NULL(next);T_NOT_NULL(tail);
+    if(request && next && tail) {
+        edict_t *head=(edict_t *)((char *)request-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        edict_t *next_unit=(edict_t *)((char *)next-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        edict_t *tail_unit=(edict_t *)((char *)tail-offsetof(edict_t,movement.fine_route.adaptive_admission));
+        T_ASSERT(unit_issueimmediateorder(head,"stop"));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!request->queued);T_NULL(request->prev);T_NULL(request->next);
+        T_ASSERT(S_ValidateMoveCoarseRequests());
+        T_ASSERT(WriteGame(Test_TempPath("wc3-stop-coarse-queue.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-stop-coarse-queue.bin")));
+        T_EQ(budget->count,2);T_EQ(budget->head,next);T_EQ(budget->tail,tail);
+        T_ASSERT(!request->queued);T_ASSERT(S_ValidateMoveCoarseRequests());
+        budget->work=0;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(tail_unit,tail,2));
+        T_ASSERT(S_AdmitMoveCoarseRequest(next_unit,next,2));T_EQ(budget->head,tail);
+        T_ASSERT(S_AdmitMoveCoarseRequest(tail_unit,tail,2));T_EQ(budget->count,0);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        budget->work=901;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(head,request,2));T_EQ(budget->head,request);T_EQ(budget->count,1);
+        G_SetUnitPlayer(head,1);
+        T_EQ(budget->count,0);T_ASSERT(!request->queued);
+        T_ASSERT(unit_issueorder(head,"move",&(vec2_t){1024,head->s.origin2.y}));
+        level.move_coarse_budgets[1][2].work=901;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(head,request,2));
+        G_FreeEdict(head);T_EQ(level.move_coarse_budgets[1][2].count,0);
+    }
+    remove(Test_TempPath("wc3-stop-coarse-queue.bin"));
+    level.started=false;reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+/* Removal retires the physical task synchronously; its storage dies later. */
+TEST(wc3_movement, public_mover_retirement_cancels_pending_and_active_owners) {
+    bool saved_policy=level.move_fine_responsive;
+    FOR_LOOP(cohort,2) FOR_LOOP(phase,3) FOR_LOOP(remove_unit,2) {
+        reset_entities();setup_test_world();level.move_fine_responsive=false;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        level.pathing_clock=(wc3Clock_t){.span=300};
+        level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+        char script[1600];
+        snprintf(script,sizeof(script),"globals\nunit array army\ngroup squad=CreateGroup()\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\n"
+            "loop\nexitwhen i==3\n"
+            "set army[i]=CreateUnit(Player(0),'hRTE',128,128+I2R(i)*128,0)\n"
+            "call SetUnitAcquireRange(army[i],0)\ncall GroupAddUnit(squad,army[i])\n"
+            "call IssuePointOrder(army[i],\"move\",1024,GetUnitY(army[i]))\n"
+            "set i=i+1\nendloop\nendfunction\n"
+            "function groupmove takes nothing returns nothing\ncall GroupPointOrder(squad,\"move\",1024,128)\nendfunction\n"
+            "function retire takes nothing returns nothing\ncall %s(army[0])\nendfunction\n",
+            remove_unit ? "RemoveUnit" : "KillUnit");
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[3]={0};unsigned count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','R','T','E')) {
+            if(count<3)units[count]=unit;
+            count++;
+        }
+        T_EQ(count,3);if(count!=3)continue;
+        edict_t *victim=units[0];
+        if(cohort){jass_callbyname(level.vm,"groupmove",false);T_ASSERT(!jass_rterror_pending(level.vm));}
+        if(phase==0){level.move_fine_budgets[0].work=1101;level.move_fine_budgets[0].countdown=1;}
+        if(phase==1){level.move_coarse_budgets[0][2].work=901;level.move_coarse_budgets[0][2].countdown=2;}
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        while(level.time<(phase==2 ? 350 : 35)){level.time+=5;globals.RunFrame();}
+        uint32_t group=victim->movement.group_id;moveGroup_t *owner=NULL;
+        if(cohort) {
+            T_ASSERT(group!=0);
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)owner=level.move_groups[i];
+            T_NOT_NULL(owner);if(owner)T_EQ(owner->count,3);
+        }
+        edict_t *fine_head=level.move_fine_budgets[0].head;
+        edict_t *fine_next=fine_head ? fine_head->movement.fine_next : NULL;
+        moveCoarseRequest_t *coarse_head=level.move_coarse_budgets[0][2].head;
+        moveCoarseRequest_t *coarse_next=coarse_head ? coarse_head->next : NULL;
+        if(phase==0){T_EQ(level.move_fine_budgets[0].count,3);T_ASSERT(victim->movement.fine_queued);}
+        if(phase==1){T_EQ(level.move_coarse_budgets[0][2].count,3);T_ASSERT(victim->movement.fine_route.adaptive_admission.queued);}
+        if(phase==2){T_ASSERT(victim->s.origin2.x>128);T_ASSERT(victim->movement.velocity.x!=0);T_ASSERT(victim->movement.fine_route.points);}
+        T_ASSERT(G_IssueUnitPointOrder(victim,"move",&(vec2_t){1024,1024},true,0,0));
+        T_EQ(victim->order_queue.count,1);
+        vec2_t *storage=victim->movement.fine_route.points;
+        jass_callbyname(level.vm,"retire",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(victim->current_order_id,0);T_EQ(victim->order_queue.count,0);
+        T_EQ(victim->movement.group_id,0);T_ASSERT(!victim->movement.clock_valid);
+        T_FEQ(victim->movement.velocity.x,0,0);T_FEQ(victim->movement.velocity.y,0,0);
+        T_ASSERT(!victim->movement.fine_queued);T_ASSERT(!victim->movement.fine_route.adaptive_admission.queued);
+        T_ASSERT(!victim->movement.fine_route.group_admission.queued);
+        T_EQ(victim->movement.fine_route.points,storage);
+        T_EQ(victim->movement.fine_route.count,0);T_EQ(victim->movement.fine_route.index,UINT32_MAX);
+        T_EQ(victim->movement.fine_route.adaptive_count,0);T_EQ(victim->movement.fine_route.adaptive_index,UINT32_MAX);
+        T_EQ(victim->movement.fine_route.group_count,0);T_EQ(victim->movement.fine_route.group_index,UINT32_MAX);
+        T_ASSERT(!victim->movement.path.valid);
+
+        if(phase==0){T_EQ(level.move_fine_budgets[0].count,2);T_EQ(level.move_fine_budgets[0].head,fine_head==victim ? fine_next : fine_head);}
+        if(phase==1){T_EQ(level.move_coarse_budgets[0][2].count,2);T_EQ(level.move_coarse_budgets[0][2].head,coarse_head==&victim->movement.fine_route.adaptive_admission ? coarse_next : coarse_head);}
+        if(owner) {
+            T_ASSERT(owner->inuse);T_EQ(owner->count,2);
+            FOR_LOOP(i,owner->count)T_ASSERT(owner->members[i].unit!=victim);
+        }
+        T_ASSERT(S_ValidateMoveCoarseRequests());
+        if(remove_unit) {
+            T_ASSERT(victim->inuse);T_ASSERT(victim->s.renderfx&RF_HIDDEN);
+            T_NULL(victim->currentmove);
+            G_TestFinishDeferredFrees();T_ASSERT(!victim->inuse);T_NULL(victim->movement.fine_route.points);
+        } else {
+            T_ASSERT(victim->inuse);T_ASSERT(victim->svflags&SVF_DEADMONSTER);
+            T_ASSERT(WriteGame(Test_TempPath("wc3-retired-mover.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-retired-mover.bin")));
+            T_EQ(victim->movement.group_id,0);T_ASSERT(!victim->movement.fine_queued);
+            G_FreeEdict(victim);T_NULL(victim->movement.fine_route.points);
+        }
+        if(cohort) {
+            T_ASSERT(unit_issueimmediateorder(units[1],"stop"));
+            T_ASSERT(unit_issueimmediateorder(units[2],"stop"));
+            moveGroup_t *empty=NULL;
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
+            T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
+            T_ASSERT(WriteGame(Test_TempPath("wc3-retired-mover.bin")));
+            T_ASSERT(ReadGame(Test_TempPath("wc3-retired-mover.bin")));
+            empty=NULL;
+            FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) if(level.move_groups[i]->inuse && level.move_groups[i]->id==group)empty=level.move_groups[i];
+            T_NOT_NULL(empty);if(empty)T_EQ(empty->count,0);
+            T_ASSERT(S_ValidateMoveCoarseRequests());
+            while(level.time<(phase==2 ? 385 : 70)){level.time+=5;globals.RunFrame();}
+            if(empty) {
+                T_ASSERT(!empty->inuse);
+                T_NULL(empty->route.points);T_NULL(empty->route.adaptive_points);T_NULL(empty->route.group_points);
+                T_ASSERT(!empty->route.adaptive_admission.queued);
+                T_ASSERT(!empty->route.group_admission.queued);
+            }
+        }
+        remove(Test_TempPath("wc3-retired-mover.bin"));
+        level.started=false;
+    }
+    reset_entities();setup_test_world();level.move_fine_responsive=saved_policy;
+}
+
+TEST(wc3_movement, fine_search_budget_isolated_by_player) {
+    reset_entities(); setup_test_world();
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *other=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    other->s.player=1;
+    level.pathing_counter=2000;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_ASSERT(S_AdmitUnitMoveFineRequest(other));
+    T_ASSERT(first->movement.fine_queued);
+    T_ASSERT(!other->movement.fine_queued);
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+static uint32_t move_owner_test_player;
+static void move_test_owner_stand(edict_t *unit) {
+    move_owner_test_player=unit->s.player;
+    unit_stand(unit);
+}
+
+TEST(wc3_movement, ownership_change_cancels_move_and_pending_fine_request) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *waypoint=Waypoint_add(&(vec2_t){512,128});
+    unit->stand=move_test_owner_stand; move_owner_test_player=UINT32_MAX;
+    S_IssueMoveOrder(unit,waypoint,G_OrderId("move"));
+    level.pathing_counter=2000;
+    level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+    G_SetUnitPlayer(unit,1);
+    T_EQ(move_owner_test_player,0);
+    T_EQ(unit->current_order_id,0);
+    T_ASSERT(!unit_is_walking(unit));
+    T_ASSERT(!unit->movement.fine_queued);
+    S_ClearMoveFineRequests(); reset_entities(); setup_test_world();
+}
+
+/* The public ownership writer repairs the old row without disturbing another player's FIFO. */
+TEST(wc3_movement, fine_request_owner_changes_repair_all_player_rows) {
+    FOR_LOOP(old,MAX_PLAYERS) FOR_LOOP(next,MAX_PLAYERS) {
+        if (old==next) continue;
+        reset_entities(); setup_test_world();
+        edict_t *units[4];
+        FOR_LOOP(k,4) {
+            units[k]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+64*k,128);
+            units[k]->s.player=k<3 ? old : next;
+        }
+        level.pathing_counter=2000;
+        level.move_fine_budgets[old].work=level.move_fine_budgets[next].work=BZ_WC3_FINE_OWNER_WORK+1;
+        FOR_LOOP(k,4) T_ASSERT(!S_AdmitUnitMoveFineRequest(units[k]));
+        G_SetUnitPlayer(units[1],next);
+        T_EQ(level.move_fine_budgets[old].count,2);
+        T_EQ(level.move_fine_budgets[old].head,units[0]); T_EQ(level.move_fine_budgets[old].tail,units[2]);
+        T_EQ(units[0]->movement.fine_next,units[2]); T_EQ(units[2]->movement.fine_prev,units[0]);
+        T_EQ(units[1]->movement.fine_class,next); T_ASSERT(!units[1]->movement.fine_queued);
+        T_EQ(level.move_fine_budgets[next].head,units[3]); T_EQ(level.move_fine_budgets[next].count,1);
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(units[1]));
+        T_EQ(level.move_fine_budgets[next].tail,units[1]); T_EQ(level.move_fine_budgets[next].count,2);
+        level.move_fine_budgets[old].work=level.move_fine_budgets[next].work=BZ_WC3_FINE_OWNER_WORK;
+        T_ASSERT(!S_AdmitUnitMoveFineRequest(units[1]));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[0])); T_ASSERT(S_AdmitUnitMoveFineRequest(units[2]));
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[3])); T_ASSERT(S_AdmitUnitMoveFineRequest(units[1]));
+        T_EQ(level.move_fine_budgets[old].count,0); T_EQ(level.move_fine_budgets[next].count,0);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Same public timer order and owner transfer as retail scene9, from clock zero.
+ * Supply observed base-map geometry and the original Footman movement profile. */
+TEST(wc3_movement, periodic_public_ownership_change_matches_retail_and_restore) {
+    float radius=16,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','O','W','N'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    cstring_t script="globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\n"
+        "if tick==15 then\ncall SetUnitOwner(mover,Player(1),false)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hOWN',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script)); level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t files[]={Test_TempPath("wc3-owner-before-change.bin"),Test_TempPath("wc3-owner-after-change.bin")};
+    FOR_LOOP(pass,3) {
+        if (pass) T_ASSERT(ReadGame(files[pass-1]));
+        edict_t *unit=NULL;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) unit=ent;
+        T_NOT_NULL(unit); if (!unit) break;
+        uint32_t previous=wc3_float_bits(unit->movement.pose_clock.time); unsigned steps=pass ? 16 : 0;
+        while (level.time<30000) {
+            level.time+=5; globals.RunFrame();
+            uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+            bool changed=now!=previous; previous=now;
+            if (changed && level.time>1000 && level.time<1500) {
+                T_ASSERT(steps<16); if (steps>=16) break;
+                uint32_t const *expected=owner_change_motion[steps++];
+                T_EQ(now,expected[0]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),expected[1]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.y),expected[2]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),expected[3]);
+                T_EQ(wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),expected[4]);
+                T_EQ(wc3_float_bits(unit->s.angle),expected[5]);
+            }
+            if (!pass && level.time==1480) {
+                T_EQ(steps,16); T_EQ(unit->current_order_id,G_OrderId("move")); T_ASSERT(WriteGame(files[0]));
+            }
+            if (!pass && level.time==1500) T_ASSERT(WriteGame(files[1]));
+            /* The seventeenth velocity commit and synchronous Stop share the1500ms frame.
+             * Compare that frame's final original Stop words; do not count submission/Stop as motion. */
+            if (level.time>=1500 && level.time%100==0) {
+                T_EQ(unit->current_order_id,0); T_EQ(unit->s.player,1);
+                T_EQ(unit->movement.fine_class,1); T_ASSERT(!unit->movement.fine_queued);
+                T_ASSERT(!unit_is_walking(unit));
+                T_EQ(wc3_float_bits(unit->movement.pose_clock.time),owner_change_final[0]);
+                T_EQ(unit->movement.pose_clock.epoch,owner_change_final[1]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.x),owner_change_final[2]);
+                T_EQ(wc3_float_bits(unit->movement.fine_pose.y),owner_change_final[3]);
+                T_EQ(wc3_float_bits(unit->movement.velocity.x),owner_change_final[4]);
+                T_EQ(wc3_float_bits(unit->movement.velocity.y),owner_change_final[5]);
+                T_EQ(wc3_float_bits(wc3_div(S_UnitMoveSpeed(unit),32)),owner_change_final[6]);
+                T_EQ(wc3_float_bits(unit->s.angle),owner_change_final[7]);
+            }
+        }
+        T_EQ(steps,16); T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    FOR_LOOP(i,2) remove(files[i]);
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+/* Exercise admission and charging at the actual local-route consumer. */
+TEST(wc3_movement, local_route_search_charges_only_its_player_row) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[64*64]={0}; int const walls[]={12,22,32,42};
+    FOR_LOOP(i,4) FOR_LOOP(y,64) if (i%2==0 ? y<54 : y>9) cells[y*64+walls[i]]=2;
+    box2_t bounds={{0,0},{2048,2048}}; CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(64,64,cells);
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,152);
+    edict_t *other=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,312);
+    first->collision=other->collision=8; other->s.player=1;
+    vec2_t goal={1512,1400},waypoint;
+    movePathQuery_t query={{&first->s.origin2,&goal,8,2},first,NULL,true};
+    level.pathing_counter=2000; level.move_fine_budgets[0].work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!G_BuildUnitMoveLocalRoute(&query,&first->movement.fine_route,&waypoint));
+    T_EQ(level.move_fine_budgets[0].head,first);
+    query.geometry.from=&other->s.origin2; query.mover=other;
+    T_ASSERT(G_BuildUnitMoveLocalRoute(&query,&other->movement.fine_route,&waypoint));
+    T_ASSERT(other->movement.fine_route.count>0);
+    T_ASSERT(level.move_fine_budgets[1].work>0);
+    T_EQ(level.move_fine_budgets[0].work,BZ_WC3_FINE_OWNER_WORK+1);
+    T_EQ(level.move_fine_budgets[0].head,first); T_EQ(level.move_fine_budgets[0].count,1);
+    T_EQ(level.move_fine_budgets[1].count,0);
+    reset_entities(); setup_test_world();
+}
+
+/* Ordinary group paths use their own 800-work player buckets (retail 1679c0).
+ * Drive the complete hierarchy consumer; fine-search admission cannot enforce
+ * the group budget because it belongs to a different path object. */
+TEST(wc3_movement, group_route_contention_waits_for_owner_budget) {
+    reset_entities(); setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,48) cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    level.pathing_counter=1058;
+    uint32_t admitted[2]={0},waiting[2]={0};
+    FOR_LOOP(i,96) {
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+(i%8)*64,128+(i/8)*64);
+        unit->collision=31; unit->s.player=i%2;
+        vec2_t goal={1728,128+(i/8)*64},point;
+        movePathQuery_t query={{&unit->s.origin2,&goal,31,2},unit,NULL,true};
+        if(G_UnitMoveGroupDestination(&query,&unit->movement.fine_route,&point)) admitted[i%2]++;
+        else waiting[i%2]++;
+    }
+    FOR_LOOP(player,2) {
+        T_ASSERT(admitted[player]>0); T_ASSERT(waiting[player]>0);
+        T_EQ(admitted[player]+waiting[player],48);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, public_coarse_contention_saves_pending_two_player_orders) {
+    reset_entities(); setup_test_world();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,48) cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,true)\n"
+        "call SetPlayerAlliance(Player(1),Player(0),ALLIANCE_PASSIVE,true)\n"
+        "loop\nexitwhen i==96\n"
+        "set army[i]=CreateUnit(Player(i-(i/2)*2),'hRTE',128+I2R(i-(i/8)*8)*64,128+I2R(i/8)*64,0)\n"
+        "call SetUnitMoveSpeed(army[i],100)\ncall SetUnitAcquireRange(army[i],0)\n"
+        "call IssuePointOrder(army[i],\"move\",1728,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35) {level.time+=5;globals.RunFrame();}
+    FOR_LOOP(p,2) {
+        T_ASSERT(level.move_coarse_budgets[p][0].work>800);
+        T_ASSERT(level.move_coarse_budgets[p][0].count>0);
+    }
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    cstring_t file=Test_TempPath("openwarcraft3-coarse-contention.bin");
+    T_ASSERT(WriteGame(file));
+    uint32_t states[96][9]; wc3Random_t random={0};
+    FOR_LOOP(pass,2) {
+        if(pass) {T_ASSERT(ReadGame(file));T_ASSERT(S_ValidateMoveCoarseRequests());}
+        while(level.time<2000) {level.time+=5;globals.RunFrame();}
+        unsigned n=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id==MAKEFOURCC('h','R','T','E')) {
+            uint32_t words[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),unit->current_order_id,
+                unit->movement.fine_request_time,unit->movement.fine_queued,
+                unit->movement.fine_route.adaptive_admission.time,unit->movement.fine_route.adaptive_admission.queued};
+            if(n<96) {
+                if(!pass)memcpy(states[n],words,sizeof(words));
+                else FOR_LOOP(k,9)T_EQ(states[n][k],words[k]);
+            }
+            n++;
+        }
+        T_EQ(n,96);T_ASSERT(S_ValidateMoveCoarseRequests());
+        FOR_LOOP(p,2)T_EQ(level.move_coarse_budgets[p][0].count,0);
+        if(!pass)random=level.pathing_random;
+        else {T_EQ(random.sum,level.pathing_random.sum);T_EQ(random.index,level.pathing_random.index);}
+    }
+    remove(file);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, responsive_public_crowd_starts_and_restores_deterministically) {
+    reset_entities(); setup_test_world();
+    static uint8_t cells[256*256]; memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{8192,8192}});
+    CM_SetupTestPathmap(256,256,cells);
+    level.move_fine_responsive=true;
+    level.pathing_clock=(wc3Clock_t){.span=300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit array army\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\n"
+        "loop\nexitwhen i==1024\n"
+        "set army[i]=CreateUnit(Player(0),'hRTE',128+I2R(i-(i/32)*32)*128,128+I2R(i/32)*128,0)\n"
+        "set i=i+1\nendloop\nset i=0\n"
+        "loop\nexitwhen i==1024\n"
+        "call IssuePointOrder(army[i],\"move\",GetUnitX(army[i])+512,GetUnitY(army[i]))\n"
+        "set i=i+1\nendloop\nendfunction\n"));
+    edict_t *units[1024]; vec2_t origins[1024]; uint32_t result[1024][5];
+    unsigned count=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E')) {
+        if(count<1024)units[count]=ent,origins[count]=ent->s.origin2;
+        count++;
+    }
+    T_EQ(count,1024); if(count!=1024) { reset_entities(); setup_test_world(); return; }
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<35) { level.time+=5; globals.RunFrame(); }
+    cstring_t file=Test_TempPath("openwarcraft3-responsive-crowd.bin");
+    T_ASSERT(level.move_fine_budgets[0].count>0);
+    T_ASSERT(WriteGame(file));
+    wc3Random_t random={0};
+    FOR_LOOP(pass,2) {
+        if(pass) { T_ASSERT(ReadGame(file)); T_ASSERT(level.move_fine_responsive); }
+        while(level.time<200) { level.time+=5; globals.RunFrame(); }
+        unsigned advancing=0;
+        FOR_LOOP(i,count) {
+            edict_t const *unit=units[i];
+            if(memcmp(&origins[i],&unit->s.origin2,sizeof(vec2_t)))advancing++;
+            uint32_t words[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(unit->movement.velocity.y),unit->current_order_id};
+            if(!pass)memcpy(result[i],words,sizeof(words));
+            else FOR_LOOP(k,5)T_EQ(result[i][k],words[k]);
+        }
+        T_EQ(advancing,1024);
+        if(!pass)random=level.pathing_random;
+        else { T_EQ(random.sum,level.pathing_random.sum); T_EQ(random.index,level.pathing_random.index); }
+    }
+    remove(file); level.started=false; reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, responsive_fine_queue_serves_frozen_demand_in_fifo_order) {
+    bool saved_policy=level.move_fine_responsive;
+    unsigned sizes[]={1,12,256,1024,1600,4096};
+    FOR_LOOP(mode,2) FOR_LOOP(size,sizeof(sizes)/sizeof(sizes[0])) {
+        reset_entities(); setup_test_world();
+        level.move_fine_responsive=mode!=0;
+        moveFineBudget_t *budget=level.move_fine_budgets;
+        budget->work=BZ_WC3_FINE_OWNER_WORK+1;
+        unsigned count=sizes[size];
+        edict_t *units[4096];
+        FOR_LOOP(i,count) {
+            units[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+            T_ASSERT(!S_AdmitUnitMoveFineRequest(units[i]));
+        }
+        T_EQ(budget->count,count);
+        S_BeginAbilityOwnerUpdates();
+        uint32_t grant=mode ? MAX(BZ_WC3_FINE_OWNER_WORK,count*(BZ_WC3_UNIT_FINE_WORK+1u)) : BZ_WC3_FINE_OWNER_WORK;
+        T_EQ(budget->limit,grant);
+        if(count>1)T_ASSERT(!S_AdmitUnitMoveFineRequest(units[count-1]));
+        unsigned admitted=0;
+        FOR_LOOP(i,count) {
+            if (!S_AdmitUnitMoveFineRequest(units[i])) break;
+            admitted++;
+            S_ChargeUnitMoveFineRequest(units[i],BZ_WC3_UNIT_FINE_WORK+1);
+            T_EQ(budget->limit,grant); /* No shrinking grant while the queue drains. */
+        }
+        T_EQ(admitted,mode ? count : MIN(count,2));
+        T_EQ(budget->count,count-admitted);
+        if(mode) {
+            T_NULL(budget->head); T_NULL(budget->tail);
+            S_BeginAbilityOwnerUpdates();
+            T_EQ(budget->limit,grant); /* The reset cadence remains fixed. */
+            S_BeginAbilityOwnerUpdates();
+            T_EQ(budget->limit,BZ_WC3_FINE_OWNER_WORK); T_EQ(budget->work,0);
+        }
+    }
+    reset_entities(); setup_test_world(); level.move_fine_responsive=saved_policy;
+}
+
+TEST(wc3_movement, adaptive_replacement_releases_old_fine_queue_position) {
+    reset_entities(); setup_test_world(); S_ClearMoveFineRequests();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    CM_SetupTestPathmap(64,64,cells);
+    edict_t *first=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,152);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','f','o','o'),136,312);
+    first->collision=second->collision=8;
+    level.pathing_counter=2000;
+    moveFineBudget_t *budget=level.move_fine_budgets;
+    budget->work=BZ_WC3_FINE_OWNER_WORK+1;
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(first));
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(second));
+    vec2_t goal={1512,1400},waypoint;
+    movePathQuery_t query={{&first->s.origin2,&goal,8,2},first,NULL,true};
+    /* Original166c30 unlinks a pending fine request before starting a new
+     * adaptive request. Its following denied fine refill rejoins the tail. */
+    T_ASSERT(!G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_ASSERT(first->movement.fine_route.adaptive_count>0);
+    T_EQ(budget->head,second); T_EQ(budget->tail,first); T_EQ(budget->count,2);
+    T_EQ(second->movement.fine_next,first); T_EQ(first->movement.fine_prev,second);
+    /* Retrying the retained adaptive leg must not change FIFO position. */
+    T_ASSERT(!G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_EQ(budget->head,second); T_EQ(budget->tail,first); T_EQ(budget->count,2);
+    budget->work=0;
+    T_ASSERT(S_AdmitUnitMoveFineRequest(second));
+    T_ASSERT(G_BuildUnitMoveFineRoute(&query,&first->movement.fine_route,&waypoint));
+    T_EQ(budget->count,0); T_NULL(budget->head); T_NULL(budget->tail);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_movement, pending_fine_request_removal_repairs_each_player_fifo) {
+    FOR_LOOP(row,MAX_PLAYERS) {
+        reset_entities(); setup_test_world(); edict_t *units[3];
+        level.pathing_counter=2000; level.move_fine_budgets[row].work=BZ_WC3_FINE_OWNER_WORK+1;
+        FOR_LOOP(k,3) {
+            units[k]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128+64*k,128);
+            units[k]->s.player=row; T_ASSERT(!S_AdmitUnitMoveFineRequest(units[k]));
+        }
+        G_SetUnitPlayer(units[1],row); T_EQ(level.move_fine_budgets[row].count,3);
+        T_ASSERT(units[1]->movement.fine_queued);
+        G_FreeEdict(units[1]); T_EQ(level.move_fine_budgets[row].count,2);
+        T_EQ(units[0]->movement.fine_next,units[2]); T_EQ(units[2]->movement.fine_prev,units[0]);
+        G_FreeEdict(units[0]); T_EQ(level.move_fine_budgets[row].count,1);
+        T_EQ(level.move_fine_budgets[row].head,units[2]); T_EQ(level.move_fine_budgets[row].tail,units[2]);
+        T_EQ(units[2]->movement.fine_prev,NULL);
+        level.move_fine_budgets[row].work=BZ_WC3_FINE_OWNER_WORK;
+        T_ASSERT(S_AdmitUnitMoveFineRequest(units[2])); T_EQ(level.move_fine_budgets[row].count,0);
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Player-selected ordinary ground Move must own the same retained cohort as public groups. */
+TEST(wc3_movement, selected_point_move_owns_shared_physical_group) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0),*units[2];
+    clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
+        units[i]->collision=16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags|=SVF_MONSTER;
+        units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t point={128,512}; T_ASSERT(move_selectlocation(clent,&point));
+    T_EQ(ARRAY_COUNT(level.move_groups),1);
+    if (ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t const *group=level.move_groups[0];
+        T_ASSERT(group->inuse); T_EQ(group->count,2);
+        FOR_LOOP(i,2) {
+            T_EQ(units[i]->movement.group_id,group->id);
+            T_EQ(group->members[i].unit,units[i]);
+            T_EQ(units[i]->current_order_id,G_OrderId("move"));
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+/* Pending selected requests retain common coordinates and survive independent cancellation. */
+TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
+    reset_entities(); setup_test_world();
+    edict_t *clent=alloc_test_unit(0,0,0),*units[2];
+    clent->client=game.clients; clent->client->ps.number=0; clent->client->menu.order_queued=false;
+    FOR_LOOP(i,2) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),128+80*i,128);
+        units[i]->collision=16; G_SetEntitySelectionMask(units[i], 1); units[i]->svflags|=SVF_MONSTER;
+        units[i]->stand=unit_stand; units[i]->movetype=MOVETYPE_STEP; unit_stand(units[i]); gi.LinkEntity(units[i]);
+    }
+    vec2_t first={128,512},next={384,256}; T_ASSERT(move_selectlocation(clent,&first));
+    uint32_t old=units[0]->movement.group_id;
+    clent->client->menu.order_queued=true; T_ASSERT(move_selectlocation(clent,&next));
+    T_EQ(ARRAY_COUNT(level.move_groups),1); uint32_t context=units[0]->order_queue.entries[0].owner_context;
+    T_ASSERT(context!=0 && context!=old);
+    FOR_LOOP(i,2) {
+        T_EQ(units[i]->movement.group_id,old); T_EQ(units[i]->order_queue.count,1);
+        unitOrder_t const *queued=units[i]->order_queue.entries;
+        T_EQ(queued->owner_context,context);
+        T_EQ(wc3_float_bits(queued->point.x),wc3_float_bits(next.x));
+        T_EQ(wc3_float_bits(queued->point.y),wc3_float_bits(next.y));
+        T_EQ(queued->group_speed,0); T_EQ(units[i]->current_order_id,G_OrderId("move"));
+    }
+    G_ClearUnitOrderQueue(units[0]); T_EQ(units[0]->order_queue.count,0);
+    T_EQ(units[1]->order_queue.count,1); T_EQ(units[1]->order_queue.entries[0].owner_context,context);
+    clent->client->menu.order_queued=false; T_ASSERT(move_selectlocation(clent,&first));
+    FOR_LOOP(i,2) { T_EQ(units[i]->order_queue.count,0); T_ASSERT(units[i]->movement.group_id!=old); }
+    reset_entities(); setup_test_world();
+}
+
+/* Native player input supplies its absolute admission clock; all owner visits
+ * and motion then come from ordinary engine frames, without replaying decisions. */
+static void selected_player_input_journeys(uint32_t const inputs[2][4],
+        uint32_t const motion[2][228][7], bool queued) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','E','L'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,2) {
+        reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+        unsigned offset=0;
+        FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+            memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+            offset+=public_oblique_terrain_runs[i][0];
+        }
+        T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        T_ASSERT(run_test_jass("globals\nunit a\nunit b\nendglobals\n"
+            "function main takes nothing returns nothing\n"
+            "set a=CreateUnit(Player(0),'hSEL',-1936,-976,90)\n"
+            "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
+            "set b=CreateUnit(Player(3),'hSEL',-1856,-976,90)\n"
+            "call SetUnitMoveSpeed(b,100)\nendfunction\n"));
+        edict_t *units[2]={0}; unsigned count=0,steps=0; uint32_t clocks[2]={0};
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+        T_EQ(count,2); if (count!=2) continue;
+        edict_t *clent=alloc_test_unit(0,0,0); clent->client=game.clients+3;
+        clent->client->ps.number=3; clent->client->menu.order_queued=queued;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1u<<3);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        bool issued=false,mismatch=false;
+        cstring_t saves[]={Test_TempPath("wc3-selected-input-moving.bin"),Test_TempPath("wc3-selected-input-arrival.bin")};
+        FOR_LOOP(pass,3) {
+            if (pass) {
+                if (mismatch) break;
+                T_ASSERT(ReadGame(saves[pass-1])); steps=pass==1 ? 80 : 224; issued=true; mismatch=false;
+                FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
+            }
+            while (level.time<30000 && !mismatch) {
+                if (!issued && wc3_float_bits(level.pathing_clock.time)==inputs[c][0]) {
+                    T_EQ(level.pathing_counter,inputs[c][1]);
+                    vec2_t point={wc3_float(inputs[c][2]),wc3_float(inputs[c][3])};
+                    T_ASSERT(move_selectlocation(clent,&point)); issued=true;
+                    FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
+                }
+                level.time+=5; globals.RunFrame();
+                if (!issued) continue;
+                FOR_LOOP(i,2) {
+                    edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                    if (now==clocks[i]) continue;
+                    clocks[i]=now;
+                    T_ASSERT(steps<228); if (steps>=228) { mismatch=true; break; }
+                    uint32_t const *expected=motion[c][steps++];
+                    uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                    FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
+                    if (!pass && (steps==80 || steps==224)) T_ASSERT(WriteGame(saves[steps==80 ? 0 : 1]));
+                    if (mismatch) {
+                        fprintf(stderr,"Selected point case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
+                            actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                        break;
+                    }
+                }
+            }
+            T_ASSERT(issued); T_EQ(steps,228);
+            if (!mismatch) {
+                FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+                FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        remove(saves[0]); remove(saves[1]);
+    }
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+
+TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
+    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false);
+}
+
+TEST(wc3_movement, selected_idle_shift_matches_both_original_journeys) {
+    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true);
+}
+
+/* Input can arrive after a primary advance and before its due owner visit.
+ * Observe the ordinary engine pose publication to deliver the frozen input at
+ * that boundary; the callback does not advance clocks or run movement owners. */
+static struct {
+    void (*link)(edict_t *);
+    edict_t *client,*units[2];
+    uint32_t const (*inputs)[4];
+    unsigned count,index;
+} selected_queued_input;
+
+static void selected_queued_input_link(edict_t *unit) {
+    selected_queued_input.link(unit);
+    if (selected_queued_input.index==selected_queued_input.count) return;
+    uint32_t const *input=selected_queued_input.inputs[selected_queued_input.index];
+    if (wc3_float_bits(level.pathing_clock.time)!=input[0]) return;
+    selected_queued_input.index++; /* Prevent reentry through order publication. */
+    T_EQ(level.pathing_counter,input[1]);
+    /* Selection and Shift are recorded external input, including after load. */
+    FOR_LOOP(i,2) G_SetEntitySelectionMask(selected_queued_input.units[i], 1u<<3);
+    selected_queued_input.client->client->menu.order_queued=true;
+    vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+    T_ASSERT(move_selectlocation(selected_queued_input.client,&point));
+}
+
+/* Native player input supplies its absolute admission clock; all owner visits
+ * and motion then come from ordinary engine frames, without replaying decisions. */
+typedef enum { SELECTED_START_SINGLE, SELECTED_START_SHARED, SELECTED_START_INDEPENDENT } selectedStart_t;
+
+static void selected_queued_journeys(uint32_t const (*inputs)[4], unsigned input_count,
+        uint32_t const (*motion)[7], unsigned commit_count, unsigned cases, selectedStart_t initial_peer,
+        unsigned const save_steps[2]) {
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','Q','E'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(c,cases) {
+        /* Each scene replaces the VM. Retire callbacks before freeing its
+         * program; reset_entities alone does not reset the timer registry. */
+        FOR_LOOP(i,level.num_timers) G_TimerDestroy(level.timers+i);
+        reset_entities(); setup_test_world(); level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+        static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+        unsigned offset=0;
+        FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(public_oblique_terrain_runs[0])) {
+            memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+            offset+=public_oblique_terrain_runs[i][0];
+        }
+        T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+        level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+        level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+        char script[2048];
+        int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ngroup cohort\ngroup peer\ninteger tick=0\nendglobals\n"
+            "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+            "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\n%sendif\nendfunction\n"
+            "function main takes nothing returns nothing\n"
+            "set a=CreateUnit(Player(0),'hSQE',-1936,-976,90)\n"
+            "call SetUnitMoveSpeed(a,100)\ncall SetUnitOwner(a,Player(3),false)\n"
+            "set b=CreateUnit(Player(3),'hSQE',-1856,-976,90)\n"
+            "call SetUnitMoveSpeed(b,100)\nset cohort=CreateGroup()\n"
+            "call GroupAddUnit(cohort,a)\n%s"
+            "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
+            initial_peer==SELECTED_START_INDEPENDENT ? "call GroupPointOrder(peer,\"move\",-1856,-144)\n" : "",
+            initial_peer==SELECTED_START_SHARED ? "call GroupAddUnit(cohort,b)\n" :
+            initial_peer==SELECTED_START_INDEPENDENT ? "set peer=CreateGroup()\ncall GroupAddUnit(peer,b)\n" : "");
+        T_ASSERT(length>0 && length<sizeof(script));
+        T_ASSERT(run_test_jass(script));
+        edict_t *units[2]={0}; unsigned count=0,steps=0;
+        FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if (count<2) units[count]=ent; count++; }
+        T_EQ(count,2); if (count!=2) continue;
+        if (initial_peer==SELECTED_START_INDEPENDENT) {
+            /* Native identity normalization starts at the first physical owner,
+             * the peer's newer singleton. Entity creation order stays intact. */
+            edict_t *main=units[0]; units[0]=units[1]; units[1]=main;
+        }
+        edict_t *clent=g_edicts+3; clent->client=game.clients+3;
+        clent->client->ps.number=3; clent->client->menu.order_queued=true;
+        FOR_LOOP(i,2) G_SetEntitySelectionMask(units[i], 1u<<3);
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        selected_queued_input=(typeof(selected_queued_input)){.link=gi.LinkEntity,.client=clent,
+            .units={units[0],units[1]},.inputs=inputs+c*input_count,.count=input_count};
+        gi.LinkEntity=selected_queued_input_link;
+        bool mismatch=false; unsigned saved_inputs[2]={0}; uint32_t saved_history[2][2]={{0}};
+        cstring_t saves[]={Test_TempPath("wc3-selected-queued-moving.bin"),Test_TempPath("wc3-selected-queued-arrival.bin")};
+        FOR_LOOP(pass,3) {
+            if (pass) {
+                if (mismatch) break;
+                T_ASSERT(ReadGame(saves[pass-1])); steps=save_steps[pass-1]; selected_queued_input.index=saved_inputs[pass-1]; mismatch=false;
+                FOR_LOOP(i,2) {
+                    T_EQ(units[i]->movement.previous_request_id,saved_history[pass-1][i]);
+                }
+                T_EQ(units[0]->s.player,3); T_EQ(units[0]->movement.fine_class,3);
+            }
+            while (level.time<30000 && !mismatch) {
+                level.time+=5; globals.RunFrame();
+                if (!selected_queued_input.index && level.time<1000) continue;
+                unsigned visited=0;
+                while (steps<commit_count) {
+                    uint32_t const *expected=motion[steps]; unsigned i=expected[0];
+                    edict_t *unit=units[i]; uint32_t now=wc3_float_bits(unit->movement.pose_clock.time);
+                    /* Admission publishes a pose too. Only sample the next
+                     * recorded commit clock; ordinary frames perform the step. */
+                    if (now!=expected[1]) break;
+                    T_ASSERT(!(visited&(1u<<i))); visited|=1u<<i;
+                    steps++;
+                    uint32_t actual[]={i,now,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+                        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+                    FOR_LOOP(k,7) { T_EQ(actual[k],expected[k]); if(actual[k]!=expected[k]) mismatch=true; }
+                    if (!pass && !mismatch && (steps==save_steps[0] || steps==save_steps[1])) {
+                        unsigned slot=steps==save_steps[0] ? 0 : 1; saved_inputs[slot]=selected_queued_input.index;
+                        FOR_LOOP(j,2) saved_history[slot][j]=units[j]->movement.previous_request_id;
+                        if (input_count==2 && steps==save_steps[1]) {
+                            moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+                            T_ASSERT(group);
+                            if (group) T_EQ(group->request_id,units[0]->movement.previous_request_id);
+                            T_EQ(units[0]->movement.previous_request_id,units[1]->movement.previous_request_id);
+                        }
+                        T_ASSERT(WriteGame(saves[slot]));
+                    }
+                    if (mismatch) {
+                        fprintf(stderr,"Selected queued case%u commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",c,steps-1,
+                            actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                        break;
+                    }
+                }
+            }
+            T_EQ(selected_queued_input.index,input_count); T_EQ(steps,commit_count);
+            if (!mismatch) {
+                FOR_LOOP(i,2) T_EQ(units[i]->current_order_id,0);
+                FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) T_ASSERT(!level.move_groups[i]->inuse);
+            }
+            T_ASSERT(!jass_rterror_pending(level.vm));
+        }
+        gi.LinkEntity=selected_queued_input.link;
+        FOR_LOOP(i,level.num_timers) G_TimerDestroy(level.timers+i);
+        remove(saves[0]); remove(saves[1]);
+    }
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.started=false; reset_entities(); setup_test_world(); G_SetMapUnitOverrides(NULL); level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, selected_shift_input_matches_original_staggered_activation) {
+    selected_queued_journeys(selected_queued_inputs,1,selected_queued_motion,510,2,true,(unsigned const[]){310,368});
+}
+
+TEST(wc3_movement, selected_two_shift_inputs_match_original_three_leg_journey) {
+    selected_queued_journeys(selected_double_queued_inputs[0],2,selected_double_queued_motion,555,2,true,(unsigned const[]){310,368});
+}
+
+TEST(wc3_movement, selected_mixed_shift_inputs_match_original_complete_journeys) {
+    FOR_LOOP(c,sizeof(selected_mixed_cases)/sizeof(*selected_mixed_cases))
+        selected_queued_journeys(selected_mixed_inputs+c,1,selected_mixed_cases[c].motion,
+            selected_mixed_cases[c].count,1,false,(unsigned const[]){200,300});
+}
+
+TEST(wc3_movement, selected_independent_shift_inputs_match_original_complete_journeys) {
+    FOR_LOOP(c,sizeof(selected_independent_cases)/sizeof(*selected_independent_cases))
+        selected_queued_journeys(selected_independent_inputs+c,1,selected_independent_cases[c].motion,
+            selected_independent_cases[c].count,1,SELECTED_START_INDEPENDENT,(unsigned const[]){200,400});
+}
+
+/* Test-only adapter: observe the committed production state, never expected rows.
+ * Actor lifetimes follow producer rawcodes, independently of edict slot reuse. */
+static FILE *same_cell_journal;
+static unsigned same_cell_journal_count,same_cell_journal_profiles;
+static void record_same_cell_commit(edict_t *unit) {
+    record_follow_commit(unit);
+    if(!same_cell_journal)return;
+    unsigned actor=(unit->class_id>>24)-'1';
+    if(actor<4 && !(same_cell_journal_profiles&(1u<<actor))) {
+        same_cell_journal_profiles|=1u<<actor;
+        fprintf(same_cell_journal,"{\"event\":\"profile\",\"actor\":[%u,0],"
+            "\"radius\":%u,\"turn\":%u,\"window\":%u}\n",actor,
+            wc3_float_bits(wc3_div(unit->collision,32)),wc3_float_bits(unit_turnspeed(unit)),
+            wc3_float_bits(unit_propwindow(unit)));
+    }
+    fprintf(same_cell_journal,"{\"event\":\"velocity-commit\",\"sequence\":%u,\"actor\":[%u,0],"
+        "\"clock\":[%u,%u,%u],\"position\":[%u,%u],\"velocity\":[%u,%u],\"heading\":%u}\n",
+        same_cell_journal_count++,actor,wc3_float_bits(unit->movement.pose_clock.time),
+        unit->movement.pose_clock.epoch,wc3_float_bits(unit->movement.pose_clock.span),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle));
+}
+
+#include "retail_same_cell_motion_114.h"
+TEST(wc3_movement, public_same_cell_routes_retain_single_points_and_saved_motion) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius[]={8,24,40,56},speed=270;
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[4][2];unitData_t custom[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        custom[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','F','9','1'+i),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+24]=cells[y*64+25]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(same_cell_script_114);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_same_cell114;
+    G_FinishMovePathingInitialization();
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    char const *journal_path=getenv("WC3_PATHFINDING_TRACE");
+    same_cell_journal_count=same_cell_journal_profiles=0;
+    if(journal_path) {
+        same_cell_journal=fopen(journal_path,"w");T_NOT_NULL(same_cell_journal);
+        if(same_cell_journal)fprintf(same_cell_journal,
+            "{\"event\":\"begin\",\"scenario\":\"same-cell-four-lifetimes-114\","
+            "\"bounds\":[0,0,2048,2048],\"grid\":[64,64],\"clock\":[%u,%u,%u],"
+            "\"radii\":[8,24,40,56],\"base_speed\":%u,\"min_speed\":%u,\"max_speed\":%u}\n",
+            wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,
+            wc3_float_bits(level.pathing_clock.span),wc3_float_bits(speed),
+            wc3_float_bits(game.constants.minUnitSpeed),wc3_float_bits(game.constants.maxUnitSpeed));
+    }
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_same_cell_commit;
+    unsigned const times[]={1030,1090,9030,17030,25030};
+    unsigned saved[5]={0},steps=0,suffix=0;bool mismatch=false;char files[5][MAX_PATH];
+    FOR_LOOP(i,5) {
+        int n=snprintf(files[i],sizeof(files[i]),"%s-%u.bin",
+            journal_path?journal_path:Test_TempPath("wc3-same-cell114"),times[i]);
+        T_ASSERT(n>0 && n<(int)sizeof(files[i]));
+        if(n<=0 || n>=(int)sizeof(files[i])){mismatch=true;files[i][0]=0;}
+    }
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){
+            if(same_cell_journal) {
+                fprintf(same_cell_journal,"{\"event\":\"end\",\"count\":%u}\n",same_cell_journal_count);
+                T_EQ(fclose(same_cell_journal),0);same_cell_journal=NULL;
+            }
+            T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];
+            edict_t *unit=NULL;
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent))FOR_LOOP(c,4)
+                if(ent->class_id==custom[c].newUnitID)unit=ent;
+            T_NOT_NULL(unit);
+            if(unit) {
+                moveFineRoute_t *route=&unit->movement.fine_route;
+                T_EQ(route->count,1);T_EQ(route->index,0);T_ASSERT(!route->partial);
+                T_ASSERT(unit->movement.path.valid);T_NOT_NULL(route->points);
+                if(route->points) {
+                    T_EQ(wc3_float_bits(route->points[0].x),0x410f8000u);
+                    T_EQ(wc3_float_bits(route->points[0].y),0x411f8000u);
+                }
+            }
+        }
+        while(level.time<32000 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent))FOR_LOOP(c,4)
+                if(ent->class_id==custom[c].newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<28);if(steps>=28){mismatch=true;break;}
+                uint32_t const *expected=same_cell_motion_114[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"same-cell114 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]) {
+                edict_t *unit=trace.units[0];moveFineRoute_t *route=&unit->movement.fine_route;
+                T_EQ(route->count,1);T_EQ(route->index,0);T_ASSERT(!route->partial);
+                T_NOT_NULL(route->points);
+                if(route->points) {
+                    T_EQ(wc3_float_bits(route->points[0].x),0x410f8000u);
+                    T_EQ(wc3_float_bits(route->points[0].y),0x411f8000u);
+                }
+                saved[i]=steps;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        T_EQ(steps,28);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"same-cell114 native commits=%u saved suffix=%u\n",steps,suffix);
+    if(!mismatch){T_NOT_NULL(trace.units[0]);T_EQ(trace.units[0]->current_order_id,0);}
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_same_cell114:
+    /* A partial journal deliberately has no completion record. */
+    if(same_cell_journal){fclose(same_cell_journal);same_cell_journal=NULL;}
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+#include "retail_timer_motion_116.h"
+TEST(wc3_movement, public_timer_timeout_drives_exact_motion_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),
+        .newUnitID=MAKEFOURCC('h','T','1','6'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(timer_script_116);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_timer116;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={80,450,1100,2200};unsigned saved[4]={0},steps=0,suffix=0;
+    PATHSTR files[4];FOR_LOOP(i,4)snprintf(files[i],sizeof(files[i]),"%swc3-timer116-%u.bin",Test_TempPath(""),times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,5) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<4100 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<70);if(steps>=70){mismatch=true;break;}
+                uint32_t const *expected=timer_motion_116[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"timer116 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,70);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,41*39);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<=40);T_ASSERT(entry->child>=0 && entry->child<39);
+            T_EQ(entry->type,HT_REAL);
+            if(entry->parent>=0 && entry->parent<=40 && entry->child>=0 && entry->child<39)T_EQ(wc3_float_bits(entry->value.real),timer_getters_117[entry->parent][entry->child%13][entry->child/13]);
+        }
+    }
+    fprintf(stderr,"timer116 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,4)remove(files[i]);
+cleanup_timer116:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+#include "retail_timer_motion_117.h"
+TEST(wc3_movement, public_timer_getters_drive_motion_across_segments_pause_and_epoch_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),
+        .newUnitID=MAKEFOURCC('h','T','1','6'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(timer_script_117);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_timer117;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={11000,22500,299500,300500,305500};unsigned saved[5]={0},steps=0,suffix=0;
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-timer117-%u.bin",Test_TempPath(""),times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<351000 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<320);if(steps>=320){mismatch=true;break;}
+                uint32_t const *expected=timer_motion_117[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"timer117 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,320);T_EQ(level.pathing_clock.epoch,1u);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,351*39);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<=350);T_ASSERT(entry->child>=0 && entry->child<39);
+            T_EQ(entry->type,HT_REAL);
+            if(entry->parent>=0 && entry->parent<=350 && entry->child>=0 && entry->child<39)T_EQ(wc3_float_bits(entry->value.real),timer_epoch_getters_117[entry->parent][entry->child%13][entry->child/13]);
+        }
+    }
+    fprintf(stderr,"timer117 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_timer117:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+#include "retail_timer_motion_118.h"
+TEST(wc3_movement, public_timer_getters_drive_motion_across_callback_mutation_and_catchup_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),
+        .newUnitID=MAKEFOURCC('h','T','1','6'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bool compiled=run_test_jass(timer_script_118);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_timer118;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={5,95,145,255,505};unsigned saved[5]={0},steps=0,suffix=0;
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-timer118-%u.bin",Test_TempPath(""),times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<6100 && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<175);if(steps>=175){mismatch=true;break;}
+                uint32_t const *expected=timer_motion_118[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"timer118 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,175);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,348*5);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<348);T_ASSERT(entry->child>=0 && entry->child<5);
+            T_EQ(entry->type,entry->child<2 ? HT_INTEGER : HT_REAL);
+            if(entry->parent>=0 && entry->parent<348 && entry->child>=0 && entry->child<5) {
+                uint32_t word=entry->child<2 ? (uint32_t)entry->value.integer : wc3_float_bits(entry->value.real);
+                T_EQ(word,timer_records_118[entry->parent][entry->child]);
+                if(word!=timer_records_118[entry->parent][entry->child])fprintf(stderr,"timer118 row%d field%d actual=%08x expected=%08x\n",entry->parent,entry->child,word,timer_records_118[entry->parent][entry->child]);
+            }
+        }
+    }
+    fprintf(stderr,"timer118 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_timer118:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+
+#include "retail_metadata_motion_119.h"
+#include "retail_metadata_rally_motion_119.h"
+#include "retail_metadata_busy_motion_119.h"
+static void check_metadata_scene_119(char const *script,uint32_t const (*records)[6],unsigned record_count,
+    uint32_t const (*motion)[7],unsigned motion_count,unsigned duration) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    char const ability_slk[]="ID;PWXL;N;E\nB;X5;Y3;D0\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"DataC1\"\nC;X4;K\"Dur1\"\nC;X5;K\"DataC2\"\n"
+        "C;Y2;X1;K\"Adef\"\nC;X2;K\"Adef\"\nC;X3;K\"0.3\"\nC;X4;K\"0\"\nC;X5;K\"0.3\"\nC;Y3;X1;K\"ARal\"\nC;X2;K\"ARal\"\nE\n";
+    char const upgrade_slk[]="ID;PWXL;N;E\nB;X6;Y2;D0\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\nC;X3;K\"effect1\"\n"
+        "C;X4;K\"base1\"\nC;X5;K\"mod1\"\nC;X6;K\"code1\"\n"
+        "C;Y2;X1;K\"Rhde\"\nC;X2;K1\nC;X3;K\"rlev\"\nC;X4;K0\nC;X5;K0\nC;X6;K\"Adef\"\nE\n";
+    slkTestData_t *arows=parse_slk_string(ability_slk),*urows=parse_slk_string(upgrade_slk);
+    slkTestData_t *old_a=G_SetSLKRows("AbilityData",arows),*old_u=G_SetSLKRows("UpgradeData",urows);
+    float radius=31,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','p','g','r'),.type=mod_string,.data="Rhde"}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','f','o','o'),
+        .newUnitID=MAKEFOURCC('h','T','1','9'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    memset(game.clients[0].tech,0,sizeof(game.clients[0].tech));
+    bool compiled=run_test_jass(script);T_ASSERT(compiled);
+    if(!compiled)goto cleanup_metadata119;
+    G_FinishMovePathingInitialization();level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned const times[]={105,405,505,2005,2505};unsigned saved[5]={0},steps=0,suffix=0;
+    PATHSTR files[5];FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-metadata119-%u.bin",Test_TempPath(""),times[i]);
+    bool mismatch=false;
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<duration && !mismatch) {
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==custom.newUnitID)trace.units[0]=ent;
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<motion_count);if(steps>=motion_count){mismatch=true;break;}
+                uint32_t const *expected=motion[steps++];
+                FOR_LOOP(k,7){T_EQ(trace.rows[i][k],expected[k]);if(trace.rows[i][k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"metadata119 motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",
+                    steps-1,level.time,trace.rows[i][0],trace.rows[i][1],trace.rows[i][2],trace.rows[i][3],trace.rows[i][4],trace.rows[i][5],trace.rows[i][6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,motion_count);if(pass)suffix+=steps-saved[pass-1];
+        hashtable_t const *table=level.hashtables;
+        T_EQ(table->num_entries,record_count*6);
+        FOR_LOOP(i,table->num_entries) {
+            hashtableEntry_t const *entry=table->entries+i;
+            T_ASSERT(entry->parent>=0 && entry->parent<record_count);T_ASSERT(entry->child>=0 && entry->child<6);
+            T_EQ(entry->type,entry->child<3 ? HT_INTEGER : HT_REAL);
+            if(entry->parent>=0 && entry->parent<record_count && entry->child>=0 && entry->child<6) {
+                uint32_t word=entry->child<3 ? (uint32_t)entry->value.integer : wc3_float_bits(entry->value.real);
+                T_EQ(word,records[entry->parent][entry->child]);
+                if(word!=records[entry->parent][entry->child])fprintf(stderr,"metadata119 row%d field%d actual=%08x expected=%08x\n",entry->parent,entry->child,word,records[entry->parent][entry->child]);
+            }
+        }
+    }
+    fprintf(stderr,"metadata119 native commits=%u saved suffix=%u\n",steps,suffix);
+    T_ASSERT(!jass_rterror_pending(level.vm));move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,5)remove(files[i]);
+cleanup_metadata119:
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_a);G_SetSLKRows("UpgradeData",old_u);free_slk_rows(arows);free_slk_rows(urows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_defend_orders_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_script_119,metadata_records_119,84,metadata_motion_119,13,7100);
+}
+TEST(wc3_movement, public_rally_orders_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_rally_script_119,metadata_rally_records_119,40,metadata_rally_motion_119,13,3100);
+}
+TEST(wc3_movement, public_busy_defend_rejections_match_retail_motion_and_getters_through_save) {
+    check_metadata_scene_119(metadata_busy_script_119,metadata_busy_records_119,86,metadata_busy_motion_119,73,7100);
+}
+
+#include "retail_gate_retry.h"
+static struct { uint32_t const (*rows)[14]; unsigned count,index; bool mismatch; } gate_retry;
+
+/* Observe the production retry transaction, including both words before/after. */
+static void record_gate_retry(edict_t *unit,moveRetryTrace_t const *before) {
+    unsigned member=0;
+    while(member<2 && follow_commit_trace->units[member]!=unit)member++;
+    uint32_t actual[]={member,level.pathing_counter,
+        wc3_float_bits(before->input.source[0]),wc3_float_bits(before->input.source[1]),
+        wc3_float_bits(before->input.goal[0]),wc3_float_bits(before->input.goal[1]),before->input.members,
+        before->count,unit->movement.retry_count,before->result,before->owner.sum,before->owner.index,
+        level.pathing_random.sum,level.pathing_random.index};
+    T_ASSERT(gate_retry.index<gate_retry.count);
+    if(gate_retry.index>=gate_retry.count){gate_retry.mismatch=true;return;}
+    uint32_t const *expected=gate_retry.rows[gate_retry.index++];
+    FOR_LOOP(k,14) {
+        T_EQ(actual[k],expected[k]);
+        if(actual[k]!=expected[k]) {
+            fprintf(stderr,"Gate retry%u field%u actual=%08x expected=%08x time%u\n",gate_retry.index-1,k,actual[k],expected[k],level.time);
+            gate_retry.mismatch=true;
+        }
+    }
+}
+
+#include "retail_gate_traversal.h"
+static struct { uint32_t const (*rows)[16]; unsigned count,index; bool mismatch; } gate_repulse;
+
+/* Retain every scheduled separation visit, including cooldown and rejected endpoints. */
+static void record_gate_repulse(edict_t *unit,moveRepulseTrace_t const *before) {
+    unsigned member=0;
+    while(member<2 && follow_commit_trace->units[member]!=unit)member++;
+    wc3Repulse_t const *state=&unit->movement.repulse.state;
+    uint32_t actual[]={member,level.pathing_counter,wc3_float_bits(before->state.vector[0]),
+        wc3_float_bits(before->state.vector[1]),before->state.packed,
+        wc3_float_bits(before->point.x),wc3_float_bits(before->point.y),before->owner.sum,before->owner.index,
+        wc3_float_bits(state->vector[0]),wc3_float_bits(state->vector[1]),state->packed,
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        level.pathing_random.sum,level.pathing_random.index};
+    T_ASSERT(gate_repulse.index<gate_repulse.count);
+    if(gate_repulse.index>=gate_repulse.count){gate_repulse.mismatch=true;return;}
+    uint32_t const *expected=gate_repulse.rows[gate_repulse.index++];
+    FOR_LOOP(k,16) {
+        T_EQ(actual[k],expected[k]);
+        if(actual[k]!=expected[k]) {
+            fprintf(stderr,"Gate repulse%u field%u actual=%08x expected=%08x time%u\n",gate_repulse.index-1,k,actual[k],expected[k],level.time);
+            gate_repulse.mismatch=true;
+        }
+    }
+}
+
+static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_count,char const *script,
+        unsigned const *times,unsigned checkpoint_count,char const *name,unsigned end_msec,unsigned unit_count,uint8_t const *supplied_cells) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=8,speed=270,gate_radius=50,height=60,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int building=1,repulse=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t air_mods[]={mods[0],mods[1],
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"},
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height}};
+    unitModification_t rnd_mods[]={mods[0],mods[1],{.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&repulse}};
+    /* Retail Way Gate is immobile and owns an ordinary source rectangle;
+     * the supplied flat WPM has no blocked walking cells at its footprint. */
+    unitModification_t gate_mods[]={
+        {.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Zwrp"},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="_"},
+        {.modID=MAKEFOURCC('u','b','d','g'),.type=mod_int,.data=&building},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&gate_radius}};
+    unitData_t custom[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','9','1'),.numbeOfModifications=2,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','f','o','o'),.newUnitID=MAKEFOURCC('n','w','g','t'),.numbeOfModifications=4,.modifications=gate_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','I','R'),.numbeOfModifications=4,.modifications=air_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','R','N','D'),.numbeOfModifications=3,.modifications=rnd_mods}};
+    unitModification_t ability_mods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hF91" : "hAIR"};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','G','r') : MAKEFOURCC('A','C','F','l'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=custom,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X6;Y3\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X5;K\"levels\"\nC;X6;K\"UnitID1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nC;X1;Y3;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X5;K1\nC;X6;K\"hRTE\"\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};if(supplied_cells)memcpy(cells,supplied_cells,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    /* Match the locked map's four fixed and eight random race preferences.
+     * Fine retries consume the map owner's stream, not prior tests' draws. */
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12];
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12){old_prefs[i]=game.clients[i].jass.race_pref;game.clients[i].jass.race_pref=i<4 ? 1 : 32;}
+    G_InitMapRandom();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=old_prefs[i];
+    T_ASSERT(run_test_jass(script));G_FinishMovePathingInitialization();
+    unsigned active_timers=0;FOR_LOOP(i,level.num_timers)if(level.timers[i].running)active_timers++;
+    T_EQ(active_timers,1);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=false;
+    unsigned saved[16]={0},retry_saved[16]={0},repulse_saved[16]={0},suffix=0;PATHSTR files[16];T_ASSERT(checkpoint_count<=16);
+    if(gate_retry.rows){gate_retry.index=0;gate_retry.mismatch=false;move_test_retry=record_gate_retry;}
+    if(gate_repulse.rows){gate_repulse.index=0;gate_repulse.mismatch=false;move_test_repulse=record_gate_repulse;}
+    FOR_LOOP(i,checkpoint_count)snprintf(files[i],sizeof(files[i]),"%swc3-%s-%u.bin",Test_TempPath(""),name,times[i]);
+    FOR_LOOP(pass,checkpoint_count+1) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];gate_retry.index=retry_saved[pass-1];gate_repulse.index=repulse_saved[pass-1];}
+        while(level.time<end_msec && !mismatch) {
+        bool rebuild=false;
+        FOR_LOOP(i,unit_count)if(!trace.units[i] || !trace.units[i]->inuse || G_IsDeferredFree(trace.units[i]))rebuild=true;
+        if(rebuild) {
+            unsigned count=0;memset(trace.units,0,sizeof(trace.units));
+            FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) &&
+                (ent->class_id==custom[0].newUnitID || ent->class_id==custom[2].newUnitID || ent->class_id==custom[3].newUnitID)) {
+                T_ASSERT(count<unit_count);
+                if(count<unit_count)trace.units[count++]=ent;
+            }
+            if(count)T_EQ(count,unit_count);
+        }
+        trace.count=0;level.time+=5;globals.RunFrame();
+        if(gate_retry.mismatch || gate_repulse.mismatch)mismatch=true;
+        if(jass_rterror_pending(level.vm)){fprintf(stderr,"%s JASS at%u: %s\n",name,level.time,jass_rterror_message(level.vm));mismatch=true;}
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<motion_count);
+            if(steps>=motion_count){mismatch=true;break;}
+            uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"%s motion%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",name,steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            if(mismatch && trace.units[0]) {
+                moveFineRoute_t const *r=&trace.units[0]->movement.fine_route;
+                fprintf(stderr,"%s route fine=%u/%u partial=%u adaptive=%u/%u group=%u/%u heading=%.9g wait=%u goal=%.9g/%.9g endpoint=%.9g/%.9g\n",name,r->index,r->count,r->partial,r->adaptive_index,r->adaptive_count,r->group_index,r->group_count,trace.units[0]->movement.heading,trace.units[0]->movement.wait_delay,r->adaptive_goal.x,r->adaptive_goal.y,r->count?r->points[0].x:0,r->count?r->points[0].y:0);
+            }
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,checkpoint_count)if(level.time==times[i]){saved[i]=steps;retry_saved[i]=gate_retry.index;repulse_saved[i]=gate_repulse.index;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,motion_count);
+        if(gate_retry.rows)T_EQ(gate_retry.index,gate_retry.count);
+        if(gate_repulse.rows)T_EQ(gate_repulse.index,gate_repulse.count);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"%s native motion=%u saved continuation commits=%u\n",name,steps,suffix);
+    FOR_LOOP(i,checkpoint_count)remove(files[i]);
+    T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(!mismatch)FOR_LOOP(i,unit_count) {
+        T_NOT_NULL(trace.units[i]);
+        if(trace.units[i])T_EQ(trace.units[i]->current_order_id,0);
+    }
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;move_test_retry=NULL;move_test_repulse=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, retail_gate_cached_fresh_and_disabled_routes_match_all_motion) {
+    unsigned const times[]={1295,1320,2995,3010,4315,4340,8995,9010,9510,10200};
+    public_gate_journey(retail_gate95_motion,sizeof(retail_gate95_motion)/sizeof(*retail_gate95_motion),
+        retail_gate95_script,times,sizeof(times)/sizeof(*times),"gate95",20500,1,NULL);
+}
+
+#include "retail_gate_lifetime.h"
+TEST(wc3_movement, retail_gate_destroy_and_immediate_or_delayed_reuse_match_all_motion) {
+    unsigned const times[]={495,510,8995,9010,9495,9510,9545,9570,10200,20000};
+    public_gate_journey(retail_gate96_same_motion,sizeof(retail_gate96_same_motion)/sizeof(*retail_gate96_same_motion),
+        retail_gate96_same_script,times,sizeof(times)/sizeof(*times),"gate96-same",20500,1,NULL);
+    public_gate_journey(retail_gate96_reuse_motion,sizeof(retail_gate96_reuse_motion)/sizeof(*retail_gate96_reuse_motion),
+        retail_gate96_reuse_script,times,sizeof(times)/sizeof(*times),"gate96-reuse",20500,1,NULL);
+}
+
+#include "retail_gate_exit.h"
+TEST(wc3_movement, retail_gate_blocked_and_outside_exits_match_all_motion) {
+    unsigned const times[]={495,510,1295,1320,1995,2010,5995,6010,13995,14010};
+    public_gate_journey(retail_gate97_near_motion,sizeof(retail_gate97_near_motion)/sizeof(*retail_gate97_near_motion),
+        retail_gate97_near_script,times,sizeof(times)/sizeof(*times),"gate97-near",26000,1,NULL);
+    public_gate_journey(retail_gate97_sealed_motion,sizeof(retail_gate97_sealed_motion)/sizeof(*retail_gate97_sealed_motion),
+        retail_gate97_sealed_script,times,sizeof(times)/sizeof(*times),"gate97-sealed",26000,1,NULL);
+}
+
+#include "retail_gate_group.h"
+TEST(wc3_movement, retail_group_gate_traversal_skip_and_only_edge_failure_match_all_motion) {
+    unsigned const times[]={145,175,1295,1320,1395,1420,5995,6010,6495,6510,8000,20000};
+    gate_retry=(typeof(gate_retry)){.rows=gate_retry_open,.count=sizeof(gate_retry_open)/sizeof(*gate_retry_open)};
+    public_gate_journey(retail_gate98_open_motion,sizeof(retail_gate98_open_motion)/sizeof(*retail_gate98_open_motion),
+        retail_gate98_open_script,times,sizeof(times)/sizeof(*times),"gate98-open",26000,2,NULL);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+    gate_retry=(typeof(gate_retry)){.rows=gate_retry_wall,.count=sizeof(gate_retry_wall)/sizeof(*gate_retry_wall)};
+    public_gate_journey(retail_gate98_wall_motion,sizeof(retail_gate98_wall_motion)/sizeof(*retail_gate98_wall_motion),
+        retail_gate98_wall_script,times,sizeof(times)/sizeof(*times),"gate98-wall",26000,2,cells);
+    memset(&gate_retry,0,sizeof(gate_retry));
+}
+
+#include "retail_gate_chain.h"
+TEST(wc3_movement, retail_chained_gates_all_activation_combinations_match_all_motion) {
+    unsigned const times[]={1295,1320,1395,1420,7995,8010,15995,16010,23995,24010,30000,33000};
+    public_gate_journey(retail_gate99_motion,sizeof(retail_gate99_motion)/sizeof(*retail_gate99_motion),
+        retail_gate99_script,times,sizeof(times)/sizeof(*times),"gate99-chain",34000,1,NULL);
+}
+
+typedef enum { FOLLOW_SPEED, FOLLOW_REMOVE_REUSE, FOLLOW_KILL_REUSE, FOLLOW_XY, FOLLOW_POSITION, FOLLOW_TRAVEL_XY, FOLLOW_TRAVEL_POSITION, FOLLOW_GROW, FOLLOW_SHRINK, FOLLOW_RESEARCH, FOLLOW_GROW_CONTROL, FOLLOW_SHRINK_CONTROL } followScenario_t;
+
+static void public_follow_journey(uint32_t const (*motion)[7], unsigned motion_count, followScenario_t scenario) {
+    bool reuse=scenario==FOLLOW_REMOVE_REUSE || scenario==FOLLOW_KILL_REUSE;
+    bool resize=scenario>=FOLLOW_GROW;
+    bool fresh=scenario==FOLLOW_GROW || scenario==FOLLOW_SHRINK;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities(); setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400; game.constants.followRange=300;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','L','V'),
+        .numbeOfModifications=2,.modifications=mods};
+    float changed_radius=scenario==FOLLOW_SHRINK || scenario==FOLLOW_SHRINK_CONTROL ? 7 : 63;
+    unitModification_t changed_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&changed_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+    };
+    unitData_t custom_units[]={custom,{.originalUnitID=custom.originalUnitID,
+        .newUnitID=MAKEFOURCC('h','C','L','G'),.numbeOfModifications=2,.modifications=changed_mods}};
+    char target_type[]="hCLG";
+    unitModification_t ability_mods[]={{.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=target_type},
+        {.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=scenario==FOLLOW_RESEARCH ? "Roch" : ""}};
+    unitData_t custom_ability={.originalUnitID=MAKEFOURCC('S','c','a','1'),
+        .newUnitID=MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods};
+    mapInfo_t info={.num_userCreatedUnits=resize ? 2 : 1,.userCreatedUnits=custom_units,
+        .num_userCreatedAbilities=resize ? 1 : 0,.userCreatedAbilities=&custom_ability};
+    slkTestData_t *chaos_rows=NULL,*old_ability_rows=NULL;
+    if(resize) {
+        chaos_rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+            "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+        old_ability_rows=G_SetSLKRows("AbilityData",chaos_rows);
+    }
+    mapInfo_t const *oldinfo=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    if(resize) G_SetMapAbilityOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}};
+    unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[4096];
+    int length=snprintf(script,sizeof(script),"globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==80 then\ncall IssuePointOrder(b,\"move\",-1936,112)\nendif\n"
+        "if tick==85 then\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "%s"
+        "if tick==300 then\ncall IssueImmediateOrder(a,\"stop\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set a=CreateUnit(Player(0),'hFLV',-1936,-976,90)\ncall SetUnitMoveSpeed(a,100)\n"
+        "set b=CreateUnit(Player(0),'hFLV',-1936,-144,90)\ncall SetUnitMoveSpeed(b,100)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n",
+        scenario==FOLLOW_RESEARCH ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\nif tick==150 then\ncall SetPlayerTechResearched(Player(0),'Roch',1)\nendif\n" :
+        resize && !fresh ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\n" :
+        resize ? "if tick==100 then\ncall UnitAddAbility(b,'ACGb')\nendif\nif tick==150 then\ncall IssueTargetOrder(a,\"smart\",b)\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n" : scenario==FOLLOW_SPEED ? "" : scenario==FOLLOW_TRAVEL_XY ?
+        "if tick==90 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_TRAVEL_POSITION ?
+        "if tick==90 then\ncall SetUnitPosition(b,-1600,300)\nendif\n" : scenario==FOLLOW_XY ?
+        "if tick==100 then\ncall SetUnitX(b,-1600)\ncall SetUnitY(b,300)\nendif\n" : scenario==FOLLOW_POSITION ?
+        "if tick==100 then\ncall SetUnitPosition(b,-1600,300)\nendif\n" : scenario==FOLLOW_REMOVE_REUSE ?
+        "if tick==100 then\ncall RemoveUnit(b)\nset b=null\nendif\n"
+        "if tick==110 then\nset b=CreateUnit(Player(0),'hFLV',-1936,112,90)\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "if tick==120 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n" :
+        "if tick==100 then\ncall KillUnit(b)\nendif\n"
+        "if tick==105 then\ncall RemoveUnit(b)\nset b=null\nendif\n"
+        "if tick==110 then\nset b=CreateUnit(Player(0),'hFLV',-1936,112,90)\ncall SetUnitMoveSpeed(b,300)\nendif\n"
+        "if tick==120 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n");
+    T_ASSERT(length>0 && length<sizeof(script));
+    T_ASSERT(run_test_jass(script));
+    edict_t *units[2]={0}; unsigned count=0,steps=0;
+    FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) { if(count<2)units[count]=ent; count++; }
+    T_EQ(count,2);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t saves[]={Test_TempPath("wc3-follow-approach.bin"),Test_TempPath("wc3-follow-persistent.bin"),Test_TempPath("wc3-follow-target.bin")};
+    unsigned save_steps[]={50,reuse ? 348 : scenario==FOLLOW_SPEED ? 150 : scenario==FOLLOW_TRAVEL_XY ? 351 : 350,scenario==FOLLOW_SPEED ? 251 : 700};
+    bool mismatch=count!=2;
+    followCommitTrace_t trace={0}; follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    FOR_LOOP(pass,4) {
+        if(mismatch)break;
+        if(pass){bool loaded=ReadGame(saves[pass-1]);T_ASSERT(loaded);if(!loaded)break;steps=save_steps[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0; trace.units[0]=units[0];
+            if(reuse)
+                FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
+            trace.units[1]=units[1];
+            level.time+=5; globals.RunFrame();
+            if(scenario==FOLLOW_SPEED && (level.time==1020 || level.time==8010)) {
+                unsigned member=level.time==1020 ? 0 : 1;
+                moveGroup_t const *group=move_find_group(units[member]->movement.group_id);
+                moveFineRoute_t const *route=group && !group->individual ? &group->route : &units[member]->movement.fine_route;
+                T_ASSERT(route->group_count>0);
+                T_EQ(route->group_admission.policy,member==0 ? 1 : 0);
+                T_ASSERT(level.move_coarse_budgets[0][member==0 ? 1 : 0].work>0);
+                T_ASSERT(S_ValidateMoveCoarseRequests());
+            }
+            if(resize && level.time==(scenario==FOLLOW_RESEARCH ? 15100 : 10100)) { T_EQ(units[1]->class_id,custom_units[1].newUnitID); T_FEQ(units[1]->collision,changed_radius,0); }
+            if(fresh && level.time==15000) {
+                moveGroup_t const *group=move_find_group(units[0]->movement.group_id);
+                T_NOT_NULL(group);
+                if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),scenario==FOLLOW_GROW ? 0x40e520f2u : 0x41290000u);
+            }
+            if(reuse)
+                FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent!=units[0] && !M_IsDead(ent)) units[1]=ent;
+            if(scenario==FOLLOW_RESEARCH && level.time==14900) {
+                T_EQ(units[1]->class_id,custom.newUnitID); T_FEQ(units[1]->collision,radius,0);
+            }
+            if(reuse && level.time>=10000 && level.time<12000) {
+                T_EQ(units[0]->current_order_id,0);
+                T_NULL(units[0]->movement.follow_target);
+                T_EQ(units[0]->movement.group_id,0);
+            }
+            if(!pass && reuse && level.time==11000) {
+                T_EQ(steps,save_steps[1]); T_ASSERT(WriteGame(saves[1]));
+            }
+            FOR_LOOP(c,trace.count) {
+                T_ASSERT(steps<motion_count); if(steps>=motion_count){mismatch=true;break;}
+                uint32_t const *expected=motion[steps++],*actual=trace.rows[c];
+                unsigned i=actual[0];edict_t *unit=units[i];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch) {
+                    fprintf(stderr,"Follow commit%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,
+                        actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+                    fprintf(stderr,"Follow target edict=%u clock=%08x pose=%08x/%08x velocity=%08x/%08x heading=%08x blocked=%u direct=%u path=%u generation=%u request=%u counter=%u fine=%u/%u group=%u/%u\n",units[1]->s.number,wc3_float_bits(units[1]->movement.pose_clock.time),wc3_float_bits(units[1]->movement.fine_pose.x),wc3_float_bits(units[1]->movement.fine_pose.y),wc3_float_bits(units[1]->movement.velocity.x),wc3_float_bits(units[1]->movement.velocity.y),wc3_float_bits(units[1]->movement.heading),units[1]->movement.turn_blocked,units[1]->movement.flow_direct,units[1]->movement.path.valid,units[1]->movement.flow_generation,units[1]->movement.fine_request_time,level.pathing_counter,units[1]->movement.fine_route.count,units[1]->movement.fine_route.index,units[1]->movement.fine_route.group_count,units[1]->movement.fine_route.group_index);
+                    moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                    moveFineRoute_t const *route=&unit->movement.fine_route;
+                    if(group)fprintf(stderr,"Follow group goal=%.9g/%.9g point=%.9g/%.9g member=%.9g/%.9g refresh=%d target=%.9g/%.9g fine=%u/%u adaptive=%u/%u\n",
+                        group->goal.x,group->goal.y,group->point.x,group->point.y,group->members[0].destination.x,group->members[0].destination.y,
+                        group->target_refresh,units[1]->s.origin2.x,units[1]->s.origin2.y,route->count,route->index,route->adaptive_count,route->adaptive_index);
+                    FOR_LOOP(p,route->count)fprintf(stderr,"Follow fine[%u]=%.9g/%.9g\n",p,route->points[p].x,route->points[p].y);
+                }
+                if(!pass && !mismatch) FOR_LOOP(s,3)
+                    if(steps==save_steps[s] && (!reuse || s!=1)){T_EQ(c+1,trace.count);T_ASSERT(WriteGame(saves[s]));}
+            }
+        }
+        T_EQ(steps,motion_count);
+        if(steps!=motion_count)mismatch=true;
+        if(!mismatch){FOR_LOOP(i,2)T_EQ(units[i]->current_order_id,0);FOR_LOOP(i,ARRAY_COUNT(level.move_groups))T_ASSERT(!level.move_groups[i]->inuse);}
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    FOR_LOOP(i,3)remove(saves[i]);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);
+    if(resize){G_SetMapAbilityOverrides(NULL);G_SetSLKRows("AbilityData",old_ability_rows);free_slk_rows(chaos_rows);}
+    level.mapinfo=oldinfo;
+}
+
+
+
+/* Chaos replaces the physical owner while retaining the public point order. */
+static void public_moving_radius_journey(bool matrix) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities(); setup_test_world();
+    float radii[]={31,63,15.9921875,16,16.0078125,31.9921875,32,32.0078125,47.9921875,48,48.0078125},speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unsigned count=matrix ? 10 : 2;
+    uint32_t targets[]={MAKEFOURCC('h','C','L','G'),MAKEFOURCC('h','c','0','1'),MAKEFOURCC('h','c','0','2'),MAKEFOURCC('h','c','0','3'),MAKEFOURCC('h','c','0','4'),MAKEFOURCC('h','c','0','5'),MAKEFOURCC('h','c','0','6'),MAKEFOURCC('h','c','0','7'),MAKEFOURCC('h','c','0','8'),MAKEFOURCC('h','c','0','9')};
+    unitModification_t mods[10][2];unitData_t units[10];
+    FOR_LOOP(i,count) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radii+(i && matrix ? i+1 : i)};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        units[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=i ? targets[matrix ? i : 0] : MAKEFOURCC('h','M','R','A'),.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    cstring_t target_names[]={"hCLG","hc01","hc02","hc03","hc04","hc05","hc06","hc07","hc08","hc09"};
+    unitModification_t ability_mods[9][2];unitData_t abilities[9];
+    unsigned ability_count=matrix ? 9 : 1;
+    FOR_LOOP(i,ability_count) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=(void *)target_names[matrix ? i+1 : 0]};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=matrix ? MAKEFOURCC('A','g','0','1'+i) : MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=count,.userCreatedUnits=units,.num_userCreatedAbilities=ability_count,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    cstring_t script=matrix ?
+        "globals\nunit mover\ninteger tick=0\ninteger case=0\ninteger morph='Ag01'\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==(case+1)*100 and tick<900 then\ncall RemoveUnit(mover)\n"
+        "set mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\nset case=case+1\nendif\n"
+        "if tick==case*100+10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\n"
+        "if tick==case*100+20 then\n"
+        "if case==0 then\nset morph='Ag01'\nelseif case==1 then\nset morph='Ag02'\n"
+        "elseif case==2 then\nset morph='Ag03'\nelseif case==3 then\nset morph='Ag04'\n"
+        "elseif case==4 then\nset morph='Ag05'\nelseif case==5 then\nset morph='Ag06'\n"
+        "elseif case==6 then\nset morph='Ag07'\nelseif case==7 then\nset morph='Ag08'\n"
+        "elseif case==8 then\nset morph='Ag09'\nendif\ncall UnitAddAbility(mover,morph)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n" :
+        "globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",-1936,-144)\nendif\n"
+        "if tick==20 then\ncall UnitAddAbility(mover,'ACGb')\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hMRA',-1936,-976,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n";
+    T_ASSERT(run_test_jass(script));
+    uint32_t const (*motion)[7]=matrix ? moving_radius_matrix_motion : moving_radius_grow_motion;
+    unsigned motion_count=matrix ? sizeof(moving_radius_matrix_motion)/sizeof(*moving_radius_matrix_motion) : sizeof(moving_radius_grow_motion)/sizeof(*moving_radius_grow_motion);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)unit=ent;
+    T_NOT_NULL(unit);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    cstring_t files[]={Test_TempPath("wc3-chaos-enabled.bin"),Test_TempPath("wc3-chaos-commit.bin"),Test_TempPath("wc3-chaos-resized.bin"),Test_TempPath("wc3-chaos-arrival.bin")};
+    unsigned save_steps[]={33,34,35,116},save_times[]={2000,2010,2040,0};
+    FOR_LOOP(pass,5) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=save_steps[pass-1];
+        T_EQ(unit->current_order_id,G_OrderId("move"));
+        if(pass<3) {T_EQ(unit->class_id,units[0].newUnitID);T_EQ(unit->chaos.phase,pass);T_EQ(unit->chaos.code,abilities[0].newUnitID);}
+    }
+    while(level.time<(matrix ? 91000 : 31000) && !mismatch) {
+        if(matrix) FILTER_EDICTS(ent,ent->inuse && !G_IsDeferredFree(ent) && ent->class_id==units[0].newUnitID) unit=ent;
+        trace.count=0;trace.units[0]=unit;level.time+=5;globals.RunFrame();
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<motion_count);
+            if(steps>=motion_count){mismatch=true;break;}
+            uint32_t const *expected=motion[steps++],*actual=trace.rows[i];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Mover resize commit%u clock%08x/%08x position%08x,%08x/%08x,%08x velocity%08x,%08x/%08x,%08x group%u time%d\n",steps-1,actual[1],expected[1],actual[2],actual[3],expected[2],expected[3],actual[4],actual[5],expected[4],expected[5],unit->movement.group_id,level.time);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,4)if(save_times[i] ? level.time==save_times[i] : steps==save_steps[i]) {
+            T_EQ(steps,save_steps[i]);T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_EQ(unit->class_id,units[count-1].newUnitID);T_FEQ(unit->collision,matrix ? radii[10] : 63,0);}
+    }
+    FOR_LOOP(i,4)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
+    level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_move_matches_original_mover_resize) {
+    public_moving_radius_journey(false);
+}
+
+TEST(wc3_movement, public_move_matches_original_radius_boundary_matrix) {
+    public_moving_radius_journey(true);
+}
+
+typedef struct {
+    uint32_t rows[8][4];
+    unsigned count;
+} groupRadiusTrace_t;
+static groupRadiusTrace_t *group_radius_trace;
+
+static void record_group_radius(moveGroup_t const *group, edict_t *singleton) {
+    groupRadiusTrace_t *trace=group_radius_trace;unsigned mask=0;
+    if(group) FOR_LOOP(i,group->count) mask|=group->members[i].unit==follow_commit_trace->units[0] ? 1 : 2;
+    else mask=singleton==follow_commit_trace->units[0] ? 1 : 2;
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if(trace->count>=sizeof(trace->rows)/sizeof(*trace->rows))return;
+    uint32_t words[]={level.pathing_counter,mask,wc3_float_bits(wc3_div(group ? group->radius : singleton->collision,32)),
+        wc3_float_bits(wc3_div(group ? group->route.group_radius : singleton->movement.fine_route.group_radius,32))};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+static void public_group_radius_journey(unsigned scenario, uint32_t const (*motion)[7], unsigned motion_count,
+        uint32_t const (*footprints)[4], unsigned footprint_count) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities(); setup_test_world();
+    float radii[]={31,63,7},speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    uint32_t types[]={MAKEFOURCC('h','G','R','A'),MAKEFOURCC('h','C','L','G'),MAKEFOURCC('h','C','L','S')};
+    unitModification_t mods[3][2];unitData_t units[3];
+    FOR_LOOP(i,3) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radii+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        units[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=types[i],.numbeOfModifications=2,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hCLS" : "hCLG"};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','S','h') : MAKEFOURCC('A','C','G','b'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=3,.userCreatedUnits=units,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    char script[4096];snprintf(script,sizeof(script),
+        "globals\nunit first\nunit peer\ngroup cohort\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall GroupPointOrder(cohort,\"move\",-1936,-144)\nendif\n"
+        "if tick==20 then\n%s\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset first=CreateUnit(Player(0),'hGRA',-1936,-976,90)\n"
+        "set peer=CreateUnit(Player(0),'%s',-1840,-976,90)\n"
+        "call SetUnitMoveSpeed(first,100)\ncall SetUnitMoveSpeed(peer,100)\n"
+        "set cohort=CreateGroup()\ncall GroupAddUnit(cohort,first)\ncall GroupAddUnit(cohort,peer)\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",
+        scenario==0 ? "call UnitAddAbility(peer,'ACGb')" : scenario==1 ? "call UnitAddAbility(peer,'ACSh')" : "call RemoveUnit(peer)",scenario ? "hCLG" : "hGRA");
+    T_ASSERT(run_test_jass(script));
+    followCommitTrace_t trace={0};unsigned actors=0;
+    FILTER_EDICTS(ent,ent->inuse && (ent->class_id==types[0] || ent->class_id==types[1])) {
+        if(actors<2)trace.units[actors]=ent;
+        actors++;
+    }
+    T_EQ(actors,2);level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_group_radius;
+    unsigned steps=0,states=0;bool mismatch=actors!=2;
+    cstring_t files[]={Test_TempPath("wc3-group-before-radius.bin"),Test_TempPath("wc3-group-enabled-radius.bin"),Test_TempPath("wc3-group-rebound-radius.bin"),Test_TempPath("wc3-group-late-radius.bin")};
+    unsigned save_times[]={1900,scenario==2 ? 1950 : 2000,2050,4000};
+    unsigned saved_steps[4]={0},saved_states[4]={0},suffix_steps=0,suffix_states=0;
+    FOR_LOOP(pass,5) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=saved_steps[pass-1];states=saved_states[pass-1];
+    }
+    while(level.time<31000 && !mismatch) {
+        trace.count=radii_trace.count=0;level.time+=5;globals.RunFrame();
+        if(footprints)FOR_LOOP(i,radii_trace.count) {
+            T_ASSERT(states<footprint_count);if(states>=footprint_count){mismatch=true;break;}
+            uint32_t const *expected=footprints[states++],*actual=radii_trace.rows[i];
+            FOR_LOOP(k,4){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Group radius state scenario%u counter%u/%u mask%u/%u maximum%08x/%08x retained%08x/%08x\n",scenario,actual[0],expected[0],actual[1],expected[1],actual[2],expected[2],actual[3],expected[3]);
+        }
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<motion_count);if(steps>=motion_count){mismatch=true;break;}
+            uint32_t const *expected=motion[steps++],*actual=trace.rows[i];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Group radius scenario%u commit%u actor%u/%u clock%08x/%08x position%08x,%08x/%08x,%08x velocity%08x,%08x/%08x,%08x group%u time%d\n",scenario,steps-1,actual[0],expected[0],actual[1],expected[1],actual[2],actual[3],expected[2],expected[3],actual[4],actual[5],expected[4],expected[5],trace.units[actual[0]]->movement.group_id,level.time);
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,4)if(level.time==save_times[i]) {
+            saved_steps[i]=steps;saved_states[i]=states;T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,motion_count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(footprints)T_EQ(states,footprint_count);
+    if(!mismatch){T_EQ(trace.units[0]->current_order_id,0);if(scenario!=2)T_EQ(trace.units[1]->current_order_id,0);}
+    if(pass){suffix_steps+=steps-saved_steps[pass-1];suffix_states+=states-saved_states[pass-1];}
+    }
+    fprintf(stderr,"Group radius scenario%u ordinary commits=%u states=%u Save81 suffix commits=%u states=%u\n",scenario,motion_count,footprint_count,suffix_steps,suffix_states);
+    FOR_LOOP(i,4)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    move_test_group_route=NULL;group_radius_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);
+    level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motion)[7], unsigned count, bool verify_cleanup) {
+    bool blocked=goal_case==0 || goal_case==6,captain=goal_case>=2,far=goal_case==3,pair=goal_case>=4,mixed=goal_case==5;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods};
+    float peer_radius=32,peer_turn=.5f,peer_weapon_range=100;
+    unitModification_t peer_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&peer_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_unreal,.data=&peer_turn},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&peer_weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t types[2]={custom,{.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','P'),
+        .numbeOfModifications=6,.modifications=peer_mods}};
+    mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256];box2_t bounds={{-7168,-3072},{5120,5120}};unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)){memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);offset+=public_oblique_terrain_runs[i][0];}
+    T_EQ(offset,sizeof(cells));CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    char script[2400];
+    snprintf(script,sizeof(script),
+        "globals\nunit mover\nunit peer\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\n%s\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal integer gx=0\nlocal integer gy=0\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,%g,90)\ncall SetUnitMoveSpeed(mover,%g)\n%s\n"
+        "loop\nexitwhen gx==%u\nset gy=0\nloop\nexitwhen gy==5\n"
+        "call SetTerrainPathable(-2000+I2R(gx)*32,-208+I2R(gy)*32,ConvertPathingType(1),false)\n"
+        "set gy=gy+1\nendloop\nset gx=gx+1\nendloop\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",mixed ? "call StartCampaignAI(Player(0),\"test_captain_mixed.ai\")" : pair ? "call StartCampaignAI(Player(0),\"test_captain_pair.ai\")" : captain ? "call StartCampaignAI(Player(0),\"test_captain_home.ai\")" : blocked ? "call IssuePointOrder(mover,\"move\",-1936,-144)" : "call IssuePointOrder(mover,\"move\",-7400,-976)",far ? -1296. : -976.,blocked || captain ? 100. : 522.,mixed ? "set peer=CreateUnit(Player(0),'hBGP',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : pair ? "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)" : "",blocked ? 5u : 0u);
+    T_ASSERT(run_test_jass(script));
+    /* The retail map owner publishes again after generated main returns. */
+    G_FinishMovePathingInitialization();
+    edict_t *unit=NULL,*peer=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==custom.newUnitID || (mixed && ent->class_id==types[1].newUnitID))){if(!unit)unit=ent;else peer=ent;}
+    T_NOT_NULL(unit);if(mixed && peer){T_EQ(peer->collision,32);T_EQ(peer->data.UnitData->turnRate,.5f);}
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;trace.units[1]=peer;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    cstring_t files[8]={Test_TempPath("wc3-blocked-goal-before-partial.bin"),Test_TempPath("wc3-blocked-goal-retry.bin"),Test_TempPath("wc3-blocked-goal-forced.bin"),Test_TempPath("wc3-blocked-goal-final-turn.bin")};
+    if(captain) {
+        files[0]=Test_TempPath("wc3-captain-home-1200.bin");files[1]=Test_TempPath("wc3-captain-home-1500.bin");
+        files[2]=Test_TempPath("wc3-captain-home-1800.bin");files[3]=Test_TempPath("wc3-captain-home-1995.bin");
+        files[4]=Test_TempPath("wc3-captain-home-2010.bin");files[5]=Test_TempPath("wc3-captain-home-6255.bin");
+        files[6]=Test_TempPath("wc3-captain-home-6270.bin");files[7]=Test_TempPath("wc3-captain-home-6300.bin");
+    }
+    if(pair) {
+        files[0]=Test_TempPath("wc3-captain-pair-1200.bin");files[1]=Test_TempPath("wc3-captain-pair-1500.bin");
+        files[2]=Test_TempPath("wc3-captain-pair-1800.bin");files[3]=Test_TempPath("wc3-captain-pair-1995.bin");
+        files[4]=Test_TempPath("wc3-captain-pair-2010.bin");files[5]=Test_TempPath("wc3-captain-pair-6000.bin");
+        files[6]=Test_TempPath("wc3-captain-pair-6500.bin");files[7]=Test_TempPath("wc3-captain-pair-6525.bin");
+    }
+    unsigned saves=captain ? 8 : 4;
+    unsigned save_times[]={captain ? 1200 : blocked ? 6000 : 5500,captain ? 1500 : blocked ? 7110 : 6630,captain ? 1800 : blocked ? 7140 : 6660,captain ? 1995 : blocked ? 7170 : 6690,2010,6255,6270,6300},saved_steps[8]={0},suffix_steps=0;
+    if(pair)memcpy(save_times,(unsigned[]){1200,1500,1800,1995,2010,6000,6500,6525},sizeof(save_times));
+    if(goal_case==6)memcpy(save_times,(unsigned[]){1200,1500,1995,2010,7035,7050,8580,9060},sizeof(save_times));
+    if(far)memcpy(save_times,(unsigned[]){1200,2000,2500,2995,3010,8415,8430,8460},sizeof(save_times));
+    FOR_LOOP(pass,saves+1) {
+    if(pass) {
+        bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
+        steps=saved_steps[pass-1];
+    }
+    while(level.time<31000 && !mismatch) {
+        trace.count=0;level.time+=5;globals.RunFrame();
+        FOR_LOOP(i,trace.count) {
+            T_ASSERT(steps<count);if(steps>=count){mismatch=true;break;}
+            uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
+            FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+            if(mismatch)fprintf(stderr,"Blocked goal commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u wait%u fine%u/%u coarse%u/%u goal%.9g,%.9g\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.wait_delay,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.group_count,unit->movement.fine_route.group_index,unit->goalentity?unit->goalentity->s.origin2.x:0,unit->goalentity?unit->goalentity->s.origin2.y:0);
+            if(mismatch) {
+                moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                if(group)fprintf(stderr,"  physical flags=%x age=%u completion=%u count=%u coarse=%u/%u point=%08x/%08x radius=%.9g\n",group->flags,group->age,group->completion_counter,group->count,group->route.group_count,group->route.group_index,wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),group->radius);
+            }
+        }
+        if(!pass && !mismatch)FOR_LOOP(i,saves)if(level.time==save_times[i]) {
+            saved_steps[i]=steps;
+            if(!captain && i==(blocked ? 1 : 2)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);T_ASSERT(!movement_test_forced_arrival(unit));}
+            if(!captain && i>=(blocked ? 2 : 3)){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,1);T_ASSERT(movement_test_forced_arrival(unit));}
+            if(captain && !pair) {
+                edict_t *actor=unit->movement.captain_home.actor;
+                T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
+                if(actor){T_EQ(actor->collision,0);T_EQ(actor->movement.captain_actor_type,1);T_ASSERT(actor->svflags&SVF_NOCLIENT);}
+                T_EQ(unit->movement.captain_home.active,i<4);
+                if(i==6){T_EQ(unit->movement.retry_count,1);T_EQ(unit->movement.fine_route.count,0);}
+                if(i==7){T_EQ(unit->movement.retry_count,1);T_ASSERT(movement_test_forced_arrival(unit));}
+            }
+            if(pair) {
+                edict_t *actor=unit->movement.captain_home.actor;
+                if(goal_case==6 && !actor)actor=peer->movement.captain_home.actor;
+                T_NOT_NULL(actor);T_ASSERT(actor && actor->inuse);
+                if(actor)T_EQ(actor->movement.captain_actor_members,2);
+                bool following=save_times[i]<2000;
+                T_EQ(unit->movement.captain_home.active,following);
+                T_EQ(peer->movement.captain_home.active,following);
+                if(goal_case==6 ? save_times[i]<8610 : i<7)T_ASSERT(peer->movement.captain_home.actor==actor);
+                if(following) {
+                    T_EQ(unit->movement.captain_home.member_index,mixed ? 1 : 0);
+                    T_EQ(peer->movement.captain_home.member_index,mixed ? 0 : 1);
+                    T_NE(unit->movement.group_id,peer->movement.group_id);
+                    T_ASSERT(move_find_member(unit)->arrival_range==wc3_div(155,32));
+                    T_ASSERT(move_find_member(peer)->arrival_range==wc3_div(mixed ? 162 : 155,32));
+                } else if(goal_case!=6 ? i<7 : save_times[i]<8610)T_EQ(unit->movement.group_id,peer->movement.group_id);
+                if(goal_case!=6 && i==7){T_EQ(peer->current_order_id,0);T_NE(unit->current_order_id,0);}
+                if(goal_case==6) {
+                    if(i==4){T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.fine_route.index,0);}
+                    if(i==5){T_EQ(unit->movement.retry_count,6);T_EQ(unit->movement.fine_route.count,0);}
+                    if(i==6){T_EQ(unit->movement.retry_count,1);T_ASSERT(move_find_member(unit)->forced_arrival);}
+                    if(i==7){T_EQ(unit->current_order_id,0);T_ASSERT(move_find_member(peer)->forced_arrival);}
+                }
+            }
+            T_ASSERT(WriteGame(files[i]));
+        }
+    }
+    T_EQ(steps,count);T_ASSERT(!jass_rterror_pending(level.vm));
+    if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!movement_test_forced_arrival(unit));T_ASSERT(!unit->movement.clock_valid);if(pair)T_EQ(peer->current_order_id,0);}
+    if(verify_cleanup && !mismatch) {
+        T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+        T_EQ(unit->movement.group_id,0);T_EQ(unit->movement.fine_route.count,0);
+        T_EQ(unit->movement.fine_route.adaptive_count,0);
+        T_EQ(unit->movement.fine_route.index,UINT32_MAX);
+        T_EQ(unit->movement.fine_route.adaptive_index,UINT32_MAX);
+    }
+    if(pass)suffix_steps+=steps-saved_steps[pass-1];
+    }
+    fprintf(stderr,"Point goal case=%u exact commits=%u saved suffix commits=%u\n",goal_case,count,suffix_steps);
+    if(pair && !mismatch) {
+        /* Cancel one member before and after shared admission; its peer and
+         * retained actor must remain live, with a valid saved physical owner. */
+        FOR_LOOP(phase,2) FOR_LOOP(action,3) {
+            T_ASSERT(ReadGame(files[phase ? (goal_case==6 ? 3 : 4) : 0]));
+            edict_t *actor=peer->movement.captain_home.actor;
+            if(action==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
+            else if(action)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+            else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            T_NULL(unit->movement.captain_home.actor);
+            T_ASSERT(actor->inuse);T_ASSERT(peer->movement.captain_home.actor==actor);
+            T_ASSERT(S_ValidateCaptainHomeActors(false));
+            T_ASSERT(WriteGame(Test_TempPath("wc3-captain-pair-cancel.bin")));
+        }
+        remove(Test_TempPath("wc3-captain-pair-cancel.bin"));
+        FOR_LOOP(i,6) {
+            T_ASSERT(ReadGame(files[0]));
+            edict_t *actor=unit->movement.captain_home.actor;
+            if(i==0)actor->movement.captain_actor_members=0;
+            if(i==1)unit->movement.captain_home.member_index=2;
+            if(i==2)peer->movement.captain_home.member_index=unit->movement.captain_home.member_index;
+            if(i==3){unit->movement.captain_home.active=false;unit->movement.captain_home.entered=true;unit->movement.captain_home.roster_actor=NULL;unit->movement.captain_home.outer=false;}
+            if(i==4)actor->movement.captain_actor_members=globals.num_edicts+1;
+            if(i==5)*(uint8_t *)&unit->movement.captain_home.entered=2;
+            T_ASSERT(!S_ValidateCaptainHomeActors(false));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-pair-invalid.bin")));
+        }
+        remove(Test_TempPath("wc3-captain-pair-invalid.bin"));
+    }
+    if(captain && !pair && !mismatch) {
+        FOR_LOOP(i,3) {
+            T_ASSERT(ReadGame(files[0]));
+            if(i==2){G_FreeEdict(unit);level.time+=5;globals.RunFrame();T_ASSERT(!unit->inuse);}
+            else {
+                if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+                else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+                T_ASSERT(!movement_test_forced_arrival(unit));
+                T_ASSERT(unit->current_order_id==(i ? G_OrderId("move") : 0));
+            }
+        }
+    }
+    if(captain && !mismatch) {
+        T_ASSERT(ReadGame(files[0]));
+        edict_t *old_actor=unit->movement.captain_home.actor;
+        T_NOT_NULL(old_actor);
+        G_BotCreateCaptains(G_GetPlayerByNumber(0));
+        T_ASSERT(old_actor->inuse);T_ASSERT(!old_actor->movement.captain_actor_owned);
+        T_ASSERT(unit->movement.captain_home.actor==old_actor);
+        G_BotSetCaptainHome(G_GetPlayerByNumber(0),1,-1904,-144);
+        edict_t *new_actor=level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor;
+        T_NOT_NULL(new_actor);T_NE(new_actor,old_actor);
+        T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_NULL(unit->movement.captain_home.actor);
+        if(pair){T_ASSERT(old_actor->inuse);T_ASSERT(peer->movement.captain_home.actor==old_actor);T_ASSERT(unit_issueimmediateorder(peer,"stop"));}
+        T_ASSERT(!old_actor->inuse);T_ASSERT(new_actor->inuse);
+        G_BotStop(0);T_ASSERT(!new_actor->inuse);
+        T_ASSERT(ReadGame(files[0]));T_NULL(level.bots[0].vm);
+        T_ASSERT(level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor==unit->movement.captain_home.actor);
+        unsigned resumed=saved_steps[0];
+        while(level.time<31000) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(resumed<count);if(resumed>=count)break;
+                uint32_t const *expected=motion[resumed++];
+                FOR_LOOP(k,7)T_EQ(trace.rows[i][k],expected[k]);
+            }
+        }
+        T_EQ(resumed,count);T_EQ(unit->current_order_id,0);
+    }
+    /* Author a separate cancellation/replacement from the naturally forced
+     * saved state; a new command must not inherit its range override. */
+    if(!captain && !mismatch)FOR_LOOP(i,2) {
+        T_ASSERT(ReadGame(files[blocked ? 2 : 3]));T_ASSERT(movement_test_forced_arrival(unit));
+        if(i)T_ASSERT(unit_issueorder(unit,"move",&(vec2_t){-2100,-400}));
+        else T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+        T_ASSERT(!movement_test_forced_arrival(unit));
+    }
+    FOR_LOOP(i,saves)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_size2_passage_matches_original_fallback_and_failure) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[64*64];box2_t bounds={{0,0},{2048,2048}};
+    FOR_LOOP(y,64)FOR_LOOP(x,64)cells[y*64+x]=(passage80_rows[y/2]&(1u<<(x/2)))?215:0;
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall IssuePointOrder(mover,\"move\",1744,1776)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hV80',272,304,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)unit=ent;
+    T_NOT_NULL(unit);if(unit)T_EQ(unit->collision,radius);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const save_times[]={1200,6000,11200,14055,14085,14115};
+    cstring_t files[]={Test_TempPath("wc3-passage-1200.bin"),Test_TempPath("wc3-passage-6000.bin"),Test_TempPath("wc3-passage-11200.bin"),Test_TempPath("wc3-passage-14055.bin"),Test_TempPath("wc3-passage-14085.bin"),Test_TempPath("wc3-passage-14115.bin")};
+    unsigned saved_steps[6]={0},suffix_steps=0;
+    FOR_LOOP(pass,7) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved_steps[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(passage80_motion)/sizeof(*passage80_motion));
+                if(steps>=sizeof(passage80_motion)/sizeof(*passage80_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=passage80_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Passage commit%u time%d actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x retry%u fine%u/%u coarse%u/%u\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6],unit->movement.retry_count,unit->movement.fine_route.count,unit->movement.fine_route.index,unit->movement.fine_route.adaptive_count,unit->movement.fine_route.adaptive_index);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,6)if(level.time==save_times[i]){saved_steps[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(passage80_motion)/sizeof(*passage80_motion));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!movement_test_forced_arrival(unit));T_ASSERT(!unit->movement.clock_valid);}
+        if(pass)suffix_steps+=steps-saved_steps[pass-1];
+    }
+    fprintf(stderr,"Passage native commits=%u saved suffix commits=%u\n",steps,suffix_steps);
+    FOR_LOOP(i,6)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_overlap_matches_original_link_order_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit mover\nunit target\nunit blocker\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 or tick==70 or tick==130 then\ncall IssueTargetOrder(mover,\"smart\",target)\n"
+        "elseif tick==60 or tick==120 then\ncall IssueImmediateOrder(mover,\"stop\")\n"
+        "call SetUnitX(mover,272)\ncall SetUnitY(mover,304)\n"
+        "if tick==60 then\ncall SetUnitX(target,1136)\ncall SetUnitX(target,1008)\n"
+        "else\ncall RemoveUnit(blocker)\nset blocker=null\nendif\n"
+        "elseif tick==180 then\ncall IssueImmediateOrder(mover,\"stop\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hV80',272,304,90)\n"
+        "set target=CreateUnit(Player(0),'hV80',1008,1040,90)\nset blocker=CreateUnit(Player(0),'hV80',1136,1040,90)\n"
+        "call PauseUnit(target,true)\ncall PauseUnit(blocker,true)\ncall SetUnitX(blocker,1008)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    /* This retail capture never loaded a save. Once target leave/reentry at
+     * 6000 changes the chain, LoadGame rebuilds it in save order (MAP-06.2),
+     * so those suffixes cannot use the uninterrupted movement oracle. Test
+     * that changed consumer explicitly in wc3_spatial_load instead. */
+    unsigned const times[]={1200,5995,12000,13000,18000};
+    PATHSTR files[5];unsigned saved[5]={0},suffix=0;
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-overlap-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,6) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(overlap81_motion)/sizeof(*overlap81_motion));
+                if(steps>=sizeof(overlap81_motion)/sizeof(*overlap81_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=overlap81_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Overlap commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(overlap81_motion)/sizeof(*overlap81_motion));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Overlap native commits=%u saved suffix commits=%u\n",steps,suffix);
+    FOR_LOOP(i,5)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_chained_expression_move_matches_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("globals\nunit mover\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick-1-3*3==0 then\ncall IssuePointOrder(mover,\"move\",1744.0-96.0-32.0,1776.0-128.0+64.0)\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\nset mover=CreateUnit(Player(0),'hV80',272,304,90)\n"
+        "call SetUnitMoveSpeed(mover,100)\ncall TimerStart(CreateTimer(),0.4/2.0/2.0,true,function on_tick)\nendfunction\n"));
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={995,1000,1005,3000,10000,13000,14000,16000};
+    PATHSTR files[8];unsigned saved[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-expression-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,9) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(expression82_motion)/sizeof(*expression82_motion));
+                if(steps>=sizeof(expression82_motion)/sizeof(*expression82_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=expression82_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Expression commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]){saved[i]=steps;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(expression82_motion)/sizeof(*expression82_motion));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Expression native commits=%u saved suffix commits=%u\n",steps,suffix);
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+extern void (*test_preload_marker)(cstring_t);
+unsigned G_TestStaticPathMask(unsigned,unsigned);
+int G_TestMovePathClass(uint8_t,unsigned,unsigned,unsigned);
+static unsigned terrain83_stage;
+
+static void terrain83_assert_publication(cstring_t marker) {
+    if (strncmp(marker,"PATHLIFE label=",15)) return;
+    unsigned stage=terrain83_stage++,fine=0,adaptive=0;
+    T_ASSERT(stage<7); if(stage>=7)return;
+    unsigned shown=0;
+    for(unsigned y=16;y<48;y++)for(unsigned x=16;x<48;x++) {
+        unsigned actual=G_TestStaticPathMask(x,y),expected=terrain83_fine[stage][fine++];
+        if(actual!=expected && shown++<4)fprintf(stderr,"Terrain fine stage%u cell%u,%u actual%u expected%u\n",stage,x,y,actual,expected);
+        T_EQ(actual,expected);
+    }
+    uint8_t const masks[]={2,0x80,0x40,4};
+    FOR_LOOP(level,4) {
+        unsigned scale=2u<<level;
+        for(unsigned y=16/scale;y<=47/scale;y++)for(unsigned x=16/scale;x<=47/scale;x++)
+            FOR_LOOP(lane,4) {
+                int actual=G_TestMovePathClass(masks[lane],level,x,y),expected=terrain83_adaptive[stage][adaptive++];
+                if(actual!=expected && shown++<8)fprintf(stderr,"Terrain adaptive stage%u level%u lane%u cell%u,%u actual%d expected%d\n",stage,level,lane,x,y,actual,expected);
+                T_EQ(actual,expected);
+            }
+    }
+    T_EQ(fine,1024);T_EQ(adaptive,1360);
+}
+
+TEST(wc3_movement, public_terrain_edits_match_original_regional_publication_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;Y2;X8;D0\n"
+        "C;Y1;X1;K\"ID\"\nC;X2;K\"file\"\nC;X3;K\"targType\"\nC;X4;K\"HP\"\n"
+        "C;X5;K\"radius\"\nC;X6;K\"pathTex\"\nC;X7;K\"fixedRot\"\nC;X8;K\"numVar\"\n"
+        "C;Y2;X1;K\"LTlt\"\nC;X2;K\"UI\\Glues\\SpriteLayers\\TopLeftPanel\"\n"
+        "C;X3;K\"tree\"\nC;X4;K50\nC;X5;K0\nC;X6;K\"PathTextures\\4x4Default.tga\"\nC;X7;K270\nC;X8;K1\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("DestructableData",rows);
+    terrain83_stage=0; test_preload_marker=terrain83_assert_publication;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathTerrainPatch takes integer first returns nothing\n"
+        " local integer x=first\n"
+        " local integer y=first\n"
+        " loop\n"
+        "  exitwhen y==first+4\n"
+        "  set x=first\n"
+        "  loop\n"
+        "   exitwhen x==first+4\n"
+        "   call SetTerrainPathable(I2R(x*32+16),I2R(y*32+16),ConvertPathingType(1),false)\n"
+        "   set x=x+1\n"
+        "  endloop\n"
+        "  set y=y+1\n"
+        " endloop\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " local destructable tree=null\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"initial_move\")\n"
+        " elseif udg_PathProbeTick==20 then\n"
+        "  call PathTerrainPatch(18)\n"
+        "  call PathTerrainPatch(40)\n"
+        "  call Preload(\"PATHLIFE label=terrain_edits\")\n"
+        "  call PathProbeRecord(\"terrain_edits\")\n"
+        " elseif udg_PathProbeTick==85 or udg_PathProbeTick==185 then\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,272.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,304.0)\n"
+        "  call PathProbeRecord(\"reset\")\n"
+        " elseif udg_PathProbeTick==100 then\n"
+        "  set tree=CreateDestructable('LTlt',640.0,640.0,0.0,1.0,0)\n"
+        "  call Preload(\"PATHLIFE label=first_footprint_insert\")\n"
+        "  call RemoveDestructable(tree)\n"
+        "  call Preload(\"PATHLIFE label=first_footprint_remove\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"first_refresh_move\")\n"
+        " elseif udg_PathProbeTick==200 then\n"
+        "  set tree=CreateDestructable('LTlt',1344.0,1344.0,0.0,1.0,0)\n"
+        "  call Preload(\"PATHLIFE label=second_footprint_insert\")\n"
+        "  call RemoveDestructable(tree)\n"
+        "  call Preload(\"PATHLIFE label=second_footprint_remove\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"second_refresh_move\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call Preload(\"PATHLIFE label=complete\")\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,100.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_terrain_cache\")\n"
+        " call Preload(\"PATHLIFE label=baseline\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        "call PathProbeInit()\n"
+        "endfunction\n"));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={1995,2000,2005,3000,9995,10000,19995,20000};
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},suffix=0;
+    FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-terrain-cache-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,9) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];terrain83_stage=saved_stage[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<sizeof(terrain83_motion)/sizeof(*terrain83_motion));
+                if(steps>=sizeof(terrain83_motion)/sizeof(*terrain83_motion)){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=terrain83_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Terrain commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]){saved[i]=steps;saved_stage[i]=terrain83_stage;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,sizeof(terrain83_motion)/sizeof(*terrain83_motion));T_EQ(terrain83_stage,7);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Terrain native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    G_SetSLKRows("DestructableData",old_rows);free_slk_rows(rows);
+}
+
+
+static unsigned lifecycle84_stage,lifecycle84_marker;
+static cstring_t lifecycle84_format_expected;
+
+static void lifecycle84_assert_format(cstring_t text) { T_STREQ(text,lifecycle84_format_expected); }
+
+TEST(wc3_api, pathfinding_default_real_strings_match_original_scalar_formatter) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nhashtable values=null\nendglobals\n"
+        "function format_value takes nothing returns nothing\ncall Preload(R2S(LoadReal(values,0,0)))\nendfunction\n"
+        "function main takes nothing returns nothing\nset values=InitHashtable()\ncall SaveReal(values,0,0,0.0)\nendfunction\n"));
+    T_EQ(level.hashtables[0].num_entries,1);
+    test_preload_marker=lifecycle84_assert_format;
+    FOR_LOOP(i,sizeof(lifecycle84_format)/sizeof(*lifecycle84_format)) {
+        level.hashtables[0].entries[0].value.real=wc3_float(lifecycle84_format[i].word);
+        lifecycle84_format_expected=lifecycle84_format[i].text;
+        jass_callbyname(level.vm,"format_value",false);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+    }
+    test_preload_marker=NULL;reset_entities();setup_test_world();
+}
+
+static void lifecycle84_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=lifecycle84_marker++;
+    T_ASSERT(index<sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers));
+    if(index<sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers))T_STREQ(marker,lifecycle84_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=lifecycle84_stage++;
+    T_ASSERT(stage<(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)));if(stage>=(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','V','8','0'))if(!unit)unit=ent;
+    T_NOT_NULL(unit);if(!unit)return;
+    typeof(lifecycle84_states[0]) *expected=lifecycle84_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Movement lifecycle stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){20,19}),expected->occupied);
+}
+
+TEST(wc3_movement, public_speed_turn_stop_and_boundary_restart_match_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    lifecycle84_stage=lifecycle84_marker=0;test_preload_marker=lifecycle84_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeSpeed takes real speed returns nothing\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,speed)\n"
+        " call Preload(\"PATHSPEEDVALUE tick=\"+I2S(udg_PathProbeTick)+\" value=\"+R2S(GetUnitMoveSpeed(udg_PathProbeUnit)))\n"
+        " call PathProbeRecord(\"speed_change\")\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1616.0,1712.0)\n"
+        "  call PathProbeRecord(\"initial_move\")\n"
+        " elseif udg_PathProbeTick==25 then\n"
+        "  call PathProbeSpeed(250.0)\n"
+        " elseif udg_PathProbeTick==45 then\n"
+        "  call PathProbeSpeed(400.0)\n"
+        " elseif udg_PathProbeTick==55 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",480.0,1760.0)\n"
+        "  call PathProbeRecord(\"moving_retarget\")\n"
+        " elseif udg_PathProbeTick==70 or udg_PathProbeTick==175 then\n"
+        "  call PathProbeSpeed(0.0)\n"
+        " elseif udg_PathProbeTick==75 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1440.0,384.0)\n"
+        "  call PathProbeRecord(\"stationary_retarget\")\n"
+        " elseif udg_PathProbeTick==95 or udg_PathProbeTick==205 then\n"
+        "  call PathProbeSpeed(150.0)\n"
+        " elseif udg_PathProbeTick==110 or udg_PathProbeTick==210 then\n"
+        "  call PathProbeRecord(\"before_stop\")\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call PathProbeRecord(\"after_stop\")\n"
+        "  call Preload(\"PATHPOSE case=boundary_reset\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,640.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,608.0)\n"
+        "  call Preload(\"PATHPOSE done=boundary_reset\")\n"
+        "  call PathProbeRecord(\"boundary_reset\")\n"
+        " elseif udg_PathProbeTick==120 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1760.0,448.0)\n"
+        "  call PathProbeRecord(\"boundary_restart\")\n"
+        " elseif udg_PathProbeTick==135 then\n"
+        "  call PathProbeSpeed(200.0)\n"
+        " elseif udg_PathProbeTick==150 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",320.0,1728.0)\n"
+        "  call PathProbeRecord(\"moving_retarget\")\n"
+        " elseif udg_PathProbeTick==180 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1504.0,320.0)\n"
+        "  call PathProbeRecord(\"stationary_retarget\")\n"
+        " elseif udg_PathProbeTick==195 then\n"
+        "  call PathProbeSpeed(300.0)\n"
+        " elseif udg_PathProbeTick==220 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1040.0,1040.0)\n"
+        "  call PathProbeRecord(\"boundary_restart\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHSPEED done=long_lifecycle\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_movement_lifecycle\")\n"
+        " call Preload(\"PATHSPEED case=long_lifecycle\")\n"
+        " call PathProbeSpeed(150.0)\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={2495,2500,5495,5500,7540,11000,12000,15000,18000,21000,22000};
+    PATHSTR files[11];unsigned saved[11]={0},saved_stage[11]={0},saved_marker[11]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-lifecycle-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+1) {
+        if(mismatch)break;
+        if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];lifecycle84_stage=saved_stage[pass-1];lifecycle84_marker=saved_marker[pass-1];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time+=5;globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion)));
+                if(steps>=(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=lifecycle84_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Movement lifecycle commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=lifecycle84_stage;saved_marker[i]=lifecycle84_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(lifecycle84_motion)/sizeof(*lifecycle84_motion)));T_EQ(lifecycle84_stage,(sizeof(lifecycle84_states)/sizeof(*lifecycle84_states)));
+        T_EQ(lifecycle84_marker,sizeof(lifecycle84_markers)/sizeof(*lifecycle84_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_EQ(unit->current_order_id,0);
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Movement lifecycle native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+/* Original05fcf0 controls independently freeze endpoint-cell inclusion and
+ * fractional/negative world transforms; public query uses this same union. */
+TEST(wc3_api, region_membership_matches_original_fine_rectangle_registration) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(i,sizeof(region85_geometry)/sizeof(*region85_geometry)) {
+        typeof(region85_geometry[0]) *c=region85_geometry+i;
+        vec2_t origin={wc3_float(c->origin[0]),wc3_float(c->origin[1])};
+        CM_SetupTestWorldBounds(&MAKE(box2_t,.min=origin,.max={origin.x+2048,origin.y+2048}));
+        CM_SetupTestPathmap(64,64,cells);
+        region_t region={.num_rects=1,.inuse=true};
+        region.rects[0]=(box2_t){{wc3_float(c->rectangle[0]),wc3_float(c->rectangle[1])},
+            {wc3_float(c->rectangle[2]),wc3_float(c->rectangle[3])}};
+        for(int32_t y=c->bounds[0]-1;y<=c->bounds[2];y++)for(int32_t x=c->bounds[1]-1;x<=c->bounds[3];x++) {
+            vec2_t point={wc3_add(origin.x,wc3_mul(x+0.5f,32)),wc3_add(origin.y,wc3_mul(y+0.5f,32))};
+            bool expected=x>=0 && y>=0 && x<64 && y<64 && x>=c->bounds[1] && x<c->bounds[3] && y>=c->bounds[0] && y<c->bounds[2];
+            T_EQ(G_RegionContains(&region,&point),expected);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+static unsigned region85_stage,region85_marker;
+
+static void region85_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=region85_marker++;
+    T_ASSERT(index<sizeof(region85_markers)/sizeof(*region85_markers));
+    if(index<sizeof(region85_markers)/sizeof(*region85_markers))T_STREQ(marker,region85_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=region85_stage++;
+    T_ASSERT(stage<(sizeof(region85_states)/sizeof(*region85_states)));if(stage>=(sizeof(region85_states)/sizeof(*region85_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','V','8','0'))if(!unit)unit=ent;
+    typeof(region85_states[0]) *expected=region85_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Region stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
+    T_EQ(unit && !G_IsDeferredFree(unit),expected->alive);
+    if(!expected->alive) {
+        if(unit)T_ASSERT(!wc3_records_contains(G_GetMoveSpatialObject(unit-g_edicts),(wc3FinePoint_t){21,22}));
+        return;
+    }
+    T_NOT_NULL(unit);if(!unit)return;
+    uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z)};
+    FOR_LOOP(k,3)T_EQ(world[k],expected->world[k]);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Region callback stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){21,22}),expected->occupied);
+}
+
+TEST(wc3_movement, region_callbacks_match_original_teleport_remove_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    /* Match the captured file-shaped17x17 W3E: height8192, cliff baseline2. */
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    region85_stage=region85_marker=0;test_preload_marker=region85_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        " integer udg_PathProbeMode=0\n"
+        " region udg_PathProbeRegion=null\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeEnter takes nothing returns nothing\n"
+        " if GetTriggerUnit()!=udg_PathProbeUnit then\n"
+        "  return\n"
+        " endif\n"
+        " call PathProbeRecord(\"region_enter_before\")\n"
+        " if udg_PathProbeMode==1 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,1344.0,304.0)\n"
+        "  call PathProbeRecord(\"callback_teleport\")\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1568.0,1040.0)\n"
+        "  call PathProbeRecord(\"callback_new_move\")\n"
+        " elseif udg_PathProbeMode==2 then\n"
+        "  call RemoveUnit(udg_PathProbeUnit)\n"
+        "  set udg_PathProbeUnit=null\n"
+        "  call PathProbeRecord(\"callback_removed\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"region_enter_after\")\n"
+        "endfunction\n"
+        "function PathProbeLeave takes nothing returns nothing\n"
+        " if GetTriggerUnit()==udg_PathProbeUnit then\n"
+        "  call PathProbeRecord(\"region_leave\")\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 or udg_PathProbeTick==100 or udg_PathProbeTick==200 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1008.0,1040.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==85 or udg_PathProbeTick==185 then\n"
+        "  call IssueImmediateOrder(udg_PathProbeUnit,\"stop\")\n"
+        "  call SetUnitX(udg_PathProbeUnit,272.0)\n"
+        "  call SetUnitY(udg_PathProbeUnit,304.0)\n"
+        "  set udg_PathProbeMode=udg_PathProbeMode+1\n"
+        "  call PathProbeRecord(\"reset\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=region_callbacks\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " local trigger enter=CreateTrigger()\n"
+        " local trigger leave=CreateTrigger()\n"
+        " call Preload(\"PATHPOSE case=region_callbacks\")\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,150.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " set udg_PathProbeRegion=CreateRegion()\n"
+        " call RegionAddRect(udg_PathProbeRegion,Rect(640.0,672.0,704.0,736.0))\n"
+        " call TriggerRegisterEnterRegion(enter,udg_PathProbeRegion,null)\n"
+        " call TriggerRegisterLeaveRegion(leave,udg_PathProbeRegion,null)\n"
+        " call TriggerAddAction(enter,function PathProbeEnter)\n"
+        " call TriggerAddAction(leave,function PathProbeLeave)\n"
+        " call PathProbeRecord(\"start_region_callbacks\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={4495,4540,13500,13540,13570,23395,23400,23430};
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-region-callback-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==9 ? 10 : pass==10 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];region85_stage=saved_stage[slot];region85_marker=saved_marker[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(region85_motion)/sizeof(*region85_motion)));
+                if(steps>=(sizeof(region85_motion)/sizeof(*region85_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=region85_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Region callback commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=region85_stage;saved_marker[i]=region85_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(region85_motion)/sizeof(*region85_motion)));T_EQ(region85_stage,(sizeof(region85_states)/sizeof(*region85_states)));
+        T_EQ(region85_marker,sizeof(region85_markers)/sizeof(*region85_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch)T_ASSERT(!unit->inuse || G_IsDeferredFree(unit));
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Region callback native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+static unsigned bypass86_stage,bypass86_marker;
+
+static void bypass86_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=bypass86_marker++;
+    T_ASSERT(index<sizeof(bypass86_markers)/sizeof(*bypass86_markers));
+    if(index<sizeof(bypass86_markers)/sizeof(*bypass86_markers))T_STREQ(marker,bypass86_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=bypass86_stage++;
+    T_ASSERT(stage<(sizeof(bypass86_states)/sizeof(*bypass86_states)));if(stage>=(sizeof(bypass86_states)/sizeof(*bypass86_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','V','8','0'))if(!unit)unit=ent;
+    typeof(bypass86_states[0]) *expected=bypass86_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Bypass stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
+    T_ASSERT(unit && !G_IsDeferredFree(unit));
+    T_EQ(unit && unit->paused,expected->paused);
+    T_EQ(unit && unit->no_pathing,expected->mask==0);
+    T_NOT_NULL(unit);if(!unit)return;
+    uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z)};
+    FOR_LOOP(k,3)T_EQ(world[k],expected->world[k]);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Movement bypass stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    T_EQ(wc3_records_contains(links,(wc3FinePoint_t){24,26}),expected->occupied);
+}
+
+TEST(wc3_movement, pathing_pause_and_displacement_match_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    for(unsigned y=0;y<48;y++) {cells[y*64+24]=0xc6;cells[y*64+25]=0xc6;}
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    /* Match the captured file-shaped17x17 W3E: height8192, cliff baseline2. */
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    bypass86_stage=bypass86_marker=0;test_preload_marker=bypass86_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " if IsUnitPaused(udg_PathProbeUnit) then\n"
+        "  call Preload(\"PATHPAUSEVALUE true\")\n"
+        " else\n"
+        "  call Preload(\"PATHPAUSEVALUE false\")\n"
+        " endif\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==40 or udg_PathProbeTick==150 then\n"
+        "  call SetUnitPathing(udg_PathProbeUnit,false)\n"
+        "  call PathProbeRecord(\"pathing_off\")\n"
+        " elseif udg_PathProbeTick==85 or udg_PathProbeTick==165 then\n"
+        "  call SetUnitPathing(udg_PathProbeUnit,true)\n"
+        "  call PathProbeRecord(\"pathing_on\")\n"
+        " elseif udg_PathProbeTick==110 then\n"
+        "  call PauseUnit(udg_PathProbeUnit,true)\n"
+        "  call PathProbeRecord(\"paused\")\n"
+        " elseif udg_PathProbeTick==115 then\n"
+        "  call SetUnitX(udg_PathProbeUnit,640.25)\n"
+        "  call SetUnitY(udg_PathProbeUnit,608.125)\n"
+        "  call PathProbeRecord(\"paused_displacement\")\n"
+        " elseif udg_PathProbeTick==135 then\n"
+        "  call PauseUnit(udg_PathProbeUnit,false)\n"
+        "  call PathProbeRecord(\"resumed\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=movement_bypasses\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " call Preload(\"PATHPOSE case=movement_bypasses\")\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,150.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_movement_bypasses\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={3995,4000,8495,8500,10995,11000,11500,13500};
+    PATHSTR files[8];unsigned saved[8]={0},saved_stage[8]={0},saved_marker[8]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-bypass-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==9 ? 10 : pass==10 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];bypass86_stage=saved_stage[slot];bypass86_marker=saved_marker[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(bypass86_motion)/sizeof(*bypass86_motion)));
+                if(steps>=(sizeof(bypass86_motion)/sizeof(*bypass86_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=bypass86_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Movement bypass commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=bypass86_stage;saved_marker[i]=bypass86_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(bypass86_motion)/sizeof(*bypass86_motion)));T_EQ(bypass86_stage,(sizeof(bypass86_states)/sizeof(*bypass86_states)));
+        T_EQ(bypass86_marker,sizeof(bypass86_markers)/sizeof(*bypass86_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->paused && !unit->no_pathing);}
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Movement bypass native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+static unsigned mode87_stage,mode87_marker;
+
+static void mode87_assert_state(cstring_t marker) {
+    if (strncmp(marker,"PATHTRACE ",10)) return;
+    unsigned index=mode87_marker++;
+    T_ASSERT(index<sizeof(mode87_markers)/sizeof(*mode87_markers));
+    if(index<sizeof(mode87_markers)/sizeof(*mode87_markers))T_STREQ(marker,mode87_markers[index]);
+    if (strstr(marker,"label=sample ")) return;
+    unsigned stage=mode87_stage++;
+    T_ASSERT(stage<(sizeof(mode87_states)/sizeof(*mode87_states)));if(stage>=(sizeof(mode87_states)/sizeof(*mode87_states)))return;
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && (ent->class_id==MAKEFOURCC('h','V','8','0') || ent->class_id==MAKEFOURCC('h','A','I','R')))if(!unit)unit=ent;
+    typeof(mode87_states[0]) *expected=mode87_states+stage;
+    T_STREQ(marker,expected->marker);
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    FOR_LOOP(k,3){if(primary[k]!=expected->primary[k])fprintf(stderr,"Mode stage%u primary%u actual%08x expected%08x\n",stage,k,primary[k],expected->primary[k]);T_EQ(primary[k],expected->primary[k]);}
+    T_ASSERT(unit && !G_IsDeferredFree(unit));
+    if(unit) {
+        T_EQ(unit->class_id,MAKEFOURCC((expected->rawcode>>24)&255,(expected->rawcode>>16)&255,(expected->rawcode>>8)&255,expected->rawcode&255));
+        T_EQ(M_UnitStaticPathingFlags(unit),expected->mask&0x00ffffff);
+        T_EQ(!!(unit->aiflags&AI_FLYING),expected->category==0x01000000);
+    }
+    T_NOT_NULL(unit);if(!unit)return;
+    wc3RecordObject_t const *links=G_GetMoveSpatialObject(unit-g_edicts);
+    int box[]={links->box.min.y,links->box.min.x,links->box.max.y,links->box.max.x};
+    FOR_LOOP(k,4)T_EQ(box[k],expected->box[k]);
+    T_ASSERT(wc3_records_contains(links,links->box.min));
+    /* Native Unit position stores support Z; OpenRealm snapshots add the
+     * separately authored fly-height presentation offset. */
+    uint32_t world[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z-unit->unitinfo.FlyHeight)};
+    FOR_LOOP(k,3)T_EQ(world[k],expected->world[k]);
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),
+        wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,6) {
+        if(state[k]!=expected->state[k])fprintf(stderr,"Movement modes stage%u word%u actual%08x expected%08x\n",stage,k,state[k],expected->state[k]);
+        T_EQ(state[k],expected->state[k]);
+    }
+}
+
+TEST(wc3_movement, teleport_and_movement_modes_match_original_and_saved_continuations) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,speed=270,height=60,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t ground_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t air_mods[]={
+        ground_mods[0],ground_mods[1],
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="fly"},
+        {.modID=MAKEFOURCC('u','m','v','h'),.type=mod_unreal,.data=&height}};
+    unitData_t units[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=ground_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','I','R'),.numbeOfModifications=4,.modifications=air_mods}};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[2][2];unitData_t abilities[2];
+    FOR_LOOP(i,2) {
+        ability_mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data=i ? "hV80" : "hAIR"};
+        ability_mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""};
+        abilities[i]=(unitData_t){.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=i ? MAKEFOURCC('A','C','G','r') : MAKEFOURCC('A','C','F','l'),.numbeOfModifications=2,.modifications=ability_mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=units,.num_userCreatedAbilities=2,.userCreatedAbilities=abilities};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    for(unsigned y=0;y<48;y++) {cells[y*64+24]=0xc6;cells[y*64+25]=0xc6;}
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    /* Match the captured file-shaped17x17 W3E: height8192, cliff baseline2. */
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,sizeof(vertices)/sizeof(*vertices)){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    mode87_stage=mode87_marker=0;test_preload_marker=mode87_assert_state;
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHMODE type=\"+I2S(GetUnitTypeId(udg_PathProbeUnit)))\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==40 then\n"
+        "  call UnitAddAbility(udg_PathProbeUnit,'ACFl')\n"
+        "  call PathProbeRecord(\"fly_requested\")\n"
+        " elseif udg_PathProbeTick==85 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,272.125,848.25)\n"
+        "  call PathProbeRecord(\"fly_teleport\")\n"
+        " elseif udg_PathProbeTick==90 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"fly_move\")\n"
+        " elseif udg_PathProbeTick==120 then\n"
+        "  call UnitAddAbility(udg_PathProbeUnit,'ACGr')\n"
+        "  call PathProbeRecord(\"ground_requested\")\n"
+        " elseif udg_PathProbeTick==150 then\n"
+        "  call SetUnitPosition(udg_PathProbeUnit,336.25,368.125)\n"
+        "  call PathProbeRecord(\"ground_teleport\")\n"
+        " elseif udg_PathProbeTick==160 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"ground_move\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=movement_modes\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " call Preload(\"PATHPOSE case=movement_modes\")\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,200.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_movement_modes\")\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    T_EQ(level.num_timers,1);T_EQ(wc3_float_bits(level.timers[0].scalar_timeout),0x3dccccce);
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    unsigned steps=0;bool mismatch=!unit;
+    unsigned const times[]={3995,4000,4010,8495,8500,11995,12000,12010,15000,16000};
+    PATHSTR files[10];unsigned saved[10]={0},saved_stage[10]={0},saved_marker[10]={0},suffix=0;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))snprintf(files[i],sizeof(files[i]),"%swc3-movement-mode-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*times))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==11 ? 10 : pass==12 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];mode87_stage=saved_stage[slot];mode87_marker=saved_marker[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(mode87_motion)/sizeof(*mode87_motion)));
+                if(steps>=(sizeof(mode87_motion)/sizeof(*mode87_motion))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=mode87_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Movement modes commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*times)))if(level.time==times[i]){saved[i]=steps;saved_stage[i]=mode87_stage;saved_marker[i]=mode87_marker;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(mode87_motion)/sizeof(*mode87_motion)));T_EQ(mode87_stage,(sizeof(mode87_states)/sizeof(*mode87_states)));
+        T_EQ(mode87_marker,sizeof(mode87_markers)/sizeof(*mode87_markers));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(!mismatch){T_EQ(unit->current_order_id,0);T_ASSERT(!unit->paused && !unit->no_pathing);}
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Movement modes native commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;
+    FOR_LOOP(i,(sizeof(times)/sizeof(*times)))remove(files[i]);
+    move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+
+/* Only captured spell callbacks are replayed. Public Move/teleport/removal,
+ * occupancy, scalar timers and all subsequent stepping are the engine's own. */
+static unsigned modifier88_marker,modifier88_buff,modifier88_stage;
+static void modifier88_assert_state(cstring_t marker) {
+    edict_t *unit=NULL,*caster=NULL;
+    FILTER_EDICTS(ent,ent->inuse) {
+        if(ent->class_id==MAKEFOURCC('h','V','8','0'))unit=ent;
+        if(ent->class_id==MAKEFOURCC('h','s','o','r'))caster=ent;
+    }
+    if (!strcmp(marker,"CAPTURED_APPLY_SLOW") || !strcmp(marker,"CAPTURED_APPLY_BLOODLUST")) {
+        T_NOT_NULL(unit);T_NOT_NULL(caster);if(!unit || !caster)return;
+        abilityitem_t item=S_AbilityItem(!strcmp(marker,"CAPTURED_APPLY_SLOW") ?
+            MAKEFOURCC('A','s','l','o') : MAKEFOURCC('A','C','b','l'));
+        spellTarget_t target={.type=SPELL_TARGET_UNIT,.entity=unit};
+        abilityCall_t call=MAKE(abilityCall_t,.item=&item,.target=&target);
+        T_ASSERT(S_AbilityMessage(caster,A_EXECUTE,&call));return;
+    }
+    if(!strncmp(marker,"PATHBUFF ",9)) {
+        unsigned index=modifier88_buff++;
+        T_ASSERT(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))));
+        if(index<(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers)))) {
+            if (strcmp(marker,modifier88_buff_markers[index])) fprintf(stderr,"Modifier88 buff%u time%u actual=%s expected=%s\n",index,level.time,marker,modifier88_buff_markers[index]);
+            T_STREQ(marker,modifier88_buff_markers[index]);
+        }
+        return;
+    }
+    if(strncmp(marker,"PATHTRACE ",10))return;
+    unsigned index=modifier88_marker++;
+    T_ASSERT(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))));
+    if(index<(sizeof(modifier88_markers)/sizeof(*(modifier88_markers)))) {
+        if (strcmp(marker,modifier88_markers[index])) fprintf(stderr,"Modifier88 marker%u time%u actual=%s expected=%s\n",index,level.time,marker,modifier88_markers[index]);
+        T_STREQ(marker,modifier88_markers[index]);
+    }
+    if(strstr(marker,"label=sample "))return;
+    unsigned stage=modifier88_stage++;
+    T_ASSERT(stage<(sizeof(modifier88_states)/sizeof(*(modifier88_states))));if(stage>=(sizeof(modifier88_states)/sizeof(*(modifier88_states))) || !unit)return;
+    typeof(modifier88_states[0]) *expected=modifier88_states+stage;
+    uint32_t primary[]={wc3_float_bits(level.pathing_clock.time),level.pathing_clock.epoch,wc3_float_bits(level.pathing_clock.span)};
+    uint32_t world_words[]={wc3_float_bits(unit->s.origin2.x),wc3_float_bits(unit->s.origin2.y),wc3_float_bits(unit->s.origin.z)};
+    uint32_t state[]={wc3_float_bits(unit->movement.pose_clock.time),wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(wc3_div(unit->movement.velocity.x,32)),wc3_float_bits(wc3_div(unit->movement.velocity.y,32)),wc3_float_bits(unit->s.angle)};
+    FOR_LOOP(k,3){T_EQ(primary[k],expected->primary[k]);T_EQ(world_words[k],expected->world[k]);}
+    FOR_LOOP(k,6)T_EQ(state[k],expected->state[k]);
+}
+static void modifier88_record_commit(edict_t *unit) {
+    /* Caster's four native commits are a separate spell-steering contract. */
+    if(unit->class_id==MAKEFOURCC('h','V','8','0'))record_follow_commit(unit);
+}
+
+TEST(wc3_movement, temporary_modifiers_match_original_velocity_and_saved_restoration) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();
+    float radius=40,caster_radius=16,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    unitModification_t mover_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t caster_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&caster_radius}};
+    unitData_t units[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','V','8','0'),.numbeOfModifications=2,.modifications=mover_mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','s','o','r'),.numbeOfModifications=1,.modifications=caster_mods}};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y3;X8\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"DataA1\"\nC;X5;K\"DataB1\"\nC;X6;K\"BuffID1\"\nC;X7;K\"Dur1\"\nC;X8;K\"HeroDur1\"\n"
+        "C;Y2;X1;K\"Aslo\"\nC;X2;K\"Aslo\"\nC;X3;K1\nC;X4;K0.6\nC;X5;K0.25\nC;X6;K\"Bslo\"\nC;X7;K60\nC;X8;K10\n"
+        "C;Y3;X1;K\"ACbl\"\nC;X2;K\"Ablo\"\nC;X3;K1\nC;X4;K0.4\nC;X5;K0.25\nC;X6;K\"Bblo\"\nC;X7;K40\nC;X8;K40\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=units};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};box2_t bounds={{0,0},{2048,2048}};
+    for(unsigned y=0;y<48;y++){cells[y*64+24]=0xc6;cells[y*64+25]=0xc6;}
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(64,64,cells);
+    war3mapVertex_t vertices[17*17]={0};
+    FOR_LOOP(i,(sizeof(vertices)/sizeof(*(vertices)))){vertices[i].accurate_height=0x2000;vertices[i].level=2;}
+    war3map_t terrain={.width=17,.height=17,.center={0,0},.vertices=vertices};world.map=&terrain;
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;
+    modifier88_marker=modifier88_buff=modifier88_stage=0;test_preload_marker=modifier88_assert_state;
+    /* Spell completion is a supplied fixture input. The frozen public query
+     * first sees Bloodlust at tick105; its unobserved cast-request deadline
+     * must not be replaced with a rounded10.5-second authored timer. */
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        " unit udg_PathProbeUnit=null\n"
+        " unit udg_PathCaster=null\n"
+        " timer udg_PathProbeTimer=null\n"
+        " integer udg_PathProbeTick=0\n"
+        " boolean udg_CasterHeld=false\n"
+        "endglobals\n"
+        "function PathProbeRecord takes string label returns nothing\n"
+        " call Preload(\"PATHBUFF slow=\"+I2S(GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo'))+\" haste=\"+I2S(GetUnitAbilityLevel(udg_PathProbeUnit,'Bblo'))+\" speed=\"+R2S(GetUnitMoveSpeed(udg_PathProbeUnit)))\n"
+        " call Preload(\"PATHTRACE tick=\"+I2S(udg_PathProbeTick)+\" label=\"+label+\" x=\"+R2S(GetUnitX(udg_PathProbeUnit))+\" y=\"+R2S(GetUnitY(udg_PathProbeUnit))+\" order=\"+I2S(GetUnitCurrentOrder(udg_PathProbeUnit)))\n"
+        "endfunction\n"
+        "function PathProbeTick takes nothing returns nothing\n"
+        " set udg_PathProbeTick=udg_PathProbeTick+1\n"
+        " if udg_PathProbeTick==105 then\n"
+        "  call Preload(\"CAPTURED_APPLY_BLOODLUST\")\n"
+        " endif\n"
+        " if udg_PathProbeTick==10 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",1712.0,1712.0)\n"
+        "  call PathProbeRecord(\"point_move\")\n"
+        " elseif udg_PathProbeTick==35 then\n"
+        "  set udg_PathCaster=CreateUnit(Player(1),'hsor',GetUnitX(udg_PathProbeUnit)-320.0,GetUnitY(udg_PathProbeUnit),0.0)\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"slowoff\")\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"holdposition\")\n"
+        "  call PathProbeRecord(\"caster_created\")\n"
+        " elseif udg_PathProbeTick==40 then\n"
+        "  call PathProbeRecord(\"slow_requested\")\n"
+        " elseif udg_PathProbeTick==90 then\n"
+        "  call UnitRemoveBuffsEx(udg_PathProbeUnit,false,true,true,false,false,false,true)\n"
+        "  call PathProbeRecord(\"slow_removed\")\n"
+        " elseif udg_PathProbeTick==110 then\n"
+        "  call IssuePointOrder(udg_PathProbeUnit,\"move\",272.0,304.0)\n"
+        "  call PathProbeRecord(\"reverse_move\")\n"
+        " elseif udg_PathProbeTick==100 then\n"
+        "  call PauseUnit(udg_PathCaster,false)\n"
+        "  call SetUnitOwner(udg_PathCaster,Player(0),false)\n"
+        "  call SetUnitPosition(udg_PathCaster,GetUnitX(udg_PathProbeUnit)-320.0,GetUnitY(udg_PathProbeUnit))\n"
+        "  call UnitAddAbility(udg_PathCaster,'ACbl')\n"
+        "  set udg_CasterHeld=false\n"
+        "  call PathProbeRecord(\"haste_requested\")\n"
+        " elseif udg_PathProbeTick==140 then\n"
+        "  call UnitRemoveBuffs(udg_PathProbeUnit,true,false)\n"
+        "  call PathProbeRecord(\"haste_removed\")\n"
+        " endif\n"
+        " if not udg_CasterHeld and udg_PathCaster!=null and (GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo')>0 or GetUnitAbilityLevel(udg_PathProbeUnit,'Bblo')>0) then\n"
+        "  call IssueImmediateOrder(udg_PathCaster,\"holdposition\")\n"
+        "  call PauseUnit(udg_PathCaster,true)\n"
+        "  set udg_CasterHeld=true\n"
+        "  call PathProbeRecord(\"modifier_applied\")\n"
+        "  call UnitRemoveBuffs(udg_PathProbeUnit,false,false)\n"
+        "  call PathProbeRecord(\"remove_neither\")\n"
+        "  if GetUnitAbilityLevel(udg_PathProbeUnit,'Bslo')>0 then\n"
+        "   call UnitRemoveBuffs(udg_PathProbeUnit,true,false)\n"
+        "  else\n"
+        "   call UnitRemoveBuffs(udg_PathProbeUnit,false,true)\n"
+        "  endif\n"
+        "  call PathProbeRecord(\"remove_other_polarity\")\n"
+        "  call UnitRemoveBuffsEx(udg_PathProbeUnit,true,true,false,true,false,false,true)\n"
+        "  call PathProbeRecord(\"remove_physical\")\n"
+        " endif\n"
+        " call PathProbeRecord(\"sample\")\n"
+        " if udg_PathProbeTick==300 then\n"
+        "  call PathProbeRecord(\"complete\")\n"
+        "  call Preload(\"PATHPOSE done=speed_modifiers\")\n"
+        "  call PauseTimer(udg_PathProbeTimer)\n"
+        " endif\n"
+        "endfunction\n"
+        "function CapturedSlowApply takes nothing returns nothing\n"
+        " call Preload(\"CAPTURED_APPLY_SLOW\")\n"
+        "endfunction\n"
+        "function PathProbeInit takes nothing returns nothing\n"
+        " call Preload(\"PATHPOSE case=speed_modifiers\")\n"
+        " call SetPlayerAlliance(Player(0),Player(1),ALLIANCE_PASSIVE,false)\n"
+        " call SetPlayerAlliance(Player(1),Player(0),ALLIANCE_PASSIVE,false)\n"
+        " set udg_PathProbeUnit=CreateUnit(Player(0),'hV80',272.0,304.0,90.0)\n"
+        " call SetUnitMoveSpeed(udg_PathProbeUnit,270.0)\n"
+        " call FogEnable(false)\n"
+        " call FogMaskEnable(false)\n"
+        " call SetCameraPosition(1008.0,1040.0)\n"
+        " call PathProbeRecord(\"start_speed_modifiers\")\n"
+        " call TimerStart(CreateTimer(),4.45,false,function CapturedSlowApply)\n"
+        " set udg_PathProbeTimer=CreateTimer()\n"
+        " call TimerStart(udg_PathProbeTimer,0.1,true,function PathProbeTick)\n"
+        "endfunction\n"
+        "\n"
+        "function main takes nothing returns nothing\n"
+        " call PathProbeInit()\n"
+        "endfunction\n"
+        ));
+    G_FinishMovePathingInitialization();
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==units[0].newUnitID)if(!unit)unit=ent;
+    T_NOT_NULL(unit);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};trace.units[0]=unit;follow_commit_trace=&trace;move_test_motion_commit=modifier88_record_commit;
+    unsigned steps=0,suffix=0;bool mismatch=!unit;
+    unsigned const times[]={4445,4450,4500,8995,9000,10495,10500,13995,14000};
+    PATHSTR files[(sizeof(times)/sizeof(*(times)))];unsigned saved[(sizeof(times)/sizeof(*(times)))]={0},saved_marker[(sizeof(times)/sizeof(*(times)))]={0},saved_buff[(sizeof(times)/sizeof(*(times)))]={0},saved_stage[(sizeof(times)/sizeof(*(times)))]={0};
+    FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))snprintf(files[i],sizeof(files[i]),"%swc3-speed-modifier-%u.bin",Test_TempPath(""),times[i]);
+    FOR_LOOP(pass,(sizeof(times)/sizeof(*(times)))+4) {
+        if(mismatch)break;
+        unsigned slot=pass ? (pass<=sizeof(times)/sizeof(*times) ? pass-1 : 0) : 0;
+        unsigned frame=pass<=sizeof(times)/sizeof(*times) ? 5 : (pass==10 ? 10 : pass==11 ? 25 : 50);
+        if(pass){T_ASSERT(ReadGame(files[slot]));steps=saved[slot];modifier88_marker=saved_marker[slot];modifier88_buff=saved_buff[slot];modifier88_stage=saved_stage[slot];}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0;level.time=MIN(31000,level.time+frame);globals.RunFrame();
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<(sizeof(modifier88_motion)/sizeof(*(modifier88_motion))));
+                if(steps>=(sizeof(modifier88_motion)/sizeof(*(modifier88_motion)))){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=modifier88_motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Modifier88 commit%u time%u actual=%08x/%08x/%08x/%08x/%08x/%08x/%08x expected=%08x/%08x/%08x/%08x/%08x/%08x/%08x\n",steps-1,level.time,actual[0],actual[1],actual[2],actual[3],actual[4],actual[5],actual[6],expected[0],expected[1],expected[2],expected[3],expected[4],expected[5],expected[6]);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))if(level.time==times[i]){saved[i]=steps;saved_marker[i]=modifier88_marker;saved_buff[i]=modifier88_buff;saved_stage[i]=modifier88_stage;T_ASSERT(WriteGame(files[i]));}
+        }
+        T_EQ(steps,(sizeof(modifier88_motion)/sizeof(*(modifier88_motion))));T_EQ(modifier88_stage,(sizeof(modifier88_states)/sizeof(*(modifier88_states))));
+        T_EQ(modifier88_marker,(sizeof(modifier88_markers)/sizeof(*(modifier88_markers))));T_EQ(modifier88_buff,(sizeof(modifier88_buff_markers)/sizeof(*(modifier88_buff_markers))));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[slot];
+    }
+    fprintf(stderr,"Modifier88 main commits=%u saved suffix commits=%u\n",steps,suffix);
+    test_preload_marker=NULL;FOR_LOOP(i,(sizeof(times)/sizeof(*(times))))remove(files[i]);move_test_motion_commit=NULL;follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, recovery197_public_blocked_move_unwinds_retry_state) {
+    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion),true);
+}
+
+TEST(wc3_movement, public_move_matches_original_blocked_goal_lifecycle) {
+    public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion),false);
+}
+
+TEST(wc3_movement, public_move_matches_original_outside_west_goal) {
+    public_point_goal_journey(1,outside_west_motion,sizeof(outside_west_motion)/sizeof(*outside_west_motion),false);
+}
+
+TEST(wc3_movement, public_ai_recruit_matches_original_captain_home_admission) {
+    public_point_goal_journey(2,captain_home_motion,sizeof(captain_home_motion)/sizeof(*captain_home_motion),false);
+}
+
+TEST(wc3_movement, public_ai_recruit_matches_original_farther_captain_home) {
+    public_point_goal_journey(3,captain_range_far_motion,sizeof(captain_range_far_motion)/sizeof(*captain_range_far_motion),false);
+}
+
+TEST(wc3_movement, public_ai_pair_recruits_match_original_captain_home) {
+    public_point_goal_journey(4,captain_pair_motion,sizeof(captain_pair_motion)/sizeof(*captain_pair_motion),false);
+}
+
+TEST(wc3_movement, public_ai_blocked_pair_matches_original_captain_retry) {
+    public_point_goal_journey(6,captain_blocked_motion,sizeof(captain_blocked_motion)/sizeof(*captain_blocked_motion),false);
+}
+
+TEST(wc3_movement, public_ai_mixed_recruits_match_original_captain_home) {
+    public_point_goal_journey(5,captain_mixed_motion,sizeof(captain_mixed_motion)/sizeof(*captain_mixed_motion),false);
+}
+
+/* Recruitment must retain owned insertion order before and after saves. The
+ * delayed birth goes through the public RemoveUnit/CreateUnit path and really
+ * reuses the lower slot; neither freetime nor movement words are injected. */
+static void public_captain_pool_journey(unsigned mode) {
+    bool reuse=mode==2,pair=mode==3;
+    uint32_t const (*motion)[7]=pair ? captain_pool_partial_motion : reuse ? captain_pool_reuse_motion : mode ? captain_pool_same_owner_motion : captain_pool_transfer_motion;
+    unsigned count=pair ? sizeof(captain_pool_partial_motion)/sizeof(*captain_pool_partial_motion) : reuse ? sizeof(captain_pool_reuse_motion)/sizeof(*captain_pool_reuse_motion) : mode ? sizeof(captain_pool_same_owner_motion)/sizeof(*captain_pool_same_owner_motion) : sizeof(captain_pool_transfer_motion)/sizeof(*captain_pool_transfer_motion);
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[2000];
+    snprintf(script,sizeof(script),
+        "globals\nunit mover\nunit peer\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n%s\n"
+        "if tick==%u then\n%s\ncall StartCampaignAI(Player(0),\"%s\")\nendif\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)\n"
+        "set peer=CreateUnit(Player(0),'hBGM',-1856,-976,90)\ncall SetUnitMoveSpeed(peer,100)\n"
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n",
+        reuse ? "if tick==5 then\ncall RemoveUnit(mover)\nset mover=null\nendif" : "",reuse ? 20u : 10u,
+        reuse ? "set mover=CreateUnit(Player(0),'hBGM',-1936,-976,90)\ncall SetUnitMoveSpeed(mover,100)" :
+        mode==1 ? "call SetUnitOwner(mover,Player(0),false)" :
+        "call SetUnitOwner(mover,Player(1),false)\ncall SetUnitOwner(mover,Player(0),false)",
+        pair ? "test_captain_pool_partial.ai" : "test_captain_pool_move.ai");
+    T_ASSERT(run_test_jass(script));
+    followCommitTrace_t trace={0};
+    FILTER_EDICTS(unit,unit->inuse && unit->class_id==type.newUnitID) {
+        if(!trace.units[0])trace.units[0]=unit;else trace.units[1]=unit;
+    }
+    T_NOT_NULL(trace.units[0]); T_NOT_NULL(trace.units[1]);
+    edict_t *selected=trace.units[mode==1],*idle=trace.units[mode!=1];
+    uint64_t original=trace.units[0]->own_seq;
+    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[8]={995,1200,1500,1995,2010,6255,6270,6300},saved[8]={0};
+    if(reuse)memcpy(times,(unsigned[]){495,995,1995,2100,2995,3010,7270,7300},sizeof(times));
+    if(pair)memcpy(times,(unsigned[]){995,1200,1500,1995,2010,6000,6500,6525},sizeof(times));
+    PATHSTR files[8]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-captain-pool-%u-%u.bin",Test_TempPath(""),mode,i);
+    unsigned steps=0,suffix=0; bool mismatch=false;
+    FOR_LOOP(pass,9) {
+        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];T_NULL(level.bots[0].vm);}
+        while(level.time<31000 && !mismatch) {
+            trace.count=0; level.time+=5; globals.RunFrame();
+            if(level.time==(reuse ? 2000u : 1000u)) {
+                /* Recreated primary must actually reuse its original lower edict. */
+                T_ASSERT(trace.units[0]->inuse); T_EQ(trace.units[0]->class_id,type.newUnitID);
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),pair ? 2 : 1);
+                T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[0],pair ? trace.units[1] : selected);
+                if(pair)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[1],selected);
+                else T_EQ(idle->current_order_id,0);
+                if(mode==1)T_EQ(trace.units[0]->own_seq,original);
+                else T_ASSERT(selected->own_seq>idle->own_seq);
+            }
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=motion[steps++];
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch)fprintf(stderr,"Captain pool mode%u commit%u time%u differs\n",mode,steps-1,level.time);
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
+                saved[i]=steps; T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        T_EQ(steps,count); T_EQ(selected->current_order_id,0); T_EQ(idle->current_order_id,0);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[pass-1];
+    }
+    fprintf(stderr,"Captain pool mode%u exact commits=%u saved suffix=%u\n",mode,count,suffix);
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL; follow_commit_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+}
+
+TEST(wc3_movement, public_captain_owned_pool_matches_original_owner_transfer) { public_captain_pool_journey(0); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_same_owner) { public_captain_pool_journey(1); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_delayed_reuse) { public_captain_pool_journey(2); }
+TEST(wc3_movement, public_captain_owned_pool_matches_original_partial_assault) { public_captain_pool_journey(3); }
+
+static void record_captain_shared_radius(moveGroup_t const *group, edict_t *singleton) {
+    if (!group || !group->shared_id) return;
+    groupRadiusTrace_t *trace=group_radius_trace; unsigned mask=0;
+    moveShared_t const *shared=S_FindMoveShared(group->shared_id);
+    T_NOT_NULL(shared); if (!shared) return;
+    T_EQ(group->radius,shared->radius);
+    FOR_LOOP(i,group->count) FOR_LOOP(j,13)
+        if(group->members[i].unit==follow_commit_trace->units[j])mask|=1u<<j;
+    T_ASSERT(trace->count<sizeof(trace->rows)/sizeof(*trace->rows));
+    if(trace->count>=sizeof(trace->rows)/sizeof(*trace->rows))return;
+    uint32_t words[]={level.pathing_counter,mask,wc3_float_bits(wc3_div(shared->radius,32)),
+        wc3_float_bits(wc3_div(group->route.group_radius,32))};
+    memcpy(trace->rows[trace->count++],words,sizeof(words));
+}
+
+static void public_captain_roster_journey(uint32_t const (*motion)[7],unsigned count,unsigned members,unsigned phase) {
+    bool mixed=phase!=0;
+    bool cancel=phase>=5,early=phase==6,stop_all=phase>=7,go_home=phase>=8,go_home_retry=phase>=9,go_home_refill=phase==10,go_home_complete=phase==11;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    float large_radius=63;
+    unitModification_t large_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=5,.modifications=large_mods}};
+    mapInfo_t info={.num_userCreatedUnits=mixed ? 2 : 1,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    /* Placement compares W3E support levels, independently of WPM passability. */
+    static war3mapVertex_t vertices[97*65];
+    war3map_t terrain=*world.map;
+    if(members==13) {
+        terrain.width=97; terrain.height=65; terrain.vertices=vertices;
+        memset(vertices,0,sizeof(vertices)); offset=0;
+        FOR_LOOP(i,sizeof(captain_thirteen_terrain_levels)/sizeof(*captain_thirteen_terrain_levels))
+            FOR_LOOP(j,captain_thirteen_terrain_levels[i][0]) {
+                vertices[offset].accurate_height=0x2000;
+                vertices[offset++].level=captain_thirteen_terrain_levels[i][1];
+            }
+        T_EQ(offset,97*65); world.map=&terrain;
+    }
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[6000];
+    int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\ninteger tick=0\nboolean armed=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==10 then\ncall StartCampaignAI(Player(0),\"%s\")\nendif\n%s\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",go_home ? "test_captain_thirteen_go_home.ai" : mixed ? "test_captain_thirteen_mixed.ai" : members==3 ? "test_captain_three.ai" : "test_captain_thirteen.ai",stop_all ? "if tick==92 then\ncall IssueImmediateOrder(roster[0],\"stop\")\ncall IssueImmediateOrder(roster[1],\"stop\")\ncall IssueImmediateOrder(roster[2],\"stop\")\ncall IssueImmediateOrder(roster[3],\"stop\")\ncall IssueImmediateOrder(roster[4],\"stop\")\ncall IssueImmediateOrder(roster[5],\"stop\")\ncall IssueImmediateOrder(roster[6],\"stop\")\ncall IssueImmediateOrder(roster[7],\"stop\")\ncall IssueImmediateOrder(roster[8],\"stop\")\ncall IssueImmediateOrder(roster[9],\"stop\")\ncall IssueImmediateOrder(roster[10],\"stop\")\ncall IssueImmediateOrder(roster[11],\"stop\")\ncall IssueImmediateOrder(roster[12],\"stop\")\nendif\nif tick==170 then\ncall StartCampaignAI(Player(0),\"test_captain_thirteen_mixed.ai\")\nendif" : early ? "if tick==89 then\ncall IssueImmediateOrder(roster[0],\"stop\")\nendif" : cancel ? "if tick==92 then\ncall IssueImmediateOrder(roster[0],\"stop\")\nendif" : "");
+    FOR_LOOP(i,members) {
+        int x=-1936+(members==3 ? i : i%4)*80,y=-976-(members==3 ? 0 : i/4)*80;
+        length+=snprintf(script+length,sizeof(script)-length,
+            "set roster[%u]=CreateUnit(Player(0),'%s',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",i,mixed && i==0 ? "hBGL" : "hBGM",x,y,i);
+    }
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));
+    T_ASSERT(run_test_jass(script));
+    /* Run native map setup, including locked-seed random race draws, before
+     * public main creates movers. Retry counts consume this same owner stream. */
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true;level.scriptsStarted=false;
+    globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
+    followCommitTrace_t trace={0};
+    unsigned found=0;
+    FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || (mixed && unit->class_id==types[1].newUnitID))) {
+        T_ASSERT(found<members); if(found<members)trace.units[found++]=unit;
+    }
+    T_EQ(found,members);
+    follow_commit_trace=&trace; move_test_motion_commit=record_follow_commit;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    unsigned times[8]={995,1500,1995,2010,6390,6420,6750,7950},saved[8]={0};
+    if(members==13)memcpy(times,(unsigned[]){995,1500,1995,2010,6390,7750,10000,13500},sizeof(times));
+    if(mixed)memcpy(times,(unsigned[]){995,1500,1995,2010,4000,5000,7750,8750},sizeof(times));
+    if(phase==2)memcpy(times,(unsigned[]){995,8995,9000,9030,9800,9850,11000,11995},sizeof(times));
+    if(phase==3)memcpy(times,(unsigned[]){995,9030,11000,11995,12000,12030,13000,14000},sizeof(times));
+    if(phase==4)memcpy(times,(unsigned[]){995,9030,11995,12030,15995,16000,16020,17000},sizeof(times));
+    if(cancel)memcpy(times,(unsigned[]){8995,9030,9195,9200,9230,12000,16020,17000},sizeof(times));
+    if(early)memcpy(times,(unsigned[]){8895,8900,8905,8995,9030,12000,16020,17000},sizeof(times));
+    if(stop_all)memcpy(times,(unsigned[]){9195,9200,9205,9230,16995,17000,17030,18000},sizeof(times));
+    if(go_home)memcpy(times,(unsigned[]){18030,18100,19000,20000,21000,23000,23500,23700},sizeof(times));
+    if(go_home_retry)memcpy(times,(unsigned[]){18030,23000,23820,23905,23910,23940,25000,27000},sizeof(times));
+    if(go_home_refill)memcpy(times,(unsigned[]){23820,23905,23910,27000,27265,27270,27275,28000},sizeof(times));
+    if(go_home_complete)memcpy(times,(unsigned[]){30000,31000,31495,31500,32000,40000,90000,119970},sizeof(times));
+    PATHSTR files[8]; FOR_LOOP(i,8)snprintf(files[i],sizeof(files[i]),"%swc3-captain-roster-%u-%u.bin",Test_TempPath(""),members,i);
+    groupRadiusTrace_t radii_trace={0}; unsigned footprints=0,saved_footprints[8]={0};
+    uint32_t const (*expected_footprints)[4]=go_home ? captain_go_home_footprints : stop_all ? captain_thirteen_cancel_all_footprints : early ? captain_thirteen_cancel_early_footprints : cancel ? captain_thirteen_cancel_late_footprints : phase==4 ? captain_thirteen_reentry_footprints : captain_thirteen_shared_footprints;
+    unsigned footprint_count=go_home ? sizeof(captain_go_home_footprints)/sizeof(*captain_go_home_footprints) : stop_all ? sizeof(captain_thirteen_cancel_all_footprints)/sizeof(*captain_thirteen_cancel_all_footprints) : early ? sizeof(captain_thirteen_cancel_early_footprints)/sizeof(*captain_thirteen_cancel_early_footprints) : cancel ? sizeof(captain_thirteen_cancel_late_footprints)/sizeof(*captain_thirteen_cancel_late_footprints) : phase==4 ? sizeof(captain_thirteen_reentry_footprints)/sizeof(*captain_thirteen_reentry_footprints) : sizeof(captain_thirteen_shared_footprints)/sizeof(*captain_thirteen_shared_footprints);
+    unsigned base_motion=sizeof(captain_go_home_motion)/sizeof(*captain_go_home_motion);
+    unsigned base_footprints=sizeof(captain_go_home_footprints)/sizeof(*captain_go_home_footprints);
+    unsigned retry_motion=base_motion+sizeof(captain_go_home_retry_motion)/sizeof(*captain_go_home_retry_motion);
+    unsigned retry_footprints=base_footprints+sizeof(captain_go_home_retry_footprints)/sizeof(*captain_go_home_retry_footprints);
+    if(go_home_retry)footprint_count=retry_footprints;
+    if(go_home_refill)footprint_count+=sizeof(captain_go_home_refill_footprints)/sizeof(*captain_go_home_refill_footprints);
+    if(go_home_complete)footprint_count=sizeof(captain_go_home_complete_footprints)/sizeof(*captain_go_home_complete_footprints);
+    if(phase==2 || phase==4 || cancel){group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;}
+    unsigned steps=0,suffix=0; bool mismatch=false;
+    FOR_LOOP(pass,go_home_complete ? 12 : 9) {
+        unsigned checkpoint=pass>=9 ? 0 : pass-1;
+        unsigned frame=pass==9 ? 10 : pass==10 ? 25 : pass==11 ? 50 : 5;
+        if(pass){G_BotStop(0);T_ASSERT(ReadGame(files[checkpoint]));steps=saved[checkpoint];footprints=saved_footprints[checkpoint];T_NULL(level.bots[0].vm);}
+        while(level.time<(go_home_complete ? 120050 : go_home_refill ? 30000 : go_home_retry ? 27200 : go_home ? 23800 : phase>=4 ? 31000 : phase==3 ? 15000 : phase==2 ? 12000 : mixed ? 9000 : 31000) && !mismatch) {
+            trace.count=radii_trace.count=0; level.time+=frame; globals.RunFrame();
+            if(go_home && level.time==1000)trace.units[13]=level.bots[0].captains[BOT_CAPTAIN_ATTACK].home_actor;
+            FOR_LOOP(i,radii_trace.count) {
+                T_ASSERT(footprints<footprint_count);
+                if(footprints>=footprint_count){mismatch=true;break;}
+                uint32_t const *expected=go_home_complete ? captain_go_home_complete_footprints[footprints] : go_home_refill && footprints>=retry_footprints ?
+                    captain_go_home_refill_footprints[footprints-retry_footprints] : go_home_retry && footprints>=base_footprints ?
+                    captain_go_home_retry_footprints[footprints-base_footprints] : expected_footprints[footprints];
+                FOR_LOOP(k,4)T_EQ(radii_trace.rows[i][k],expected[k]);
+                footprints++;
+            }
+            if(level.time==1000) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),members);
+                FOR_LOOP(i,members)T_EQ(level.bots[0].captains[BOT_CAPTAIN_ATTACK].units[i],trace.units[mixed ? (i+1)%members : i]);
+            }
+            if(phase==4) FOR_LOOP(d,sizeof(captain_thirteen_reentry_membership)/sizeof(*captain_thirteen_reentry_membership)) {
+                uint32_t const *expected=captain_thirteen_reentry_membership[d];
+                if(level.time!=expected[0])continue;
+                unsigned inner=0,outer=0,inner_count=0,outer_count=0;
+                edict_t *actor=trace.units[12]->movement.captain_home.roster_actor;
+                T_NOT_NULL(actor);
+                FOR_LOOP(u,members) {
+                    edict_t *unit=trace.units[u];
+                    T_EQ(unit->movement.captain_home.roster_actor,actor);
+                    if(unit->movement.captain_home.entered){inner|=1u<<u;inner_count++;}
+                    if(unit->movement.captain_home.outer){outer|=1u<<u;outer_count++;}
+                    T_EQ(wc3_float_bits(unit->movement.captain_home.due.time),wc3_float_bits(wc3_add(wc3_float(expected[1]),1)));
+                }
+                T_EQ(inner,expected[2]);T_EQ(outer,expected[3]);
+                T_EQ(inner_count,expected[4]);T_EQ(outer_count,expected[5]);
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
+            }
+            if(cancel && level.time==(early ? 8900 : 9200)) {
+                edict_t *unit=trace.units[0];
+                T_EQ(unit->current_order_id,0);
+                T_NULL(unit->movement.captain_home.actor);
+                T_NOT_NULL(unit->movement.captain_home.roster_actor);
+                T_ASSERT(unit->movement.captain_home.entered);
+                T_ASSERT(unit->movement.captain_home.outer);
+                T_NULL(move_find_group(unit->movement.group_id));
+                T_ASSERT(S_ValidateMoveShared());
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
+                if(early)T_EQ(level.next_move_shared_id,0);
+                else {
+                    moveShared_t const *shared=S_FindMoveShared(1);
+                    T_NOT_NULL(shared);
+                    if(shared)T_EQ(shared->references,2);
+                    unsigned empty=0;
+                    FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
+                        moveGroup_t const *group=level.move_groups[g];
+                        if(group->inuse && group->shared_id==1 && !group->count)empty++;
+                    }
+                    T_EQ(empty,stop_all ? 2 : 1);
+                }
+            }
+            if(stop_all && (level.time==9230 || level.time==9260)) {
+                moveShared_t const *shared=S_FindMoveShared(1);
+                if(level.time==9230){T_NOT_NULL(shared);if(shared)T_EQ(shared->references,0);}
+                else T_NULL(shared);
+                T_ASSERT(S_ValidateMoveShared());
+            }
+            if(cancel && !early && !stop_all && level.time==9230) {
+                moveGroup_t const *group=move_find_group(trace.units[1]->movement.group_id);
+                moveShared_t const *shared=S_FindMoveShared(1);
+                T_NOT_NULL(group);T_NOT_NULL(shared);
+                if(shared){T_EQ(shared->references,1);T_EQ(shared->radius,31);}
+                if(group){T_EQ(group->shared_id,1);T_EQ(group->route.group_radius,63);}
+            }
+            if(cancel && !stop_all && level.time==16020) {
+                T_NULL(S_FindMoveShared(1));
+                moveShared_t const *shared=S_FindMoveShared(2);
+                T_NOT_NULL(shared);if(shared)T_EQ(shared->references,2);
+                T_EQ(ARRAY_COUNT(level.move_shared),1);
+                T_ASSERT(S_ValidateMoveShared());
+            }
+            if(phase==3 && (level.time==11995 || level.time==12000 || level.time==12030)) {
+                edict_t *unit=trace.units[12];
+                moveGroup_t const *group=move_find_group(unit->movement.group_id);
+                T_NOT_NULL(group); T_NOT_NULL(unit->movement.captain_home.actor);
+                bool reissued=level.time>=12000;
+                T_EQ(unit->movement.captain_home.active,reissued);
+                if(group) {
+                    T_EQ(group->shared_id==0,reissued);
+                    if(reissued) {
+                        T_EQ(group->count,1); T_EQ(group->target,unit->movement.captain_home.actor);
+                        T_EQ(wc3_float_bits(group->members[0].arrival_range),0x409b0000u);
+                        T_EQ(wc3_float_bits(unit->movement.captain_home.due.time),0x414fffffu);
+                    }
+                }
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
+            }
+            FOR_LOOP(i,trace.count) {
+                T_ASSERT(steps<count); if(steps>=count){mismatch=true;break;}
+                uint32_t const *actual=trace.rows[i],*expected=go_home_complete ? motion[steps] : go_home_refill && steps>=retry_motion ?
+                    captain_go_home_refill_motion[steps-retry_motion] : go_home_retry && steps>=base_motion ?
+                    captain_go_home_retry_motion[steps-base_motion] : motion[steps];
+                steps++;
+                FOR_LOOP(k,7){T_EQ(actual[k],expected[k]);if(actual[k]!=expected[k])mismatch=true;}
+                if(mismatch) {
+                    fprintf(stderr,"Captain roster%u commit%u time%u differs\n",members,steps-1,level.time);
+                    FOR_LOOP(k,7)fprintf(stderr,"  word%u actual=%08x expected=%08x\n",k,actual[k],expected[k]);
+                    edict_t *unit=trace.units[actual[0]];
+                    moveFineRoute_t const *route=&unit->movement.fine_route;
+                    moveGroupMember_t const *member=move_find_member(unit);
+                    if(member)fprintf(stderr,"  member destination=(%.9g,%.9g) flags=%x arrived=%u forced=%u fine count=%u index=%u partial=%u\n",member->destination.x,member->destination.y,member->flags,member->arrived,member->forced_arrival,route->count,route->index,route->partial);
+                    FOR_LOOP(n,MIN(route->count,5))fprintf(stderr,"  fine point%u=(%.9g,%.9g)\n",n,route->points[n].x,route->points[n].y);
+                }
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,8)if(level.time==times[i]) {
+                saved[i]=steps; saved_footprints[i]=footprints; T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        if(phase==2 || phase==4 || cancel)T_EQ(footprints,footprint_count);
+        T_EQ(steps,count); if(!mixed)FOR_LOOP(i,members)T_EQ(trace.units[i]->current_order_id,0);
+        if(phase>=4 && !go_home) {
+            T_EQ(level.next_move_shared_id,stop_all ? 1 : 2);
+            FOR_LOOP(u,members) {
+                T_EQ(trace.units[u]->current_order_id,0);
+                T_NULL(trace.units[u]->movement.captain_home.actor);
+                T_NOT_NULL(trace.units[u]->movement.captain_home.roster_actor);
+                T_ASSERT(trace.units[u]->movement.captain_home.entered);
+                T_ASSERT(trace.units[u]->movement.captain_home.outer);
+            }
+            T_ASSERT(S_ValidateCaptainHomeActors(false));
+            if(cancel) {
+                T_NULL(S_FindMoveShared(1));T_NULL(S_FindMoveShared(2));
+                if(!stop_all || !pass)T_EQ(ARRAY_COUNT(level.move_shared),1);
+                T_ASSERT(S_ValidateMoveShared());
+            }
+        }
+        if(go_home_complete && !mismatch) {
+            edict_t *unit=trace.units[8];
+            moveGroup_t const *group=move_find_group(unit->movement.group_id);
+            T_NOT_NULL(group);
+            T_EQ(unit->current_order_id,G_OrderId("move"));
+            T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+            if(group){T_ASSERT(group->flags&1);T_EQ(group->completion_counter,0);T_EQ(group->target,trace.units[13]);}
+            FOR_LOOP(u,members)if(u!=8)T_EQ(trace.units[u]->current_order_id,0);
+            T_EQ(trace.units[13]->current_order_id,0);
+            T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+        }
+        if(!mixed)T_EQ(level.pathing_random.sum,members==13 ? 591832212u : 3022241195u);
+        if(!mixed)T_EQ(level.pathing_random.index,members==13 ? 1015043152u : 141606968u);
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved[checkpoint];
+        if(mismatch)break;
+    }
+    fprintf(stderr,"Captain roster%u%s %s commits=%u/%u saved suffix=%u\n",members,go_home ? " go home prefix" : stop_all ? " cancel all" : early ? " cancel early" : cancel ? " cancel late" : phase==4 ? " complete" : phase==3 ? " range departure" : phase==2 ? " shared prefix" : mixed ? " private prefix" : "",mismatch ? "mismatch" : "exact",steps,count,suffix);
+    if(stop_all && !go_home && !mismatch) {
+        uint32_t initialized=level.ai_vm_initialized;
+        T_EQ(initialized,1);
+        level.ai_vm_initialized|=1u<<MAX_PLAYERS;
+        T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-invalid-ai-players.bin")));
+        level.ai_vm_initialized=initialized;
+        remove(Test_TempPath("wc3-captain-invalid-ai-players.bin"));
+    }
+    if(phase==3 && !mismatch) {
+        FOR_LOOP(i,6) {
+            T_ASSERT(ReadGame(files[1]));
+            edict_t *unit=trace.units[12];
+            T_ASSERT(!unit->movement.captain_home.active);
+            T_NOT_NULL(unit->movement.captain_home.actor);
+            if(i==0)unit->movement.captain_home.due.time=NAN;
+            if(i==1)unit->movement.captain_home.due.span=0;
+            if(i==2)unit->movement.captain_home.member_index=13;
+            if(i==3)unit->movement.captain_home.home.x=INFINITY;
+            if(i==4)unit->movement.captain_home.actor->movement.captain_actor_members=0;
+            if(i==5)unit->movement.captain_home.member_index=trace.units[1]->movement.captain_home.member_index;
+            T_ASSERT(!S_ValidateCaptainHomeActors(false));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-shared-invalid.bin")));
+        }
+        remove(Test_TempPath("wc3-captain-shared-invalid.bin"));
+        T_ASSERT(ReadGame(files[2]));
+        edict_t *unit=trace.units[12],*actor=unit->movement.captain_home.actor;
+        T_NOT_NULL(actor); S_ReleaseCaptainHomeActor(actor);
+        FOR_LOOP(i,12)move_release_captain_reference(trace.units[i]);
+        T_ASSERT(actor->inuse); T_ASSERT(!actor->movement.captain_actor_owned);
+        while(level.time<12030) {
+            trace.count=0; level.time+=5; globals.RunFrame();
+        }
+        T_ASSERT(actor->inuse); T_EQ(unit->movement.captain_home.actor,actor);
+        T_ASSERT(unit->movement.captain_home.active);
+        T_EQ(move_find_group(unit->movement.group_id)->target,actor);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+    }
+    if(phase==4 && !mismatch) {
+        FOR_LOOP(i,6) {
+            T_ASSERT(ReadGame(files[2]));
+            edict_t *unit=trace.units[0],*actor=unit->movement.captain_home.roster_actor;
+            T_NULL(unit->movement.captain_home.actor); T_NOT_NULL(actor);
+            T_ASSERT(unit->movement.captain_home.entered);
+            if(i==0)*(uint8_t *)&unit->movement.captain_home.outer=2;
+            if(i==1)unit->movement.captain_home.roster_actor=trace.units[1];
+            if(i==2)actor->movement.captain_actor_owned=false;
+            if(i==3)unit->movement.captain_home.roster_actor=NULL;
+            if(i==4)unit->movement.captain_home.member_index=trace.units[1]->movement.captain_home.member_index;
+            if(i==5)unit->movement.captain_home.due.time=NAN;
+            T_ASSERT(!S_ValidateCaptainHomeActors(false));
+            T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-roster-invalid.bin")));
+        }
+        remove(Test_TempPath("wc3-captain-roster-invalid.bin"));
+    }
+    FOR_LOOP(i,8)remove(files[i]);
+    move_test_motion_commit=NULL; follow_commit_trace=NULL; move_test_group_route=NULL; group_radius_trace=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); level.started=false; reset_entities(); setup_test_world();
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min; game.constants.maxUnitSpeed=old_max;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+/* Frozen native predicate outputs include exact special masks and mixed masks;
+ * shared counters apply to both independently authored weapon slots. */
+TEST(wc3_movement, attack_prevention_slot_matrix_matches_complete_native) {
+    reset_entities();setup_test_world();
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0);
+    unitAttack_t *profiles[]={S_AttackProfileWrite(unit,0),S_AttackProfileWrite(unit,1)};
+    FOR_LOOP(i,2)profiles[i]->type=ATK_NORMAL;
+    T_NULL(unit->abilstatus);
+    FOR_LOOP(row,sizeof(retail_attack_prevention_slots)/sizeof(*retail_attack_prevention_slots)) {
+        FOR_LOOP(i,2) {
+            /* Both enum domains classify1 as melee and2..8 as ranged.
+             * Their delivery ordering is immaterial to this predicate. */
+            profiles[i]->weapon=retail_attack_prevention_slots[row].weapon;
+            profiles[i]->targetsAllowed=retail_attack_prevention_slots[row].targets;
+        }
+        FOR_LOOP(mask,8) {
+            S_AttackAdjustPrevention(unit,mask,false);
+            FOR_LOOP(slot,2)T_EQ(S_UnitAttackSlotEnabled(unit,slot),retail_attack_prevention_slots[row].enabled[mask]);
+            S_AttackAdjustPrevention(unit,mask,true);
+        }
+    }
+    unitStatusStorage_t *state=(unitStatusStorage_t *)unit->abilstatus;
+    T_NOT_NULL(state);
+    FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],0);
+    FOR_LOOP(row,sizeof(retail_attack_prevention_counters)/sizeof(*retail_attack_prevention_counters)) {
+        FOR_LOOP(i,3)state->attack_prevention[i]=retail_attack_prevention_counters[row].initial;
+        S_AttackAdjustPrevention(unit,retail_attack_prevention_counters[row].mask,
+            retail_attack_prevention_counters[row].release);
+        FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],retail_attack_prevention_counters[row].words[i]);
+    }
+    int32_t signed_words[]={INT32_MIN,-1,0,1,INT32_MAX};
+    FOR_LOOP(i,5)FOR_LOOP(kind,3) {
+        profiles[0]->weapon=kind==1 ? WPN_MISSILE : WPN_NORMAL;
+        profiles[0]->targetsAllowed=kind==2 ? WC3_TARGET_FLAG_TREE : WC3_TARGET_FLAG_GROUND;
+        memset(state->attack_prevention,0,sizeof(state->attack_prevention));
+        state->attack_prevention[kind]=(uint32_t)signed_words[i];
+        T_EQ(S_UnitAttackSlotEnabled(unit,0),signed_words[i]<=0);
+    }
+    memset(state->attack_prevention,0,sizeof(state->attack_prevention));
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('A','a','t','k')));
+    S_AttackAdjustPrevention(unit,7,false);
+    FOR_LOOP(i,3)T_EQ(state->attack_prevention[i],0);
+    reset_entities();setup_test_world();
+}
+
+/* Native501ae0/521550 adjust Attack-owned counters, not buff booleans.
+ * Public casts must change fresh captain admission while retaining old ranges. */
+TEST(wc3_movement, public_attack_prevention_changes_fresh_captain_ranges_and_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    char slk[7000];char const *columns[]={"alias","code","BuffID1","BuffID","DataA1","DataA",
+        "Dur1","Dur","HeroDur1","HeroDur","Rng1","Rng","Cost1","Cost","Cool1","Cool","targs"};
+    char const *aliases[]={"APM1","APM2","APM4","APN2","APS8"};
+    char const *parents[]={"ANdh","ANdh","Acdh","ANdh","ANdh"};
+    char const *buffs[]={"BNdh","BNdh","BNdh","BNp2","BNp8"};
+    unsigned masks[]={1,2,4,2,8};
+    int length=snprintf(slk,sizeof(slk),"ID;PWXL;N;EBB;Y6;X17\n");
+    FOR_LOOP(i,sizeof(columns)/sizeof(*columns))length+=snprintf(slk+length,sizeof(slk)-length,
+        "C;Y1;X%u;K\"%s\"\n",i+1,columns[i]);
+    FOR_LOOP(i,sizeof(aliases)/sizeof(*aliases)) {
+        char mask[8];snprintf(mask,sizeof(mask),"%u",masks[i]);
+        char const *values[]={aliases[i],parents[i],buffs[i],buffs[i],mask,mask,
+            "600","600","600","600","9999","9999","0","0","0","0",
+            "air,ground,enemy"};
+        FOR_LOOP(j,sizeof(values)/sizeof(*values))length+=snprintf(slk+length,sizeof(slk)-length,
+            "C;Y%u;X%u;K\"%s\"\n",i+2,j+1,values[j]);
+    }
+    snprintf(slk+length,sizeof(slk)-length,"E\n");T_ASSERT(length>0 && length<sizeof(slk));
+    slkTestData_t *rows=parse_slk_string(slk),*old_rows=G_SetSLKRows("AbilityData",rows);
+    float ranges[]={90,400,200},radius=31,acquire=1000;
+    uint32_t enabled=1;char *weapons[]={"normal","missile","normal"};
+    unitModification_t mods[3][8];unitData_t types[3];
+    FOR_LOOP(i,3) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data=weapons[i]};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','g'),.type=mod_string,.data=i==2 ? "tree" : "ground"};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"};
+        mods[i][7]=(unitModification_t){.modID=MAKEFOURCC('u','t','a','r'),.type=mod_string,.data="ground"};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','P','V','0'+i),.numbeOfModifications=8,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=3,.userCreatedUnits=types};
+    info.players[0].playerType=info.players[1].playerType=kPlayerTypeHuman;
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[128*128];memset(cells,0,sizeof(cells));
+    box2_t bounds={{-2048,-2048},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=level.pathing_msec=0;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call CreateUnit(Player(1),'hPV0',-1536,-976,90)\n"
+        "call CreateUnit(Player(1),'hPV1',-1408,-976,90)\n"
+        "call CreateUnit(Player(1),'hPV2',-1280,-976,90)\nendfunction\n"));
+    edict_t *units[3]={0};FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,3)
+        if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    FOR_LOOP(i,3)T_NOT_NULL(units[i]);
+    FOR_LOOP(i,3)T_EQ(S_AttackProfileRead(units[i],0)->targetsAllowed,
+        i==2 ? WC3_TARGET_FLAG_TREE : WC3_TARGET_FLAG_GROUND);
+    edict_t *caster=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-1536,-1104);
+    UnitAbilities_t abilities={.abilList="APM1,APM2,APM4,APN2,APS8"};
+    caster->data.UnitAbilities=&abilities;caster->svflags|=SVF_MONSTER;caster->s.player=0;
+    caster->mana.value=caster->mana.max_value=1000;
+    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=3,.created={0,0,300}};
+    S_SetCaptainHomeActor(&captain,1,BOT_CAPTAIN_ATTACK+1);
+    uint32_t baseline[]={0x409b0000,0x412a8000,0x40dd0000};
+    FOR_LOOP(i,3) {
+        T_ASSERT(S_UnitAttackSlotEnabled(units[i],0));
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
+    }
+    T_EQ(G_UnitAbilityLevel(caster,FS_SLKKey("APM1")),1);
+    T_NOT_NULL(S_SpellAbilityForCode(FS_SLKKey("APM1")));
+    /* Normal melee, ranged delivery, exact special-target mask. */
+    FOR_LOOP(i,3) {
+        T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey(aliases[i]),units[i]));
+        T_NOT_NULL(unit_findstatus(units[i],FS_SLKKey("BNdh")));
+        T_ASSERT(!S_UnitAttackSlotEnabled(units[i],0));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),baseline[i]);
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        T_EQ(wc3_float_bits(move_find_group(units[i]->movement.group_id)->members[0].arrival_range),0x404a0000);
+    }
+    /* Recast replaces the old contribution; distinct buff objects add. */
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APN2"),units[1]));
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNdh")));
+    T_ASSERT(!S_UnitAttackSlotEnabled(units[1],0));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APS8"),units[1]));
+    T_ASSERT(S_UnitIsSilenced(units[1]));
+    caster->data.UnitAbilities=NULL;
+    T_ASSERT(WriteGame(Test_TempPath("wc3-prevention155.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-prevention155.bin")));
+    T_ASSERT(!S_UnitAttackSlotEnabled(units[1],0));T_ASSERT(S_UnitIsSilenced(units[1]));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),0x404a0000);
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp2")));
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNp8")));
+    T_ASSERT(!S_UnitIsSilenced(units[1]));
+    captain.home_actor=units[0]->movement.captain_home.roster_actor;
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),baseline[1]);
+    caster->data.UnitAbilities=&abilities;
+    /* Replacement by an unowned slot still removes the previous owner's
+     * contribution. Dispel, death and timed expiry each invoke the inverse. */
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    unit_addtimedstatus(units[1],"BNdh",1,600);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    unit_expirestatus(units[1],unit_findstatus(units[1],FS_SLKKey("BNdh")));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    T_EQ(unit_removebuffs(units[1],false,true,true,false,false,false,true),1);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    unit_statusdeath(units[1]);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    T_ASSERT(S_CastUnitTargetSpell(caster,FS_SLKKey("APM2"),units[1]));
+    heroabilitystatus_t *expiry=unit_findstatus(units[1],FS_SLKKey("BNdh"));
+    expiry->timestamp=G_Time()+1;level.time++;
+    unit_updatestatuses(units[1]);
+    T_ASSERT(S_UnitAttackSlotEnabled(units[1],0));
+    T_EQ(((unitStatusStorage_t *)units[1]->abilstatus)->attack_prevention[1],0);
+    remove(Test_TempPath("wc3-prevention155.bin"));
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+}
+
+/* Retail9d86f0: public creation/removal/timed life feed the actual captain
+ * admission, whose physical range remains a snapshot until replacement. */
+TEST(wc3_movement, public_captain_temporary_hero_removed_attack_ranges) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    float ranges[]={90,90,100,883,884,90,90,100};
+    float radius[]={31,31,32,32,32,31,31,32},speed=270,acquire=1200;
+    uint32_t masks[]={1,1,1,1,1,0,1,1};
+    uint32_t words[]={0x409b0000,0x40220000,0x419e0000,0x419e0000,
+        0x419e1999,0x404a0000,0x41258000,0x40240000};
+    char const *names[]={"hCA0","hCA1","HCA0","HCA1","HCA2","hCA2","hCA3","HCA3"};
+    unitModification_t mods[8][7];unitData_t types[8];
+    FOR_LOOP(i,8) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=radius+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data="normal"};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=masks+i};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data="normal"};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=FS_SLKKey(names[i]),.numbeOfModifications=7,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=8,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    static uint8_t cells[128*128];memset(cells,0,sizeof(cells));
+    box2_t bounds={{-2048,-2048},{2048,2048}};
+    CM_SetupTestWorldBounds(&bounds);CM_SetupTestPathmap(128,128,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.time=level.pathing_msec=0;
+    char script[3000];int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\nendglobals\nfunction main takes nothing returns nothing\n");
+    FOR_LOOP(i,8)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'%s',%d,-976,90)\n",i,names[i],-1536+(int)i*128);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call UnitRemoveAbility(roster[6],'Aatk')\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    edict_t *units[8]={0};
+    FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,8)if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    FOR_LOOP(i,8)T_NOT_NULL(units[i]);
+    /* Use the existing spell-owned timed-life producer. The public
+     * UnitApplyTimedLife native is a stub, requiring a separate complete port. */
+    T_NOT_NULL(S_SpellApplyTimedLife(units[1],1,600));
+    T_NOT_NULL(S_SpellApplyTimedLife(units[7],1,600));
+    T_ASSERT(!G_ActorHasAbilityCode(units[6],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(unit_findstatus(units[1],MAKEFOURCC('B','T','L','F')));
+    T_ASSERT(!G_UnitIsHero(units[2])); /* Rawcode, rather than initialized Hero stats. */
+    botCaptain_t captain={.home={-1024,1024},.home_set=true,.units=units,.units_count=8,.created={0,0,300}};
+    S_SetCaptainHomeActor(&captain,0,BOT_CAPTAIN_ATTACK+1);
+    FOR_LOOP(i,8) {
+        T_ASSERT(S_IssueCaptainHomeMove(units[i],&captain));
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
+    }
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
+    captain.home_actor=units[0]->movement.captain_home.roster_actor;
+    T_NOT_NULL(captain.home_actor);
+    /* The fixture source is not a saved map script. Use the same owner API
+     * that backs UnitAddAbility after restoring its logical removed state. */
+    T_ASSERT(G_ActorAddSkill(units[6],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(G_ActorHasAbilityCode(units[6],MAKEFOURCC('A','a','t','k')));
+    unit_expirestatus(units[1],unit_findstatus(units[1],MAKEFOURCC('B','T','L','F')));
+    FOR_LOOP(i,8) {
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),words[i]);
+    }
+    /* Existing ranges retain both changes; fresh admissions acquire new values. */
+    T_ASSERT(S_IssueCaptainHomeMove(units[1],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[1]->movement.group_id)->members[0].arrival_range),words[0]);
+    T_ASSERT(S_IssueCaptainHomeMove(units[6],&captain));
+    T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
+    T_EQ(wc3_float_bits(move_find_group(units[6]->movement.group_id)->members[0].arrival_range),words[0]);
+    /* The concrete Mirror Image producer supplies the illusion bit. Execute
+     * its effect directly because this fixture does not author its cast data. */
+    edict_t *roster[10]={0};memcpy(roster,units,sizeof(units));
+    unsigned sources[]={0,2};
+    abilityitem_t mirror=S_AbilityItem(MAKEFOURCC('A','O','m','i'));
+    abilityCall_t call={.item=&mirror};
+    FOR_LOOP(i,2) {
+        T_ASSERT(CAbilityMirrorImage(units[sources[i]],A_EXECUTE,&call));
+        edict_t *image=NULL;
+        FILTER_EDICTS(unit,unit->inuse && (unit->aiflags&AI_ILLUSION) && unit->owner==units[sources[i]])image=unit;
+        T_NOT_NULL(image);if(!image)continue;
+        roster[8+i]=image;
+        captain.units=roster;captain.units_count=9+i;
+        /* Prove the temporary early return skips a genuine siege roster. */
+        unitAttack_t *siege=S_AttackProfileWrite(units[0],0);
+        siege->type=ATK_SIEGE;siege->range=700;
+        T_ASSERT(S_IssueCaptainHomeMove(image,&captain));
+        T_ASSERT(captain.home_actor->movement.captain_actor_siege);
+        T_EQ(wc3_float_bits(move_find_group(image->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
+    }
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-producers.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-producers.bin")));
+    FOR_LOOP(i,2)if(roster[8+i])
+        T_EQ(wc3_float_bits(move_find_group(roster[8+i]->movement.group_id)->members[0].arrival_range),words[i ? 7 : 1]);
+    /* Native9d0650 skips a removed Attack object during roster refresh,
+     * independently of the still-retained immutable siege weapon profile. */
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','a','t','k')));
+    T_ASSERT(!S_UnitHasLongRangeSiegeAttack(units[0]));
+    T_ASSERT(S_IssueCaptainHomeMove(roster[8],&captain));
+    T_ASSERT(!captain.home_actor->movement.captain_actor_siege);
+    remove(Test_TempPath("wc3-captain-producers.bin"));
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+}
+
+/* Public AddAssault snapshots the roster property at each attach. */
+TEST(wc3_movement, public_captain_siege_roster_ranges) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    float radius=31,speed=270,acquire=1000,ranges[]={599,600,601,700,700,700};
+    uint32_t masks[]={1,1,1,1,0,1};
+    char *weapons[]={"missile","missile","missile","normal","missile","instant"};
+    unitModification_t mods[6][7]; unitData_t types[6];
+    FOR_LOOP(i,6) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=ranges+i};
+        mods[i][3]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data=weapons[i]};
+        mods[i][4]=(unitModification_t){.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=masks+i};
+        mods[i][5]=(unitModification_t){.modID=MAKEFOURCC('u','a','1','t'),.type=mod_string,.data=i==3 || i==5 ? "normal" : "siege"};
+        mods[i][6]=(unitModification_t){.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),
+            .newUnitID=MAKEFOURCC('h','C','R','0'+i),.numbeOfModifications=7,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=6,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300}; level.time=level.pathing_msec=0;
+    level.pathing_phase=0; level.pathing_due=false;
+    char script[3000]; int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\nendglobals\nfunction main takes nothing returns nothing\n");
+    FOR_LOOP(i,6)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'hCR%u',%d,%d,90)\n",i,i,-1936+(i%3)*96,-976-(i/3)*96);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call StartCampaignAI(Player(0),\"test_captain_ranges.ai\")\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    G_BotRunFrame();
+    edict_t *units[6]={0};
+    FILTER_EDICTS(unit,unit->inuse)FOR_LOOP(i,6)if(unit->class_id==types[i].newUnitID)units[i]=unit;
+    /* Original captures pin both sides of the threshold and disabled siege contribution. */
+    float expected[]={460.4f/32.f,461.f/32.f,661.6f/32.f,721.f/32.f,301.f/32.f,721.f/32.f};
+    FOR_LOOP(i,6) {
+        T_NOT_NULL(units[i]);moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
+    }
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));
+    G_BotStop(0);T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
+    FOR_LOOP(i,6) {
+        moveGroup_t const *group=move_find_group(units[i]->movement.group_id);
+        T_NOT_NULL(group);if(group)T_EQ(wc3_float_bits(group->members[0].arrival_range),wc3_float_bits(expected[i]));
+    }
+    edict_t *actor=units[0]->movement.captain_home.roster_actor;
+    T_NOT_NULL(actor);T_ASSERT(actor->movement.captain_actor_siege);
+    /* Existing physical ranges and the roster snapshot do not follow weapon writes. */
+    S_AttackProfileWrite(units[2],0)->range=90;
+    T_ASSERT(actor->movement.captain_actor_siege);
+    T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));
+    G_BotStop(0);T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
+    T_ASSERT(actor->movement.captain_actor_siege);
+    T_EQ(S_AttackProfileRead(units[2],0)->range,90);
+    T_EQ(wc3_float_bits(move_find_group(units[2]->movement.group_id)->members[0].arrival_range),wc3_float_bits(expected[2]));
+    G_FreeEdict(units[2]);T_ASSERT(actor->movement.captain_actor_siege); /* Disabled siege still counts. */
+    G_FreeEdict(units[4]);T_ASSERT(!actor->movement.captain_actor_siege);
+    edict_t *fresh=unit_create(0,types[5].newUnitID,&(vec2_t){-1744,-1168},90);
+    T_NOT_NULL(fresh);
+    /* The AI VM is intentionally not restored. Reuse the verified Move-owned
+     * prepared admission with the retained logical owner and encounter order. */
+    edict_t *roster[]={fresh,units[5],units[3],units[1],units[0]};
+    botCaptain_t captain={.home={-1936,-144},.home_set=true,.home_actor=actor,
+        .units=roster,.units_count=5,.created={0,0,300}};
+    T_ASSERT(S_IssueCaptainHomeMove(fresh,&captain));
+    moveGroup_t const *fresh_group=move_find_group(fresh->movement.group_id);
+    T_NOT_NULL(fresh_group);
+    if(fresh_group)T_EQ(wc3_float_bits(fresh_group->members[0].arrival_range),0x41824000u);
+    T_ASSERT(!actor->movement.captain_actor_siege);
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-ranges.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-captain-ranges.bin")));
+    T_ASSERT(!actor->movement.captain_actor_siege);
+    *(uint8_t *)&actor->movement.captain_actor_siege=2;
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-ranges-invalid.bin")));
+    actor->movement.captain_actor_siege=false;
+    remove(Test_TempPath("wc3-captain-ranges-invalid.bin"));
+    remove(Test_TempPath("wc3-captain-ranges.bin"));
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+}
+
+/* Retail120: deferred RemoveUnit withdraws the logical roster before slot reuse. */
+static void public_captain_lifetime_journey(unsigned operation,uint32_t const (*motion)[7],unsigned motion_count,
+    uint32_t const (*footprints)[4],unsigned footprint_count) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0); reset_entities(); setup_test_world();
+    uint32_t old_flags=level.setup.map_flags,old_prefs[12],old_races[12];
+    FOR_LOOP(i,12) {old_prefs[i]=game.clients[i].jass.race_pref;old_races[i]=game.clients[i].ps.race;}
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
+    /* Retail Footman acquisition bounds effective Attack ranges; hRTE has no weapon row. */
+    float weapon_range=90,acquire=500; uint32_t weapons=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    float large_radius=63;
+    unitModification_t large_mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&large_radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&weapon_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&weapons},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire}};
+    unitData_t types[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','M'),.numbeOfModifications=5,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','B','G','L'),.numbeOfModifications=5,.modifications=large_mods}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=types};
+    mapInfo_t const *old_info=level.mapinfo; level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    static uint8_t cells[384*256]; box2_t bounds={{-7168,-3072},{5120,5120}}; unsigned offset=0;
+    FOR_LOOP(i,sizeof(public_oblique_terrain_runs)/sizeof(*public_oblique_terrain_runs)) {
+        memset(cells+offset,public_oblique_terrain_runs[i][1],public_oblique_terrain_runs[i][0]);
+        offset+=public_oblique_terrain_runs[i][0];
+    }
+    T_EQ(offset,sizeof(cells)); CM_SetupTestWorldBounds(&bounds); CM_SetupTestPathmap(384,256,cells);
+    /* Placement compares W3E support levels, independently of WPM passability. */
+    static war3mapVertex_t vertices[97*65];
+    war3map_t terrain=*world.map;
+    if(true) {
+        terrain.width=97; terrain.height=65; terrain.vertices=vertices;
+        memset(vertices,0,sizeof(vertices)); offset=0;
+        FOR_LOOP(i,sizeof(captain_thirteen_terrain_levels)/sizeof(*captain_thirteen_terrain_levels))
+            FOR_LOOP(j,captain_thirteen_terrain_levels[i][0]) {
+                vertices[offset].accurate_height=0x2000;
+                vertices[offset++].level=captain_thirteen_terrain_levels[i][1];
+            }
+        T_EQ(offset,97*65); world.map=&terrain;
+    }
+    level.waypoints=(typeof(level.waypoints)){0}; level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0; level.pathing_phase=0; level.pathing_due=false;
+    char script[6000];
+    int length=snprintf(script,sizeof(script),
+        "globals\nunit array roster\ninteger tick=0\nboolean armed=false\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nlocal integer i=0\nset tick=tick+1\n"
+        "if tick==10 then\ncall StartCampaignAI(Player(0),\"test_captain_lifetime.ai\")\nendif\n"
+        "if tick==92 then\nloop\nexitwhen i==13\n%s\nset i=i+1\nendloop\nendif\n"
+        "if tick==99 and %s then\nset i=0\nloop\nexitwhen i==13\n"
+        "if i==0 then\nset roster[i]=CreateUnit(Player(0),'hBGL',-1936,-976,90)\n"
+        "else\nset roster[i]=CreateUnit(Player(0),'hBGM',-1936+I2R(i-(i/4)*4)*80,-976-I2R(i/4)*80,90)\nendif\n"
+        "call SetUnitMoveSpeed(roster[i],100)\nset i=i+1\nendloop\nendif\nendfunction\n"
+        "function arm takes nothing returns nothing\nset armed=true\nendfunction\n"
+        "function main takes nothing returns nothing\nif not armed then\nreturn\nendif\n",
+        operation==0 ? "call RemoveUnit(roster[i])" : operation==1 ?
+        "call IssuePointOrder(roster[i],\"move\",GetUnitX(roster[i])+128,GetUnitY(roster[i]))" :
+        "call IssueImmediateOrder(roster[i],\"stop\")",operation==0 ? "true" : "false");
+    FOR_LOOP(i,13)length+=snprintf(script+length,sizeof(script)-length,
+        "set roster[%u]=CreateUnit(Player(0),'%s',%d,%d,90)\ncall SetUnitMoveSpeed(roster[%u],100)\n",
+        i,i ? "hBGM" : "hBGL",-1936+(i%4)*80,-976-(i/4)*80,i);
+    length+=snprintf(script+length,sizeof(script)-length,
+        "call TimerStart(CreateTimer(),0.10,true,function on_tick)\nendfunction\n");
+    T_ASSERT(length>0 && length<sizeof(script));T_ASSERT(run_test_jass(script));
+    level.setup.map_flags|=0x8000u;
+    FOR_LOOP(i,12)game.clients[i].jass.race_pref=i<4 ? 1 : 32;
+    jass_callbyname(level.vm,"arm",true);
+    level.started=level.scriptsConfigured=true;level.scriptsStarted=false;globals.RunFrame();
+    T_EQ(level.pathing_random.sum,4273436052u);T_EQ(level.pathing_random.index,209508436u);
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    followCommitTrace_t trace={0};unsigned found=0;
+    FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || unit->class_id==types[1].newUnitID))
+        if(found<13)trace.units[found++]=unit;
+    T_EQ(found,13);follow_commit_trace=&trace;move_test_motion_commit=record_follow_commit;
+    groupRadiusTrace_t radii_trace={0};group_radius_trace=&radii_trace;move_test_group_route=record_captain_shared_radius;
+    unsigned steps=0,footprint_steps=0,saved_steps[5]={0},saved_footprints[5]={0},suffix=0;
+    unsigned times[]={10150,12000,14000,20000,30000};char files[5][80];
+    FOR_LOOP(i,5)snprintf(files[i],sizeof(files[i]),"%swc3-captain-lifetime-%u-%u.bin",Test_TempPath(""),operation,i);
+    bool mismatch=false;edict_t *old_actor=NULL;uint32_t old_generation=0;
+    FOR_LOOP(pass,6) {
+        if(pass) {
+            G_BotStop(0);T_ASSERT(ReadGame(files[pass-1]));
+            steps=saved_steps[pass-1];footprint_steps=saved_footprints[pass-1];T_NULL(level.bots[0].vm);
+        }
+        while(level.time<40050 && !mismatch) {
+            trace.count=radii_trace.count=0;level.time+=5;globals.RunFrame();
+            botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+            if(!pass && operation==0 && level.time==9900) {
+                found=0;
+                FILTER_EDICTS(unit,unit->inuse && (unit->class_id==types[0].newUnitID || unit->class_id==types[1].newUnitID))
+                    if(found<13)trace.units[found++]=unit;
+                T_EQ(found,13);
+            }
+            if(!pass && level.time==1000) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),13);
+                old_actor=captain->home_actor;T_NOT_NULL(old_actor);
+            }
+            if(!pass && level.time==9195){old_generation=level.next_move_shared_id;T_EQ(old_generation,1);}
+            if(!pass && level.time==9200 && operation==0) {
+                T_EQ(ARRAY_COUNT(captain->units),0);T_EQ(old_actor->movement.captain_actor_members,0);
+            }
+            if(!pass && level.time==9260){T_NULL(S_FindMoveShared(old_generation));T_ASSERT(S_ValidateMoveShared());}
+            if(!pass && level.time==9995) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),operation==0 ? 0 : 13);
+                T_EQ(ARRAY_COUNT(captain->units),operation==0 ? 0 : 13);
+            }
+            if(!pass && level.time==10150) {
+                T_EQ(G_BotCaptainGroupSize(G_GetPlayerByNumber(0)),13);T_EQ(ARRAY_COUNT(captain->units),13);
+                T_ASSERT(S_ValidateCaptainHomeActors(false));
+            }
+            FOR_LOOP(i,trace.count) {
+                uint32_t words[7];memcpy(words,trace.rows[i],sizeof(words));
+                if(operation==0 && level.time>=9900)words[0]+=13;
+                if(motion) {
+                    T_ASSERT(steps<motion_count);
+                    if(steps>=motion_count){mismatch=true;break;}
+                    FOR_LOOP(k,7){T_EQ(words[k],motion[steps][k]);if(words[k]!=motion[steps][k])mismatch=true;}
+                    if(mismatch) {
+                        fprintf(stderr,"Captain lifetime%u commit%u at%u differs\n",operation,steps,level.time);
+                    }
+                }
+                steps++;
+                if(mismatch)break;
+            }
+            FOR_LOOP(i,radii_trace.count) {
+                if(footprints) {
+                    T_ASSERT(footprint_steps<footprint_count);
+                    if(footprint_steps>=footprint_count){mismatch=true;break;}
+                    FOR_LOOP(k,4)T_EQ(radii_trace.rows[i][k],footprints[footprint_steps][k]);
+                }
+                footprint_steps++;
+            }
+            if(!pass && !mismatch)FOR_LOOP(i,5)if(level.time==times[i]) {
+                saved_steps[i]=steps;saved_footprints[i]=footprint_steps;T_ASSERT(WriteGame(files[i]));
+            }
+        }
+        if(motion)T_EQ(steps,motion_count);
+        if(footprints)T_EQ(footprint_steps,footprint_count);
+        T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_EQ(level.next_move_shared_id,operation==0 ? 4 : 1);T_NULL(S_FindMoveShared(1));
+        T_ASSERT(!jass_rterror_pending(level.vm));
+        if(pass)suffix+=steps-saved_steps[pass-1];
+        if(mismatch)break;
+    }
+    fprintf(stderr,"Captain lifetime%u commits=%u footprints=%u saved suffix=%u\n",operation,steps,footprint_steps,suffix);
+    FOR_LOOP(i,5)remove(files[i]);
+    follow_commit_trace=NULL;move_test_motion_commit=NULL;group_radius_trace=NULL;move_test_group_route=NULL;
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    level.setup.map_flags=old_flags;
+    FOR_LOOP(i,12){game.clients[i].jass.race_pref=old_prefs[i];game.clients[i].ps.race=old_races[i];}
+}
+
+static botCaptain_t *shared_test_captain(void) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.time=level.pathing_msec=0;level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.pathing_phase=0;level.pathing_due=false;level.started=true;
+    char script[1800];int length=snprintf(script,sizeof(script),"function main takes nothing returns nothing\n");
+    FOR_LOOP(i,13)length+=snprintf(script+length,sizeof(script)-length,
+        "call CreateUnit(Player(0),'hRTE',%d,%d,90)\n",-352+(int)(i%4)*64,-352+(int)(i/4)*64);
+    snprintf(script+length,sizeof(script)-length,"endfunction\n");T_ASSERT(run_test_jass(script));
+    player_t *player=G_GetPlayerByNumber(0);G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,-256,-256);G_BotInitAssault(player);
+    T_ASSERT(G_BotAddAssault(player,13,MAKEFOURCC('h','R','T','E')));
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    FOR_LOOP(i,400) {
+        if(captain->entered_members==13)break;
+        level.time+=30;globals.RunFrame();
+    }
+    T_EQ(captain->entered_members,13);T_EQ(ARRAY_COUNT(captain->units),13);
+    if(captain->entered_members!=13){level.started=false;G_BotStop(0);reset_entities();setup_test_world();return NULL;}
+    return captain;
+}
+
+TEST(wc3_movement, shared189_captain_pool_growth_radius_departure_and_saved_reuse) {
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
+    uint64_t before=level.next_move_shared_id;
+    FOR_LOOP(i,129)S_CaptainPointMove(captain,&(vec2_t){-600+(float)i*4,-900},200);
+    uint64_t id=level.next_move_shared_id;T_EQ(id-before,129);T_ASSERT(ARRAY_COUNT(level.move_shared)>=129);
+    T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+    moveShared_t const *shared=S_FindMoveShared(id);T_NOT_NULL(shared);if(shared)T_EQ(shared->references,2);
+    /* Empty physical owners retire at their normal owner boundary, before save. */
+    level.time+=30;globals.RunFrame();level.time+=30;globals.RunFrame();
+    T_ASSERT(WriteGame(Test_TempPath("wc3-shared189-growth.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-shared189-growth.bin")));
+    captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    edict_t *largest=captain->units[0];float old_radius=largest->collision;largest->collision=63;
+    level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared){T_EQ(shared->radius,63);T_EQ(shared->references,2);}
+    largest->collision=95;level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared)T_EQ(shared->radius,95);
+    FOR_LOOP(i,129)if(before+i+1!=id)T_NULL(S_FindMoveShared(before+i+1));
+    T_ASSERT(unit_issueimmediateorder(largest,"stop"));
+    level.time+=30;globals.RunFrame();shared=S_FindMoveShared(id);T_NOT_NULL(shared);
+    if(shared)T_EQ(shared->radius,old_radius);
+    FOR_EACH_ARRAY(edict_t *,member,captain->units)
+        T_ASSERT(unit_issueimmediateorder(*member,"stop"));
+    level.time+=30;globals.RunFrame();level.time+=30;globals.RunFrame();
+    T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
+    unsigned high_water=ARRAY_COUNT(level.move_shared);
+    S_CaptainPointMove(captain,&(vec2_t){400,-900},200);
+    T_NOT_NULL(S_FindMoveShared(level.next_move_shared_id));T_EQ(ARRAY_COUNT(level.move_shared),high_water);
+    T_NULL(S_FindMoveShared(id));T_ASSERT(S_ValidateMoveShared());
+    remove(Test_TempPath("wc3-shared189-growth.bin"));level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+
+static struct { unsigned phase;uint64_t id;float radius,speed,next_speed; } owner190_rows[128];
+static unsigned owner190_count;
+static uint64_t owner190_shared;static uint32_t owner190_groups[2];
+static void owner190_record(unsigned phase,uint64_t id) {
+    if(owner190_count>=128)return;
+    if(phase==MOVE_PHASE_SCHEDULER){T_EQ(level.move_fine_budgets[0].work,0);T_EQ(level.move_fine_budgets[0].countdown,1);}
+    moveShared_t const *shared=NULL;
+    if(phase==MOVE_PHASE_PUBLISH) {if(id!=owner190_shared)return;shared=S_FindMoveShared(id);}
+    if(phase>=MOVE_PHASE_RADIUS && phase<=MOVE_PHASE_COMMIT && id!=owner190_groups[0] && id!=owner190_groups[1])return;
+    if(phase>=MOVE_PHASE_RADIUS && phase<=MOVE_PHASE_COMMIT) {
+        moveGroup_t const *group=move_find_group(id);
+        if(!group || !group->shared_id)return;
+        shared=S_FindMoveShared(group->shared_id);
+    }
+    owner190_rows[owner190_count++]=(typeof(*owner190_rows)){phase,id,shared ? shared->radius : 0,shared ? shared->speed : 0,shared ? shared->next_speed : 0};
+}
+
+TEST(wc3_movement, scheduler190_shared_radius_order_and_warm_owner_storage) {
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
+    int repulse=1;float collision=8;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','r','p','o'),.type=mod_int,.data=&repulse},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&collision}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','S','9','0'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&type};
+    G_SetMapUnitOverrides(&info);
+    edict_t *separators[2];
+    FOR_LOOP(i,2) {
+        separators[i]=unit_create(0,type.newUnitID,&(vec2_t){800+(float)i*100,800},0);
+        T_NOT_NULL(separators[i]);if(separators[i])T_ASSERT(separators[i]->movement.repulse.active);
+    }
+    S_CaptainPointMove(captain,&(vec2_t){800,-900},200);
+    moveGroup_t *newest=move_group_head,*older=NULL;
+    /* The virtual Captain itself is also a physical owner; find the two bound cohorts. */
+    while(newest && !newest->shared_id)newest=newest->older;
+    older=newest ? newest->older : NULL;while(older && !older->shared_id)older=older->older;
+    T_NOT_NULL(newest);T_NOT_NULL(older);
+    if(!newest || !older)goto done;
+    T_EQ(newest->shared_id,older->shared_id);T_EQ(newest->count,1);T_EQ(older->count,12);
+    newest->members[0].unit->collision=63;
+    owner190_shared=newest->shared_id;owner190_groups[0]=newest->id;owner190_groups[1]=older->id;
+    bool responsive=level.move_fine_responsive;level.move_fine_responsive=false;
+    level.move_fine_budgets[0].work=123;level.move_fine_budgets[0].countdown=0;
+    owner190_count=0;move_test_owner_phase=owner190_record;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();move_test_owner_phase=NULL;
+    T_ASSERT(owner190_count>=11);
+    if(owner190_count>=11) {
+        unsigned phases[]={MOVE_PHASE_SCHEDULER,MOVE_PHASE_PUBLISH,MOVE_PHASE_RADIUS,MOVE_PHASE_RADIUS,
+            MOVE_PHASE_GROUP,MOVE_PHASE_DECIDE,MOVE_PHASE_COMMIT,MOVE_PHASE_GROUP,MOVE_PHASE_DECIDE,MOVE_PHASE_COMMIT};
+        FOR_LOOP(i,10)T_EQ(owner190_rows[i].phase,phases[i]);
+        T_EQ(owner190_rows[2].id,newest->id);T_EQ(owner190_rows[3].id,older->id);
+        T_EQ(owner190_rows[2].radius,0);T_EQ(owner190_rows[3].radius,63);
+        FOR_LOOP(i,6)T_EQ(owner190_rows[i+4].radius,63);
+        T_EQ(owner190_rows[4].speed,FLT_MAX);T_EQ(owner190_rows[7].speed,FLT_MAX);
+        T_EQ(owner190_rows[4].next_speed,FLT_MAX);
+        T_EQ(owner190_rows[7].next_speed,unit_effective_speed(newest->members[0].unit));
+        T_EQ(owner190_rows[10].phase,MOVE_PHASE_SEPARATE);
+        T_ASSERT(owner190_rows[10].id==separators[0]->s.number || owner190_rows[10].id==separators[1]->s.number);
+    }
+    uint32_t allocations=move_owner_visit_allocations;
+    FOR_LOOP(i,16) {S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();}
+    T_EQ(move_owner_visit_allocations,allocations);
+    level.move_fine_responsive=responsive;
+done:
+    move_test_owner_phase=NULL;level.started=false;G_BotStop(0);reset_entities();setup_test_world();G_SetMapUnitOverrides(NULL);
+}
+
+TEST(wc3_movement, public_captain_partial_removal_preserves_remaining_roster_and_save) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\nunit array roster\nendglobals\n"
+        "function remove_middle takes nothing returns nothing\ncall RemoveUnit(roster[1])\nendfunction\n"
+        "function main takes nothing returns nothing\n"
+        "set roster[0]=CreateUnit(Player(0),'hRTE',-256,-256,90)\n"
+        "set roster[1]=CreateUnit(Player(0),'hRTE',-96,-256,90)\n"
+        "set roster[2]=CreateUnit(Player(0),'hRTE',64,-256,90)\nendfunction\n"));
+    player_t *player=G_GetPlayerByNumber(0);G_BotCreateCaptains(player);
+    G_BotSetCaptainHome(player,1,0,256);G_BotInitAssault(player);
+    T_ASSERT(G_BotAddAssault(player,3,MAKEFOURCC('h','R','T','E')));
+    botCaptain_t *captain=level.bots[0].captains+BOT_CAPTAIN_ATTACK;
+    edict_t *actor=captain->home_actor,*first=captain->units[0],*last=captain->units[2];
+    T_EQ(actor->movement.captain_actor_members,3);
+    jass_callbyname(level.vm,"remove_middle",false);
+    T_EQ(ARRAY_COUNT(captain->units),3); /* Native return precedes deferred logical withdrawal. */
+    G_TestFinishDeferredFrees();
+    T_EQ(ARRAY_COUNT(captain->units),2);T_EQ(actor->movement.captain_actor_members,2);
+    T_EQ(captain->units[0],first);T_EQ(captain->units[1],last);
+    T_EQ(first->movement.captain_home.member_index,0);T_EQ(last->movement.captain_home.member_index,1);
+    T_EQ(first->movement.captain_home.roster_actor,actor);T_EQ(last->movement.captain_home.roster_actor,actor);
+    T_ASSERT(S_ValidateCaptainHomeActors(false));T_ASSERT(S_ValidateMoveShared());
+    T_ASSERT(WriteGame(Test_TempPath("wc3-captain-partial-retirement.bin")));
+    actor->movement.captain_actor_members=3;
+    T_ASSERT(!S_ValidateCaptainHomeActors(false));T_ASSERT(!WriteGame(Test_TempPath("wc3-captain-invalid-retirement.bin")));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-captain-partial-retirement.bin")));
+    T_EQ(actor->movement.captain_actor_members,2);T_ASSERT(S_ValidateCaptainHomeActors(false));
+    remove(Test_TempPath("wc3-captain-partial-retirement.bin"));remove(Test_TempPath("wc3-captain-invalid-retirement.bin"));
+    G_BotStop(0);reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, public_captain_removal_withdraws_roster_before_slot_reuse) {
+    public_captain_lifetime_journey(0,captain_lifetime_remove_motion,
+        sizeof(captain_lifetime_remove_motion)/sizeof(*captain_lifetime_remove_motion),captain_lifetime_remove_footprints,
+        sizeof(captain_lifetime_remove_footprints)/sizeof(*captain_lifetime_remove_footprints));
+}
+
+TEST(wc3_movement, public_captain_retarget_retains_roster_and_cancels_last_shared_binding) {
+    public_captain_lifetime_journey(1,captain_lifetime_retarget_motion,
+        sizeof(captain_lifetime_retarget_motion)/sizeof(*captain_lifetime_retarget_motion),captain_lifetime_retarget_footprints,
+        sizeof(captain_lifetime_retarget_footprints)/sizeof(*captain_lifetime_retarget_footprints));
+}
+
+TEST(wc3_movement, public_captain_stop_retains_roster_and_cancels_last_shared_binding) {
+    public_captain_lifetime_journey(2,captain_lifetime_stop_motion,
+        sizeof(captain_lifetime_stop_motion)/sizeof(*captain_lifetime_stop_motion),captain_lifetime_stop_footprints,
+        sizeof(captain_lifetime_stop_footprints)/sizeof(*captain_lifetime_stop_footprints));
+}
+
+TEST(wc3_movement, public_captain_go_home_matches_original_extended_standing_follow) {
+    public_captain_roster_journey(captain_go_home_complete_motion,
+        sizeof(captain_go_home_complete_motion)/sizeof(*captain_go_home_complete_motion),13,11);
+}
+
+TEST(wc3_movement, public_captain_three_recruits_match_original_complete_journey) {
+    public_captain_roster_journey(captain_three_motion,sizeof(captain_three_motion)/sizeof(*captain_three_motion),3,false);
+}
+
+TEST(wc3_movement, public_captain_thirteen_recruits_match_original_complete_journey) {
+    public_captain_roster_journey(captain_thirteen_motion,sizeof(captain_thirteen_motion)/sizeof(*captain_thirteen_motion),13,false);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_private_prefix) {
+    /* The complete5462-row retail reference is retained. Cross-batch owner
+     * publication first differs at9.03s and remains GROUP-03.4.6.2.2/3. */
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41100000u)count++;
+    T_EQ(count,3471);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,true);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_shared_prefix) {
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41400000u)count++;
+    T_EQ(count,4560);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,2);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_range_departure) {
+    unsigned count=0;
+    while(count<sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion) &&
+        captain_thirteen_mixed_motion[count][1]<0x41700000u)count++;
+    T_EQ(count,4867);
+    public_captain_roster_journey(captain_thirteen_mixed_motion,count,13,3);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_complete_journey) {
+    public_captain_roster_journey(captain_thirteen_mixed_motion,
+        sizeof(captain_thirteen_mixed_motion)/sizeof(*captain_thirteen_mixed_motion),13,4);
+}
+
+TEST(wc3_movement, public_group_move_matches_original_member_growth) {
+    public_group_radius_journey(0,group_radius_grow_motion,sizeof(group_radius_grow_motion)/sizeof(*group_radius_grow_motion),
+        group_radius_grow_footprints,sizeof(group_radius_grow_footprints)/sizeof(*group_radius_grow_footprints));
+}
+
+TEST(wc3_movement, public_group_move_matches_original_member_shrink) {
+    public_group_radius_journey(1,group_radius_shrink_motion,sizeof(group_radius_shrink_motion)/sizeof(*group_radius_shrink_motion),
+        group_radius_shrink_footprints,sizeof(group_radius_shrink_footprints)/sizeof(*group_radius_shrink_footprints));
+}
+
+TEST(wc3_movement, public_group_move_matches_original_largest_member_removal) {
+    public_group_radius_journey(2,group_radius_remove_motion,sizeof(group_radius_remove_motion)/sizeof(*group_radius_remove_motion),
+        group_radius_remove_footprints,sizeof(group_radius_remove_footprints)/sizeof(*group_radius_remove_footprints));
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_grow_retained) {
+    public_follow_journey(follow_target_resize_grow_control_motion,sizeof(follow_target_resize_grow_control_motion)/sizeof(*follow_target_resize_grow_control_motion),FOLLOW_GROW_CONTROL);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_shrink_retained) {
+    public_follow_journey(follow_target_resize_shrink_control_motion,sizeof(follow_target_resize_shrink_control_motion)/sizeof(*follow_target_resize_shrink_control_motion),FOLLOW_SHRINK_CONTROL);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_research_resize) {
+    public_follow_journey(follow_target_resize_grow_research_motion,sizeof(follow_target_resize_grow_research_motion)/sizeof(*follow_target_resize_grow_research_motion),FOLLOW_RESEARCH);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_grow) {
+    public_follow_journey(follow_target_resize_grow_fresh_motion,sizeof(follow_target_resize_grow_fresh_motion)/sizeof(*follow_target_resize_grow_fresh_motion),FOLLOW_GROW);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_shrink) {
+    public_follow_journey(follow_target_resize_shrink_fresh_motion,sizeof(follow_target_resize_shrink_fresh_motion)/sizeof(*follow_target_resize_shrink_fresh_motion),FOLLOW_SHRINK);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_speed_journey) {
+    public_follow_journey(follow_velocity_motion,sizeof(follow_velocity_motion)/sizeof(*follow_velocity_motion),FOLLOW_SPEED);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_remove_reuse) {
+    public_follow_journey(follow_target_remove_motion,sizeof(follow_target_remove_motion)/sizeof(*follow_target_remove_motion),FOLLOW_REMOVE_REUSE);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_kill_reuse) {
+    public_follow_journey(follow_target_remove_motion,sizeof(follow_target_remove_motion)/sizeof(*follow_target_remove_motion),FOLLOW_KILL_REUSE);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_xy_teleport) {
+    public_follow_journey(follow_target_idle_motion,sizeof(follow_target_idle_motion)/sizeof(*follow_target_idle_motion),FOLLOW_XY);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_position_teleport) {
+    public_follow_journey(follow_target_idle_motion,sizeof(follow_target_idle_motion)/sizeof(*follow_target_idle_motion),FOLLOW_POSITION);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_travel_xy_teleport) {
+    public_follow_journey(follow_target_travel_xy_motion,sizeof(follow_target_travel_xy_motion)/sizeof(*follow_target_travel_xy_motion),FOLLOW_TRAVEL_XY);
+}
+
+TEST(wc3_movement, public_smart_follow_matches_original_target_travel_position_teleport) {
+    public_follow_journey(follow_target_travel_position_motion,sizeof(follow_target_travel_position_motion)/sizeof(*follow_target_travel_position_motion),FOLLOW_TRAVEL_POSITION);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_largest_stop_after_shared) {
+    public_captain_roster_journey(captain_thirteen_cancel_late_motion,
+        sizeof(captain_thirteen_cancel_late_motion)/sizeof(*captain_thirteen_cancel_late_motion),13,5);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_largest_stop_before_shared) {
+    public_captain_roster_journey(captain_thirteen_cancel_early_motion,
+        sizeof(captain_thirteen_cancel_early_motion)/sizeof(*captain_thirteen_cancel_early_motion),13,6);
+}
+
+TEST(wc3_movement, public_captain_thirteen_mixed_matches_original_last_binding_stop) {
+    public_captain_roster_journey(captain_thirteen_cancel_all_motion,
+        sizeof(captain_thirteen_cancel_all_motion)/sizeof(*captain_thirteen_cancel_all_motion),13,7);
+}
+
+TEST(wc3_movement, public_captain_go_home_matches_original_initial_travel) {
+    public_captain_roster_journey(captain_go_home_motion,
+        sizeof(captain_go_home_motion)/sizeof(*captain_go_home_motion),13,8);
+}
+
+TEST(wc3_movement, public_captain_go_home_changed_destination_clears_wait_before_refill) {
+    public_captain_roster_journey(captain_go_home_motion,
+        sizeof(captain_go_home_motion)/sizeof(*captain_go_home_motion)+
+        sizeof(captain_go_home_retry_motion)/sizeof(*captain_go_home_retry_motion),13,9);
+}
+
+TEST(wc3_movement, public_captain_go_home_one_point_refill_keeps_coarse_progress) {
+    public_captain_roster_journey(captain_go_home_motion,
+        sizeof(captain_go_home_motion)/sizeof(*captain_go_home_motion)+
+        sizeof(captain_go_home_retry_motion)/sizeof(*captain_go_home_retry_motion)+
+        sizeof(captain_go_home_refill_motion)/sizeof(*captain_go_home_refill_motion),13,10);
+}
+
+#include "retail_gate_eligibility.h"
+TEST(wc3_movement, retail_gate_type_rebind_changes_adaptive_policy_and_restores_it) {
+    unsigned const times[]={145,175,4995,5010,9995,10010,10095,10120,19995,20010,20095,20120};
+    public_gate_journey(retail_gate100_motion,sizeof(retail_gate100_motion)/sizeof(*retail_gate100_motion),
+        retail_gate100_script,times,sizeof(times)/sizeof(*times),"gate100-rebound-flight",31000,1,NULL);
+}
+
+#include "retail_random_interleave.h"
+TEST(wc3_movement, public_overlap_and_retry_share_exact_saved_random_owner) {
+    unsigned const times[]={115,145,175,495,525,5995,6010,6495,6510,12000,24995};
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+    gate_retry=(typeof(gate_retry)){.rows=random_interleave_retry,.count=sizeof(random_interleave_retry)/sizeof(*random_interleave_retry)};
+    gate_repulse=(typeof(gate_repulse)){.rows=random_interleave_repulse,.count=sizeof(random_interleave_repulse)/sizeof(*random_interleave_repulse)};
+    public_gate_journey(random_interleave_motion,sizeof(random_interleave_motion)/sizeof(*random_interleave_motion),
+        random_interleave_script,times,sizeof(times)/sizeof(*times),"random101-interleave",26000,2,cells);
+    memset(&gate_retry,0,sizeof(gate_retry));memset(&gate_repulse,0,sizeof(gate_repulse));
+}
+
+TEST(wc3_movement, prepared_movement_categories_preserve_live_row_semantics) {
+    cstring_t names[] = {NULL, "", "foot", "horse", "fly", "hover", "float", "amph", "_", "FOOT", "custom"};
+    unitMovementType_t types[] = {UNIT_MOVE_UNSPECIFIED, UNIT_MOVE_UNSPECIFIED,
+        UNIT_MOVE_FOOT, UNIT_MOVE_HORSE, UNIT_MOVE_FLY, UNIT_MOVE_HOVER,
+        UNIT_MOVE_FLOAT, UNIT_MOVE_AMPH, UNIT_MOVE_NONE, UNIT_MOVE_FOOT, UNIT_MOVE_NONE};
+    FOR_LOOP(i, sizeof(names) / sizeof(*names)) {
+        UnitData_t data = {.moveTypeName = names[i]};
+        edict_t unit = {.data.UnitData = &data};
+        unitMovementType_t old = S_UnitMovementType(&data);
+        uint8_t flags = M_UnitStaticPathingFlags(&unit);
+        T_EQ(old, types[i]);
+        S_CompileMovementData(&data);
+        T_EQ(S_UnitMovementType(&data), old);
+        T_EQ(M_UnitStaticPathingFlags(&unit), flags);
+        T_ASSERT(!M_UnitMoveDisabled(&unit));
+        /* A live rebind must not use the classification of the earlier name. */
+        data.moveTypeName = "amph";
+        T_EQ(S_UnitMovementType(&data), UNIT_MOVE_AMPH);
+        T_EQ(M_UnitStaticPathingFlags(&unit), CM_PATHING_UNAMPHIBIOUS);
+        unit.aiflags |= AI_FLYING;
+        T_EQ(M_UnitStaticPathingFlags(&unit), CM_PATHING_UNFLYABLE);
+    }
+}
+
+TEST(wc3_movement, retail_coarse_and_fine_contention_matches_captured_owner_window) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    level.move_fine_responsive=false;level.pathing_counter=1058;
+    edict_t *paths[192];
+    FOR_LOOP(i,192)paths[i]=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    FOR_LOOP(p,2)FOR_LOOP(k,3)level.move_coarse_budgets[p][k].countdown=2;
+    FOR_LOOP(i,sizeof(retail_scheduler_contention)/sizeof(retail_scheduler_contention[0])) {
+        uint32_t const *row=retail_scheduler_contention[i];
+        while(level.pathing_counter<row[0])S_BeginAbilityOwnerUpdates();
+        T_ASSERT(row[2]<192);if(row[2]>=192)break;
+        unsigned kind=row[1],player=row[3];edict_t *unit=paths[row[2]];
+        unit->s.player=player;
+        moveCoarseRequest_t *request=kind==0 ? &unit->movement.fine_route.group_admission : &unit->movement.fine_route.adaptive_admission;
+        moveCoarseBudget_t *coarse=&level.move_coarse_budgets[player][kind==3 ? 0 : kind];
+        moveFineBudget_t *fine=&level.move_fine_budgets[player];
+        T_EQ(unit->movement.fine_request_time,row[6]);T_EQ(request->time,row[7]);
+        T_EQ(kind==3 ? fine->work : coarse->work,row[10]);
+        T_EQ(kind==3 ? fine->count : coarse->count,row[12]);
+        T_EQ(kind==3 ? fine->countdown : coarse->countdown,row[16]);
+        bool admitted=kind==3 ? S_AdmitUnitMoveFineRequest(unit) : S_AdmitMoveCoarseRequest(unit,request,kind);
+        T_EQ(admitted,row[4]);
+        if(admitted) {
+            if(kind==3)S_ChargeUnitMoveFineRequest(unit,row[5]);
+            else S_ChargeMoveCoarseRequest(request,row[5]);
+        }
+        T_EQ(unit->movement.fine_request_time,row[8]);T_EQ(request->time,row[9]);
+        T_EQ(kind==3 ? fine->work : coarse->work,row[11]);
+        T_EQ(kind==3 ? fine->count : coarse->count,row[13]);
+        T_EQ(kind==3 ? fine->countdown : coarse->countdown,row[17]);
+        if(row[14]==UINT32_MAX) {T_ASSERT(kind==3 ? !fine->head : !coarse->head);}
+        else {
+            edict_t *head=paths[row[14]];
+            T_ASSERT(kind==3 ? fine->head==head : coarse->head==&head->movement.fine_route.group_admission);
+        }
+        if(row[15]==UINT32_MAX) {T_ASSERT(kind==3 ? !fine->tail : !coarse->tail);}
+        else {
+            edict_t *tail=paths[row[15]];
+            T_ASSERT(kind==3 ? fine->tail==tail : coarse->tail==&tail->movement.fine_route.group_admission);
+        }
+    }
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, coarse_saved_queue_rejects_corrupt_ranks_links_and_budget) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    edict_t *a=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),256,128);
+    moveCoarseRequest_t *first=&a->movement.fine_route.group_admission;
+    moveCoarseRequest_t *second=&b->movement.fine_route.group_admission;
+    moveCoarseBudget_t *budget=&level.move_coarse_budgets[0][0];
+    budget->work=801;
+    T_ASSERT(!S_AdmitMoveCoarseRequest(a,first,0));T_ASSERT(!S_AdmitMoveCoarseRequest(b,second,0));
+    T_ASSERT(S_ValidateMoveCoarseRequests());
+    uint64_t sequence=second->sequence;second->sequence=first->sequence;
+    T_ASSERT(!S_RestoreMoveCoarseRequests());second->sequence=sequence;
+    second->player=255;T_ASSERT(!S_RestoreMoveCoarseRequests());second->player=0;
+    budget->count++;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->count--;
+    budget->countdown=4;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->countdown=0;
+    budget->work=UINT32_MAX;T_ASSERT(!S_RestoreMoveCoarseRequests());budget->work=801;
+    second->prev=NULL;T_ASSERT(!S_ValidateMoveCoarseRequests());second->prev=first;
+    first->prev=second;T_ASSERT(!S_ValidateMoveCoarseRequests());first->prev=NULL;
+    /* Runtime links are excluded from saves; restore reconstructs insertion order. */
+    first->next=second->prev=NULL;budget->head=budget->tail=NULL;
+    T_ASSERT(S_RestoreMoveCoarseRequests());T_EQ(budget->head,first);T_EQ(budget->tail,second);
+    T_EQ(first->next,second);T_EQ(second->prev,first);T_ASSERT(S_ValidateMoveCoarseRequests());
+    S_CancelMoveCoarseRequest(first);T_EQ(budget->head,second);T_EQ(budget->count,1);
+    S_CancelMoveCoarseRequest(second);T_EQ(budget->count,0);T_NULL(budget->head);T_NULL(budget->tail);
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, group_commit_speed_matches_original_policy_boundaries) {
+    FOR_LOOP(i,sizeof(retail_group_target_speed)/sizeof(*retail_group_target_speed)) {
+        uint32_t const *in=retail_group_target_speed[i].input;
+        wc3GroupSpeed_t speed={.flags=in[0],.unseen=in[1],.target=in[2]!=0,
+            .requested=wc3_float(in[3]),.cap=wc3_float(in[4]),.target_maximum=wc3_float(in[5]),
+            .target_velocity={wc3_float(in[6]),wc3_float(in[7])},
+            .source={wc3_float(in[8]),wc3_float(in[9])},
+            .destination={wc3_float(in[10]),wc3_float(in[11])},.arrival_range=wc3_float(in[12])};
+        T_EQ(wc3_float_bits(wc3_group_commit_speed(&speed)),retail_group_target_speed[i].output);
+    }
+}
+
+/* GROUP-03.2: controlled persistent group inputs exercise the actual owner
+ * commit, with a moving/stationary target and strict faster-member policy. */
+TEST(wc3_movement, persistent_group_commit_matches_moving_target_speed) {
+    FOR_LOOP(k,5) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),k==3 ? 768 : 672,256);
+        unit->svflags=target->svflags=SVF_MONSTER;
+        unit->movetype=target->movetype=MOVETYPE_STEP;
+        unit->stand=target->stand=unit_stand;
+        unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+        S_SetUnitMoveSpeed(unit,k==2 ? 150 : 350);S_SetUnitMoveSpeed(target,150);
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        T_EQ(ARRAY_COUNT(level.move_groups),1);if(!ARRAY_COUNT(level.move_groups))continue;
+        moveGroup_t *group=level.move_groups[0];if(k!=4)group->flags|=0x801u;
+        target->movement.velocity=(vec2_t){k==1 ? 0 : 150,0};
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        float expected=k==0 ? 142.5f : k==2 ? 150 : 350;
+        wc3Velocity_t wanted={.speed=expected,.heading=group->members[0].heading,.limit=k==2 ? 150 : 350};
+        wc3_velocity_update_world(&wanted);
+        T_EQ(wc3_float_bits(unit->movement.velocity.x),wc3_float_bits(wanted.vel[0]));
+        T_EQ(wc3_float_bits(unit->movement.velocity.y),wc3_float_bits(wanted.vel[1]));
+    }
+    reset_entities();setup_test_world();
+}
+
+/* TARGET-03.2: a fogged owned target must retain the last sampled destination;
+ * regaining vision clears the hidden episode without bypassing its countdown. */
+TEST(wc3_movement, persistent_group_fog_retains_sample_until_refresh) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    G_FowInit();G_FowConnectPlayer(0);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),672,256);
+    unit->svflags=target->svflags=SVF_MONSTER;
+    unit->movetype=target->movetype=MOVETYPE_STEP;unit->stand=target->stand=unit_stand;
+    unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    S_SetUnitMoveSpeed(unit,350);S_SetUnitMoveSpeed(target,150);
+    uint32_t size=level.fow.width*level.fow.height;
+    memset(level.fow.players[0].visible,1,size);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    moveGroup_t *group=level.move_groups[0];group->flags|=0x801u;
+    level.pathing_counter++;level.scheduled_think=true;
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    vec2_t retained=group->goal;group->target_refresh=0;
+    target->s.origin.x=target->s.origin2.x=800;target->movement.pose_valid=false;
+    memset(level.fow.players[0].visible,0,size);
+    FOR_LOOP(i,3) {
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
+        T_EQ(group->target_refresh,0);
+        T_EQ(group->unseen_counter,i+1);
+    }
+    T_ASSERT(WriteGame(Test_TempPath("wc3-follow-hidden.bin")));
+    T_ASSERT(ReadGame(Test_TempPath("wc3-follow-hidden.bin")));
+    group=level.move_groups[0];T_EQ(group->unseen_counter,3);
+    T_EQ(group->target_refresh,0);T_EQ(group->goal.x,retained.x);
+    group->target_refresh=2;
+    memset(level.fow.players[0].visible,1,size);
+    FOR_LOOP(i,3) {
+        level.pathing_counter++;level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(group->unseen_counter,0);
+        if(i<2)T_EQ(wc3_float_bits(group->goal.x),wc3_float_bits(retained.x));
+        else T_EQ(group->goal.x,800);
+    }
+    remove(Test_TempPath("wc3-follow-hidden.bin"));G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Native5fc640 queries Adro class ownership, then16ce10 disables group warp
+ * edges from the captured bit10. Amed/Atdp share an engine procedure but are
+ * different retail classes; authored aliases must retain their base policy. */
+TEST(wc3_movement, target_drop_policy_is_captured_by_approach_follow_and_save) {
+    uint32_t codes[]={0,MAKEFOURCC('A','d','r','o'),MAKEFOURCC('Z','d','r','o'),
+        MAKEFOURCC('A','m','e','d'),MAKEFOURCC('A','t','d','p')};
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y5\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\n"
+        "C;X1;Y2;K\"Adro\"\nC;X2;K\"Adro\"\nC;X3;K1\n"
+        "C;X1;Y3;K\"Zdro\"\nC;X2;K\"Adro\"\nC;X3;K1\n"
+        "C;X1;Y4;K\"Amed\"\nC;X2;K\"Amed\"\nC;X3;K1\n"
+        "C;X1;Y5;K\"Atdp\"\nC;X2;K\"Atdp\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(k,sizeof(codes)/sizeof(*codes)) {
+        reset_entities();setup_test_world();
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),-512,-512);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),512,512);
+        unit->movetype=target->movetype=MOVETYPE_STEP;unit->stand=target->stand=unit_stand;
+        unit->svflags=target->svflags=SVF_MONSTER;
+        unit->collision=target->collision=8;unit_stand(unit);unit_stand(target);
+        if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        T_EQ(ARRAY_COUNT(level.move_groups),1);
+        if(!ARRAY_COUNT(level.move_groups))continue;
+        moveGroup_t *group=level.move_groups[0];bool blocked=k==1||k==2;
+        T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        /* The target's later ability removal does not rewrite this request. */
+        if(codes[k])T_ASSERT(G_ActorRemoveSkill(target,codes[k]));
+        T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
+        T_ASSERT(WriteGame(Test_TempPath("wc3-drop-group-policy.bin")));
+        T_ASSERT(ReadGame(Test_TempPath("wc3-drop-group-policy.bin")));
+        group=level.move_groups[0];T_EQ(group->flags&0xffffu,blocked?0x1010u:0x1000u);
+        /* Complete the approach through ordinary Move callbacks, then inspect
+         * the independently constructed persistent request. */
+        unit->s.origin2=target->s.origin2;unit->s.origin.x=target->s.origin.x;unit->s.origin.y=target->s.origin.y;
+        unit->movement.pose_valid=false;
+        unit->movement.fine_pose=target->movement.fine_pose;
+        FOR_LOOP(tick,4) {
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+            level.pathing_counter++;level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        moveGroup_t *persistent=NULL;
+        FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse &&
+            level.move_groups[i]->id==unit->movement.group_id)persistent=level.move_groups[i];
+        T_NOT_NULL(persistent);
+        if(persistent)T_EQ(persistent->flags&0xffffu,blocked?0x1811u:0x1801u);
+    }
+    remove(Test_TempPath("wc3-drop-group-policy.bin"));reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+/* Native lookup includes attached item and learned ability classes even when
+ * command usage is disabled; the query must neither dispatch nor allocate. */
+TEST(wc3_movement, target_route_policy_reads_live_ability_membership) {
+    reset_entities();setup_test_world();
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X1;Y2;K\"Zdro\"\nC;X2;K\"Adro\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),0,0);
+    UnitAbilities_t authored={.abilList="Zdro"};unit->data.UnitAbilities=&authored;
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    T_ASSERT(G_ActorRemoveSkill(unit,MAKEFOURCC('Z','d','r','o')));
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->data.UnitAbilities=NULL;
+    unit->heroabilities[0]=(heroability_t){MAKEFOURCC('Z','d','r','o'),1};
+    /* Removal still suppresses the same attached alias. */
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    T_ASSERT(G_ActorAddSkill(unit,MAKEFOURCC('Z','d','r','o')));
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->heroabilities[0].level=0;
+    edict_t *item=alloc_test_unit(MAKEFOURCC('s','p','r','o'),32,0);
+    ItemData_t item_data={.abilList="Zdro"};item->data.ItemData=&item_data;
+    unit->inventory[0]=item;
+    T_ASSERT(S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    unit->inventory[0]=NULL;
+    T_ASSERT(!S_UnitHasAbilityFlags(unit,AB_MOVE_TARGET_NO_WARP));
+    item->data.ItemData=NULL;
+    reset_entities();setup_test_world();G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_movement, target_group_routes_use_priority_budget_and_release_old_queue) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};FOR_LOOP(y,48)cells[y*64+32]=cells[y*64+33]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,128);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1728,128);
+    unit->collision=target->collision=31;
+    moveCoarseBudget_t *ordinary=&level.move_coarse_budgets[0][0],*priority=&level.move_coarse_budgets[0][1];
+    ordinary->work=801;
+    vec2_t goal={1728,128},point;
+    movePathQuery_t query={{&unit->s.origin2,&goal,31,2},unit,target,true};
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    T_ASSERT(G_UnitMoveGroupDestination(&query,route,&point));
+    T_EQ(ordinary->work,801);T_EQ(ordinary->count,0);T_ASSERT(priority->work>0);
+    T_EQ(route->group_admission.policy,1);
+    if(route->group_count) {
+        priority->work=301;
+        T_ASSERT(!S_AdmitMoveCoarseRequest(unit,&route->group_admission,1));
+        T_EQ(priority->count,1);
+        uint32_t time=route->group_admission.time;
+        query.target=NULL;
+        /* Native16ce10 changes target scheduling before its retained-route bypass. */
+        T_ASSERT(G_UnitMoveGroupDestination(&query,route,&point));
+        T_EQ(priority->count,0);T_ASSERT(!route->group_admission.queued);
+        T_EQ(route->group_admission.policy,0);T_EQ(route->group_admission.time,time);
+        T_EQ(ordinary->work,801);T_EQ(ordinary->count,0);
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Retail installs mover rank during construction, not at formation lookup.
+ * Changing the bound row alone must not rewrite the already installed profile. */
+TEST(wc3_movement, mixed_formation_retains_installed_rank_until_rebind) {
+    reset_entities(); setup_test_world();
+    uint8_t cells[128*128]={0};
+    CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{-2048,-2048},{2048,2048}});
+    int ranks[4]={0,1,2,3};float radius=31,speed=270;
+    unitModification_t mods[4][3];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0'+i),.numbeOfModifications=3,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *old=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *units[6];UnitData_t rebound;
+    FOR_LOOP(i,6) units[i]=unit_create(0,types[i%4].newUnitID,&(vec2_t){128,128+i*64},0);
+    rebound=*units[0]->data.UnitData;rebound.formationRank=3;units[0]->data.UnitData=&rebound;
+    level.pathing_clock=(wc3Clock_t){0,0,8};level.pathing_msec=level.time=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    vec2_t point={1728,512};
+    groupPointOrder_t request={.count=6,.order="move",.order_id=G_OrderId("move"),.point=&point};
+    FOR_LOOP(i,6)request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    moveGroup_t *group=level.move_groups[0];T_NOT_NULL(group);T_EQ(group->count,6);
+    wc3FormationMember_t members[6];
+    FOR_LOOP(i,6) {wc3GridPose_t pose;unit_predicted_pose(units[i],&pose);
+        members[i]=(wc3FormationMember_t){.position={pose.grid[0],pose.grid[1]},.radius=wc3_div(units[i]->collision,32),.rank=i%4};}
+    wc3Formation_t formation={members,6,group->heading};T_ASSERT(wc3_formation_layout(&formation));
+    FOR_LOOP(i,6)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->members[i].offset)[k]),wc3_float_bits(members[i].offset[k]));
+    T_EQ(units[0]->movement.formation_rank,0u);
+    G_BindEntityData(units[0]);
+    cstring_t save=Test_TempPath("wc3-installed-formation-rank.bin");
+    T_ASSERT(WriteGame(save));T_ASSERT(ReadGame(save));remove(save);
+    FOR_LOOP(i,6)T_EQ(units[i]->movement.formation_rank,i%4);
+    T_ASSERT(G_TransformUnitType(units[0],types[3].newUnitID));
+    T_EQ(units[0]->class_id,types[3].newUnitID);T_EQ(units[0]->movement.formation_rank,3u);
+    units[0]->movement.formation_rank=16;T_ASSERT(!WriteGame(save));
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=old;
+}
+
+#include "fixtures/retail_formation_ranks_108.h"
+TEST(wc3_movement, mixed_formation_matches_original_creation_layout) {
+    wc3FormationMember_t members[6];
+    FOR_LOOP(i,6) {
+        uint32_t const *r=formation_rank_layout[0][i];
+        members[i]=(wc3FormationMember_t){.position={wc3_float(r[0]),wc3_float(r[1])},.radius=wc3_float(r[2]),.rank=r[3]};
+    }
+    wc3Formation_t formation={members,6,wc3_float(formation_rank_heading[0])};
+    T_ASSERT(wc3_formation_layout(&formation));
+    FOR_LOOP(i,6)FOR_LOOP(k,2)T_EQ(wc3_float_bits(members[i].offset[k]),formation_rank_layout[0][i][4+k]);
+}
+
+#include "fixtures/retail_formation_policy_109.h"
+TEST(wc3_movement, selected_formation_policy_matches_original_complete_owner_tick) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;
+    unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(capture,4) {
+        bool alt=capture&1;
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        uint32_t const *input=formation_policy_inputs[capture];
+        uint32_t const (*tick)[19]=formation_policy_ticks[capture];
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[0]),0,300};level.pathing_counter=input[1];
+        T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,128.,128.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],150.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "set i=i+1\nendloop\nendfunction\n"));
+        edict_t *units[6];uint32_t count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id>=types[0].newUnitID && unit->class_id<=types[3].newUnitID)
+            { if(count<6)units[count]=unit;count++; }
+        T_EQ(count,6);if(count!=6)continue;
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        FOR_LOOP(i,6)G_SetEntitySelectionMask(units[i],1);
+        clent->client->menu.order_alt=alt;
+        vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+        T_ASSERT(move_selectlocation(clent,&point));
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[4]),input[5],wc3_float(input[6])};
+        level.pathing_counter=input[1]+1;
+        level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        level.scheduled_think=false;
+        moveGroup_t *group=level.move_groups[0];T_EQ(group->count,6);
+        T_EQ(group->flags,0x20000u|(alt ? 14u : 0));
+        uint32_t geometry[]={wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),
+            wc3_float_bits(group->heading),wc3_float_bits(wc3_div(group->radius,32))};
+        FOR_LOOP(k,4)T_EQ(geometry[k],formation_policy_geometry[capture][k]);
+        FOR_LOOP(i,6) {
+            moveGroupMember_t *m=group->members+i;edict_t *u=units[i];
+            T_ASSERT(m->unit==u);
+            uint32_t actual[]={wc3_float_bits(m->offset.x),wc3_float_bits(m->offset.y),
+                wc3_float_bits(m->destination.x),wc3_float_bits(m->destination.y),
+                wc3_float_bits(wc3_div(m->speed,32)),wc3_float_bits(m->heading),m->flags,
+                wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch,
+                wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+                wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+                wc3_float_bits(wc3_div(unit_effective_speed(u),32)),wc3_float_bits(u->s.angle),
+                wc3_float_bits(wc3_div(m->speed,32)),wc3_float_bits(m->heading),
+                wc3_float_bits(wc3_div(m->speed,32)),wc3_float_bits(m->heading)};
+            FOR_LOOP(k,19) {T_EQ(actual[k],tick[i][k]);if(actual[k]!=tick[i][k])fprintf(stderr,"Policy capture%u member%u word%u actual=%08x expected=%08x\n",capture,i,k,actual[k],tick[i][k]);}
+        }
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
+#include "fixtures/retail_formation_blocked_110.h"
+TEST(wc3_movement, selected_blocked_formation_matches_original_fresh_and_cached_ticks) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;
+    unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(capture,2) {
+        bool alt=false;
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        uint32_t const *input=formation_blocked_inputs[capture];
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[0]),0,300};level.pathing_counter=input[1];
+        T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,128.,128.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],150.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "set i=i+1\nendloop\nendfunction\n"));
+        edict_t *units[6];uint32_t count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id>=types[0].newUnitID && unit->class_id<=types[3].newUnitID)
+            { if(count<6)units[count]=unit;count++; }
+        T_EQ(count,6);if(count!=6)continue;
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        FOR_LOOP(i,6)G_SetEntitySelectionMask(units[i],1);
+        clent->client->menu.order_alt=alt;
+        vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+        T_ASSERT(move_selectlocation(clent,&point));
+        FOR_LOOP(t,2) {
+            uint32_t const *clock=formation_blocked_clocks[capture][t];
+            uint32_t const (*tick)[19]=formation_blocked_ticks[capture][t];
+            level.pathing_clock=(wc3Clock_t){wc3_float(clock[0]),clock[1],wc3_float(clock[2])};
+            level.pathing_counter=input[1]+t+1;
+            level.scheduled_think=true;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            level.scheduled_think=false;
+            moveGroup_t *group=level.move_groups[0];T_EQ(group->count,6);
+            T_EQ(group->flags,0x20000u|(alt ? 14u : 0));
+            FOR_LOOP(i,6) {
+                moveGroupMember_t *m=group->members+i;edict_t *u=units[i];
+                T_ASSERT(m->unit==u);
+                uint32_t actual[]={wc3_float_bits(m->offset.x),wc3_float_bits(m->offset.y),
+                    wc3_float_bits(m->destination.x),wc3_float_bits(m->destination.y),
+                    wc3_float_bits(wc3_div(m->speed,32)),wc3_float_bits(m->heading),m->flags,
+                    wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch,
+                    wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+                    wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+                    wc3_float_bits(wc3_div(unit_effective_speed(u),32)),wc3_float_bits(u->s.angle),
+                };
+                FOR_LOOP(k,15) {T_EQ(actual[k],tick[i][k]);if(actual[k]!=tick[i][k])fprintf(stderr,"Blocked capture%u member%u word%u actual=%08x expected=%08x\n",capture,i,k,actual[k],tick[i][k]);}
+            }
+            if (!t && capture==1) {
+                cstring_t file=Test_TempPath("wc3-formation-blocked110.bin");
+                uint32_t ids[6];FOR_LOOP(i,6)ids[i]=units[i]-g_edicts;
+                T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+                FOR_LOOP(i,6)units[i]=g_edicts+ids[i];
+                T_EQ(level.move_groups[0]->members[0].flags,0x140000u);
+                T_EQ(level.move_groups[0]->cooldown,0);
+            }
+        }
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
+TEST(wc3_movement, selected_blocked_formation_classifies_before_destination_adjustment) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;
+    unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};
+    mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(capture,1) {
+        bool alt=capture&1;
+        reset_entities();setup_test_world();level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,2)FOR_LOOP(x,2)cells[(20+y)*64+26+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        uint32_t const *input=formation_policy_inputs[capture];
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[0]),0,300};level.pathing_counter=input[1];
+        T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,128.,128.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],150.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "set i=i+1\nendloop\nendfunction\n"));
+        edict_t *units[6];uint32_t count=0;
+        FILTER_EDICTS(unit,unit->inuse && unit->class_id>=types[0].newUnitID && unit->class_id<=types[3].newUnitID)
+            { if(count<6)units[count]=unit;count++; }
+        T_EQ(count,6);if(count!=6)continue;
+        edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+        FOR_LOOP(i,6)G_SetEntitySelectionMask(units[i],1);
+        clent->client->menu.order_alt=alt;
+        vec2_t point={wc3_float(input[2]),wc3_float(input[3])};
+        T_ASSERT(move_selectlocation(clent,&point));
+        level.pathing_clock=(wc3Clock_t){wc3_float(input[4]),input[5],wc3_float(input[6])};
+        level.pathing_counter=input[1]+1;
+        level.scheduled_think=true;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        level.scheduled_think=false;
+        moveGroup_t *group=level.move_groups[0];T_EQ(group->count,6);
+        T_EQ(group->flags,0x20000u|(alt ? 14u : 0));
+        uint32_t const expected[]={0x140000,0x200000,0x200000,0x200000,0x100000,0x200000};
+        FOR_LOOP(i,6)T_EQ(group->members[i].flags,expected[i]);
+        T_EQ(group->cooldown,0);
+        T_EQ(wc3_float_bits(group->members[0].destination.x),wc3_float_bits(25.0f));
+        T_EQ(wc3_float_bits(group->members[0].destination.y),wc3_float_bits(21.0f));
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,wc3_float(0x3cf5c290));
+        level.pathing_counter++;
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        T_EQ(group->cooldown,65);
+        FOR_LOOP(i,6)T_EQ(group->members[i].flags&0x200000u,0);
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+}
+
+/* The native point-action formation toggle installs canonical bits2/4/8.
+ * The option belongs to the accepted request and its physical owner. */
+TEST(wc3_movement, selected_point_retains_formation_toggle_policy) {
+    reset_entities();setup_test_world();
+    uint8_t cells[128*128]={0};CM_SetupTestPathmap(128,128,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{-2048,-2048},{2048,2048}});
+    edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+    edict_t *units[6];
+    FOR_LOOP(i,6) {
+        edict_t *unit=units[i]=alloc_test_unit(MAKEFOURCC('h','p','e','a'),128,128+i*64);
+        unit->collision=31;unit->stand=unit_stand;unit->movetype=MOVETYPE_STEP;unit->svflags|=SVF_MONSTER;
+        unit->unitinfo.MoveSpeed=i<3 ? 150 : 350;unit->unitinfo.move_flags|=BZ_UNIT_SPEED_SET;
+        G_SetEntitySelectionMask(unit,1);unit_stand(unit);gi.LinkEntity(unit);
+    }
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.pathing_clock=(wc3Clock_t){0,0,8};level.pathing_msec=level.time=0;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    clent->client->menu.on_location_selected=move_selectlocation;
+    clent->client->menu.supports_order_queue=true;
+    cstring_t args[]={"point","1728","512","alt"};
+    G_ClientCommand(clent,4,args);
+    T_ASSERT(!clent->client->menu.order_alt);
+    T_NOT_NULL(level.move_groups);moveGroup_t *group=level.move_groups[0];
+    T_EQ(group->count,6);T_EQ(group->flags&14u,14u);
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+    T_EQ(group->flags&14u,14u);
+    cstring_t file=Test_TempPath("wc3-formation-policy.bin");
+    clent->client->menu.order_alt=true; /* transient modifier is never restored */
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    T_ASSERT(!clent->client->menu.order_alt);
+    T_EQ(level.move_groups[0]->flags&14u,14u);
+    FOR_LOOP(i,6)T_EQ(units[i]->movement.group_id,level.move_groups[0]->id);
+    cstring_t smart[]={"smartpoint","512","1024"};
+    G_ClientCommand(clent,3,smart);
+    T_ASSERT(!clent->client->menu.order_alt);
+    bool replaced=false;
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups)) {
+        moveGroup_t *next=level.move_groups[i];
+        if(!next->inuse || next->id!=units[0]->movement.group_id)continue;
+        T_EQ(next->count,6);T_EQ(next->flags&14u,0);replaced=true;
+    }
+    T_ASSERT(replaced);
+    reset_entities();setup_test_world();
+}
+
+/* Native16a790 replaces arrival10000 on every decision, including cached
+ * destinations. SetUnitX/Y displaces a mover without replacing its order. */
+TEST(wc3_movement, formation_refresh_displacement_clears_arrival_before_regroup) {
+    edict_t *unit=make_moving_unit(128,128);
+    unit->collision=8;unit->s.angle=0;
+    uint8_t cells[64*64]={0};
+    CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *peer=alloc_test_unit(MAKEFOURCC('h','f','o','o'),128,192);
+    peer->stand=unit_stand;peer->movetype=MOVETYPE_STEP;peer->collision=8;
+    groupPointOrder_t request={.count=2,.units={{unit,unit->spawn_time},{peer,peer->spawn_time}},
+        .point=&(vec2_t){1024,1024},.order="move",.order_id=G_OrderId("move"),.issuer_player=0};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_find_group(unit->movement.group_id);
+    T_NOT_NULL(group);if(!group)return;
+    /* Keep an intermediate point and two retained coarse vertices. */
+    group->route.group_points=malloc(2*sizeof(vec2_t));
+    group->route.group_points[0]=(vec2_t){32,32};group->route.group_points[1]=(vec2_t){4,4};
+    group->route.group_count=2;group->route.group_index=1;
+    group->point=(vec2_t){4,4};group->initialized=true;group->flags=0;
+    moveGroupMember_t *member=group->members;
+    member->destination=(vec2_t){4,4};member->world_destination=(vec2_t){128,128};
+    member->flags=0x200000;
+    group->members[1].destination=(vec2_t){4,6};
+    move_group_decide(group,member);
+    T_ASSERT(member->arrived);T_ASSERT(member->flags&0x10000);
+    uint32_t order=unit->current_order_id,id=unit->movement.group_id;
+    S_SetUnitAxisPosition(unit,0,256);
+    T_EQ(unit->current_order_id,order);T_EQ(unit->movement.group_id,id);
+    member->flags|=0x40000; /* Unrelated adjusted-slot history must survive. */
+    move_group_decide(group,member);
+    T_ASSERT(!member->arrived);T_ASSERT(!(member->flags&0x10000));
+    T_ASSERT(member->flags&0x40000);T_ASSERT(member->flags&0x200000);
+    T_EQ(member->speed,0);
+    move_group_regroup(group);
+    T_EQ(group->route.group_index,1);T_EQ(group->completion_counter,0);
+    /* An ordinary cached decision also replaces a prior arrival bit. */
+    member->flags=(member->flags&~0x200000u)|0x10000;
+    unit->movement.wait_delay=2;
+    move_group_decide(group,member);
+    T_ASSERT(!member->arrived);T_ASSERT(!(member->flags&0x10000));
+    T_EQ(unit->movement.wait_delay,1);
+}
+
+TEST(wc3_movement, formation_refresh_held_arrival_retires_both_pending_queues) {
+    edict_t *unit=make_moving_unit(128,128);
+    uint8_t cells[64*64]={0};
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    unit->collision=8;unit->s.angle=0;
+    moveGroup_t group={.count=1};
+    group.members[0]=(moveGroupMember_t){.unit=unit,.flags=0x200000,.destination={4,4}};
+    level.pathing_counter=400;
+    moveFineBudget_t *fine=level.move_fine_budgets+unit->s.player;
+    moveCoarseBudget_t *coarse=&level.move_coarse_budgets[unit->s.player][2];
+    fine->work=coarse->work=UINT32_MAX;
+    T_ASSERT(!S_AdmitMoveCoarseRequest(unit,&unit->movement.fine_route.adaptive_admission,2));
+    T_ASSERT(unit->movement.fine_route.adaptive_admission.queued);
+    T_ASSERT(!S_AdmitUnitMoveFineRequest(unit));
+    T_ASSERT(unit->movement.fine_queued);
+    move_group_decide(&group,group.members);
+    T_ASSERT(group.members[0].arrived);T_EQ(group.members[0].speed,0);
+    T_ASSERT(!unit->movement.fine_queued);
+    T_ASSERT(!unit->movement.fine_route.adaptive_admission.queued);
+    T_EQ(fine->count,0);T_EQ(coarse->count,0);T_NULL(fine->head);T_NULL(coarse->head);
+}
+
+#include "fixtures/retail_formation_regroup_112.h"
+TEST(wc3_movement, formation_refresh_regroup_boundaries_match_complete_original) {
+    FOR_LOOP(c,sizeof(formation_regroup_112)/sizeof(*formation_regroup_112)) {
+        typeof(*formation_regroup_112) const *fixture=formation_regroup_112+c;
+        edict_t *a=make_moving_unit(0,0);
+        edict_t *b=alloc_test_unit(MAKEFOURCC('h','f','o','o'),8,0);
+        a->collision=b->collision=8;b->movetype=MOVETYPE_STEP;b->stand=unit_stand;
+        uint8_t cells[64*64]={0};
+        CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        groupPointOrder_t request={.count=2,.units={{a,a->spawn_time},{b,b->spawn_time}},
+            .point=&(vec2_t){384,256},.order="move",.order_id=G_OrderId("move")};
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_find_group(a->movement.group_id);T_NOT_NULL(group);if(!group)continue;
+        T_ASSERT(move_group_route(group));
+        free(group->route.group_points);group->route.group_points=malloc(3*sizeof(vec2_t));
+        group->route.group_points[0]=(vec2_t){12,8};group->route.group_points[1]=(vec2_t){10,8};
+        group->route.group_points[2]=(vec2_t){8,8};group->route.group_count=3;
+        group->route.group_index=fixture->input[5];group->point=(vec2_t){8,8};
+        group->flags=fixture->input[0];group->age=22;group->completion_counter=fixture->input[1];
+        group->cooldown=fixture->input[4];
+        FOR_LOOP(n,2) {
+            moveGroupMember_t *member=group->members+n;edict_t *unit=member->unit;
+            member->destination=(vec2_t){fixture->input[3],0};
+            member->flags=fixture->input[2]&(1u<<n) ? 0x10000 : 0;
+            unit->movement.fine_route.count=unit->movement.fine_route.adaptive_count=5;
+            unit->movement.fine_route.index=3;unit->movement.fine_route.adaptive_index=4;
+            unit->movement.wait_delay=17;unit->movement.retry_count=29;
+            unit->movement.path.valid=true;
+        }
+        move_group_regroup(group);
+        uint32_t actual[]={group->flags,group->age,group->completion_counter,group->route.group_index};
+        FOR_LOOP(k,4)T_EQ(actual[k],fixture->output[k]);
+        FOR_LOOP(n,2) {
+            edict_t *unit=group->members[n].unit;moveFineRoute_t *route=&unit->movement.fine_route;
+            uint32_t path[]={route->count,route->adaptive_count,route->index,route->adaptive_index,
+                unit->movement.wait_delay,unit->movement.retry_count};
+            T_EQ(group->members[n].flags,fixture->flags[n]);
+            FOR_LOOP(k,6)T_EQ(path[k],fixture->paths[n][k]);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+
+#include "fixtures/retail_formation_refresh_script_112.h"
+static struct {
+    edict_t *units[6];uint32_t old_id,stages,route_count,route_index;
+    vec2_t point,offset[6],destination[6];
+} formation_refresh_112;
+
+static void formation_refresh_marker_112(cstring_t text) {
+    if (!strstr(text,"PATHTRACE"))return;
+    if(strstr(text,"label=created ")) {
+        ggroup_t *collection=level.groups[0];T_EQ(collection->num_units,6);
+        FOR_LOOP(i,6)formation_refresh_112.units[i]=collection->units[i];
+    }
+    if(!strstr(text,"label=sample "))return;
+    unsigned tick=0;sscanf(text,"PATHTRACE tick=%u",&tick);
+    if(tick!=11 && tick!=21 && tick!=31 && tick!=51)return;
+    edict_t **units=formation_refresh_112.units;
+    if(tick==11) {
+        formation_refresh_112.old_id=units[0]->movement.group_id;
+        moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,6);T_ASSERT(group->initialized);
+        formation_refresh_112.route_count=group->route.group_count;
+        formation_refresh_112.route_index=group->route.group_index;
+        formation_refresh_112.point=group->point;
+        FOR_LOOP(i,6) {
+            T_EQ(group->members[i].unit,units[i]);
+            formation_refresh_112.offset[i]=group->members[i].offset;
+            formation_refresh_112.destination[i]=group->members[i].destination;
+        }
+    } else if(tick==21 || tick==31) {
+        moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,tick==21 ? 5 : 4);
+        T_EQ(group->route.group_count,formation_refresh_112.route_count);
+        T_EQ(group->route.group_index,formation_refresh_112.route_index);
+        T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(formation_refresh_112.point.x));
+        T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(formation_refresh_112.point.y));
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i;unsigned n=0;
+            while(n<6 && units[n]!=member->unit)n++;
+            T_ASSERT(n<6);if(n>=6)continue;T_ASSERT(n!=0 && (tick==21 || n!=1));
+            FOR_LOOP(k,2) {
+                T_EQ(wc3_float_bits(((float *)&member->offset)[k]),wc3_float_bits(((float *)(formation_refresh_112.offset+n))[k]));
+                T_EQ(wc3_float_bits(((float *)&member->destination)[k]),wc3_float_bits(((float *)(formation_refresh_112.destination+n))[k]));
+            }
+        }
+        T_EQ(units[0]->collision,63);T_EQ(units[0]->movement.formation_rank,3);
+        T_NE(units[0]->movement.group_id,formation_refresh_112.old_id);
+        T_EQ(units[0]->current_order_id,G_OrderId("move"));
+    } else {
+        moveGroup_t *group=move_find_group(units[0]->movement.group_id);
+        T_NOT_NULL(group);if(!group)return;T_EQ(group->count,5);
+        T_NE(group->id,formation_refresh_112.old_id);
+        T_EQ(group->goal.x,1536);T_EQ(group->goal.y,1792);T_ASSERT(group->initialized);
+        FOR_LOOP(i,group->count)T_EQ(group->members[i].unit->movement.group_id,group->id);
+    }
+    formation_refresh_112.stages++;
+}
+
+TEST(wc3_movement, formation_refresh_public_mutations_preserve_cached_layout_and_save) {
+    reset_entities();setup_test_world();
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radii[4]={31,31,31,63},speed=150;
+    unitModification_t mods[4][3];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radii+i};
+        mods[i][2]=(unitModification_t){.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=i==3 ? MAKEFOURCC('h','F','0','3') : MAKEFOURCC('h','F','0','0')+i,.numbeOfModifications=3,.modifications=mods[i]};
+    }
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X4\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"Sca1\"\nC;X2;K\"Acha\"\nC;X3;K1\nC;X4;K\"hRTE\"\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    unitModification_t ability_mods[]={
+        {.modID=MAKEFOURCC('C','h','a','1'),.type=mod_string,.level=1,.data="hF03"},
+        {.modID=MAKEFOURCC('a','r','e','q'),.type=mod_string,.data=""}};
+    unitData_t ability={.originalUnitID=MAKEFOURCC('S','c','a','1'),.newUnitID=MAKEFOURCC('A','F','0','3'),.numbeOfModifications=2,.modifications=ability_mods};
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types,.num_userCreatedAbilities=1,.userCreatedAbilities=&ability};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);G_SetMapAbilityOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,24)cells[y*64+16]=0xc6;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *client=g_edicts;client->inuse=true;client->client=game.clients;client->client->ps.number=0;
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_msec=level.time=0;level.pathing_phase=0;
+    formation_refresh_112=(typeof(formation_refresh_112)){0};test_preload_marker=formation_refresh_marker_112;
+    T_ASSERT(run_test_jass(formation_refresh_script_112));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-formation-refresh112.bin");
+    while(level.time<5200) {
+        level.time+=5;globals.RunFrame();
+        if(level.time==4000) {
+            moveGroup_t *group=move_find_group(formation_refresh_112.old_id);
+            T_NOT_NULL(group);if(!group)continue;
+            T_EQ(group->count,4);vec2_t point=group->point;
+            uint32_t index=group->route.group_index,completion=group->completion_counter;
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_find_group(formation_refresh_112.old_id);T_NOT_NULL(group);if(!group)continue;
+            T_EQ(group->count,4);T_EQ(group->route.group_index,index);T_EQ(group->completion_counter,completion);
+            T_EQ(wc3_float_bits(group->point.x),wc3_float_bits(point.x));T_EQ(wc3_float_bits(group->point.y),wc3_float_bits(point.y));
+        }
+    }
+    T_EQ(formation_refresh_112.stages,4);T_ASSERT(!jass_rterror_pending(level.vm));
+    test_preload_marker=NULL;level.started=false;
+    reset_entities();G_SetMapUnitOverrides(NULL);G_SetMapAbilityOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+}
+
+/* Compare the complete public walled Smart approach before each owner visit.
+ * The fixture contains native words, including the delayed member handoff at1261. */
+/* Full read-only live Holy Light approach; the clock is an observed input,
+ * and the public spell order constructs the actual physical target owner. */
+TEST(wc3_movement, spell185_public_approach_matches_live_motion) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();
+    uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    char text[1400];
+    snprintf(text,sizeof(text),
+        "ID;PWXL;N;EBB;Y2;X7\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"%s\"\n"
+        "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+        "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"37\"\nE\n",
+        "DataA1");
+    slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('H','p','a','l'),288,288);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1536,288);
+    UnitAbilities_t abilities={.abilList="AHhb"};unit->data.UnitAbilities=&abilities;
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=31;
+    unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+    unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit->mana.value=unit->mana.max_value=200;target->health.value=100;target->health.max_value=1000;
+    unit->s.player=target->s.player=0;unit->targtype=target->targtype=TARG_GROUND;
+    unit_stand(unit);unit_stand(target);
+    level.pathing_clock=(wc3Clock_t){wc3_float(0x3ffffff0),0,300};level.pathing_counter=1090;
+    T_ASSERT(G_IssueUnitTargetOrder(unit,"holybolt",target,false,0));
+    uint32_t physical=unit->movement.group_id;
+    bool mismatch=false;
+    FOR_LOOP(i,sizeof(spell185_motion)/sizeof(*spell185_motion)) {
+        uint32_t const *row=spell185_motion[i];
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)break;
+        uint32_t actual[]={wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_mul(unit->movement.velocity.x,1/32.f)),wc3_float_bits(wc3_mul(unit->movement.velocity.y,1/32.f)),
+            wc3_float_bits(group->members[0].arrival_range)};
+        FOR_LOOP(k,5) {
+            T_EQ(actual[k],row[k+4]);
+            if(actual[k]!=row[k+4]) {
+                fprintf(stderr,"spell185 row=%u field=%u actual=%08x expected=%08x\n",i,k,actual[k],row[k+4]);mismatch=true;
+            }
+        }
+        if(mismatch)break;
+        level.pathing_clock=(wc3Clock_t){wc3_float(row[1]),row[2],wc3_float(row[3])};level.pathing_counter=row[0]-1;
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    }
+    T_ASSERT(!mismatch);T_EQ(unit->movement.group_id,0);
+    T_FEQ(unit->s.origin2.x,676.1099f,.0001f);T_FEQ(unit->s.origin2.y,310.8699f,.0001f);
+    T_FEQ(target->health.value,137,0);T_FEQ(unit->mana.value,187,0);
+    /* Native16c150 returns after callbacks without destroying this owner. */
+    moveGroup_t const *empty=move_find_group(physical);T_NOT_NULL(empty);
+    if(empty){T_EQ(empty->count,1);T_NULL(empty->members[0].unit);T_EQ(empty->members[0].spawn,0);}
+    cstring_t file=Test_TempPath("wc3-completion194.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    T_NOT_NULL(move_find_group(physical));
+    S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();T_NULL(move_find_group(physical));
+    remove(file);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+}
+
+
+static edict_t *completion194_unit(float x,float y) {
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','p','e','a'),x,y);
+    unit->movetype=MOVETYPE_STEP;unit->stand=unit_stand;unit->die=unit_die;
+    unit->health.value=unit->health.max_value=250;unit->collision=0;
+    unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+    unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+    unit_stand(unit);return unit;
+}
+static edict_t *completion194_units[3],*completion194_future,*completion194_new;
+static unsigned completion194_callbacks,completion194_numbers[3];
+static uint32_t completion194_counter,completion194_new_first;
+static vec2_t completion194_stopped_pose;
+static void completion194_stand(edict_t *unit) {
+    if(completion194_callbacks<3)completion194_numbers[completion194_callbacks]=unit->s.number;
+    completion194_callbacks++;
+    unit_stand(unit);
+    if(unit!=completion194_units[0])return;
+    completion194_counter=level.pathing_counter;
+    G_FreeEdict(completion194_units[2]);
+    T_ASSERT(unit_issueimmediateorder(completion194_future,"stop"));
+    completion194_stopped_pose=completion194_future->s.origin2;
+    completion194_new=completion194_unit(900,900);
+    T_ASSERT(unit_issueorder(completion194_new,"move",&(vec2_t){1500,900}));
+}
+static void completion194_group_visit(moveGroup_t const *group) {
+    if(group->count && group->members[0].unit==completion194_new && !completion194_new_first)
+        completion194_new_first=level.pathing_counter;
+}
+
+/* Drive the actual group completion callbacks: one callback removes a later
+ * member, stops a not-yet-visited owner and admits a fresh physical group. */
+TEST(wc3_movement, completion194_callbacks_keep_member_order_and_owner_frontier) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    completion194_callbacks=completion194_counter=completion194_new_first=0;completion194_new=NULL;
+    completion194_future=completion194_unit(128,1600);
+    T_ASSERT(unit_issueorder(completion194_future,"move",&(vec2_t){1800,1600}));
+    uint32_t future_id=completion194_future->movement.group_id;
+    vec2_t point={528,528};
+    groupPointOrder_t request={.count=3,.point=&point,.order="move",
+        .order_id=G_OrderId("move"),.issuer_player=0};
+    FOR_LOOP(i,3) {
+        edict_t *unit=completion194_units[i]=completion194_unit(528,464+64*i);
+        unit->collision=0;
+        request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    uint32_t id=completion194_units[0]->movement.group_id;
+    moveGroup_t const *admitted=move_find_group(id);T_NOT_NULL(admitted);
+    if(!admitted || admitted->count!=3) { T_ASSERT(false);reset_entities();setup_test_world();return; }
+    /* Admission owns member ordering; completion must preserve that order. */
+    FOR_LOOP(i,3)completion194_units[i]=admitted->members[i].unit;
+    FOR_LOOP(i,3)completion194_units[i]->stand=completion194_stand;
+    move_test_group_begin=completion194_group_visit;
+    FOR_LOOP(frame,100) {
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        if(completion194_counter)break;
+    }
+    move_test_group_begin=NULL;
+    T_EQ(completion194_callbacks,2);T_ASSERT(completion194_counter!=0);
+    T_EQ(completion194_numbers[0],completion194_units[0]->s.number);
+    T_EQ(completion194_numbers[1],completion194_units[1]->s.number);
+    T_EQ(completion194_new_first,0);
+    T_EQ(completion194_future->movement.group_id,0);T_NULL(move_find_group(future_id));
+    T_EQ(completion194_future->s.origin2.x,completion194_stopped_pose.x);
+    T_EQ(completion194_future->s.origin2.y,completion194_stopped_pose.y);
+    moveGroup_t const *retained=move_find_group(id);T_NOT_NULL(retained);
+    if(retained) {
+        T_EQ(retained->count,3);
+        FOR_LOOP(i,retained->count) {
+            T_NULL(retained->members[i].unit);
+            T_EQ(retained->members[i].spawn,0);
+        }
+    }
+    FOR_LOOP(i,2)completion194_units[i]->stand=unit_stand;
+    move_test_group_begin=completion194_group_visit;
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    move_test_group_begin=NULL;
+    T_NULL(move_find_group(id));T_EQ(completion194_new_first,completion194_counter+1);
+    reset_entities();setup_test_world();
+}
+
+/* Original16c390 retries only a blocked, far, multi-member completion
+ * before the twentieth scan. Exercise the production completion stage after
+ * the decision/commit boundary, retaining the admitted physical identities. */
+TEST(wc3_movement, completion195_blocked_member_retries_before_terminal_scan) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *units[2]={completion194_unit(256,256),completion194_unit(256,384)};
+    vec2_t point={1800,256};groupPointOrder_t request={.count=2,.point=&point,.order="move",
+        .order_id=G_OrderId("move"),.issuer_player=0};
+    FOR_LOOP(i,2)request.units[i]=(typeof(request.units[i])){units[i],units[i]->spawn_time};
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_unit_group(units[0]);T_NOT_NULL(group);
+    if(!group){reset_entities();setup_test_world();return;}
+    edict_t *unit=group->members[0].unit;
+    moveGroupMember_t *member=group->members;
+    wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+    member->destination=(vec2_t){wc3_add(pose.grid[0],32),pose.grid[1]};
+    member->arrived=true;member->flags=0x30000;
+    group->completion_counter=18;group->route.group_index=0;group->ticking=true;
+    moveFineRoute_t *route=&unit->movement.fine_route;
+    route->count=route->adaptive_count=5;route->index=3;route->adaptive_index=4;
+    route->partial=true;route->warp_markers=true;
+    unit->movement.retry_count=29;unit->movement.wait_delay=17;
+    unit->movement.fine_request_time=123;route->adaptive_admission.time=121;
+    route->adaptive_goal=(vec2_t){12,8};
+    uint32_t id=group->id;
+    moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+    T_EQ(unit->movement.group_id,id);T_EQ(group->completion_counter,19);
+    T_EQ(group->count,2);T_EQ(member->unit,unit);
+    T_EQ(route->count,0);T_EQ(route->adaptive_count,0);
+    T_EQ(route->index,UINT32_MAX);T_EQ(route->adaptive_index,UINT32_MAX);
+    T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+    T_ASSERT(!route->partial);T_ASSERT(route->warp_markers);
+    T_EQ(unit->movement.fine_request_time,123);T_EQ(route->adaptive_admission.time,121);
+    T_EQ(route->adaptive_goal.x,12);T_EQ(route->adaptive_goal.y,8);
+    /* The scan19 retry is persistent simulation state, not a callback-local
+     * grace period. A cold load must finish on the same following scan. */
+    uint32_t number=unit-g_edicts;
+    cstring_t file=Test_TempPath("wc3-completion195.bin");
+    group->ticking=false;
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+    group=move_find_group(id);T_NOT_NULL(group);
+    if(!group){reset_entities();setup_test_world();remove(file);return;}
+    unit=g_edicts+number;member=group->members;finished[0]=member;
+    T_EQ(group->completion_counter,19);T_EQ(unit->movement.group_id,id);
+    T_EQ(unit->movement.fine_request_time,123);
+    T_EQ(unit->movement.fine_route.adaptive_admission.time,121);
+    T_ASSERT(unit->movement.fine_route.warp_markers);
+    group->ticking=true;
+    /* The same far member completes on scan20, leaving its row until prep. */
+    if(unit->movement.group_id==id) {
+        move_group_complete_members(group,finished,1);
+        T_EQ(unit->movement.group_id,0);T_EQ(group->completion_counter,0);
+        T_EQ(group->count,2);T_NULL(member->unit);
+    }
+    group->ticking=false;remove(file);reset_entities();setup_test_world();
+}
+
+/* Retail fallback recovery retires the old task then activates the pending
+ * user head synchronously. The replaced group remains for its next owner visit. */
+TEST(wc3_movement, recovery197_blocked_completion_dispatches_saved_successor) {
+    FOR_LOOP(saved,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        edict_t *unit=completion194_unit(256,256);
+        vec2_t blocked={1008,1040},next={606.7610473632812f,785.9063720703125f};
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&blocked,false,0,0));
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&next,true,0,0));
+        T_EQ(unit->order_queue.count,1);
+        uint32_t id=unit->movement.group_id,number=unit-g_edicts;
+        cstring_t file=Test_TempPath("wc3-recovery197-successor.bin");
+        if(saved){T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));unit=g_edicts+number;}
+        moveGroup_t *group=move_find_group(id);T_NOT_NULL(group);
+        if(group) {
+            group->ticking=true;
+            moveGroupMember_t *member=group->members;
+            member->flags|=0x20000;member->arrived=true;
+            unit->movement.retry_count=1;
+            moveGroupMember_t *finished[]={member};move_group_complete_members(group,finished,1);
+            T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->order_queue.count,0);
+            T_NE(unit->movement.group_id,id);T_NE(unit->movement.group_id,0);
+            T_EQ(unit->movement.retry_count,0);T_EQ(unit->movement.wait_delay,0);
+            T_NOT_NULL(unit->goalentity);
+            if(unit->goalentity){T_EQ(unit->goalentity->s.origin2.x,next.x);T_EQ(unit->goalentity->s.origin2.y,next.y);}
+            T_NULL(group->members[0].unit);T_EQ(group->count,1);
+            group->ticking=false;
+            /* The newly published owner survives pruning the old tombstone. */
+            moveGroup_t *successor=move_unit_group(unit);T_NOT_NULL(successor);
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            T_NULL(move_find_group(id));T_ASSERT(move_unit_group(unit)==successor);
+            T_ASSERT(unit->currentmove==&move_move_walk);
+        }
+        remove(file);reset_entities();setup_test_world();
+    }
+}
+
+static uint32_t completion195_observed_counter;
+static unsigned completion195_notifications;
+static void completion195_stand(edict_t *unit) {
+    /* Ownership is already invalid, but the old group's scan counter is still
+     * observable until all synchronous notifications have returned. */
+    FOR_LOOP(i,ARRAY_COUNT(level.move_groups))if(level.move_groups[i]->inuse && level.move_groups[i]->ticking)
+        completion195_observed_counter=level.move_groups[i]->completion_counter;
+    completion195_notifications++;
+    unit_stand(unit);
+}
+
+TEST(wc3_movement, completion195_original_gate_distance_and_counter_boundaries) {
+    unsigned counters[]={0,18,19,20},distances[]={0,8,16,32};
+    FOR_LOOP(n,2)FOR_LOOP(c,4)FOR_LOOP(d,4)FOR_LOOP(blocked,2)FOR_LOOP(gate,3) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        vec2_t point={1800,256};groupPointOrder_t request={.count=n+1,.point=&point,.order="move",
+            .order_id=G_OrderId("move"),.issuer_player=0};
+        FOR_LOOP(i,n+1) {
+            edict_t *unit=completion194_unit(256,256+128*i);
+            request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_unit_group(request.units[0].unit);T_NOT_NULL(group);
+        if(!group)continue;
+        edict_t *unit=group->members[0].unit;
+        wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+        group->members[0].destination=(vec2_t){wc3_add(pose.grid[0],distances[d]),pose.grid[1]};
+        group->members[0].flags=blocked ? 0x30000 : 0x10000;
+        group->flags=gate!=0;group->unseen_counter=gate==2 ? 33 : 32;
+        group->completion_counter=counters[c];group->route.group_index=0;group->ticking=true;
+        unit->stand=completion195_stand;
+        completion195_notifications=completion195_observed_counter=0;
+        bool active=gate!=1;
+        bool retry=active && n && blocked && counters[c]+1<20 && distances[d]>16;
+        bool complete=active && !retry;
+        moveGroupMember_t *finished[]={group->members};move_group_complete_members(group,finished,active ? 1 : 0);
+        T_EQ(completion195_notifications,complete);
+        T_EQ(group->completion_counter,complete ? 0 : counters[c]+active);
+        T_EQ(unit->movement.group_id,complete ? 0 : group->id);
+        T_EQ(group->count,n+1);
+        if(complete) {T_EQ(completion195_observed_counter,counters[c]+1);T_NULL(group->members[0].unit);}
+        else T_EQ(group->members[0].unit,unit);
+        group->ticking=false;
+    }
+    reset_entities();setup_test_world();
+}
+
+#include "retail_retry_lifetime196.h"
+static edict_t *retry196_units[3];
+static moveGroup_t *retry196_group;
+static unsigned retry196_completed,retry196_counter;
+static void retry196_stand(edict_t *unit) {
+    FOR_LOOP(i,3)if(unit==retry196_units[i])retry196_completed|=1u<<i;
+    retry196_counter=retry196_group->completion_counter;
+    unit_stand(unit);
+}
+
+/* Compose actual owning stages against native16a790/16c390/16bc10 words.
+ * Blocked/held inputs and range publication are controlled explicitly; this
+ * does not stand in for the separately tracked public range producers. */
+TEST(wc3_movement, completion196_multi_member_long_retry_and_range_changes) {
+    FOR_LOOP(scenario,2) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        unsigned initial_count=scenario+2;
+        vec2_t point={1800,256};groupPointOrder_t request={.count=initial_count,.point=&point,.order="move",
+            .order_id=G_OrderId("move"),.issuer_player=0};
+        FOR_LOOP(i,initial_count) {
+            edict_t *unit=completion194_unit(256,256);
+            request.units[i]=(typeof(request.units[i])){unit,unit->spawn_time};
+        }
+        T_ASSERT(G_IssueGroupPointOrder(&request));
+        moveGroup_t *group=move_unit_group(request.units[0].unit);T_NOT_NULL(group);
+        if(!group)continue;
+        group->flags=group->completion_counter=0;group->route.group_index=0;
+        memset(retry196_units,0,sizeof(retry196_units));retry196_group=group;
+        FOR_LOOP(i,initial_count) {
+            edict_t *unit=group->members[i].unit;retry196_units[i]=unit;
+            unit->stand=retry196_stand;unit->s.angle=0;unit->movement.velocity=(vec2_t){0,0};
+            group->members[i].destination=(vec2_t){i<2 ? 40 : 12,8};
+            group->members[i].flags=i<2 ? 0x220000 : 0x200000;
+            group->members[i].arrival_range=i<2 ? 64 : .49f;
+            unit->movement.fine_route.partial=i==0;
+            unit->movement.fine_request_time=123;
+            unit->movement.fine_route.adaptive_admission.time=121;
+        }
+        FOR_LOOP(r,sizeof(retry196_rows)/sizeof(*retry196_rows)) {
+            typeof(retry196_rows[0]) const *row=retry196_rows+r;
+            if(row->scenario!=scenario)continue;
+            group->ticking=true;move_group_prepare_members(group);
+            T_EQ(group->count,row->count);
+            if(row->change_member!=UINT32_MAX) {
+                moveGroupMember_t *member=move_find_member(retry196_units[row->change_member]);T_NOT_NULL(member);
+                if(member)member->arrival_range=wc3_point_arrival_range(wc3_float(row->change_world));
+            }
+            moveGroupMember_t *finished[BZ_WC3_GROUP_ORDER_UNITS];unsigned ready=0;
+            FOR_LOOP(i,group->count) {
+                move_group_decide(group,group->members+i);
+                T_EQ(group->members[i].flags,row->flags[i]);
+                if(group->members[i].arrived)finished[ready++]=group->members+i;
+            }
+            FOR_LOOP(i,initial_count) {
+                moveGroupMember_t const *member=move_find_member(retry196_units[i]);
+                if(member)T_EQ(wc3_float_bits(member->arrival_range),row->ranges[i]);
+            }
+            retry196_completed=retry196_counter=0;
+            move_group_complete_members(group,finished,ready);
+            T_EQ(group->completion_counter,row->counter);
+            T_EQ(retry196_completed,row->completed);T_EQ(retry196_counter,row->notify_counter);
+            FOR_LOOP(i,initial_count) {
+                T_EQ(retry196_units[i]->movement.fine_request_time,123);
+                T_EQ(retry196_units[i]->movement.fine_route.adaptive_admission.time,121);
+            }
+            group->ticking=false;
+        }
+        FOR_LOOP(i,initial_count) {T_EQ(retry196_units[i]->movement.group_id,0);retry196_units[i]->stand=unit_stand;}
+        move_group_prepare_members(group);T_EQ(group->count,0);
+        uint32_t id=group->id;move_run_group_updates();T_NULL(move_find_group(id));
+    }
+    retry196_group=NULL;reset_entities();setup_test_world();
+}
+
+/* A blocked target approach must not spend mana or execute its spell as if
+ * the member had arrived. Drive the public order and actual owner scheduler. */
+TEST(wc3_movement, completion196_unreachable_spell_does_not_execute) {
+    FOR_LOOP(queued,2) {
+        reset_entities();setup_test_world();S_ClearMoveFineRequests();
+        uint8_t cells[64*64];memset(cells,0x40,sizeof(cells));
+        FOR_LOOP(y,64)FOR_LOOP(x,4)cells[y*64+20+x]=0xca;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+        char const *text=
+            "ID;PWXL;N;EBB;Y2;X7\n"
+            "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+            "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\nC;Y1;X7;K\"DataA1\"\n"
+            "C;Y2;X1;K\"AHhb\"\nC;Y2;X2;K\"AHhb\"\nC;Y2;X3;K\"air,ground,friend\"\n"
+            "C;Y2;X4;K\"13\"\nC;Y2;X5;K\"7\"\nC;Y2;X6;K\"800\"\nC;Y2;X7;K\"37\"\nE\n";
+        slkTestData_t *rows=parse_slk_string(text),*old=G_SetSLKRows("AbilityData",rows);
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('H','p','a','l'),288,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','f','o','o'),1856,288);
+        UnitAbilities_t abilities={.abilList="AHhb"};unit->data.UnitAbilities=&abilities;
+        unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+        unit->stand=target->stand=unit_stand;unit->collision=32;target->collision=31;
+        unit->unitinfo.MoveSpeed=270;unit->unitinfo.TurnSpeed=.6f;unit->unitinfo.PropWindow=DEG2RAD(60);
+        unit->unitinfo.move_flags=BZ_UNIT_SPEED_SET|BZ_UNIT_TURN_SET|BZ_UNIT_WINDOW_SET;
+        unit->mana.value=unit->mana.max_value=200;target->health.value=100;target->health.max_value=1000;
+        unit->s.player=target->s.player=0;unit->targtype=target->targtype=TARG_GROUND;
+        unit_stand(unit);unit_stand(target);
+        level.pathing_clock=(wc3Clock_t){2,0,300};level.pathing_counter=1090;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"holybolt",target,false,0));
+        T_NOT_NULL(S_UnitTargetApproachReceiver(unit));
+        vec2_t successor={256,512};
+        if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&successor,true,0,0));
+        unsigned visits=0;
+        while(unit->movement.group_id && visits++<2000) {
+            level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);level.pathing_counter++;
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        }
+        T_ASSERT(visits<2000);T_EQ(unit->movement.group_id,0);
+        T_NULL(S_UnitTargetApproachReceiver(unit));
+        T_FEQ(target->health.value,100,0);T_FEQ(unit->mana.value,200,0);
+        T_ASSERT(unit->s.origin2.x<640);
+        T_EQ(unit->current_order_id,0);
+        if(queued)T_ASSERT(Vector2_distance(&unit->s.origin2,&successor)<32);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+    }
+}
+
+static unsigned target164_cursor;
+static bool target164_mismatch;
+static edict_t *target164_unit;
+
+static void target164_before(moveGroup_t const *group) {
+    if (target164_mismatch || group->count!=1 || group->members[0].unit!=target164_unit || (group->flags&1)) return;
+    T_ASSERT(target164_cursor<sizeof(target164_approach)/sizeof(*target164_approach));
+    if (target164_cursor>=sizeof(target164_approach)/sizeof(*target164_approach)) return;
+    uint32_t const *row=target164_approach[target164_cursor];
+    moveFineRoute_t const *path=&target164_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(target164_unit->movement.fine_pose.x),wc3_float_bits(target164_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(target164_unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(target164_unit->movement.velocity.y,32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        target164_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        target164_unit->movement.wait_delay,target164_unit->movement.retry_count};
+    FOR_LOOP(i,24) {
+        /* Unpublished empty-buffer destinations have no engine pointer identity. */
+        if ((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15))) continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"target164 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                target164_cursor,i,level.pathing_counter,actual[i],row[i]);
+            target164_mismatch=true;
+        }
+    }
+    target164_cursor++;
+}
+
+TEST(wc3_movement, delayed164_public_walled_smart_approach_matches_retail) {
+    reset_entities();setup_test_world();
+    memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+    float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','T','6','4'),
+        .numbeOfModifications=2,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=0;level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==20 then\nset a=CreateUnit(Player(0),'hT64',480,288,0)\n"
+        "set b=CreateUnit(Player(0),'hT64',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",1568,1312)\nendif\n"
+        "if tick==25 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==90 then\ncall IssuePointOrder(b,\"move\",1568,288)\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    target164_unit=NULL;target164_cursor=0;target164_mismatch=false;move_test_group_begin=target164_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-target164-approach.bin");
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass) {
+            T_ASSERT(ReadGame(file));target164_cursor=150;
+        }
+        while(level.time<9600 && !target164_mismatch && target164_cursor<sizeof(target164_approach)/sizeof(*target164_approach)) {
+            level.time+=5;globals.RunFrame();
+            if(!target164_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID) {target164_unit=ent;break;}
+            if(!pass && !saved && target164_cursor==150) {
+                T_ASSERT(WriteGame(file));saved=true;
+            }
+        }
+        T_EQ(target164_cursor,sizeof(target164_approach)/sizeof(*target164_approach));
+        if(target164_mismatch)break;
+        uint32_t final[]={wc3_float_bits(target164_unit->movement.fine_pose.x),
+            wc3_float_bits(target164_unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_div(target164_unit->movement.velocity.x,32)),
+            wc3_float_bits(wc3_div(target164_unit->movement.velocity.y,32))};
+        FOR_LOOP(i,4)T_EQ(final[i],target164_finish[i]);
+    }
+    remove(file);
+    move_test_group_begin=NULL;target164_unit=NULL;level.started=false;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+
+/* A real target order under controlled coarse contention reproduces16c1fb:
+ * refresh first, then exactly one old-velocity stop; admission remains queued. */
+TEST(wc3_movement, delayed164_denied_group_commits_stop_and_refresh_before_recovery) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1568,288);
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    unit->movement.velocity=(vec2_t){100,0};unit->movement.clock_valid=true;
+    unit->movement.pose_clock=level.pathing_clock;level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    wc3GridPose_t before;unit_predicted_pose(unit,&before);
+    vec2_t point=group->point;uint32_t age=group->age;
+    S_SetMoveCoarseTarget(&group->route.group_admission,true);
+    level.move_coarse_budgets[0][1].work=301;
+    level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+    T_EQ(group->target_refresh,16);T_EQ(group->age,age+1);T_EQ(group->completion_counter,0);
+    T_EQ(group->route.group_goal.x,49);T_EQ(group->route.group_goal.y,9);
+    T_EQ(group->point.x,point.x);T_EQ(group->point.y,point.y);
+    T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(before.grid[0]));
+    T_EQ(wc3_float_bits(unit->movement.fine_pose.y),wc3_float_bits(before.grid[1]));
+    T_ASSERT(group->route.group_admission.waiting);T_ASSERT(S_ValidateMoveCoarseRequests());
+    T_ASSERT(WriteGame(Test_TempPath("wc3-target164-denied.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-target164-denied.bin")));
+    group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->target_refresh,16);T_ASSERT(group->route.group_admission.waiting);
+        level.move_coarse_budgets[0][1].work=0;
+        level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+        T_EQ(group->target_refresh,15);T_ASSERT(group->initialized);T_ASSERT(!group->route.group_admission.waiting);
+    }
+    remove(Test_TempPath("wc3-target164-denied.bin"));reset_entities();setup_test_world();
+}
+
+/* Public target teleport after a kept coarse search: premature samples are
+ * discarded for a complete17-visit refresh period, not admitted on visit10. */
+TEST(wc3_movement, delayed164_group_discards_premature_sample_and_saves_cadence) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1107;
+    edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),480,288);
+    edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1568,288);
+    unit->svflags=target->svflags=SVF_MONSTER;unit->movetype=target->movetype=MOVETYPE_STEP;
+    unit->stand=target->stand=unit_stand;unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+    moveGroup_t *group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    T_EQ(group->route.group_admission.time,1108);T_ASSERT(group->initialized);
+    group->target_refresh=0;
+    vec2_t retained=group->goal,goal={1568,1312};S_SetUnitPosition(target,&goal);
+    cstring_t file=Test_TempPath("wc3-target164-delayed.bin");
+    FOR_LOOP(tick,18) {
+        level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+        level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+        if(tick<17) {
+            T_EQ(group->goal.x,retained.x);T_EQ(group->goal.y,retained.y);
+            T_EQ(group->target_refresh,16-tick);
+        } else {T_EQ(group->goal.x,goal.x);T_EQ(group->goal.y,goal.y);T_EQ(group->target_refresh,16);}
+        if(tick==7) {
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));
+            group=move_find_group(unit->movement.group_id);T_NOT_NULL(group);if(!group)break;
+            T_EQ(group->target_refresh,9);T_EQ(group->route.group_admission.time,1108);
+        }
+    }
+    remove(file);reset_entities();setup_test_world();
+}
+
+/* FORM-04.2: actual group routing must publish its route marker to every
+ * member decision. The route retains that fact after the gate is consumed. */
+static unsigned warp165_markers(moveFineRoute_t const *route) {
+    unsigned count=0;
+    FOR_LOOP(i,route->adaptive_count)
+        if(wc3_float_bits(route->adaptive_points[i].x)==0xc7fa0001u)count++;
+    return count;
+}
+
+static struct {
+    uint32_t group;
+    edict_t *units[3];
+    vec2_t position[3];
+    uint32_t fine_count[3],adaptive_count[3];
+} warp165_before_state;
+
+static void warp165_before(moveGroup_t const *group) {
+    if(group->id!=warp165_before_state.group)return;
+    FOR_LOOP(i,3) {
+        edict_t const *unit=warp165_before_state.units[i];
+        warp165_before_state.position[i]=unit->movement.fine_pose;
+        warp165_before_state.fine_count[i]=unit->movement.fine_route.count;
+        warp165_before_state.adaptive_count[i]=unit->movement.fine_route.adaptive_count;
+    }
+}
+
+TEST(wc3_movement, warp165_group_marker_classification_and_cold_save) {
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    reset_entities();setup_test_world();G_FreeMovePathCache();
+    float radius=8,speed=270,gate_radius=50;
+    int building=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed}};
+    unitModification_t gate_mods[]={
+        {.modID=MAKEFOURCC('u','a','b','i'),.type=mod_string,.data="Zwrp"},
+        {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data="_"},
+        {.modID=MAKEFOURCC('u','b','d','g'),.type=mod_int,.data=&building},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&gate_radius}};
+    unitData_t custom[]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','W','6','5'),.numbeOfModifications=2,.modifications=mods},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('n','W','6','5'),.numbeOfModifications=4,.modifications=gate_mods}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=custom};
+    mapInfo_t const *old_info=level.mapinfo;level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X4;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"DataA1\"\nC;X4;K\"DataB1\"\nC;X1;Y2;K\"Zwrp\"\nC;X2;K\"Awrp\"\nC;X3;K400\nC;X4;K400\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("AbilityData",rows);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *gate=unit_create(15,custom[1].newUnitID,&(vec2_t){512,768},0);
+    S_WaygateSetDestination(gate,&(vec2_t){1728,1760});S_WaygateSetActive(gate,true);
+    T_ASSERT(S_WaygateIsActive(gate));
+    edict_t *units[3];vec2_t goal={1792,1856};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&goal};
+    FOR_LOOP(i,3) {
+        units[i]=unit_create(0,custom[0].newUnitID,&(vec2_t){272,304+i*128},0);
+        S_SetMoveFormationRank(units[i],i);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    G_FinishMovePathingInitialization();T_ASSERT(G_IssueGroupPointOrder(&request));
+    uint32_t id=units[0]->movement.group_id;bool saved=false,loaded=false,laid_out=false;
+    vec2_t retained_point={0},retained_offsets[3];
+    warp165_before_state=(typeof(warp165_before_state)){.group=id};
+    FOR_LOOP(i,3)warp165_before_state.units[i]=units[i];
+    move_test_group_begin=warp165_before;
+    unsigned marked=0,crossed=0;uint32_t seen_crossings=0;
+    cstring_t file=Test_TempPath("wc3-warp165.bin");
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    while(level.time<15000) {
+        uint32_t counter=level.pathing_counter;
+        level.time+=5;globals.RunFrame();
+        if(counter==level.pathing_counter)continue;
+        moveGroup_t *group=move_find_group(id);if(!group)break;
+        if(!laid_out) {
+            retained_point=group->point;
+            FOR_LOOP(i,group->count)retained_offsets[i]=group->members[i].offset;
+            laid_out=true;
+        }
+        T_EQ(group->route.group_index,0u);
+        FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&group->point)[k]),wc3_float_bits(((float *)&retained_point)[k]));
+        FOR_LOOP(i,group->count) {
+            moveGroupMember_t *member=group->members+i;
+            if(!member->unit || !warp165_markers(&member->unit->movement.fine_route))continue;
+            marked++;T_ASSERT(member->flags&0x80000u);
+            if(member->unit->movement.fine_pose.x>50) {
+                unsigned n=0;while(n<3 && units[n]!=member->unit)n++;
+                T_ASSERT(n<3);
+                if(n<3)FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&member->offset)[k]),wc3_float_bits(((float *)&retained_offsets[n])[k]));
+                if(n<3 && !(seen_crossings&(1u<<n))) {
+                    T_ASSERT(warp165_before_state.position[n].x<31);
+                    T_EQ(member->unit->movement.fine_route.count,warp165_before_state.fine_count[n]);
+                    /* A fresh member can build and consume its first coarse
+                     * route in this same owner visit. Compare retained tables. */
+                    if(warp165_before_state.adaptive_count[n])
+                        T_EQ(member->unit->movement.fine_route.adaptive_count,warp165_before_state.adaptive_count[n]);
+                    T_EQ(member->unit->movement.fine_route.index,UINT32_MAX);
+                    T_EQ(member->unit->movement.fine_route.adaptive_index,0u);
+                    seen_crossings|=1u<<n;crossed++;
+                }
+            }
+        }
+        if(marked && !saved) {
+            /* Classification sees the newly mirrored marker on the next pass. */
+            T_ASSERT(WriteGame(file));saved=true;
+        } else if(saved && !loaded) {
+            T_EQ(group->cooldown,65u);
+            T_ASSERT(ReadGame(file));loaded=true;
+            group=move_find_group(id);T_NOT_NULL(group);
+            T_ASSERT(group && group->route.warp_markers);
+            if(group)FOR_LOOP(i,group->count) {
+                moveGroupMember_t *member=group->members+i;
+                if(member->unit && warp165_markers(&member->unit->movement.fine_route)) {
+                    T_ASSERT(member->unit->movement.fine_route.warp_markers);
+                    T_ASSERT(member->flags&0x80000u);
+                    /* The held early exit still mirrors the retained path. */
+                    member->flags=(member->flags|0x200000u)&~0x80000u;
+                    move_group_decide(group,member);T_ASSERT(member->flags&0x80000u);
+                    member->flags&=~0x200000u;
+                }
+            }
+        }
+    }
+    T_ASSERT(saved && loaded);T_ASSERT(marked>3);T_EQ(crossed,3u);
+    /* A fresh marker-free route must clear the bit, including held decisions. */
+    S_WaygateSetActive(gate,false);
+    goal=(vec2_t){1600,1536};T_ASSERT(G_IssueGroupPointOrder(&request));
+    FOR_LOOP(tick,24) {level.time+=5;globals.RunFrame();}
+    moveGroup_t *group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
+    if(group)FOR_LOOP(i,group->count) {
+        moveGroupMember_t *member=group->members+i;
+        if(!member->unit)continue;
+        T_EQ(warp165_markers(&member->unit->movement.fine_route),0u);
+        member->flags|=0x280000u;move_group_decide(group,member);
+        T_ASSERT(!(member->flags&0x80000u));
+    }
+    move_test_group_begin=NULL;
+    remove(file);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;G_SetSLKRows("AbilityData",old_rows);free_slk_rows(rows);
+}
+
+/* The denied owner branch has the same ordered stop for every physical row.
+ * Cached slots and classification state are untouched until route recovery. */
+TEST(wc3_movement, warp165_multi_member_denial_retains_layout_until_recovery) {
+    reset_entities();setup_test_world();S_ClearMoveFineRequests();level.move_fine_responsive=false;
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    edict_t *units[3];vec2_t goal={1568,1312};
+    groupPointOrder_t request={.count=3,.order="move",.order_id=G_OrderId("move"),.point=&goal};
+    FOR_LOOP(i,3) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256+i*128);
+        units[i]->svflags=SVF_MONSTER;units[i]->movetype=MOVETYPE_STEP;
+        units[i]->stand=unit_stand;units[i]->collision=31;unit_stand(units[i]);
+        request.units[i]=(typeof(request.units[0])){units[i],units[i]->spawn_time};
+    }
+    T_ASSERT(G_IssueGroupPointOrder(&request));
+    moveGroup_t *group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);if(!group)return;
+    group->cooldown=37;group->completion_counter=19;
+    vec2_t retained=group->point;
+    wc3GridPose_t predicted[3];
+    FOR_LOOP(i,3) {
+        units[i]->movement.velocity=(vec2_t){100+i*10,20};units[i]->movement.clock_valid=true;
+        units[i]->movement.pose_clock=level.pathing_clock;
+        group->members[i].offset=(vec2_t){i,-i};group->members[i].flags=0x80000u;
+    }
+    level.pathing_clock.time=wc3_add(level.pathing_clock.time,.03f);
+    FOR_LOOP(i,3)unit_predicted_pose(units[i],predicted+i);
+    level.move_coarse_budgets[0][0].work=801;
+    level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+    T_EQ(group->count,3u);T_EQ(group->cooldown,37u);T_EQ(group->completion_counter,19u);
+    T_EQ(group->point.x,retained.x);T_EQ(group->point.y,retained.y);
+    T_ASSERT(group->route.group_admission.waiting);
+    FOR_LOOP(i,3) {
+        T_EQ(group->members[i].flags,0x80000u);T_EQ(group->members[i].offset.x,i);
+        T_EQ(units[i]->movement.velocity.x,0);T_EQ(units[i]->movement.velocity.y,0);
+        FOR_LOOP(k,2)T_EQ(wc3_float_bits(((float *)&units[i]->movement.fine_pose)[k]),wc3_float_bits(predicted[i].grid[k]));
+    }
+    cstring_t file=Test_TempPath("wc3-warp165-denied.bin");
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+    group=move_find_group(units[0]->movement.group_id);T_NOT_NULL(group);
+    if(group) {
+        T_EQ(group->cooldown,37u);T_EQ(group->completion_counter,19u);T_ASSERT(group->route.group_admission.waiting);
+        level.move_coarse_budgets[0][0].work=0;
+        level.scheduled_think=true;move_run_group_updates();level.scheduled_think=false;
+        T_ASSERT(group->initialized);T_ASSERT(!group->route.group_admission.waiting);
+        T_EQ(group->cooldown,36u);T_EQ(group->completion_counter,group->route.group_index ? 0u : 1u);
+        bool changed=false;FOR_LOOP(i,3)changed|=group->members[i].offset.x!=i;
+        T_ASSERT(changed);
+    }
+    reset_entities();setup_test_world();
+}
+
+
+/* TARGET-03: fog affects Move admission and arrival even for owned targets.
+ * Ordinary owner visits continue toward the last sampled point until arrival. */
+static void target166_setup(edict_t **unit, edict_t **target) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};CM_SetupTestPathmap(64,64,cells);
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+    *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+    *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),672,256);
+    edict_t *units[]={*unit,*target};
+    FOR_LOOP(i,2) {
+        units[i]->svflags=SVF_MONSTER;units[i]->movetype=MOVETYPE_STEP;
+        units[i]->stand=unit_stand;units[i]->collision=31;unit_stand(units[i]);
+        units[i]->runtime.sight_radius.day=units[i]->runtime.sight_radius.night=2000;
+        S_SetUnitMoveSpeed(units[i],270);
+    }
+    G_GetPlayerClientByNumber(0)->ps.rdflags&=~RDF_NOFOG;
+    G_FowInit();G_FowConnectPlayer(0);G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanTrackUnit(0,*target));
+}
+
+static void target166_tick(void) {
+    level.pathing_counter++;wc3_clock_advance(&level.pathing_clock,.03f,0);
+    level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+}
+
+TEST(wc3_movement, target166_fogged_order_rejection_preserves_active_head_and_queue) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    vec2_t point={1280,1280};T_ASSERT(unit_issueorder(unit,"move",&point));
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1536,1536},true,0,0));
+    edict_t *goal=unit->goalentity;umove_t const *move=unit->currentmove;
+    uint32_t group=unit->movement.group_id;
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
+    G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(!unit_issuetargetorder(unit,"move",target));
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->goalentity,goal);T_EQ(unit->currentmove,move);
+    T_EQ(unit->movement.group_id,group);T_EQ(unit->order_queue.count,1);
+    T_ASSERT(!G_IssueUnitTargetOrder(unit,"move",target,true,0));T_EQ(unit->order_queue.count,1);
+    G_FogModifierStop(fog);G_FowUpdate();
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_EQ(unit->movement.follow_target,target);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static void target166_hidden_arrival(bool persistent) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {
+            target166_tick();moveGroup_t *group=move_unit_group(unit);
+            if(group && (group->flags&1))break;
+        }
+        T_NOT_NULL(move_unit_group(unit));
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog)return;
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center={672,256},.radius=900};
+    G_FogModifierStart(fog);T_ASSERT(!G_FowPlayerCanTrackUnit(0,target));
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    uint32_t original=unit->movement.group_id,visits=0;
+    while(unit->current_order_id && visits<160) {target166_tick();visits++;}
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+    T_EQ(unit->movement.group_id,0);
+    /* Both approach and persistent completion invalidate now;16c150 retires
+     * at next preparation after either owning target task has stopped. */
+    moveGroup_t const *retained=move_find_group(original);T_NOT_NULL(retained);
+    if(retained){T_EQ(retained->count,1);T_NULL(retained->members[0].unit);}
+    target166_tick();
+    T_NULL(move_find_group(original));
+    T_EQ(unit->movement.velocity.x,0);T_EQ(unit->movement.velocity.y,0);
+    T_ASSERT(visits>0 && visits<160);
+    G_FogModifierStop(fog);G_FowUpdate();
+    FOR_LOOP(i,20)target166_tick();
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target166_hidden_approach_ends_at_cached_arrival) {target166_hidden_arrival(false);}
+TEST(wc3_movement, target166_hidden_persistent_follow_ends_at_cached_arrival) {target166_hidden_arrival(true);}
+
+
+static unsigned target166_cursor;
+static bool target166_mismatch;
+static edict_t *target166_unit;
+static void target166_before(moveGroup_t const *group) {
+    if (target166_mismatch || group->count!=1 || group->members[0].unit!=target166_unit) return;
+    T_ASSERT(target166_cursor<sizeof(target166_fog)/sizeof(*target166_fog));
+    if (target166_cursor>=sizeof(target166_fog)/sizeof(*target166_fog)) return;
+    uint32_t const *row=target166_fog[target166_cursor];
+    moveFineRoute_t const *path=&target166_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(target166_unit->movement.fine_pose.x),wc3_float_bits(target166_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(target166_unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(target166_unit->movement.velocity.y,32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        target166_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        target166_unit->movement.wait_delay,target166_unit->movement.retry_count,group->flags&1};
+    FOR_LOOP(i,25) {
+        /* Unpublished empty-buffer destinations have no engine pointer identity. */
+        if ((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15))) continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"target166 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                target166_cursor,i,level.pathing_counter,actual[i],row[i]);
+            target166_mismatch=true;
+        }
+    }
+    target166_cursor++;
+}
+
+
+TEST(wc3_movement, target166_public_fog_follow_matches_retail_and_cold_save) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    float radius=31,speed=270,sight=1400,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    float old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    unitModification_t mods[]={{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius},
+        {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=&speed},
+        {.modID=MAKEFOURCC('u','s','i','d'),.type=mod_real,.data=&sight},
+        {.modID=MAKEFOURCC('u','s','i','n'),.type=mod_real,.data=&sight}};
+    unitData_t custom={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','T','6','6'),
+        .numbeOfModifications=4,.modifications=mods};
+    mapInfo_t info={.num_userCreatedUnits=1,.userCreatedUnits=&custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=2;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    G_FowInit();G_FowConnectPlayer(0);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("type fogmodifier extends handle\nglobals\nunit a\nunit b\nfogmodifier fog\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==20 then\ncall FogEnable(true)\n"
+        "set a=CreateUnit(Player(0),'hT66',1344,288,0)\n"
+        "set b=CreateUnit(Player(15),'hT66',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",1568,1312)\nendif\n"
+        "if tick==25 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==80 then\nset fog=CreateFogModifierRadius(Player(0),FOG_OF_WAR_FOGGED,1568,800,900,false,true)\n"
+        "call FogModifierStart(fog)\nendif\n"
+        "if tick==90 then\ncall IssuePointOrder(b,\"move\",1568,288)\nendif\n"
+        "if tick==140 then\ncall DestroyFogModifier(fog)\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call SetTimeOfDayScale(0)\ncall SetFloatGameState(GAME_STATE_TIME_OF_DAY,12)\n"
+        "call SetPlayerAlliance(Player(0),Player(15),ALLIANCE_PASSIVE,true)\n"
+        "call SetPlayerAlliance(Player(15),Player(0),ALLIANCE_PASSIVE,true)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    target166_unit=NULL;target166_cursor=0;target166_mismatch=false;move_test_group_begin=target166_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-target166-fog.bin");
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass) {T_ASSERT(ReadGame(file));target166_cursor=210;}
+        while(level.time<14500 && !target166_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!target166_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom.newUnitID && ent->s.player==0) {
+                target166_unit=ent;break;
+            }
+            if(!pass && !saved && target166_cursor==210) {T_ASSERT(WriteGame(file));saved=true;}
+        }
+        T_EQ(target166_cursor,sizeof(target166_fog)/sizeof(*target166_fog));
+        if(target166_mismatch)break;
+        T_NOT_NULL(target166_unit);
+        if(target166_unit) {
+            T_EQ(target166_unit->current_order_id,0);T_NULL(target166_unit->movement.follow_target);
+            T_EQ(target166_unit->movement.group_id,0);
+        }
+    }
+    move_test_group_begin=NULL;target166_unit=NULL;level.started=false;remove(file);
+    G_FowShutdown();reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+
+/* TargetLost is synchronous at the public world-presence producer, including
+ * during approach. Undoing the producer does not restore the retired order. */
+static void target167_hide(bool persistent, bool queued) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function hide takes nothing returns nothing\ncall ShowUnit(target,false)\nendfunction\n"
+        "function show takes nothing returns nothing\ncall ShowUnit(target,true)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {
+            target166_tick();moveGroup_t *group=move_unit_group(unit);
+            if(group && (group->flags&1))break;
+        }
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    if(queued)T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){1280,1280},true,0,0));
+    uint32_t group=unit->movement.group_id,counter=level.pathing_counter;
+    jass_callbyname(level.vm,"hide",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(level.pathing_counter,counter);T_NULL(unit->movement.follow_target);
+    T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);T_EQ(unit->order_queue.count,0);
+    if(queued) {
+        T_EQ(unit->current_order_id,G_OrderId("move"));T_NOT_NULL(unit->goalentity);
+        if(unit->goalentity)T_EQ(unit->goalentity->s.origin2.x,1280);
+    } else {
+        T_EQ(unit->current_order_id,0);T_NULL(unit->goalentity);T_EQ(unit->movement.group_id,0);
+    }
+    edict_t *goal=unit->goalentity;
+    jass_callbyname(level.vm,"hide",false);jass_callbyname(level.vm,"show",false);
+    T_EQ(unit->goalentity,goal);T_NULL(unit->movement.follow_target);
+    T_EQ(unit->current_order_id,queued ? G_OrderId("move") : 0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_showunit_retires_approach_in_native_call) {target167_hide(false,false);}
+TEST(wc3_movement, target167_showunit_retires_persistent_follow_in_native_call) {target167_hide(true,false);}
+TEST(wc3_movement, target167_showunit_activates_successor_once) {target167_hide(false,true);}
+
+TEST(wc3_movement, target167_cargo_entry_retires_follow_before_load_returns) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    char const slk[]="ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"Rng1\"\nC;Y1;X6;K\"targs1\"\n"
+        "C;Y2;X1;K\"Acar\"\nC;Y2;X2;K\"Acar\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X4;K\"3\"\nC;Y2;X5;K\"173\"\nC;Y2;X6;K\"ground,friend,organic\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    static UnitAbilities_t const abilities={.abilList="Acar"};
+    edict_t *transport=alloc_test_unit(MAKEFOURCC('h','R','T','E'),704,256);
+    transport->svflags=SVF_MONSTER;transport->data.UnitAbilities=&abilities;
+    target->targtype=TARG_GROUND;
+    T_EQ(S_CargoCapacity(transport),3);T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    uint32_t group=unit->movement.group_id,counter=level.pathing_counter;
+    T_ASSERT(S_CargoTryLoad(transport,target));T_EQ(S_CargoTransportForUnit(target),transport);
+    T_EQ(level.pathing_counter,counter);T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOADED);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+    T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);T_ASSERT(S_CargoUnloadAt(transport,0));
+    T_NULL(S_CargoTransportForUnit(target));T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+static struct {edict_t *units[3],*target;uint32_t order[16],count;bool nested;} target167_delivery;
+static void target167_observe(edict_t *unit) {
+    FOR_LOOP(i,3)if(unit==target167_delivery.units[i]) {
+        T_ASSERT(target167_delivery.count<16);
+        if(target167_delivery.count<16)target167_delivery.order[target167_delivery.count++]=i;
+    }
+    if(target167_delivery.nested) {
+        target167_delivery.nested=false;
+        T_ASSERT(unit_issueimmediateorder(target167_delivery.units[1],"stop"));
+        T_ASSERT(unit_issuetargetorder(target167_delivery.units[1],"move",target167_delivery.target));
+        S_UnitTargetLost(target167_delivery.target);
+    }
+}
+
+/* Registration order is independent of allocation order. Index visits stay
+ * proportional to the subscribers even with thousands of unrelated actors. */
+TEST(wc3_movement, target167_ordered_subscriptions_survive_cold_save_and_scale) {
+    FOR_LOOP(pass,3) {
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target167_delivery=(typeof(target167_delivery)){.units={unit},.target=target};
+        FOR_LOOP(i,2) {
+            edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,448+160*i);
+            other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;
+            unit_stand(other);S_SetUnitMoveSpeed(other,270);target167_delivery.units[i+1]=other;
+        }
+        FOR_LOOP(i,4096)G_Spawn();
+        uint32_t const issue[]={2,0,1};
+        FOR_LOOP(i,3)T_ASSERT(unit_issuetargetorder(target167_delivery.units[issue[i]],"move",target));
+        if(pass==2) {
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        }
+        uint64_t rank=unit->movement.follow_sequence,next=level.next_follow_sequence;
+        cstring_t file=Test_TempPath("wc3-target167-follow.bin");
+        if(pass) {
+            T_ASSERT(WriteGame(file));S_ResetAbilityTimers();T_ASSERT(ReadGame(file));remove(file);
+            T_EQ(unit->movement.follow_sequence,rank);T_EQ(level.next_follow_sequence,next);
+        }
+        move_follow_visits=0;move_test_target_lost=target167_observe;
+        G_SetEntityHidden(target,true);S_UnitTargetLost(target);move_test_target_lost=NULL;
+        T_EQ(move_follow_visits,3);T_EQ(target167_delivery.count,3);
+        uint32_t const renewed[]={2,1,0};
+        FOR_LOOP(i,3) {
+            T_EQ(target167_delivery.order[i],pass==2 ? renewed[i] : issue[i]);
+            T_EQ(target167_delivery.units[i]->current_order_id,0);
+            T_NULL(target167_delivery.units[i]->movement.follow_target);
+        }
+        move_follow_visits=0;S_UnitTargetLost(target);T_EQ(move_follow_visits,0);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target167_nested_delivery_excludes_new_outer_subscription) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    target167_delivery=(typeof(target167_delivery)){.units={unit},.target=target};
+    FOR_LOOP(i,2) {
+        edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,448+160*i);
+        other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;
+        unit_stand(other);S_SetUnitMoveSpeed(other,270);target167_delivery.units[i+1]=other;
+    }
+    uint32_t const issue[]={2,0,1},expected[]={2,2,0,1,0};
+    FOR_LOOP(i,3)T_ASSERT(unit_issuetargetorder(target167_delivery.units[issue[i]],"move",target));
+    target167_delivery.nested=true;move_test_target_lost=target167_observe;
+    S_UnitTargetLost(target);move_test_target_lost=NULL;
+    T_EQ(target167_delivery.count,5);
+    FOR_LOOP(i,5)T_EQ(target167_delivery.order[i],expected[i]);
+    FOR_LOOP(i,3)T_EQ(target167_delivery.units[i]->current_order_id,G_OrderId("move"));
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* 5fc640 unregisters/re-registers when approach becomes persistent Follow;
+ * preserving the issue-time rank would deliver multi-follower loss incorrectly. */
+TEST(wc3_movement, target167_approach_handoff_renews_subscription_order) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    edict_t *far=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,1536);
+    far->svflags=SVF_MONSTER;far->movetype=MOVETYPE_STEP;far->stand=unit_stand;
+    unit_stand(far);S_SetUnitMoveSpeed(far,150);
+    target167_delivery=(typeof(target167_delivery)){.units={unit,far},.target=target};
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_ASSERT(unit_issuetargetorder(far,"move",target));
+    uint64_t original=unit->movement.follow_sequence;
+    FOR_LOOP(i,100) {
+        target166_tick();moveGroup_t *group=move_unit_group(unit);
+        if(group && (group->flags&1))break;
+    }
+    T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    T_ASSERT(move_unit_group(far) && !(move_unit_group(far)->flags&1));
+    T_ASSERT(unit->movement.follow_sequence>original);
+    T_ASSERT(unit->movement.follow_sequence>far->movement.follow_sequence);
+    move_test_target_lost=target167_observe;G_SetEntityHidden(target,true);S_UnitTargetLost(target);
+    move_test_target_lost=NULL;T_EQ(target167_delivery.count,2);
+    T_EQ(target167_delivery.order[0],1);T_EQ(target167_delivery.order[1],0);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_save_rejects_invalid_follow_registration_identity) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_ASSERT(S_ValidateMoveFollows());
+    uint64_t sequence=unit->movement.follow_sequence;
+    unit->movement.follow_sequence=0;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=level.next_follow_sequence+1;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=sequence;unit->movement.follow_target_spawn_time++;
+    T_ASSERT(!S_ValidateMoveFollows());unit->movement.follow_target_spawn_time=target->spawn_time;
+    edict_t *other=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,768);
+    other->svflags=SVF_MONSTER;other->movetype=MOVETYPE_STEP;other->stand=unit_stand;unit_stand(other);
+    T_ASSERT(unit_issuetargetorder(other,"move",target));uint64_t distinct=other->movement.follow_sequence;
+    other->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
+    cstring_t file=Test_TempPath("wc3-target167-invalid.bin");T_ASSERT(!WriteGame(file));remove(file);
+    other->movement.follow_sequence=distinct;T_ASSERT(S_ValidateMoveFollows());
+    S_SetFollowTarget(unit,NULL);unit->movement.follow_sequence=sequence;T_ASSERT(!S_ValidateMoveFollows());
+    unit->movement.follow_sequence=0;G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target167_direct_follower_release_unlinks_subscription) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    T_EQ(move_follow_lists[other-1].count,1);
+    G_FreeEdict(unit);
+    T_EQ(move_follow_lists[other-1].count,0);T_EQ(move_follow_links[id-1].target,0);
+    /* A reused slot must not inherit an old target's derived list edges. */
+    edict_t *replacement=G_Spawn();
+    if(replacement==unit) {
+        S_SetFollowTarget(replacement,target);T_EQ(move_follow_lists[other-1].count,1);
+        S_SetFollowTarget(replacement,NULL);T_EQ(move_follow_lists[other-1].count,0);
+    }
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+/* Public Apiv mutation must publish its state before delivering TargetLost;
+ * ownership/shared vision retain the Follow while an undetected viewer loses it. */
+static void target168_invisibility(unsigned policy,bool persistent) {
+    edict_t *unit,*target;target166_setup(&unit,&target);
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"levels\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;Y2;X2;K\"Apiv\"\nC;Y2;X3;K\"1\"\nC;Y2;X4;K\"0\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    if(policy)target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    if(policy==2)level.alliances[PLAYER_NEUTRAL_PASSIVE][0]|=1u<<ALLIANCE_SHARED_VISION;
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function add takes nothing returns nothing\ncall UnitAddAbility(target,'Apiv')\nendfunction\n"
+        "function undo takes nothing returns nothing\ncall UnitRemoveAbility(target,'Apiv')\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,672,256,1,null)\nset target=FirstOfGroup(g)\n"
+        "call DestroyGroup(g)\nendfunction\n"));
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    if(persistent) {
+        FOR_LOOP(i,100) {target166_tick();if(move_unit_group(unit) && (move_unit_group(unit)->flags&1))break;}
+        T_ASSERT(move_unit_group(unit) && (move_unit_group(unit)->flags&1));
+    }
+    uint32_t counter=level.pathing_counter,group=unit->movement.group_id;
+    move_follow_visits=0;jass_callbyname(level.vm,"add",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(S_PermanentInvisibilityActive(target));
+    T_EQ(level.pathing_counter,counter);T_EQ(move_follow_visits,1);
+    if(policy==1) {
+        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);T_EQ(unit->current_order_id,0);
+        T_NULL(unit->movement.follow_target);T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);
+    } else {
+        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_VALID);T_EQ(unit->movement.follow_target,target);
+        T_EQ(unit->movement.group_id,group);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    }
+    move_follow_visits=0;jass_callbyname(level.vm,"add",false);T_EQ(move_follow_visits,0);
+    jass_callbyname(level.vm,"undo",false);T_ASSERT(!S_PermanentInvisibilityActive(target));
+    T_EQ(unit->current_order_id,policy==1 ? 0 : G_OrderId("smart"));
+    T_EQ(move_follow_visits,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_public_invisibility_approach_policy) {
+    FOR_LOOP(policy,3)target168_invisibility(policy,false);
+}
+TEST(wc3_movement, target168_public_invisibility_persistent_policy) {
+    FOR_LOOP(policy,3)target168_invisibility(policy,true);
+}
+
+#include "retail_fade168.h"
+/* The owner uses native scalar-listener deadlines, not integer milliseconds
+ * or the next entity update. These are complete original consumer chains. */
+TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
+    FOR_LOOP(n,sizeof(retail_fade168)/sizeof(*retail_fade168)) {
+        retailFade168_t const *row=retail_fade168+n;
+        edict_t *unit,*target;target166_setup(&unit,&target);
+        target->s.player=PLAYER_NEUTRAL_PASSIVE;
+        level.pathing_clock.time=wc3_float(row->origin);level.timer_clock_valid=false;
+        char slk[512];snprintf(slk,sizeof(slk),"ID;PWXL;N;E\n"
+            "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+            "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"%.9g\"\nE\n",wc3_float(row->duration));
+        slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        move_follow_visits=0;T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,0);
+        FOR_LOOP(i,row->count) {
+            abilityTimerRequest_t next={0};
+            bool found=S_NextAbilityPrimaryTimer(&next);T_ASSERT(found);
+            if(!found)break;
+            T_EQ(next.proc,CAbilityPermanentInvisibility);
+            T_EQ(wc3_float_bits(next.deadline.time),row->requests[i][2]);
+            T_EQ(unit->current_order_id,G_OrderId("smart"));
+            level.pathing_clock=next.deadline;level.timer_clock_valid=false;
+            abilityCall_t call={.primary_timer=&next};next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
+            T_EQ(move_follow_visits,i+1==row->count ? 1 : 0);
+        }
+        T_EQ(S_PermanentInvisibilityActive(target),row->count!=0);T_EQ(move_follow_visits,row->count ? 1 : 0);
+        T_EQ(unit->current_order_id,row->count ? 0 : G_OrderId("smart"));
+        T_EQ(unit->movement.follow_target,row->count ? NULL : target);
+        abilityTimerRequest_t next={0};T_ASSERT(!S_NextAbilityPrimaryTimer(&next));
+        T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
+        T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,row->count ? 1 : 0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+        G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+static wc3Clock_t target168_loss_clock;
+static void target168_run_timers(void) {
+    bool scheduled=level.scheduled_frame;level.scheduled_frame=true;G_RunTimers();level.scheduled_frame=scheduled;
+}
+static void target168_loss_observe(edict_t *unit) {
+    (void)unit;target168_loss_clock=G_TimerQueryClock(NULL);
+}
+
+TEST(wc3_movement, target168_pending_fade_cold_save_and_exact_public_timer_delivery) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
+    uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
+    cstring_t file=Test_TempPath("wc3-target168-fade.bin");
+    T_ASSERT(WriteGame(file));S_ResetAbilityTimers();reset_entities();
+    T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+id-1;target=g_edicts+other-1;
+    T_NOT_NULL(unit);T_NOT_NULL(target);
+    if(!unit || !target)return;
+    T_ASSERT(target->permanent_invisibility_fade.request.active);
+    T_EQ(target->permanent_invisibility_fade.request.sequence,request.sequence);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.request.deadline.time),wc3_float_bits(request.deadline.time));
+    T_EQ(unit->movement.follow_target,target);T_ASSERT(!S_PermanentInvisibilityActive(target));
+    move_follow_visits=0;target168_loss_clock=(wc3Clock_t){0};move_test_target_lost=target168_loss_observe;
+    level.pathing_clock.time=wc3_sub(request.deadline.time,.02f);level.timer_clock_valid=false;target168_run_timers();
+    T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    level.pathing_clock.time=request.deadline.time;level.timer_clock_valid=false;target168_run_timers();
+    move_test_target_lost=NULL;T_EQ(move_follow_visits,1);T_EQ(unit->current_order_id,0);
+    T_EQ(wc3_float_bits(target168_loss_clock.time),wc3_float_bits(request.deadline.time));
+    T_ASSERT(S_PermanentInvisibilityActive(target));
+    target168_run_timers();T_EQ(move_follow_visits,1);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_pending_fade_cancellation_reveal_and_slot_release) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"3.25\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t first=target->permanent_invisibility_fade.request;
+    level.pathing_clock.time=1;level.timer_clock_valid=false;S_PermanentInvisibilityReveal(target);
+    T_EQ(invisibility_count,1);T_ASSERT(target->permanent_invisibility_fade.request.sequence>first.sequence);
+    T_ASSERT(target->permanent_invisibility_fade.request.deadline.time>first.deadline.time);
+    move_follow_visits=0;T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
+    T_EQ(invisibility_count,0);T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    level.pathing_clock.time=10;level.timer_clock_valid=false;target168_run_timers();T_EQ(move_follow_visits,0);
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));T_EQ(invisibility_count,1);
+    G_DeferFreeEdict(target);T_EQ(invisibility_count,0);
+    T_NULL(unit->movement.follow_target);T_EQ(unit->current_order_id,0);
+    level.pathing_clock.time=20;level.timer_clock_valid=false;target168_run_timers();T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_pending_fade_rebases_without_changing_origin) {
+    edict_t *unit,*target;target166_setup(&unit,&target);target->s.player=PLAYER_NEUTRAL_PASSIVE;
+    level.pathing_clock=(wc3Clock_t){299.999f,0,300};level.timer_clock_valid=false;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
+    abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
+    wc3Clock_t origin=target->permanent_invisibility_fade.origin;
+    move_follow_visits=0;target168_run_timers();T_EQ(move_follow_visits,0);
+    T_EQ(target->permanent_invisibility_fade.request.deadline.epoch,1);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.request.deadline.time),
+         wc3_float_bits(wc3_sub(request.deadline.time,300)));
+    T_EQ(target->permanent_invisibility_fade.request.sequence,request.sequence);
+    T_EQ(target->permanent_invisibility_fade.origin.epoch,origin.epoch);
+    T_EQ(wc3_float_bits(target->permanent_invisibility_fade.origin.time),wc3_float_bits(origin.time));
+    level.pathing_clock=target->permanent_invisibility_fade.request.deadline;
+    target168_run_timers();T_EQ(move_follow_visits,1);T_EQ(unit->current_order_id,0);
+    T_ASSERT(S_PermanentInvisibilityActive(target));T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target168_equal_deadline_bulk_heap_order_and_cancellation) {
+    reset_entities();setup_test_world();level.pathing_clock=(wc3Clock_t){0,0,300};level.timer_clock_valid=false;
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"0.5\"\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
+    edict_t *units[4096];uint32_t sequences[4096];
+    FOR_LOOP(i,4096) {
+        units[i]=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,256);
+        T_ASSERT(G_ActorAddSkill(units[i],MAKEFOURCC('A','p','i','v')));
+        sequences[i]=units[i]->permanent_invisibility_fade.request.sequence;
+    }
+    T_EQ(invisibility_count,4096);
+    FOR_LOOP(i,4096)if(i%3==1)T_ASSERT(G_ActorRemoveSkill(units[i],MAKEFOURCC('A','p','i','v')));
+    FOR_LOOP(i,4096) {
+        if(i%3==1) {T_ASSERT(!S_PermanentInvisibilityActive(units[i]));continue;}
+        abilityTimerRequest_t next={0};T_ASSERT(S_NextAbilityPrimaryTimer(&next));
+        T_EQ(next.sequence,sequences[i]);T_EQ(invisibility_heap[0],units[i]);
+        level.pathing_clock=next.deadline;abilityCall_t call={.primary_timer=&next};
+        next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);T_ASSERT(S_PermanentInvisibilityActive(units[i]));
+    }
+    T_EQ(invisibility_count,0);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);reset_entities();setup_test_world();
+}
+
+/* FORM-05.2: compare actual selected Move through the complete wall passage.
+ * Inputs are the observed public point and owner clocks, not injected routes. */
+#include "fixtures/retail_formation_passage_169.h"
+static unsigned formation169_visit,formation169_commit,formation169_regroup;
+static bool formation169_failed;
+static edict_t *formation169_units[6];
+static typeof(formation169_passage[0]) const *formation169_trace=formation169_passage;
+
+static void formation169_words(uint32_t const *actual,uint32_t const *expected,unsigned count,char const *stage) {
+    if(formation169_failed)return;
+    FOR_LOOP(i,count) {
+        T_EQ(actual[i],expected[i]);
+        if(actual[i]==expected[i])continue;
+        fprintf(stderr,"formation169 visit=%u commit=%u %s word=%u actual=%08x expected=%08x\n",
+            formation169_visit,formation169_commit,stage,i,actual[i],expected[i]);
+        formation169_failed=true;break;
+    }
+}
+
+static unsigned formation169_index(edict_t const *unit) {
+    FOR_LOOP(i,6)if(formation169_units[i]==unit)return i;
+    T_ASSERT(false);return 6;
+}
+
+static void formation169_before(moveGroup_t const *group) {
+    if(formation169_failed)return;
+    typeof(formation169_passage[0]) const *row=formation169_trace+formation169_visit;
+    uint32_t state[]={group->flags,group->age,group->completion_counter,group->cooldown,
+        wc3_float_bits(group->point.x),wc3_float_bits(group->point.y),wc3_float_bits(group->heading)};
+    /* The engine initializes age on the first owner visit. */
+    if(!group->initialized)state[1]=row->group[1];
+    formation169_words(state,row->group,7,"group");T_EQ(group->count,row->count);
+    if(group->count!=row->count){formation169_failed=true;return;}
+    FOR_LOOP(i,group->count) {
+        moveGroupMember_t const *m=group->members+i;edict_t *u=m->unit;
+        uint32_t words[]={formation169_index(u),wc3_float_bits(m->offset.x),wc3_float_bits(m->offset.y),
+            wc3_float_bits(m->destination.x),wc3_float_bits(m->destination.y),wc3_float_bits(wc3_div(m->speed,32)),
+            wc3_float_bits(m->heading),m->flags,wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+            wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+            wc3_float_bits(wc3_div(unit_effective_speed(u),32)),wc3_float_bits(u->s.angle),wc3_float_bits(wc3_div(u->collision,32)),
+            wc3_float_bits(m->arrival_range ? m->arrival_range : wc3_float(0x3efae148)),
+            wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch};
+        formation169_words(words,row->members[i],18,"member");
+    }
+}
+
+static void formation169_committing(moveGroup_t const *group,moveGroupMember_t const *m,moveGroupCommitTrace_t const *trace) {
+    if(formation169_failed)return;
+    typeof(formation169_passage[0]) const *row=formation169_trace+formation169_visit;
+    T_ASSERT(formation169_commit<row->commits);if(formation169_commit>=row->commits){formation169_failed=true;return;}
+    edict_t *u=m->unit;
+    uint32_t words[]={formation169_index(u),group->flags,m->flags,wc3_float_bits(wc3_div(m->speed,32)),
+        wc3_float_bits(m->heading),trace->cap==FLT_MAX ? 0x7f7fffffu : wc3_float_bits(wc3_div(trace->cap,32)),
+        wc3_float_bits(wc3_div(trace->speed,32)),
+        wc3_float_bits(u->movement.fine_pose.x),wc3_float_bits(u->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(u->movement.velocity.x,32)),wc3_float_bits(wc3_div(u->movement.velocity.y,32)),
+        wc3_float_bits(u->s.angle),wc3_float_bits(u->movement.pose_clock.time),u->movement.pose_clock.epoch};
+    formation169_words(words,row->commit[formation169_commit],14,"commit");formation169_commit++;
+}
+
+static void formation169_routed(moveGroup_t const *group,edict_t *singleton) {
+    T_ASSERT(!singleton);
+    uint32_t words[]={1,1,!group->route.group_index,group->route.group_count,group->route.group_index};
+    formation169_words(words,formation169_trace[formation169_visit].route,5,"route");
+}
+
+static void formation169_regrouping(moveGroup_t const *group,uint32_t const *trace) {
+    formation169_words(trace,formation169_trace[formation169_visit].regroup,5,"regroup");
+    formation169_regroup++;
+}
+
+TEST(wc3_movement, formation169_selected_public_passage_matches_complete_retail_journey) {
+    reset_entities();setup_test_world();level.move_fine_responsive=false;
+    memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};
+    FOR_LOOP(y,64)if(y<30 || y>33)FOR_LOOP(x,2)cells[y*64+28+x]=0xc6;
+    for(unsigned y=6;y<18;y++)for(unsigned x=50;x<62;x++)if(y<8 || y>=16 || x<52 || x>=60)cells[y*64+x]=0xc6;
+    CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+    level.pathing_clock=(wc3Clock_t){wc3_float(0x406e65ab),0,300};level.pathing_counter=1149;
+    T_ASSERT(run_test_jass("globals\nunit array a\nendglobals\n"
+        "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+        "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,320.,832.+I2R(i)*64.,0.)\n"
+        "if i<3 then\ncall SetUnitMoveSpeed(a[i],100.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+        "call SetUnitAcquireRange(a[i],0.)\nset i=i+1\nendloop\nendfunction\n"));
+    unsigned count=0;FILTER_EDICTS(u,u->inuse && u->class_id>=types[0].newUnitID && u->class_id<=types[3].newUnitID)
+        {if(count<6)formation169_units[count]=u;count++;}
+    T_EQ(count,6);
+    edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+    FOR_LOOP(i,6)G_SetEntitySelectionMask(formation169_units[i],1);
+    clent->client->menu.order_alt=false;
+    vec2_t point={wc3_mul(wc3_float(formation169_goal[0]),32),wc3_mul(wc3_float(formation169_goal[1]),32)};
+    T_ASSERT(move_selectlocation(clent,&point));formation169_failed=false;
+    move_test_group_begin=formation169_before;move_test_group_commit=formation169_committing;
+    move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
+    cstring_t file=Test_TempPath("wc3-formation169-passage.bin");
+    FOR_LOOP(pass,2) {
+        formation169_visit=pass ? 80 : 0;
+        if(pass)T_ASSERT(ReadGame(file));
+        for(;formation169_visit<(sizeof(formation169_passage)/sizeof(*formation169_passage)) && !formation169_failed;formation169_visit++) {
+            formation169_commit=formation169_regroup=0;
+            level.pathing_clock.time=wc3_float(formation169_passage[formation169_visit].clock);
+            level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+            if(!formation169_failed) {
+                T_EQ(formation169_commit,formation169_passage[formation169_visit].commits);
+                T_EQ(formation169_regroup,formation169_passage[formation169_visit].regroup[0]);
+            }
+            if(!pass && formation169_visit==79)T_ASSERT(WriteGame(file));
+        }
+        T_EQ(formation169_visit,(sizeof(formation169_passage)/sizeof(*formation169_passage)));
+        if(formation169_failed)break;
+        S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+        FOR_LOOP(i,6) {
+            edict_t const *u=formation169_units[i];char position[64];
+            T_EQ(u->current_order_id,0);
+            snprintf(position,sizeof(position),"%.3f,%.3f",u->s.origin2.x,u->s.origin2.y);
+            T_STREQ(position,formation169_finish[i]);
+        }
+    }
+    remove(file);move_test_group_begin=NULL;move_test_group_commit=NULL;
+    move_test_group_route=NULL;move_test_group_regroup=NULL;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
+}
+
+#include "fixtures/retail_formation_selection_170.h"
+static unsigned formation170_cursor,formation170_limit;
+static bool formation170_active;
+static uint8_t const *formation170_first;
+
+static void formation170_completed(void) {
+    if(!formation170_active || formation169_failed)return;
+    T_EQ(formation169_commit,formation169_trace[formation169_visit].commits);
+    T_EQ(formation169_regroup,formation169_trace[formation169_visit].regroup[0]);
+    if(formation169_commit!=formation169_trace[formation169_visit].commits ||
+       formation169_regroup!=formation169_trace[formation169_visit].regroup[0])formation169_failed=true;
+}
+
+static void formation170_before(moveGroup_t const *group) {
+    formation170_completed();
+    T_ASSERT(formation170_cursor<formation170_limit);
+    if(formation170_cursor>=formation170_limit){formation169_failed=true;return;}
+    T_EQ(!group->initialized,formation170_first[formation170_cursor]);
+    formation169_visit=formation170_cursor++;formation169_commit=formation169_regroup=0;formation170_active=true;
+    formation169_before(group);
+}
+
+TEST(wc3_movement, formation170_public_selection_and_independent_orders_match_retail) {
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;
+    int32_t ranks[4]={0,1,2,3};float radius=31;unitModification_t mods[4][2];unitData_t types[4];
+    FOR_LOOP(i,4) {
+        mods[i][0]=(unitModification_t){.modID=MAKEFOURCC('u','f','o','r'),.type=mod_int,.data=ranks+i};
+        mods[i][1]=(unitModification_t){.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=&radius};
+        types[i]=(unitData_t){.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','F','0','0')+i,
+            .numbeOfModifications=2,.modifications=mods[i]};
+    }
+    mapInfo_t info={.num_userCreatedUnits=4,.userCreatedUnits=types};mapInfo_t const *oldinfo=level.mapinfo;
+    FOR_LOOP(scene,3) {
+        reset_entities();setup_test_world();level.move_fine_responsive=false;
+        memset(level.timers,0,sizeof(level.timers));level.num_timers=0;G_RebuildTimerQueue();
+        level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+        uint8_t cells[64*64]={0};
+        FOR_LOOP(y,64)if(y<30 || y>33)FOR_LOOP(x,2)cells[y*64+28+x]=0xc6;
+        for(unsigned y=6;y<18;y++)for(unsigned x=50;x<62;x++)if(y<8 || y>=16 || x<52 || x>=60)cells[y*64+x]=0xc6;
+        CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        typeof(formation170_scenes[0]) const *input=formation170_scenes+scene;
+        level.pathing_clock=(wc3Clock_t){wc3_float(input->admission),0,300};level.pathing_counter=1149;
+        char script[2048];snprintf(script,sizeof(script),"globals\nunit array a\nendglobals\n"
+            "function main takes nothing returns nothing\nlocal integer i=0\nloop\nexitwhen i==6\n"
+            "set a[i]=CreateUnit(Player(0),'hF00'+i-(i/4)*4,320.,832.+I2R(i)*64.,0.)\n"
+            "if i<3 then\ncall SetUnitMoveSpeed(a[i],100.)\nelse\ncall SetUnitMoveSpeed(a[i],350.)\nendif\n"
+            "call SetUnitAcquireRange(a[i],0.)\nset i=i+1\nendloop\n%s endfunction\n",
+            scene==2 ? "set i=0\nloop\nexitwhen i==6\ncall IssuePointOrder(a[i],\"move\",1600.,1024.)\nset i=i+1\nendloop\n" : "");
+        T_ASSERT(run_test_jass(script));unsigned count=0;
+        FILTER_EDICTS(u,u->inuse && u->class_id>=types[0].newUnitID && u->class_id<=types[3].newUnitID)
+            {if(count<6)formation169_units[count]=u;count++;}
+        T_EQ(count,6);
+        if(scene!=2) {
+            edict_t *clent=g_edicts;clent->inuse=true;clent->client=game.clients;clent->client->ps.number=0;
+            FOR_LOOP(i,6)G_SetEntitySelectionMask(formation169_units[i],1);
+            clent->client->menu.order_alt=false;
+            vec2_t point={wc3_mul(wc3_float(input->goal[0]),32),wc3_mul(wc3_float(input->goal[1]),32)};
+            T_ASSERT(move_selectlocation(clent,&point));
+        }
+        unsigned groups=0;
+        FOR_LOOP(g,ARRAY_COUNT(level.move_groups))if(level.move_groups[g] && level.move_groups[g]->inuse)groups++;
+        T_EQ(groups,input->groups);
+        formation169_failed=false;
+        FOR_LOOP(i,6) {
+            moveGroup_t *g=move_unit_group(formation169_units[i]);T_NOT_NULL(g);
+            if(g){T_ASSERT(!g->individual);if(g->individual)formation169_failed=true;}
+        }
+        formation169_trace=input->rows;formation170_limit=input->count;
+        formation170_first=input->first;
+        move_test_group_begin=formation170_before;move_test_group_commit=formation169_committing;
+        move_test_group_route=formation169_routed;move_test_group_regroup=formation169_regrouping;
+        cstring_t file=Test_TempPath("wc3-formation170-selection.bin");unsigned saved_cursor=0;
+        FOR_LOOP(pass,2) {
+            formation170_cursor=pass ? saved_cursor : 0;formation170_active=false;
+            if(pass)T_ASSERT(ReadGame(file));
+            unsigned frame=0;
+            while(formation170_cursor<input->count && !formation169_failed) {
+                unsigned end=formation170_cursor;uint32_t clock=input->rows[end].clock;
+                while(end<input->count && input->rows[end].clock==clock)end++;
+                level.pathing_clock.time=wc3_float(clock);
+                level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
+                formation170_completed();formation170_active=false;
+                T_EQ(formation170_cursor,end);if(formation170_cursor!=end)formation169_failed=true;
+                if(!pass && ++frame==60){T_ASSERT(WriteGame(file));saved_cursor=formation170_cursor;}
+            }
+            T_EQ(formation170_cursor,input->count);
+            if(formation169_failed)break;
+            S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();
+            FOR_LOOP(i,6) {
+                edict_t const *u=formation169_units[i];char position[64];T_EQ(u->current_order_id,0);
+                snprintf(position,sizeof(position),"%.3f,%.3f",u->s.origin2.x,u->s.origin2.y);
+                T_STREQ(position,input->finish[i]);
+            }
+        }
+        remove(file);move_test_group_begin=NULL;move_test_group_commit=NULL;
+        move_test_group_route=NULL;move_test_group_regroup=NULL;formation169_trace=formation169_passage;
+    }
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;setup_test_world();
+}
+
+
+/* Native4c95c0 commits the Blink destination before publishing TargetLost.
+ * The temporary800000 window only bypasses world-hidden validation. */
+static struct {
+    edict_t *target;
+    vec2_t destination;
+    uint32_t count, action;
+    bool nested;
+    moveTargetResult_t status;
+} target182;
+
+static void target182_observe(edict_t *unit) {
+    target182.count++;
+    T_EQ(wc3_float_bits(target182.target->s.origin2.x),wc3_float_bits(target182.destination.x));
+    T_EQ(wc3_float_bits(target182.target->s.origin2.y),wc3_float_bits(target182.destination.y));
+    if(target182.action==1 || target182.action==2)G_SetEntityHidden(target182.target,true);
+    target182.status=S_MoveTargetStatus(unit,target182.target);
+    if(target182.action==2) {
+        T_ASSERT(target182.target->target_loss_transient);
+        T_ASSERT(WriteGame(Test_TempPath("wc3-target182-window.bin")));
+        T_ASSERT(target182.target->target_loss_transient); /* Saving does not mutate the live window. */
+    }
+    if(target182.action==3 && !target182.nested) {
+        target182.nested=true;target182.destination.y+=64;
+        spellTarget_t point={.type=SPELL_TARGET_POINT,.point=target182.destination};
+        abilityitem_t item={.code=MAKEFOURCC('A','E','b','l'),.ability=FindAbilityByClassname("AEbl")};
+        abilityCall_t call={.item=&item,.target=&point};
+        T_ASSERT(item.ability->proc(target182.target,A_EXECUTE,&call));
+        T_ASSERT(!target182.target->target_loss_transient);
+        G_SetEntityHidden(target182.target,true);
+    }
+    if(target182.action==4) {
+        target182.target->health.value=0;
+        target182.status=S_MoveTargetStatus(unit,target182.target);
+    }
+}
+
+static slkTestData_t *target182_setup(edict_t **unit,edict_t **target,slkTestData_t **old) {
+    target166_setup(unit,target);
+    char const slk[]="ID;PWXL;N;EBB;Y2;X8\n"
+        "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"Cost1\"\nC;X4;K\"Cool1\"\n"
+        "C;X5;K\"Rng1\"\nC;X6;K\"DataA1\"\nC;X7;K\"DataB1\"\nC;X8;K\"levels\"\n"
+        "C;Y2;X1;K\"AEbl\"\nC;X2;K\"AEbl\"\nC;X3;K0\nC;X4;K0\nC;X5;K2000\n"
+        "C;X6;K2000\nC;X7;K0\nC;X8;K1\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk);*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(G_ActorAddSkill(*target,MAKEFOURCC('A','E','b','l')));
+    (*target)->mana.value=1000;
+    T_ASSERT(unit_issuetargetorder(*unit,"move",*target));
+    target182=(typeof(target182)){.target=*target,.destination={672,768}};
+    move_follow_visits=0;move_test_target_lost=target182_observe;
+    return rows;
+}
+
+static void target182_finish(slkTestData_t *rows,slkTestData_t *old) {
+    move_test_target_lost=NULL;G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+    G_FowShutdown();reset_entities();setup_test_world();
+}
+
+TEST(wc3_movement, target182_blink_notifies_after_commit_and_preserves_visible_route) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group){target182_finish(rows,old);return;}
+    uint64_t rank=unit->movement.follow_sequence;
+    uint32_t counter=level.pathing_counter;int32_t refresh=group->target_refresh;
+    vec2_t cached=group->goal;uint32_t id=group->id;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(move_follow_visits,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_EQ(unit->current_order_id,G_OrderId("move"));T_EQ(unit->movement.follow_target,target);
+    T_EQ(unit->movement.follow_sequence,rank);T_EQ(unit->movement.group_id,id);
+    T_EQ(group->target_refresh,refresh);T_EQ(group->goal.x,cached.x);T_EQ(group->goal.y,cached.y);
+    T_EQ(level.pathing_counter,counter);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_to_fog_cancels_synchronously) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    fogModifier_t *fog=G_FogModifierCreate();T_NOT_NULL(fog);if(!fog){target182_finish(rows,old);return;}
+    *fog=(fogModifier_t){.player=0,.state=WC3_FOG_STATE_FOGGED,.center=target182.destination,.radius=100};
+    G_FogModifierStart(fog);T_ASSERT(G_FowPlayerCanTrackUnit(0,target));
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_LOST);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_EQ(unit->movement.group_id,0);
+    G_FogModifierStop(fog);G_FowUpdate();target166_tick();
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_window_bypasses_only_hidden_state) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=1;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
+    move_test_target_lost=NULL;S_UnitTargetLost(target);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_plain_relocation_does_not_synthesize_blink_loss) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    S_SpellCommitRelocation(target,&target182.destination);
+    T_EQ(target182.count,0);T_EQ(move_follow_visits,0);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    target182_finish(rows,old);
+}
+
+
+TEST(wc3_movement, target182_blink_window_is_not_restored_by_nested_blink) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    edict_t *second=alloc_test_unit(MAKEFOURCC('h','R','T','E'),256,1024);
+    second->svflags=SVF_MONSTER;second->movetype=MOVETYPE_STEP;second->stand=unit_stand;
+    unit_stand(second);S_SetUnitMoveSpeed(second,270);
+    T_ASSERT(unit_issuetargetorder(second,"move",target));
+    target182.action=3;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,4);T_EQ(move_follow_visits,4);
+    T_EQ(unit->current_order_id,0);T_EQ(second->current_order_id,0);
+    T_NULL(unit->movement.follow_target);T_NULL(second->movement.follow_target);
+    T_ASSERT(!target->target_loss_transient);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_callback_save_does_not_persist_validation_window) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=2;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_VALID);
+    T_ASSERT(!target->target_loss_transient);move_test_target_lost=NULL;
+    S_ResetAbilityTimers();T_ASSERT(ReadGame(Test_TempPath("wc3-target182-window.bin")));
+    remove(Test_TempPath("wc3-target182-window.bin"));
+    T_ASSERT(!target->target_loss_transient);T_ASSERT(target->s.renderfx&RF_HIDDEN);
+    T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_HIDDEN);
+    T_EQ(unit->movement.follow_target,target);T_EQ(unit->current_order_id,G_OrderId("move"));
+    S_UnitTargetLost(target);T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    target182_finish(rows,old);
+}
+
+TEST(wc3_movement, target182_blink_window_does_not_bypass_dead_target) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target182_setup(&unit,&target,&old);
+    target182.action=4;
+    T_ASSERT(unit_issueorder(target,"blink",&target182.destination));
+    T_EQ(target182.count,1);T_EQ(target182.status,MOVE_TARGET_LOST);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);
+    T_ASSERT(!target->target_loss_transient);
+    target182_finish(rows,old);
+}
+
+
+/* Retail TARGET-02.1 scenes5/7 use physical target owners on either side of
+ * the air/ground boundary. World path masks, not legacy traversal, select lanes. */
+TEST(wc3_movement, follow186_air_members_and_targets_use_physical_owners) {
+    FOR_LOOP(policy,3) {
+        reset_entities();setup_test_world();
+        uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=CM_PATHING_UNWALKABLE;
+        CM_SetupTestPathmap(64,64,cells);CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});
+        level.pathing_clock=(wc3Clock_t){0,0,300};level.pathing_counter=1024;
+        edict_t *unit=alloc_test_unit(MAKEFOURCC('h','R','T','E'),480,288);
+        edict_t *target=alloc_test_unit(MAKEFOURCC('h','R','T','E'),1568,288);
+        edict_t *units[]={unit,target};
+        FOR_LOOP(i,2) {
+            units[i]->svflags=SVF_MONSTER;units[i]->movetype=MOVETYPE_STEP;
+            units[i]->stand=unit_stand;units[i]->collision=i ? 31 : 8;
+            S_SetUnitMoveSpeed(units[i],i ? 150 : 320);unit_stand(units[i]);
+        }
+        if(policy!=1)unit->aiflags|=AI_FLYING;
+        if(policy)target->aiflags|=AI_FLYING;
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);
+        if(group) {
+            T_EQ(group->target,target);T_EQ(group->count,1u);T_EQ(group->flags&0x1801u,0x1000u);
+            T_EQ(unit->currentmove,&follow_move_walk);
+            T_EQ(M_UnitStaticPathingFlags(unit),policy==1 ? CM_PATHING_UNWALKABLE : CM_PATHING_UNFLYABLE);
+            cstring_t file=Test_TempPath("wc3-follow186-air.bin");
+            T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+            group=move_unit_group(unit);T_NOT_NULL(group);
+            if(group)T_EQ(group->target,target);
+            bool translated=false;
+            FOR_LOOP(i,30) {
+                target166_tick();translated|=unit->s.origin2.x>480;
+            }
+            T_ASSERT(translated);T_EQ(unit->movement.follow_target,target);
+            T_ASSERT(unit_issueimmediateorder(unit,"stop"));
+            T_NULL(move_unit_group(unit));T_NULL(unit->movement.follow_target);
+            T_EQ(unit->current_order_id,0);
+        }
+    }
+    reset_entities();setup_test_world();
+}
+
+
+static edict_t *follow186_unit;
+static unsigned follow186_cursor;
+static bool follow186_mismatch;
+static void follow186_before(moveGroup_t const *group) {
+    if(follow186_mismatch || group->count!=1 || group->members[0].unit!=follow186_unit)return;
+    T_ASSERT(follow186_cursor<(sizeof(follow186_flying)/sizeof(*follow186_flying)));
+    if(follow186_cursor>=(sizeof(follow186_flying)/sizeof(*follow186_flying)))return;
+    uint32_t const *row=follow186_flying[follow186_cursor];
+    moveFineRoute_t const *path=&follow186_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(follow186_unit->movement.fine_pose.x),wc3_float_bits(follow186_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_div(follow186_unit->movement.velocity.x,32)),
+        wc3_float_bits(wc3_div(follow186_unit->movement.velocity.y,32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        follow186_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        follow186_unit->movement.wait_delay,follow186_unit->movement.retry_count,group->flags&1};
+    FOR_LOOP(i,25) {
+        if((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15)))continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"follow186 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                follow186_cursor,i,level.pathing_counter,actual[i],row[i]);follow186_mismatch=true;
+        }
+    }
+    follow186_cursor++;
+}
+
+TEST(wc3_movement, follow186_public_flying_smart_matches_raw_retail) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed,old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    float radius[]={8,31},speed[]={320,270};char flying[]="fly";
+    unitModification_t mods[2][3]={
+        {{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radius},
+         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=speed},
+         {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=flying}},
+        {{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radius+1},
+         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=speed+1}}};
+    unitData_t custom[2]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','8','6'),.numbeOfModifications=3,.modifications=mods[0]},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','G','8','6'),.numbeOfModifications=2,.modifications=mods[1]}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==1020 then\nset a=CreateUnit(Player(0),'hA86',480,288,0)\n"
+        "set b=CreateUnit(Player(0),'hG86',1568,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",GetUnitX(b),1312)\nendif\n"
+        "if tick==1025 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==1090 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),288)\nendif\n"
+        "if tick==1160 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),1312)\nendif\n"
+        "if tick==1210 then\ncall IssueImmediateOrder(a,\"stop\")\ncall IssueImmediateOrder(b,\"stop\")\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    follow186_unit=NULL;follow186_cursor=0;follow186_mismatch=false;move_test_group_begin=follow186_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-follow186-motion.bin");
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass){T_ASSERT(ReadGame(file));follow186_cursor=150;}
+        while(level.time<121200 && !follow186_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!follow186_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom[0].newUnitID){follow186_unit=ent;break;}
+            if(!pass && !saved && follow186_cursor==150){T_ASSERT(WriteGame(file));saved=true;}
+        }
+        T_EQ(follow186_cursor,(sizeof(follow186_flying)/sizeof(*follow186_flying)));
+        if(follow186_mismatch)break;
+        T_NOT_NULL(follow186_unit);
+        if(follow186_unit){T_EQ(follow186_unit->current_order_id,0);T_NULL(move_unit_group(follow186_unit));}
+    }
+    move_test_group_begin=NULL;follow186_unit=NULL;level.started=false;remove(file);
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+
+static edict_t *follow187_unit;
+static unsigned follow187_cursor,follow187_target_cursor;
+static bool follow187_mismatch;
+static void follow187_before(moveGroup_t const *group) {
+    if(!follow187_mismatch && group->count==1 && group->members[0].unit!=follow187_unit && group->members[0].unit->class_id==MAKEFOURCC('h','G','8','7')) {
+        T_ASSERT(follow187_target_cursor<sizeof(follow187_target)/sizeof(*follow187_target));
+        if(follow187_target_cursor>=sizeof(follow187_target)/sizeof(*follow187_target)){follow187_mismatch=true;return;}
+        edict_t *unit=group->members[0].unit;uint32_t const *row=follow187_target[follow187_target_cursor++];
+        uint32_t actual[]={level.pathing_counter,wc3_float_bits(unit->movement.fine_pose.x),wc3_float_bits(unit->movement.fine_pose.y),
+            wc3_float_bits(wc3_velocity_scale(unit->movement.velocity.x,1.f/32)),wc3_float_bits(wc3_velocity_scale(unit->movement.velocity.y,1.f/32))};
+        FOR_LOOP(i,5) {
+            T_EQ(actual[i],row[i]);
+            if(actual[i]==row[i])continue;
+            fprintf(stderr,"follow187 TARGET row=%u field=%u c=%u actual=%08x expected=%08x\n",follow187_target_cursor-1,i,level.pathing_counter,actual[i],row[i]);
+            follow187_mismatch=true;
+        }
+    }
+    if(follow187_mismatch || group->count!=1 || group->members[0].unit!=follow187_unit)return;
+    T_ASSERT(follow187_cursor<(sizeof(follow187_ground_air)/sizeof(*follow187_ground_air)));
+    if(follow187_cursor>=(sizeof(follow187_ground_air)/sizeof(*follow187_ground_air)))return;
+    uint32_t const *row=follow187_ground_air[follow187_cursor];
+    moveFineRoute_t const *path=&follow187_unit->movement.fine_route;
+    uint32_t actual[]={level.pathing_counter,group->target_refresh,group->unseen_counter,
+        wc3_float_bits(group->route.group_goal.x),wc3_float_bits(group->route.group_goal.y),
+        group->route.adaptive_admission.time,group->route.group_admission.time,
+        group->route.group_count,group->route.group_count ? group->route.group_index : UINT32_MAX,
+        wc3_float_bits(follow187_unit->movement.fine_pose.x),wc3_float_bits(follow187_unit->movement.fine_pose.y),
+        wc3_float_bits(wc3_velocity_scale(follow187_unit->movement.velocity.x,1.f/32)),
+        wc3_float_bits(wc3_velocity_scale(follow187_unit->movement.velocity.y,1.f/32)),wc3_float_bits(group->members[0].arrival_range),
+        wc3_float_bits(path->adaptive_goal.x),wc3_float_bits(path->adaptive_goal.y),
+        follow187_unit->movement.fine_request_time,path->adaptive_admission.time,path->count,path->adaptive_count,
+        path->count ? path->index : UINT32_MAX,path->adaptive_count ? path->adaptive_index : UINT32_MAX,
+        follow187_unit->movement.wait_delay,follow187_unit->movement.retry_count,group->flags&1};
+    FOR_LOOP(i,25) {
+        if((!group->initialized && (i==3 || i==4)) || (!path->adaptive_points && (i==14 || i==15)))continue;
+        T_EQ(actual[i],row[i]);
+        if(actual[i]!=row[i]) {
+            fprintf(stderr,"follow187 row=%u field=%u counter=%u actual=%08x expected=%08x\n",
+                follow187_cursor,i,level.pathing_counter,actual[i],row[i]);follow187_mismatch=true;
+        }
+    }
+    follow187_cursor++;
+}
+
+TEST(wc3_movement, follow187_public_ground_following_air_smart_matches_raw_retail) {
+    reset_entities();setup_test_world();
+    FOR_LOOP(i,level.num_timers)G_TimerDestroy(level.timers+i);
+    float old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed,old_follow=game.constants.followRange;
+    game.constants.minUnitSpeed=150;game.constants.maxUnitSpeed=400;game.constants.followRange=300;
+    float radius[]={31,8},speed[]={270,320},turn=.4f,window=61;char flying[]="fly";
+    unitModification_t mods[2][5]={
+        {{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radius},
+         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=speed}},
+        {{.modID=MAKEFOURCC('u','c','o','l'),.type=mod_real,.data=radius+1},
+         {.modID=MAKEFOURCC('u','m','v','s'),.type=mod_real,.data=speed+1},
+         {.modID=MAKEFOURCC('u','m','v','t'),.type=mod_string,.data=flying},
+         {.modID=MAKEFOURCC('u','m','v','r'),.type=mod_real,.data=&turn},
+         {.modID=MAKEFOURCC('u','p','r','w'),.type=mod_real,.data=&window}}};
+    unitData_t custom[2]={
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','A','8','7'),.numbeOfModifications=2,.modifications=mods[0]},
+        {.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','G','8','7'),.numbeOfModifications=5,.modifications=mods[1]}};
+    mapInfo_t info={.num_userCreatedUnits=2,.userCreatedUnits=custom};mapInfo_t const *oldinfo=level.mapinfo;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    uint8_t cells[64*64]={0};FOR_LOOP(y,50)FOR_LOOP(x,4)cells[y*64+30+x]=CM_PATHING_UNWALKABLE;
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.waypoints=(typeof(level.waypoints)){0};level.pathing_clock=(wc3Clock_t){0,0,300};
+    level.time=level.pathing_msec=level.pathing_phase=0;level.pathing_due=false;level.pathing_counter=1024;
+    T_ASSERT(run_test_jass("globals\nunit a\nunit b\ninteger tick=0\nendglobals\n"
+        "function on_tick takes nothing returns nothing\nset tick=tick+1\n"
+        "if tick==1420 then\nset a=CreateUnit(Player(0),'hA87',480,288,0)\n"
+        "set b=CreateUnit(Player(0),'hG87',1024,288,90)\ncall SetUnitMoveSpeed(b,150)\n"
+        "call IssuePointOrder(b,\"move\",GetUnitX(b),1312)\nendif\n"
+        "if tick==1425 then\ncall IssueTargetOrder(a,\"smart\",b)\nendif\n"
+        "if tick==1490 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),288)\nendif\n"
+        "if tick==1560 then\ncall IssuePointOrder(b,\"move\",GetUnitX(b),1312)\nendif\n"
+        "if tick==1610 then\ncall IssueImmediateOrder(a,\"stop\")\ncall IssueImmediateOrder(b,\"stop\")\nendif\n"
+        "endfunction\nfunction main takes nothing returns nothing\n"
+        "call FogEnable(false)\ncall FogMaskEnable(false)\n"
+        "call TimerStart(CreateTimer(),0.1,true,function on_tick)\nendfunction\n"));
+    follow187_unit=NULL;follow187_cursor=follow187_target_cursor=0;follow187_mismatch=false;move_test_group_begin=follow187_before;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    cstring_t file=Test_TempPath("wc3-follow187-motion.bin");
+    unsigned target_saved_cursor=0;
+    FOR_LOOP(pass,2) {
+        bool saved=false;
+        if(pass){T_ASSERT(ReadGame(file));follow187_cursor=150;follow187_target_cursor=target_saved_cursor;}
+        while(level.time<161200 && !follow187_mismatch) {
+            level.time+=5;globals.RunFrame();
+            if(!follow187_unit)FILTER_EDICTS(ent,ent->inuse && ent->class_id==custom[0].newUnitID){follow187_unit=ent;break;}
+            if(!pass && !saved && follow187_cursor==150){T_ASSERT(WriteGame(file));target_saved_cursor=follow187_target_cursor;saved=true;}
+        }
+        T_EQ(follow187_cursor,(sizeof(follow187_ground_air)/sizeof(*follow187_ground_air)));
+        T_EQ(follow187_target_cursor,sizeof(follow187_target)/sizeof(*follow187_target));
+        if(follow187_mismatch)break;
+        T_NOT_NULL(follow187_unit);
+        if(follow187_unit){T_EQ(follow187_unit->current_order_id,0);T_NULL(move_unit_group(follow187_unit));}
+    }
+    move_test_group_begin=NULL;follow187_unit=NULL;level.started=false;remove(file);
+    reset_entities();G_SetMapUnitOverrides(NULL);level.mapinfo=oldinfo;
+    game.constants.minUnitSpeed=old_min;game.constants.maxUnitSpeed=old_max;game.constants.followRange=old_follow;
+}
+
+#endif
+
+#ifdef BZ_TESTS
+#include "retail_point_entry.h"
+
+/* Both public JASS point heads and the Captain virtual actor enter05b970.
+ * Publish the canonical minimum at admission, rather than patching it only
+ * during group decisions; individual point arrival reads the same member. */
+TEST(wc3_movement, entry191_point_publishers_retain_canonical_arrival_range) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit entry191\nendglobals\n"
+        "function main takes nothing returns nothing\nset entry191=CreateUnit(Player(0),'hRTE',-256,-256,0)\n"
+        "call IssuePointOrder(entry191,\"move\",512,128)\nendfunction\n"
+        "function replace takes nothing returns nothing\ncall IssuePointOrderById(entry191,OrderId(\"move\"),768,128)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E'))unit=ent;
+    T_NOT_NULL(unit);if(!unit)return;
+    moveGroupMember_t const *member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    jass_callbyname(level.vm,"replace",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    T_EQ(unit->goalentity->s.origin2.x,768);T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_ASSERT(WriteGame(Test_TempPath("wc3-entry191.bin")));T_ASSERT(ReadGame(Test_TempPath("wc3-entry191.bin")));
+    member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    remove(Test_TempPath("wc3-entry191.bin"));
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
+    S_CaptainPointMove(captain,&(vec2_t){512,-900},200);
+    edict_t *actor=captain->home_actor;T_NOT_NULL(actor);
+    if(actor){member=move_find_member(actor);T_NOT_NULL(member);if(member)T_EQ(wc3_float_bits(member->arrival_range),0x40c80000u);}
+    S_CaptainPointMove(captain,&(vec2_t){768,-900},1);
+    if(actor){member=move_find_member(actor);T_NOT_NULL(member);if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);}
+    FOR_LOOP(i,sizeof(entry191_range_words)/sizeof(*entry191_range_words)) {
+        S_CaptainPointMove(captain,&(vec2_t){768,-900},wc3_float(entry191_range_words[i][0]));
+        member=move_find_member(actor);T_NOT_NULL(member);
+        if(member)T_EQ(wc3_float_bits(member->arrival_range),entry191_range_words[i][1]);
+    }
+    T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+    level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+#endif

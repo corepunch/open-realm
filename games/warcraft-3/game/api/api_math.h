@@ -110,6 +110,7 @@ uint32_t RemoveRegion(jass_t *j) {
             if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
                 level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
         event->inuse = false;
+        G_TrackMoveRegionEvent(event);
         if (event->handle_generation == EVENT_HANDLE_GENERATION_MAX) event->generation_exhausted = true;
         else event->handle_generation++;
     }

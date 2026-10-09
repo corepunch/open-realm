@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "target": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "image_base": "6f000000"
+  },
+  "scope": "BASE-02.1: three consecutive captured profile fields starting at row+1a8, not the entire profile. Original parser/mask/class operand ABIs and plain RET verified by complete original-code calls. Descriptive names are not retail debug symbols.",
+  "layouts": [
+    {
+      "name": "WC3AuthoredMovementFields",
+      "length": 12,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "movement_bits",
+          "type": "u32",
+          "evidence": "Profile+1a8,685340 output;66c909..66c944 complete builder slice,60 strings."
+        },
+        {
+          "offset": 4,
+          "name": "occupied_category",
+          "type": "u32",
+          "evidence": "Profile+1ac,685e30 ECX bits EDX1."
+        },
+        {
+          "offset": 8,
+          "name": "fine_query",
+          "type": "u32",
+          "evidence": "Profile+1b0,685e30 ECX bits EDX0."
+        }
+      ]
+    }
+  ],
+  "methods": [
+    {
+      "address": "6f685340",
+      "name": "UnitMovementType_ParseName",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "movetp",
+          "type": "ptr:u8",
+          "storage": "ECX"
+        }
+      ]
+    },
+    {
+      "address": "6f685e30",
+      "name": "UnitMovementType_ToPathingMask",
+      "returns": "u8",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "bits",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "selector",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ]
+    },
+    {
+      "address": "6f685db0",
+      "name": "UnitMovementType_ToPathClassFlags",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "u32",
+          "storage": "ECX"
+        }
+      ]
+    }
+  ]
+}

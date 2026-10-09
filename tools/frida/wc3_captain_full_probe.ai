@@ -1,0 +1,47 @@
+function main takes nothing returns nothing
+    call Preload("PATHCAPTAIN home begin")
+    call SetCampaignAI()
+    call CreateCaptains()
+    if CaptainIsFull() then
+        call Preload("PATHCAPTAIN full create wrong")
+    else
+        call Preload("PATHCAPTAIN full create false")
+    endif
+    call SetCaptainHome(1,-1936.0,-144.0)
+    call InitAssault()
+    if CaptainIsFull() then
+        call Preload("PATHCAPTAIN full init true")
+    else
+        call Preload("PATHCAPTAIN full init wrong")
+    endif
+    call Preload("PATHCAPTAIN home before recruit")
+    if AddAssault(1,'hfoo') then
+        call Preload("PATHCAPTAIN home accepted")
+    else
+        call Preload("PATHCAPTAIN home rejected")
+    endif
+    if CaptainIsFull() then
+        call Preload("PATHCAPTAIN full recruited true")
+    else
+        call Preload("PATHCAPTAIN full recruited wrong")
+    endif
+    if AddAssault(2,'hfoo') then
+        call Preload("PATHCAPTAIN shortage wrong")
+    else
+        call Preload("PATHCAPTAIN shortage rejected")
+    endif
+    if CaptainIsFull() then
+        call Preload("PATHCAPTAIN full shortage wrong")
+    else
+        call Preload("PATHCAPTAIN full shortage false")
+    endif
+    call InitAssault()
+    if CaptainGroupSize()==1 and CaptainIsFull() then
+        call Preload("PATHCAPTAIN full retry retained true")
+    else
+        call Preload("PATHCAPTAIN full retry retained wrong")
+    endif
+    loop
+        call Sleep(1.0)
+    endloop
+endfunction

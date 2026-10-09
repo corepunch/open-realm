@@ -106,7 +106,7 @@ working compatibility approximations, not proven retail algorithms.
 
 ## Save/load and limitations
 
-The current save format is version 76. It persists `edict_t.ignore_alarm` and
+The current save format is version 147. It persists `edict_t.ignore_alarm` and
 texttag presentation identity; the round-trip suites cover both contracts, and
 older version 75 files are rejected according to `CONTRIBUTING.md`.
 
@@ -146,3 +146,13 @@ Runtime acceptance with retail assets:
 Follow [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md)
 for the normal build and test process. Compilation, game execution and unit
 suite testing were intentionally left to the integrator for this patch.
+
+### Captain routing after the pathfinding-branch merge
+
+CaptainAttack and CaptainGoHome use the retail-backed Move-owned virtual actor,
+retained range, ordered roster and shared physical groups. The upstream
+per-member closest-reachable route table is superseded; changing each member's
+objective independently would bypass that ownership contract. CaptainAtGoal
+and CaptainIsHome read the actor's retained request/home when one exists.
+TeleportCaptain's explicitly approximate logical position and the new visible
+enemy selectors remain available; these do not close additional retail TODOs.

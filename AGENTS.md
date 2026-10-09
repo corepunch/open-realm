@@ -121,6 +121,9 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 Hero death persistence and Altar revival lifecycle | [docs/games/warcraft-3/hero-revival.md](docs/games/warcraft-3/hero-revival.md) |
 | WC3 Rally producer state, Smart handoff, target lifetime, JASS getters | [docs/games/warcraft-3/rally-points.md](docs/games/warcraft-3/rally-points.md) |
 | WC3 pathfinding, flow fields, collision-sized routing, unreachable lumber targets | [docs/games/warcraft-3/pathfinding.md](docs/games/warcraft-3/pathfinding.md) |
+| WC3 retail pathfinding: fine/adaptive-grid A*, hierarchy and footprint evidence, Ghidra/Frida map, cinematic experiments | [docs/games/warcraft-3/retail-pathfinding.md](docs/games/warcraft-3/retail-pathfinding.md) |
+| WC3 numerical movement integration, exact C/retail comparisons, scripted turn/window gates, repeat captures | [docs/games/warcraft-3/retail-pathfinding-engine.md](docs/games/warcraft-3/retail-pathfinding-engine.md) |
+| WC3 retail pathfinding corpus, strict fresh-report runner, known adaptive differences and archive provenance limits | [docs/games/warcraft-3/retail-pathfinding-corpus.md](docs/games/warcraft-3/retail-pathfinding-corpus.md) |
 | WC3 Way Gates, JASS destination/activation state, explicit Smart traversal, portal-routing gap | [docs/games/warcraft-3/way-gates.md](docs/games/warcraft-3/way-gates.md) |
 | WC3 unit altitude, `moveHeight`, water/bridge support surfaces, fly-height natives, projectile impact Z | [docs/games/warcraft-3/unit-altitude.md](docs/games/warcraft-3/unit-altitude.md) |
 | WC3 runtime unit spawn, `CreateUnit` birth ownership, immediate stand state, and stale birth waits | [docs/games/warcraft-3/unit-spawn-lifecycle.md](docs/games/warcraft-3/unit-spawn-lifecycle.md) |

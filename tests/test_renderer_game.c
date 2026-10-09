@@ -49,6 +49,8 @@ static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
 static float test_walkable_hit_z;
+static unsigned ground_trace_count;
+static bool test_walkable_origin;
 static uint32_t test_alpha_draw_order, test_water_alpha_order, test_unit_alpha_order;
 
 TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
@@ -273,9 +275,12 @@ void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
 }
 
 bool R_TestWalkableSurfaceTrace(renderEntity_t const *surface, line3_t const *line, vec3_t *hit) {
-    (void)line;
+    ground_trace_count++;
     if (!surface || !(surface->flags & RF_GROUND_SURFACE) || !hit) return false;
-    hit->z = test_walkable_hit_z;
+    if (test_walkable_origin) {
+        if (line->a.x != surface->origin.x) return false;
+        *hit = surface->origin;
+    } else hit->z = test_walkable_hit_z;
     return true;
 }
 
@@ -1023,4 +1028,39 @@ TEST(renderer_terrain, cliff_types_store_absent_upper_tile_as_short_code) {
         T_EQ(rows[1].groundTile, MAKEFOURCC('O','a','b','y'));
     }
     FS_SLKFreeRows(cliff_schema, rows, count, sizeof(w3CliffType_t));
+}
+
+/* Geometry is stubbed here so this test isolates snapshot filtering, provider
+ * order and height aggregation; actual MDX tracing remains unchanged. */
+TEST(renderer_game, ground_support_compacts_providers_and_preserves_highest_hit) {
+    test_walkable_origin = true;
+    model_t model = {0};
+    renderEntity_t entities[260] = {0};
+    viewDef_t view = { .entities = entities, .num_entities = 260 };
+    FOR_LOOP(i, 260) {
+        entities[i].model = &model;
+        entities[i].flags = RF_GROUND_CONFORM;
+        entities[i].origin = (vec3_t){0, 0, 17};
+        entities[i].ground_offset = 3;
+    }
+    ground_trace_count = 0;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 0);
+    T_EQ(entities[0].origin.z, 17);
+    entities[257].flags = RF_GROUND_SURFACE;
+    entities[257].origin.z = -10;
+    entities[258].flags = RF_GROUND_SURFACE;
+    entities[258].origin.z = -5;
+    entities[259].flags = RF_GROUND_SURFACE | RF_HIDDEN;
+    entities[259].origin.z = 100;
+    entities[1].origin.x = 1;
+    entities[2].flags |= RF_HIDDEN;
+    R_ConformGroundSurfaces(&view);
+    T_EQ(ground_trace_count, 256 * 2);
+    T_EQ(entities[0].origin.z, -2);
+    T_EQ(entities[1].origin.z, 17);
+    T_EQ(entities[2].origin.z, 17);
+    T_EQ(entities[257].origin.z, -10);
+    T_EQ(entities[258].origin.z, -5);
+    test_walkable_origin = false;
 }

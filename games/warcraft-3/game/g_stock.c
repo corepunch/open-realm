@@ -132,7 +132,7 @@ static void G_ResetUnitStock(edict_t *unit) {
 /* Units created after a global slot change inherit the current capacities. */
 void G_InitStockSlots(edict_t *unit) {
     if (!unit || (!unit->stock && !G_IsItemShop(unit) && !G_IsUnitShop(unit) &&
-        !G_ActorHasSkill(unit, "Asid") && !G_ActorHasSkill(unit, "Asud"))) return;
+        !G_ActorHasAbilityCode(unit, MAKEFOURCC('A','s','i','d')) && !G_ActorHasAbilityCode(unit, MAKEFOURCC('A','s','u','d')))) return;
     if (!unit->stock) unit->stock = G_AllocStock();
     assert(unit->stock);
 
@@ -497,7 +497,7 @@ bool G_AddItemStock(edict_t *shop, uint32_t item_id, int32_t current, int32_t ma
     int32_t index;
     uint32_t limit;
 
-    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asid")) return false;
+    if (!shop || !shop->inuse || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','i','d'))) return false;
     item = G_ItemData(item_id);
     if (!item || item->id != item_id) return false;
 
@@ -521,7 +521,7 @@ bool G_AddItemStock(edict_t *shop, uint32_t item_id, int32_t current, int32_t ma
 void G_RemoveItemStock(edict_t *shop, uint32_t item_id) {
     int32_t index;
 
-    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asid")) return;
+    if (!shop || !shop->inuse || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','i','d'))) return;
     G_InitItemStock(shop);
     index = G_FindItemStockEntry(shop, item_id);
     if (index < 0) return;
@@ -533,12 +533,12 @@ void G_RemoveItemStock(edict_t *shop, uint32_t item_id) {
 }
 
 void G_AddItemStockAll(uint32_t item_id, int32_t current, int32_t maximum) {
-    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asid"))
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','i','d')))
         G_AddItemStock(shop, item_id, current, maximum);
 }
 
 void G_RemoveItemStockAll(uint32_t item_id) {
-    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asid"))
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','i','d')))
         G_RemoveItemStock(shop, item_id);
 }
 
@@ -644,7 +644,7 @@ bool G_AddUnitStock(edict_t *shop, uint32_t unit_id, int32_t current, int32_t ma
     int32_t index;
     uint32_t limit;
 
-    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asud")) return false;
+    if (!shop || !shop->inuse || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','u','d'))) return false;
     unit = G_UnitBalance(unit_id);
     if (!unit || unit->id != unit_id) return false;
 
@@ -668,7 +668,7 @@ bool G_AddUnitStock(edict_t *shop, uint32_t unit_id, int32_t current, int32_t ma
 void G_RemoveUnitStock(edict_t *shop, uint32_t unit_id) {
     int32_t index;
 
-    if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asud")) return;
+    if (!shop || !shop->inuse || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','u','d'))) return;
     G_InitUnitStock(shop);
     index = G_FindUnitStockEntry(shop, unit_id);
     if (index < 0) return;
@@ -680,12 +680,12 @@ void G_RemoveUnitStock(edict_t *shop, uint32_t unit_id) {
 }
 
 void G_AddUnitStockAll(uint32_t unit_id, int32_t current, int32_t maximum) {
-    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asud"))
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','u','d')))
         G_AddUnitStock(shop, unit_id, current, maximum);
 }
 
 void G_RemoveUnitStockAll(uint32_t unit_id) {
-    FILTER_EDICTS(shop, shop->inuse && G_ActorHasSkill(shop, "Asud"))
+    FILTER_EDICTS(shop, shop->inuse && G_ActorHasAbilityCode(shop, MAKEFOURCC('A','s','u','d')))
         G_RemoveUnitStock(shop, unit_id);
 }
 
@@ -1103,7 +1103,7 @@ bool G_ShopPawnItem(shopPawnItemParams_t *params) {
     uint32_t gold;
     uint32_t lumber;
 
-    if (!G_CanUseItemShop(client, shop) || !G_ActorHasSkill(shop, "Apit") ||
+    if (!G_CanUseItemShop(client, shop) || !G_ActorHasAbilityCode(shop, MAKEFOURCC('A','p','i','t')) ||
         !carrier || carrier->s.player != client->ps.number || !G_IsItem(item) ||
         item->item->carrier != carrier || item->item->in_world) return false;
     data = item->data.ItemData ? item->data.ItemData : G_ItemData(item->class_id);

@@ -1,4 +1,5 @@
 #include "s_skills.h"
+#include "games/warcraft-3/common/wc3_pathing_speed.h"
 
 /* Passive item stat bonuses — apply on pickup, reverse on drop.
  * Follows WarSmash pattern: CAbilityItemAttackBonus.onAdd/onRemove,
@@ -56,6 +57,38 @@ BZ_ABILITY_PROC(CAbilityAttributeBonus) {
     float sign = msg == A_ITEM_ADD ? 1.0f : -1.0f;
     apply_stat(ent, call->item->code, sign);
     return true;
+}
+
+/* Original AIms virtual184 returns its authored DataA. The unit's attached
+ * ability list reduces these contributions by maximum, never by addition. */
+BZ_ABILITY_PROC(CAbilityMoveSpeedBonus) {
+    if (msg == A_ITEM_ADD || msg == A_ITEM_REMOVE) return true;
+    if (msg != A_MOVE_SPEED_BONUS) return CAbilityPassive(ent, msg, call);
+    if (!ent || !call || !call->item || !call->move_speed_bonus) return false;
+    uint32_t level = call->source_item ? 1 : MAX(1, G_UnitAbilityLevel(ent, call->item->code));
+    float bonus = S_SpellData(call->item->code, level, 1);
+    *call->move_speed_bonus = wc3_speed_bonus_max(*call->move_speed_bonus, bonus);
+    return true;
+}
+
+float S_MoveSpeedBonus(edict_t *unit) {
+    float bonus = 0;
+    abilityCall_t query = MAKE(abilityCall_t, .move_speed_bonus = &bonus);
+    if (!unit) return 0;
+    S_UnitAbilityMessage(unit, A_MOVE_SPEED_BONUS, &query);
+    if (!G_InventoryCanUseItems(unit)) return bonus;
+    FOR_LOOP(i, MAX_INVENTORY) {
+        edict_t *item = unit->inventory[i];
+        cstring_t abilities = G_ItemAbilityList(item);
+        if (!abilities) continue;
+        PARSE_LIST(abilities, name, parse_segment) {
+            abilityitem_t entry = S_AbilityItem(FS_SLKKey(name));
+            if (!entry.ability || !(entry.ability->flags & AB_MOVE_SPEED_BONUS)) continue;
+            abilityCall_t call = MAKE(abilityCall_t, .item = &entry, .source_item = item, .move_speed_bonus = &bonus);
+            S_AbilityMessage(unit, A_MOVE_SPEED_BONUS, &call);
+        }
+    }
+    return bonus;
 }
 
 /* Item orb family (AIfb/AIlb/AIob/AIpb/AIcb/AIzb, retail parent AIDB).

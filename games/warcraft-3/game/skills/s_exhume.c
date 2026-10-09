@@ -71,6 +71,8 @@ static void exhume_ensure(edict_t *wagon) {
  * Dur = spawn interval, DataA = maximum authored corpse count, UnitID = corpse type.
  */
 BZ_ABILITY_PROC(CAbilityExhumeCorpses) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return S_UnitTypeHasAbilityCode(call->unit_type, BZ_AEXH) ? UNIT_UPDATE_RUN : UNIT_UPDATE_SKIP;
 	switch (msg) {
 	case A_UPDATE: exhume_ensure(ent); return true;
 	default: return false;

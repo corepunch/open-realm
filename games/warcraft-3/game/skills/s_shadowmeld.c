@@ -135,7 +135,19 @@ static void shadowmeld_update(edict_t *unit) {
  * distinct effect classes.  The Akama variant additionally disables automatic
  * enemy acquisition even when the player has not explicitly issued Hide. */
 static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call, bool akama) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_ASHM) ||
+        S_UnitTypeHasAbilityCode(call->unit_type, ID_AHID) ? UNIT_UPDATE_RUN : UNIT_UPDATE_POINTER(shadowmeld);
     switch (msg) {
+    case A_UNIT_TYPE_INIT:
+        /* Init only breaks an existing Hide state after ownership loss.
+         * Fresh units have no such state, including authored Hide owners. */
+        return ent ? UNIT_INIT_UNKNOWN : UNIT_INIT_SKIP_FALSE;
+    case A_UNIT_EVENT_MASK:
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_UPDATE, A_NO_ACQUIRE, A_NO_RETALIATE, A_TOGGLE_ON,
+            A_MOVE_LEAVE, A_ORDER_ACCEPTED, A_DISABLE, A_DEATH, A_UNIT_REMOVE,
+            A_UNIT_INIT, A_VALIDATE, A_EXECUTE, A_COMMAND);
     case A_UPDATE:
         shadowmeld_update(ent);
         return ent && shadowmeld_has_ability(ent);
@@ -166,6 +178,14 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return false;
     case A_VALIDATE:
         return ent && G_IsNight();
+    case A_ORDER: {
+        if (!call || !call->order || strcmp(call->order,"ambush")) return false;
+        /* Both classes expose Hide. The actual unit's authored alias owns
+         * validation/execution, including the Akama acquisition policy. */
+        abilityAliasRef_t ref=S_ResolveAbilityAlias(ent,akama ? ID_AHID : ID_ASHM);
+        if (!ref.alias) ref=S_ResolveAbilityAlias(ent,akama ? ID_ASHM : ID_AHID);
+        return ref.alias && S_CastNoTargetSpell(ent,ref.alias);
+    }
     case A_EXECUTE:
         if (!ent || !G_IsNight()) return false;
         order_stop_cleanup(ent);

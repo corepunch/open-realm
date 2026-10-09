@@ -263,7 +263,6 @@ TEST(wc3_shadowmeld, persistent_invisibility_uses_owner_ghost_alpha) {
     fix.unit->vertex_color_set = true;
 
     fix.unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
-    fix.unit->permanent_invisibility_reveal_until = 0;
     T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
     T_EQ(color.a, 70);
 
@@ -489,8 +488,8 @@ TEST(wc3_shadowmeld, attack_order_immediately_breaks_shadowmeld_and_hide) {
     edict_t *enemy;
     shadowmeld_setup(&fix);
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->attack1.type = ATK_NORMAL;
-    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
@@ -522,8 +521,8 @@ TEST(wc3_shadowmeld, explicit_hide_does_not_retaliate_when_hit_during_fade) {
     shadowmeld_setup(&fix);
     fix.unit->health.value = fix.unit->health.max_value = 100.0f;
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->attack1.type = ATK_NORMAL;
-    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
@@ -554,11 +553,11 @@ TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
     uint32_t i;
     shadowmeld_setup_as(&fix, MAKEFOURCC('E', 't', 'y', 'r'));
     fix.unit->data.UnitWeapons = &weapons;
-    fix.unit->attack1.type = ATK_NORMAL;
-    fix.unit->attack1.cooldown = 1.0f;
-    fix.unit->attack1.damageBase = 10;
-    fix.unit->attack1.range = 150.0f;
-    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(fix.unit, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(fix.unit, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(fix.unit, 0)->damageBase = 10;
+    S_AttackProfileWrite(fix.unit, 0)->range = 150.0f;
+    S_AttackProfileWrite(fix.unit, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     fix.unit->runtime.acquisition_range = 128.0f;
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
     enemy->s.player = 1;

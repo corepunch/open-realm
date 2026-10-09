@@ -1,6 +1,25 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../g_local.h"
+
+TEST(wc3_building, repeated_tech_queries_use_index_and_keep_first_free_slots) {
+    gameClient_t *client = game.clients;
+    FOR_LOOP(i, 200) G_SetPlayerTechMaxAllowed(client, 0x62000000u + i, i + 1);
+    T_EQ(client->tech[0].id, 0x62000000u);
+    T_EQ(client->tech[199].id, 0x62000000u + 199);
+    tech_lookup_work = 0;
+    FOR_LOOP(i, 1024) {
+        T_EQ(G_GetPlayerTechMaxAllowed(client, 0x62000000u + 199), 200);
+        T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    }
+    T_ASSERT(tech_lookup_work < 1024 * 8);
+    G_SetPlayerTechResearched(client, 0x65000000u, 3);
+    T_EQ(client->tech[200].id, 0x65000000u);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 3);
+    G_AddPlayerTechResearched(client, 0x65000000u, -3);
+    T_EQ(G_GetPlayerTechResearchedLevel(client, 0x65000000u), 0);
+    T_EQ(client->tech[200].id, 0x65000000u);
+}
 #include "../hud/hud_local.h"
 #include "../skills/s_skills.h"
 #include "jass/jass.h"
@@ -540,7 +559,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->currentmove = &birth;
+    M_SetMove(building,&birth);
     building->health.value = building->health.max_value * 0.5f;
     gi.Write = building_queue_capture_write;
     gi.ImageIndex = building_test_image_index;
@@ -557,7 +576,7 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
+    M_SetMove(building,NULL);
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
     building->research->upgrade = building->class_id;
@@ -609,7 +628,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
     building->build = building;
     if (!building->construction) building->construction = G_AllocConstruction();
     assert(building->construction);
-    building->currentmove = &birth;
+    M_SetMove(building,&birth);
     G_InvalidateUnitInfoPanel(building);
     T_ASSERT(G_GetMainSelectedUnit(client) == building);
     T_ASSERT(UI_TestUsesBuildingQueuePanel(client, building));
@@ -623,7 +642,7 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
 
     building->build = NULL;
     G_FreeConstruction(building);
-    building->currentmove = NULL;
+    M_SetMove(building,NULL);
     if (!building->research) building->research = G_AllocResearch();
     assert(building->research);
     building->research->upgrade = building->class_id;
@@ -668,6 +687,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
     trainee->food->used = 1;
     trainee->health.max_value = 100.0f;
     trainee->health.value = 50.0f;
+    G_EnsureUnitStatusSlots(building);
     building->abilstatus[0] = (heroabilitystatus_t){
         .code = MAKEFOURCC('B','u','n','s'), .level = 1 };
     G_SelectEntity(client, building);
@@ -1152,13 +1172,13 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 2;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 2;
     unit->armor_value = 3.0f;
 
     G_SetPlayerTechResearched(client, weapon, 1);
-    T_EQ(unit->attack1.numberOfDice, 3);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 3);
     G_SetPlayerTechResearched(client, weapon, 2);
-    T_EQ(unit->attack1.numberOfDice, 4);
+    T_EQ(S_AttackProfileRead(unit, 0)->numberOfDice, 4);
 
     G_SetPlayerTechResearched(client, armor, 1);
     T_FEQ(unit->armor_value, 5.0f, 0.001f);
@@ -1168,10 +1188,10 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
     future = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->attack1.numberOfDice = 2;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 2;
     future->armor_value = 3.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_EQ(future->attack1.numberOfDice, 4);
+    T_EQ(S_AttackProfileRead(future, 0)->numberOfDice, 4);
     T_FEQ(future->armor_value, 7.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, weapon, 0);
@@ -1190,28 +1210,28 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 1;
-    unit->attack1.damageBase = 10;
-    unit->attack2.numberOfDice = 1;
-    unit->attack2.damageBase = 20;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->damageBase = 10;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->damageBase = 20;
 
     G_SetPlayerTechResearched(client, attack_damage, 1);
-    T_EQ(unit->attack1.damageBase, 12);
-    T_EQ(unit->attack2.damageBase, 22);
-    T_FEQ(unit->attack1.permanentDamageBonus, 2.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 2.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 12);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 22);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 2.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 2.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 3);
-    T_EQ(unit->attack1.damageBase, 14);
-    T_EQ(unit->attack2.damageBase, 24);
-    T_FEQ(unit->attack1.permanentDamageBonus, 4.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 4.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 14);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 24);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 4.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 4.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, attack_damage, 0);
-    T_EQ(unit->attack1.damageBase, 10);
-    T_EQ(unit->attack2.damageBase, 20);
-    T_FEQ(unit->attack1.permanentDamageBonus, 0.0f, 0.001f);
-    T_FEQ(unit->attack2.permanentDamageBonus, 0.0f, 0.001f);
+    T_EQ(S_AttackProfileRead(unit, 0)->damageBase, 10);
+    T_EQ(S_AttackProfileRead(unit, 1)->damageBase, 20);
+    T_FEQ(S_AttackProfileRead(unit, 0)->permanentDamageBonus, 0.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->permanentDamageBonus, 0.0f, 0.001f);
 
     building_restore_upgrade_data(old, rows);
 }
@@ -1228,30 +1248,30 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
     memset(client->tech, 0, sizeof(client->tech));
     unit->s.player = client->ps.number;
     unit->data.UnitBalance = &balance;
-    unit->attack1.numberOfDice = 1;
-    unit->attack1.range = 400.0f;
-    unit->attack2.numberOfDice = 1;
-    unit->attack2.range = 250.0f;
+    S_AttackProfileWrite(unit, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 0)->range = 400.0f;
+    S_AttackProfileWrite(unit, 1)->numberOfDice = 1;
+    S_AttackProfileWrite(unit, 1)->range = 250.0f;
 
     G_SetPlayerTechResearched(client, long_rifles, 1);
-    T_FEQ(unit->attack1.range, 537.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 387.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 537.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 387.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 3);
-    T_FEQ(unit->attack1.range, 559.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 409.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 409.0f, 0.001f);
 
     future = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
     future->s.player = client->ps.number;
     future->data.UnitBalance = &balance;
-    future->attack1.numberOfDice = 1;
-    future->attack1.range = 400.0f;
+    S_AttackProfileWrite(future, 0)->numberOfDice = 1;
+    S_AttackProfileWrite(future, 0)->range = 400.0f;
     G_ApplyPlayerUpgradesToUnit(future);
-    T_FEQ(future->attack1.range, 559.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(future, 0)->range, 559.0f, 0.001f);
 
     G_SetPlayerTechResearched(client, long_rifles, 0);
-    T_FEQ(unit->attack1.range, 400.0f, 0.001f);
-    T_FEQ(unit->attack2.range, 250.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 0)->range, 400.0f, 0.001f);
+    T_FEQ(S_AttackProfileRead(unit, 1)->range, 250.0f, 0.001f);
     building_restore_upgrade_data(old, rows);
 }
 
@@ -1797,7 +1817,7 @@ TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
     tree->data.UnitAbilities = &tree_abilities;
     tree->s.flags |= EF_BUILDING;
     tree->aiflags |= AI_IMMOBILE;
-    town_hall->currentmove = tree->currentmove = &birth;
+    M_SetMove(town_hall,&birth); M_SetMove(tree,&birth);
 
     T_ASSERT(G_ProducerCanTrain(town_hall, peasant_id));
     T_ASSERT(G_ProducerCanUpgrade(town_hall, keep_id));
@@ -2348,7 +2368,7 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     owner->connected = viewer->connected = true;
     producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     producer->s.player = owner->ps.number;
-    producer->selected |= 1 << viewer->ps.number;
+    G_SetEntitySelectionMask(producer, producer->selected | (1 << viewer->ps.number));
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(&viewer->ps, &owner->ps, ALLIANCE_SHARED_CONTROL, true);
     owner->commands_dirty = viewer->commands_dirty = false;
@@ -2356,6 +2376,60 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
     G_InvalidateCommands(owner);
     T_ASSERT(owner->commands_dirty);
     T_ASSERT(viewer->commands_dirty);
+
+    /* A batch repeats invalidation without repeating the selection scan. An
+     * independent viewer rebuild must still see the next owner change. */
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateCommands(owner);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateCommands(owner);
+    T_ASSERT(viewer->commands_dirty);
+    T_ASSERT(G_GetTestSelectionChecks() > 0);
+
+    G_ResetTestSelectionChecks();
+    FOR_LOOP(i, 4096) G_InvalidateUnitCommands(producer);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+    viewer->commands_dirty = false;
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 1);
+
+    G_SetEntitySelectionMask(producer, 0);
+    owner->commands_dirty = viewer->commands_dirty = false;
+    G_ResetTestSelectionChecks();
+    G_InvalidateUnitCommands(producer);
+    T_ASSERT(!owner->commands_dirty && !viewer->commands_dirty);
+    T_EQ(G_GetTestSelectionChecks(), 0);
+}
+
+TEST(wc3_building, rally_invalidation_visits_only_producers_and_checks_identity) {
+    reset_entities(); setup_test_world();
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    edict_t *other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 128);
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    UnitProfile_t profile = {.trains = "hfoo"};
+    producer->data.UnitProfile = &profile;
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    G_InvalidateRallyTarget(other); /* build derived membership once */
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 1024);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time++;
+    G_InvalidateRallyTarget(target);
+    T_NOT_NULL(producer->rally);
+    target->spawn_time--;
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    rally_invalidation_visits = 0;
+    FOR_LOOP(i, 1024) G_InvalidateRallyTarget(other);
+    T_EQ(rally_invalidation_visits, 0);
+    T_ASSERT(G_SetRallyEntity(producer, target));
+    S_InvalidateRallyProducers(); /* map/save replacement rebuild */
+    G_InvalidateRallyTarget(target);
+    T_NULL(producer->rally);
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_building, advanced_control_grant_and_revoke_dirty_viewer_card) {
@@ -2952,9 +3026,9 @@ TEST(wc3_building, placement_flags_decode_warsmash_pathing_predicates) {
 }
 
 TEST(wc3_building, placement_unamph_is_compound_walk_and_swim_blocker) {
-    uint8_t const land = CM_PATHING_UNSWIMMABLE;
+    uint8_t const land = CM_PATHING_UNFLOATABLE;
     uint8_t const water = CM_PATHING_UNWALKABLE;
-    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE;
+    uint8_t const neither = CM_PATHING_UNWALKABLE | CM_PATHING_UNFLOATABLE;
 
     T_ASSERT(!G_PlacementPathingPrevented(land, WC3_PATH_UNAMPH, false));
     T_ASSERT(!G_PlacementPathingPrevented(water, WC3_PATH_UNAMPH, false));
@@ -3033,7 +3107,7 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         T_EQ(required, 0);
 
         building_set_test_water_surface(false);
-        memset(pathmap, CM_PATHING_UNSWIMMABLE, sizeof(pathmap));
+        memset(pathmap, CM_PATHING_UNFLOATABLE, sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
@@ -3044,7 +3118,7 @@ TEST(wc3_building, naga_structures_allow_land_and_shallow_but_reject_deep_water)
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_OK);
 
-        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNSWIMMABLE,
+        memset(pathmap, CM_PATHING_UNWALKABLE | WC3_PATH_UNBUILDABLE | CM_PATHING_UNFLOATABLE,
                sizeof(pathmap));
         setup_test_pathmap(CELLS, CELLS, pathmap);
         T_EQ(G_EvaluateBuildPlacement(builder, building, &requested, NULL), PLACE_TERRAIN_BLOCKED);
@@ -3133,9 +3207,9 @@ TEST(wc3_building, melee_race_buildings_reject_naga_shallow_water_cells) {
 }
 
 TEST(wc3_building, placement_unfloat_uses_unswimmable_channel) {
-    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT, false));
+    T_ASSERT(G_PlacementPathingPrevented(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT, false));
     T_ASSERT(!G_PlacementPathingPrevented(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT, false));
-    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNSWIMMABLE, WC3_PATH_UNFLOAT));
+    T_ASSERT(G_PlacementPathingRequired(CM_PATHING_UNFLOATABLE, WC3_PATH_UNFLOAT));
     T_ASSERT(!G_PlacementPathingRequired(CM_PATHING_UNWALKABLE, WC3_PATH_UNFLOAT));
 }
 
@@ -3252,7 +3326,9 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     static uint8_t pathmap[CELLS * CELLS];
     static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
     static UnitAbilities_t const abilities = { .abilList = "Arep" };
-    static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
+    static UnitData_t const worker_data = {
+        .moveTypeName = "foot", .race = STR_HUMAN, .turnRate = 0.6f, .propWin = 60
+    };
     edict_t *farm, *barracks, *townhall;
     vec2_t const farm_point = { -1360.0f, -4608.0f };
     vec2_t const barracks_point = { -1744.0f, -3536.0f };
@@ -3315,7 +3391,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     level.started = true;
     level.scriptsStarted = true;
     FOR_LOOP(frame, 240) {
-        globals.RunFrame();
+        level.time += FRAMETIME; globals.RunFrame();
         FOR_LOOP(i, 3) {
             if (issued[i] || workers[i]->s.origin2.x < region_min[i].x ||
                 workers[i]->s.origin2.x > region_max[i].x ||
@@ -3338,7 +3414,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 T_ASSERT(workers[1]->goalentity == barracks_goal);
                 T_ASSERT(move_is_active_order_walk(workers[1]));
                 T_ASSERT(workers[i]->build_preview->aiflags & AI_HOLD_FRAME);
-                T_STREQ(workers[i]->build_preview->animation_request, "stand");
+                T_STREQ(G_UnitAnimationRequest(workers[i]->build_preview), "stand");
                 if (workers[i]->build_preview->animation) {
                     T_ASSERT(G_AnimationHasPrimary(workers[i]->build_preview->animation, "stand"));
                     T_EQ(workers[i]->build_preview->s.frame,
@@ -3402,6 +3478,125 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     gi.MemFree(pathtex);
 }
 
+/* An idle footprint occupant must execute the accepted escape, not merely
+ * retain a displacement flag while its stand thinker runs forever. */
+TEST(wc3_building, construction_displacement_starts_idle_move_and_arrives) {
+    enum { CELLS = 128, FOOTPRINT = 9 };
+    static uint8_t pathmap[CELLS * CELLS];
+    size_t const bytes = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    edict_t *builder, *worker, *building, *other;
+    pathTex_t *pathtex;
+    vec2_t start, target;
+
+    FOR_LOOP(inside, 2) {
+        reset_entities();
+        setup_test_world();
+        memset(pathmap, 0, sizeof(pathmap));
+        pathmap[96 * CELLS + 96] = CM_PATHING_UNWALKABLE;
+        setup_test_pathmap(CELLS, CELLS, pathmap);
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048, -2048 }, .max = { 2048, 2048 }));
+        builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512, -512);
+        worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, inside ? -64 : -192);
+        building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0, 0);
+        builder->s.player = worker->s.player = building->s.player = game.clients[0].ps.number;
+        builder->svflags |= SVF_MONSTER;
+        worker->svflags |= SVF_MONSTER;
+        building->svflags |= SVF_MONSTER;
+        builder->stand = worker->stand = building->stand = unit_stand;
+        worker->movetype = MOVETYPE_STEP;
+        worker->think = monster_think;
+        worker->collision = 16;
+        unit_stand(worker);
+        building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
+        pathtex = gi.MemAlloc(bytes);
+        memset(pathtex, 0, bytes);
+        pathtex->width = pathtex->height = FOOTPRINT;
+        FOR_LOOP(i, FOOTPRINT * FOOTPRINT) pathtex->map[i].b = 0xff;
+        building->pathtex = pathtex;
+        other = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -1024, 1024);
+        other->s.flags |= EF_BUILDING;
+        other->pathtex = pathtex;
+        gi.LinkEntity(other);
+        gi.LinkEntity(builder);
+        gi.LinkEntity(worker);
+        gi.LinkEntity(building);
+        CM_BakeStaticObstacles();
+        start = worker->s.origin2;
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        target = worker->movement.displacement_target;
+        T_ASSERT(move_displacement_active(worker));
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(move_is_active_order_walk(worker));
+        T_EQ(worker->current_order_id, G_OrderId("move"));
+        building->s.flags &= ~EF_NOT_SELECTABLE;
+        T_ASSERT(G_StartHumanConstruction(builder, building));
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 120) {
+            bool escaping = move_displacement_active(worker);
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (escaping && !move_displacement_active(worker) && !inside)
+                T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+            /* Escape ownership can retire before the retained point order.
+             * Exercise both transitions instead of ending the simulation early. */
+            if (!move_displacement_active(worker) && !worker->current_order_id) break;
+        }
+        if (inside) {
+            /* Original stock-mask solid-widget witness cannot leave its retained
+             * footprint, but finishes its recovery chain instead of walking forever. */
+            T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &target) > worker->collision);
+        } else {
+            T_ASSERT(Vector2_distance(&worker->s.origin2, &start) > 1);
+            T_FEQ(Vector2_distance(&worker->s.origin2, &target), 0, 0.001f);
+        }
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        T_ASSERT(!move_is_active_order_walk(worker));
+        T_EQ(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision), !inside);
+        T_ASSERT(!CM_PointIsPathableForRadius(&building->s.origin2, 0));
+        /* A replacement public Move cancels the temporary escape and owns its
+         * new destination; the construction footprint remains blocked. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        vec2_t const later = { 0, -512 };
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &later, false, worker->s.player, 0));
+        T_ASSERT(!move_displacement_active(worker));
+        FOR_LOOP(frame, 120) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+            if (!worker->current_order_id) break;
+        }
+        T_ASSERT(Vector2_distance(&worker->s.origin2, &later) <= .49f * CM_PathCellWorldSize() + .001f);
+        T_EQ(worker->current_order_id, 0);
+        /* Stop owns the interruption, including removal of the temporary target.
+         * Normal frames must keep the worker stationary after the command. */
+        worker->s.origin2 = (vec2_t){ 0, -192 };
+        gi.LinkEntity(worker);
+        T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+        T_ASSERT(move_displacement_active(worker));
+        T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+        T_ASSERT(!move_displacement_active(worker));
+        T_EQ(worker->current_order_id, 0);
+        start = worker->s.origin2;
+        FOR_LOOP(frame, 8) {
+            level.time += FRAMETIME;
+            globals.RunFrame();
+        }
+        T_FEQ(Vector2_distance(&worker->s.origin2, &start), 0, 0.001f);
+        T_ASSERT(!CM_PointIsPathableForRadius(&MAKE(vec2_t, .x = 1040, .y = 1040), 0));
+        T_ASSERT(!CM_PointIsPathableForRadius(&other->s.origin2, 0));
+        other->pathtex = NULL;
+        building->pathtex = NULL;
+        gi.MemFree(pathtex);
+    }
+}
+
 /* A construction can invalidate the old straight route while a second worker
  * is still travelling to its later build site.  This is the Human04 failure:
  * the worker is in the reservation/approach lane, not yet overlapping the
@@ -3447,7 +3642,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_FEQ(worker->s.origin2.x, before_displace.x, 0.001f);
     T_FEQ(worker->s.origin2.y, before_displace.y, 0.001f);
     T_ASSERT(move_displacement_active(worker));
-    T_STREQ(worker->animation_request, "walk");
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
     T_ASSERT(worker->goalentity == waypoint);
     T_ASSERT(move_is_active_order_walk(worker));
 
@@ -3459,16 +3654,25 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     level.started = true;
     level.scriptsStarted = true;
-    globals.RunFrame();
+    level.time += FRAMETIME; globals.RunFrame();
     after_first_step = worker->s.origin2;
-    T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
+    /* Stock propagation gating can hold movement while turning. The first
+     * snapshot may contain only the remaining part of its movement interval. */
+    FOR_LOOP(frame, 8) {
+        if (Vector2_distance(&after_first_step, &before_displace) > 0.001f) break;
+        T_ASSERT(worker->movement.turn_blocked);
+        level.time += FRAMETIME; globals.RunFrame();
+        after_first_step = worker->s.origin2;
+    }
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) > 0);
+    T_ASSERT(Vector2_distance(&after_first_step, &before_displace) <= normal_step + 0.001f);
+    T_ASSERT(move_displacement_active(worker));
     /* Sample mid-displacement. The route-heading stepper covers the 192-unit exit in about eight 27-unit
      * steps, so the old eight-frame sample sat on the arrival threshold and flipped with libm rounding. */
-    FOR_LOOP(frame, 3) globals.RunFrame();
+    FOR_LOOP(frame, 3) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
-    T_ASSERT(move_displacement_active(worker));
-    T_STREQ(worker->animation_request, "walk");
-    FOR_LOOP(frame, 240) globals.RunFrame();
+    T_STREQ(G_UnitAnimationRequest(worker), "walk");
+    FOR_LOOP(frame, 240) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);
     T_ASSERT(!move_displacement_active(worker));
     T_ASSERT(worker->goalentity == waypoint);
@@ -3479,7 +3683,7 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     gi.MemFree(pathtex);
 }
 
-TEST(wc3_building, construction_start_and_completion_clear_occupants) {
+TEST(wc3_building, construction_displacement_reserves_distinct_exits_before_start) {
     enum { CELLS = 128, FOOTPRINT = 9 };
     static uint8_t pathmap[CELLS * CELLS];
     size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
@@ -3493,8 +3697,8 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
                                   .max = { 2048.0f, 2048.0f }));
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
-    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
-    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), center.x, center.y);
+    occupant = alloc_test_unit(MAKEFOURCC('h','f','o','o'), -64.0f, -192.0f);
+    occupant2 = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, -192.0f);
     building = alloc_test_unit(MAKEFOURCC('h','t','o','w'), center.x, center.y);
     occupant->svflags |= SVF_MONSTER;
     occupant->s.model = 1;
@@ -3504,6 +3708,10 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     occupant2->s.model = 1;
     occupant2->movetype = MOVETYPE_STEP;
     occupant2->collision = 16.0f;
+    occupant->stand = occupant2->stand = unit_stand;
+    occupant->think = occupant2->think = monster_think;
+    occupant->unitinfo.MoveSpeed = occupant2->unitinfo.MoveSpeed = 320.0f;
+    unit_stand(occupant); unit_stand(occupant2);
     building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
     building->stand = unit_stand;
     pathtex = gi.MemAlloc(pathtex_size);
@@ -3514,23 +3722,39 @@ TEST(wc3_building, construction_start_and_completion_clear_occupants) {
     gi.LinkEntity(builder); gi.LinkEntity(occupant); gi.LinkEntity(occupant2); gi.LinkEntity(building);
     CM_BakeStaticObstacles();
 
+    /* Both workers occupy the approach margin used by the real Build path.
+     * Their existing routes are cut by construction. Planning must reserve
+     * distinct exits before committing either Move order. */
+    vec2_t const first_start = occupant->s.origin2, second_start = occupant2->s.origin2;
+    T_ASSERT(G_DisplaceBuildOccupants(builder, building));
+    building->s.flags &= ~EF_NOT_SELECTABLE;
     T_ASSERT(G_StartHumanConstruction(builder, building));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_start), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_start), 0, 0);
+    T_ASSERT(move_displacement_active(occupant));
+    T_ASSERT(move_displacement_active(occupant2));
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_ASSERT(Vector2_distance(&occupant->movement.displacement_target,
+        &occupant2->movement.displacement_target) >= occupant->collision + occupant2->collision);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started = level.scriptsStarted = true;
+    FOR_LOOP(frame, 60) { level.time += FRAMETIME; globals.RunFrame(); }
+    T_ASSERT(!move_displacement_active(occupant));
+    T_ASSERT(!move_displacement_active(occupant2));
+    T_ASSERT(Vector2_distance(&occupant->s.origin2, &first_start) > occupant->collision);
+    T_ASSERT(Vector2_distance(&occupant2->s.origin2, &second_start) > occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
     T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
              occupant->collision + occupant2->collision);
 
-    /* Walk-through construction allows a unit to enter again. Completion
-     * must clear it after the finished footprint has been baked. */
-    occupant->s.origin2 = center;
-    occupant->s.origin.x = center.x;
-    occupant->s.origin.y = center.y;
-    gi.LinkEntity(occupant);
-    occupant2->s.origin2 = center;
-    occupant2->s.origin.x = center.x;
-    occupant2->s.origin.y = center.y;
-    gi.LinkEntity(occupant2);
+    /* The real unfinished footprint already blocks routes. Completion keeps
+     * it solid and does not teleport the units that have already escaped. */
+    vec2_t const first_exit = occupant->s.origin2, second_exit = occupant2->s.origin2;
     G_CompleteConstruction(building);
+    T_ASSERT(!CM_PointIsPathableForRadius(&center, 0));
+    T_FEQ(Vector2_distance(&occupant->s.origin2, &first_exit), 0, 0);
+    T_FEQ(Vector2_distance(&occupant2->s.origin2, &second_exit), 0, 0);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &center) >= occupant->collision);
     T_ASSERT(Vector2_distance(&occupant2->s.origin2, &center) >= occupant2->collision);
     T_ASSERT(Vector2_distance(&occupant->s.origin2, &occupant2->s.origin2) >=
@@ -4361,6 +4585,21 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     level.events.read = level.events.write = 0;
 
+    T_ASSERT(run_test_jass("globals\ninteger deathFamilies=0\nendglobals\n"
+        "function unitDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==1,\"unit death follows player death\")\n"
+        "set deathFamilies=deathFamilies+1\nendfunction\n"
+        "function playerDeath takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call BJassAssert(deathFamilies==0,\"player death delivered once\")\n"
+        "set deathFamilies=deathFamilies+1\n"
+        "call TriggerRegisterUnitEvent(t,GetDyingUnit(),EVENT_UNIT_DEATH)\n"
+        "call TriggerAddAction(t,function unitDeath)\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal trigger t=CreateTrigger()\n"
+        "call TriggerRegisterPlayerUnitEvent(t,Player(0),EVENT_PLAYER_UNIT_DEATH,null)\n"
+        "call TriggerAddAction(t,function playerDeath)\nendfunction\n"
+        "function checkDeath takes nothing returns nothing\n"
+        "call BJassAssert(deathFamilies==2,\"cancel delivered both death families synchronously\")\nendfunction\n"));
+
     T_ASSERT(G_CancelStructureConstruction(building));
 
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
@@ -4372,11 +4611,11 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
     T_ASSERT(!builder->buildwork || builder->buildwork->ability == 0);
     T_ASSERT(!building->food || building->food->used == 0);
     T_EQ(G_GetPlayerTechCountValue(client, barracks), 0);
-    T_EQ(level.events.write, 4);
+    T_EQ(level.events.write, 2);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_CONSTRUCT_CANCEL);
-    T_EQ(level.events.queue[2].type, EVENT_UNIT_DEATH);
-    T_EQ(level.events.queue[3].type, EVENT_PLAYER_UNIT_DEATH);
+    jass_callbyname(level.vm,"checkDeath",false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
     T_ASSERT(level.events.queue[0].edict == building);
     T_ASSERT(!G_CancelStructureConstruction(building));
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 75);
@@ -5206,7 +5445,7 @@ TEST(wc3_building, autocast_command_updates_only_focused_unit_type_subgroup) {
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
 
@@ -5238,7 +5477,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
     FOR_LOOP(i, sizeof(units) / sizeof(units[0])) {
         units[i]->data.UnitAbilities = &abilities;
         units[i]->s.player = 0;
-        units[i]->selected = 1;
+        G_SetEntitySelectionMask(units[i], 1);
     }
     T_ASSERT(G_FocusSelectedUnit(game.clients, first));
     T_ASSERT(G_SetUnitAutocast(first, code, true));
@@ -5261,7 +5500,7 @@ TEST(wc3_building, autocast_mixed_focused_subgroup_displays_off_and_normalizes_o
 
 TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
     edict_t *worker;
-    UnitAbilities_t abilities = { .abilList = "Aren" };
+    UnitAbilities_t abilities = { .abilList = "Arep" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
 
@@ -5269,7 +5508,7 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     worker->data.UnitAbilities = &abilities;
-    repair = FindAbilityForCommand("Aren");
+    repair = FindAbilityForCommand("Arep");
 
     T_NOT_NULL(repair);
     T_EQ(G_OrderId("repair"), 852024);
@@ -5490,8 +5729,8 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
     worker->data.UnitAbilities = &abilities;
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->attack1.cooldown = 1.0f;
-    worker->attack1.damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
     building->s.player = worker->s.player;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
@@ -5527,10 +5766,10 @@ TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     worker->svflags |= SVF_MONSTER;
     worker->runtime.acquisition_range = 400.0f;
-    worker->attack1.type = ATK_NORMAL;
-    worker->attack1.cooldown = 1.0f;
-    worker->attack1.damageBase = 1;
-    worker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    S_AttackProfileWrite(worker, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(worker, 0)->cooldown = 1.0f;
+    S_AttackProfileWrite(worker, 0)->damageBase = 1;
+    S_AttackProfileWrite(worker, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND;
     enemy->s.player = 1;
     enemy->svflags |= SVF_MONSTER;
     enemy->targtype = TARG_GROUND;
@@ -5578,7 +5817,7 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
     building_restore_repair_data(old_abilities, rows);
 }
 
-TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
+TEST(wc3_building, normal_target_order_routes_renew_through_repair_behavior) {
     edict_t *worker;
     edict_t *building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
@@ -5593,7 +5832,7 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
 
-    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", building, false, worker->s.player));
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "renew", building, false, worker->s.player));
     T_ASSERT(worker->build == building);
     T_EQ(worker->buildwork->ability, MAKEFOURCC('A','r','e','n'));
 
@@ -5736,7 +5975,7 @@ static edict_t *building_queued_build_preview(edict_t *worker, uint32_t queue_of
     uint32_t slot;
 
     if (!worker || queue_offset >= worker->order_queue.count) return NULL;
-    slot = (worker->order_queue.head + queue_offset) % MAX_UNIT_ORDER_QUEUE;
+    slot = (worker->order_queue.head + queue_offset) % worker->order_queue.capacity;
     queued = &worker->order_queue.entries[slot];
     if (queued->target_type != UNIT_ORDER_TARGET_BUILD || !queued->target_number ||
         queued->target_number >= globals.num_edicts) {
@@ -5928,10 +6167,12 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
     T_ASSERT(G_UnitHasActiveOrder(worker));
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
@@ -5971,10 +6212,12 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     clent->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    G_FinishMovePathingInitialization();
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
     FOR_LOOP(i, 120) {
         level.time += FRAMETIME;
-        G_RunEntities();
-        CM_ProcessPathJobs(65536);
+        globals.RunFrame();
         if (!G_UnitQueuedOrderCount(worker)) break;
     }
 
@@ -6002,7 +6245,7 @@ TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     strlcpy(level.map_path, "Maps\\Campaign\\QueuedBuildSaveTest.w3m", sizeof(level.map_path));
     T_ASSERT(WriteGame(filename));
 
-    memset(&worker->order_queue, 0, sizeof(worker->order_queue));
+    G_ClearUnitOrderQueue(worker);
     preview->inuse = false;
     T_ASSERT(ReadGame(filename));
     worker = g_edicts + worker_number;
@@ -6221,7 +6464,7 @@ TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_wo
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
     clent->build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;
@@ -6249,7 +6492,7 @@ TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
     G_SelectEntity(client, worker);
     client->menu.on_location_selected = build_menu_send_builder;
     clent->build_project = MAKEFOURCC('h','b','a','r');
-    worker->goalentity = NULL;
+    S_SetMoveGoal(worker, &worker->goalentity, NULL);
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
     gi.Write = building_capture_write;

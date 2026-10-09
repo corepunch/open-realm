@@ -8,6 +8,7 @@
 #include "jstate.h"
 #include "jvm.h"
 #include "jparser.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 //#define DEBUG_JASS
 
@@ -22,7 +23,7 @@
 #define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
-#define BZ_JASS_SNAPSHOT_VERSION 8 // format version; v8 persists GetEnumUnit callback context
+#define BZ_JASS_SNAPSHOT_VERSION 10 // persist retail borrowed clock and upstream dialogue event context
 #define BZ_JASS_SNAPSHOT_MAX_COUNT (1u << 20) // records; bounds allocations and list walks from corrupt snapshots
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
@@ -30,6 +31,7 @@ typedef struct {
     trigger_t *trigger;
     edict_t *unit;
     edict_t *source;
+    EVENTTYPE type;
     int32_t value;
     uint32_t dialog_id, dialog_button_id;
     player_t *event_player;
@@ -210,7 +212,11 @@ uint32_t __add(jass_t *j) {
 
 uint32_t __unm(jass_t *j) {
     if (jass_gettype(j, 1) == jasstype_integer) {
-        return jass_pushinteger(j, -jass_checkinteger(j, 1));
+        /* A source unary minus wraps32, including the observed INT_MIN boundary. */
+        uint32_t word = 0u - (uint32_t)jass_checkinteger(j, 1);
+        int32_t value;
+        memcpy(&value, &word, sizeof(value));
+        return jass_pushinteger(j, value);
     } else {
         return jass_pushnumber(j, -jass_checknumber(j, 1));
     }
@@ -219,6 +225,47 @@ uint32_t __unm(jass_t *j) {
 JASS_NUMOP(__sub, -);
 JASS_NUMOP(__mul, *);
 JASS_NUMOP(__div, /);
+
+/* Bytecode17 promotes integers with070d80, not a rounded host conversion. */
+static float jass_wc3number(jass_t *j, int index) {
+    if (jass_gettype(j,index)==jasstype_integer)
+        return wc3_float(wc3_from_int(jass_checkinteger(j,index)));
+    return jass_checknumber(j,index);
+}
+
+/* Retail ADD/SUB/IMUL wrap32; the scalar branch shares Move's proven helpers. */
+#define JASS_WC3_NUMOP(NAME, OP, SCALAR) \
+static uint32_t NAME(jass_t *j) { \
+    if (jass_gettype(j,1)==jasstype_integer && jass_gettype(j,2)==jasstype_integer) { \
+        uint32_t word=(uint32_t)jass_checkinteger(j,1) OP (uint32_t)jass_checkinteger(j,2); \
+        int32_t value; memcpy(&value,&word,sizeof(value)); \
+        return jass_pushinteger(j,value); \
+    } \
+    float a=jass_wc3number(j,1),b=jass_wc3number(j,2); \
+    return jass_pushnumber(j,SCALAR(a,b)); \
+}
+JASS_WC3_NUMOP(jass_wc3add, +, wc3_add);
+JASS_WC3_NUMOP(__wc3_sub, -, wc3_sub);
+JASS_WC3_NUMOP(__wc3_mul, *, wc3_mul);
+
+static uint32_t __wc3_add(jass_t *j) {
+    if (jass_gettype(j,1)==jasstype_string && jass_gettype(j,2)==jasstype_string)
+        return __add(j);
+    return jass_wc3add(j);
+}
+
+static uint32_t __wc3_div(jass_t *j) {
+    if (jass_gettype(j,1)==jasstype_integer && jass_gettype(j,2)==jasstype_integer) {
+        int32_t a=jass_checkinteger(j,1),b=jass_checkinteger(j,2);
+        if (!b) { jass_rterror(j,"division by zero"); return 0; }
+        /* Original IDIV faults here; do not invoke undefined C arithmetic. */
+        if (a==INT32_MIN && b==-1) { jass_rterror(j,"integer division overflow"); return 0; }
+        return jass_pushinteger(j,a/b);
+    }
+    float a=jass_wc3number(j,1),b=jass_wc3number(j,2);
+    if (!b) { jass_rterror(j,"division by zero"); return 0; }
+    return jass_pushnumber(j,wc3_div(a,b));
+}
 JASS_CMPOP(__le, <=);
 JASS_CMPOP(__ge, >=);
 JASS_CMPOP(__gt, >);
@@ -296,6 +343,10 @@ uint32_t __xor(jass_t *j) {
 }
 
 jassModule_t jass_operators[] = {
+    JASS_OPERATOR(__wc3_add),
+    JASS_OPERATOR(__wc3_sub),
+    JASS_OPERATOR(__wc3_mul),
+    JASS_OPERATOR(__wc3_div),
     JASS_OPERATOR(__add),
     JASS_OPERATOR(__sub),
     JASS_OPERATOR(__mul),
@@ -510,6 +561,10 @@ jasscoroutine_t *jass_startcoroutine(jass_t *j, jassContext_t const *context) {
     co_state->stack_pointer = co_state->stack;
     co_state->num_stack = 0;
     co_state->context = *context;
+    if (!co_state->context.hasTimerClock && jass_getcontext(j)->hasTimerClock) {
+        co_state->context.timer_clock = jass_getcontext(j)->timer_clock;
+        co_state->context.hasTimerClock = true;
+    }
     /* Event-response state and GetLocalPlayer() selection are independent.
      * Nested TriggerExecute/ExecuteFunc calls inherit the event response from
      * their parent coroutine, while local-player branches inherit only the
@@ -653,6 +708,7 @@ void jass_sleep(jass_t *j, uint32_t msec) {
     }
     co->wake_time = jass_gettime() + msec;
     co->yielded = true;
+    co->state->context.hasTimerClock = false;
 }
 
 static bool jass_yielded(jass_t *j) {
@@ -1078,14 +1134,14 @@ bool jass_resume(jass_t *j, jasscoroutine_t *co) {
     return true;
 }
 
-void jass_runevents(jass_t *j) {
+static void jass_run_event_queue(jass_t *j, bool only_new) {
     jass_t *root = jass_root(j);
     jasscoroutine_t *prev = NULL;
     jasscoroutine_t *co = root->coroutines;
 
     while (co) {
         jasscoroutine_t *next;
-        jass_resume(root, co);
+        if(!only_new || !co->state->num_stack)jass_resume(root, co);
 
         next = co->next;
         if (co->done) {
@@ -1103,6 +1159,11 @@ void jass_runevents(jass_t *j) {
     }
 }
 
+/* A callback-produced event starts in this quantum without resuming an
+ * unrelated coroutine that has already yielded (including Sleep(0)). */
+void jass_runnewevents(jass_t *j) { jass_run_event_queue(j,true); }
+void jass_runevents(jass_t *j) { jass_run_event_queue(j,false); }
+
 /* =========================================================================
  * Trigger evaluation / execution
  * ========================================================================= */
@@ -1117,6 +1178,7 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state.context.trigger = params->trigger;
         tmp_state.context.unit = params->unit;
         tmp_state.context.source = params->source;
+        tmp_state.context.eventType = params->type;
         tmp_state.context.eventValue = params->value;
         tmp_state.context.dialog_id = params->dialog_id;
         tmp_state.context.dialog_button_id = params->dialog_button_id;
@@ -1125,6 +1187,10 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
         tmp_state.context.timer = currenttimer;
+        if (params->timer && ((gtimer_t const *)params->timer)->scalar_timing) {
+            tmp_state.context.timer_clock = ((gtimer_t const *)params->timer)->scalar_fired_clock;
+            tmp_state.context.hasTimerClock = true;
+        }
         tmp_state.context.region = params->region ? params->region : jass_getcontext(j)->region;
         jass_pushfunction(&tmp_state, cond->expr);
         edict_t *previous_unit = currentunit;
@@ -1210,6 +1276,7 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .func = action->func,
                                   .unit = params->unit,
                                   .source = params->source,
+                                  .eventType = params->type,
                                   .eventValue = params->value,
                                   .dialog_id = params->dialog_id,
                                   .dialog_button_id = params->dialog_button_id,
@@ -1221,6 +1288,8 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .region = params->region,
                                   .timer_generation = params->timer ? ((gtimer_t const *)params->timer)->generation : 0,
                                   .timer_pending = params->timer_pending,
+                                  .timer_clock = params->timer ? ((gtimer_t const *)params->timer)->scalar_fired_clock : (wc3Clock_t){0},
+                                  .hasTimerClock = params->timer && ((gtimer_t const *)params->timer)->scalar_timing,
                               ));
         jassVar_t *loop_index = find_global(j, "bj_forLoopAIndex");
         /* Keep queued and suspended actions on the loop index captured at dispatch. */
@@ -1250,17 +1319,19 @@ void jass_executetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
     jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit }, true);
 }
 
-static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
-    /* Disabled triggers do not respond to registered events. Explicit JASS
-     * evaluation/execution is separate: Blizzard.j queue helpers evaluate a
-     * trigger before executing it, and maps can intentionally queue disabled
-     * triggers for later scripted execution. */
-    if (!params->trigger || params->trigger->disabled)
-        return false;
+static bool jass_firetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
+    if (!params->trigger || params->trigger->destroyed) return false;
+    params->trigger->evaluations++;
+    if (params->trigger->disabled) return false;
     if (!jass_evaluatetriggercontext(j, params))
         return false;
-    jass_executetriggercontext(j, params, false);
+    params->trigger->executions++;
+    jass_executetriggercontext(j, params, immediate);
     return true;
+}
+
+static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    return jass_firetriggercontext(j, params, false);
 }
 
 bool jass_calltriggerwithvalue(jass_t *j,
@@ -1275,13 +1346,26 @@ bool jass_calltriggerwithvalue(jass_t *j,
 bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event) {
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
-        .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
+        .trigger = trigger, .unit = event->edict, .source = event->source,
+        .type = event->type, .value = event->value,
         .dialog_id = event->dialog_id, .dialog_button_id = event->button_id,
         .event_player = event->dialog_player
             ? jass_getplayerbyindex(event->dialog_player - 1) : NULL,
         .point = event->has_point ? &event->point : NULL, .has_point = event->has_point,
         .region = event->responseTo && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
             ? event->responseTo->region : NULL });
+}
+
+/* Issued orders own one immutable packet for the complete synchronous pass.
+ * Coroutine contexts copy its scalar payload before a callback can nest. */
+bool jass_dispatchtriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event) {
+    return jass_firetriggercontext(j, &(jassTriggerContextParams_t){
+        .trigger=trigger,.unit=event->edict,.source=event->source,
+        .type=event->type,.value=event->value,
+        .dialog_id=event->dialog_id,.dialog_button_id=event->button_id,
+        .event_player=event->dialog_player ? jass_getplayerbyindex(event->dialog_player-1) : NULL,
+        .point=event->has_point ? &event->point : NULL,
+        .has_point=event->has_point }, true);
 }
 
 bool jass_calltriggerwithtimer(jass_t *j, trigger_t *trigger, handle_t timer) {
@@ -1764,12 +1848,26 @@ static uint32_t jass_popinteger(jass_t *j) {
 
 uint32_t VM_EvalInteger(jass_t *j, token_t const *token) {
     cstring_t s = token->primary;
+    if (token->flags & TF_RETAIL_NUMBER) {
+        uint32_t word = wc3_integer_literal_bits(s);
+        int32_t value;
+        memcpy(&value, &word, sizeof(value));
+        return jass_pushinteger(j, value);
+    }
     if (s && *s == '$') return jass_pushinteger(j, (int32_t)strtol(s + 1, NULL, 16));
     return jass_pushinteger(j, (int32_t)strtol(s, NULL, 0));
 }
 
 uint32_t VM_EvalReal(jass_t *j, token_t const *token) {
-    return jass_pushnumber(j, atof(token->primary));
+    if (!(token->flags & TF_RETAIL_NUMBER)) return jass_pushnumber(j, atof(token->primary));
+    /* TODO: NUM-01.15 owns the full retail lexical domain. Host strtod accepts
+     * identifiers such as nan/inf; never feed those bytes into the decimal port. */
+    for (cstring_t p = token->primary; *p; p++) {
+        if ((*p >= '0' && *p <= '9') || *p == '.') continue;
+        jass_rterror(j, "Compiled real token outside verified retail decimal grammar");
+        return 0;
+    }
+    return jass_pushnumber(j, wc3_literal(token->primary));
 }
 
 uint32_t VM_EvalString(jass_t *j, token_t const *token) {
@@ -2713,13 +2811,16 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
         { "timer", context->timer }, { "region", context->region },
     };
     if (!jass_snapshot_writestr(snapshot, jass_functionname(context->func)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->eventType, sizeof(context->eventType)) ||
         !jass_snapshot_io(snapshot, (void *)&context->eventValue, sizeof(context->eventValue)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, (void *)&context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, (void *)&context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, (void *)&context->timer_generation, sizeof(context->timer_generation)) ||
-        !jass_snapshot_io(snapshot, (void *)&context->timer_pending, sizeof(context->timer_pending))) return false;
+        !jass_snapshot_io(snapshot, (void *)&context->timer_pending, sizeof(context->timer_pending)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->timer_clock, sizeof(context->timer_clock)) ||
+        !jass_snapshot_io(snapshot, (void *)&context->hasTimerClock, sizeof(context->hasTimerClock))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles))
         if (!jass_snapshot_writecontext_handle(snapshot, handles[i].type, handles[i].value)) return false;
     return true;
@@ -2740,14 +2841,19 @@ static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassC
     context->func = func ? find_function(j, func) : NULL;
     SAFE_DELETE(func, jass_free);
     if (has_func && !context->func) return false;
-    if (!jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
+    if (!jass_snapshot_io(snapshot, &context->eventType, sizeof(context->eventType)) ||
+        !jass_snapshot_io(snapshot, &context->eventValue, sizeof(context->eventValue)) ||
         !jass_snapshot_io(snapshot, &context->dialog_id, sizeof(context->dialog_id)) ||
         !jass_snapshot_io(snapshot, &context->dialog_button_id, sizeof(context->dialog_button_id)) ||
         !jass_snapshot_io(snapshot, &context->point, sizeof(context->point)) ||
         !jass_snapshot_io(snapshot, &context->hasPoint, sizeof(context->hasPoint)) ||
         !jass_snapshot_io(snapshot, &context->timer_generation, sizeof(context->timer_generation)) ||
         !jass_snapshot_io(snapshot, &context->timer_pending, sizeof(context->timer_pending)) ||
-        context->hasPoint > 1 || context->timer_pending > 1) return false;
+        !jass_snapshot_io(snapshot, &context->timer_clock, sizeof(context->timer_clock)) ||
+        !jass_snapshot_io(snapshot, &context->hasTimerClock, sizeof(context->hasTimerClock)) ||
+        context->hasPoint > 1 || context->timer_pending > 1 || context->hasTimerClock > 1 ||
+        (context->hasTimerClock && (!isfinite(context->timer_clock.time) ||
+         !isfinite(context->timer_clock.span) || context->timer_clock.span <= 0))) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
         uint32_t present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;

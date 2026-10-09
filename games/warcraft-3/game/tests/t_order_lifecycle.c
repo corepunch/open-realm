@@ -4,6 +4,7 @@
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
+bool run_test_jass(cstring_t src);
 void order_attack(edict_t *self, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
 void SV_Physics_Toss(edict_t *ent);
@@ -47,16 +48,270 @@ static edict_t *review_order_unit(float x, uint32_t owner) {
     ent->stand = unit_stand;
     ent->die = unit_die;
     ent->unitinfo.MoveSpeed = 300;
-    ent->attack1.type = ATK_NORMAL;
-    ent->attack1.range = 30;
-    ent->attack1.cooldown = 1;
-    ent->attack1.damageBase = 10;
-    ent->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
+    S_AttackProfileWrite(ent, 0)->type = ATK_NORMAL;
+    S_AttackProfileWrite(ent, 0)->range = 30;
+    S_AttackProfileWrite(ent, 0)->cooldown = 1;
+    S_AttackProfileWrite(ent, 0)->damageBase = 10;
+    S_AttackProfileWrite(ent, 0)->targetsAllowed = WC3_TARGET_FLAG_GROUND | WC3_TARGET_FLAG_STRUCTURE;
     ent->targtype = TARG_GROUND;
     ent->runtime.acquisition_range = 600;
     unit_stand(ent);
     gi.LinkEntity(ent);
     return ent;
+}
+
+TEST(wc3_order_lifecycle, unused_queue_is_sparse_and_wrapped_entries_survive_save) {
+    unsigned const pending_limit=MAX_UNIT_ORDER_QUEUE+1; /* No executing user head. */
+    cstring_t file = Test_TempPath("wc3-sparse-order-ring.bin");
+    reset_entities(); setup_test_world();
+    edict_t *unit = review_order_unit(0, 0);
+    T_NULL(unit->order_queue.entries);
+    G_ClearUnitOrderQueue(unit);
+    T_NULL(unit->order_queue.entries);
+    FOR_LOOP(i, pending_limit) {
+        vec2_t point = { (float)i, -(float)i };
+        T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE,
+                                 &point, NULL, 0, 0, i));
+    }
+    unitOrder_t *storage = unit->order_queue.entries;
+    T_NOT_NULL(storage);
+    T_ASSERT(!G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 100));
+    T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, pending_limit - 1);
+    vec2_t last = { 900, 800 };
+    T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, &last, NULL, 3, 7, 999));
+    T_ASSERT(WriteGame(file));
+    G_ClearUnitOrderQueue(unit);
+    T_NULL(unit->order_queue.entries);
+    T_EQ(unit->order_queue.count, 0);
+    T_ASSERT(ReadGame(file));
+    T_EQ(unit->order_queue.head, 1); T_EQ(unit->order_queue.count, pending_limit);
+    FOR_LOOP(i, pending_limit) {
+        unitOrder_t const *entry = unit->order_queue.entries + unit->order_queue.head;
+        T_EQ(entry->order_id, i == pending_limit - 1 ? 999 : i + 1);
+        T_STREQ(entry->order, "holdposition");
+        T_FEQ(entry->point.x, i == pending_limit - 1 ? 900 : i + 1, 0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_EQ(unit->order_queue.head, 0); T_EQ(unit->order_queue.count, 0);
+    T_NULL(unit->order_queue.entries);
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    T_NULL(unit->order_queue.entries);
+    G_FreeEdict(unit);
+    T_NULL(unit->order_queue.entries);
+    remove(file);
+    reset_entities(); setup_test_world();
+}
+
+/* Retail693490 admits user_count <501. One active Move leaves500 pending
+ * commands; the next Shift must preserve the current head and the full FIFO. */
+TEST(wc3_order_lifecycle, queue198_retail_ceiling_and_saved_successors) {
+    reset_entities(); setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){800,0},false,0,0));
+    unsigned accepted=0;
+    FOR_LOOP(i,500) accepted+=G_IssueUnitPointOrder(unit,"move",&(vec2_t){(float)i,64},true,0,0);
+    T_EQ(accepted,500);T_EQ(unit->order_queue.count,500);
+    if(accepted!=500) {G_ClearUnitOrderQueue(unit);reset_entities();setup_test_world();return;}
+    umove_t const *active=unit->currentmove;
+    T_ASSERT(!G_IssueUnitPointOrder(unit,"move",&(vec2_t){900,64},true,0,0));
+    T_ASSERT(unit->currentmove==active);T_EQ(unit->order_queue.count,500);
+    uint32_t number=unit->s.number;
+    cstring_t file=Test_TempPath("wc3-queue198.bin");
+    T_ASSERT(WriteGame(file));
+    G_ClearUnitOrderQueue(unit);T_NULL(unit->order_queue.entries);
+    T_ASSERT(ReadGame(file));unit=g_edicts+number;
+    T_EQ(unit->order_queue.count,500);
+    FOR_LOOP(i,500) {
+        unitOrder_t const *entry=unit->order_queue.entries+unit->order_queue.head;
+        T_STREQ(entry->order,"move");T_FEQ(entry->point.x,i,0);T_FEQ(entry->point.y,64,0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_EQ(unit->order_queue.count,0);T_NULL(unit->order_queue.entries);
+    remove(file);reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, queue198_wrapped_growth_preserves_commands_and_reset_releases_storage) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    FOR_LOOP(i,17) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){i,-(float)i},NULL,0,0,i));
+    FOR_LOOP(i,8) T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    FOR_LOOP(i,8) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){i+17,-(float)(i+17)},NULL,0,0,i+17));
+    T_EQ(unit->order_queue.head,8);T_EQ(unit->order_queue.count,17);
+    T_EQ(unit->order_queue.capacity,UNIT_ORDER_INITIAL_CAPACITY);
+    T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,
+        &(vec2_t){25,-25},NULL,0,0,25));
+    T_ASSERT(unit->order_queue.capacity>UNIT_ORDER_INITIAL_CAPACITY);
+    FOR_LOOP(i,3) T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    cstring_t file=Test_TempPath("wc3-queue198-wrapped.bin");
+    uint32_t number=unit->s.number;
+    T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));unit=g_edicts+number;
+    T_EQ(unit->order_queue.count,15);
+    FOR_LOOP(i,15) {
+        unitOrder_t const *order=unit->order_queue.entries+unit->order_queue.head;
+        T_EQ(order->order_id,i+11);T_FEQ(order->point.x,i+11,0);T_FEQ(order->point.y,-(float)(i+11),0);
+        T_ASSERT(G_UnitStartNextQueuedOrder(unit));
+    }
+    T_NULL(unit->order_queue.entries);T_EQ(unit->order_queue.capacity,0);
+    FOR_LOOP(i,40) T_ASSERT(G_QueueUnitOrder(unit,"holdposition",UNIT_ORDER_TARGET_NONE,NULL,NULL,0,0,i));
+    G_PoolsReset();T_NULL(unit->order_queue.entries);T_EQ(unit->order_queue.capacity,0);
+    T_EQ(unit->order_queue.head,0);T_EQ(unit->order_queue.count,0);
+    remove(file);reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, queue198_suspended_user_head_counts_toward_501) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    G_DeferFreeEdict(unit);T_ASSERT(G_IsDeferredFree(unit));
+    unsigned accepted=0;
+    FOR_LOOP(i,501)accepted+=G_IssueUnitPointOrder(unit,"move",&(vec2_t){200+i,64},true,0,0);
+    T_EQ(accepted,501);T_EQ(unit->order_queue.count,501);
+    T_ASSERT(!G_IssueUnitPointOrder(unit,"move",&(vec2_t){900,64},true,0,0));
+    T_EQ(unit->current_order_id,G_OrderId("move"));
+    G_TestFinishDeferredFrees();T_ASSERT(!unit->inuse);T_NULL(unit->order_queue.entries);
+    reset_entities();setup_test_world();
+}
+
+static abilityProc_t queue198_move_proc;
+static edict_t *queue198_other;
+static bool queue198_growth_seen;
+static intptr_t queue198_cancel_grows_ring(edict_t *unit,abilityMsg_t msg,abilityCall_t const *call) {
+    if(msg==A_QUEUE_ORDER_CANCEL && !queue198_growth_seen) {
+        queue198_growth_seen=true;
+        uint32_t id=call->queued_order->order_id;
+        vec2_t point=call->queued_order->point;
+        T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,&(vec2_t){300,400},NULL,0,0,999));
+        /* Growth returns the short bucket; this unit immediately reuses it.
+         * The cancel handler still owns its original command through unwind. */
+        T_ASSERT(G_QueueUnitOrder(queue198_other,"holdposition",UNIT_ORDER_TARGET_NONE,NULL,NULL,0,0,555));
+        T_EQ(call->queued_order->order_id,id);
+        T_STREQ(call->queued_order->order,"move");
+        T_FEQ(call->queued_order->point.x,point.x,0);T_FEQ(call->queued_order->point.y,point.y,0);
+    }
+    return queue198_move_proc(unit,msg,call);
+}
+
+TEST(wc3_order_lifecycle, queue198_cancel_payload_survives_ring_growth_and_bucket_reuse) {
+    reset_entities();setup_test_world();
+    edict_t *unit=review_order_unit(0,0);
+    queue198_other=review_order_unit(32,0);
+    FOR_LOOP(i,17)T_ASSERT(G_QueueUnitOrder(unit,"move",UNIT_ORDER_TARGET_POINT,
+        &(vec2_t){100+i,64},NULL,0,0,i+101));
+    ability_t const *move=FindAbilityByClassname("Amov");T_NOT_NULL(move);if(!move)return;
+    queue198_move_proc=move->proc;queue198_growth_seen=false;
+    S_ReplaceAbilityProcedure(move,queue198_cancel_grows_ring);
+    G_ClearUnitOrderQueue(unit);
+    S_ReplaceAbilityProcedure(move,queue198_move_proc);
+    T_ASSERT(queue198_growth_seen);T_NULL(unit->order_queue.entries);
+    T_EQ(queue198_other->order_queue.count,1);
+    G_ClearUnitOrderQueue(queue198_other);queue198_other=NULL;
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_damage) {
+    /* Explicit producers do not pass through automatic acquisition or an
+     * attacked/ally-help notification. Chase alone must not release the cap. */
+    FOR_LOOP(mode,3) {
+        reset_entities();setup_test_world();
+        level.timer_clock_valid=false;level.pathing_clock=(wc3Clock_t){8,0,300};
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(300,1);
+        unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+        profile->weapon=mode==0 ? WPN_NORMAL : mode==1 ? WPN_MISSILE : WPN_ARTILLERY;
+        profile->range=30;profile->damagePoint=.3f;
+        if(mode==2)T_ASSERT(G_IssueUnitPointOrder(unit,"attackground",&target->s.origin2,false,0,0));
+        else T_ASSERT(G_IssueUnitTargetOrder(unit,mode==1 ? "attackonce" : "attack",target,false,0));
+        T_ASSERT(!unit->attack_speed_cap.active);
+        /* Walk transitions to the weapon windup at the true range gate. */
+        unit->s.origin.x=280;gi.LinkEntity(unit);
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->attack_speed_cap.active);
+        T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_ASSERT(unit->wait>0);T_FEQ(target->health.value,target->health.max_value,0);
+        uint32_t sequence=unit->attack_speed_cap.sequence;
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){600,64},false,0,0));
+        T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
+        uint32_t number=unit->s.number;
+        cstring_t file=Test_TempPath("wc3-swing199.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+        T_ASSERT(unit->attack_speed_cap.active);T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_EQ(unit->attack_speed_cap.sequence,sequence);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, swing199_repeated_windups_use_the_existing_exact_rearm_gate) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    edict_t *unit=review_order_unit(0,0),*target=review_order_unit(20,1);
+    S_AttackProfileWrite(unit,0)->damagePoint=.3f;
+    uint32_t sequence=0;
+    FOR_LOOP(i,3) {
+        level.pathing_clock=(wc3Clock_t){8+i*.25f,0,300};
+        /* Each admitted explicit head reaches a ready weapon windup. */
+        unit->attack_cooldown_active=false;unit->wait=0;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"attack",target,false,0));
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->attack_speed_cap.active);
+        if(i==1)T_EQ(unit->attack_speed_cap.sequence,sequence);
+        else T_ASSERT(unit->attack_speed_cap.sequence>sequence);
+        T_FEQ(unit->attack_speed_cap.deadline.time,i==2 ? 11.5f : 11,0);
+        sequence=unit->attack_speed_cap.sequence;
+    }
+    reset_entities();setup_test_world();
+}
+
+/* Cold allocation, ordered cancellation and final dispatch must return storage
+ * without retaining a bucket on every unit that once received Shift orders. */
+TEST(wc3_order_lifecycle, pool192_empty_queues_release_storage_and_reuse_lifo) {
+    enum { COUNT = 129 };
+    edict_t *units[COUNT];
+    unitOrder_t *slots[COUNT];
+    reset_entities(); setup_test_world();
+    FOR_LOOP(i, COUNT) {
+        units[i] = review_order_unit(0, 0);
+        T_NULL(units[i]->order_queue.entries);
+        T_ASSERT(G_QueueUnitOrder(units[i], "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+        slots[i] = units[i]->order_queue.entries;
+        T_NOT_NULL(slots[i]);
+        FOR_LOOP(j, i) T_NE(slots[i], slots[j]);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(unit_issueimmediateorder(units[i], "stop"));
+        T_NULL(units[i]->order_queue.entries);
+        T_EQ(units[i]->order_queue.count, 0);
+        T_EQ(units[i]->order_queue.head, 0);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(G_QueueUnitOrder(units[i], "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+        T_EQ(units[i]->order_queue.entries, slots[COUNT - 1 - i]);
+    }
+    FOR_LOOP(i, COUNT) {
+        T_ASSERT(G_UnitStartNextQueuedOrder(units[i]));
+        T_NULL(units[i]->order_queue.entries);
+        T_ASSERT(units[i]->movement.holding_position);
+        T_ASSERT(!G_UnitStartNextQueuedOrder(units[i]));
+        G_ClearUnitOrderQueue(units[i]);
+        T_NULL(units[i]->order_queue.entries);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, pool192_discarded_target_and_replacement_release_storage) {
+    reset_entities(); setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *target = review_order_unit(256, 1);
+    vec2_t point = {512, 0};
+    T_ASSERT(G_QueueUnitOrder(unit, "attack", UNIT_ORDER_TARGET_ENTITY, NULL, target, 0, 0, 0));
+    T_NOT_NULL(unit->order_queue.entries);
+    target->spawn_time++;
+    T_ASSERT(!G_UnitStartNextQueuedOrder(unit));
+    T_NULL(unit->order_queue.entries);
+    T_ASSERT(G_QueueUnitOrder(unit, "holdposition", UNIT_ORDER_TARGET_NONE, NULL, NULL, 0, 0, 0));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &point, false, 0, 0));
+    T_NULL(unit->order_queue.entries);
+    T_EQ(unit->current_order_id, G_OrderId("move"));
+    reset_entities(); setup_test_world();
 }
 
 TEST(wc3_order_lifecycle, hold_position_does_not_chase_acquired_enemy) {
@@ -95,7 +350,7 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     edict_t *missile = G_Spawn();
     missile->owner = unit;
-    missile->goalentity = enemy;
+    S_SetMoveGoal(missile, &missile->goalentity, enemy);
     missile->velocity = 10000;
     missile->damage = 10000;
     T_ASSERT(unit_issueorder(unit, "move", &point));
@@ -115,9 +370,11 @@ TEST(wc3_order_lifecycle, explicit_attack_replaces_persistent_follow) {
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
     T_ASSERT(unit->movement.follow_target == ally);
     G_SetHealth(enemy, 0);
-    T_ASSERT(!unit_issuetargetorder(unit, "attack", enemy));
-    T_ASSERT(unit->movement.follow_target == ally);
-    T_ASSERT(unit->goalentity == ally);
+    /* Native207160 accepts this as a point Attack Move snapshot. */
+    T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
+    T_NULL(unit->movement.follow_target);
+    T_NOT_NULL(unit->movement.attackmove_waypoint);
+    T_FEQ(unit->goalentity->s.origin2.x, enemy->s.origin2.x, 0);
     G_SetHealth(enemy, enemy->health.max_value);
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     T_Damage(enemy, unit, (int)enemy->health.value);
@@ -162,17 +419,48 @@ TEST(wc3_order_lifecycle, auto_attack_resumes_patrol_but_smart_attack_replaces_i
     T_STREQ(unit->currentmove->animation, "stand");
 }
 
+TEST(wc3_order_lifecycle, patrol_head_differs_from_issued_command_through_combat) {
+    setup_test_world();
+    edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(30, 1);
+    vec2_t const endpoint = {600, 0};
+    T_EQ(G_OrderId("patrol"), 851990);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "patrol", &endpoint, false, 0, 0));
+    T_EQ(G_GetIssuedOrderId(unit), 851990);
+    T_EQ(unit->current_order_id, 851991);
+    edict_t *patrol = unit->movement.patrol_target;
+    order_attack(unit, enemy);
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(!G_IssueUnitTargetOrder(unit, "repair", enemy, false, 0));
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(unit->currentmove->proc == CAbilityAttack);
+    T_Damage(enemy, unit, (int)enemy->health.value);
+    T_EQ(unit->current_order_id, 851991);
+    T_ASSERT(unit->goalentity == patrol);
+    T_ASSERT(unit->currentmove->proc == CAbilityPatrol);
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &(vec2_t){768, 0}, false, 0, 0));
+    T_EQ(unit->current_order_id, 851986);
+    T_NULL(unit->movement.patrol_a);
+}
+
 TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     setup_test_world();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     edict_t *unit = review_order_unit(0, 0), *ally = review_order_unit(500, 0);
     edict_t *enemy = review_order_unit(20, 1);
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
-    unit->attack1.damagePoint = (float)FRAMETIME / 1000.0f;
+    S_AttackProfileWrite(unit, 0)->damagePoint = (float)FRAMETIME / 1000.0f;
     G_SetHealth(enemy, 1);
     order_attack(unit, enemy);
     unit->currentmove->think(unit);
     unit->currentmove->think(unit);
     T_ASSERT(M_IsDead(enemy));
+    /* The committed hit retains Follow through its independent swing wait;
+     * no animation-end callback is required to resume it. */
+    T_EQ(unit->movement.follow_target, ally);
+    T_ASSERT(unit->attack_swing.active);
+    T_NULL(unit->goalentity);
+    level.started = level.scriptsConfigured = level.scriptsStarted = true;
+    FOR_LOOP(i, 8) { level.time += FRAMETIME; globals.RunFrame(); }
     T_ASSERT(unit->goalentity == ally);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
 }
@@ -201,7 +489,7 @@ TEST(wc3_order_lifecycle, finishing_repair_preserves_production_queue) {
     queued->health.max_value = 420;
     queued->health.value = 0;
     queued->stand = unit_stand;
-    building->health.value = building->health.max_value - 0.001f;
+    building->health.value = building->health.max_value - 1.0f;
     T_ASSERT(S_OrderRepair(worker, building, 0));
     worker->currentmove->think(worker);
     building_restore_repair_data(old, rows);
@@ -311,7 +599,7 @@ TEST(wc3_order_lifecycle, stop_and_hold_buttons_expose_engaged_state) {
         T_ASSERT(unit->goalentity == enemy);
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
         T_EQ(hold.engaged, 1);
-        unit->goalentity = NULL;
+        S_SetMoveGoal(unit, &unit->goalentity, NULL);
         unit_stand(unit);
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdStop, false, 0, &stop));
         T_ASSERT(G_BuildCommandButton(unit, STR_CmdHoldPos, false, 0, &hold));
@@ -502,6 +790,352 @@ TEST(wc3_order_lifecycle, queued_player_order_outranks_guard_return) {
     T_ASSERT(unit->movement.guard_state == GUARD_NONE);
     T_EQ(G_UnitQueuedOrderCount(unit), 0);
     T_ASSERT(unit->currentmove->proc == CAbilityMove);
+}
+
+TEST(wc3_order_lifecycle, repair_family_heads_survive_approach_and_complete_at_work) {
+    static cstring_t const names[] = {"repair", "renew", "restoration"};
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static uint32_t const ids[] = {852024, 852161, 852202};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        edict_t *worker = review_order_unit(0, 0);
+        edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        target->health.value = target->health.max_value - 100;
+        gi.LinkEntity(target);
+        T_EQ(G_OrderId(names[i]), ids[i]);
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, false, 0));
+        T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        target->health.value = target->health.max_value;
+        /* Full health during approach is completion at contact, not target loss. */
+        worker->currentmove->think(worker);
+        T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        worker->s.origin2 = target->s.origin2; gi.LinkEntity(worker);
+        worker->currentmove->think(worker);
+        worker->currentmove->think(worker);
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        target->health.value -= 100;
+        T_ASSERT(G_IssueUnitTargetOrder(worker, "smart", target, false, 0));
+        T_EQ(worker->current_order_id, 851971);
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){768,0}, true, 0, 0));
+        umove_t const *work = worker->currentmove;
+        worker->buildwork->gold_accum = 0.25f;
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, false, 0));
+        T_EQ(worker->current_order_id, 851971); T_EQ(worker->currentmove, work);
+        T_EQ(worker->order_queue.count, 1); T_FEQ(worker->buildwork->gold_accum, 0.25f, 0);
+        /* An unknown family must not retag or replace an accepted Smart repair. */
+        T_ASSERT(!G_IssueUnitTargetOrder(worker, names[(i + 1) % 3], target, false, 0));
+        T_EQ(worker->current_order_id, 851971);
+        T_EQ(worker->order_queue.count, 1);
+        T_ASSERT(unit_issueimmediateorder(worker, "stop"));
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        T_ASSERT(S_OrderRepair(worker, target, 0));
+        T_EQ(worker->current_order_id, 0); /* Internal construction work has no public head. */
+        unit_issueimmediateorder(worker, "stop");
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, repair_autocast_orders_validate_direction_before_interrupting) {
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static cstring_t const on[] = {"repairon", "renewon", "restorationon"};
+    static cstring_t const off[] = {"repairoff", "renewoff", "restorationoff"};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        edict_t *worker = review_order_unit(0, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        vec2_t goal = {512, 0}, pending = {768, 0};
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &goal, false, 0, 0));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &pending, true, 0, 0));
+        T_ASSERT(unit_issueimmediateorder(worker, on[i]));
+        T_EQ(worker->current_order_id, 0); T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(worker->aiflags & AI_AUTOCAST_REPAIR);
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &goal, false, 0, 0));
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &pending, true, 0, 0));
+        edict_t *destination = worker->goalentity; umove_t const *move = worker->currentmove;
+        T_ASSERT(!unit_issueimmediateorder(worker, on[i]));
+        T_EQ(worker->current_order_id, 851986); T_EQ(worker->goalentity, destination);
+        T_EQ(worker->currentmove, move); T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey(codes[i]), false);
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+        T_EQ(worker->current_order_id, 851986); T_EQ(G_UnitQueuedOrderCount(worker), 1);
+        G_SetPlayerAbilityAvailable(&game.clients[0], FS_SLKKey(codes[i]), true);
+        T_ASSERT(unit_issueimmediateorder(worker, off[i]));
+        T_EQ(worker->current_order_id, 0); T_EQ(G_UnitQueuedOrderCount(worker), 0);
+        T_ASSERT(!(worker->aiflags & AI_AUTOCAST_REPAIR));
+        T_ASSERT(!unit_issueimmediateorder(worker, off[i]));
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, repair_removed_target_cannot_become_a_reused_building) {
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    reset_entities(); setup_test_world();
+    edict_t *worker = review_order_unit(0, 0);
+    UnitAbilities_t abilities = {.abilList = "Arep"};
+    worker->data.UnitAbilities = &abilities;
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+    target->spawn_time = level.time;
+    target->health.value -= 100;
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", target, false, 0));
+    G_FreeEdict(target);
+    T_EQ(worker->current_order_id, 852024);
+    level.time += 1001;
+    edict_t *replacement = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    replacement->spawn_time = level.time;
+    T_EQ(replacement, target); replacement->health.value -= 100;
+    float health = replacement->health.value;
+    worker->currentmove->think(worker);
+    T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+    T_FEQ(replacement->health.value, health, 0);
+    T_ASSERT(G_IssueUnitTargetOrder(worker, "repair", replacement, false, 0));
+    G_DeferFreeEdict(replacement);
+    T_EQ(worker->current_order_id, 852024); T_NULL(worker->build);
+    T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){512,0}, false, 0, 0));
+    T_EQ(worker->current_order_id, 851986); T_NOT_NULL(worker->goalentity);
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, queued_repair_family_activates_after_move_in_server_frames) {
+    static cstring_t const names[] = {"repair", "renew", "restoration"};
+    static cstring_t const codes[] = {"Arep", "Aren", "Arst"};
+    static uint32_t const ids[] = {852024, 852161, 852202};
+    slkTestData_t *rows, *old = building_install_repair_data(&rows);
+    FOR_LOOP(i, 3) {
+        reset_entities(); setup_test_world();
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *worker = review_order_unit(0, 0);
+        edict_t *target = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 512, 0);
+        UnitAbilities_t abilities = {.abilList = codes[i]};
+        worker->data.UnitAbilities = &abilities;
+        worker->think = monster_think;
+        target->health.value -= 100;
+        gi.LinkEntity(target);
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+        game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+        T_ASSERT(G_IssueUnitPointOrder(worker, "move", &(vec2_t){128,0}, false, 0, 0));
+        T_ASSERT(G_IssueUnitTargetOrder(worker, names[i], target, true, 0));
+        T_EQ(worker->current_order_id, 851986); T_EQ(worker->order_queue.count, 1);
+        for (int frame = 0; frame < 120 && worker->order_queue.count; frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_EQ(worker->order_queue.count, 0); T_EQ(worker->current_order_id, ids[i]);
+        T_EQ(worker->build, target);
+        target->health.value = target->health.max_value;
+        for (int frame = 0; frame < 120 && worker->current_order_id; frame++) {
+            level.time += FRAMETIME; globals.RunFrame();
+        }
+        T_EQ(worker->current_order_id, 0); T_NULL(worker->build);
+        T_EQ(worker->order_queue.count, 0);
+    }
+    reset_entities(); setup_test_world();
+    building_restore_repair_data(old, rows);
+}
+
+TEST(wc3_order_lifecycle, public_move_follow_ignores_automatic_combat) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "move", target, false, 0));
+    level.time = 0; G_BeginAcquisitionFrame();
+    G_AcquisitionEntityLinked(enemy);
+    T_EQ(G_FindNearestEnemy(subject, G_AcquisitionRange(subject)), enemy);
+    subject->currentmove->think(subject);
+    T_EQ(subject->goalentity, target);
+    T_NE(subject->goalentity, enemy);
+    T_EQ(subject->current_order_id, 851986);
+    T_ASSERT(subject->currentmove->proc == CAbilityMove);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_combat_target_loss_preserves_head_until_enemy_loss) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    T_ASSERT(G_IssueUnitPointOrder(subject, "move", &(vec2_t){1024, 0}, true, 0, 0));
+    order_attack(subject, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    G_DeferFreeEdict(target);
+    T_NULL(subject->movement.follow_target);
+    T_EQ(subject->goalentity, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->order_queue.count, 1);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 851986);
+    T_EQ(subject->order_queue.count, 0);
+    T_NE(subject->goalentity, enemy);
+    G_TestFinishDeferredFrees();
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_incarnation_and_combat_removal_survive_save_before_drain) {
+    cstring_t file = Test_TempPath("wc3-follow-retirement117.bin");
+    /* alloc_test_unit supplies transient weapon rows; restore must resolve a
+     * real authored row instead. The fixture MPQ has no UnitWeapons.slk. */
+    slkTestData_t *weapons = parse_slk_string(
+        "ID;PWXL;N;E\nC;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nE\n");
+    slkTestData_t *old_weapons = G_SetSLKRows("UnitWeapons", weapons);
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    target->spawn_time = 4242;
+    game.clients[0].ps.rdflags |= RDF_NOFOG;
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    T_EQ(subject->movement.follow_target_spawn_time, 4242);
+    T_ASSERT(WriteGame(file));
+    subject->movement.follow_target_spawn_time = 1;
+    T_ASSERT(ReadGame(file));
+    T_EQ(subject->movement.follow_target_spawn_time, 4242);
+    T_ASSERT(S_AttackCanTarget(subject, enemy));
+    order_attack(subject, enemy);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->goalentity, enemy);
+    G_DeferFreeEdict(target);
+    T_ASSERT(WriteGame(file));
+    T_ASSERT(ReadGame(file));
+    T_EQ(subject->current_order_id, 851971);
+    T_NULL(subject->movement.follow_target);
+    T_ASSERT(G_IsDeferredFree(target));
+    G_TestFinishDeferredFrees();
+    T_ASSERT(!target->inuse);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 0);
+    remove(file);
+    reset_entities(); setup_test_world();
+    G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(weapons);
+}
+
+TEST(wc3_order_lifecycle, follow_damage_callback_nested_replacement_survives_owner_exit) {
+    for (int smart = 0; smart < 2; smart++) {
+        char script[4096];
+        reset_entities(); setup_test_world();
+        snprintf(script, sizeof(script),
+            "globals\nunit subject\nunit target\nunit enemy\ntrigger nested\n"
+            "integer removedHead=0\ninteger replacementHead=0\nendglobals\n"
+            "function child takes nothing returns nothing\n"
+            "call IssuePointOrder(subject, \"move\", 1024.0, 0.0)\n"
+            "call RemoveUnit(enemy)\nendfunction\n"
+            "function damaged takes nothing returns nothing\n"
+            "call RemoveUnit(target)\nset removedHead=GetUnitCurrentOrder(subject)\n"
+            "call TriggerExecute(nested)\nset replacementHead=GetUnitCurrentOrder(subject)\nendfunction\n"
+            "function verify takes nothing returns nothing\n"
+            "call BJassAssert(removedHead==%d, \"Follow loss head\")\n"
+            "call BJassAssert(replacementHead==851986, \"nested Move owns head\")\n"
+            "call BJassAssert(GetUnitCurrentOrder(subject)==851986, \"old owner cannot complete replacement\")\n"
+            "endfunction\nfunction main takes nothing returns nothing\n"
+            "local trigger damage=CreateTrigger()\n"
+            "set subject=CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+            "set target=CreateUnit(Player(0), 'hfoo', 512.0, 0.0, 0.0)\n"
+            "set enemy=CreateUnit(Player(1), 'hfoo', 48.0, 0.0, 0.0)\n"
+            "call SetUnitUserData(subject, 900)\ncall SetUnitUserData(enemy, 901)\n"
+            "call IssueTargetOrder(subject, \"%s\", target)\n"
+            "set nested=CreateTrigger()\ncall TriggerAddAction(nested, function child)\n"
+            "call TriggerRegisterUnitEvent(damage, %s, EVENT_UNIT_DAMAGED)\n"
+            "call TriggerAddAction(damage, function damaged)\nendfunction\n",
+            smart ? 851971 : 0, smart ? "smart" : "move", smart ? "enemy" : "subject");
+        T_ASSERT(run_test_jass(script));
+        edict_t *subject = NULL, *enemy = NULL;
+        FILTER_EDICTS(ent, ent->inuse) {
+            if (ent->user_data == 900) subject = ent;
+            if (ent->user_data == 901) enemy = ent;
+        }
+        T_NOT_NULL(subject); T_NOT_NULL(enemy);
+        if (subject && enemy) {
+            if (smart) order_attack(subject, enemy);
+            T_Damage(smart ? enemy : subject, smart ? subject : enemy, 1);
+            level.started = level.scriptsConfigured = level.scriptsStarted = true;
+            level.time += FRAMETIME; globals.RunFrame();
+            jass_callbyname(level.vm, "verify", true);
+            T_ASSERT(!jass_rterror_pending(level.vm));
+            T_EQ(subject->current_order_id, 851986);
+            T_NULL(subject->movement.follow_target);
+            T_NE(subject->goalentity, enemy);
+            T_ASSERT(!enemy->inuse);
+        }
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, smart_combat_enemy_death_resumes_healthy_follow_parent) {
+    reset_entities(); setup_test_world();
+    edict_t *subject = review_order_unit(0, 0);
+    edict_t *target = review_order_unit(512, 0);
+    edict_t *enemy = review_order_unit(48, 1);
+    T_ASSERT(G_IssueUnitTargetOrder(subject, "smart", target, false, 0));
+    order_attack(subject, enemy);
+    unit_die(enemy, NULL);
+    T_EQ(subject->current_order_id, 851971);
+    T_EQ(subject->movement.follow_target, target);
+    T_EQ(subject->goalentity, target);
+    T_ASSERT(subject->currentmove->proc == CAbilityMove);
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, retired_follow_subject_reuse_does_not_inherit_old_callbacks) {
+    for (int smart = 0; smart < 2; smart++) {
+        reset_entities(); setup_test_world();
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        edict_t *subject = review_order_unit(0, 0);
+        edict_t *target = review_order_unit(512, 0);
+        subject->spawn_time = 10;
+        T_ASSERT(G_IssueUnitTargetOrder(subject, smart ? "smart" : "move", target, false, 0));
+        T_ASSERT(G_IssueUnitPointOrder(subject, "move", &(vec2_t){1024, 0}, true, 0, 0));
+        G_DeferFreeEdict(subject); G_TestFinishDeferredFrees();
+        level.time += 1001;
+        edict_t *replacement = review_order_unit(128, 0);
+        replacement->spawn_time = level.time;
+        T_EQ(replacement, subject);
+        T_NULL(replacement->movement.follow_target);
+        T_EQ(replacement->movement.follow_target_spawn_time, 0);
+        T_EQ(replacement->current_order_id, 0);
+        T_EQ(replacement->order_queue.count, 0);
+        T_ASSERT(G_IssueUnitPointOrder(replacement, "move", &(vec2_t){1024, 0}, false, 0, 0));
+        G_DeferFreeEdict(target);
+        T_EQ(replacement->current_order_id, 851986);
+        replacement->think = monster_think;
+        level.started = level.scriptsConfigured = level.scriptsStarted = true;
+        FOR_LOOP(frame, 4) { level.time += FRAMETIME; globals.RunFrame(); }
+        T_EQ(replacement->current_order_id, 851986);
+        T_ASSERT(replacement->s.origin2.x > 128);
+    }
+    reset_entities(); setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, follow_direct_free_cannot_adopt_reused_target) {
+    for (int smart = 0; smart < 2; smart++) {
+        reset_entities(); setup_test_world();
+        edict_t *subject = review_order_unit(0, 0);
+        edict_t *target = review_order_unit(512, 0);
+        target->spawn_time = level.time;
+        T_ASSERT(G_IssueUnitTargetOrder(subject, smart ? "smart" : "move", target, false, 0));
+        G_FreeEdict(target);
+        level.time += 1001;
+        edict_t *replacement = review_order_unit(128, 0);
+        replacement->spawn_time = level.time;
+        T_EQ(replacement, target);
+        subject->currentmove->think(subject);
+        T_NULL(subject->movement.follow_target);
+        T_EQ(subject->current_order_id, 0);
+        T_NE(subject->goalentity, replacement);
+    }
+    reset_entities(); setup_test_world();
 }
 
 #endif

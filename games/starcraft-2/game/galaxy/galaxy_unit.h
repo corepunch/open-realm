@@ -540,7 +540,8 @@ static uint32_t sc2_UnitFilterMatch(jass_t *j) {
 static uint32_t sc2_UnitFilterSetState(jass_t *j) {
     sc2UnitFilter_t *f=sc2_unit_filter(j,1); int bit=sc2_checked_index(j,2,64),state=sc2_checked_index(j,3,3);
     f->required&=~(1ull<<bit); f->excluded&=~(1ull<<bit);
-    if (state==1) f->required|=1ull<<bit; if (state==2) f->excluded|=1ull<<bit;
+    if (state==1) f->required|=1ull<<bit;
+    if (state==2) f->excluded|=1ull<<bit;
     return 0;
 }
 static uint32_t sc2_query_units(jass_t *j,bool from_group) {

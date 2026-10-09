@@ -1,0 +1,234 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f",
+  "source_report_sha256": "4c6baa939f0acdd927ea58054f3d60044c521efc3bd70049a006405e1e7ec59e",
+  "target_world_bits": [
+    3292303111,
+    3278893763
+  ],
+  "target_grid_bits": [
+    1090970098,
+    1091045022
+  ],
+  "travel": {
+    "initial_route": [
+      1090970098,
+      1091045022,
+      1089470464,
+      1089470464,
+      1087373312,
+      1089732608
+    ],
+    "trajectory": [
+      {
+        "tick": 1,
+        "position_bits": [
+          1087850666,
+          1089949427
+        ],
+        "velocity_bits": [
+          1089017452,
+          1079228386
+        ]
+      },
+      {
+        "tick": 2,
+        "position_bits": [
+          1088328029,
+          1090166226
+        ],
+        "velocity_bits": [
+          1089017452,
+          1079228386
+        ]
+      },
+      {
+        "tick": 3,
+        "position_bits": [
+          1088805392,
+          1090383025
+        ],
+        "velocity_bits": [
+          1089017327,
+          1079228937
+        ]
+      },
+      {
+        "tick": 4,
+        "position_bits": [
+          1089282751,
+          1090559436
+        ],
+        "velocity_bits": [
+          1089017286,
+          1079229121
+        ]
+      },
+      {
+        "tick": 5,
+        "position_bits": [
+          1089760109,
+          1090667841
+        ],
+        "velocity_bits": [
+          1089017536,
+          1079228018
+        ]
+      },
+      {
+        "tick": 6,
+        "position_bits": [
+          1090237475,
+          1090776237
+        ],
+        "velocity_bits": [
+          1089017452,
+          1079228386
+        ]
+      },
+      {
+        "tick": 7,
+        "position_bits": [
+          1090616939,
+          1090884636
+        ],
+        "velocity_bits": [
+          0,
+          0
+        ]
+      }
+    ],
+    "arrivals": [
+      {
+        "clock_bits": 1046478848,
+        "user_head": [
+          5,
+          105
+        ]
+      }
+    ],
+    "task_head": [
+      4294967295,
+      4294967295
+    ],
+    "user_head": [
+      4294967295,
+      4294967295
+    ],
+    "queue_count": 0,
+    "action": 0,
+    "outcome": "arrived",
+    "arrival_tick": 7,
+    "footprint_start_and_middle_cells_active": true,
+    "payload_free_lists_restored": {
+      "0x6f726474": 4,
+      "0x74736b2e": 8,
+      "0x7461736b": 8,
+      "0x74736b41": 8,
+      "0x74736b4f": 8
+    },
+    "registry_live_after_cleanup": 5
+  },
+  "supplied_query_mask": 33554432,
+  "route_states": [
+    {
+      "tick": 1,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 2,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 3,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 4,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 5,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 6,
+      "fine_count": 3,
+      "fine_index": 0,
+      "adaptive_index": 0,
+      "flags": 33554432,
+      "route": [
+        1090970098,
+        1091045022,
+        1089470464,
+        1089470464,
+        1087373312,
+        1089732608
+      ]
+    },
+    {
+      "tick": 7,
+      "fine_count": 0,
+      "fine_index": 4294967295,
+      "adaptive_index": 4294967295,
+      "flags": 1048576,
+      "route": []
+    }
+  ],
+  "route_source_report_sha256": "cbf5837ed6ac91fe38450403195fd948496a7ca1d01eff48ee2f5fc5830f5629"
+}

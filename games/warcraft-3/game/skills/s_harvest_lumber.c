@@ -20,14 +20,11 @@ static uint32_t harvest_actor_ability_alias(edict_t const *ent, uint32_t base_co
     char alias_name[5] = {0};
 
     if (!ent) return 0;
-    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t alias = 0;
-            if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
-            memcpy(&alias, token, 4);
-            if (alias == base_code || G_AbilityCode(alias) == base_code) return alias;
-        }
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens=G_UnitAbilityTokens(ent->data.UnitAbilities,&count);
+    FOR_LOOP(i,count)
+        if(tokens[i].length==4 && (tokens[i].code==base_code || tokens[i].base==base_code) &&
+           G_ActorHasAbilityCode(ent,tokens[i].code))return tokens[i].code;
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         uint32_t const alias = ent->abilities.added[i];
         if (!alias) continue;
@@ -117,59 +114,39 @@ static int harvest_path_debug_level(void) {
     } \
 } while (0)
 
-static uint32_t return_resources_mask(cstring_t ability) {
-    static struct { cstring_t name; uint32_t mask; } const artn_aliases[] = {
-        { "Argd", RETURN_RESOURCE_GOLD },
-        { "Arlm", RETURN_RESOURCE_LUMBER },
-        { "Argl", RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER },
-    };
-    AbilityData_t const *data;
+static uint32_t return_resources_mask(unitAbilityToken_t ability) {
     uint32_t mask = 0;
-    int i;
-
-    /* Stock aliases map directly without a full AbilityData table. */
-    for (i = 0; i < (int)(sizeof(artn_aliases) / sizeof(artn_aliases[0])); i++) {
-        if (!strcmp(ability, artn_aliases[i].name))
-            return artn_aliases[i].mask;
+    /* Literal stock aliases require an exact token; other name lookups keep
+     * their original first-four-byte AbilityData semantics. */
+    if (ability.length == 4) {
+        if (ability.code == MAKEFOURCC('A','r','g','d')) return RETURN_RESOURCE_GOLD;
+        if (ability.code == MAKEFOURCC('A','r','l','m')) return RETURN_RESOURCE_LUMBER;
+        if (ability.code == MAKEFOURCC('A','r','g','l')) return RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER;
     }
-
-    if (G_AbilityCodeName(ability) != MAKEFOURCC('A', 'r', 't', 'n'))
-        return 0;
-
-    data = G_AbilityDataName(ability);
-    if (!data)
-        return 0;
+    if (ability.base != MAKEFOURCC('A','r','t','n')) return 0;
+    AbilityData_t const *data = G_AbilityData(ability.code);
+    if (!data) return 0;
     if (data->level[0].data[0].number) mask |= RETURN_RESOURCE_GOLD;
     if (data->level[0].data[1].number) mask |= RETURN_RESOURCE_LUMBER;
     return mask;
 }
 
 bool S_UnitTypeReturnsGold(uint32_t unit_id) {
-    UnitAbilities_t const *abilities = G_UnitAbil(unit_id);
-
-    if (!abilities || !abilities->abilList) return false;
-    PARSE_LIST(abilities->abilList, abil, parse_segment) {
-        if (return_resources_mask(abil) & RETURN_RESOURCE_GOLD)
-            return true;
-    }
+    uint32_t count;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(G_UnitAbil(unit_id), &count);
+    FOR_LOOP(i, count)
+        if (return_resources_mask(tokens[i]) & RETURN_RESOURCE_GOLD) return true;
     return false;
 }
 
 bool S_CanReturnResourceAt(edict_t *unit, edict_t *building, returnResource_t resource) {
-    cstring_t abilities;
-
-    /* Unit data exposes Return Resources before construction completes, but
-     * Warcraft keeps that capability unavailable until the structure is finished. */
+    uint32_t count;
+    /* Construction keeps the authored capability unavailable until completion. */
     if (!unit || !building || !building->inuse || building->s.player != unit->s.player ||
-        M_IsDead(building) || building->construction)
-        return false;
-    if (!building->data.UnitAbilities || !(abilities = building->data.UnitAbilities->abilList))
-        return false;
-
-    PARSE_LIST(abilities, abil, parse_segment) {
-        if (return_resources_mask(abil) & resource)
-            return true;
-    }
+        M_IsDead(building) || building->construction) return false;
+    unitAbilityToken_t const *tokens = G_UnitAbilityTokens(building->data.UnitAbilities, &count);
+    FOR_LOOP(i, count)
+        if (return_resources_mask(tokens[i]) & resource) return true;
     return false;
 }
 
@@ -392,26 +369,53 @@ static void skill_remove(uint32_t *skills, uint32_t *count, uint32_t index) {
     memmove(skills + index, skills + index + 1, (--*count - index) * sizeof(*skills));
 }
 
+#ifdef BZ_TESTS
+static uint32_t static_ability_tokens_parsed;
+void G_TestRecordStaticAbilityToken(void) { static_ability_tokens_parsed++; }
+uint32_t G_TestStaticAbilityTokens(bool reset) {
+    uint32_t count = static_ability_tokens_parsed;
+    if (reset) static_ability_tokens_parsed = 0;
+    return count;
+}
+#endif
 static bool actor_has_skill(edict_t const *ent, uint32_t code) {
-    cstring_t abilities;
     if (!ent || !code) return false;
     if (skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code) >= 0) return false;
     if (skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code) >= 0) return true;
-    if (!ent->data.UnitAbilities) return false;
-    abilities = ent->data.UnitAbilities->abilList;
-    if (abilities) {
-        PARSE_LIST(abilities, abil, parse_segment) {
-            uint32_t static_code = 0;
-            if (strlen(abil) == 4) memcpy(&static_code, abil, sizeof(static_code));
-            if (static_code == code) return true;
-        }
+    uint32_t count;
+    uint32_t const *codes;
+    if (g_unit_status_query && g_unit_status_query->unit == ent) {
+        codes = g_unit_status_query->abilities;
+        count = (g_unit_status_query->ability_membership & G_AbilityMembershipBit(code)) ?
+            g_unit_status_query->ability_count : 0;
+    } else {
+        if (G_UnitHasAuthoredAbility(ent->data.UnitAbilities, code)) return true;
+        count=0;codes=NULL;
     }
-    return false;
+    FOR_LOOP(i, count) {
+#ifdef BZ_TESTS
+        G_TestRecordAuthoredMembershipVisit();
+#endif
+        if (codes[i] == code) return true;
+    }
+    abilityitem_t item=S_AbilityItem(code);
+    if (!item.ability || !(item.ability->flags&AB_INTRINSIC)) return false;
+    abilityCall_t call={.item=&item};
+    return S_AbilityMessage((edict_t *)ent,A_UNIT_OWNED,&call)!=0;
+}
+
+bool G_ActorHasAbilityCode(edict_t const *ent, uint32_t code) {
+    /* Match the former four-character string query, including malformed
+     * runtime IDs with an embedded terminator. */
+    if(!(code&0xffu) || !(code&0xff00u) || !(code&0xff0000u) || !(code&0xff000000u))return false;
+    return actor_has_skill(ent,code);
 }
 
 bool G_ActorHasSkill(edict_t const *ent, cstring_t id) {
     uint32_t code = 0;
-    if (!id || strlen(id) != 4) return false;
+    /* A rawcode is exactly four bytes: reject longer IDs without walking
+     * their full string, and short-circuit before reading past a terminator. */
+    if (!id || !id[0] || !id[1] || !id[2] || !id[3] || id[4]) return false;
     memcpy(&code, id, sizeof(code));
     return actor_has_skill(ent, code);
 }
@@ -428,7 +432,7 @@ static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
 
     /* NightElf campaign scripts use the shared autoharvestgold order for
      * Wisps too. Their gold work is cargo boarding, not Ahar mining. */
-    if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasSkill(self, "Awha"))
+    if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasAbilityCode(self, MAKEFOURCC('A','w','h','a')))
         return S_CargoOrderNearestEntangledMine(self);
 
     /* Wisp lumber uses Awha's direct periodic harvesting state, not the
@@ -572,7 +576,8 @@ static void harvest_finish_lumber_deposit(edict_t *ent) {
         tree = find_another_tree_near(ent, &tree->s.origin2);
     else if (!tree)
         tree = find_another_tree(ent);
-    ent->goalentity = ent->secondarygoal = tree;
+    S_SetMoveGoal(ent, &ent->secondarygoal, tree);
+    S_SetMoveGoal(ent, &ent->goalentity, tree);
     if (tree) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
         move_reset_progress(ent);
@@ -590,7 +595,7 @@ static void ai_harvest_walkback(edict_t *ent) {
             return;
         }
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
-        ent->goalentity = dropoff;
+        S_SetMoveGoal(ent, &ent->goalentity, dropoff);
         move_reset_progress(ent);
     }
 
@@ -655,8 +660,8 @@ static void ai_chop(edict_t *ent) {
     if (felled && g_numTreeFallSounds) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
         G_PlaySound(NULL, ent, CHAN_BODY, g_treeFallSounds[rand() % g_numTreeFallSounds], 1.0f, 1.0f, 0.0f);
-    } else if (ent->sound.num_chop) {
-        int sound = ent->sound.chop[rand() % ent->sound.num_chop];
+    } else if (G_UnitSoundProfile(ent)->num_chop) {
+        int sound = G_UnitSoundProfile(ent)->chop[rand() % G_UnitSoundProfile(ent)->num_chop];
         G_PlaySound(NULL, ent, CHAN_WEAPON, sound, G_SoundIndexVolume(sound), 1.0f, 0.0f);
     }
 }
@@ -703,7 +708,7 @@ bool harvest_lumber_return_to(edict_t *ent, edict_t *dropoff) {
     }
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
-    ent->goalentity = dropoff;
+    S_SetMoveGoal(ent, &ent->goalentity, dropoff);
     move_reset_progress(ent);
     unit_setmove(ent, &harvest_move_walkback);
     return true;
@@ -720,12 +725,12 @@ void CMD_Harvest(edict_t *ent);
 void harvest_start(edict_t *self, edict_t *target) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
 
-    self->secondarygoal = target;
+    S_SetMoveGoal(self, &self->secondarygoal, target);
     if (self->harvested_lumber >= tuning.lumber_capacity && self->harvested_lumber > 0) {
         harvest_walkback(self);
         return;
     }
-    self->goalentity = target;
+    S_SetMoveGoal(self, &self->goalentity, target);
     move_reset_progress(self);
     HARVEST_PATH_LOG(1,
         "start worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f)\n",
@@ -978,8 +983,8 @@ void wisp_harvest_start(edict_t * self, edict_t * target) {
     if (!self || !target || target->targtype != TARG_TREE || M_IsDead(target) ||
         !S_WispHarvestCanLumber(self)) return;
     S_WispHarvestRelease(self);
-    self->goalentity = target;
-    self->secondarygoal = NULL;
+    S_SetMoveGoal(self, &self->goalentity, target);
+    S_SetMoveGoal(self, &self->secondarygoal, NULL);
     self->wait = 0.0f;
     move_reset_progress(self);
     unit_setmove(self, &wisp_harvest_walk);
@@ -1034,8 +1039,8 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
     case A_DISABLE:
         S_WispHarvestRelease(ent);
         if (ent && ent->currentmove && ent->currentmove->proc == CAbilityWispHarvest) {
-            ent->goalentity = NULL;
-            ent->secondarygoal = NULL;
+            S_SetMoveGoal(ent, &ent->goalentity, NULL);
+            S_SetMoveGoal(ent, &ent->secondarygoal, NULL);
             if (ent->stand) ent->stand(ent);
         }
         return true;
@@ -1052,7 +1057,7 @@ static bool acolyte_harvest_selecttarget(edict_t *clent, edict_t *target) {
     bool issued = false;
 
     if (!clent || !clent->client) return false;
-    if (!target || !G_ActorHasSkill(target, "Abgm")) {
+    if (!target || !G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m'))) {
         G_ShowCommandErrorKey(clent, "Targetblightedmine", "Must target a Haunted Gold Mine.");
         return false;
     }
@@ -1087,7 +1092,7 @@ BZ_COMMAND_PROC(AbilityReturn) {
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
-    if (target && G_ActorHasSkill(target, "Abgm")) {
+    if (target && G_ActorHasAbilityCode(target, MAKEFOURCC('A','b','g','m'))) {
         bool has_acolyte = false;
         if (target->s.player != clent->client->ps.number) {
             G_ShowCommandErrorKey(clent, "Nototherplayersmine",
@@ -1095,7 +1100,7 @@ bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
             return false;
         }
         FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-            if (G_ActorHasSkill(ent, "Aaha")) {
+            if (G_ActorHasAbilityCode(ent, MAKEFOURCC('A','a','h','a'))) {
                 has_acolyte = true;
                 S_AcolyteHarvestOrder(ent, target);
             }

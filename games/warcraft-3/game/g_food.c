@@ -157,6 +157,7 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
     uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGING);
     G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue/upgrade charges belong to the original player. Cancel before
      * ownership changes so neither reservations nor refunds cross the transfer. */
@@ -177,7 +178,13 @@ void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
         G_AdjustFoodStat(new_client, PLAYERSTATE_RESOURCE_FOOD_CAP, unit->food->made);
     }
     unit->s.player = player;
+    G_AcquisitionEntityLinked(unit);
+    S_UnitAbilityEvent(unit, A_UNIT_OWNER_CHANGED);
     G_PublishChangeOwnerEvents(unit, old_player);
+    /* Native698ce0 publishes the owner event before9b9230 ->9c3660 reinserts
+     * into the new owner's head. Same-owner calls retain their pool position. */
+    G_UnitOwnerInsert(unit);
+    G_BotUnitOwnerChanged(unit);
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
     G_InvalidateUnitInfoPanel(unit);

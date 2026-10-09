@@ -1,0 +1,350 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "source_sha256": {
+    "trace_wc3_pathfinding.py": "20baec401cc4b105b02e38cf365992237ae55aa0acb5d2c815ba1fab3c2b9241",
+    "wc3_pathfinding.js": "0a499ebaaaa96dcd2672d39565ce401bbbc40595d5f373f57c2c0be65a233aaf",
+    "wc3_pathfinding_probe.j": "bc92294ab152258b0dad750a932baa644dae066d837af6a92e96a0098f40c67e",
+    "make_wc3_pathfinding_map.py": "e19635182d272e2e9073d99df76ff40343ed30d5a2a6c8b1a880de2f4a12442d",
+    "wc3_numeric_inputs.json": "4f104f21e237cb9ea9c5969ecd66bbab388708c4fee229d02a33482057a91946",
+    "wc3_angle_inputs.json": "42469e17412ba9aeff7d614407284b535a4263b4f360a0503162013d22bab54f",
+    "wc3_power_inputs.json": "f882573793d1fca82a4727e8dcb739dd12bca5289d1f8af09005599175610067",
+    "wc3_literal_inputs.json": "a3de9e692b719e08d07b97878bb342ef19966a1c3160dabb9a205edb76b26d20",
+    "wc3_integer_inputs.json": "97a70c6061779e669a65bcc6f56312faf7d071c25db5adfc922219d4cbe4c712",
+    "wc3_byte_inputs.json": "3a94ef9f079020a2260dea9875055a32261d230ebf21ac0f732ba1796612c823",
+    "map": "cdd4e56d3cc1635cdffa264424ba7cba95e1c0262645f98c5cea6bd8bc267048"
+  },
+  "speed_sha256": "d8f638d0b6a7f6bccf3d13c000c941cf8ed9653554d98075caa2fd745c742183",
+  "rawcode": 1751543663,
+  "bounds": [
+    1065353216,
+    1141014528,
+    1065353216,
+    1141014528,
+    1125515264,
+    1137180672,
+    1103626240,
+    1137180672
+  ],
+  "sample": [
+    {
+      "event": "speed-marker",
+      "ms": 1790805334735,
+      "value": "PATHSPEED case=foot_travel_high"
+    },
+    {
+      "event": "speed-cap-change",
+      "ms": 1790805334735,
+      "case": "foot_travel_high",
+      "mover": "0x12d70098",
+      "value": 1095237632,
+      "before": [
+        1073574036,
+        0,
+        1126400000,
+        1116471264,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1073741808,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1073574036,
+        0,
+        1126400000,
+        1116471264,
+        823525349,
+        1083572196,
+        1095237632,
+        1070141402
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "speed-publication",
+      "ms": 1790805334735,
+      "case": "foot_travel_high",
+      "input": 1137180672,
+      "rawcode": 1751543663,
+      "identity": [
+        1109,
+        1109
+      ],
+      "globalCap": 1141025451,
+      "mover": "0x12d70098",
+      "limit": 1095237632,
+      "increment": 1095237632
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334735,
+      "case": "foot_travel_high",
+      "name": "SetUnitMoveSpeed",
+      "handle": 1048699,
+      "input": 1137213440,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": null,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334735,
+      "case": "foot_travel_high",
+      "name": "GetUnitMoveSpeed",
+      "handle": 1048699,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": 1137180672,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334735,
+      "case": "foot_travel_high",
+      "name": "GetUnitDefaultMoveSpeed",
+      "handle": 1048699,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": 1132920832,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-marker",
+      "ms": 1790805334736,
+      "value": "PATHSPEED done=travel"
+    },
+    {
+      "event": "speed-marker",
+      "ms": 1790805334776,
+      "value": "PATHSPEED case=foot_travel_low"
+    },
+    {
+      "event": "speed-cap-change",
+      "ms": 1790805334776,
+      "case": "foot_travel_low",
+      "mover": "0x12d70098",
+      "value": 1083572224,
+      "before": [
+        1077936016,
+        0,
+        1126400000,
+        1118111645,
+        835190784,
+        1095237631,
+        1095237632,
+        1070141402
+      ],
+      "clock": [
+        1077936016,
+        0,
+        1133903872
+      ],
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1077936016,
+        0,
+        1126400000,
+        1118111645,
+        823525385,
+        1083572232,
+        1083572224,
+        1070141402
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "speed-publication",
+      "ms": 1790805334776,
+      "case": "foot_travel_low",
+      "input": 1125515264,
+      "rawcode": 1751543663,
+      "identity": [
+        1109,
+        1109
+      ],
+      "globalCap": 1141025451,
+      "mover": "0x12d70098",
+      "limit": 1083572224,
+      "increment": 1083572224
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334776,
+      "case": "foot_travel_low",
+      "name": "SetUnitMoveSpeed",
+      "handle": 1048699,
+      "input": 1120403456,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": null,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334776,
+      "case": "foot_travel_low",
+      "name": "GetUnitMoveSpeed",
+      "handle": 1048699,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": 1125515264,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-native",
+      "ms": 1790805334776,
+      "case": "foot_travel_low",
+      "name": "GetUnitDefaultMoveSpeed",
+      "handle": 1048699,
+      "unit": "0x8df0014",
+      "rawcode": 1751543663,
+      "output": 1132920832,
+      "bounds": [
+        1065353216,
+        1141014528,
+        1065353216,
+        1141014528,
+        1125515264,
+        1137180672,
+        1103626240,
+        1137180672
+      ]
+    },
+    {
+      "event": "speed-marker",
+      "ms": 1790805334777,
+      "value": "PATHSPEED done=travel"
+    }
+  ],
+  "next_commits": [
+    {
+      "event": "velocity-commit",
+      "ms": 1790805334737,
+      "mover": "0x12d70098",
+      "speed": 1095237632,
+      "heading": 1070141402,
+      "before": [
+        1073574036,
+        0,
+        1126400000,
+        1116471264,
+        823525349,
+        1083572196,
+        1095237632,
+        1070141402
+      ],
+      "clock": [
+        1073783758,
+        0,
+        1133903872
+      ],
+      "fineObject": "0x116c49b0",
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1073783758,
+        0,
+        1126400000,
+        1116489695,
+        835190784,
+        1095237631,
+        1095237632,
+        1070141402
+      ],
+      "requested": [
+        1095237632,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    },
+    {
+      "event": "velocity-commit",
+      "ms": 1790805334778,
+      "mover": "0x12d70098",
+      "speed": 1083572224,
+      "heading": 1070141402,
+      "before": [
+        1077936016,
+        0,
+        1126400000,
+        1118111645,
+        823525385,
+        1083572232,
+        1083572224,
+        1070141402
+      ],
+      "clock": [
+        1078061842,
+        0,
+        1133903872
+      ],
+      "fineObject": "0x116c49b0",
+      "fineFlagsBefore": 536870912,
+      "after": [
+        1078061842,
+        0,
+        1126400000,
+        1118130076,
+        823525349,
+        1083572196,
+        1083572224,
+        1070141402
+      ],
+      "requested": [
+        1083572224,
+        2147483648
+      ],
+      "fineFlagsAfter": 536870912
+    }
+  ]
+}

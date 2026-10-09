@@ -157,6 +157,7 @@ void G_JassDialogClick(edict_t *ent, uint32_t dialog_id, uint32_t button_id) {
         gameEvent_t *event = G_PublishEvent(NULL, registration->type);
         if (!event) break;
         event->responseTo = registration;
+        event->response_sequence = registration->registration_sequence;
         event->dialog_id = dialog_id;
         event->button_id = button_id;
         event->dialog_player = player + 1;

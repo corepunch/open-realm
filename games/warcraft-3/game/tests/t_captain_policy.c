@@ -1,0 +1,422 @@
+#ifdef BZ_TESTS
+#include "../g_local.h"
+#include "../skills/s_skills.h"
+#include "shared/test.h"
+extern void reset_entities(void),setup_test_world(void);
+extern bool run_test_jass(cstring_t);
+extern slkTestData_t *parse_slk_string(char const *),*G_SetSLKRows(char const *,slkTestData_t *);
+extern void free_slk_rows(slkTestData_t *);
+
+static void CaptainPolicyWorld(void) {
+    G_BotStop(0);reset_entities();setup_test_world();
+    level.time=level.pathing_msec=level.pathing_phase=0;
+    level.pathing_due=level.pathing_owner_clock_valid=level.timer_clock_valid=false;
+    static uint8_t cells[64*64];memset(cells,0,sizeof(cells));
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    level.pathing_clock=(wc3Clock_t){0,0,300};
+    ((mapInfo_t *)level.mapinfo)->players[0].used=true;
+    game.clients[0].mapplayer=level.mapinfo->players;
+    game.clients[0].jass.controller=1;G_BotInitPlayers();
+    G_BotCreateCaptains(&game.clients[0].ps);
+    G_BotSetCaptainHome(&game.clients[0].ps,1,256,1024);
+}
+
+TEST(wc3_bot, captain_empty_go_home_places_actor_and_retains_request) {
+    CaptainPolicyWorld();
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *actor=captain->home_actor;
+    S_SetUnitPosition(actor,&(vec2_t){1600,1024});
+    T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(1600));
+    G_BotCaptainGoHome(&game.clients[0].ps);
+    T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(256));
+    T_EQ(wc3_float_bits(actor->s.origin2.y),wc3_float_bits(1024));
+    T_NOT_NULL(actor->goalentity);
+    T_EQ(actor->current_order_id,G_OrderId("move"));
+    T_EQ(wc3_float_bits(actor->unitinfo.MoveSpeed),0x461c3c00u);
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_empty_home_change_places_then_publishes_request) {
+    CaptainPolicyWorld();
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotSetCaptainHome(&game.clients[0].ps,1,1600,1024);
+    T_EQ(wc3_float_bits(captain->home_actor->s.origin2.x),wc3_float_bits(1600));
+    T_NOT_NULL(captain->home_actor->goalentity);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1600));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_occupied_home_and_campaign_removals_use_counts_not_life) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    bot_t *bot=level.bots;botCaptain_t *captain=bot->captains;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    edict_t *units[7];
+    FOR_LOOP(i,7)units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),&(vec2_t){256+96*(i%4),256+96*(i/4)},0);
+    T_ASSERT(G_BotAddAssault(player,7,MAKEFOURCC('h','f','o','o')));
+    bot->flags|=BOT_GROUPS_FLEE;
+    /* Advance the real retained owner before changing its authored home. */
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    FOR_LOOP(i,240) {level.time+=5;globals.RunFrame();}
+    edict_t *actor=captain->home_actor;
+    vec2_t prior=actor->s.origin2;
+    FOR_LOOP(i,7)units[i]->health.value=1;
+    T_EQ(captain->strength_count,7);
+    G_BotSetCaptainHome(player,1,1600,1024);
+    T_EQ(wc3_float_bits(actor->s.origin2.x),wc3_float_bits(prior.x));
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    FOR_LOOP(i,4) {
+        G_FreeEdict(units[i]);
+        T_ASSERT(!G_BotCaptainRetreating(player));
+    }
+    G_FreeEdict(units[4]);
+    T_EQ(G_BotCaptainGroupSize(player),2);
+    T_ASSERT(G_BotCaptainRetreating(player));
+    T_NOT_NULL(actor->goalentity);
+    if(actor->goalentity)T_EQ(wc3_float_bits(actor->goalentity->s.origin2.x),wc3_float_bits(1600));
+    T_EQ(wc3_float_bits(actor->unitinfo.MoveSpeed),0x43fa0000u);
+    wc3Clock_t due=captain->update_due;
+    uint32_t flags=captain->policy_flags;
+    cstring_t file=Test_TempPath("wc3-captain-policy159.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(captain->policy_flags,flags);T_EQ(captain->strength_count,2);
+    T_EQ(wc3_float_bits(captain->update_due.time),wc3_float_bits(due.time));
+    T_EQ(captain->update_due.epoch,due.epoch);
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1600));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_ASSERT(G_BotCaptainRetreating(player));
+    G_BotCaptainAttack(player,&(vec2_t){256,1024});
+    T_ASSERT(!G_BotCaptainRetreating(player));
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    remove(file);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_attack_native_admits_actor_request) {
+    CaptainPolicyWorld();
+    edict_t *actor=level.bots[0].captains[0].home_actor;
+    T_ASSERT(G_BotStart(&game.clients[0].ps,"test_captain_attack.ai",BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(level.bots[0].vm);
+    T_NOT_NULL(actor->goalentity);
+    if(actor->goalentity)T_EQ(wc3_float_bits(actor->goalentity->s.origin2.x),wc3_float_bits(1600));
+    T_EQ(actor->current_order_id,G_OrderId("move"));
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+TEST(wc3_bot, captain_attack_arrival_returns_home_without_retreat) {
+    CaptainPolicyWorld();
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){1600,1024});
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(200));
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(1600));
+    FOR_LOOP(i,500) {level.time+=5;globals.RunFrame();}
+    T_EQ(wc3_float_bits(captain->goal.x),wc3_float_bits(256));
+    T_EQ(wc3_float_bits(captain->request_range),wc3_float_bits(500));
+    T_EQ(wc3_float_bits(captain->home_actor->s.origin2.x),wc3_float_bits(256));
+    T_ASSERT(!G_BotCaptainRetreating(&game.clients[0].ps));
+    T_EQ(captain->state,BOT_CAPTAIN_ACTIVE);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+/* A new Captain point request moves the virtual target, but an existing
+ * member Move to that identity remains the same request (native9d87d0).
+ * Upgrades become visible only when a genuinely new member request starts. */
+TEST(wc3_bot, captain_repeated_point_request_retains_member_range_after_upgrade_and_save) {
+    CaptainPolicyWorld();
+    float range=400,acquire=1000,radius=32;uint32_t enabled=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','p','g','r'),.type=mod_string,.data="Rhri"},
+        {.modID=MAKEFOURCC('u','a','1','d'),.type=mod_int,.data=&enabled}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','C','P','3'),
+        .numbeOfModifications=6,.modifications=mods};
+    mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&type;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\nC;X3;K\"effect1\"\nC;X4;K\"base1\"\nC;X5;K\"mod1\"\n"
+        "C;Y2;X1;K\"Rhri\"\nC;X2;K1\nC;X3;K\"ratr\"\nC;X4;K200\nC;X5;K0\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("UpgradeData",rows);
+    memset(game.clients[0].tech,0,sizeof(game.clients[0].tech));
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    edict_t *units[13];
+    FOR_LOOP(i,13)units[i]=unit_create(0,type.newUnitID,
+        &(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+    T_ASSERT(G_BotAddAssault(player,13,type.newUnitID));
+    botCaptain_t *captain=level.bots[0].captains;
+    edict_t *actor=captain->home_actor;
+    uint32_t ids[13];float ranges[13];wc3Clock_t due[13];
+    FOR_LOOP(i,13) {
+        ids[i]=units[i]->movement.group_id;due[i]=units[i]->movement.captain_home.due;
+        ranges[i]=0;
+        FOR_EACH_ARRAY(moveGroup_t *,group,level.move_groups)
+            if((*group)->inuse && (*group)->id==ids[i]) ranges[i]=(*group)->members[0].arrival_range;
+        T_EQ(wc3_float_bits(ranges[i]),0x412b0000u);
+    }
+    G_SetPlayerTechResearched(&game.clients[0],MAKEFOURCC('R','h','r','i'),1);
+    T_EQ(wc3_float_bits(S_AttackProfileRead(units[0],0)->range),wc3_float_bits(600));
+    G_BotCaptainAttack(player,&(vec2_t){256,1900});
+    FOR_LOOP(i,13) {
+        T_EQ(units[i]->movement.group_id,ids[i]);
+        T_EQ(units[i]->movement.captain_home.actor,actor);
+        T_EQ(wc3_float_bits(units[i]->movement.captain_home.due.time),wc3_float_bits(due[i].time));
+    }
+    cstring_t file=Test_TempPath("wc3-captain-reissue193.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    G_BotCaptainAttack(player,&(vec2_t){1600,1900});
+    FOR_LOOP(i,13) {
+        T_EQ(units[i]->movement.group_id,ids[i]);
+        FOR_EACH_ARRAY(moveGroup_t *,group,level.move_groups)
+            if((*group)->inuse && (*group)->id==units[i]->movement.group_id)
+                T_EQ(wc3_float_bits((*group)->members[0].arrival_range),wc3_float_bits(ranges[i]));
+    }
+    /* A public Stop ends the physical request. The next Captain request must
+     * reacquire the changed defaults rather than retain the ended snapshot. */
+    T_ASSERT(unit_issueimmediateorder(units[0],"stop"));
+    G_BotCaptainAttack(player,&(vec2_t){512,1900});
+    T_ASSERT(units[0]->movement.group_id!=ids[0]);
+    bool replaced=false;
+    FOR_EACH_ARRAY(moveGroup_t *,group,level.move_groups)
+        if((*group)->inuse && (*group)->id==units[0]->movement.group_id) {
+            replaced=true;
+            T_EQ(wc3_float_bits((*group)->members[0].arrival_range),0x41670000u);
+        }
+    T_ASSERT(replaced);
+    remove(file);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("UpgradeData",old_rows);free_slk_rows(rows);
+}
+
+static float CaptainPolicyArrival(edict_t const *unit) {
+    FOR_EACH_ARRAY(moveGroup_t *,group,level.move_groups)
+        if((*group)->inuse && (*group)->id==unit->movement.group_id)
+            FOR_LOOP(i,(*group)->count)if((*group)->members[i].unit==unit)
+                return (*group)->members[i].arrival_range;
+    return -1;
+}
+
+/* Follow a real outer-circle departure, change a producer during the private
+ * walk, save it, then let shared re-admission and another departure execute. */
+TEST(wc3_bot, captain_range_producers_retain_walk_and_refresh_on_natural_departure) {
+    CaptainPolicyWorld();
+    float range=400,acquire=1000,radius=32;uint32_t enabled=1;
+    unitModification_t mods[]={
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','c','q'),.type=mod_unreal,.data=&acquire},
+        {.modID=MAKEFOURCC('u','c','o','l'),.type=mod_unreal,.data=&radius},
+        {.modID=MAKEFOURCC('u','p','g','r'),.type=mod_string,.data="Rhri"},
+        {.modID=MAKEFOURCC('u','a','1','d'),.type=mod_int,.data=&enabled},
+        {.modID=MAKEFOURCC('u','a','1','w'),.type=mod_string,.data="missile"}};
+    unitData_t type={.originalUnitID=MAKEFOURCC('h','R','T','E'),.newUnitID=MAKEFOURCC('h','C','D','3'),
+        .numbeOfModifications=7,.modifications=mods};
+    mapInfo_t const *old_info=level.mapinfo;mapInfo_t info=*old_info;
+    info.num_userCreatedUnits=1;info.userCreatedUnits=&type;
+    level.mapinfo=&info;G_SetMapUnitOverrides(&info);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"upgradeid\"\nC;X2;K\"maxlevel\"\nC;X3;K\"effect1\"\nC;X4;K\"base1\"\nC;X5;K\"mod1\"\n"
+        "C;Y2;X1;K\"Rhri\"\nC;X2;K1\nC;X3;K\"ratr\"\nC;X4;K200\nC;X5;K0\nE\n");
+    slkTestData_t *old_rows=G_SetSLKRows("UpgradeData",rows);
+    memset(game.clients[0].tech,0,sizeof(game.clients[0].tech));
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    edict_t *units[13];
+    FOR_LOOP(i,13)units[i]=unit_create(0,type.newUnitID,&(vec2_t){256+80*(i%4),192+80*(i/4)},0);
+    T_ASSERT(G_BotAddAssault(player,13,type.newUnitID));
+    botCaptain_t *captain=level.bots[0].captains;
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    uint32_t fresh[]={0x404c0000,0x40240000,0x41260000,0x41670000};
+    cstring_t file=Test_TempPath("wc3-captain-departure193.bin");
+    FOR_LOOP(kind,4) {
+        /* Each member returns through the actual one-second listener. */
+        uint32_t deadline=level.time+20000;
+        while(level.time<deadline && (captain->entered_members!=13 || units[kind]->movement.captain_home.active)) {
+            level.time+=5;globals.RunFrame();
+        }
+        T_EQ(captain->entered_members,13);T_ASSERT(!units[kind]->movement.captain_home.active);
+        S_SetUnitPosition(units[kind],&(vec2_t){1800,128});
+        deadline=level.time+1100;
+        while(level.time<deadline && !units[kind]->movement.captain_home.active) {level.time+=5;globals.RunFrame();}
+        T_ASSERT(units[kind]->movement.captain_home.active);
+        T_EQ(wc3_float_bits(CaptainPolicyArrival(units[kind])),0x412b0000u);
+        uint32_t id=units[kind]->movement.group_id;
+        if(kind==0)S_AttackAdjustPrevention(units[kind],2,false);
+        if(kind==1)S_ApplyTimedLife(units[kind],MAKEFOURCC('B','T','L','F'),600);
+        if(kind==2)T_ASSERT(G_ActorRemoveSkill(units[kind],MAKEFOURCC('A','a','t','k')));
+        if(kind==3)G_SetPlayerTechResearched(&game.clients[0],MAKEFOURCC('R','h','r','i'),1);
+        T_EQ(units[kind]->movement.group_id,id);
+        T_EQ(wc3_float_bits(CaptainPolicyArrival(units[kind])),0x412b0000u);
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+        T_EQ(units[kind]->movement.group_id,id);
+        T_EQ(wc3_float_bits(CaptainPolicyArrival(units[kind])),0x412b0000u);
+        deadline=level.time+20000;
+        while(level.time<deadline && (captain->entered_members!=13 || units[kind]->movement.captain_home.active)) {
+            level.time+=5;globals.RunFrame();
+        }
+        T_EQ(captain->entered_members,13);T_ASSERT(!units[kind]->movement.captain_home.active);
+        S_SetUnitPosition(units[kind],&(vec2_t){1800,128});
+        deadline=level.time+1100;
+        while(level.time<deadline && !units[kind]->movement.captain_home.active) {level.time+=5;globals.RunFrame();}
+        T_ASSERT(units[kind]->movement.captain_home.active);
+        T_EQ(wc3_float_bits(CaptainPolicyArrival(units[kind])),fresh[kind]);
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+        T_EQ(wc3_float_bits(CaptainPolicyArrival(units[kind])),fresh[kind]);
+    }
+    remove(file);G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetMapUnitOverrides(NULL);level.mapinfo=old_info;
+    G_SetSLKRows("UpgradeData",old_rows);free_slk_rows(rows);
+}
+
+static void CaptainSpeedRoster(edict_t **units) {
+    CaptainPolicyWorld();
+    player_t *player=&game.clients[0].ps;
+    T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+    FOR_LOOP(i,6) units[i]=unit_create(0,MAKEFOURCC('h','f','o','o'),
+        &(vec2_t){256+80*(i%4),192-80*(i/4)},0);
+    T_ASSERT(G_BotAddAssault(player,6,MAKEFOURCC('h','f','o','o')));
+}
+
+TEST(wc3_bot, captain_nonhome_request_reduces_speed_until_range_entry) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    player_t *player=&game.clients[0].ps;
+    botCaptain_t *captain=level.bots[0].captains;
+    G_BotCaptainAttack(player,&(vec2_t){256,64});
+    /* Two complete public retail repeats: six 270-speed members, no inner
+     * range entries, retained request different from the authored home. */
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+    level.started=level.scriptsConfigured=level.scriptsStarted=true;
+    bool entered=false;
+    FOR_LOOP(i,600) {
+        level.time+=5;globals.RunFrame();
+        entered=true;
+        FOR_LOOP(j,6) if(!units[j]->movement.captain_home.entered) entered=false;
+        if(entered) break;
+    }
+    T_ASSERT(entered);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x43870000u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_nonhome_speed_uses_live_minimum_and_retained_save_state) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    botCaptain_t *captain=level.bots[0].captains;
+    S_SetUnitMoveSpeed(units[0],180);
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    cstring_t file=Test_TempPath("wc3-captain-speed160.bin");
+    T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    S_CaptainPointMove(captain,&captain->goal,200);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    G_BotCaptainAttack(&game.clients[0].ps,&captain->home);
+    T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),wc3_float_bits(180));
+    remove(file);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_cargo_drop_roster_keeps_unreduced_speed) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\nB;X3;Y2\nC;X1;Y1;K\"ID\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X1;Y2;K\"Adro\"\nC;X2;K\"Adro\"\nC;X3;K1\nE\n");
+    slkTestData_t *old=G_SetSLKRows("AbilityData",rows);
+    FOR_LOOP(i,6) T_ASSERT(G_ActorAddSkill(units[i],MAKEFOURCC('A','d','r','o')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43870000u);
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','d','r','o')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
+}
+
+TEST(wc3_bot, captain_speed_ignores_removed_move_owner) {
+    edict_t *units[6];CaptainSpeedRoster(units);
+    S_SetUnitMoveSpeed(units[0],180);
+    T_ASSERT(G_ActorRemoveSkill(units[0],MAKEFOURCC('A','m','o','v')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x43592c85u);
+    T_ASSERT(G_ActorAddSkill(units[0],MAKEFOURCC('A','m','o','v')));
+    G_BotCaptainAttack(&game.clients[0].ps,&(vec2_t){256,64});
+    T_EQ(wc3_float_bits(level.bots[0].captains[0].home_actor->unitinfo.MoveSpeed),0x4310c858u);
+    G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+}
+
+TEST(wc3_bot, captain_large_roster_preserves_admission_batches_and_cold_save) {
+    uint32_t sizes[]={24,25};
+    FOR_LOOP(case_index,sizeof(sizes)/sizeof(*sizes)) {
+        uint32_t count=sizes[case_index];
+        CaptainPolicyWorld();
+        player_t *player=&game.clients[0].ps;
+        botCaptain_t *captain=level.bots[0].captains;
+        T_ASSERT(G_BotStart(player,"test_idle.ai",BOT_CAMPAIGN));
+        FOR_LOOP(i,count) unit_create(0,MAKEFOURCC('h','f','o','o'),
+            &(vec2_t){128+96*(i%8),128+96*(i/8)},0);
+        T_ASSERT(G_BotAddAssault(player,count,MAKEFOURCC('h','f','o','o')));
+        T_EQ(ARRAY_COUNT(captain->units),count);
+        bool admitted=true;
+        FOR_LOOP(i,count) {
+            edict_t *unit=captain->units[i];
+            T_EQ(unit->movement.captain_home.roster_actor,captain->home_actor);
+            T_EQ(unit->movement.captain_home.member_index,i);
+            if(unit->movement.captain_home.roster_actor!=captain->home_actor) admitted=false;
+        }
+        /* The old thirteen-member fallback loses registration. Stop the red
+         * run here instead of driving its inconsistent range-listener state. */
+        if(!admitted) goto done;
+        G_BotCaptainAttack(player,&(vec2_t){256,64});
+        /* Completed retail repeats: the twenty-fifth member takes the factor
+         * above one; there is no post-multiplier clamp back to the minimum. */
+        T_EQ(wc3_float_bits(captain->home_actor->unitinfo.MoveSpeed),count==24 ? 0x43870000u : 0x438877a6u);
+        cstring_t file=Test_TempPath("wc3-captain-large161.bin");
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+        T_EQ(ARRAY_COUNT(captain->units),count);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
+        level.started=level.scriptsConfigured=level.scriptsStarted=true;
+        bool shared=false;
+        FOR_LOOP(frame,600) {
+            level.time+=5;globals.RunFrame();
+            shared=true;
+            FOR_LOOP(i,count) if(captain->units[i]->movement.captain_home.active) shared=false;
+            if(shared)break;
+        }
+        T_ASSERT(shared);
+        T_EQ(captain->entered_members,count);
+        uint64_t shared_id=0;
+        uint32_t batches=0,admitted_count=0;
+        FOR_EACH_ARRAY(moveGroup_t *,item,level.move_groups) {
+            moveGroup_t *group=*item;
+            if(!group->inuse || !group->shared_id || group->target)continue;
+            if(!shared_id)shared_id=group->shared_id;
+            T_EQ(group->shared_id,shared_id);
+            T_EQ(group->count,MIN(count-admitted_count,BZ_WC3_GROUP_ORDER_UNITS));
+            admitted_count+=group->count;batches++;
+        }
+        T_EQ(batches,(count+BZ_WC3_GROUP_ORDER_UNITS-1)/BZ_WC3_GROUP_ORDER_UNITS);
+        T_EQ(admitted_count,count);
+        T_ASSERT(WriteGame(file));G_BotStop(0);T_ASSERT(ReadGame(file));remove(file);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        T_EQ(captain->entered_members,count);
+        G_FreeEdict(captain->units[count/2]);
+        T_EQ(ARRAY_COUNT(captain->units),count-1);
+        T_EQ(captain->entered_members,count-1);
+        T_ASSERT(S_ValidateCaptainHomeActors(false));
+        G_BotCaptainAttack(player,&(vec2_t){1536,1024});
+        FOR_LOOP(i,count-1)T_EQ(captain->units[i]->movement.captain_home.roster_actor,captain->home_actor);
+done:
+        G_BotStop(0);level.started=false;reset_entities();setup_test_world();
+    }
+}
+#endif

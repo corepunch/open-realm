@@ -1,0 +1,119 @@
+{
+  "native_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "base": "6f000000",
+  "functions": [
+    {
+      "address": "6f16d7e0",
+      "name": "MoveRequest_SetAlternateSpacing",
+      "comment": "Thiscall canonical request;stack4 Boolean,RET4. Set/clear request100 bit20. Full instruction scan finds this sole direct spacing writer;no static code xrefs and no absolute preferred address in the pinned image. It is not89caf0 and genuine ordinary/Alt UI never invokes it. Absence of xrefs is not a complete indirect-reachability proof; FORM-01.3 stays open.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": []
+    },
+    {
+      "address": "6f16dc90",
+      "name": "MoveRequest_SetCanonicalFlag10",
+      "comment": "Thiscall canonical request;stack4 Boolean,RET4. Set/clear request100 bit10. Static callers05a65a target setup,05bb6a point bridge and89cd99 wrapper,distinct from89caf0 formation options. Wider actual Boolean producer witnesses are not certified by Payoff109.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f05a65a:UNCONDITIONAL_CALL",
+        "6f05bb6a:UNCONDITIONAL_CALL",
+        "6f89cd99:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f89caf0",
+      "name": "MoveRequest_SetFormationOptions",
+      "comment": "Thiscall ECX CMoveReq,stack4 enabled,RET4. Resolve canonical identity8/c,then16dc50/16dcb0/16dc70 with same Boolean. Selected ordinary UI packet8 calls false. 16bdb0 copies canonical100 flags to physical80 at construction. Payoff109 four completed owned Win32 ordinary/Alt clicks: packet8 passesfalse;packet18 passestrue. True installs canonical100 bits2/4/8 in order0->2->6->e;16bdb0 copies tophysical80. All four first six-member owner ticks have exact engine layout/destination/held-decision/velocity matches with supplied absolute input clocks. Spacing100.20 is a different policy. ShiftAlt witness retains e for the first delayed singleton then0 in four later singleton reconstructions; no queued Alt full-motion parity claim.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f6b9bec:UNCONDITIONAL_CALL",
+        "6f6b9c80:UNCONDITIONAL_CALL",
+        "6f6b9d24:UNCONDITIONAL_CALL",
+        "6f6ba23f:UNCONDITIONAL_CALL",
+        "6f6ba2d3:UNCONDITIONAL_CALL",
+        "6f6ba363:UNCONDITIONAL_CALL",
+        "6f6bad17:UNCONDITIONAL_CALL",
+        "6f6badab:UNCONDITIONAL_CALL",
+        "6f6bae3b:UNCONDITIONAL_CALL",
+        "6f6bb2c0:UNCONDITIONAL_CALL",
+        "6f6bb354:UNCONDITIONAL_CALL",
+        "6f6bb3f8:UNCONDITIONAL_CALL",
+        "6f6bbb9d:UNCONDITIONAL_CALL",
+        "6f6bbc14:UNCONDITIONAL_CALL",
+        "6f6bbca8:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16dc50",
+      "name": "MoveRequest_SetCanonicalFlag2",
+      "comment": "Thiscall ECX canonical CMoveReq receiver,stack4 Boolean,RET4; set/clear receiver100 bit2. UI formation-option Boolean reaches this through89caf0. Payoff109 genuine Alt input through89caf0 installs this bit;ordinaryclears it. Physical16c250 bit2 bypasses projected rank classification. Engine now invokes the recovered classifier on ordinary groups before temporary exclusions and decisions, instead of only a shared-parameter guard. Both reachable UI Booleans are captured twice.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f89cb08:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16dcb0",
+      "name": "MoveRequest_SetCanonicalFlag4",
+      "comment": "Thiscall ECX canonical CMoveReq receiver,stack4 Boolean,RET4; set/clear receiver100 bit4. UI formation-option Boolean reaches this through89caf0. Payoff109 genuine Alt input through89caf0 sets this bit,ordinaryclears it;16bdb0 copiescanonical100 tophysical80. Regroup16b250 returns0 when any arrived member and group4. Wider spacing-bit20 producer remains separate.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f89cb10:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16dc70",
+      "name": "MoveRequest_SetCanonicalFlag8",
+      "comment": "Thiscall ECX canonical CMoveReq receiver,stack4 Boolean,RET4; set/clear receiver100 bit8. UI formation-option Boolean reaches this through89caf0. Payoff109 genuine Alt input through89caf0 sets this bit,ordinaryclears it;16bdb0 copiescanonical100 tophysical80.169b50 bit8 denies shared speed-cap selection. The initial ordinary mixed-rank tick independently denies a cap through held-member200000; Alt requests all six authored150/350 speeds.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f89cb18:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16b2f0",
+      "name": "PathGroup_ClassifyProjectedMembers",
+      "comment": "Predicted position projected along heading70; intervals radius+1; sort lower edges, classify rank moverD8 bits12..15 into member200000, skip10000.1728 full calls plus retained contact-rounding regression. Payoff109 original public mixed ranks0/1/2/3/0/1 ordinary first tick holds members1/2/3/5 (200000), keeps0/4 moving; Alt bit2 skips it. Engine uses twelve fixed intervals and exact backwards strict-minimum-to-tail swaps before rank sweep; no rank-specific constants. Four full owner ticks match offsets, adaptive destinations, held/released flags, speeds/headings and commits.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c2b2:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16dfd0",
+      "name": "PathGroup_SortProjectedIntervals",
+      "comment": "Selection sort descending lower edge, paired upper edge and member index; strict minimum to tail. Executed within1728 full classifications; ties not generally stable.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16b4dd:UNCONDITIONAL_CALL",
+        "6f16a6ef:UNCONDITIONAL_CALL",
+        "6f16dfb8:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16fd90",
+      "name": "Mover_StepFormationHold",
+      "comment": "Member200000 branch: arrival or turn with stop1, unlink scheduling.16 full StepMember calls verify zero requested speed, turning/arrival flags and unchanged position/velocity before commit. Payoff109 original public mixed-rank ordinary tick executes held branch for members1/2/3/5, producing zero requested speed and authored turn. Engine retains classification200000 through movement, takes stop/turn instead of fresh local routing and unlinks local fine/coarse requests. Repeated ordinary/Alt first-tick scalar results all match.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16a96c:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f16c250",
+      "name": "PathGroup_ComputeMemberMovement",
+      "comment": "576 forced-arrival cases plus12 held-member cases and144 cached-route decision/commit/integration sequences. Clear member200000; classify; temporary fine-object40000000 around all steps; clear preserving20000000, mark member100000 for positive request. Singleton/group200 bypass; group2 skips classification. 144 full cached ticks plus fresh fine-search elapsed open/wall compositions verified; adaptive/crowd owner composition open. Payoff38 actual public pair stages requested own speeds150/350; only commit uses eligible shared150 cap. Blocked first formation slot triggers retry2-to1-to4 with native final destination and groupcount1; heading/stop/forced arrival now consumed in engine. Payoff39 snapshots temporary40000000 eligibility before all decisions; both fine search and step collection read peer committed fine poses, never sampled presentation. Full twelve-member normal-frame motion agrees, including final partial-route forced arrivals.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f16c1a8:UNCONDITIONAL_CALL"
+      ]
+    },
+    {
+      "address": "6f6b9f70",
+      "name": "NetOrder_DispatchPointSelectionWithTarget",
+      "comment": "Actual selected Footman Move UI producer: ECX action, player3,flags8,order851986,point c4f0f91c/c3ea6970, target identities -1/-1. Native Win32 SendInput is external fixture input; Frida observes only. Creates two CMoveReq,89cbf0 point,89caf0(false),6b8c10 attachments then6ba800 admission and9-word-row sort before6b93a0. One retained two-member physical group, all decisions before commits; production selected ordinary ground2..12 delegates through Move-owned shared request. Both actual clicked journeys match all456 engine commits and304 saved continuation commits with separately supplied input clocks; relative motion repeats exactly. Original input clock supplied. Selected ground first Shift behind one active shared cohort also retains new request identity and matches1020 absolute engine commits/684 saved suffixes through staggered natural activation. Idle selected ground Shift also uses one shared physical pair, with456 exact engine commits/304 saved suffixes. Two pending ground Shift moves also retain latest submitted history and repeat1110 engine commits/864 saved suffixes. Mixed active/idle ground Shift also uses shared request history: four target-free scene51 captures match1510 normal engine commits/1020 saved suffixes, including early singleton completion and later cohort joins. Unrelated current orders, callback ordering and air remain open. Scene52 null-target Shift packet9 reaches common point admission despite distinct current physical groups; all511 absolute motion commits repeat independently. Payoff109 repeated actual ordinary/Alt point actions use packet8/18 for six localplayer3 customrank0/1/2/3/0/1 movers.89caf0 receivespacket10;Alt alsoallocates a third request. Win32 helper M key and optional Alt are external input;observer never invokes game functions. Native first complete physical ticks repeat exactly apart from separately supplied absolute admission/commit clocks, and all456 scalar engine stage results match. ShiftAlt packet19 queued producers and partial delayed reconstructions are retained without claiming whole queued Alt equality.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f6bdca0:DATA",
+        "6f6bdd94:DATA"
+      ]
+    },
+    {
+      "address": "6f5faaf0",
+      "name": "Move_TryPreviousRequestCohort",
+      "comment": "Fastcall ECX candidateUnit,EDX40-byte neighbor context,RETplain/u32EAX continuation. DifferentUnit,same previous240/244 identity/category1fc,existing mover group,exact fine destination,under12 members. Allocate fresh CMoveReq, attach activating source first then all prior group rows, mark peers ready89cd10 and return0. Engine retains latest submitted common request separately from FIFO contexts; two queued native pair journeys repeat555 absolute commits each across five physical cohorts. Wider neighbor scan and callback mutation remain open. Payoff109 ShiftAlt public queued capture additionally shows original e-policy singleton before later fresh0-policy singleton reconstruction. This body creates a new request and does not call89caf0 or copy old canonical100 flags. Do not blindly persist UI Alt bits into every reconstructed queued cohort.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+      "xrefs": [
+        "6f5faa72:DATA"
+      ]
+    }
+  ]
+}

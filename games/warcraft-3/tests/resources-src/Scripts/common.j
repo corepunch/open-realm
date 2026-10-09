@@ -309,6 +309,10 @@ constant native ConvertItemType takes integer i returns itemtype
 
 // Item inventory presentation and charge state.
 native CreateItem               takes integer itemid, real x, real y returns item
+native RemoveItem               takes item whichItem returns nothing
+native GetItemX                 takes item whichItem returns real
+native GetItemY                 takes item whichItem returns real
+native SetItemPosition          takes item whichItem, real x, real y returns nothing
 native GetItemCharges           takes item whichItem returns integer
 native SetItemCharges           takes item whichItem, integer charges returns nothing
 native SetItemDropID            takes item whichItem, integer unitId returns nothing
@@ -424,6 +428,8 @@ globals
     constant unitevent EVENT_UNIT_RESEARCH_CANCEL = ConvertUnitEvent(73)
     constant unitevent EVENT_UNIT_RESEARCH_FINISH = ConvertUnitEvent(74)
     constant unitevent EVENT_UNIT_ISSUED_ORDER = ConvertUnitEvent(75)
+    constant unitevent EVENT_UNIT_ISSUED_POINT_ORDER = ConvertUnitEvent(76)
+    constant unitevent EVENT_UNIT_ISSUED_TARGET_ORDER = ConvertUnitEvent(77)
     constant unitevent EVENT_UNIT_HERO_LEVEL = ConvertUnitEvent(78)
     constant unitevent EVENT_UNIT_SUMMON = ConvertUnitEvent(84)
     constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)
@@ -495,8 +501,16 @@ globals
     constant limitop GREATER_THAN_OR_EQUAL = ConvertLimitOp(3)
     constant limitop GREATER_THAN = ConvertLimitOp(4)
     constant limitop NOT_EQUAL = ConvertLimitOp(5)
+    constant unittype UNIT_TYPE_DEAD = ConvertUnitType(1)
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
     constant unittype UNIT_TYPE_FLYING = ConvertUnitType(3)
     constant unittype UNIT_TYPE_GROUND = ConvertUnitType(4)
+    constant unittype UNIT_TYPE_SUMMONED = ConvertUnitType(10)
+    constant playerstate PLAYER_STATE_RESOURCE_FOOD_USED = ConvertPlayerState(5)
     constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals
+
+// Public natives sharing the retail pathfinding owner random state.
+native GetRandomInt takes integer lowBound, integer highBound returns integer
+native GetRandomReal takes real lowBound, real highBound returns real
+native SetRandomSeed takes integer seed returns nothing

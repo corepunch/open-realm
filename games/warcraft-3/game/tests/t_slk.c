@@ -1368,12 +1368,12 @@ TEST(wc3_slk, unit_animation_properties_add_and_remove_persistent_tags) {
     edict_t unit = { .class_id = MAKEFOURCC('n','m','d','m'), .data.UnitProfile = &profile };
 
     G_ResetUnitAnimationProperties(&unit);
-    T_STREQ(unit.animation_props, "alternate");
+    T_STREQ(G_UnitAnimationProperties(&unit), "alternate");
 
     G_AddUnitAnimationProperties(&unit, "work", true);
-    T_STREQ(unit.animation_props, "alternate,work");
+    T_STREQ(G_UnitAnimationProperties(&unit), "alternate,work");
     G_AddUnitAnimationProperties(&unit, "alternate", false);
-    T_STREQ(unit.animation_props, "work");
+    T_STREQ(G_UnitAnimationProperties(&unit), "work");
 }
 
 TEST(wc3_slk, map_original_required_animation_names_feed_custom_inheritance) {
@@ -1428,7 +1428,7 @@ TEST(wc3_slk, map_custom_unit_profile_overrides_required_animation_names) {
     G_BindEntityData(&unit);
     T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','a','n','i')), "alternate");
     G_ResetUnitAnimationProperties(&unit);
-    T_STREQ(unit.animation_props, "alternate");
+    T_STREQ(G_UnitAnimationProperties(&unit), "alternate");
 
     G_SetMapUnitOverrides(NULL);
     level.mapinfo = saved_mapinfo;
@@ -1447,6 +1447,36 @@ TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
     T_EQ(weapons->attack1.damageBase, 12); T_EQ(weapons->attack2.damageBase, 34);
     T_FEQ(weapons->attack1.range, 90.0f, 0.01f); T_FEQ(weapons->attack2.range, 600.0f, 0.01f);
     G_SetSLKRows("UnitWeapons", saved); free_slk_rows(rows);
+}
+
+TEST(wc3_slk, map_weapon_edits_inherit_original_rows_and_keep_custom_identity) {
+    setup_test_world();
+    mapInfo_t const *old_info=level.mapinfo;
+    slkTestData_t *rows=parse_slk_string("ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;X2;K\"rangeN1\"\nC;X3;K\"rangeN2\"\nC;X4;K\"weapsOn\"\n"
+        "C;Y2;X1;K\"hRTE\"\nC;X2;K90\nC;X3;K611\nC;X4;K3\nE\n");
+    slkTestData_t *saved=G_SetSLKRows("UnitWeapons",rows);
+    float original_range=177.25f,custom_range=288.75f; uint32_t enabled=2;
+    unitModification_t original_mod={.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&original_range};
+    unitModification_t custom_mods[]={
+        {.modID=MAKEFOURCC('u','a','1','r'),.type=mod_unreal,.data=&custom_range},
+        {.modID=MAKEFOURCC('u','a','e','n'),.type=mod_int,.data=&enabled}};
+    unitData_t original={.originalUnitID=MAKEFOURCC('h','R','T','E'),.numbeOfModifications=1,.modifications=&original_mod};
+    unitData_t custom={.originalUnitID=original.originalUnitID,.newUnitID=MAKEFOURCC('h','W','P','N'),
+        .numbeOfModifications=2,.modifications=custom_mods};
+    mapInfo_t info={.num_originalUnits=1,.originalUnits=&original,.num_userCreatedUnits=1,.userCreatedUnits=&custom};
+    level.mapinfo=&info; G_SetMapUnitOverrides(&info);
+    UnitWeapons_t const *base=G_UnitWeapons(original.originalUnitID),*weapon=G_UnitWeapons(custom.newUnitID);
+    T_EQ(base->id,original.originalUnitID); T_FEQ(base->attack1.range,177.25f,0); T_EQ(base->attacksEnabled,3);
+    T_EQ(weapon->id,custom.newUnitID); T_FEQ(weapon->attack1.range,288.75f,0);
+    T_FEQ(weapon->attack2.range,611,0); T_EQ(weapon->attacksEnabled,2);
+    T_FEQ(g_UnitWeapons[0].attack1.range,90,0); T_EQ(g_UnitWeapons[0].attacksEnabled,3);
+    edict_t unit={.class_id=custom.newUnitID}; G_BindEntityData(&unit);
+    T_ASSERT(unit.data.UnitWeapons==weapon); T_ASSERT(!S_UnitAttackSlotEnabled(&unit,0)); T_ASSERT(S_UnitAttackSlotEnabled(&unit,1));
+    T_ASSERT(G_UnitWeapons(original.originalUnitID)==base); T_ASSERT(G_UnitWeapons(custom.newUnitID)==weapon);
+    G_SetMapUnitOverrides(NULL); level.mapinfo=old_info;
+    T_FEQ(G_UnitWeapons(original.originalUnitID)->attack1.range,90,0);
+    G_SetSLKRows("UnitWeapons",saved); free_slk_rows(rows);
 }
 
 TEST(wc3_slk, optional_tables_tolerate_absent_files) {
@@ -1939,6 +1969,66 @@ TEST(wc3_slk, roc_ability_data_preserves_object_ids_and_numbers) {
     T_EQ(row->level[0].unitID, MAKEFOURCC('n','m','d','m'));
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+
+uint32_t G_TestSoundRowComparisons(void);
+TEST(wc3_slk, repeated_entity_bindings_share_rows_and_refresh_changed_table) {
+    uint32_t code = MAKEFOURCC('h','f','o','o');
+    G_TestUnitTypeResolutions(true);
+    FOR_LOOP(i, 32) {
+        edict_t unit = { .class_id = code };
+        G_BindEntityData(&unit);
+        T_EQ(unit.data.UnitBalance, G_UnitBalance(code));
+        T_EQ(unit.data.UnitAbilities, G_UnitAbil(code));
+        T_EQ(unit.data.UnitUI, G_UnitUI(code));
+    }
+    T_EQ(G_TestUnitTypeResolutions(false), 1);
+    slkTestData_t *rows = parse_slk_string(
+        "ID;PWXL;N;EBB;Y2;X2\nC;Y1;X1;K\"unitUIID\"\nC;X2;K\"file\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;X2;K\"Units/Probe/Changed.mdx\"\nE\n");
+    slkTestData_t *old = G_SetSLKRows("UnitUI", rows);
+    edict_t unit = { .class_id = code };
+    G_BindEntityData(&unit);
+    T_STREQ(unit.data.UnitUI->modelFile, "Units/Probe/Changed.mdx");
+    T_EQ(G_TestUnitTypeResolutions(false), 2);
+    slkTestData_t *discard = G_SetSLKRows("UnitUI", old);
+    G_BindEntityData(&unit);
+    T_EQ(unit.data.UnitUI, G_UnitUI(code));
+    T_EQ(G_TestUnitTypeResolutions(false), 3);
+    free_slk_rows(rows);
+    free_slk_rows(old);
+    free_slk_rows(discard);
+}
+
+TEST(wc3_slk, sound_catalog_names_keep_first_row_without_repeated_scans) {
+    enum { ROWS = 512 };
+    UnitAckSounds_t *old_rows = g_UnitAckSounds;
+    uint32_t old_count = g_UnitAckSoundsCount;
+    static UnitAckSounds_t rows[ROWS];
+    static char names[ROWS][32];
+    memset(rows, 0, sizeof(rows));
+    FOR_LOOP(i, ROWS) {
+        snprintf(names[i], sizeof(names[i]), "CatalogName%u", i);
+        rows[i].name = names[i];
+    }
+    rows[17].name = rows[ROWS - 1].name; /* A duplicate selects the first row. */
+    g_UnitAckSounds = rows; g_UnitAckSoundsCount = ROWS;
+    T_ASSERT(G_UnitAckSound("CatalogName511") == rows + 17);
+    T_ASSERT(!G_UnitAckSound("catalogname511")->name);
+    T_ASSERT(!G_UnitAckSound(NULL)->name);
+    uint32_t before = G_TestSoundRowComparisons();
+    FOR_LOOP(i, 1024) {
+        T_ASSERT(G_UnitAckSound("CatalogName510") == rows + 510);
+        T_ASSERT(!G_UnitAckSound("AbsentCatalogName")->name);
+    }
+    T_ASSERT(G_TestSoundRowComparisons() - before < 8192);
+    /* A different table and a changed row count discard derived identities. */
+    UnitAckSounds_t replacement[] = {{ .name = "CatalogName510" }};
+    g_UnitAckSounds = replacement; g_UnitAckSoundsCount = 1;
+    T_ASSERT(G_UnitAckSound("CatalogName510") == replacement);
+    T_ASSERT(!G_UnitAckSound("CatalogName511")->name);
+    g_UnitAckSounds = old_rows; g_UnitAckSoundsCount = old_count;
 }
 
 #endif /* BZ_TESTS */

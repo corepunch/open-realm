@@ -227,7 +227,7 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
         G_FreeEdict(waypoint);
         return false;
     }
-    builder->goalentity = waypoint;
+    S_SetMoveGoal(builder, &builder->goalentity, waypoint);
     builder->build_project = building_id;
     move_reset_progress(builder);
     unit_setmove(builder, &build_move_walk);
@@ -463,8 +463,8 @@ void build_build(edict_t *ent) {
      * bind before baking pathing so the hidden parent drops out as the overlay
      * footprint becomes authoritative. */
     if (!G_FindBuildOnTarget(building_id, &snapped, &build_on) ||
-        (build_on && (G_ActorHasSkill(building, "Agl2") || G_ActorHasSkill(building, "Abgm") ||
-                      G_ActorHasSkill(building, "Aegm")) &&
+        (build_on && (G_ActorHasAbilityCode(building, MAKEFOURCC('A','g','l','2')) || G_ActorHasAbilityCode(building, MAKEFOURCC('A','b','g','m')) ||
+                      G_ActorHasAbilityCode(building, MAKEFOURCC('A','e','g','m'))) &&
          !S_MineOverlayBind(building, build_on))) {
         G_FreeEdict(building);
         G_RefundBuilding(client, building_id);
@@ -472,9 +472,9 @@ void build_build(edict_t *ent) {
         return;
     }
 
-    /* Retail's Birth construction site reserves placement but remains
-     * walk-through.  Displacement uses the authored footprint directly; the
-     * static obstacle is baked only after Birth completes. */
+    /* The preview is walk-through; the real footprint blocks routes from
+     * construction start. Schedule occupant escape without replacing orders
+     * before the construction initializer rebakes that footprint. */
     if (!G_DisplaceBuildOccupants(ent, building)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD spawned-displace-incomplete worker=%ld building=%ld id=%.4s\n",

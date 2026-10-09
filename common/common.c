@@ -95,7 +95,7 @@ static void FS_NormalizePath(cstring_t in, string_t out, uint32_t out_size) {
     if (!in) {
         return;
     }
-    snprintf(out, out_size, "%s", in);
+    strlcpy(out, in, out_size);
     for (i = 0; out[i]; i++) {
         if (out[i] == '/') {
             out[i] = '\\';

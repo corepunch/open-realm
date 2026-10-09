@@ -8,6 +8,12 @@
 #include <limits.h>
 #include <stdlib.h>  /* abs (CM_LineIsWalkable) */
 
+/* An including game may initialize its own derived routing state when the
+ * fine map is replaced. This does not change the universal routing contract. */
+#ifndef PATHMAP_SETUP_COMPLETE
+#define PATHMAP_SETUP_COMPLETE() ((void)0)
+#endif
+
 /* Upper bound on flow-field BFS expansion.  Each cell is closed at most once,
  * so the connected pathable component is fully covered in at most width*height
  * iterations, after which the open queue empties and the loop exits naturally.
@@ -16,6 +22,11 @@
  * covered third got no flow vector and stopped mid-map, looking "gated" when
  * the goal was actually reachable.  Bound by the real map size for full
  * coverage, matching the original's whole-map pathing. */
+#ifndef PATH_JOB_RUN
+#define PATH_JOB_RUN(work, data) work(data)
+#define PATH_JOB_WAIT() ((void)0)
+#endif
+
 #define HEATMAP_MAX_ITERATIONS(cells) ((int)(cells))
 
 typedef struct {
@@ -41,13 +52,14 @@ typedef struct {
     uint8_t unused2:1;
     uint8_t blight:1;
     uint8_t nowater:1;
-    uint8_t unknown:1;
+    uint8_t noamph:1;
 } pathMapCell_t;
 
 struct {
     uint32_t width;
     uint32_t height;
-    pathMapCell_t *terrain;  /* immutable WPM terrain before entity footprints */
+    uint32_t revision; /* Fine/static field-cache epoch. */
+    pathMapCell_t *terrain;  /* authored/mutable terrain before entity footprints */
     pathMapCell_t *original;
     pathMapCell_t *data;
     routeNode_t *heatmap;
@@ -57,16 +69,35 @@ struct {
     uint32_t *obstacle_prefix; /* summed-area table for static nowalk cells */
     uint32_t *nofly_prefix;    /* summed-area table for static nofly cells */
     uint32_t *nowater_prefix;  /* summed-area table for static nowater cells */
-    uint32_t *walk_water_prefix;   /* summed-area table for cells with both walk and water blockers */
     uint8_t *approach_mask;    /* reusable footprint-approach proximity/candidate mask */
 } pathmap = { 0 };
+
+/* Half-open cell offsets describe the query footprint. Games choose the
+ * geometry; field construction, sampling and cache keys consume it unchanged. */
+typedef struct {
+    point2_t min, max;
+    uint8_t flags;
+} pathGridQuery_t;
+
+/* Connectivity belongs to the static footprint class, not to a destination.
+ * A byte retains its eight allowed edges; one validity bit distinguishes an
+ * unvisited cell from a blocked cell. Cache eviction changes no search state.
+ * Static revisions discard derived edges before the next expansion. */
+#define PATH_CONNECTIVITY_SLOTS 8
+typedef struct {
+    pathGridQuery_t query;
+    uint8_t *edges, *valid;
+    uint32_t revision;
+    uint64_t used;
+} pathConnectivity_t;
+static pathConnectivity_t path_connectivity[PATH_CONNECTIVITY_SLOTS];
+static uint64_t path_connectivity_clock;
 
 #define HEATMAP_CACHE_SLOTS 16
 
 typedef struct {
     point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
-    int      radius_cells; /* mover footprint used when this field was built */
-    uint8_t     blocked_flags; /* pathing bits treated as blocked by this field */
+    pathGridQuery_t query; /* footprint and blocked bits used for this field */
     uint32_t    generation;
     int     *prices;      /* cached distance-to-goal price per cell */
 } heatmapCacheEntry_t;
@@ -81,10 +112,9 @@ typedef struct {
     bool active;
     bool started;
     point2_t target;
+    pathGridQuery_t query;
     edict_t *requester;
     edict_t *goalentity;
-    int radius_cells;
-    uint8_t blocked_flags;
     uint32_t head;
     uint32_t tail;
     uint32_t work_done;
@@ -92,8 +122,7 @@ typedef struct {
 
 typedef struct {
     point2_t target;
-    int radius_cells;
-    uint8_t blocked_flags;
+    pathGridQuery_t query;
     edict_t *requester;
     edict_t *goalentity;
 } heatmapRequest_t;
@@ -122,41 +151,53 @@ static uint8_t normalize_blocked_flags(uint8_t blocked_flags) {
     return blocked_flags ? blocked_flags : CM_PATHING_UNWALKABLE;
 }
 
+static pathGridQuery_t path_radius_query(int radius_cells, uint8_t flags) {
+    return (pathGridQuery_t){ {-radius_cells, -radius_cells},
+                             {radius_cells + 1, radius_cells + 1},
+                             normalize_blocked_flags(flags) };
+}
+
+static bool path_queries_equal(pathGridQuery_t const *a, pathGridQuery_t const *b) {
+    return a->min.x == b->min.x && a->min.y == b->min.y &&
+           a->max.x == b->max.x && a->max.y == b->max.y && a->flags == b->flags;
+}
+
 static void heatmap_job_cancel(void) {
     memset(&heatmap_job, 0, sizeof(heatmap_job));
 }
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
-static struct {
-    uint32_t cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
-} g_perf;
-
-void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
-
 typedef struct routePerfStats_s {
     uint32_t cache_hits, cache_misses, heatmap_iterations, pathability_checks, flow_cells_computed, closest_reachable_calls;
 } routePerfStats_t;
+static routePerfStats_t g_perf;
+static _Thread_local routePerfStats_t *path_perf_owner;
+static routePerfStats_t path_work_perf;
+
+void CM_ResetTestPathPerfStats(void) { CM_FinishPathJobs(); memset(&g_perf, 0, sizeof(g_perf)); }
 
 routePerfStats_t CM_GetTestPathPerfStats(void) {
+    CM_FinishPathJobs();
     return (routePerfStats_t){
         g_perf.cache_hits, g_perf.cache_misses,
         g_perf.heatmap_iterations, g_perf.pathability_checks,
         g_perf.flow_cells_computed, g_perf.closest_reachable_calls,
     };
 }
-#define PERF_INC(field) g_perf.field++
-#define PERF_ADD(field, n) g_perf.field += (n)
+#define PERF_INC(field) (path_perf_owner ? path_perf_owner : &g_perf)->field++
+#define PERF_ADD(field, n) (path_perf_owner ? path_perf_owner : &g_perf)->field += (n)
 #else
 #define PERF_INC(field) ((void)0)
 #define PERF_ADD(field, n) ((void)0)
 #endif
 
 static void heatmap_cache_invalidate(void) {
+    CM_FinishPathJobs();
+    pathmap.revision++;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
-        heatmap_cache[i].radius_cells = -1;
-        heatmap_cache[i].blocked_flags = 0;
+        heatmap_cache[i].query = (pathGridQuery_t){0};
         heatmap_cache[i].generation = 0;
         /* Keep price buffers allocated to avoid malloc churn on map reload. */
     }
@@ -180,6 +221,7 @@ void CM_InvalidatePathCache(void) {
  * The public name is retained for callers, but cache entries now store prices
  * rather than a pre-baked VECTOR2 for every map cell. */
 bool CM_ActivateCachedFlow(uint32_t generation) {
+    CM_FinishPathJobs();
     if (!generation)
         return false;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
@@ -196,7 +238,7 @@ bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags) {
     uint8_t const normalized = normalize_blocked_flags(blocked_flags);
     if (!CM_ActivateCachedFlow(generation) || !active_heatmap)
         return false;
-    if (active_heatmap->blocked_flags != normalized) {
+    if (active_heatmap->query.flags != normalized) {
         active_heatmap = NULL;
         return false;
     }
@@ -204,6 +246,7 @@ bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags) {
 }
 
 bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
+    CM_FinishPathJobs();
     vec2_t n;
     int cx, cy;
 
@@ -223,6 +266,7 @@ bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
 }
 
 bool CM_FlowCanReach(uint32_t generation, float x, float y) {
+    CM_FinishPathJobs();
     vec2_t n;
     int cx, cy;
 
@@ -246,35 +290,31 @@ static void rebuild_static_obstacle_prefix(void) {
     uint32_t const stride = pathmap.width + 1;
     uint32_t const rows = pathmap.height + 1;
 
-    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.nowater_prefix ||
-        !pathmap.walk_water_prefix || !pathmap.original)
+    if (!pathmap.obstacle_prefix || !pathmap.nofly_prefix || !pathmap.nowater_prefix || !pathmap.original)
         return;
 
     memset(pathmap.obstacle_prefix, 0, stride * rows * sizeof(uint32_t));
     memset(pathmap.nofly_prefix, 0, stride * rows * sizeof(uint32_t));
     memset(pathmap.nowater_prefix, 0, stride * rows * sizeof(uint32_t));
-    memset(pathmap.walk_water_prefix, 0, stride * rows * sizeof(uint32_t));
     FOR_LOOP(y, pathmap.height) {
-        uint32_t walk_row_sum = 0, fly_row_sum = 0, water_row_sum = 0, walk_water_row_sum = 0;
+        uint32_t walk_row_sum = 0, fly_row_sum = 0, water_row_sum = 0;
         FOR_LOOP(x, pathmap.width) {
             pathMapCell_t const *cell = &pathmap.original[x + y * pathmap.width];
             walk_row_sum += cell->nowalk ? 1 : 0;
             fly_row_sum += cell->nofly ? 1 : 0;
             water_row_sum += cell->nowater ? 1 : 0;
-            walk_water_row_sum += cell->nowalk && cell->nowater ? 1 : 0;
             pathmap.obstacle_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.obstacle_prefix[(x + 1) + y * stride] + walk_row_sum;
             pathmap.nofly_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.nofly_prefix[(x + 1) + y * stride] + fly_row_sum;
             pathmap.nowater_prefix[(x + 1) + (y + 1) * stride] =
                 pathmap.nowater_prefix[(x + 1) + y * stride] + water_row_sum;
-            pathmap.walk_water_prefix[(x + 1) + (y + 1) * stride] =
-                pathmap.walk_water_prefix[(x + 1) + y * stride] + walk_water_row_sum;
         }
     }
 }
 
 void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
+    CM_FinishPathJobs();
     uint32_t n = width * height;
 
     SAFE_DELETE(pathmap.data, MemFree);
@@ -287,18 +327,24 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     SAFE_DELETE(pathmap.nofly_prefix, MemFree);
     SAFE_DELETE(pathmap.nowater_prefix, MemFree);
-    SAFE_DELETE(pathmap.walk_water_prefix, MemFree);
     SAFE_DELETE(pathmap.approach_mask, MemFree);
     SAFE_DELETE(heatmap_pending, MemFree);
     heatmap_pending_count = heatmap_pending_capacity = 0;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         SAFE_DELETE(heatmap_cache[i].prices, MemFree);
     }
+    FOR_LOOP(i, PATH_CONNECTIVITY_SLOTS) {
+        SAFE_DELETE(path_connectivity[i].edges, MemFree);
+        SAFE_DELETE(path_connectivity[i].valid, MemFree);
+    }
+    memset(path_connectivity, 0, sizeof(path_connectivity));
+    path_connectivity_clock = 0;
 
     pathmap.width = width;
     pathmap.height = height;
     if (!n) {
         heatmap_cache_invalidate();
+        PATHMAP_SETUP_COMPLETE();
         return;
     }
 
@@ -312,7 +358,6 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.nofly_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.nowater_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
-    pathmap.walk_water_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(uint32_t));
     pathmap.approach_mask = MemAlloc(n);
 
     if (cells) {
@@ -328,6 +373,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     rebuild_static_obstacle_prefix();
 
     heatmap_cache_invalidate();
+    PATHMAP_SETUP_COMPLETE();
 }
 
 static point2_t LocationToPathMap(vec2_t const *location);
@@ -354,17 +400,9 @@ inline static bool is_valid_point(uint32_t x, uint32_t y) {
 
 static bool path_cell_blocks(pathMapCell_t const *cell, uint8_t blocked_flags) {
     uint8_t const flags = normalize_blocked_flags(blocked_flags);
-    uint8_t const selected = flags & (CM_PATHING_UNWALKABLE | CM_PATHING_UNFLYABLE | CM_PATHING_UNSWIMMABLE);
-
-    if (!cell) return true;
-    if (flags & CM_PATHING_REQUIRE_ALL)
-        return selected &&
-            (!(selected & CM_PATHING_UNWALKABLE) || cell->nowalk) &&
-            (!(selected & CM_PATHING_UNFLYABLE) || cell->nofly) &&
-            (!(selected & CM_PATHING_UNSWIMMABLE) || cell->nowater);
-    return ((selected & CM_PATHING_UNWALKABLE) && cell->nowalk) ||
-           ((selected & CM_PATHING_UNFLYABLE) && cell->nofly) ||
-           ((selected & CM_PATHING_UNSWIMMABLE) && cell->nowater);
+    if (!cell)
+        return true;
+    return (*(uint8_t const *)cell & flags) != 0;
 }
 
 static void reset_pathmap_data(void) {
@@ -385,18 +423,66 @@ static void clear_heatmap(void) {
 static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags);
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells);
 
+static bool path_query_ok(point2_t pos, pathGridQuery_t const *query);
+
+static pathConnectivity_t *path_connectivity_for_query(pathGridQuery_t const *query) {
+    pathConnectivity_t *slot = path_connectivity;
+    uint32_t const cells = pathmap.width * pathmap.height;
+
+    FOR_LOOP(i, PATH_CONNECTIVITY_SLOTS) {
+        pathConnectivity_t *entry = path_connectivity + i;
+        if (entry->edges && path_queries_equal(&entry->query, query)) {
+            if (entry->revision != pathmap.revision) {
+                memset(entry->valid, 0, (cells + 7) / 8);
+                entry->revision = pathmap.revision;
+            }
+            entry->used = ++path_connectivity_clock;
+            return entry;
+        }
+        if (entry->used < slot->used)
+            slot = entry;
+    }
+    if (!slot->edges) {
+        slot->edges = MemAlloc(cells);
+        slot->valid = MemAlloc((cells + 7) / 8);
+    }
+    memset(slot->valid, 0, (cells + 7) / 8);
+    slot->query = *query;
+    slot->revision = pathmap.revision;
+    slot->used = ++path_connectivity_clock;
+    return slot;
+}
+
+static uint8_t path_connectivity_edges(pathConnectivity_t *entry, uint32_t cell, int x, int y) {
+    uint8_t bit = 1u << (cell & 7), edges = 0;
+    if (entry->valid[cell >> 3] & bit)
+        return entry->edges[cell];
+    FOR_LOOP(i, 8) {
+        if (!path_query_ok((point2_t){x + dx[i], y + dy[i]}, &entry->query))
+            continue;
+        if (i >= 4) {
+            bool const side_x = edges & (1 << (dx[i] < 0 ? 0 : 1));
+            bool const side_y = edges & (1 << (dy[i] < 0 ? 2 : 3));
+            if (!(side_x && side_y)) continue;
+        }
+        edges |= 1u << i;
+    }
+    entry->edges[cell] = edges;
+    entry->valid[cell >> 3] |= bit;
+    return edges;
+}
+
 static bool path_ok(int x, int y, int radius, uint8_t flags) {
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius, flags);
 }
 
-static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_cells, uint8_t blocked_flags) {
+static void begin_heatmap_build(heatmapJob_t *job, point2_t target, pathGridQuery_t const *query) {
     uint32_t const width = pathmap.width;
     uint32_t const ti = (uint32_t)target.x + (uint32_t)target.y * width;
 
     clear_heatmap();
     job->target = target;
-    job->radius_cells = radius_cells;
-    job->blocked_flags = normalize_blocked_flags(blocked_flags);
+    job->query = *query;
     job->head = 0;
     job->tail = 1;
     job->work_done = 0;
@@ -411,7 +497,7 @@ static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_c
  * in heatmapJob_t lets game routing spread a large map flood over many frames,
  * while the synchronous test/tool API can run the same implementation to
  * completion in one call. */
-static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
+static bool step_heatmap_edges(heatmapJob_t *job, uint32_t work_budget, pathConnectivity_t *connectivity) {
     uint32_t const width = pathmap.width;
     uint32_t const cap = pathmap.width * pathmap.height + 1;
     uint32_t *const q = pathmap.queue;
@@ -428,18 +514,11 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
         int const ux = (int)(u % width);
         int const uy = (int)(u / width);
         /* Cardinal directions occupy slots 0-3; diagonals reuse those bits. */
-        uint8_t pathable_neighbors = 0;
+        uint8_t const edges = path_connectivity_edges(connectivity, u, ux, uy);
         FOR_LOOP(i, 8) {
+            if (!(edges & (1u << i))) continue;
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
-            if (!is_pathable_node_original_for_radius_cells_flags(nx, ny, job->radius_cells, job->blocked_flags))
-                continue;
-            pathable_neighbors |= 1 << i;
-            if (i >= 4) {
-                bool const side_x = pathable_neighbors & (1 << (dx[i] < 0 ? 0 : 1));
-                bool const side_y = pathable_neighbors & (1 << (dy[i] < 0 ? 2 : 3));
-                if (!(side_x && side_y)) continue;
-            }
             uint32_t const v = (uint32_t)nx + (uint32_t)ny * width;
             routeNode_t *const vn = &pathmap.heatmap[v];
             int const np = up + gv[i];
@@ -457,6 +536,11 @@ static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
     return job->head == job->tail;
 }
 
+static bool step_heatmap_build(heatmapJob_t *job, uint32_t work_budget) {
+    return step_heatmap_edges(job, work_budget, path_connectivity_for_query(&job->query));
+}
+
+
 static float pathmap_cell_world_size(void);
 
 /* Radius of an entity's collision in whole pathing cells (>=1).  WC3's pathing
@@ -468,49 +552,12 @@ static uint32_t collision_radius_cells(float collision) {
 }
 
 
-static bool pathtex_pixel_blocks_walk(pathTex_t const *pt, int x, int y) {
-    if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)
-        return false;
-    return pt->map[x + y * pt->width].b != 0;
-}
-
 static bool pathtex_pixel_blocks_fly(pathTex_t const *pt, int x, int y) {
     if (!pt || x < 0 || y < 0 || x >= (int)pt->width || y >= (int)pt->height)
         return false;
     /* LoadTGA preserves file BGRA byte order in COLOR32, so Warcraft's green
      * pathing channel is COLOR32.g (Warsmash: green > 127 => UNFLYABLE). */
     return pt->map[x + y * pt->width].g > 127;
-}
-
-/* A live bridge path texture contains clear pixels both on the authored deck
- * and in padding outside its blocked rails.  Only clear pixels enclosed by
- * blocked pathing across either texture axis are bridge support cells that may
- * replace terrain no-walk; exterior clear padding must leave terrain intact.
- * This derives the deck from the authored pathing shape rather than model
- * bounds, collision radius, alpha, or a bridge-specific hard-coded width. */
-static bool pathtex_clear_pixel_is_bridge_deck(pathTex_t const *pt, int x, int y) {
-    bool low = false, high = false;
-
-    if (!pt || pathtex_pixel_blocks_walk(pt, x, y))
-        return false;
-
-    for (int i = x - 1; i >= 0; --i) {
-        if (pathtex_pixel_blocks_walk(pt, i, y)) { low = true; break; }
-    }
-    for (int i = x + 1; i < (int)pt->width; ++i) {
-        if (pathtex_pixel_blocks_walk(pt, i, y)) { high = true; break; }
-    }
-    if (low && high)
-        return true;
-
-    low = high = false;
-    for (int i = y - 1; i >= 0; --i) {
-        if (pathtex_pixel_blocks_walk(pt, x, i)) { low = true; break; }
-    }
-    for (int i = y + 1; i < (int)pt->height; ++i) {
-        if (pathtex_pixel_blocks_walk(pt, x, i)) { high = true; break; }
-    }
-    return low && high;
 }
 
 static pathTexTransform_t pathtex_identity_transform(pathTex_t const *pt) {
@@ -536,12 +583,14 @@ static point2_t pathtex_transformed_point(pathTexPointParams_t const *params) {
 }
 
 /* Stamp a single entity's footprint into a pathmap byte array. */
+static void path_cell_add_flags(pathMapCell_t *cell, uint8_t flags) { *(uint8_t *)cell |= flags; }
+
 static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     point2_t p = LocationToPathMap(&ent->s.origin2);
+    uint8_t const ground_flags = entity_static_pathing_flags(ent);
     if (ent->pathtex) {
         pathTex_t *pt = ent->pathtex;
         pathTexTransform_t const transform = CM_GetPathTexTransform(ent);
-        bool const walkable_surface = entity_is_live_walkable_surface(ent);
         FOR_LOOP(x, pt->width) {
             FOR_LOOP(y, pt->height) {
                 point2_t const rp = pathtex_transformed_point(&MAKE(pathTexPointParams_t,
@@ -552,22 +601,9 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                     pathMapCell_t *cell = &target[px + py * pathmap.width];
                     uint8_t const blocked = pt->map[x + y * pt->width].b;
                     bool const blocks_fly = pathtex_pixel_blocks_fly(pt, (int)x, (int)y);
-                    /* A live bridge may replace terrain no-walk only on the
-                     * authored deck. Clear pixels outside the blocked rails are
-                     * texture padding and must preserve the underlying river. */
-                    if (walkable_surface) {
-                        if (blocked) {
-                            cell->nowalk = 1;
-                            cell->nowater = 1;
-                        } else if (pathtex_clear_pixel_is_bridge_deck(pt, (int)x, (int)y)) {
-                            /* A bridge opens the land route over water without
-                             * changing the underlying water-pathing channel. */
-                            cell->nowalk = 0;
-                        }
-                    } else {
-                        cell->nowalk |= blocked;
-                        cell->nowater |= blocked;
-                    }
+                    /* MAP-02.2: support surfaces never clear authored WPM.
+                     * Widget pixels contribute restrictions independently. */
+                    if (blocked) path_cell_add_flags(cell, ground_flags);
                     cell->nofly |= blocks_fly;
                 }
             }
@@ -579,7 +615,7 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                 int px = (int)x + p.x - (int)radius;
                 int py = (int)y + p.y - (int)radius;
                 if (is_valid_point(px, py)) {
-                    target[px + py * pathmap.width].nowalk |= 1;
+                    path_cell_add_flags(&target[px + py * pathmap.width], ground_flags);
                 }
             }
         }
@@ -606,47 +642,35 @@ static bool entity_blocks_static_pathing(edict_t const *ent) {
 
 #ifdef WC3_DEBUG_ROUTING
 static void routing_debug_pathtex(edict_t const *ent, point2_t p, pathTexTransform_t const *transform) {
-    uint32_t blocked = 0, deck = 0;
+    uint32_t blocked = 0;
     pathTex_t const *pt;
 
     if (!ent || !(pt = ent->pathtex)) return;
     FOR_LOOP(y, pt->height) FOR_LOOP(x, pt->width) {
         if (pt->map[x + y * pt->width].b) blocked++;
-        else if (pathtex_clear_pixel_is_bridge_deck(pt, x, y)) deck++;
     }
     fprintf(stderr, "WC3_DEBUG_ROUTING pathtex ent=%d pos=%.1f,%.1f angle=%.3f cell=%d,%d "
-        "authored=%ux%u stamped=%dx%d turn=%d blocked=%u deck=%u surface=%d\n", ent->s.number,
+        "authored=%ux%u stamped=%dx%d turn=%d blocked=%u surface=%d\n", ent->s.number,
         ent->s.origin2.x, ent->s.origin2.y, ent->s.angle, p.x, p.y, pt->width, pt->height,
-        transform->width, transform->height, transform->turn, blocked, deck, entity_is_live_walkable_surface(ent));
+        transform->width, transform->height, transform->turn, blocked, entity_is_live_walkable_surface(ent));
 }
 #endif
 
-/* Rebuild current static obstacles from the immutable terrain baseline.  This
+/* Rebuild current static obstacles from the mutable terrain baseline.  This
  * is normally called once after map spawning, and again only when a static
  * footprint changes (building creation or destructable death). */
 void CM_BakeStaticObstacles(void) {
+    CM_FinishPathJobs();
     uint32_t const cells = pathmap.width * pathmap.height;
 
     if (!pathmap.terrain || !pathmap.original)
         return;
     memcpy(pathmap.original, pathmap.terrain, cells);
-    /* Lay walkable surfaces over terrain first. Ordinary blockers are stamped
-     * afterwards so a bridge can open water without erasing an overlapping
-     * building or destructable footprint due to edict iteration order. */
+    /* OR-only publication is order independent. Bridges and other widgets
+     * share one pass; no inferred deck overwrites the terrain baseline. */
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
-        if (entity_blocks_static_pathing(ent) && entity_is_live_walkable_surface(ent)) {
-            stamp_entity_obstacle(ent, pathmap.original);
-#ifdef WC3_DEBUG_ROUTING
-            pathTexTransform_t const transform = CM_GetPathTexTransform(ent);
-            routing_debug_pathtex(ent, LocationToPathMap(&ent->s.origin2), &transform);
-#endif
-        }
-    }
-    FOR_LOOP(i, ge->num_edicts) {
-        edict_t *ent = EDICT_NUM(i);
-        if (!entity_blocks_static_pathing(ent) || entity_is_live_walkable_surface(ent))
-            continue;
+        if (!entity_blocks_static_pathing(ent)) continue;
         stamp_entity_obstacle(ent, pathmap.original);
     }
     if (pathmap.data) {
@@ -660,7 +684,7 @@ void CM_BakeStaticObstacles(void) {
 /* Apply only dynamic (unit/monster) obstacles into pathmap.data for
  * closest-pathable-point queries at command time.  Static obstacles are
  * already baked into pathmap.original and copied in by reset_pathmap_data(). */
-static void apply_dynamic_obstacles(edict_t const *ignore, uint8_t mover_flags) {
+static void apply_dynamic_obstacles(edict_t const *ignore) {
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
         if (!ent->inuse || ent == ignore)
@@ -674,16 +698,15 @@ static void apply_dynamic_obstacles(edict_t const *ignore, uint8_t mover_flags) 
             continue;
         point2_t p = LocationToPathMap(&ent->s.origin2);
         uint32_t radius = collision_radius_cells(ent->collision);
-        uint8_t const blocked_flags = entity_dynamic_pathing_flags(ent, mover_flags);
+        uint8_t const blocked_flags = entity_dynamic_pathing_flags(ent);
+        if (!blocked_flags) continue;
         FOR_LOOP(x, radius * 2) {
             FOR_LOOP(y, radius * 2) {
                 int px = (int)x + p.x - (int)radius;
                 int py = (int)y + p.y - (int)radius;
                 if (is_valid_point(px, py)) {
                     pathMapCell_t *cell = path_node(px, py);
-                    if (blocked_flags & CM_PATHING_UNWALKABLE) cell->nowalk |= 1;
-                    if (blocked_flags & CM_PATHING_UNFLYABLE) cell->nofly |= 1;
-                    if (blocked_flags & CM_PATHING_UNSWIMMABLE) cell->nowater |= 1;
+                    path_cell_add_flags(cell, blocked_flags);
                 }
             }
         }
@@ -691,6 +714,9 @@ static void apply_dynamic_obstacles(edict_t const *ignore, uint8_t mover_flags) 
 }
 
 static void pathmap_cell_world_dimensions(float *cell_x, float *cell_y) {
+#ifdef PATH_CELL_WORLD_DIMENSIONS
+    PATH_CELL_WORLD_DIMENSIONS(cell_x, cell_y);
+#else
     *cell_x = FLT_MAX;
     *cell_y = FLT_MAX;
 
@@ -704,6 +730,7 @@ static void pathmap_cell_world_dimensions(float *cell_x, float *cell_y) {
         vec2_t b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
         *cell_y = fabsf(b.y - a.y);
     }
+#endif
 }
 
 static float pathmap_cell_world_size(void) {
@@ -794,7 +821,7 @@ bool CM_ClosestPathablePointForRadiusFlags(vec2_t const *location, float radius,
     }
 
     reset_pathmap_data();
-    apply_dynamic_obstacles(NULL, blocked_flags);
+    apply_dynamic_obstacles(NULL);
     n = CM_GetNormalizedMapPosition(location->x, location->y);
     tx = (int)floorf(n.x * pathmap.width);
     ty = (int)floorf(n.y * pathmap.height);
@@ -838,60 +865,54 @@ static bool is_pathable_node_original_flags(int x, int y, uint8_t blocked_flags)
     return is_valid_point(x, y) && !is_obstacle_original_flags(x, y, blocked_flags);
 }
 
-static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags) {
-    int const x0 = x - radius_cells;
-    int const y0 = y - radius_cells;
-    int const x1 = x + radius_cells;
-    int const y1 = y + radius_cells;
+static bool path_query_ok(point2_t pos, pathGridQuery_t const *query) {
+    int const x0 = pos.x + query->min.x, y0 = pos.y + query->min.y;
+    int const x1 = pos.x + query->max.x, y1 = pos.y + query->max.y;
     uint32_t stride, blocked;
     uint32_t const *prefix;
-    uint8_t const flags = normalize_blocked_flags(blocked_flags);
+    uint8_t const flags = query->flags;
 
     PERF_INC(pathability_checks);
-
-    if (x0 < 0 || y0 < 0 || x1 >= (int)pathmap.width || y1 >= (int)pathmap.height)
+    if (x0 < 0 || y0 < 0 || x1 > (int)pathmap.width || y1 > (int)pathmap.height)
         return false;
     prefix = flags == CM_PATHING_UNWALKABLE ? pathmap.obstacle_prefix
            : flags == CM_PATHING_UNFLYABLE ? pathmap.nofly_prefix
-           : flags == CM_PATHING_UNSWIMMABLE ? pathmap.nowater_prefix
-           : flags == (CM_PATHING_REQUIRE_ALL | CM_PATHING_UNWALKABLE | CM_PATHING_UNSWIMMABLE) ? pathmap.walk_water_prefix
-           : NULL;
+           : flags == CM_PATHING_UNFLOATABLE ? pathmap.nowater_prefix : NULL;
     if (!prefix) {
-        for (int py = y0; py <= y1; py++)
-            for (int px = x0; px <= x1; px++)
+        for (int py = y0; py < y1; py++)
+            for (int px = x0; px < x1; px++)
                 if (!is_pathable_node_original_flags(px, py, flags))
                     return false;
         return true;
     }
-
-    /* O(1) square-footprint test from the summed-area table.  Radius-aware
-     * heatmap expansion previously re-scanned this whole square for every
-     * neighbour of every visited cell. */
+    /* Summed-area tables keep each rectangle query O(1). */
     stride = pathmap.width + 1;
-    blocked = prefix[(x1 + 1) + (y1 + 1) * stride]
-            - prefix[x0 + (y1 + 1) * stride]
-            - prefix[(x1 + 1) + y0 * stride]
-            + prefix[x0 + y0 * stride];
+    blocked = prefix[x1 + y1 * stride] - prefix[x0 + y1 * stride]
+            - prefix[x1 + y0 * stride] + prefix[x0 + y0 * stride];
     return blocked == 0;
+}
+
+static bool is_pathable_node_original_for_radius_cells_flags(int x, int y, int radius_cells, uint8_t blocked_flags) {
+    pathGridQuery_t query = path_radius_query(radius_cells, blocked_flags);
+    return path_query_ok((point2_t){x, y}, &query);
 }
 
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells) {
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, CM_PATHING_UNWALKABLE);
 }
 
-static bool closest_pathable_node_original_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+static bool closest_pathable_node_query(vec2_t const *location, pathGridQuery_t const *query, point2_t *out) {
     vec2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
     float fx = n.x * pathmap.width;
     float fy = n.y * pathmap.height;
     int tx = (int)floorf(fx);
     int ty = (int)floorf(fy);
     int max_radius = (int)MAX(pathmap.width, pathmap.height);
-    int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     float best_dist = FLT_MAX;
     point2_t best = { 0, 0 };
     bool found = false;
 
-    if (is_pathable_node_original_for_radius_cells_flags(tx, ty, radius_cells, blocked_flags)) {
+    if (path_query_ok((point2_t){tx, ty}, query)) {
         *out = (point2_t){ tx, ty };
         return true;
     }
@@ -902,7 +923,7 @@ static bool closest_pathable_node_original_flags(vec2_t const *location, float r
                 if (x != tx - search_radius && x != tx + search_radius &&
                     y != ty - search_radius && y != ty + search_radius)
                     continue;
-                if (!is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, blocked_flags))
+                if (!path_query_ok((point2_t){x, y}, query))
                     continue;
                 cx = x + 0.5f;
                 cy = y + 0.5f;
@@ -920,6 +941,12 @@ static bool closest_pathable_node_original_flags(vec2_t const *location, float r
     return found;
 }
 
+
+static bool closest_pathable_node_original_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    return closest_pathable_node_query(location, &query, out);
+}
 
 /* Read-only test: can a unit with the given collision radius stand at this
  * world location without overlapping static terrain or a building footprint?
@@ -1407,7 +1434,8 @@ bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target,
         target, from, range, radius, true, out);
 }
 
-static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, int radius_cells, uint8_t blocked_flags) {
+static vec2_t compute_flow_at(int const *prices_field, point2_t pos, pathGridQuery_t const *query) {
+    int x = pos.x, y = pos.y;
     int prices[8];
     int min_price = INT_MAX;
     int current_price;
@@ -1428,7 +1456,7 @@ static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, i
         int new_y = (int)y + dy[dir];
         int new_price;
 
-        if (!is_pathable_node_original_for_radius_cells_flags(new_x, new_y, radius_cells, blocked_flags))
+        if (!path_query_ok((point2_t){new_x, new_y}, query))
             continue;
         new_price = prices_field[new_x + new_y * pathmap.width];
         if (new_price == INT_MAX)
@@ -1443,8 +1471,8 @@ static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, i
         if (new_price >= current_price)
             continue;
         if (dir >= 4 &&
-            !(is_pathable_node_original_for_radius_cells_flags((int)x + dx[dir], (int)y, radius_cells, blocked_flags) &&
-              is_pathable_node_original_for_radius_cells_flags((int)x, (int)y + dy[dir], radius_cells, blocked_flags)))
+            !(path_query_ok((point2_t){x + dx[dir], y}, query) &&
+              path_query_ok((point2_t){x, y + dy[dir]}, query)))
             continue;
         prices[dir] = new_price;
         min_price = MIN(new_price, min_price);
@@ -1488,10 +1516,10 @@ vec2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
     cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
     tx = n.x - (float)cx;
     ty = n.y - (float)cy;
-    a = compute_flow_at(active_heatmap->prices, cx,  cy,  active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    b = compute_flow_at(active_heatmap->prices, cx1, cy,  active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    c = compute_flow_at(active_heatmap->prices, cx1, cy1, active_heatmap->radius_cells, active_heatmap->blocked_flags);
-    d = compute_flow_at(active_heatmap->prices, cx,  cy1, active_heatmap->radius_cells, active_heatmap->blocked_flags);
+    a = compute_flow_at(active_heatmap->prices, (point2_t){cx, cy}, &active_heatmap->query);
+    b = compute_flow_at(active_heatmap->prices, (point2_t){cx1, cy}, &active_heatmap->query);
+    c = compute_flow_at(active_heatmap->prices, (point2_t){cx1, cy1}, &active_heatmap->query);
+    d = compute_flow_at(active_heatmap->prices, (point2_t){cx, cy1}, &active_heatmap->query);
     ab = Vector2_lerp(&a, &b, tx);
     cd = Vector2_lerp(&d, &c, tx);
     return Vector2_lerp(&ab, &cd, ty);
@@ -1515,20 +1543,13 @@ static point2_t LocationToPathMap(vec2_t const *location) {
  * The 'closed' flag means "currently queued"; since a cell is never queued
  * twice, at most width*height cells are queued at once and the ring buffer of
  * width*height+1 never overflows. */
-static bool resolve_heatmap_request(edict_t *goalentity, float radius, uint8_t blocked_flags,
-                                    point2_t *target, int *radius_cells) {
+static bool resolve_heatmap_request(edict_t const *goalentity, pathGridQuery_t const *query, point2_t *target) {
     uint32_t const map_cells = pathmap.width * pathmap.height;
-
-    if (!goalentity || !target || !radius_cells || !pathmap.data ||
-        !pathmap.original || !pathmap.heatmap || !map_cells)
+    if (!goalentity || !target || !pathmap.data || !pathmap.original || !pathmap.heatmap || !map_cells)
         return false;
-
-    *radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     *target = LocationToPathMap(&goalentity->s.origin2);
-    if (!is_pathable_node_original_for_radius_cells_flags(target->x, target->y, *radius_cells, blocked_flags)) {
-        if (!closest_pathable_node_original_flags(&goalentity->s.origin2, radius, blocked_flags, target))
-            return false;
-    }
+    if (!path_query_ok(*target, query))
+        return closest_pathable_node_query(&goalentity->s.origin2, query, target);
     return true;
 }
 
@@ -1536,23 +1557,25 @@ static bool resolve_heatmap_request(edict_t *goalentity, float radius, uint8_t b
  * component.  This is used only after destination-rooted routing proves the
  * mover cannot reach that component, so the whole-component flood is paid once
  * for an exceptional order rather than on every ordinary right click. */
-bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
-                                            uint8_t blocked_flags, vec2_t *out) {
+static bool closest_reachable_point(pathAccelParams_t const *params, pathGridQuery_t const *query, vec2_t *out) {
+    CM_FinishPathJobs();
     vec2_t n;
+    vec2_t const *from = params->from, *target = params->target;
     point2_t start;
     heatmapJob_t job = { 0 };
     float tx, ty, best_dist = FLT_MAX;
-    int radius_cells, target_x, target_y, best_x = -1, best_y = -1;
+    int target_x, target_y, best_x = -1, best_y = -1;
 
     if (!from || !target || !out || !pathmap.original || !pathmap.heatmap)
         return false;
     PERF_INC(closest_reachable_calls);
-    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
-    blocked_flags = normalize_blocked_flags(blocked_flags);
-    if (!closest_pathable_node_original_flags(from, radius, blocked_flags, &start))
+    if (!closest_pathable_node_query(from, query, &start))
         return false;
 
-    begin_heatmap_build(&job, start, radius_cells, blocked_flags);
+    /* A source flood overwrites the same prices/queue as a resumable goal
+     * job. Cancel it so its next request restarts with the correct target. */
+    heatmap_job_cancel();
+    begin_heatmap_build(&job, start, query);
     while (!step_heatmap_build(&job, UINT_MAX)) {
         /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
     }
@@ -1563,7 +1586,7 @@ bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *ta
     target_y = (int)floorf(ty);
     if (is_valid_point(target_x, target_y) &&
         pathmap.heatmap[target_x + target_y * pathmap.width].price != INT_MAX &&
-        is_pathable_node_original_for_radius_cells_flags(target_x, target_y, radius_cells, blocked_flags)) {
+        path_query_ok((point2_t){target_x, target_y}, query)) {
         *out = *target;
         return true;
     }
@@ -1589,18 +1612,24 @@ bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *ta
     return true;
 }
 
+bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
+                                            uint8_t blocked_flags, vec2_t *out) {
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    pathAccelParams_t params = {from, target, radius, blocked_flags};
+    return closest_reachable_point(&params, &query, out);
+}
+
 bool CM_ClosestReachablePointForRadius(vec2_t const *from, vec2_t const *target, float radius, vec2_t *out) {
     return CM_ClosestReachablePointForRadiusFlags(from, target, radius, CM_PATHING_UNWALKABLE, out);
 }
 
-static int find_cached_heatmap(point2_t target, int radius_cells, uint8_t blocked_flags) {
-    blocked_flags = normalize_blocked_flags(blocked_flags);
+static int find_cached_heatmap(point2_t target, pathGridQuery_t const *query) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (heatmap_cache[i].generation &&
             heatmap_cache[i].target.x == target.x &&
             heatmap_cache[i].target.y == target.y &&
-            heatmap_cache[i].radius_cells == radius_cells &&
-            heatmap_cache[i].blocked_flags == blocked_flags &&
+            path_queries_equal(&heatmap_cache[i].query, query) &&
             heatmap_cache[i].prices) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_heatmap = &heatmap_cache[i];
@@ -1611,10 +1640,9 @@ static int find_cached_heatmap(point2_t target, int radius_cells, uint8_t blocke
 }
 
 static bool heatmap_request_matches(heatmapRequest_t const *request, point2_t target,
-                                    int radius_cells, uint8_t blocked_flags) {
+                                    pathGridQuery_t const *query) {
     return request->target.x == target.x && request->target.y == target.y &&
-        request->radius_cells == radius_cells &&
-        request->blocked_flags == normalize_blocked_flags(blocked_flags);
+        path_queries_equal(&request->query, query);
 }
 
 static void heatmap_job_start(heatmapRequest_t const *request) {
@@ -1623,32 +1651,30 @@ static void heatmap_job_start(heatmapRequest_t const *request) {
         .target = request->target,
         .requester = request->requester,
         .goalentity = request->goalentity,
-        .radius_cells = request->radius_cells,
-        .blocked_flags = normalize_blocked_flags(request->blocked_flags),
+        .query = request->query,
     };
 }
 
 /* A miss must remember its place in line. Otherwise the first entity visited
  * after every completed field can replace the next request forever, starving
  * later movers that keep retrying the same cache miss. */
-static bool heatmap_request_enqueue(point2_t target, int radius_cells, uint8_t blocked_flags,
+static bool heatmap_request_enqueue(point2_t target, pathGridQuery_t const *query,
                                    edict_t *requester, edict_t *goalentity) {
     heatmapRequest_t request = {
         .target = target,
-        .radius_cells = radius_cells,
-        .blocked_flags = normalize_blocked_flags(blocked_flags),
+        .query = *query,
         .requester = requester,
         .goalentity = goalentity,
     };
 
     FOR_LOOP(i, heatmap_pending_count) {
         heatmapRequest_t *pending = heatmap_pending + i;
-        if (heatmap_request_matches(pending, target, radius_cells, blocked_flags))
+        if (heatmap_request_matches(pending, target, query))
             return false;
         /* Moving targets can change cells while queued. Keep their FIFO place,
          * but update the destination so we do not later bake an obsolete field. */
         if (goalentity && pending->goalentity == goalentity &&
-            pending->radius_cells == radius_cells && pending->blocked_flags == request.blocked_flags) {
+            path_queries_equal(&pending->query, query)) {
             pending->target = target;
             return false;
         }
@@ -1684,7 +1710,7 @@ static bool heatmap_job_start_next(void) {
         memmove(heatmap_pending, heatmap_pending + 1,
             (heatmap_pending_count - 1) * sizeof(*heatmap_pending));
         heatmap_pending_count--;
-        if (find_cached_heatmap(request.target, request.radius_cells, request.blocked_flags) >= 0)
+        if (find_cached_heatmap(request.target, &request.query) >= 0)
             continue;
         heatmap_job_start(&request);
         return true;
@@ -1704,7 +1730,7 @@ static int choose_heatmap_cache_slot(void) {
     return evict;
 }
 
-static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocked_flags) {
+static uint32_t commit_heatmap(point2_t target, pathGridQuery_t const *query) {
     uint32_t const map_cells = pathmap.width * pathmap.height;
     int const evict = choose_heatmap_cache_slot();
 
@@ -1714,8 +1740,7 @@ static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocke
         heatmap_cache[evict].prices[i] = pathmap.heatmap[i].price;
 
     heatmap_cache[evict].target = target;
-    heatmap_cache[evict].radius_cells = radius_cells;
-    heatmap_cache[evict].blocked_flags = normalize_blocked_flags(blocked_flags);
+    heatmap_cache[evict].query = *query;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;
@@ -1728,15 +1753,17 @@ static uint32_t commit_heatmap(point2_t target, int radius_cells, uint8_t blocke
  * a completed field now.  Game movement uses CM_RequestHeatmapForRadius() so a
  * large flood does not run to completion inside one unit think. */
 uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
+    CM_FinishPathJobs();
     point2_t target;
-    int radius_cells;
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, CM_PATHING_UNWALKABLE);
     int cached;
     heatmapJob_t job = { 0 };
 
-    if (!resolve_heatmap_request(goalentity, radius, CM_PATHING_UNWALKABLE, &target, &radius_cells))
+    if (!resolve_heatmap_request(goalentity, &query, &target))
         return 0;
 
-    cached = find_cached_heatmap(target, radius_cells, CM_PATHING_UNWALKABLE);
+    cached = find_cached_heatmap(target, &query);
     if (cached >= 0) {
         PERF_INC(cache_hits);
         return heatmap_cache[cached].generation;
@@ -1748,11 +1775,11 @@ uint32_t CM_BuildHeatmapForRadius(edict_t *goalentity, float radius) {
      * direct test/tool build cannot leave its queue state half-valid. */
     heatmap_job_cancel();
     heatmap_pending_count = 0;
-    begin_heatmap_build(&job, target, radius_cells, CM_PATHING_UNWALKABLE);
+    begin_heatmap_build(&job, target, &query);
     while (!step_heatmap_build(&job, UINT_MAX)) {
         /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
     }
-    return commit_heatmap(target, radius_cells, CM_PATHING_UNWALKABLE);
+    return commit_heatmap(target, &query);
 }
 
 uint32_t CM_BuildHeatmap(edict_t *goalentity) {
@@ -1761,33 +1788,33 @@ uint32_t CM_BuildHeatmap(edict_t *goalentity) {
 
 /* Request a game-routing field without doing a synchronous whole-map flood.
  * Cache misses take a place in the shared FIFO so an earlier entity visited
- * every frame cannot repeatedly claim the single build slot. */
-uint32_t CM_RequestHeatmapForMoverFlags(edict_t *requester, edict_t *goalentity,
-                                        float radius, uint8_t blocked_flags) {
-    point2_t target;
-    int radius_cells;
-    int cached;
-
-    blocked_flags = normalize_blocked_flags(blocked_flags);
-    if (!resolve_heatmap_request(goalentity, radius, blocked_flags, &target, &radius_cells))
-        return 0;
-
-    cached = find_cached_heatmap(target, radius_cells, blocked_flags);
+ * every frame cannot repeatedly claim the single build slot. Footprint bounds
+ * remain part of the identity, including asymmetric game-authored classes. */
+static uint32_t request_heatmap_query(point2_t target, pathGridQuery_t const *query,
+                                     edict_t *requester, edict_t *goalentity) {
+    CM_FinishPathJobs();
+    int cached = find_cached_heatmap(target, query);
     if (cached >= 0) {
         PERF_INC(cache_hits);
         return heatmap_cache[cached].generation;
     }
-
     if (heatmap_job.active && heatmap_job.target.x == target.x &&
-        heatmap_job.target.y == target.y && heatmap_job.radius_cells == radius_cells &&
-        heatmap_job.blocked_flags == blocked_flags)
+        heatmap_job.target.y == target.y && path_queries_equal(&heatmap_job.query, query))
         return 0;
-
-    if (heatmap_request_enqueue(target, radius_cells, blocked_flags, requester, goalentity))
+    if (heatmap_request_enqueue(target, query, requester, goalentity))
         PERF_INC(cache_misses);
     if (!heatmap_job.active)
         (void)heatmap_job_start_next();
     return 0;
+}
+
+uint32_t CM_RequestHeatmapForMoverFlags(edict_t *requester, edict_t *goalentity,
+                                       float radius, uint8_t blocked_flags) {
+    point2_t target;
+    int cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    pathGridQuery_t query = path_radius_query(cells, blocked_flags);
+    if (!resolve_heatmap_request(goalentity, &query, &target)) return 0;
+    return request_heatmap_query(target, &query, requester, goalentity);
 }
 
 uint32_t CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags) {
@@ -1798,22 +1825,73 @@ uint32_t CM_RequestHeatmapForRadius(edict_t *goalentity, float radius) {
     return CM_RequestHeatmapForRadiusFlags(goalentity, radius, CM_PATHING_UNWALKABLE);
 }
 
-void CM_ProcessPathJobs(uint32_t work_budget) {
-    if (!heatmap_job.active || !work_budget || !pathmap.width || !pathmap.height)
-        return;
+static struct {
+    heatmapJob_t job;
+    pathConnectivity_t *connectivity;
+    uint32_t budget;
+    bool pending, complete;
+} path_work;
 
-    if (!heatmap_job.started)
-        begin_heatmap_build(&heatmap_job, heatmap_job.target, heatmap_job.radius_cells, heatmap_job.blocked_flags);
+/* The worker only touches numeric frontier scratch and borrowed immutable
+ * static geometry. It never allocates, reads an edict, or publishes a cache. */
+static void path_job_run(void *unused) {
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+    memset(&path_work_perf, 0, sizeof(path_work_perf));
+    path_perf_owner = &path_work_perf;
+#endif
+    if (!path_work.job.started)
+        begin_heatmap_build(&path_work.job, path_work.job.target, &path_work.job.query);
+    path_work.complete = step_heatmap_edges(&path_work.job, path_work.budget, path_work.connectivity);
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+    path_perf_owner = NULL;
+#endif
+}
 
-    if (!step_heatmap_build(&heatmap_job, work_budget))
-        return;
+void CM_BeginPathJobs(uint32_t work_budget) {
+    CM_FinishPathJobs();
+    if (!heatmap_job.active || !work_budget || !pathmap.width || !pathmap.height) return;
+    path_work.job = heatmap_job;
+    path_work.connectivity = path_connectivity_for_query(&heatmap_job.query);
+    path_work.budget = work_budget;
+    path_work.pending = true;
+    PATH_JOB_RUN(path_job_run, NULL);
+}
 
-    commit_heatmap(heatmap_job.target, heatmap_job.radius_cells, heatmap_job.blocked_flags);
+void CM_FinishPathJobs(void) {
+    if (!path_work.pending) return;
+    PATH_JOB_WAIT();
+    path_work.pending = false;
+    heatmap_job = path_work.job;
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
+#define MERGE_PATH_PERF(field) g_perf.field += path_work_perf.field
+    MERGE_PATH_PERF(cache_hits); MERGE_PATH_PERF(cache_misses);
+    MERGE_PATH_PERF(heatmap_iterations); MERGE_PATH_PERF(pathability_checks);
+    MERGE_PATH_PERF(flow_cells_computed); MERGE_PATH_PERF(closest_reachable_calls);
+#undef MERGE_PATH_PERF
+#endif
+    if (!path_work.complete) return;
+    commit_heatmap(heatmap_job.target, &heatmap_job.query);
     heatmap_job_cancel();
     (void)heatmap_job_start_next();
 }
 
+void CM_ProcessPathJobs(uint32_t work_budget) {
+    CM_BeginPathJobs(work_budget);
+    CM_FinishPathJobs();
+}
+
+#ifdef BZ_TESTS
+/* Observe the numeric frontier after publication, without exposing scratch to
+ * callers while its worker owns it. Generation identities are map-local. */
+void CM_TestCopyFlowPrices(int *prices, uint32_t count) {
+    CM_FinishPathJobs();
+    assert(count == pathmap.width * pathmap.height);
+    FOR_LOOP(i, count) prices[i] = pathmap.heatmap[i].price;
+}
+#endif
+
 void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
+    CM_FinishPathJobs();
     uint32_t const cap = pathmap.width * pathmap.height + 1;
     if (!status) return;
     memset(status, 0, sizeof(*status));
@@ -1821,8 +1899,9 @@ void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
     status->started = heatmap_job.started;
     status->target_cell_x = heatmap_job.target.x;
     status->target_cell_y = heatmap_job.target.y;
-    status->radius_cells = heatmap_job.radius_cells;
-    status->blocked_flags = heatmap_job.blocked_flags;
+    status->radius_cells = MAX(MAX(-heatmap_job.query.min.x, -heatmap_job.query.min.y),
+                               MAX(heatmap_job.query.max.x - 1, heatmap_job.query.max.y - 1));
+    status->blocked_flags = heatmap_job.query.flags;
     status->work_done = heatmap_job.work_done;
     status->pending_jobs = heatmap_pending_count;
     if (heatmap_job.requester && heatmap_job.requester->inuse) {
@@ -1840,7 +1919,7 @@ void CM_GetPathJobStatus(cmPathJobStatus_t *status) {
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Synthesize a pathmap from a raw byte array for unit tests.
  * Each byte is treated as a pathMapCell_t (bit 1 = nowalk, bit 2 = nofly,
- * bit 6 = nowater).
+ * bit 6 = nowater, bit 7 = amphibious).
  * The world coordinate system is set up so cell (x,y) maps to
  * world position (x * cell_size, y * cell_size). */
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells) {

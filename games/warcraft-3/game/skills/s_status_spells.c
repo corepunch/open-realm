@@ -32,7 +32,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityCripple, cripple_validate, status_execute)
 
 /* DataA = movement speed reduction fraction; DataB = attack rate reduction; DataC = damage reduction. */
 float S_CrippleMoveReduction(edict_t const *unit) {
-    uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
+    uint32_t level = G_QueryUnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 1) : 0.0f;
 }
 
@@ -55,7 +55,16 @@ float S_CrippleDamageReduction(edict_t const *unit) {
 
 /* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
 bool S_UnitIsSilenced(edict_t const *unit) {
-    return unit && (S_UnitHasStatus(unit, BZ_SILENCE_BUFF) || S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF));
+    if (!unit) return false;
+    if (unit->abilstatus) {
+        unitStatusStorage_t const *state = (unitStatusStorage_t const *)unit->abilstatus;
+        if (state->spell_prevention && state->spell_prevention <= INT32_MAX) return true;
+    }
+    /* Retain unowned legacy Silence slots. Authored prevention owners use the
+     * captured mask, so a Silence with mask0 does not acquire a spell lock. */
+    heroabilitystatus_t *silence = unit_findstatus((edict_t *)unit, BZ_SILENCE_BUFF);
+    return (silence && !silence->data && S_UnitHasStatus(unit, BZ_SILENCE_BUFF)) ||
+        S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF);
 }
 
 static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {

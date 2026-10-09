@@ -153,8 +153,8 @@ static bool raven_form_order(edict_t *unit, bool raven_form) {
         gi.LinkEntity(unit);
     }
 
-    unit->goalentity = NULL;
-    unit->secondarygoal = NULL;
+    S_SetMoveGoal(unit, &unit->goalentity, NULL);
+    S_SetMoveGoal(unit, &unit->secondarygoal, NULL);
     move_reset_progress(unit);
     unit_stand(unit);
     raven_play_morph(unit, raven_form);
@@ -177,6 +177,8 @@ static void raven_command(edict_t *ent) {
 }
 
 BZ_ABILITY_PROC(CAbilityRavenForm) {
+    if (msg == A_UNIT_TYPE_UPDATE && ent) return 0;
+    if (msg == A_UNIT_TYPE_UPDATE) return UNIT_UPDATE_POINTER(raven);
     switch (msg) {
     case A_COMMAND: raven_command(call && call->client ? call->client : ent); return true;
     case A_TOGGLE_ON: return raven_is_on(ent);

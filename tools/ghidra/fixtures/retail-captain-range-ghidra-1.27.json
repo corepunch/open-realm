@@ -1,0 +1,200 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "0x6f9d86f0",
+      "name": "CaptainAI_GetAuthoredApproachRange",
+      "plate": "Complete body: regular unit with attack class uses70+.6*maximum enabled attack range; no class300, uppercase hero minimum600, Captain6c.20 adds200, native unit5c.40000000 or BTLF returns50 before Hero/siege adjustment. Two complete mixed13 read-only repeats261003 observe all13 initial ranges124, attack maximum90, runtime70/600/300. Target wrapper05a5c0 adds mover radius31/63 then divides32, yielding4.84375/5.84375. Payoff62 removes the incorrect five-radius engine shortcut;3471 pre-batch commits and saved physical member range are covered. Payoff121 repeated public siege controls pin retained roster200 bonus, native Attack existence despite disabled slots (maximum0 gives70) and fresh non-siege approach490 after both siege members are removed; existing physical ranges are not recomputed on roster edits. Other eligibility/hero/summon/suppression/target-adjustment producer domains remain explicit TODOs.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nGROUP-03.4.6.2.1.2 correction: the illusion(5c.40000000)/BTLF early return writes Math_RuntimeFifty 6fd3c7ac=50.0 (static init 6f001cd0, live word 42480000), not 0, and skips the Hero minimum and 6c.20 bonus. Hero test is rawcode high byte A..Z and not illusion; strict COMISS/CMOVA keeps 600.4 for Hero range884. Two identical public repeats (RS-G0346212-f, JASS-equal observer-free control): Footman124, melee-prevented70, missile400 310, ranged-prevented70, special(tree)-prevented70, tree melee-prevented190, BTLF50, Aatk-removed300, Hero100/883 600, Hero884 600.4, unit/Hero illusions50, Long Rifles reissue430. Caller 5fd922 Move task 0xd0170 stores (range+radius)/32.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nComplete body: regular unit with attack class uses70+.6*maximum enabled attack range; no class300, uppercase hero minimum600, Captain6c.20 adds200, native unit5c.40000000 (illusion) or BTLF returns Math_RuntimeFifty 6fd3c7ac = 50.0 at 9d87bb, before the Hero minimum and siege bonus (GROUP-03.4.6.2.1.2 correction of the earlier 'gives0'). Two complete mixed13 read-only repeats261003 observe all13 initial ranges124, attack maximum90, runtime70/600/300. Target wrapper05a5c0 adds mover radius31/63 then divides32, yielding4.84375/5.84375. Payoff62 removes the incorrect five-radius engine shortcut;3471 pre-batch commits and saved physical member range are covered. Payoff121 repeated public siege controls pin retained roster200 bonus, native Attack existence despite disabled slots (maximum0 gives70) and fresh non-siege approach490 after both siege members are removed; existing physical ranges are not recomputed on roster edits. Other eligibility/hero/summon/suppression/target-adjustment producer domains remain explicit TODOs. [GROUP-03.4.6.2.1.2] GROUP-03.4.6.2.1.2 correction: the illusion(5c.40000000)/BTLF early return writes Math_RuntimeFifty 6fd3c7ac=50.0 (static init 6f001cd0, live word 42480000), not 0, and skips the Hero minimum and 6c.20 bonus. Hero test is rawcode high byte A..Z and not illusion; strict COMISS/CMOVA keeps 600.4 for Hero range884. Two identical public repeats (RS-G0346212-f, JASS-equal observer-free control): Footman124, melee-prevented70, missile400 310, ranged-prevented70, special(tree)-prevented70, tree melee-prevented190, BTLF50, Aatk-removed300, Hero100/883 600, Hero884 600.4, unit/Hero illusions50, Long Rifles reissue430. Caller 5fd922 Move task 0xd0170 stores (range+radius)/32.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff154 ports the temporary early50 return before rawcode A..Z Hero minimum and siege bonus; strict Hero884 result44161999. Actual engine CreateUnit/UnitRemoveAbility, spell-owned BTLF and concrete Mirror Image execution feed saved captain admission. Removal/re-add and temporary expiry retain existing physical ranges; fresh admission recalculates. Attacks-Prevented, public UnitApplyTimedLife factory, automatic temporary AI enrollment and full departure producer lifetimes remain open; no complete trajectory claim.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "0x6f9d0650",
+      "name": "CaptainAI_UpdateRosterCountsAndRanges",
+      "plate": "ECX captain, stack4 unit/8 signedinteger delta,RET8/void; complete209 instructions. Adjust actual roster countbc, rememberedb8 only on positive delta, healthyc0 and special-type c4/c8; publish four proximity subscription ranges through063560. Payoff120 observed deltas+1/-1; integer delta is not WC3PathScalar despite later software scalar range math. Runtime scalar constants must be observed; on-disk zero initializers are not values.\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nGROUP-03.4.7.3: c0 delta: added for every member when town2d0.4000 is clear (SetCampaignAI); with SetMeleeAI only members whose unit+b8 FloatMini reads 0, or non-illusion Hero rawcodes. Campaign live: c0==bc (SetUnitState life 42 does not change it).\n   [GROUP-03.4.7.3] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nECX captain, stack4 unit/8 signedinteger delta,RET8/void; complete209 instructions. Adjust actual roster countbc, rememberedb8 only on positive delta, healthyc0 and special-type c4/c8; publish four proximity subscription ranges through063560. Payoff120 observed deltas+1/-1; integer delta is not WC3PathScalar despite later software scalar range math. Runtime scalar constants must be observed; on-disk zero initializers are not values. [GROUP-03.4.7.3] GROUP-03.4.7.3: c0 delta: added for every member when town2d0.4000 is clear (SetCampaignAI); with SetMeleeAI only members whose unit+b8 FloatMini reads 0, or non-illusion Hero rawcodes. Campaign live: c0==bc (SetUnitState life 42 does not change it).\nRecovered descriptive name, not an original debug symbol. See open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\nPayoff154 assembly composition: roster siege scan explicitly skips NULL unit1e8 Attack object before invoking9d72f0; retained weapon defaults are not sufficient after UnitRemoveAbility Aatk. Engine intrinsic ownership query preserves this distinction. Disabled existing slots still contribute as verified in Payoff121.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "0x6f2185e0",
+      "name": "JassNative_UnitApplyTimedLife",
+      "plate": "Payoff154 native registration209e11..209e20 pairs UnitApplyTimedLife namea98d58 with2185e0. Cdecl(unit handle,buff rawcode,duration pointer), plainRET. Resolve unit; call Unit_CreateTimedLifeBuff ECXunit stack buff/duration. Additional unit64.200 branch adjusts player food via680090/25b6f0 then clears64.300. Engine API is still a stub, not ported by the captain-range change.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "0x6f48b930",
+      "name": "Unit_CreateTimedLifeBuff",
+      "plate": "Payoff154 UnitApplyTimedLife factory dispatch: receiver Unit, requested buff rawcode and duration. Seven named class-ID comparisons choose specialized timed-life buff factories; otherwise class BTLF52f700 and factory489b30. Returned buff receives virtual31c(unit,duration), then48b7d0 attaches it. Default BTLF identity is a class, not proof that arbitrary requested visible buff IDs are equivalent. Wider implementation remains open.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    },
+    {
+      "address": "0x6f52f700",
+      "name": "TimedLife_GetClassId",
+      "plate": "Payoff154 constant class getter returns native FOURCC42544c46 (BTLF). Referenced by captain9d86f0 class lookup and default timed-life factory48b930; no scalar range value is returned here.\n   [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+    }
+  ],
+  "analysis": {
+    "captain_and_slots": {
+      "0x6f9d86f0": "\n/* Complete body: regular unit with attack class uses70+.6*maximum enabled attack range; no\n   class300, uppercase hero minimum600, Captain6c.20 adds200, native unit5c.40000000 or BTLF gives0.\n   Two complete mixed13 read-only repeats261003 observe all13 initial ranges124, attack maximum90,\n   runtime70/600/300. Target wrapper05a5c0 adds mover radius31/63 then divides32,\n   yielding4.84375/5.84375. Payoff62 removes the incorrect five-radius engine shortcut;3471\n   pre-batch commits and saved physical member range are covered. Payoff121 repeated public siege\n   controls pin retained roster200 bonus, native Attack existence despite disabled slots (maximum0\n   gives70) and fresh non-siege approach490 after both siege members are removed; existing physical\n   ranges are not recomputed on roster edits. Other\n   eligibility/hero/summon/suppression/target-adjustment producer domains remain explicit TODOs.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   GROUP-03.4.6.2.1.2 correction: the illusion(5c.40000000)/BTLF early return writes\n   Math_RuntimeFifty 6fd3c7ac=50.0 (static init 6f001cd0, live word 42480000), not 0, and skips the\n   Hero minimum and 6c.20 bonus. Hero test is rawcode high byte A..Z and not illusion; strict\n   COMISS/CMOVA keeps 600.4 for Hero range884. Two identical public repeats (RS-G0346212-f,\n   JASS-equal observer-free control): Footman124, melee-prevented70, missile400 310,\n   ranged-prevented70, special(tree)-prevented70, tree melee-prevented190, BTLF50, Aatk-removed300,\n   Hero100/883 600, Hero884 600.4, unit/Hero illusions50, Long Rifles reissue430. Caller 5fd922 Move\n   task 0xd0170 stores (range+radius)/32.\n      [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Complete body: regular unit with attack class uses70+.6*maximum enabled attack range; no\n   class300, uppercase hero minimum600, Captain6c.20 adds200, native unit5c.40000000 (illusion) or\n   BTLF returns Math_RuntimeFifty 6fd3c7ac = 50.0 at 9d87bb, before the Hero minimum and siege bonus\n   (GROUP-03.4.6.2.1.2 correction of the earlier 'gives0'). Two complete mixed13 read-only\n   repeats261003 observe all13 initial ranges124, attack maximum90, runtime70/600/300. Target\n   wrapper05a5c0 adds mover radius31/63 then divides32, yielding4.84375/5.84375. Payoff62 removes\n   the incorrect five-radius engine shortcut;3471 pre-batch commits and saved physical member range\n   are covered. Payoff121 repeated public siege controls pin retained roster200 bonus, native Attack\n   existence despite disabled slots (maximum0 gives70) and fresh non-siege approach490 after both\n   siege members are removed; existing physical ranges are not recomputed on roster edits. Other\n   eligibility/hero/summon/suppression/target-adjustment producer domains remain explicit TODOs.\n   [GROUP-03.4.6.2.1.2] GROUP-03.4.6.2.1.2 correction: the illusion(5c.40000000)/BTLF early return\n   writes Math_RuntimeFifty 6fd3c7ac=50.0 (static init 6f001cd0, live word 42480000), not 0, and\n   skips the Hero minimum and 6c.20 bonus. Hero test is rawcode high byte A..Z and not illusion;\n   strict COMISS/CMOVA keeps 600.4 for Hero range884. Two identical public repeats (RS-G0346212-f,\n   JASS-equal observer-free control): Footman124, melee-prevented70, missile400 310,\n   ranged-prevented70, special(tree)-prevented70, tree melee-prevented190, BTLF50, Aatk-removed300,\n   Hero100/883 600, Hero884 600.4, unit/Hero illusions50, Long Rifles reissue430. Caller 5fd922 Move\n   task 0xd0170 stores (range+radius)/32.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nWC3PathScalar * __thiscall\nCaptainAI_GetAuthoredApproachRange\n          (WC3CaptainAIPrefix *captain,WC3PathScalar *output,WC3UnitOrdersPrefix *unit)\n\n{\n  WC3UnitOrdersPrefix *pWVar1;\n  int iVar2;\n  WC3PathScalar *pWVar3;\n  float *pfVar4;\n  WC3PathScalar *right;\n  WC3PathScalar *right_00;\n  WC3PathScalar local_10;\n  WC3PathScalar local_c;\n  float local_8;\n  \n  pWVar1 = unit;\n  if (((unit->order_admission_flags & 0x40000000) == 0) &&\n     (iVar2 = Unit_FindAbilityByClass(0x42544c46,1,0,1,1), iVar2 == 0)) {\n    if (pWVar1->attack_ability == (WC3AttackRangePrefix *)0x0) {\n      local_8 = (float)CaptainAI_UnarmedApproachRange300;\n      pfVar4 = &local_8;\n    }\n    else {\n      right_00 = &CaptainAI_AttackRangeBase70;\n      right = &DAT_6fcd53fc;\n      pWVar3 = Attack_GetMaximumEnabledRange(pWVar1->attack_ability,(WC3PathScalar *)&local_8);\n      pWVar3 = Math_Multiply(&local_c,pWVar3,right);\n      pfVar4 = (float *)Math_Add(&local_10,pWVar3,right_00);\n    }\n    unit = (WC3UnitOrdersPrefix *)*pfVar4;\n    if (((*(byte *)((int)&pWVar1->rawcode + 3) - 0x41 < 0x1a) &&\n        ((pWVar1->order_admission_flags & 0x40000000) == 0)) &&\n       ((float)unit < (float)CaptainAI_HeroApproachMinimum600)) {\n      unit = (WC3UnitOrdersPrefix *)CaptainAI_HeroApproachMinimum600;\n    }\n    if ((captain->flags & 0x20) != 0) {\n      pWVar3 = Math_Add(&local_10,(WC3PathScalar *)&unit,&DAT_6fd3c7c8);\n      unit = (WC3UnitOrdersPrefix *)*pWVar3;\n    }\n    *output = (WC3PathScalar)unit;\n    return output;\n  }\n  *output = Math_RuntimeFifty;\n  return output;\n}\n\n",
+      "0x6f499790": "\n/* Attack20 bits80000/100000 select two slots; counters224/228/22c and weapon/mask predicates can\n   suppress them. Complete decoded body; baseline Footman eligible first slot observed. Other\n   producer domains remain open.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   GROUP-03.4.6.2.1.2: ECX Attack, stack4 slot, RET4. Suppression counters224/228/22c are\n   melee/ranged/special Attacks Prevented counts from BuffAttackPrevention_Apply/Remove (Nsi1\n   bits1/2/4). 224 disables weapon type1 slots unless targets218 is special(1/40/80/100); 228 uses\n   4996f0 (types2..8, non-special); 22c uses 3ba140 (special targets). Live public Drunken Haze\n   clones confirm each mask; melee mask leaves missile400 and tree200 slots enabled.\n      [GROUP-03.4.6.2.1.2] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   Attack20 bits80000/100000 select two slots; counters224/228/22c and weapon/mask predicates can\n   suppress them. Complete decoded body; baseline Footman eligible first slot observed. Other\n   producer domains remain open. [GROUP-03.4.6.2.1.2] GROUP-03.4.6.2.1.2: ECX Attack, stack4 slot,\n   RET4. Suppression counters224/228/22c are melee/ranged/special Attacks Prevented counts from\n   BuffAttackPrevention_Apply/Remove (Nsi1 bits1/2/4). 224 disables weapon type1 slots unless\n   targets218 is special(1/40/80/100); 228 uses 4996f0 (types2..8, non-special); 22c uses 3ba140\n   (special targets). Live public Drunken Haze clones confirm each mask; melee mask leaves\n   missile400 and tree200 slots enabled.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nundefined4 __thiscall Attack_IsWeaponSlotEnabled(WC3AttackRangePrefix *param_1,uint param_2)\n\n{\n  uint uVar1;\n  bool bVar2;\n  \n  if ((param_1->flags & 0x80000 << ((byte)param_2 & 0x1f)) == 0) {\n    return 0;\n  }\n  if (((0 < param_1->melee_suppression_count) && (param_2 != 0xffffffff)) &&\n     (uVar1 = (&param_1->target_mask0)[param_2], (&param_1->weapon0)[param_2] == 1)) {\n    if (uVar1 < 0x81) {\n      if ((uVar1 == 0x80) || (uVar1 == 1)) goto LAB_6f4997e9;\n      bVar2 = uVar1 == 0x40;\n    }\n    else {\n      bVar2 = uVar1 == 0x100;\n    }\n    if (!bVar2) {\n      return 0;\n    }\n  }\nLAB_6f4997e9:\n  if ((0 < param_1->ranged_suppression_count) &&\n     (uVar1 = Attack_IsRangedSuppressibleSlot(param_1,param_2), uVar1 != 0)) {\n    return 0;\n  }\n  if ((0 < param_1->special_suppression_count) &&\n     (uVar1 = Attack_IsSpecialTargetSlot(param_1,param_2), uVar1 != 0)) {\n    return 0;\n  }\n  return 1;\n}\n\n",
+      "0x6f49d280": "\nvoid __thiscall FUN_6f49d280(WC3AttackRangePrefix *param_1,int param_2,undefined4 *param_3)\n\n{\n  WC3UnitOrdersPrefix *unit;\n  int iVar1;\n  WC3PathScalar *pWVar2;\n  WC3PathScalar *left;\n  WC3UnitMoverBridge *bridge;\n  void *pvVar3;\n  int *piVar4;\n  WC3PathScalar *right;\n  WC3PathScalar local_3c;\n  undefined4 local_38;\n  undefined4 local_34;\n  undefined8 local_30;\n  undefined4 local_28;\n  WC3PathScalar local_24;\n  WC3PathScalar local_20;\n  WC3PathScalar local_1c;\n  WC3PathScalar local_18;\n  int local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa233e8;\n  local_10 = ExceptionList;\n  if ((param_1->flags & 4) != 0) {\n    unit = param_1->unit;\n    ExceptionList = &local_10;\n    if (unit == (WC3UnitOrdersPrefix *)0x0) {\n      unit = (WC3UnitOrdersPrefix *)FUN_6f055cc0(DAT_6fce689c ^ (uint)&stack0xfffffffc);\n    }\n    iVar1 = (**(code **)((int)unit->vtable + 0xec))();\n    if ((0xb < iVar1) || ((unit->separation_category_flags & 4) != 0)) {\n      FUN_6f49d220(0);\n    }\n    local_14 = 0;\n    local_28 = 0;\n    local_30 = 0;\n    if ((param_3 != (undefined4 *)0x0) ||\n       (((param_1->flags & 0x40000) != 0 && ((unit->widget_state_flags & 0x200) == 0)))) {\n      if (((param_1->task_target).generation & (param_1->task_target).slot) == 0xffffffff) {\n        piVar4 = (int *)0x0;\n      }\n      else {\n        piVar4 = AgentIdentity_ResolvePayload(&param_1->task_target);\n      }\n      FUN_6f1d73b0(piVar4);\n      local_8 = 0;\n      if ((piVar4 != (int *)0x0) &&\n         ((param_3 == (undefined4 *)0x0 || ((param_3[8] & 0x800000) == 0)))) {\n        (**(code **)(*piVar4 + 0xb8))();\n        right = &Math_RuntimeFifty;\n        pWVar2 = (WC3PathScalar *)FUN_6f05aa20(&local_14);\n        left = Attack_GetMaximumEnabledRange(param_1,&local_1c);\n        pWVar2 = Math_Add(&local_20,left,pWVar2);\n        pWVar2 = Math_Add(&local_24,pWVar2,right);\n        local_18 = *pWVar2;\n        pWVar2 = &local_3c;\n        bridge = (WC3UnitMoverBridge *)(**(code **)(*piVar4 + 0xb8))();\n        UnitMover_QueryWorldPosition(bridge,pWVar2);\n        local_30 = CONCAT44(local_38,local_3c);\n        local_28 = local_34;\n        local_14 = 1;\n      }\n      local_8 = 0xffffffff;\n      if (param_3 != (undefined4 *)0x0) {\n        piVar4 = param_3 + 1;\n        *piVar4 = *piVar4 + -1;\n        if (*piVar4 == 0) {\n          (**(code **)*param_3)();\n        }\n      }\n    }\n    param_1->flags = param_1->flags & 0xfffbffff;\n    FUN_6f405510();\n    FUN_6f497e20();\n    FUN_6f497110(unit,1);\n    param_1->flags = param_1->flags & 0xffffefff;\n    if ((param_2 != 0) ||\n       ((((*(uint *)&param_1->field_0x7c & *(uint *)&param_1->field_0x78) != 0xffffffff &&\n         (pvVar3 = AgentIdentity_ResolvePayload((WC3PathIdentity *)&param_1->field_0x78),\n         pvVar3 != (void *)0x0)) && (iVar1 = FUN_6f4968e0(pvVar3,1,0), iVar1 != 0)))) {\n      *(undefined4 *)&param_1->field_0x78 = 0xffffffff;\n      *(undefined4 *)&param_1->field_0x7c = 0xffffffff;\n    }\n    FUN_6f694620(2);\n    Unit_StopWithRecoveryAndSupport(unit);\n    if ((param_1->flags & 4) != 0) {\n      iVar1 = FUN_6f497190();\n      param_1->flags = param_1->flags & 0xfffffffb;\n      if (iVar1 != 0) {\n        if (local_14 != 0) {\n          Unit_CreatePointTask(0xd016c,&local_30,(int)&local_30 + 4,&local_18,0);\n        }\n        Unit_DispatchInternalTaskQueue();\n      }\n    }\n    ExceptionList = local_10;\n    return;\n  }\n  return;\n}\n\n"
+    },
+    "native": {
+      "name": "FUN_6f2185e0",
+      "address": "6f2185e0",
+      "decompiled": "\nvoid FUN_6f2185e0(uint param_1,undefined4 param_2,undefined4 param_3)\n\n{\n  WC3UnitOrdersPrefix *pWVar1;\n  undefined4 uVar2;\n  int iVar3;\n  \n  pWVar1 = Jass_ResolveUnitHandle(param_1);\n  if (pWVar1 != (WC3UnitOrdersPrefix *)0x0) {\n    FUN_6f48b930(param_2,param_3);\n    if ((*(uint *)&pWVar1->field_0x64 & 0x200) != 0) {\n      uVar2 = (**(code **)((int)pWVar1->vtable + 0xec))();\n      FUN_6f1e0ea0(uVar2);\n      iVar3 = FUN_6f680090();\n      FUN_6f25b6f0(-iVar3);\n      *(uint *)&pWVar1->field_0x64 = *(uint *)&pWVar1->field_0x64 & 0xfffffcff;\n    }\n  }\n  return;\n}\n\n"
+    },
+    "factory": {
+      "name": "FUN_6f48b930",
+      "address": "6f48b930",
+      "decompiled": "\nvoid __thiscall FUN_6f48b930(undefined4 param_1,int param_2,undefined4 param_3)\n\n{\n  int iVar1;\n  int *piVar2;\n  \n  iVar1 = FUN_6f4d62e0();\n  if (param_2 == iVar1) {\n    piVar2 = (int *)FUN_6f489650();\n  }\n  else {\n    iVar1 = FUN_6f5e3ad0();\n    if (param_2 == iVar1) {\n      piVar2 = (int *)FUN_6f489720();\n    }\n    else {\n      iVar1 = FUN_6f5e3b00();\n      if (param_2 == iVar1) {\n        piVar2 = (int *)FUN_6f4897f0();\n      }\n      else {\n        iVar1 = FUN_6f5e3b30();\n        if (param_2 == iVar1) {\n          piVar2 = (int *)FUN_6f4898c0();\n        }\n        else {\n          iVar1 = FUN_6f4d6520();\n          if (param_2 == iVar1) {\n            piVar2 = (int *)FUN_6f489990();\n          }\n          else {\n            iVar1 = FUN_6f559210();\n            if (param_2 == iVar1) {\n              piVar2 = (int *)FUN_6f489a60();\n            }\n            else {\n              iVar1 = FUN_6f5990e0();\n              if (param_2 == iVar1) {\n                piVar2 = (int *)FUN_6f489c00();\n              }\n              else {\n                FUN_6f52f700();\n                piVar2 = (int *)FUN_6f489b30();\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n  if (piVar2 != (int *)0x0) {\n    (**(code **)(*piVar2 + 0x31c))(param_1,param_3);\n    FUN_6f48b7d0(piVar2);\n  }\n  return;\n}\n\n"
+    },
+    "class_ids": {
+      "0x6f52f700": "\nundefined4 FUN_6f52f700(void)\n\n{\n  return 0x42544c46;\n}\n\n",
+      "0x6f489b30": "\nvoid FUN_6f489b30(void)\n\n{\n  int *piVar1;\n  int iVar2;\n  uint uVar3;\n  uint actual;\n  int *piVar4;\n  undefined4 uVar5;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  puStack_c = &LAB_6fa22310;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  local_8 = 1;\n  FUN_6f52f700(DAT_6fce689c ^ (uint)&stack0xfffffffc);\n  iVar2 = FUN_6f03eaf0();\n  uVar5 = *(undefined4 *)(iVar2 + 0x70);\n  FUN_6f52f700(uVar5);\n  FUN_6f055d00(uVar5);\n  iVar2 = FUN_6f154b60(1);\n  piVar1 = *(int **)(iVar2 + 0x54);\n  piVar4 = (int *)0x0;\n  if (piVar1 != (int *)0x0) {\n    uVar3 = FUN_6f52f700();\n    actual = (**(code **)(*piVar1 + 0x1c))();\n    uVar3 = AgentClass_IsDerived(actual,uVar3);\n    if (uVar3 != 0) {\n      piVar1[1] = piVar1[1] + 1;\n      piVar4 = piVar1;\n    }\n  }\n  local_8 = 0xffffffff;\n  if (piVar4 != (int *)0x0) {\n    piVar1 = piVar4 + 1;\n    *piVar1 = *piVar1 + -1;\n    if (*piVar1 == 0) {\n      (**(code **)*piVar4)();\n    }\n  }\n  ExceptionList = local_10;\n  FUN_6f78e855();\n  return;\n}\n\n",
+      "0x6f4d62e0": "\nundefined4 FUN_6f4d62e0(void)\n\n{\n  return 0x4255616e;\n}\n\n",
+      "0x6f5e3ad0": "\nundefined4 FUN_6f5e3ad0(void)\n\n{\n  return 0x42466967;\n}\n\n"
+    },
+    "native_assembly": {
+      "instructions": [
+        {
+          "address": "6f2185e0",
+          "instruction": "PUSH EBP"
+        },
+        {
+          "address": "6f2185e1",
+          "instruction": "MOV EBP,ESP"
+        },
+        {
+          "address": "6f2185e3",
+          "instruction": "MOV ECX,dword ptr [EBP + 0x8]"
+        },
+        {
+          "address": "6f2185e6",
+          "instruction": "PUSH EDI"
+        },
+        {
+          "address": "6f2185e7",
+          "instruction": "CALL 0x6f1eef90"
+        },
+        {
+          "address": "6f2185ec",
+          "instruction": "MOV EDI,EAX"
+        },
+        {
+          "address": "6f2185ee",
+          "instruction": "TEST EDI,EDI"
+        },
+        {
+          "address": "6f2185f0",
+          "instruction": "JZ 0x6f21863d"
+        },
+        {
+          "address": "6f2185f2",
+          "instruction": "PUSH dword ptr [EBP + 0x10]"
+        },
+        {
+          "address": "6f2185f5",
+          "instruction": "MOV ECX,EDI"
+        },
+        {
+          "address": "6f2185f7",
+          "instruction": "PUSH dword ptr [EBP + 0xc]"
+        },
+        {
+          "address": "6f2185fa",
+          "instruction": "CALL 0x6f48b930"
+        },
+        {
+          "address": "6f2185ff",
+          "instruction": "TEST dword ptr [EDI + 0x64],0x200"
+        },
+        {
+          "address": "6f218606",
+          "instruction": "JZ 0x6f21863d"
+        },
+        {
+          "address": "6f218608",
+          "instruction": "MOV EAX,dword ptr [EDI]"
+        },
+        {
+          "address": "6f21860a",
+          "instruction": "MOV ECX,EDI"
+        },
+        {
+          "address": "6f21860c",
+          "instruction": "PUSH ESI"
+        },
+        {
+          "address": "6f21860d",
+          "instruction": "MOV ESI,dword ptr [0x6fd687a8]"
+        },
+        {
+          "address": "6f218613",
+          "instruction": "CALL dword ptr [EAX + 0xec]"
+        },
+        {
+          "address": "6f218619",
+          "instruction": "PUSH EAX"
+        },
+        {
+          "address": "6f21861a",
+          "instruction": "MOV ECX,ESI"
+        },
+        {
+          "address": "6f21861c",
+          "instruction": "CALL 0x6f1e0ea0"
+        },
+        {
+          "address": "6f218621",
+          "instruction": "MOV ECX,dword ptr [EDI + 0x30]"
+        },
+        {
+          "address": "6f218624",
+          "instruction": "MOV ESI,EAX"
+        },
+        {
+          "address": "6f218626",
+          "instruction": "CALL 0x6f680090"
+        },
+        {
+          "address": "6f21862b",
+          "instruction": "NEG EAX"
+        },
+        {
+          "address": "6f21862d",
+          "instruction": "MOV ECX,ESI"
+        },
+        {
+          "address": "6f21862f",
+          "instruction": "PUSH EAX"
+        },
+        {
+          "address": "6f218630",
+          "instruction": "CALL 0x6f25b6f0"
+        },
+        {
+          "address": "6f218635",
+          "instruction": "AND dword ptr [EDI + 0x64],0xfffffcff"
+        },
+        {
+          "address": "6f21863c",
+          "instruction": "POP ESI"
+        },
+        {
+          "address": "6f21863d",
+          "instruction": "POP EDI"
+        },
+        {
+          "address": "6f21863e",
+          "instruction": "POP EBP"
+        },
+        {
+          "address": "6f21863f",
+          "instruction": "RET"
+        }
+      ],
+      "count": 34
+    },
+    "siege_roster": {
+      "name": "CaptainAI_UpdateRosterCountsAndRanges",
+      "address": "6f9d0650",
+      "decompiled": "\n/* ECX captain, stack4 unit/8 signedinteger delta,RET8/void; complete209 instructions. Adjust actual\n   roster countbc, rememberedb8 only on positive delta, healthyc0 and special-type c4/c8; publish\n   four proximity subscription ranges through063560. Payoff120 observed deltas+1/-1; integer delta\n   is not WC3PathScalar despite later software scalar range math. Runtime scalar constants must be\n   observed; on-disk zero initializers are not values.\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   GROUP-03.4.7.3: c0 delta: added for every member when town2d0.4000 is clear (SetCampaignAI); with\n   SetMeleeAI only members whose unit+b8 FloatMini reads 0, or non-illusion Hero rawcodes. Campaign\n   live: c0==bc (SetUnitState life 42 does not change it).\n      [GROUP-03.4.7.3] Recovered descriptive name, not an original debug symbol. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236\n   ECX captain, stack4 unit/8 signedinteger delta,RET8/void; complete209 instructions. Adjust actual\n   roster countbc, rememberedb8 only on positive delta, healthyc0 and special-type c4/c8; publish\n   four proximity subscription ranges through063560. Payoff120 observed deltas+1/-1; integer delta\n   is not WC3PathScalar despite later software scalar range math. Runtime scalar constants must be\n   observed; on-disk zero initializers are not values. [GROUP-03.4.7.3] GROUP-03.4.7.3: c0 delta:\n   added for every member when town2d0.4000 is clear (SetCampaignAI); with SetMeleeAI only members\n   whose unit+b8 FloatMini reads 0, or non-illusion Hero rawcodes. Campaign live: c0==bc\n   (SetUnitState life 42 does not change it).\n   Recovered descriptive name, not an original debug symbol. See\n   open-realm/docs/games/warcraft-3/retail-pathfinding.md. SHA256\n   d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236 */\n\nvoid __thiscall\nCaptainAI_UpdateRosterCountsAndRanges\n          (WC3CaptainAIPrefix *captain,WC3UnitOrdersPrefix *unit,int delta)\n\n{\n  uint *puVar1;\n  WC3RangeListenerBridge *pWVar2;\n  int iVar3;\n  void *pvVar4;\n  WC3PathScalar *pWVar5;\n  uint uVar6;\n  uint uVar7;\n  int iVar8;\n  WC3UnitOrdersPrefix *pWVar9;\n  WC3UnitOrdersPrefix *pWVar10;\n  WC3UnitOrdersPrefix *pWVar11;\n  WC3PathScalar local_1c;\n  WC3PathScalar local_18;\n  WC3CaptainAIPrefix *local_14;\n  void *local_10;\n  undefined1 *puStack_c;\n  undefined4 local_8;\n  \n  iVar8 = delta;\n  local_8 = 0xffffffff;\n  puStack_c = &LAB_6fa6f800;\n  local_10 = ExceptionList;\n  ExceptionList = &local_10;\n  captain->member_count = captain->member_count + delta;\n  if (0 < delta) {\n    captain->remembered_member_count = captain->member_count;\n  }\n  local_14 = captain;\n  iVar3 = FUN_6f1e0ea0(captain->player_index);\n  if ((*(uint *)(iVar3 + 0x2d8) & ((WC3PathIdentity *)(iVar3 + 0x2d4))->slot) == 0xffffffff) {\n    pvVar4 = (void *)0x0;\n  }\n  else {\n    pvVar4 = AgentIdentity_ResolvePayload((WC3PathIdentity *)(iVar3 + 0x2d4));\n  }\n  pWVar9 = unit;\n  if ((((~(*(uint *)((int)pvVar4 + 0x2d0) >> 0xe) & 1) != 0) ||\n      (FUN_6f057fd0(&unit), (float)unit == (float)Math_RuntimeZero)) ||\n     (((pWVar9->rawcode >> 0x18) - 0x41 < 0x1a &&\n      ((pWVar9->order_admission_flags & 0x40000000) == 0)))) {\n    captain->healthy_member_count = captain->healthy_member_count + iVar8;\n  }\n  iVar3 = FUN_6f9d7350(pWVar9);\n  if (iVar3 != 0) {\n    captain->range_enter_count = captain->range_enter_count + iVar8;\n    captain->secondary_range_count = captain->secondary_range_count + iVar8;\n  }\n  pWVar5 = Math_FromIntegerTruncated((WC3PathScalar *)&unit,captain->member_count);\n  pWVar5 = Math_Multiply(&local_18,&CaptainAI_MemberRangeStep25,pWVar5);\n  Math_Add((WC3PathScalar *)&delta,&Range_Base800,pWVar5);\n  pWVar2 = captain->inner_range;\n  pWVar5 = Math_Multiply((WC3PathScalar *)&unit,(WC3PathScalar *)&delta,&Math_RoundHalf);\n  RangeListener_SetWorldRadius(pWVar2,pWVar5);\n  RangeListener_SetWorldRadius(captain->member_enter_range,(WC3PathScalar *)&delta);\n  pWVar2 = captain->member_leave_range;\n  pWVar5 = Math_Add((WC3PathScalar *)&unit,(WC3PathScalar *)&delta,&DAT_6fd3c7c8);\n  RangeListener_SetWorldRadius(pWVar2,pWVar5);\n  pWVar2 = captain->outer_range;\n  pWVar5 = Math_Add(&local_1c,(WC3PathScalar *)&delta,&DAT_6fd3c7dc);\n  RangeListener_SetWorldRadius(pWVar2,pWVar5);\n  captain->flags = captain->flags & 0xffffffdf;\n  if (((captain->roster).generation & (captain->roster).slot) == 0xffffffff) {\n    pWVar9 = (WC3UnitOrdersPrefix *)0x0;\n  }\n  else {\n    pWVar9 = AgentIdentity_ResolvePayload(&captain->roster);\n  }\n  unit = (WC3UnitOrdersPrefix *)0x0;\n  local_8 = 0;\n  pWVar10 = (WC3UnitOrdersPrefix *)0x0;\n  if (pWVar9 != (WC3UnitOrdersPrefix *)0x0) {\n    uVar6 = FUN_6f684d00();\n    uVar7 = (**(code **)((int)pWVar9->vtable + 0x1c))();\n    uVar6 = AgentClass_IsDerived(uVar7,uVar6);\n    if (uVar6 != 0) {\n      pWVar9->references = pWVar9->references + 1;\n      pWVar10 = pWVar9;\n      unit = pWVar9;\n    }\n  }\n  local_8 = 1;\n  if ((pWVar10 != (WC3UnitOrdersPrefix *)0x0) && (iVar8 = FUN_6f055cc0(), iVar8 != 0)) {\n    while ((*(WC3AttackRangePrefix **)(iVar8 + 0x1e8) == (WC3AttackRangePrefix *)0x0 ||\n           (uVar6 = Attack_HasLongRangeSiegeSlot(*(WC3AttackRangePrefix **)(iVar8 + 0x1e8)),\n           uVar6 == 0))) {\n      if ((*(uint *)&pWVar10->field_0x28 & *(uint *)&pWVar10->field_0x24) == 0xffffffff) {\n        pWVar9 = (WC3UnitOrdersPrefix *)0x0;\nLAB_6f9d0843:\n        pWVar11 = (WC3UnitOrdersPrefix *)0x0;\n      }\n      else {\n        pWVar9 = AgentIdentity_ResolvePayload((WC3PathIdentity *)&pWVar10->field_0x24);\n        if (pWVar9 == (WC3UnitOrdersPrefix *)0x0) goto LAB_6f9d0843;\n        uVar6 = FUN_6f684d00();\n        uVar7 = (**(code **)((int)pWVar9->vtable + 0x1c))();\n        uVar6 = AgentClass_IsDerived(uVar7,uVar6);\n        pWVar11 = pWVar9;\n        if (uVar6 == 0) goto LAB_6f9d0843;\n      }\n      if (pWVar10 != pWVar11) {\n        puVar1 = &pWVar10->references;\n        *puVar1 = *puVar1 - 1;\n        if (*puVar1 == 0) {\n          (**(code **)pWVar10->vtable)();\n        }\n        pWVar10 = pWVar11;\n        unit = pWVar11;\n        if ((pWVar11 != (WC3UnitOrdersPrefix *)0x0) && (pWVar9 != (WC3UnitOrdersPrefix *)0x0)) {\n          pWVar9->references = pWVar9->references + 1;\n        }\n      }\n      if ((pWVar10 == (WC3UnitOrdersPrefix *)0x0) || (iVar8 = FUN_6f055cc0(), iVar8 == 0))\n      goto LAB_6f9d08a6;\n    }\n    local_14->flags = local_14->flags | 0x20;\n  }\nLAB_6f9d08a6:\n  local_8 = 0xffffffff;\n  if (pWVar10 != (WC3UnitOrdersPrefix *)0x0) {\n    puVar1 = &pWVar10->references;\n    *puVar1 = *puVar1 - 1;\n    if (*puVar1 == 0) {\n      (**(code **)pWVar10->vtable)();\n    }\n  }\n  ExceptionList = local_10;\n  return;\n}\n\n"
+    }
+  },
+  "scope": "Saved annotations and verified assembly; native timed-life factory is discovery only, not implemented here."
+}

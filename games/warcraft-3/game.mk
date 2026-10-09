@@ -177,6 +177,9 @@ audit-wc3-hero-saveload: $(BINARY) mpqtool
 test-wc3-hero-saveload-audit:
 	python3 tests/test_wc3_hero_saveload_audit.py
 
+test-pathfinding-tools:
+	python3 -m unittest discover -s tests -p 'test*pathfinding*.py'
+
 TRACE_FILE := build/profile-map.trace
 
 profile-map: $(BINARY) xctraceprof
@@ -291,6 +294,12 @@ test-jass-build: $(JASS_LIB)
 # Common flags for standalone test binaries.
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
 TEST_MENU_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/menu
+
+# The same pure-kernel witnesses also register in the full game tests. Build
+# them directly for adaptive-search iterations without relinking that module.
+$(eval $(call test_schema,test-wc3-adaptive-witnesses,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_adaptive_witnesses.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_adaptive_witnesses$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_adaptive_witnesses.c,-lshared -lm,))
+$(eval $(call test_schema,test-wc3-repulsion-kernel,$(SHARED_LIB) $(WC3_GAME_DIR)/g_local.h $(wildcard $(WC3_DIR)/common/wc3_pathing*.h) $(WC3_GAME_DIR)/tests/retail_repulsion_policy.h,$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_wc3_repulsion_kernel$(EXE_EXT),tests/test_runner.c $(WC3_GAME_DIR)/tests/t_repulsion_kernel.c,-lshared -lm,))
+
 ifeq ($(UNAME_S),Darwin)
 TEST_GC_SECTIONS := -Wl,-dead_strip
 else
@@ -311,7 +320,7 @@ TEST_JOBS ?= 16
 	@$(MAKE) -j$(TEST_JOBS) test-core test-eos-release test-linux-media-release test-menu-boundary test-assets test-gl-shader test-commands test-jass-build test-galaxy test-server-net test-sound \
 		test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-ui-canvas test-sc2 test-wow-appearance \
 		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-menu \
-		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-render-harness test-mpq-compression
+		test-wow-wmo test-menu test-wc3-engine test-client-camera test-wc3-hero-saveload-audit test-pathfinding-tools test-render-harness test-mpq-compression
 
 # Lossy 33.6 kbps modem simulation; kept off the default `make test` critical path (the `stress_` suites skip a `*` run).
 .PHONY: test-stress
@@ -371,6 +380,7 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 		"ui_panel TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/ui_panel.mdx" \
 		"anim_pulse TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_pulse.mdx" \
 		"anim_oneshot TestUI/Textures/alpha_ring_16x16.blp $(TESTS_RES_DIR)/TestUI/Models/anim_oneshot.mdx" \
+		"unit_death TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/TestUI/Models/unit_death.mdx" \
 		"doodad_birth TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuildingRuined2/ElvenFishVillageBuildingRuined2.mdx" \
 		"doodad TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Buildings/Other/ElvenFishVillageBuilding0/ElvenFishVillageBuilding0.mdx" \
 		"morph TestUI/Textures/solid_white.blp $(TESTS_RES_DIR)/Units/Creeps/Medivh/Medivh.mdx"; do \
@@ -447,7 +457,7 @@ $(ZIP_FILE):
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game menu openwarcraft3 run run-demo run-map dump-wc3-jass \
 	audit-wc3-maps test-wc3-map-audit audit-wc3-hero-saveload test-wc3-hero-saveload-audit test \
 	test-gl-shader test-commands test-server-net test-renderer-model test-mdx-ui test-mdx-texture test-renderer-view test-renderer-shadows test-galaxy test-menu test-mpq-compat test-assets test-render-golden \
-	update-render-golden openwarcraft3-tests test-wc3-engine download
+	update-render-golden openwarcraft3-tests test-wc3-engine test-pathfinding-tools download
 
 .PHONY: test-menu-boundary
 test-menu-boundary:

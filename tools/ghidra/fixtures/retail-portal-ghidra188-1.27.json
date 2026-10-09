@@ -1,0 +1,95 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "saved": true,
+  "methods": [
+    {
+      "address": "6f16ecc0",
+      "name": "PathOwner_FindPlacement",
+      "returns": "u32",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "fine",
+          "type": "ptr:WC3PathVector2",
+          "storage": "ECX"
+        },
+        {
+          "name": "bounds",
+          "type": "ptr:WC3PathScalarRectangle",
+          "storage": "EDX"
+        },
+        {
+          "name": "footprint",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "query_mask",
+          "type": "ptr:u32",
+          "storage": 8
+        },
+        {
+          "name": "movement_lane",
+          "type": "u32",
+          "storage": 12
+        },
+        {
+          "name": "distance_filter",
+          "type": "u32",
+          "storage": 16
+        },
+        {
+          "name": "query_budget",
+          "type": "u32",
+          "storage": 20
+        },
+        {
+          "name": "placement_limit",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "callback",
+          "type": "ptr:void",
+          "storage": 28
+        },
+        {
+          "name": "callback_context",
+          "type": "ptr:void",
+          "storage": 32
+        },
+        {
+          "name": "scan_policy",
+          "type": "u32",
+          "storage": 36
+        },
+        {
+          "name": "integer_result",
+          "type": "u32",
+          "storage": 40
+        }
+      ],
+      "evidence": "Payoff188: explicit fastcall third argument stack4 is footprint pointer from mover90, NOT query mask; fourth stack8 is query-mask pointer from path9c, NOT radius.16ec00 forwards movement lane2*top2bits, filter32/budget24/rings6, outercallbackNULL/contextNULL, scanpolicy2/integerresult0. Internal16ee00 distance callback runs while16ec00 captured-self counter is held. Do not confuse the internal pure path query with an optional outer gameplay callback."
+    }
+  ],
+  "records": [
+    {
+      "address": "6f16ec00",
+      "name": "PathContext_AdmitPortalFinePoint",
+      "evidence": "Payoff188 MAP-04.2: capture mover+98 once inESI; increment that record+40 at16ec34, retain it through bounded placement and adaptive distance callback, decrement captured ESI at16eca0 on either verdict before return/position commit. NULL self is allowed. Both callback and callback-context passed to16ecc0 are literalNULL (pushes16ec50/52); no outer gameplay callback is reachable in this producer. Complete original wrapper oracle48cases (four footprints, null/present self, outer0/1/7, both outcomes) preserves RET10/SEH and counter. Production portal adapter now uses authoritative counted scope instead of a query-local self ignore.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16ecc0",
+      "name": "PathOwner_FindPlacement",
+      "evidence": "Payoff188: explicit fastcall third argument stack4 is footprint pointer from mover90, NOT query mask; fourth stack8 is query-mask pointer from path9c, NOT radius.16ec00 forwards movement lane2*top2bits, filter32/budget24/rings6, outercallbackNULL/contextNULL, scanpolicy2/integerresult0. Internal16ee00 distance callback runs while16ec00 captured-self counter is held. Do not confuse the internal pure path query with an optional outer gameplay callback.",
+      "readback_matches": true
+    },
+    {
+      "address": "6f16ee00",
+      "name": "PathPlacement_AcceptBoundedAdaptiveDistance",
+      "evidence": "Payoff188 MAP-04.2: optional context+24 outercallback is supported by this generic predicate but unreachable from portal producer16ec00, which passes two literalNULLs. The bounded adaptive query itself executes under the portal captured-self counter. Portal restoration precedes crossing position publication; Stop recovery170080 has a different scope extending through commit. Engine success/exhaustion regression checks all four footprint classes and nested outer depths without introducing callback behavior.",
+      "readback_matches": true
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "captures": {
+    "live1.jsonl": {
+      "sha256": "993cc4f84246f7b610cbf859c26e6005b067d50f97ba7d2f06b20f4e1f847533",
+      "bytes": 107712,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff192",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+        },
+        "map": "Maps/RS-Pool192.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P192 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "live2.jsonl": {
+      "sha256": "c9befbfe440d5684bfab3b5d56a0a7efbc46020bfc82b2796be176b051237683",
+      "bytes": 107624,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff192",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+        },
+        "map": "Maps/RS-Pool192.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P192 ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "control.jsonl": {
+      "sha256": "28525bfc6187955ed6a942e14bbc324143fee7b10b078d9fbdc0fa51463fdd87",
+      "bytes": 1437,
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff192",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "pool192_observer.js": "8cebd963fb36f3736969972203df8afd154e0a89539c7d4c16b8763888b50d80",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73"
+        },
+        "map": "Maps/RS-Pool192.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "P192 ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "timeline_sha256": "d783176ff8671dd1a2c429d0b62a3323198dea4c9b58f7a8fd9caf7ed4e1ef40",
+  "map": {
+    "task": "ORDER-04.4",
+    "base_sha256": "199683be6cd1a888ade00f3dce1e3e93f16e92e05724717048b033108b5a2104",
+    "map_sha256": "94a4af3d81c6241dd79fb212a2ce06ab508c67bd4e950716a7c25284d3406c73",
+    "changed_members": {
+      "war3map.doo": "16d74745ef06ff4e6ba55a4afc510adaeadd93027f22fea3ddab504fb56702d7",
+      "war3map.j": "2dfaa8284fddb9eecb5a46dce92fa004cea39fd075496cfdb23e29218e2e514c",
+      "war3map.shd": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7",
+      "war3map.w3e": "5ed7e2bb7c1b4646f98f52490a0c735b299746c989f59a46dfd393cd7fb28920",
+      "war3map.wpm": "a9f7cf4688150a649e8ab41568179ec38c905cefba0f85cf49d89a872e96de66",
+      "war3mapUnits.doo": "ce9dc95470ad7718f9924ab12a1dfdb8feb60e25145c200f37072b1194bd8385"
+    },
+    "builder_sha256": "0bba53396257a0f093dc935421aa41520ae8d2b3aab36a1d41e0789dca6da51a",
+    "probe_sha256": "9de93618e7098c5015712797905d614df71b07c385ddcd2385f2a32bc539420c",
+    "units": 129,
+    "native_point_orders": 258,
+    "preload": "rs-pool192.txt"
+  },
+  "exclusions": [
+    "Public JASS produces CTaskPoint; COrderPoint cold growth is a separate supplied-binding oracle.",
+    "Live class registration already owns reusable raw capacity; cold oracle independently starts all relevant pools empty.",
+    "One repeat has a19-byte auxiliary diagnostic allocation inside allocator; it is retained in raw capture and excluded from raw block counts by exact allocation size and grow flag."
+  ]
+}

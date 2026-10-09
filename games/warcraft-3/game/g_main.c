@@ -21,10 +21,11 @@
  *   4. G_RunClients()     — interpolate camera positions for smooth panning.
  *   5. G_RunEntities()    — call G_RunEntity() on every live entity.
  *   6. G_SolveCollisions() — resolve entity overlaps (g_phys.c).
- *   7. G_RunDeferredFrees() — retire JASS RemoveUnit handles after the frame.
+ *   7. G_RunDeferredFrees() — drain already-due post-entity unit releases.
  */
 #include "common/common.h"
 #include "g_local.h"
+#include "games/warcraft-3/common/wc3_math.h"
 
 #define WC3_PATH_WORK_BUDGET 65536
 #include "common/ui_constants.h"
@@ -266,6 +267,7 @@ void G_ApplyTilesetWaterHeight(mapInfo_t const *info) {
 }
 
 static bool G_LoadMap(cstring_t mapFilename) {
+    G_ReleaseLevel();
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         G_SetMapUnitOverrides(NULL);
         G_SetMapAbilityOverrides(NULL);
@@ -276,11 +278,10 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * animation metadata cache uses those indices too, so retaining it across
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
-    G_ResetDeferredFrees();
     gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
-    /* Old edicts can retain pointers into typed rows, so clear the world and
-     * HUD before swapping the map-selected object-data overlay. */
+    /* Level release retired old row owners. Reset presentation before
+     * installing the map-selected object-data overlay. */
     UI_ResetHud();
     G_ApplyMapGameDataSet(CM_GetMapInfo());
     G_ApplyTilesetWaterHeight(CM_GetMapInfo());
@@ -329,6 +330,17 @@ static void InitMiscValueDefault(cstring_t name, float *dest, float fallback) {
     /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 1.29 defaults are used only when
      * the authoritative MiscGame field is absent from the active data set. */
     *dest = strvalue && *strvalue ? (float)atof(strvalue) : fallback;
+}
+
+/* Original016210..240 copies the immutable1/522 bounds as initial defaults.
+ * Real map/Misc data replaces them; retain startup only when the key is absent. */
+static void InitMoveSpeedLimit(cstring_t name, float *dest, float startup) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+    if (value && *value) *dest = wc3_decimal(value);
+    else {
+        *dest = startup;
+        fprintf(stderr, "WC3 movement: missing Misc.%s; retaining retail startup limit %.0f\n", name, startup);
+    }
 }
 
 static uint32_t InitMiscList(cstring_t name, float *dest, uint32_t capacity) {
@@ -382,7 +394,6 @@ static void InitConstants(void) {
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
     /* BZ_HARDCODED_DATA_FALLBACK: stock WC3 maximum movement speed. */
-    InitMiscValueDefault("MaxUnitSpeed", &game.constants.maxUnitSpeed, 400.0f);
     InitMiscValue("DecayTime", &game.constants.decayTime);
     InitMiscValue("BoneDecayTime", &game.constants.boneDecayTime);
     InitMiscValue("DissipateTime", &game.constants.dissipateTime);
@@ -399,9 +410,15 @@ static void InitConstants(void) {
      * distinct from AcquireRange; map Misc overrides remain authoritative. */
     InitMiscValueDefault("FollowRange", &game.constants.followRange, 300.0f);
     InitMiscValueDefault("StructureFollowRange", &game.constants.structureFollowRange, 100.0f);
+    InitMoveSpeedLimit("MinUnitSpeed", &game.constants.minUnitSpeed, 1.f);
+    InitMoveSpeedLimit("MaxUnitSpeed", &game.constants.maxUnitSpeed, 522.f);
+    InitMoveSpeedLimit("MinBldgSpeed", &game.constants.minBldgSpeed, 1.f);
+    InitMoveSpeedLimit("MaxBldgSpeed", &game.constants.maxBldgSpeed, 522.f);
     /* Stock WC3 Units\MiscData.txt values. war3mapMisc.txt remains authoritative. */
     InitMiscValueDefault("AttackNotifyDelay", &game.constants.attackNotifyDelay, 30.0f);
     InitMiscValueDefault("AttackNotifyRange", &game.constants.attackNotifyRange, 1250.0f);
+    InitMiscValueDefault("CallForHelp", &game.constants.callForHelp, 600.0f);
+    InitMiscValueDefault("CreepCallForHelp", &game.constants.creepCallForHelp, 600.0f);
 
     memcpy(game.constants.damageBonus, default_damage_bonus, sizeof(default_damage_bonus));
     FOR_LOOP(i, sizeof(damage_rows) / sizeof(damage_rows[0])) {
@@ -516,7 +533,9 @@ static void G_InitGame(void) {
     fprintf(stderr, "Game is openwarcraft3 built on %s.\n", __DATE__);
 
     g_edicts = gi.MemAlloc(sizeof(edict_t) * MAX_ENTITIES);
-    memset(g_edicts, 0, sizeof(edict_t) * MAX_ENTITIES);
+    G_ClearEdictStorage(MAX_ENTITIES);
+    G_ResetSpawnCache();
+    S_ResetWaygateCache();
     
     globals.edicts = g_edicts;
     globals.max_edicts = MAX_ENTITIES;
@@ -544,6 +563,13 @@ static void G_InitGame(void) {
 }
 
 static void G_ShutdownGame(void) {
+    CM_FinishPathJobs();
+    if(g_edicts)G_FlushPrimaryRequests();
+    G_ResetDeferredFrees();
+    G_ResetAcquisitionPresence();
+    S_ClearUnitEventPlans();
+    G_ShutdownPathWorker();
+    G_FreeMovePathCache();
     if (g_edicts == NULL) {
         return;
     }
@@ -556,10 +582,20 @@ static void G_ShutdownGame(void) {
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_ClearJassGroupRegistry();
     G_ClearRegionRegistry();
+    G_ResetEventSubscribers();
     G_FowShutdown();
     G_BlightShutdown();
     G_FreeModels();
+    S_ClearMoveGroups();
+    S_ClearMoveFineRequests();
+    S_ResetAbilityTimers();
+    G_ClearMoveSpatial();
+    FOR_LOOP(i,globals.num_edicts) S_FreeMoveRoute(g_edicts+i);
     if (game.clients) FOR_LOOP(i, game.max_clients) G_ClearPlayerAbilityAvailability(game.clients + i);
+    G_ClearUnitRuntimeTypes();
+    S_ClearAttackProfiles();
+    G_ClearUnitSoundProfiles();
+    G_ClearUnitAnimationText();
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -937,7 +973,9 @@ void G_InvalidateCommands(gameClient_t *client) {
      * cards live when the owner changes tech, queue, food, or resources. */
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *viewer = game.clients + i;
-        if (!viewer->connected || viewer == client) continue;
+        /* A dirty card already includes every owner change before its next
+         * rebuild. Repeated CreateUnit/food changes must not rescan the map. */
+        if (!viewer->connected || viewer == client || viewer->commands_dirty) continue;
         FOR_CONTROLLABLE_SELECTED_UNITS(viewer, ent) {
             if (ent->s.player == client->ps.number) {
                 viewer->commands_dirty = true;
@@ -949,10 +987,13 @@ void G_InvalidateCommands(gameClient_t *client) {
 
 /* Live per-unit button state (Stop's idle glow) changed; rebuild the cards of every viewer selecting it. */
 void G_InvalidateUnitCommands(edict_t *unit) {
-    if (!unit) return;
+    /* Selection has an authoritative per-unit viewer mask. Unselected births
+     * and already-dirty viewers need no visibility/control query. */
+    if (!unit || !unit->selected) return;
     FOR_LOOP(i, game.max_clients) {
         gameClient_t *client = game.clients + i;
-        if (client->connected && G_IsEntitySelected(client, unit)) client->commands_dirty = true;
+        if (!client->connected || client->commands_dirty || !(unit->selected & (1u << client->ps.number))) continue;
+        if (G_IsEntitySelected(client, unit)) client->commands_dirty = true;
     }
 }
 
@@ -978,6 +1019,7 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
+    G_InitMapRandom();
 
     /*
      * war3map.doo objects already exist in OpenRealm before generated
@@ -992,6 +1034,7 @@ static void G_StartScripts(void) {
     jass_runevents(level.vm);
 
     G_SetDestructableScriptBinding(false);
+    G_FinishMovePathingInitialization();
 }
 
 bool G_IsSinglePlayer(void) {
@@ -1087,6 +1130,21 @@ void G_RequestCampaignSelect(void) {
  * Skipped until the first map has been started; on the very first frame after
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
+/* PathOwner uses its own periodic scalar timer, not an integer six-phase
+ * counter. The two cadences diverge beyond32 seconds as the source truncates. */
+static bool G_PathOwnerDue(void) {
+    wc3Clock_t next=level.pathing_clock;
+    wc3_clock_advance(&next,wc3_float(0x3ba3d70a),0);
+    wc3Clock_t const *due=&level.pathing_owner_deadline;
+    return next.epoch==due->epoch ? next.time>=due->time : (int32_t)(next.epoch-due->epoch)>0;
+}
+
+static void G_RunPathOwner(void) {
+    M_RunScheduledThinks();
+    wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+    level.pathing_due=false;
+}
+
 static void G_RunFrame(void) {
     int path_work_budget = WC3_PATH_WORK_BUDGET;
     cstring_t path_work_value;
@@ -1094,14 +1152,51 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
+    bool register_owner=!level.pathing_owner_clock_valid;
+    if (register_owner) {
+        level.pathing_owner_deadline=level.pathing_clock;
+        if (!level.pathing_clock.time && !level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3cf5c290),0);
+        else FOR_LOOP(i,6-level.pathing_phase)
+            wc3_clock_advance(&level.pathing_owner_deadline,wc3_float(0x3ba3d70a),0);
+        level.pathing_owner_clock_valid=true;
+    }
     level.framenum++;
-    level.time = gi.GetTime();
-
+    uint32_t end_time = gi.GetTime();
+    G_BeginEntityFrame();
+    level.time = level.pathing_msec;
+    level.scheduled_frame = true;
     G_StartScripts();
+    /* Native initial map timers precede the path-owner registration. Later
+     * restarts receive new serials; equal deadlines use that same ordering. */
+    if(register_owner)level.pathing_owner_sequence=++level.timer_sequence;
+    /* Timer actions and the owner update precede the next primary advance.
+     * The game clock is private; the engine still sends its ordinary snapshots. */
+    while (end_time - level.pathing_msec >= 5) {
+        /* Merge scalar map requests with the owner by deadline/registration serial. */
+        if (level.pathing_due) {
+            G_RunTimersBeforePathOwner(&level.pathing_owner_deadline);
+            G_RunEvents();jass_runevents(level.vm);G_DrainRegionEvents();
+            G_RunPathOwner();
+        }
+        S_RunAbilityTimers();
+        G_RunTimers(); G_RunEvents(); jass_runevents(level.vm); G_DrainRegionEvents();
+        wc3_clock_advance(&level.pathing_clock, wc3_float(0x3ba3d70a), 0);
+        level.pathing_phase = (level.pathing_phase + 1) % 6;
+        level.pathing_due = G_PathOwnerDue();
+        level.pathing_msec += 5; level.time = level.pathing_msec;
+        M_SamplePoses();
+    }
+    level.time = end_time;
     G_UpdateTimeOfDay();
-    G_RunTimers();
-    G_RunEvents();
-    jass_runevents(level.vm);
+    if (level.pathing_due) {
+        G_RunTimersBeforePathOwner(&level.pathing_owner_deadline);
+        G_RunEvents();jass_runevents(level.vm);G_DrainRegionEvents();
+        G_RunPathOwner();
+        M_SamplePoses();
+    }
+    S_RunAbilityTimers();
+    G_RunTimers(); G_RunEvents(); jass_runevents(level.vm); G_DrainRegionEvents();
     G_UpdateTimerDialogs();
     G_UpdateLeaderboards();
 
@@ -1115,6 +1210,7 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+    level.scheduled_frame = false;
 
     /* Flow-field cache misses are resumable so arbitrary reachable move orders
      * never depend on a lifetime quota of synchronous whole-map floods.  Keep
@@ -1124,7 +1220,8 @@ static void G_RunFrame(void) {
     if (path_work_value)
         path_work_budget = atoi(path_work_value);
     path_work_budget = MAX(256, MIN(path_work_budget, 65536));
-    CM_ProcessPathJobs((uint32_t)path_work_budget);
+    G_SetPathWorkerEnabled(atoi(gi.CvarString("wc3_path_threads", "1")) != 0);
+    CM_BeginPathJobs((uint32_t)path_work_budget);
 
     G_UpdateClientCommandCards();
 
@@ -1140,6 +1237,10 @@ static void G_RunFrame(void) {
      * first; the overlay is emitted once that cinematic has returned to gameplay. */
     UI_FlushPendingGameResults();
 
+    /* Client payload construction does not change the flow job's numeric
+     * inputs. Publish before gameplay callbacks, deaths or frees can change
+     * eligibility of the next queued request. */
+    CM_FinishPathJobs();
     G_SolveCollisions();
     G_RunDeferredFrees();
     G_RunConsumedItemFrees();
@@ -1241,7 +1342,10 @@ gameEvent_t *G_PublishEvent(edict_t *edict, EVENTTYPE type) {
 
 void G_PublishEventResponse(edict_t *edict, EVENTTYPE type, event_t *response_to) {
     gameEvent_t *event = G_PublishEvent(edict, type);
-    if (event) event->responseTo = response_to;
+    if (event) {
+        event->responseTo = response_to;
+        event->response_sequence = response_to ? response_to->registration_sequence : 0;
+    }
 }
 
 void G_PublishSummonEvents(edict_t *summoner, edict_t *summoned) {
@@ -1560,8 +1664,8 @@ wc3MinimapContact_t G_WC3_MinimapMarkerForEntity(edict_t const *ent, entityState
         return WC3_MINIMAP_CONTACT_NONE;
 
     if (S_GoldMineIsOverlay(ent)) {
-        if (G_ActorHasSkill(ent, "Aegm")) return WC3_MINIMAP_CONTACT_GOLD_ENTANGLED;
-        if (G_ActorHasSkill(ent, "Abgm")) return WC3_MINIMAP_CONTACT_GOLD_HAUNTED;
+        if (G_ActorHasAbilityCode(ent, MAKEFOURCC('A','e','g','m'))) return WC3_MINIMAP_CONTACT_GOLD_ENTANGLED;
+        if (G_ActorHasAbilityCode(ent, MAKEFOURCC('A','b','g','m'))) return WC3_MINIMAP_CONTACT_GOLD_HAUNTED;
         return WC3_MINIMAP_CONTACT_GOLD_MINE;
     }
     /* Natural mines advertise the resource-source bit; avoid re-parsing every
@@ -1693,6 +1797,7 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
  * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
+    G_InitMoveSpatialLink();
     FS_SetSheetHost(&MAKE(sheetHost_t,
         .ReadFile = G_ReadGameDataFile,
         .FreeFile = (void (*)(handle_t))gi.MemFree,

@@ -18,13 +18,15 @@ Each gate stores independent runtime state on its edict:
 
 - destination X/Y;
 - whether a destination has been assigned;
-- active/inactive state.
+- active/inactive state;
+- the native edge ID and retained allocation-attempt state.
 
 The destination is an arbitrary point, not a pointer to another gate. This
 supports one-way gates and destinations that contain no gate entity.
 `WaygateSetDestination`, `WaygateGetDestinationX/Y`, `WaygateActivate`, and
 `WaygateIsActive` operate on this state. Activation also adds/removes the
-persistent `alternate` animation property used by the active gate model.
+persistent `alternate` animation property used by the active gate model, even
+when exhaustion leaves the native edge inactive.
 
 Generated map script normally configures preplaced gates through those JASS
 natives. The raw `war3mapUnits.doo` Way Gate destination ordinal is retained by
@@ -88,6 +90,10 @@ the exact-version guard, independently of the `edict_t` header-size check.
 
 ## Remaining gap: automatic portal routing
 
+The retail 1.27 binary producer, source-cell stamping, and search-consumer
+chains are mapped in [retail-pathfinding.md](retail-pathfinding.md#special-edges-are-way-gate-records).
+That evidence is separate from the OpenRealm implementation below.
+
 Retail Warcraft III can choose a Way Gate while processing an ordinary distant
 movement order when the portal route is preferable to walking. OpenRealm does
 **not** implement that discovery yet.
@@ -133,3 +139,46 @@ make test-wc3-engine WC3_PATTERN='wc3_save.waygate*'
 ```
 
 Then run the normal full test target before merge.
+
+## Native allocation lifetime
+
+[Payoff93](retail-pathfinding-engine.md#way-gate-exhaustion-retains-ability-owned-allocation)
+ports the original 1..255 identity pool. Awrp initialization reserves the lowest
+free ID once, including inactive gates. The 256th gate retains ID zero: public
+activation remains false and destination getters return zero. Setters do not
+retry after another gate is removed; removing/recreating Awrp permits allocation
+again. Animation follows the requested activation independently of ID zero.
+
+The ability state owns its ID; availability is reconstructed from live owned
+records, including after load. A generic `A_UNIT_REMOVING` notification releases
+the ID when RemoveUnit takes effect, before deferred edict memory reclamation,
+so a creation in the same script callback can reuse it. Later removal cleanup
+is idempotent. Save98 retains allocation attempts, allocated IDs and exhaustion,
+rejects duplicate ownership and invalid active/configured zero IDs, and rejects
+older save versions. Two full 256-gate save/load cycles and immediate ID reuse
+are covered by the normal game tests. Automatic portal routing is now integrated as described below.
+
+## Source overlap publication
+
+Source creation publishes even while inactive; later creation overwrites overlap
+IDs. Removal clears its full source rectangle without restoring another live
+gate's overwritten bytes. The adaptive parents subdivide clear marked cells,
+so this affects ordinary routes even with traversal disabled. Save99 retains
+marker and class history directly. See [the verified engine port](retail-pathfinding-engine.md#way-gate-overlap-publishes-ordinary-routing-history).
+
+## Automatic Move traversal
+
+[Payoff95](retail-pathfinding-engine.md#way-gate-special-edges-reach-retained-move-routes)
+connects ability-owned gate IDs,source markers and quantized exit records to
+member/group adaptive searches. Move consumes portal sentinels using the cached
+route exit and the current active bit. Retarget affects fresh searches; disable
+skips a retained crossing and permits ordinary walking where terrain allows it.
+Traversal retains the Move order,integrates existing velocity and preserves
+region notifications. This is separate from explicit Smart's approach behavior.
+
+Two retail repeats and all410 production motion commits match cached retarget,
+fresh retarget and disabled walking through final arrival. Ten save checkpoints
+also match3094 continuation commits. The JASS destination getters still expose
+stored script coordinates; native coarse-record getter quantization remains
+unverified in the engine. Blocked exits,ID reuse,chained gates and paired group
+regrouping retain their existing backlog requirements.

@@ -43,23 +43,37 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
         return;
     /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
     S_SpellCancelChannel(ent);
-    ent->movement.attackmove_waypoint = NULL;
-    ent->movement.patrol_a = NULL;
-    ent->movement.patrol_b = NULL;
-    ent->movement.patrol_target = NULL;
-    ent->movement.follow_target = NULL;
+    S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);
+    S_SetMoveGoal(ent, &ent->movement.patrol_target, NULL);
+    S_SetFollowTarget(ent,NULL);
     ent->movement.holding_position = false;
     if (record_guard) G_SetUnitGuardPosition(ent);
     unit_leavecombat(ent);
+    /* Optional movement lifecycle still admits stopped placement. */
+    ent->current_order_id = 0;
     if (preserve_queue) unit_stand_no_queue(ent);
-    else ent->stand(ent);
+    else if (ent->stand) ent->stand(ent);
+    S_RecoverStoppedUnitPosition(ent);
 }
 
 void order_stop(edict_t *ent) {
-    if (ent) {
-    }
     G_ClearUnitOrderQueue(ent);
     order_stop_state(ent, false, true);
+}
+
+/* An instantaneous order retains its head throughout synchronous notification.
+ * A nested replacement owns its own head and must survive this completion. */
+bool S_IssueStopOrder(edict_t *ent) {
+    uint32_t const order_id=G_OrderId("stop"),spawn_time=ent->spawn_time;
+    order_stop(ent);
+    ent->current_order_id=order_id;
+    S_UnitAbilityOrderAccepted(ent,"stop");
+    G_PublishIssuedImmediateOrder(ent,order_id,ent->s.player,"stop");
+    if(ent->inuse && ent->spawn_time==spawn_time && ent->current_order_id==order_id)
+        ent->current_order_id=0;
+    return true;
 }
 
 void order_stop_cleanup(edict_t *ent) {
@@ -74,6 +88,8 @@ void order_stop_queued(edict_t *ent) {
 static void AbilityStop_Command(edict_t *clent);
 
 BZ_ABILITY_PROC(CAbilityStop) {
+    if (msg == A_UNIT_EVENT_MASK)
+        return UNIT_MESSAGE_SUBSCRIPTIONS(A_COMMAND, A_AUTO_COMBAT_START, A_AUTO_COMBAT_END, A_ORDER_ACCEPTED);
     if (msg == A_COMMAND) {
         AbilityStop_Command(call && call->client ? call->client : ent);
         return true;
