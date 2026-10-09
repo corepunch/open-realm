@@ -14,6 +14,8 @@ OpenRealm models Night Elf Shadow Meld as conditional gameplay invisibility, sep
 
 Both `Ashm` and `Ahid` participate in passive Shadow Meld eligibility: effective night plus an idle/stationary unit. The passive fade duration comes from each effect's authored `Shm1` (`DataA`) value in seconds, including variant and custom rows; an absent or invalid value prevents activation and emits a bounded diagnostic. Losing eligibility resets the fade; daylight removes active Shadow Meld. Effective night comes from `G_IsNight()`, so normal and scripted/false time share the same authoritative clock.
 
+Player-wide ability availability is checked per class for `ambush` validation/execution and class-specific acquisition/retaliation policy. If a unit has both classes, disabling one does not make that class inherit the other class's command or policy; the remaining available class can still provide passive Shadow Meld.
+
 The `ambush` command is registered on both effect classes. Issuing it stops the unit and sets `hide_order_active`; while that explicit Hide state is set, `A_NO_ACQUIRE` suppresses voluntary hostile acquisition and `A_NO_RETALIATE` suppresses automatic counter-attacks after damage. Damage can still land during the fade, but it no longer makes the unit attack and restart its Hide fade. `Ahid` additionally owns the Akama-class no-auto-acquire rule even before `ambush` is issued. Explicit attacks and ordinary passive acquisition use the same `order_attack()` transition, so no attack can retain stale Shadow Meld state. Accepted `Stop` and `Hold Position` orders pass through the shared `A_ORDER_ACCEPTED` lifecycle hook: Stop retires explicit Hide but, because the unit remains stationary, passive Shadow Meld may begin a fresh fade; Hold Position likewise permits passive Shadow Meld but does not gain stock `Ashm`'s explicit-Hide hold-fire policy. Movement/order lifecycle messages and spell commits also break Shadow Meld; the `ambush` command itself is the spell-commit exception.
 
 ## Visibility
@@ -41,6 +43,7 @@ Owner/shared-vision Shadow Meld presentation now reuses the WC3 per-client verte
 
 - `Ashm`/`Ahid` no longer resolving to Wind Walk and remaining distinct effect classes;
 - both classes exposing the stock `ambush` order id;
+- class-scoped ability availability with both classes present, including the still-available class retaining passive Shadow Meld;
 - Akama `Ahid` passive no-auto-acquire behavior;
 - passive 1.5-second night fade;
 - owner versus hostile invisibility query;
