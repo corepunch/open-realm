@@ -374,6 +374,19 @@ static float point_segment_distance(vec2_t const *a, vec2_t const *b, vec2_t con
     return Vector2_distance(&closest, p);
 }
 
+/* Trees place Wisps at their origin while harvesting, which may be inside the
+ * tree's baked UNWALKABLE footprint. Let a Wisp progress toward its current
+ * order until it reaches legal ground; ordinary static validation resumes as
+ * soon as its current position is pathable. */
+static bool move_wisp_can_escape_static(edict_t const *self, vec2_t const *cand,
+                                        uint8_t blocked_flags) {
+    if (!G_ActorHasSkill(self, "Awha") || !self->goalentity || self->goalentity == self ||
+        CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags))
+        return false;
+    return Vector2_distance(cand, &self->goalentity->s.origin2) + 0.001f <
+        Vector2_distance(&self->s.origin2, &self->goalentity->s.origin2);
+}
+
 /* Is the position 'cand' free for 'self' (static world + other units)?  On a
  * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
  * so the slide can apply speed-priority give-way. */
@@ -387,7 +400,8 @@ static bool move_is_valid_policy(edict_t *self, vec2_t const *cand,
         return true;
 
     /* Static world: terrain + baked building footprints (pathmap.original). */
-    if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags))
+    if (!CM_PointIsPathableForRadiusFlags(cand, self->collision, blocked_flags) &&
+        !move_wisp_can_escape_static(self, cand, blocked_flags))
         return false;
     /* WC3's pathing grid rejects a swept step that cuts a diagonal corner. Keep
      * the escape case for units spawned inside stale/changed pathing, where the
@@ -479,6 +493,11 @@ static void unit_commit_step(edict_t *self, vec2_t const *cand) {
  * visibly rotate/wobble and crab sideways past each other and trees. */
 static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
+    uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
+    bool const wisp_egress = G_ActorHasSkill(self, "Awha") && self->goalentity &&
+        self->goalentity != self &&
+        !CM_PointIsPathableForRadiusFlags(&self->s.origin2, self->collision, blocked_flags);
+
     if (self->aiflags & AI_IMMOBILE) {
         move_route_wait_diag(self, false, MOVE_DIAG_NONE);
         return;
@@ -490,10 +509,18 @@ static void unit_moveindirection_policy(edict_t *self,
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
+    if (!wisp_egress && !self->movement.flow_direct && !self->movement.path.valid && self->movement.flow_generation == 0 &&
         !self->movement.route_resume_active) {
         move_route_wait_diag(self, true, MOVE_DIAG_ROUTE_WAIT);
         return;
+    }
+
+    /* The regular router cannot produce a legal starting node when the unit
+     * is already inside static pathing. A Wisp just released from a tree uses
+     * its order direction for the short egress until it reaches a valid node. */
+    if (wisp_egress) {
+        vec2_t const delta = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
+        self->movement.heading = atan2f(delta.y, delta.x);
     }
 
     /* Runtime PropWindow follows SetUnitPropWindow's native radians contract;

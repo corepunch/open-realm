@@ -2651,6 +2651,65 @@ TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
     free_slk_rows(rows);
 }
 
+/* A real Move order must interrupt a Wisp's attached lumber harvest, release
+ * its tree effect, and let the unit start walking toward the new point. */
+TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
+    enum { CELLS = 64 };
+    uint8_t pathmap[CELLS * CELLS] = {0};
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(0.0f, 0.0f, 100.0f);
+    vec2_t destination = { 256.0f, 0.0f };
+    edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
+
+    /* Model the live tree's baked UNWALKABLE footprint around its origin.
+     * The Wisp starts on that footprint, as it does while attached to a tree. */
+    FOR_LOOP(y, 3) FOR_LOOP(x, 3)
+        pathmap[(30 + x) + (30 + y) * CELLS] = CM_PATHING_UNWALKABLE;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    tree->destructable->placement_solid = true;
+    tree->destructable->pathing_active = true;
+    T_ASSERT(tree->destructable && !tree->destructable->dead && tree->destructable->placement_solid);
+    T_ASSERT(!CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
+                                                CM_PATHING_UNWALKABLE));
+    HARVEST_RANGE = 128.0f;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    wisp->currentmove->think(wisp); /* attach to the tree */
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
+    T_STREQ(wisp->currentmove->animation, "stand lumber");
+    effect->owner = wisp;
+    effect->summon_ability = MAKEFOURCC('A','w','h','a');
+    effect->s.flags |= EF_NOT_SELECTABLE;
+
+    T_ASSERT(unit_issueorder(wisp, "move", &destination));
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc != CAbilityWispHarvest);
+    T_STREQ(wisp->currentmove->animation, "walk");
+    T_ASSERT(wisp->goalentity != tree);
+    T_ASSERT(!effect->inuse);
+
+    for (int i = 0; i < 40; i++) {
+        CM_ProcessPathJobs(4096);
+        if (wisp->currentmove && wisp->currentmove->think)
+            wisp->currentmove->think(wisp);
+    }
+    T_ASSERT(Vector2_distance(&wisp->s.origin2, &tree->s.origin2) > 64.0f);
+    T_ASSERT(CM_PointIsPathableForRadiusFlags(&wisp->s.origin2, wisp->collision,
+                                               CM_PATHING_UNWALKABLE));
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Warsmash reserves an actively harvested tree to one Wisp. If two Wisps were
  * ordered to the same tree, the later arrival should acquire the nearest free
  * live tree instead of stacking on the occupied target. */
