@@ -56,22 +56,24 @@ the former six-bit mask: model indices above 63 are valid and were truncated by
 that mask. This reuses an existing stats slot and does not add player-state
 delta bits.
 
-Cinematic filters use two new player-state fields: `cinefilter_image` and
-`cinefilter_color`. Both are encoded as `NFT_LONG` entries in
-`playerStateFields`, so each adds a player-state delta bit and the resulting
-player-state payload changes when either field is present. The image identifies
+Cinematic filters use three player-state fields: `cinefilter_image`,
+`cinefilter_color`, and the authored `cinefilter_blendmode`. These are encoded
+as `NFT_LONG` entries in `playerStateFields`, so each adds a player-state delta
+bit. The image identifies
 the loaded filter texture; the packed color carries RGBA, including opacity.
 The client resolves that texture and draws the filter over the camera's world
 viewport, before the HUD layers. The viewport rectangle follows the scene's
 normalized viewport and the expanded UI canvas, so widescreen side regions are
 not covered and the filter remains below HUD chrome. The server interpolates
 the filter color and uses half of the authored alpha to match the observed
-retail filter opacity. An image-only filter with zero color alpha is normalized
+retail filter opacity. Equal start/end RGB values still draw the texture, which
+is required for constant-color flashes whose alpha changes. The client applies
+the authored blend mode. An image-only filter with zero color alpha is normalized
 to white before transmission to avoid turning the texture black.
 
 This is a network protocol change. The filter fields are appended after the
 existing player-state fields, preserving their bit assignments, and protocol
-21 rejects older peers during connection setup. Deploy protocol 21 clients and
+22 rejects older peers during connection setup. Deploy protocol 22 clients and
 servers together. The portrait model reuses the existing stats slot 29, so it
 does not add a wire field; it changes how that byte is interpreted by WC3.
 Maps relying on the old 0–63 truncation behavior should be checked. Cinematic

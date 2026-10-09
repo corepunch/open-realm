@@ -185,8 +185,13 @@ void SCR_DrawScreenField(uint32_t msec) {
                 .w = cl.viewDef.viewport.w * SCR_UICanvasWidth(),
                 .h = cl.viewDef.viewport.h * UI_BASE_HEIGHT,
             };
-            re.DrawImage(cl.pics[cl.playerstate.cinefilter_image], &viewport, &MAKE(rect_t,0,0,1,1),
-                         cl.playerstate.cinefilter_color);
+            re.DrawImageEx(&MAKE(drawImage_t,
+                                .texture = cl.pics[cl.playerstate.cinefilter_image],
+                                .screen = viewport,
+                                .uv = MAKE(rect_t,0,0,1,1),
+                                .color = cl.playerstate.cinefilter_color,
+                                .shader = SHADER_UI,
+                                .alphamode = (BLEND_MODE)cl.playerstate.cinefilter_blendmode));
         }
         if (Cvar_Integer("r_hud", 1)) {
             SCR_DrawLayout();

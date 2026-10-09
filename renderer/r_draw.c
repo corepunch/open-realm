@@ -84,21 +84,24 @@ void R_DrawFill(rect_t const *rect, color32_t color) {
 }
 
 void R_SetBlending(BLEND_MODE mode) {
-    if (mode == BLEND_MODE_ADD) {
+    switch (mode) {
+    case BLEND_MODE_ADD:
         R_Call(glBlendFunc, GL_ONE, GL_ONE);
-    } else {
+        break;
+    case BLEND_MODE_ADDALPHA:
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+        break;
+    case BLEND_MODE_MODULATE:
+        R_Call(glBlendFunc, GL_ZERO, GL_SRC_COLOR);
+        break;
+    case BLEND_MODE_MODULATE_2X:
+        R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
+        break;
+    default:
+        /* BLEND_MODE_NONE and alpha-key UI images retain source-alpha behavior. */
         R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        break;
     }
-    return;
-//    switch (mode) {
-//        case BLEND_MODE_NONE: R_Call(glBlendFunc, GL_ONE, GL_ZERO); break;
-//        case BLEND_MODE_BLEND: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//        case BLEND_MODE_ALPHAKEY: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//        case BLEND_MODE_ADD: R_Call(glBlendFunc, GL_ONE, GL_ONE); break;
-////        case AM_ADDALPHA: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); break;
-//        case BLEND_MODE_MODULATE: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//        case BLEND_MODE_MODULATE_2X: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
-//    }
 }
 
 static void R_SetUIClipScissor(rect_t const *clip) {

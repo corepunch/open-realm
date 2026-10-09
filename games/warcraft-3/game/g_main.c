@@ -577,8 +577,12 @@ float G_Cinefade(void) {
     if (G_SkipCutscene()) {
         return 0;
     }
-    /* Color-changing filters are rendered as textured overlays. The separate
-     * cinefade field remains the client path for ordinary cinematic fades. */
+    /* A textured cinefilter owns both its tint and opacity, including filters
+     * whose RGB stays constant while alpha animates (for example red flashes). */
+    if (level.cinefilter.displayed && level.cinefilter.texture) {
+        return 0;
+    }
+    /* Keep the black fade fallback for maps that request a fade without a texture. */
     if (level.cinefilter.start.color.r != level.cinefilter.end.color.r ||
         level.cinefilter.start.color.g != level.cinefilter.end.color.g ||
         level.cinefilter.start.color.b != level.cinefilter.end.color.b) {
@@ -876,10 +880,7 @@ static vec3_t G_CameraNoiseOffset(gameClient_t const *client, cameraNoiseSlot_t 
 
 static void G_RunClients(void) {
     float cinefade = G_Cinefade();
-    bool const has_color_filter = level.cinefilter.start.color.r != level.cinefilter.end.color.r ||
-                                  level.cinefilter.start.color.g != level.cinefilter.end.color.g ||
-                                  level.cinefilter.start.color.b != level.cinefilter.end.color.b;
-    uint32_t const cinefilter_image = level.cinefilter.displayed && has_color_filter && !G_SkipCutscene()
+    uint32_t const cinefilter_image = level.cinefilter.displayed && level.cinefilter.texture && !G_SkipCutscene()
         ? level.cinefilter.texture : 0;
     color32_t const cinefilter_color = G_CineFilterColor();
     G_UpdateUnitResponsePresentation();
@@ -958,6 +959,7 @@ static void G_RunClients(void) {
         client->ps.cinefade = cinefade;
         client->ps.cinefilter_image = cinefilter_image;
         client->ps.cinefilter_color = cinefilter_color;
+        client->ps.cinefilter_blendmode = level.cinefilter.blendmode;
     }
     G_CameraTraceFrame();
 }
