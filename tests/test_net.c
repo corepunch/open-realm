@@ -86,6 +86,8 @@ static texture_t const *test_status_textures[16];
 static color32_t test_status_colors[16];
 static rect_t test_fade_rect;
 static color32_t test_fade_color;
+static SHADERTYPE test_fade_shader;
+static BLEND_MODE test_fade_blend;
 static uint32_t test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
@@ -139,6 +141,15 @@ static void capture_status_image(texture_t const *texture, rect_t const *screen,
 }
 static void capture_fade_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
     (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
+}
+
+static void capture_fade_image_ex(drawImage_t const *draw) {
+    if (!draw) return;
+    test_fade_rect = draw->screen;
+    test_fade_color = draw->color;
+    test_fade_shader = draw->shader;
+    test_fade_blend = draw->alphamode;
+    test_fade_draws++;
 }
 static texture_t *capture_load_texture(cstring_t name) {
     (void)name; test_tex_loads++; return (texture_t *)(uintptr_t)test_tex_loads;
@@ -1958,10 +1969,11 @@ TEST(client_screen, cinematic_filter_covers_only_world_viewport) {
     cl.pics[513] = (texture_t *)(uintptr_t)513;
     cl.playerstate.cinefilter_image = 513;
     cl.playerstate.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    cl.playerstate.cinefilter_blendmode = BLEND_MODE_MODULATE;
     test_fade_draws = 0;
     re.BeginFrame = capture_begin_frame;
     re.EndFrame = capture_end_frame;
-    re.DrawImage = capture_fade_image;
+    re.DrawImageEx = capture_fade_image_ex;
 
     SCR_DrawScreenField(16);
 
@@ -1974,6 +1986,8 @@ TEST(client_screen, cinematic_filter_covers_only_world_viewport) {
     T_EQ(test_fade_color.g, 84);
     T_EQ(test_fade_color.b, 173);
     T_EQ(test_fade_color.a, 96);
+    T_EQ(test_fade_shader, SHADER_UI);
+    T_EQ(test_fade_blend, BLEND_MODE_MODULATE);
 }
 
 TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
@@ -2728,6 +2742,7 @@ TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
     to.number = 1;
     to.cinefilter_image = 513;
     to.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    to.cinefilter_blendmode = BLEND_MODE_MODULATE;
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
     sb.readcount = 0;
     number = MSG_ReadPlayerBits(&sb, &bits);
@@ -2738,6 +2753,7 @@ TEST(net, playerinfo_cinematic_filter_state_roundtrips) {
     T_EQ(out.cinefilter_color.g, 84);
     T_EQ(out.cinefilter_color.b, 173);
     T_EQ(out.cinefilter_color.a, 96);
+    T_EQ(out.cinefilter_blendmode, BLEND_MODE_MODULATE);
     T_EQ(sb.readcount, sb.cursize);
 }
 
