@@ -10,6 +10,15 @@ typedef struct {
     bool in_range;
 } wc3Arrival_t;
 
+/* Original05b970,05bb06..05bb4f: guarded exponent subtraction precedes
+ * the COMISS/CMOVBE minimum. Unordered inputs select the minimum too. */
+static inline float wc3_point_arrival_range(float world) {
+    uint32_t word=wc3_float_bits(world);
+    float fine=wc3_float((word ^ (word-0x03000000u)) & 0x80000000u ? 0 : word-0x02800000u);
+    float minimum=wc3_float(0x3efae148u);
+    return fine>minimum ? fine : minimum;
+}
+
 /* Original16e910: range and heading are independent gates. Callers supply
  * the predicted pose; forced range does not bypass the angular tolerance. */
 static inline bool wc3_arrival_update(wc3Arrival_t *a) {

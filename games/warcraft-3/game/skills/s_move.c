@@ -4663,7 +4663,8 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->request_id=unit->movement.previous_request_id; group->goal=queued->point; group->age=UINT32_MAX;
-    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
+    group->members[group->count++]=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+        .arrival_range=wc3_point_arrival_range(0)};
     group->radius=unit->collision; unit->movement.group_id=group->id;
     wc3GridPose_t source; unit_predicted_pose(unit,&source);
     FOR_LOOP(g,ARRAY_COUNT(level.move_groups)) {
@@ -4683,7 +4684,8 @@ static bool move_start_queued_group(edict_t *unit, unitOrder_t const *queued) {
         if (!nearby) continue;
         FOR_LOOP(i,peer->count) {
             edict_t *other=peer->members[i].unit;
-            group->members[group->count++]=(moveGroupMember_t){.unit=other,.spawn=other->spawn_time};
+            group->members[group->count++]=(moveGroupMember_t){.unit=other,.spawn=other->spawn_time,
+                .arrival_range=wc3_point_arrival_range(0)};
             other->movement.group_id=group->id;
             if (other->collision>group->radius) group->radius=other->collision;
         }
@@ -4740,7 +4742,8 @@ static bool move_group_captain_order(groupPointOrder_t const *request,uint64_t s
         /* The prepared captain packet carries zero approach range. Its Move
          * activation installs the ordinary .49 threshold, even with a target;
          * this differs from individually reissued captain followers. */
-        *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time};
+        *member=(moveGroupMember_t){.unit=unit,.spawn=unit->spawn_time,
+            .arrival_range=wc3_point_arrival_range(0)};
         unit->movement.group_id=group->id;
         unit->movement.previous_request_id=group->id;
         if (unit->collision>group->radius) group->radius=unit->collision;
@@ -4793,7 +4796,8 @@ static void move_start_point_group(edict_t *actor,vec2_t const *home,float range
     moveGroup_t *group=move_alloc_group();
     group->inuse=group->ticking=true; group->id=move_allocate_group_id();
     group->goal=*home; group->age=UINT32_MAX; group->radius=actor->collision;
-    group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,.arrival_range=wc3_div(range,32)};
+    group->members[group->count++]=(moveGroupMember_t){.unit=actor,.spawn=actor->spawn_time,
+        .arrival_range=wc3_point_arrival_range(range)};
     actor->movement.group_id=group->id;
     move_group_seed_route(group); group->ticking=false;
 }
@@ -4988,7 +4992,7 @@ static void move_group_decide_route(moveGroup_t *group, moveGroupMember_t *membe
     wc3Arrival_t arrival={.source={pose.grid[0],pose.grid[1]},.target={member->destination.x,member->destination.y},
         /* Native16a790 temporarily replaces b0 with runtime .49 during
          * unseen pursuit, then restores the retained authored arrival range. */
-        .heading=unit->s.angle,.range=!group->unseen_counter && member->arrival_range ? member->arrival_range : wc3_float(0x3efae148),
+        .heading=unit->s.angle,.range=!group->unseen_counter ? member->arrival_range : wc3_float(0x3efae148),
         .flags=member->forced_arrival ? 0x10000 : 0};
     /* Original16a790 replaces arrival10000 from this visit's result. A cached
      * slot may cease to be reached after SetUnitX/Y or physical displacement. */

@@ -19179,3 +19179,44 @@ TEST(wc3_movement, follow187_public_ground_following_air_smart_matches_raw_retai
 }
 
 #endif
+
+#ifdef BZ_TESTS
+#include "retail_point_entry.h"
+
+/* Both public JASS point heads and the Captain virtual actor enter05b970.
+ * Publish the canonical minimum at admission, rather than patching it only
+ * during group decisions; individual point arrival reads the same member. */
+TEST(wc3_movement, entry191_point_publishers_retain_canonical_arrival_range) {
+    reset_entities();setup_test_world();
+    T_ASSERT(run_test_jass("globals\nunit entry191\nendglobals\n"
+        "function main takes nothing returns nothing\nset entry191=CreateUnit(Player(0),'hRTE',-256,-256,0)\n"
+        "call IssuePointOrder(entry191,\"move\",512,128)\nendfunction\n"
+        "function replace takes nothing returns nothing\ncall IssuePointOrderById(entry191,OrderId(\"move\"),768,128)\nendfunction\n"));
+    edict_t *unit=NULL;FILTER_EDICTS(ent,ent->inuse && ent->class_id==MAKEFOURCC('h','R','T','E'))unit=ent;
+    T_NOT_NULL(unit);if(!unit)return;
+    moveGroupMember_t const *member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    jass_callbyname(level.vm,"replace",false);T_ASSERT(!jass_rterror_pending(level.vm));
+    member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    T_EQ(unit->goalentity->s.origin2.x,768);T_EQ(unit->current_order_id,G_OrderId("move"));
+    T_ASSERT(WriteGame("/tmp/wc3-entry191.bin"));T_ASSERT(ReadGame("/tmp/wc3-entry191.bin"));
+    member=move_find_member(unit);T_NOT_NULL(member);
+    if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);
+    remove("/tmp/wc3-entry191.bin");
+    botCaptain_t *captain=shared_test_captain();if(!captain)return;
+    S_CaptainPointMove(captain,&(vec2_t){512,-900},200);
+    edict_t *actor=captain->home_actor;T_NOT_NULL(actor);
+    if(actor){member=move_find_member(actor);T_NOT_NULL(member);if(member)T_EQ(wc3_float_bits(member->arrival_range),0x40c80000u);}
+    S_CaptainPointMove(captain,&(vec2_t){768,-900},1);
+    if(actor){member=move_find_member(actor);T_NOT_NULL(member);if(member)T_EQ(wc3_float_bits(member->arrival_range),0x3efae148u);}
+    FOR_LOOP(i,sizeof(entry191_range_words)/sizeof(*entry191_range_words)) {
+        S_CaptainPointMove(captain,&(vec2_t){768,-900},wc3_float(entry191_range_words[i][0]));
+        member=move_find_member(actor);T_NOT_NULL(member);
+        if(member)T_EQ(wc3_float_bits(member->arrival_range),entry191_range_words[i][1]);
+    }
+    T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
+    level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+#endif

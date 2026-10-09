@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**260 done / 336 tasks; 76 remaining.**
+**261 done / 336 tasks; 75 remaining.**
+
+Payoff191 closes BASE-01.2: repeated public JASS and Captain AI requests reach
+the common point bridge with distinct owners. Move now retains the retail
+arrival minimum at admission, with failing-first JASS/save/AI regressions.
+See [common point admission](retail-pathfinding-engine.md#jass-and-ai-common-point-admission-payoff191).
 
 Payoff190 closes SCHED-02.3 with1,000 complete populated retail owner ticks,
 identical repeated phase sequences and304 public markers matching an observer-free
@@ -683,7 +688,7 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 ### BASE-01 — Movement entry points
 
 - [ ] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI.
-- [ ] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path.
+- [x] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path. [Payoff191](retail-pathfinding-engine.md#jass-and-ai-common-point-admission-payoff191): repeated public string/ById JASS enters206f00->5ffb60->05b970; real Captain AI9d44d0 enters the same bridge on Captain+44, with its own virtual actor/cohorts. Both share flag1 and completion events; five actual range publications and all307 public markers match repeat/control. Engine publishes normalized point ranges at admission for singleton/queued/prepared/AI members; failing-first JASS/save/AI regression passes64 assertions and20 original arithmetic cases in both schemas. Full player UI/network producer remains BASE-01.1.
 - [x] **BASE-01.3** Payoffs184/185/186 trace public target Move and Holy Light through the shared physical target producer. The authored300/800 ranges become11.34375/26.96875 fine with radii32/31; both retain canonical target identity, while persistent target policy1801 contrasts with spell approach1000. Actual engine orders/receiver completion, exact ground/air motion, cancellation and cold saves pass; other command/formation producers keep their existing scopes. See [producer comparison](retail-pathfinding-engine.md#target-order-versus-ability-approach-base-013).
 - [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
 - [x] **BASE-01.5** Split public SetUnitX/Y geometry from01.4: recover predicted world query, both-axis fine reprojection and unchanged velocity/facing/order; port committed-pose writes through Move and prove the next step/save resumes. Evidence: [axis-position writes](retail-pathfinding-engine.md#public-axis-position-writes-retain-the-next-move-step),576 complete original writes plus576 following Move commits, repeated40 native calls/40 queries/eight writes with actual clocks,32 reproduced engine word failures followed by128 passing native/Move/save checks. Public between-frame clock prediction remains NUM-02.3; SetUnitPosition Stop/placement and other forced writers remain01.4.

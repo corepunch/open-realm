@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "152 executable original oracle contracts;425 total entries.",
+  "scope": "153 executable original oracle contracts;427 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -46412,6 +46412,201 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "oracle-point-entry-range",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_point_entry.py",
+        "--binary",
+        "{binary}",
+        "--fixture",
+        "tools/ghidra/fixtures/research/BASE-01.2-range.json",
+        "--header",
+        "games/warcraft-3/game/tests/retail_point_entry.h",
+        "--output",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "point-entry191-range.json",
+      "expected_exit": 0,
+      "expected_status": "bounded-original-point-entry-range",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "arithmetic_cases": {
+          "equal": 20
+        }
+      },
+      "evidence": [
+        "O"
+      ],
+      "scope": "Unmodified original05bb06..05bb4f arrival normalization with20 supplied raw scalar inputs; exact frozen engine header.",
+      "exclusions": [
+        "Supplied arithmetic locals; not a full request/allocator execution.",
+        "Complete public producer requests are certified separately by repeat/control Frida."
+      ]
+    },
+    {
+      "id": "live-common-point-entries",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/base191_verify.py",
+        "--archive",
+        "{archive}/research/BASE-01.2/captures191/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-point-entry191-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "point-entry191-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-common-point-entries",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "jass_entries": {
+          "equal": 2
+        },
+        "ai_entries": {
+          "equal": 3
+        },
+        "bridge_publications": {
+          "equal": 5
+        },
+        "public_markers": {
+          "equal": 307
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Repeated public string/ById JASS and actual mixed13 Captain AI point requests: common bridge nesting, flags, completion events and canonical range publication.",
+      "exclusions": [
+        "Public native/task and AI entries are traced; the full player UI/network producer remains BASE-01.1.",
+        "Common bridge does not equate JASS singleton membership with selected/AI cohorts.",
+        "Original range arithmetic slice uses supplied locals and is a separate oracle."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/BASE-01.2/captures191/live1.jsonl",
+        "sha256": "723d5336ad072e38aed23e32051a6d17c7a639eeca54d3c63fba1beb2371beb5",
+        "bytes": 35933,
+        "metadata": {
+          "task": "payoff191",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "base191_observer.js": "6d1671bc22e28af2150d39c9291d77e984d3eb0ff479cc37fa91921aabef8eaa",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+          },
+          "map": "Maps/RS-Base191.w3m",
+          "seconds": 110.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "PATHTRACE ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/BASE-01.2/captures191/live2.jsonl",
+            "sha256": "49e9e2d18f467db2b8b9e837754c500586b5058cb4569322a1c0fd3100004a5b",
+            "bytes": 35935,
+            "metadata": {
+              "task": "payoff191",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "base191_observer.js": "6d1671bc22e28af2150d39c9291d77e984d3eb0ff479cc37fa91921aabef8eaa",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+              },
+              "map": "Maps/RS-Base191.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "PATHTRACE ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/BASE-01.2/captures191/control.jsonl",
+            "sha256": "daf869e7339004e98bb7d5cd168ec6e78142d55d08598027cd9718fb82d77e7e",
+            "bytes": 1536,
+            "metadata": {
+              "task": "payoff191",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "e76384ede3e2109d249c62dad5b0ef88d2bf856fe92bb7a43ce74208b108385d"
+              },
+              "map": "Maps/RS-Base191.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "PATHTRACE ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -47310,7 +47505,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "70da07b03c967623f1da61e1dcc3f9e585c1df9b33d1be683bbe46288f02dfb1"
+      "sha256": "d11f6ca37da5eef0eb8ff629065e3b75e3fd71e5e2de9fd5cb90bab3141206d0"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48166,7 +48361,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "2c00890aa052b4b337b86dfada4f56e25bcebac0bc16d5e323ec7cec27f5e3f8"
+      "sha256": "506ee195f8e8fc3f2324234148a17ac542e794d4bdf119dec364997fe96bf5c4"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -48858,7 +49053,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "cc544a16d74133330a7079b909b0c3ab8dc2a35ea56d502da79deeb33eaa1fcf"
+      "sha256": "98c6698d4fded9770f0845007d9d1bb808b9f2e82085a5727c53894a8107686b"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -49102,7 +49297,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "44f56b6da482d7c8a45d96705cb63d3a81195ddd686006779fee03ecc2a01dac"
+      "sha256": "789302cb692891adc69ae917f402c2ffbe3d48b9bd5f4e39417d5790cf94f61e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49114,11 +49309,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "cd0d324c02fc4a3b53e63d2e8fc8926b13d954ccee7e0e590c29b3279ca6189b"
+      "sha256": "1905dbabe9682825959c3b36c3cb59f62ac7256ba6a4c5a9c60b0fb52ee208b0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "75b122902fe081a6726da44a941422b20e2eabb6fdd70c1693a6b154a356c32f"
+      "sha256": "3527d07ed197f53836a69b597e786a45a7581930f48f641cb4eb9daa2fb4fcea"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50775,6 +50970,46 @@
     {
       "path": "tools/ghidra/fixtures/retail-schedule-ghidra190-1.27.json",
       "sha256": "ddc64f8425a72969576e1f723f9e319df0f2d6e3b3f68683a06daf1ed5e11532"
+    },
+    {
+      "path": "games/warcraft-3/common/wc3_pathing_arrival.h",
+      "sha256": "2cc5ee6a824e6c1e9e67280433994f0181cdd25259dd302a3d0126a45967ce82"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_point_entry.h",
+      "sha256": "1eb09339e4c5f4e67e2b8b3c4132d1949c9ea4016337fb3b085112bc2558c88a"
+    },
+    {
+      "path": "tools/frida/research/base191_observer.js",
+      "sha256": "6d1671bc22e28af2150d39c9291d77e984d3eb0ff479cc37fa91921aabef8eaa"
+    },
+    {
+      "path": "tools/frida/research/base191_make_map.py",
+      "sha256": "c76bc89afb149b877f0aeae5302459ce959612b5b00fb39ff4a3addac21f101e"
+    },
+    {
+      "path": "tools/frida/research/base191_verify.py",
+      "sha256": "d28287e3f4891db4b6224df8bb4f36cd29778f1eaa0c1e0ce69a3f40ce48cb36"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_point_entry.py",
+      "sha256": "3053260bcad29a88a37b491127f7e656f18c04f8c9d2b6b5c25eb52c9a446882"
+    },
+    {
+      "path": "tools/ghidra/fixtures/research/BASE-01.2-range.json",
+      "sha256": "df416f9068bdbcef7575efbdf1bbb659191be556215c01c1581bda5bfeb31d42"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-entry191-1.27.json",
+      "sha256": "5a32e1e447dbe28f785651d17cccc7c35a2d9d97445828d8275d60b178f0fc08"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-point-entry-ghidra191-1.27.json",
+      "sha256": "964a2b906c1efa685ff9c3686aa7640534daf8765bfdb3b81a5b2f9639ce7c89"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_point_entry.py",
+      "sha256": "b8084cc9190fbb696bee921a47053b0185b96a9ed11c934994cf932aeafdb6dc"
     }
   ]
 }

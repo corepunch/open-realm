@@ -13091,3 +13091,65 @@ red/green logs and saved Ghidra readbacks are under `runtime/payoff190`.
 `MapPathfinding.java` retains the three saved phase annotations, with compact
 readback `retail-schedule-ghidra190-1.27.json`. Total frame-budget compliance is
 not inferred from this allocation and traversal regression.
+
+## JASS and AI common point admission (Payoff191)
+
+BASE-01.2 follows both public JASS `IssuePointOrder` and `IssuePointOrderById`
+through `206ea0/206ec0 ->206f00 ->Unit_AdmitOrder ->Move_HandlePointTask5ffb60
+->MoveBridge_StartPoint05b970`. The valid native dispatcher creates a point
+order and returns true after admission; it does not correct the requested
+point to a pathable cell. The task calls the bridge on `Unit+164` with zero
+world arrival range, flag1 and arrival/cant-path events `d0196/d0198`.
+
+The real Captain AI follows `CaptainAI_PublishPointRequest9d44d0 ->05b970`
+directly on `Captain+44`, then publishes member policy through `9d16c0`.
+It shares coordinate clipping, scalar conversion, range normalization,
+canonical request preparation and subscriptions with the ordinary ability
+entry. It retains its own virtual actor, home500/point200 ranges, enrollment
+and shared physical cohorts. JASS singleton orders are therefore not selected
+multi-unit packets. The player ordinary task uses the same `5ffb60` ability
+entry; tracing its full UI/network producer remains BASE-01.1.
+
+The engine stored zero for ordinary point members, substituted .49 only in
+`move_group_decide_route`, and allowed `move_point_arrival` to read zero.
+Small nonzero Captain ranges also bypassed the retail minimum. Move now
+normalizes at every point-member admission, including queued and prepared
+members. A shared `wc3_point_arrival_range` mirrors the guarded exponent
+subtraction and ordered comparison at `05bb06..05bb4f`; reads do not allocate
+or redo the conversion. Unseen pursuit still temporarily uses .49 and
+retains the admitted range. Target-owner radius arithmetic remains separate.
+The saved layout and network contract are unchanged.
+
+Evidence is in `research/BASE-01.2/captures191`: two read-only six-hook Frida
+observations and an observer-free control, all307 public markers equal.
+Both complete publisher streams match. Two actual string/ById calls nest
+JASS ->task ->bridge; three actual AI calls use Captain+44. All five bridge
+calls share flag1 and both completion events. `1710a0` publishes raw words
+`3efae148` for JASS zero, `417a0000` for AI500 and `40c80000` for AI200.
+The frozen map preserves the embedded AI and adds one distant public JASS
+mover; the builder pins its base and changed script. An original supplied-local
+arithmetic oracle adds20 raw range inputs, including minimum neighbors,
+guarded exponent boundaries, signed zero and exceptional words. This slice
+is explicitly separate from the complete live requests.
+
+`entry191_point_publishers_retain_canonical_arrival_range` first reproduced
+four failures, then passed64 assertions under both Classic and TFT. It drives
+public string/ById JASS, a saved singleton, actual Captain recruitment and
+20 actor requests using original range words. The production and test modules
+build. Directly affected Captain, selected-order, save and long adaptive-Move
+regressions are the focused iteration gates; full-suite cadence continues.
+The negative Python verifier rejects broken nesting, missing publication,
+changed virtual owner/flags, unnormalized zero and rewritten native points.
+Ghidra comments on206f00/5ffb60/9d44d0/05b970 were saved and read back;
+`MapPathfinding.java` records the same evidence.
+
+Reproduce the original arithmetic and live verification with:
+
+```sh
+python tools/ghidra/verify_wc3_pathing_point_entry.py --binary "$WC3_DATA/game.dll" \
+  --fixture tools/ghidra/fixtures/research/BASE-01.2-range.json \
+  --header games/warcraft-3/game/tests/retail_point_entry.h --output /tmp/point-range191.json
+python tools/frida/research/base191_verify.py \
+  --expected tools/ghidra/fixtures/retail-point-entry191-1.27.json \
+  --archive "$WC3_ARCHIVE/research/BASE-01.2/captures191" --output /tmp/point-entry191.json
+```
