@@ -1070,7 +1070,7 @@ CLIENTCOMMAND(Point) {
     if (client->menu.on_location_selected) {
         bool const queued = client->menu.supports_order_queue &&
                             G_CommandQueueRequested(argc, argv, 3);
-        vec2_t loc = { atoi(argv[1]), atoi(argv[2]) };
+        vec2_t loc = { strtof(argv[1], NULL), strtof(argv[2], NULL) };
         bool accepted;
 
         client->menu.order_queued = queued;
@@ -1119,7 +1119,7 @@ CLIENTCOMMAND(Smart) {
     target = &globals.edicts[number];
     queued = G_CommandQueueRequested(argc, argv, 2);
     if (argc >= 4 && strcmp(argv[2], "queue") && strcmp(argv[3], "queue")) {
-        click_point = (vec2_t){ atoi(argv[2]), atoi(argv[3]) };
+        click_point = (vec2_t){ strtof(argv[2], NULL), strtof(argv[3], NULL) };
         have_click_point = true;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
@@ -1176,7 +1176,7 @@ CLIENTCOMMAND(SmartPoint) {
     if (argc < 3) {
         return;
     }
-    loc = (vec2_t){ atoi(argv[1]), atoi(argv[2]) };
+    loc = (vec2_t){ strtof(argv[1], NULL), strtof(argv[2], NULL) };
     queued = G_CommandQueueRequested(argc, argv, 3);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {

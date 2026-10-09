@@ -13095,7 +13095,7 @@ TEST(wc3_movement, selected_shift_retains_common_point_and_request_context) {
 /* Native player input supplies its absolute admission clock; all owner visits
  * and motion then come from ordinary engine frames, without replaying decisions. */
 static void selected_player_input_journeys(uint32_t const inputs[2][4],
-        uint32_t const motion[2][228][7], bool queued) {
+        uint32_t const motion[2][228][7], bool queued, unsigned command) {
     float radius=31,speed=270,old_min=game.constants.minUnitSpeed,old_max=game.constants.maxUnitSpeed;
     game.constants.minUnitSpeed=150; game.constants.maxUnitSpeed=400;
     unitModification_t mods[]={
@@ -13143,7 +13143,22 @@ static void selected_player_input_journeys(uint32_t const inputs[2][4],
                 if (!issued && wc3_float_bits(level.pathing_clock.time)==inputs[c][0]) {
                     T_EQ(level.pathing_counter,inputs[c][1]);
                     vec2_t point={wc3_float(inputs[c][2]),wc3_float(inputs[c][3])};
-                    T_ASSERT(move_selectlocation(clent,&point)); issued=true;
+                    if (command) {
+                        char x[32],y[32];
+                        snprintf(x,sizeof(x),"%.9g",(double)point.x);
+                        snprintf(y,sizeof(y),"%.9g",(double)point.y);
+                        cstring_t args[]={command==1 ? "point" : "smartpoint",x,y,"queue"};
+                        clent->client->menu=(typeof(clent->client->menu)){0};
+                        if(command==1) {
+                            clent->client->menu.on_location_selected=move_selectlocation;
+                            clent->client->menu.supports_order_queue=true;
+                        }
+                        G_ClientCommand(clent,queued ? 4 : 3,args);
+                        T_EQ(units[0]->current_order_id,G_OrderId("move"));
+                    } else {
+                        T_ASSERT(move_selectlocation(clent,&point));
+                    }
+                    issued=true;
                     FOR_LOOP(i,2) clocks[i]=wc3_float_bits(units[i]->movement.pose_clock.time);
                 }
                 level.time+=5; globals.RunFrame();
@@ -13180,11 +13195,29 @@ static void selected_player_input_journeys(uint32_t const inputs[2][4],
 
 
 TEST(wc3_movement, selected_player_input_matches_both_original_journeys) {
-    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false);
+    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false,false);
 }
 
 TEST(wc3_movement, selected_idle_shift_matches_both_original_journeys) {
-    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true);
+    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true,false);
+}
+
+/* The same frozen retail words must survive the public string-command
+ * boundary before ordinary physical movement and both cold continuations. */
+TEST(wc3_point214, move_command_matches_original_journeys) {
+    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false,true);
+}
+
+TEST(wc3_point214, shift_move_command_matches_original_journeys) {
+    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true,true);
+}
+
+TEST(wc3_point214, smart_command_matches_original_journeys) {
+    selected_player_input_journeys(selected_point_inputs,selected_point_motion,false,2);
+}
+
+TEST(wc3_point214, shift_smart_command_matches_original_journeys) {
+    selected_player_input_journeys(selected_idle_shift_inputs,selected_idle_shift_motion,true,2);
 }
 
 /* Input can arrive after a primary advance and before its due owner visit.

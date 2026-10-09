@@ -315,10 +315,7 @@ static bool CL_TouchGestureOwnsMouse(SDL_Event const *event) {
 }
 
 static void CL_SendSmartPointCommand(float x, float y) {
-    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, "smartpoint %d %d%s%s", (int)x, (int)y,
-              CL_OrderQueueModifierDown() ? " queue" : "",
-              (SDL_GetModState() & (KMOD_LALT | KMOD_RALT)) ? " alt" : "");
+    CL_SendWorldPointCommand("smartpoint", x, y);
 }
 
 static void CL_SendSmartCommand(float x, float y) {
@@ -348,7 +345,7 @@ static void CL_SendSmartCommand(float x, float y) {
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
         if (have_point)
             SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
-                ? "smart %d %d %d queue" : "smart %d %d %d", entnum, (int)point.x, (int)point.y);
+                ? "smart %d %.9g %.9g queue" : "smart %d %.9g %.9g", entnum, (double)point.x, (double)point.y);
         else
             SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
                 ? "smart %d queue" : "smart %d", entnum);
@@ -984,10 +981,7 @@ void IN_SelectUp(void) {
             }
         } else if (re.TraceLocation(&cl.viewDef, r.x, r.y, &point)){
             CL_ResetSelectClickChain();
-            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-            SZ_Printf(&cls.netchan.message, "point %d %d%s%s",
-                      (int)point.x, (int)point.y, queue ? " queue" : "",
-                      (mods & (KMOD_LALT | KMOD_RALT)) ? " alt" : "");
+            CL_SendPointCommand(point.x, point.y);
         } else {
             CL_ResetSelectClickChain();
         }
@@ -1538,6 +1532,67 @@ TEST(client_input, point_commands_preserve_alt_and_queue_modifiers) {
     }
     cl = *old_cl; MemFree(old_cl); cls = old_cls; input = old_input; re = old_re;
     SDL_SetModState(old_mod);
+}
+
+static bool CL_TestFractionalLocation(viewDef_t const *view, float x, float y, vec3_t *point) {
+    (void)view; (void)x; (void)y;
+    *point=(vec3_t){-1927.78467f,-468.82373f,0};
+    return true;
+}
+
+static bool CL_TestFractionalMinimap(float x, float y, vec2_t *point) {
+    vec3_t location;
+    CL_TestFractionalLocation(NULL,x,y,&location);
+    *point=(vec2_t){location.x,location.y};
+    return true;
+}
+
+TEST(client_input, point_commands_round_trip_fractional_world_coordinates) {
+    uint8_t data[256];
+    struct client_static old_cls=cls;
+    struct client_state *old_cl=MemAlloc(sizeof(cl));
+    __typeof__(input) old_input=input;
+    refExport_t old_re=re;
+    SDL_Keymod old_mod=SDL_GetModState();
+    SDL_Keymod const mods[]={KMOD_NONE,KMOD_LALT,KMOD_RSHIFT,KMOD_RSHIFT|KMOD_RALT};
+    cstring_t const suffix[]={""," alt"," queue"," queue alt"};
+    vec3_t expected;
+    CL_TestFractionalLocation(NULL,0,0,&expected);
+    memcpy(old_cl,&cl,sizeof(cl));memset(&cl,0,sizeof(cl));
+    input=(__typeof__(input)){.focus=true};
+    cls.state=ca_active;cls.key_dest=key_game;cl.playerstate.client_ui_state=CLIENT_UI_GAME;
+    re.TraceEntity=CL_TestNoEntity;re.TraceLocation=CL_TestFractionalLocation;
+    FOR_LOOP(i,sizeof(mods)/sizeof(*mods)) {
+        SDL_SetModState(mods[i]);
+        FOR_LOOP(producer,4) {
+            char command[128],tail[32]={0};float x=0,y=0;
+            SZ_Init(&cls.netchan.message,data,sizeof(data));
+            re.TraceMinimap=CL_TestNoMinimap;
+            re.TraceEntity=CL_TestNoEntity;
+            if(producer==1)CL_SendSmartPointCommand(expected.x,expected.y);
+            else if(producer==2) {
+                re.TraceMinimap=CL_TestFractionalMinimap;
+                cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_FLAGS]=CURSOR_INPUT_MINIMAP_POINT;
+                T_ASSERT(CL_TryMinimapClick(10,20));
+            } else if(producer==3) {
+                re.TraceEntity=CL_TestSmartEntity;
+                CL_SendSmartCommand(10,20);
+            } else {
+                cl.selection.in_progress=true;cl.selection.rect=(rect_t){10,20,0,0};
+                IN_SelectUp();
+            }
+            T_EQ(MSG_ReadByte(&cls.netchan.message),clc_stringcmd);
+            MSG_ReadString(&cls.netchan.message,command);
+            int offset=0;
+            T_EQ(sscanf(command,producer==3 ? "%*s %*u %f %f%n" : "%*s %f %f%n",&x,&y,&offset),2);
+            snprintf(tail,sizeof(tail),"%s",command+offset);
+            T_ASSERT(!memcmp(&x,&expected.x,sizeof(x)));
+            T_ASSERT(!memcmp(&y,&expected.y,sizeof(y)));
+            T_STREQ(tail,producer==3 ? (i>=2 ? " queue" : "") : suffix[i]);
+            T_EQ(cls.netchan.message.readcount,cls.netchan.message.cursize);
+        }
+    }
+    cl=*old_cl;MemFree(old_cl);cls=old_cls;input=old_input;re=old_re;SDL_SetModState(old_mod);
 }
 
 TEST(client_input, smart_entity_click_preserves_ground_point) {

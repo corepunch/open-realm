@@ -14465,3 +14465,98 @@ interruption2/111, range listeners20/123 and spell412/11,321 pass in both
 editions. The focused Python evidence/corpus suites pass44 checks. The staged
 corpus contains448 entries and1,235 verified pins. Production and test game
 libraries build; the pre-existing parser unused-value warning is unchanged.
+
+
+## Player UI point transport and admission (Payoff214)
+
+BASE-01.1 now has a complete original player Move producer chain, with two
+read-only live repeats of six selected ground movers and ordinary, Shift and Alt
+input. `point214_ui_input.c` sends native input only to its owned Warcraft window;
+`point214_observer.js` calls no game functions and writes no game memory. The
+observer-free control accepts all three inputs and shows all six public movers.
+External helper delivery clocks differ between captures, so these new runs certify
+transport/admission fields, not complete repeated motion.
+
+The original chain is:
+
+```
+UiOrder_SubmitTargetPoint                 3cbd70
+  NetOrder_SubmitPointSelectionWithTarget 6bd5f0
+    NetOrder_SerializeAndQueueCommand     6b7930
+      NetOrder_SerializePointTargetAction 331b80
+      network command buffer             32c920
+  War3Net turn reader                    3192a0
+    NetOrder_DecodePointTargetAction      331850
+    NetOrder_InvokeRegisteredActionHandler 32d650
+      NetOrder_DispatchPointSelectionWithTarget 6b9f70
+        NetOrder_PublishUnitOrder         6b93a0
+          Unit_AdmitOrder                 680320
+```
+
+The final admission line applies to ordinary/Alt replacement. Shift takes
+`Unit_AppendUserOrder` /693490 instead. The decoded handler record contains the
+callback at+14 and userdata at+18;32d650 supplies the decoded action in ECX and
+userdata in EDX. The handler is registered indirectly:6bdc20 maps command12 to
+6b9f70 and command13 to6b98f0. Its return32d660 is witnessed in both live runs.
+
+| Boundary | Original ABI/fields |
+|---|---|
+| UI forwarding3cbd70 | stdcall, seven stack arguments: command, source, scalar X/Y, target and two input masks; RET1c |
+| Packet producer6bd5f0 | fastcall ECX command, EDX source; stack4 X pointer,8 Y pointer,c target,10 flags; RET10 |
+| Decoded action | dispatch code+08 (`a0012`); byte+14 command12, byte+15 player3, ushort+18 flags, uint+1c order851986, source+20/+24, X/Y+28/+2c, target+30/+34 |
+| Publication6b93a0 | fastcall ECX unit, EDX order; stack4 ushort flags,8 fallback; RET8 |
+| Replacement680320 | thiscall ECX unit; stack4 order,8 mode1,c dispatch1 |
+
+Source and target identities are both invalid (`ffffffff/ffffffff`) in this ground
+Move witness. Flags are08 ordinary,09 Shift and18 Alt (hex). All three exact
+coordinate pairs survive UI submission, serialization, decoding, synchronized
+selection and each of six published order payloads. For example, the first click
+is `44c80006/4480000d`, with a fractional component in both coordinates. Order
+payload+48/+50 retains those same words; no integer coordinate conversion occurs.
+198 original instruction encodings additionally pin the copy/codec/caller ABIs.
+Six explicit prototypes and seven recovered names/comments are saved in Ghidra
+and mirrored in `MapPathfinding.java` and the type fixture. The type importer now
+sizes stack storage from the declared type, so the two-byte flags parameter can
+be persisted without the former `Storage size does not match data type size` error.
+
+OpenRealm previously sent `%d` coordinates and parsed them with `atoi`, losing
+fractions at both ends of the public command boundary. It now sends nine
+significant decimal digits and parses directly to binary32 with `strtof`.
+`CL_SendPointCommand` also gives targeted minimap commands the ordinary queue/Alt
+modifier transport. Entity Smart fallback keeps its clicked ground coordinates.
+Selection, permission and order interpretation remain in the game module.
+
+The failing-first regression reuses the **unchanged** earlier selected ordinary
+and idle-Shift retail headers. Four actual game tests issue public `point` and
+`smartpoint` commands with those exact inputs, run ordinary frames and verify both
+cold save continuations. Each edition checks3040 physical commits and24568
+assertions. The universal client test checks100 assertions across world, Smart,
+entity fallback and minimap producers with all four modifier combinations. The
+new read-only captures are not substituted for the older full-motion expectations.
+
+The fresh verifier is bounded and also rejects empty/partial engine runs:
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 python3 \
+  tools/ghidra/verify_wc3_pathing_player_point214.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --report /tmp/player-point214-new.json
+```
+
+The frozen inputs and scope are in
+[the point contract](../../../tools/ghidra/fixtures/retail-player-point214-1.27.json).
+Original captures, observer-free control, map and Ghidra instruction export live
+under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/BASE-01.1/`.
+The first reused FORM map was rejected by retail for its stale campaign shadow
+size; the dedicated builder resizes the shadow member along with the16x16 terrain.
+The rejected attempt remains archived. Loading input also uses the owned native
+helper: title-only X11 searches can focus another preserved research window.
+Target identities, other UI command types, nonlocal channels and mixed air/ground
+selection remain outside this leaf. See also [the task inventory](retail-pathfinding-todo.md).
+
+The full checkpoint also exposed an older unit-release test that assumed no new
+requests register at load. MAP-06.2 establishes that spatial maintenance restarts
+at load, and Payoff213 restores proximity and fine requests once each. The test
+now separately checks unchanged saved release keys and callback order, followed
+by the two new maintenance serials and their load+0.1 deadline. This corrects an
+engine-test assumption; no captured retail expectation is replaced.

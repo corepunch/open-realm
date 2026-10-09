@@ -182,11 +182,12 @@ public class MapPathfindingTypes extends GhidraScript {
             for (int n = 0; n < parameters.size(); n++) {
                 JsonObject parameter = parameters.get(n).getAsJsonObject();
                 JsonPrimitive storage = parameter.getAsJsonPrimitive("storage");
+                DataType parameterType = type(parameter.get("type").getAsString());
                 VariableStorage location = storage.isString()
                     ? new VariableStorage(currentProgram, currentProgram.getRegister(storage.getAsString()))
-                    : new VariableStorage(currentProgram, storage.getAsInt(), 4);
+                    : new VariableStorage(currentProgram, storage.getAsInt(), parameterType.getLength());
                 argspec[n] = new ParameterImpl(parameter.get("name").getAsString(),
-                    type(parameter.get("type").getAsString()), location, currentProgram);
+                    parameterType, location, currentProgram);
             }
             function.setName(method.get("name").getAsString(), SourceType.USER_DEFINED);
             function.setCallingConvention(method.has("convention") ? method.get("convention").getAsString() : "__thiscall");

@@ -16552,6 +16552,165 @@
         }
       ],
       "evidence": "Payoff207 FORM-01.3 angular producer: ECX unit mover bridge; stack4 unsigned policy, RET4. Canonical resolve054530 then171010.698c80 Unit forwarding virtual and9d71b0 captain forwarding are static callers; broad captain producer lifetime not closed."
+    },
+    {
+      "address": "6f3cbd70",
+      "name": "UiOrder_SubmitTargetPoint",
+      "returns": "void",
+      "convention": "__stdcall",
+      "parameters": [
+        {
+          "name": "order",
+          "type": "u32",
+          "storage": 4
+        },
+        {
+          "name": "source",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "WC3PathScalar",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "WC3PathScalar",
+          "storage": 16
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 20
+        },
+        {
+          "name": "input_mask",
+          "type": "u32",
+          "storage": 24
+        },
+        {
+          "name": "order_mask",
+          "type": "u32",
+          "storage": 28
+        }
+      ],
+      "evidence": "Payoff214 BASE-01.1: stdcall seven stack fields: command, source, X/Y scalar values, target, input masks. RET1c. Original3cbdf2 forwards6bd5f0 after packing flags. Two owned native M/Shift/Alt captures preserve identical fractional point words through wire and selected admission; broader UI modes are not inferred."
+    },
+    {
+      "address": "6f6bd5f0",
+      "name": "NetOrder_SubmitPointSelectionWithTarget",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "order",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:void",
+          "storage": "EDX"
+        },
+        {
+          "name": "x",
+          "type": "ptr:WC3PathScalar",
+          "storage": 4
+        },
+        {
+          "name": "y",
+          "type": "ptr:WC3PathScalar",
+          "storage": 8
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 12
+        },
+        {
+          "name": "flags",
+          "type": "u16",
+          "storage": 16
+        }
+      ],
+      "evidence": "Payoff214: fastcall ECX order, EDX source; stack4 X pointer,8 Y pointer,c target,10 ushort flags; RET10. Builds CNetCommandUnitOrderTargetImage type12/dispatcha0012 with source20/24,point28/2c,target30/34. Null source/target become -1/-1. Original6bd697/69f copy scalar words unchanged. Native ordinary8,Shift9,Alt18 repeat exactly; submit6b7930 lane0."
+    },
+    {
+      "address": "6f6b7930",
+      "name": "NetOrder_SerializeAndQueueCommand",
+      "returns": "void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": "ECX"
+        },
+        {
+          "name": "channel",
+          "type": "u32",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Payoff214: fastcall ECX action, EDX channel (UI0), RET. Writes command byte14 then331b80 fields, submits datastore through32c920 with saved channelEDX. Two read-only live traces retain UI scalar bits exactly across serialize331b80 and decode331850 before6b9f70."
+    },
+    {
+      "address": "6f331b80",
+      "name": "NetOrder_SerializePointTargetAction",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Payoff214: fastcall ECX datastore,EDX action; returns datastoreEAX,RET.331c30 serializes common flags/order/source and two scalar coordinates; then writes target30/34. Actual UI8/9/18 point words match decoded and published payload48/50."
+    },
+    {
+      "address": "6f331850",
+      "name": "NetOrder_DecodePointTargetAction",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "stream",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": "EDX"
+        }
+      ],
+      "evidence": "Payoff214: fastcall ECX datastore,EDX action; returns datastoreEAX,RET.331900 reads common fields and scalar coordinates then reads target30/34. Original caller319335 (return31933a), before synchronized dispatch32d650. Live player3 and invalid source/target preserved."
+    },
+    {
+      "address": "6f32d650",
+      "name": "NetOrder_InvokeRegisteredActionHandler",
+      "returns": "void",
+      "convention": "__thiscall",
+      "parameters": [
+        {
+          "name": "handler",
+          "type": "ptr:void",
+          "storage": "ECX"
+        },
+        {
+          "name": "action",
+          "type": "ptr:WC3NetPointActionPrefix",
+          "storage": 4
+        }
+      ],
+      "evidence": "Payoff214: thiscall ECX handler record, stack4 decoded action,RET4. Loads callback handler14 and userdata18; invokes callback with ECX action,EDX userdata. Original return32d660 enters6b9f70 for Net command12. Registered by6bdc20/6bdd00; ordinary/Alt publish6b93a0->680320 mode1,dispatch1; Shift uses append693490 instead."
     }
   ],
   "globals": [

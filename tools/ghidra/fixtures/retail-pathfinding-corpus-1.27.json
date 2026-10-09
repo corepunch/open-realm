@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "157 executable original oracle contracts;439 total entries.",
+  "scope": "170 executable original/evidence contracts;451 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -48775,6 +48775,61 @@
         "Worker teardown is exercised on inline and threaded borrowed frontiers; save during an executing retail fine search and multiplayer/replay are not certified.",
         "Full spell event timing, arbitrary callback FIFO mutation and whole-world determinism remain outside the child contracts."
       ]
+    },
+    {
+      "id": "oracle-player-point214",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_player_point214.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "player-point214.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "actions": {
+          "equal": 6
+        },
+        "publications": {
+          "equal": 36
+        },
+        "replacements": {
+          "equal": 24
+        },
+        "instructions": {
+          "equal": 198
+        },
+        "engine": {
+          "length": 4
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "BASE-01.1 original native UI point producer -> serialization -> decode -> synchronized selection -> unit admission. Two read-only six-member ordinary/Shift/Alt traces plus observer-free control. Engine public point/Smart transport preserves unchanged original movement/save expectations in both editions.",
+      "exclusions": [
+        "New transport captures prove the UI/wire/admission fields, not complete repeated movement: external helper delivery clocks differ.",
+        "Observer-free control proves successful ordinary/Shift/Alt inputs and six public movers; complete motion equality is not claimed.",
+        "Full motion equality uses the unchanged earlier selected ordinary/idle-Shift retail captures, including their actual admission clocks.",
+        "Unobserved UI order types, target identities, nonlocal channel and mixed air/ground admission remain outside BASE-01.1."
+      ]
     }
   ],
   "fixtures": [
@@ -48840,7 +48895,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "4244513808f8afc54f6e57c58bdbfbf8584f568fdf0ca540b27f6fba89f8e630"
+      "sha256": "fd2e674b3f14ec3f67fdbcb7f75c773ffb21747b27310d49db264ee3c22ae736"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -49673,7 +49728,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "55257c707cadd5c9a2591852615d507bca806573be0025469b47a0096a3d0acb"
+      "sha256": "f2f41dddaf953467e1fb3a59f0e4a5e6f8a5c4dae39726d57735326069903e42"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -51221,7 +51276,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "8673f24394edc61978fc046edaf50d36028dd4616d59c381848f2e3fe52d790f"
+      "sha256": "11ed13ff8844282cd5226a33cfc5be1e50a00158e3642145c2f455e9dbdbfeab"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51465,7 +51520,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0c1f142c4830edef08d2ee7b74bd1641b88cee9bb70ece9861dbaae96ba3546d"
+      "sha256": "8dd46e0def5cb1d3f50c7675fca16bd93477ea43bfd05e7d90699e5a45f0ee8c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51477,11 +51532,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "50a26cc17dd2a9b120054dfff5b66da0b37d9a999e2b0986ee7cc096a2919278"
+      "sha256": "d411cfe616ad8f25397079e2abe27b551aed18ab1ba7f965a1632a2551232600"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "7c9a5b1a6d8b63851560c86a2e44fcb2a3b4963977a665a1259a55e3798cd355"
+      "sha256": "9fbbe2ea9f4f1e8da6a9c90dddc4e0e28bd39e2a5fa53496a991385123fe1c97"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52777,7 +52832,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_unit_releases.c",
-      "sha256": "191e7078fb1c805c5b51d60e149b19367632eefc049b991067b6dfbdf68cb61c"
+      "sha256": "6cdceb7cf08a913d9456ed48cb8a7e2176197a817f727300831e295cebb6c3dd"
     },
     {
       "path": "games/warcraft-3/game/tests/t_waygate.c",
@@ -53762,6 +53817,46 @@
     {
       "path": "tests/test_wc3_pathing_e2e_lifetimes.py",
       "sha256": "b8744e06d6a53731b2526693d985f6801f1d0482fddf44537ad55ec6a21609d0"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_player_point214.py",
+      "sha256": "52c034181e5e5f16b30b44201c2109f04e82b6c5695ffbca9dabf0f0bebb96f1"
+    },
+    {
+      "path": "tools/ghidra/research/Point214Evidence.java",
+      "sha256": "bdd05a49ccd864862145bfe9d75140ac141566de1391a10b614338fa401f9e76"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-player-point214-1.27.json",
+      "sha256": "71976f4ca4090df153986648a5768376e964974ea8eba48df1e8e76ee8ec0801"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-player-point214-1.27.json.gz",
+      "sha256": "af14d2b15d0071a0d3e8180737ad5160e7fa13cec1e9657d70d61345c76f997f"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_player_point214.py",
+      "sha256": "661dc1db28eb4ccf87cbfc61a8a293346394ed1c7edf7f7b891b564fc8e89c1c"
+    },
+    {
+      "path": "tools/frida/research/point214_capture.py",
+      "sha256": "86239b3eb802de26d19509a8479b7f435892c4229fbe0693c4dafb03160c5fbb"
+    },
+    {
+      "path": "tools/frida/research/point214_make_map.py",
+      "sha256": "56334bafd0ca848b688efeefcf79d8dba75a9558919eda8f33d32bd1d450e5bf"
+    },
+    {
+      "path": "tools/frida/research/point214_observer.js",
+      "sha256": "e096f6d146a1b8f9069be3208685644115f8fc0ee24cd557a8235e42e6f9bbdc"
+    },
+    {
+      "path": "tools/frida/research/point214_probe.j",
+      "sha256": "bac09a22cb074b95ca82a6ef195bed626fae587b9b773ac8cff8c7143192d4da"
+    },
+    {
+      "path": "tools/frida/research/point214_ui_input.c",
+      "sha256": "af7ddb2322b5fd3938f0e3a33630c4822c4cce89e7d9cf0a44b1a6c13e116624"
     }
   ]
 }

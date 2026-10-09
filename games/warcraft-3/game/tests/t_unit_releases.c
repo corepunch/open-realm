@@ -202,7 +202,13 @@ TEST(wc3_unit_releases, cold_save_restores_absolute_deadlines_serials_and_callba
     T_ASSERT(ReadGame(file));T_ASSERT(G_NextUnitRelease(&loaded,&next));
     T_EQ(wc3_float_bits(loaded.time),wc3_float_bits(saved.time));T_EQ(loaded.epoch,saved.epoch);
     T_EQ(wc3_float_bits(loaded.span),wc3_float_bits(saved.span));T_EQ(next,serial);
-    T_EQ(level.pathing_clock.time,1);T_EQ(level.pathing_clock.epoch,0u);T_EQ(level.timer_sequence,sequence);
+    T_EQ(level.pathing_clock.time,1);T_EQ(level.pathing_clock.epoch,0u);
+    /* MAP-06.2 restarts spatial maintenance at load. Saved release keys above
+     * stay unchanged; proximity then fine each register one new request. */
+    wc3Clock_t maintenance;uint32_t map_serial;
+    T_ASSERT(S_NextMoveSpatialMaintenance(&maintenance,&map_serial));
+    T_EQ(map_serial,sequence+1);T_EQ(level.timer_sequence,map_serial+1);
+    T_EQ(wc3_float_bits(maintenance.time),wc3_float_bits(wc3_add(1,wc3_div(1,10))));
     level.scheduled_frame=true;G_RunTimers();jass_callbyname(level.vm,"check_order",false);
     T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(!G_NextUnitRelease(&loaded,&next));remove(file);
 }

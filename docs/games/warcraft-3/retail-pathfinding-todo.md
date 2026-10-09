@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**276 done / 336 tasks; 60 remaining.**
+**277 done / 336 tasks; 59 remaining.**
+
+Payoff214 closes BASE-01.1: native UI point coordinates and flags now have a
+complete serialization/decoded-dispatch/unit-admission trace. Public engine
+commands preserve the same fractional coordinates through unchanged retail
+motion and saved continuations. See [player point transport](retail-pathfinding-engine.md#player-ui-point-transport-and-admission-payoff214).
 
 Payoff213 closes E2E-04.2: active orders survive real-map reload, removal
 callbacks and pool pressure with exact cold continuations. Adaptive scratch and
@@ -804,7 +809,7 @@ Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks,
 
 ### BASE-01 — Movement entry points
 
-- [ ] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI.
+- [x] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI. [Payoff214](retail-pathfinding-engine.md#player-ui-point-transport-and-admission-payoff214): two actual six-unit native UI repeats preserve ordinary/Shift/Alt point words through serialization, decoding, indirect synchronized dispatch and publication. Replacement reaches680320 mode1/dispatch1;Shift uses append. Engine public command transport now preserves binary32 coordinates; unchanged retail motion and cold continuations pass in Classic/TFT.
 - [x] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path. [Payoff191](retail-pathfinding-engine.md#jass-and-ai-common-point-admission-payoff191): repeated public string/ById JASS enters206f00->5ffb60->05b970; real Captain AI9d44d0 enters the same bridge on Captain+44, with its own virtual actor/cohorts. Both share flag1 and completion events; five actual range publications and all307 public markers match repeat/control. Engine publishes normalized point ranges at admission for singleton/queued/prepared/AI members; failing-first JASS/save/AI regression passes64 assertions and20 original arithmetic cases in both schemas. Full player UI/network producer remains BASE-01.1.
 - [x] **BASE-01.3** Payoffs184/185/186 trace public target Move and Holy Light through the shared physical target producer. The authored300/800 ranges become11.34375/26.96875 fine with radii32/31; both retain canonical target identity, while persistent target policy1801 contrasts with spell approach1000. Actual engine orders/receiver completion, exact ground/air motion, cancellation and cold saves pass; other command/formation producers keep their existing scopes. See [producer comparison](retail-pathfinding-engine.md#target-order-versus-ability-approach-base-013).
 - [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
