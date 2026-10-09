@@ -48718,6 +48718,63 @@
         "Edict/group generations are engine ownership identities. Raw retail process-pointer identity equality and whole-world determinism are not claimed.",
         "Cold engine suffixes compare with uninterrupted original expectations; no new retail UI save/load capture is claimed."
       ]
+    },
+    {
+      "id": "oracle-e2e-lifetimes213",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e_lifetimes.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-lifetimes213.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "categories": {
+          "equal": 4
+        },
+        "retail_contracts": {
+          "equal": 5
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "length": 5
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-04.2 active public Move through actual map reload, removal callback and129-order pressure, with cold saves before/after the callback. Four actual-game categories repeat twice per edition; five unchanged original execution/live contracts revalidate afresh.",
+      "exclusions": [
+        "The composed MPQ/callback/pressure journey is an engine acceptance scenario, not a new combined retail live capture. Its original components remain independently required.",
+        "Retail save/load rebuilds spatial chains in save order and starts fresh maintenance requests. Those differences remain explicit; absolute process pointers and uninterrupted timer serial equality are not required.",
+        "Original child contracts, literal expectations and failed JASS/-loadfile attempts remain unchanged. Actual retail UI save/load movement evidence covers four Move units.",
+        "Worker teardown is exercised on inline and threaded borrowed frontiers; save during an executing retail fine search and multiplayer/replay are not certified.",
+        "Full spell event timing, arbitrary callback FIFO mutation and whole-world determinism remain outside the child contracts."
+      ]
     }
   ],
   "fixtures": [
@@ -50528,7 +50585,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_map_lifetime.c",
-      "sha256": "c53b38b6f7181ab1d234235c5d982ac5f08efe6f54cf4bebaa0de01f749b0351"
+      "sha256": "4b13f7634d1acbcb50f6f1ad5dd48d9ae4f926040c737a7da9e39b1c75dfc9f7"
     },
     {
       "path": "games/warcraft-3/tests/fixtures/make_pathing_reload_maps.py",
@@ -50680,7 +50737,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move_spatial.c",
-      "sha256": "38ed52697cdee40662261f6c40511eee638a11142bf00ab2675a5607607469fc"
+      "sha256": "6f782370cb0cefcdfa1d5d883753226ee44445d5ce3b656eebc9ccf8d2755da3"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_repulsion_triad.h",
@@ -50904,11 +50961,11 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "c58d9bfd5812933627829352e85343aa9bb46a7ac163414d4ea9ed6d8c491803"
+      "sha256": "66139ca238ef9e62dbe8074dbb52c578f48930a6775be7111b463d895e87639f"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "ac1ed20abaead0b5bbb743a03c8db9ead59c124327328d769aa30e07666e011f"
+      "sha256": "123108ec10ecce3d91a8b5ccc9c28996b831602ba4e068d4503f623b549c7582"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -50916,7 +50973,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "61d24291e8405001afbd448894ccb68b808b9625dfaf0fa9adaf9953d8c0ca36"
+      "sha256": "ded90e6f9de8a774c7aead375cda254704a2d8e9f537ece29b8ca57a8a0f10ac"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51408,7 +51465,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "64ec215819e3076d811677321f744bbf15f80070f1f23808078429dbe259e315"
+      "sha256": "0c1f142c4830edef08d2ee7b74bd1641b88cee9bb70ece9861dbaae96ba3546d"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51424,7 +51481,7 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "f7f166f5bd66fcd8138cd08cfc49bf2fe94d83b53cf597390c5e037878f6a1e2"
+      "sha256": "7c9a5b1a6d8b63851560c86a2e44fcb2a3b4963977a665a1259a55e3798cd355"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53428,7 +53485,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_e2e_variants.c",
-      "sha256": "756fee942ae4731caddc3303c62df138f4be07285f0a54cdf0177b84bbb623e7"
+      "sha256": "98c11b5dbc27e032d8fcbebbc94250a6f6b8caca26f5f13da514e0a2414f47d7"
     },
     {
       "path": "tests/test_wc3_pathing_e2e_variants.py",
@@ -53689,6 +53746,22 @@
     {
       "path": "games/warcraft-3/game/tests/retail_scheduler_work.h",
       "sha256": "15bba9331d268ea9a8fa75917923661b01084ca7a9eaa915df2f6d0ee3130be0"
+    },
+    {
+      "path": "tools/ghidra/research/e2e213_contract.py",
+      "sha256": "143149e80bbdef7316dcfdfe842b30b68177af357db3f0fb824aa0d6c002fca7"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e_lifetimes.py",
+      "sha256": "90821083d97867ac75a92da0814e7c7e1fa7ae2737ec716b729e1cfb88f3f3a9"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-lifetimes213-1.27.json",
+      "sha256": "c93d367fe9c51856df3ccff4a27dddf608dddc335f76fd14cf0327a4793ad0df"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e_lifetimes.py",
+      "sha256": "b8744e06d6a53731b2526693d985f6801f1d0482fddf44537ad55ec6a21609d0"
     }
   ]
 }

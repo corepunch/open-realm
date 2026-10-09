@@ -247,3 +247,85 @@ Forced jumps, synthetic unreachable work overflow and engine generation IDs
 retain their stated limits. This is acceptance of the verified component
 contracts during repeated movement, not a natural seven-hour capture, a new
 retail combined-wrap/save-load session or a whole-world determinism claim.
+
+## Active orders across reload, callbacks and pool pressure (Payoff213)
+
+`E2E-04.2` composes four actual-game categories twice in Classic and TFT.
+Five original contracts run into fresh reports: MAP-06.1 map release/restart,
+MAP-06.2 spatial load and four mover suffixes, ORDER-06.4 spell/removal
+interruption, cold point-order/task pool growth, and the complete public
+129-unit pool bursts with observer-free control. Their existing literal
+expectations, capture exclusions and child checks are unchanged.
+
+The main category loads both real minimal fixture MPQs through `globals.LoadMap`.
+For each terrain shape it compares an uninterrupted run, a repeat load, and
+cold saves at 250 and 550 ms, before and after the 500-ms JASS callback. The
+callback removes a moving victim with 129 queued public orders, replaces the
+survivor's public Move 129 times synchronously, then appends two public queued
+successors. Each of the eight variants runs 1,400 ten-ms frames to final idle.
+All 23 motion/route/RNG/clock words and six queue/removal/group ownership words
+match the uninterrupted run at each frame. Cold loads explicitly acquire two
+fresh spatial-maintenance serials, proximity first, at the restored published
+timer clock plus software `1/10`; subsequent serial comparisons retain that
+exact offset.
+
+The fixture SLK intentionally has zero Footman collision. The composed scenario
+sets both actors' collision to 16 and publishes them before movement; otherwise
+empty spatial membership is correct and does not test collision restoration.
+Before and after save and cold load, the test checks both logical rectangles.
+The published timer clock can be five ms ahead of the integration clock; the
+deadline assertion uses `G_TimerQueryClock`, preserving that existing contract.
+Each outgoing world leaves a real borrowed heatmap frontier for retirement,
+alternating inline and threaded execution. Twelve loader boundaries per repeat
+assert that the old routes, owners, VM, spatial identities and worker borrowing
+are retired before the old map geometry is released.
+
+A separate cold-initialization regression in that category prepares its own
+64-by-64 grid and a modeled collision actor, then publishes a real
+fine/proximity object before the first adaptive allocation. It exposed an engine
+ownership bug: `move_acc_prepare` called `G_FreeMovePathCache`, freeing live
+spatial membership while allocating derived hierarchy scratch. Adaptive storage
+now has its own release helper. Complete map release still retires all owners;
+preparing hierarchy scratch preserves fine objects, proximity rectangles and
+maintenance serials. A separate test library built with only `g_world.c`
+restored from parent commit `39f942dc` reproduces loss of both objects after
+preparation, twice; the current library retains them. The new tests and loader
+transaction are identical in those libraries, isolating this regression from
+the fixture and loader changes.
+
+The load path suppresses transient maintenance registration
+while decoding both maps, then registers the two completed owners once. This
+avoids reserving unused serials for partial construction. No save layout or
+retail numerical fixture changes are needed.
+
+The other categories retain order-sensitive rebuilt spatial chains, exact
+four-route save continuations, removal and actual spell callback successor
+ownership, queue wrap/growth/release, and shared captain pool save/reuse.
+Save-order reinsertion is deliberately allowed to change target observation;
+acceptance does not flatten this native difference into whole-world equality.
+
+`retail-e2e-lifetimes213-1.27.json` binds every category to exact original child
+contracts and literal source pins, including both MPQs. The verifier requires
+nonempty repeated engine runs and exact JUnit identities in both editions.
+Negative tests reject changed literals, weakened child checks, omitted lifetime
+boundaries and swapped original/live evidence. Existing saved Ghidra mappings
+for `PathMaps_Create`, `PathMaps_Save`, `SpatialObject_Load` and map maintenance
+were re-read and the program saved. This introduces no newly mapped original
+function or new retail live capture; the composed journey is engine acceptance.
+Save during an executing retail search, arbitrary reentrant FIFO edits,
+multiplayer/replay and whole-world determinism remain outside its claim.
+
+The combined run passes 1,200,254 assertions per edition. The adjacent save,
+proximity, spatial-load, actual map-lifetime and pathfinding suites pass 255
+tests per edition. This is focused validation under the authorized batch
+cadence, not a new full-repository checkpoint.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --output /tmp/pathing-lifetimes213 --only oracle-e2e-lifetimes213 --timeout 900
+```
+
+Use a new output directory; stale reports are rejected.

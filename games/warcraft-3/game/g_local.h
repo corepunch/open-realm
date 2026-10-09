@@ -3464,6 +3464,8 @@ bool S_LoadMoveProximity(uint32_t,wc3FineBox_t);
 bool S_NextMoveSpatialMaintenance(wc3Clock_t *,uint32_t *);
 void S_RunMoveSpatialMaintenance(void);
 void S_ResetMoveSpatialMaintenance(void);
+void S_BeginMoveSpatialLoad(void);
+void S_EndMoveSpatialLoad(bool complete);
 void S_RebaseMoveSpatialMaintenance(float);
 void S_CompactMoveProximity(void);
 uint32_t S_GetMoveProximityQuery(void);

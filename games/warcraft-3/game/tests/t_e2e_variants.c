@@ -161,4 +161,40 @@ TEST(wc3_e2e212, exhausted_gate_ids_reuse_only_after_release_and_survive_cold_lo
         e2e_journey(wc3_waygate_exhausted_gate_stays_unallocated_until_ability_recreation_fn);
     }
 }
+
+/* E2E-04.2 keeps the known save/load changes alongside exact motion and
+ * callback ownership. The combined MPQ journey lives in t_map_lifetime.c. */
+static void wc3_spatial_load_loaded_blocker_chain_uses_save_order_fn(void);
+static void wc3_spatial_load_target_observation_changes_with_rebuilt_cell_order_fn(void);
+static void wc3_spatial_load_four_active_routes_resume_word_identically_fn(void);
+static void wc3_proximity_save_load_rebuilds_proximity_in_save_order_fn(void);
+static void wc3_order_lifecycle_pool192_empty_queues_release_storage_and_reuse_lifo_fn(void);
+static void wc3_order_lifecycle_pool192_discarded_target_and_replacement_release_storage_fn(void);
+static void wc3_order_lifecycle_queue198_wrapped_growth_preserves_commands_and_reset_releases_storage_fn(void);
+static void wc3_movement_shared189_captain_pool_growth_radius_departure_and_saved_reuse_fn(void);
+
+TEST(wc3_e2e213, rebuilt_spatial_order_keeps_native_differences_and_resumed_motion) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_spatial_load_loaded_blocker_chain_uses_save_order_fn);
+        e2e_journey(wc3_spatial_load_target_observation_changes_with_rebuilt_cell_order_fn);
+        e2e_journey(wc3_proximity_save_load_rebuilds_proximity_in_save_order_fn);
+        e2e_journey(wc3_spatial_load_four_active_routes_resume_word_identically_fn);
+    }
+}
+
+TEST(wc3_e2e213, removal_and_spell_callbacks_retire_old_owners_and_keep_successors) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_interrupt_pending_removal_retains_all_order_shapes_and_saved_head_fn);
+        e2e_journey(wc3_interrupt_actual_spell_completion_replaces_owner_and_releases_removed_peers_once_fn);
+    }
+}
+
+TEST(wc3_e2e213, queue_and_shared_pool_pressure_keep_saved_payloads_and_reuse) {
+    FOR_LOOP(repeat,2) {
+        e2e_journey(wc3_order_lifecycle_pool192_empty_queues_release_storage_and_reuse_lifo_fn);
+        e2e_journey(wc3_order_lifecycle_pool192_discarded_target_and_replacement_release_storage_fn);
+        e2e_journey(wc3_order_lifecycle_queue198_wrapped_growth_preserves_commands_and_reset_releases_storage_fn);
+        e2e_journey(wc3_movement_shared189_captain_pool_growth_radius_departure_and_saved_reuse_fn);
+    }
+}
 #endif

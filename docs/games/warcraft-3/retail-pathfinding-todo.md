@@ -55,7 +55,12 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**275 done / 336 tasks; 61 remaining.**
+**276 done / 336 tasks; 60 remaining.**
+
+Payoff213 closes E2E-04.2: active orders survive real-map reload, removal
+callbacks and pool pressure with exact cold continuations. Adaptive scratch and
+spatial owner lifetimes are separated. See [lifetime acceptance](retail-pathfinding-e2e-baselines.md#active-orders-across-reload-callbacks-and-pool-pressure-payoff213).
+
 
 Payoff212 closes E2E-04.1: active gate motion crosses verified counter/stamp
 boundaries with exact saved suffixes; repeated storage, member/release and gate-ID
@@ -1494,7 +1499,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 ### E2E-04 — Long-run composition
 
 - [x] **E2E-04.1** Compose verified stamp/counter/handle/gate-ID wrap and reuse cases into repeated movement; assert no stale ownership or changed route policy. [Payoff212](retail-pathfinding-e2e-baselines.md#active-movement-across-wrap-and-reuse-boundaries-payoff212) composes four actual-game categories twice per Classic/TFT, with ten unchanged original contracts revalidated fresh. Active Gate96 counter/stamp jumps preserve every motion word and ten saved continuations per journey; retained search storage, group/edict/release ownership and exhausted gate IDs preserve their verified policies. Native stamp aliases remain explicit; forced jumps are not claimed as natural gameplay.
-- [ ] **E2E-04.2** Compose reload/save-load, callback removal and pool pressure cases with active orders; assert final idle state and uninterrupted-control differences.
+- [x] **E2E-04.2** Compose reload/save-load, callback removal and pool pressure cases with active orders; assert final idle state and uninterrupted-control differences. [Payoff213](retail-pathfinding-e2e-baselines.md#active-orders-across-reload-callbacks-and-pool-pressure-payoff213) composes two actual MPQ worlds, active orders, 129-order callback pressure and cold saves on both sides of removal; all motion/ownership words reach final idle, with fresh maintenance serials and native rebuilt-chain differences explicit. Four categories repeat twice per Classic/TFT and five unchanged original contracts revalidate fresh. Adaptive scratch no longer frees live spatial membership; cold load registers completed maintenance owners once.
 
 ### E2E-05 — Unknowns audit
 

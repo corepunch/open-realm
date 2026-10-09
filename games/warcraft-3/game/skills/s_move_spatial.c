@@ -15,11 +15,12 @@ typedef struct {
 static moveRegionState_t move_regions[MAX_ENTITIES];
 typedef struct {wc3Clock_t deadline;uint32_t sequence;bool active;} moveSpatialRequest_t;
 static moveSpatialRequest_t move_proximity_request,move_fine_request;
+static bool move_spatial_loading;
 
 static void move_proximity_prepare(void);
 
 static void move_spatial_request(moveSpatialRequest_t *request) {
-    if(request->active)return;
+    if(move_spatial_loading || request->active)return;
     request->deadline=G_TimerQueryClock(NULL);
     request->deadline.time=wc3_add(request->deadline.time,wc3_div(1,10));
     request->sequence=++level.timer_sequence;request->active=true;
@@ -264,6 +265,17 @@ void S_ResetMoveSpatialMaintenance(void) {
     move_proximity_request.active=move_fine_request.active=false;
     if(move_proximity.cells)move_spatial_request(&move_proximity_request);
     if(move_fine_spatial.cells)move_spatial_request(&move_fine_request);
+}
+/* Decode both saved maps before publishing their recurring requests. Partial
+ * reconstruction must not reserve unused serials or expose transient owners. */
+void S_BeginMoveSpatialLoad(void) {
+    move_spatial_loading=true;
+    move_proximity_request.active=move_fine_request.active=false;
+    if(pathmap.width && pathmap.height)S_PrepareMoveFineSpatial();
+}
+void S_EndMoveSpatialLoad(bool complete) {
+    move_spatial_loading=false;
+    if(complete)S_ResetMoveSpatialMaintenance();
 }
 void S_RebaseMoveSpatialMaintenance(float span) {
     moveSpatialRequest_t *requests[]={&move_proximity_request,&move_fine_request};

@@ -354,15 +354,20 @@ static vec2_t move_world_from_grid(float x, float y) {
                    wc3_world_coordinate(y, geometry->bounds.min.y, geometry->extent_cell.y)};
 }
 
+static void move_free_adaptive(void) {
+    free(move_acc_storage);move_acc_storage=NULL;move_acc_markers=NULL;
+    wc3_acc_free(&move_acc);
+    move_acc_width=move_acc_height=0;
+}
+
 /* Classification is derived map state; release it when the game module shuts down. */
 void G_FreeMovePathCache(void) {
     S_FreeMoveProximity();
     CM_FinishPathJobs();
     move_grid_geometry.valid = false;
-    free(move_acc_storage); move_acc_storage = NULL; move_acc_markers = NULL;
-    wc3_fine_free(&move_fine); wc3_acc_free(&move_acc);
+    move_free_adaptive();
+    wc3_fine_free(&move_fine);
     memset(&move_fine_profile,0,sizeof(move_fine_profile));
-    move_acc_width = move_acc_height = 0;
     S_FreeMoveFineSpatial();
     FOR_LOOP(lane,4){free(move_static_edges[lane]);move_static_edges[lane]=NULL;}
     move_edge_epoch=1;
@@ -379,7 +384,9 @@ static void move_acc_prepare(void) {
     if (!pathmap.width || !pathmap.height) return;
     if (move_acc_storage && move_acc_width == width && move_acc_height == height) return;
     if (move_acc_width != width || move_acc_height != height || !move_acc_storage) {
-        G_FreeMovePathCache();
+        /* Lazy hierarchy allocation is not a map release. Fine/proximity
+         * objects may already be live, including while preparing a save. */
+        move_free_adaptive();
         uint32_t cells = 0;
         FOR_LOOP(level,4) cells += (width>>level)*(height>>level);
         move_acc_storage = malloc((size_t)cells*(sizeof(int)+4)+(size_t)width*height);

@@ -2501,7 +2501,6 @@ static bool ReadMoveProximity(FILE *f) {
         S_SetMoveProximityStamp(index,stamp);
     }
     S_SetMoveProximityQuery(query);
-    S_ResetMoveSpatialMaintenance();
     return true;
 }
 
@@ -3267,8 +3266,14 @@ bool ReadGame(cstring_t filename) {
     if (!S_ReadTimedLives(f)) { fprintf(stderr,"WC3 LoadGame: failed at timed-life records\n"); fclose(f); return false; }
     if (!S_RestoreMoveRepulsors()) { fprintf(stderr,"WC3 LoadGame: invalid repulsor owner links\n"); fclose(f); return false; }
     if (!S_ValidateWaygateIds()) { fprintf(stderr,"WC3 LoadGame: invalid Way Gate identities\n"); fclose(f); return false; }
-    if (!ReadMoveSpatial(f)) { fprintf(stderr,"WC3 LoadGame: failed at fine spatial history\n"); fclose(f); return false; }
-    if (!ReadMoveProximity(f)) { fprintf(stderr,"WC3 LoadGame: failed at proximity spatial history\n"); fclose(f); return false; }
+    S_BeginMoveSpatialLoad();
+    bool fine_loaded=ReadMoveSpatial(f);
+    bool proximity_loaded=fine_loaded && ReadMoveProximity(f);
+    S_EndMoveSpatialLoad(proximity_loaded);
+    if (!proximity_loaded) {
+        fprintf(stderr,"WC3 LoadGame: failed at %s spatial history\n",fine_loaded ? "proximity" : "fine");
+        fclose(f);return false;
+    }
     if (!ValidOwnedUnits()) { fprintf(stderr,"WC3 LoadGame: invalid unit owned-pool order\n"); fclose(f); return false; }
     if (!S_ValidateMoveFollows()) { fprintf(stderr,"WC3 LoadGame: invalid Follow subscriptions\n"); fclose(f); return false; }
     if (!S_ValidateCaptainHomeActors(true)) { fprintf(stderr,"WC3 LoadGame: invalid captain actor references\n"); fclose(f); return false; }

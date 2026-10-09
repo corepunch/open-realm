@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "task": "E2E-04.2",
+  "parent": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "pins": {
+    "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619",
+    "tools/ghidra/fixtures/retail-map-lifetime-inputs-1.27.json.gz": "9a93e3fbee64aa2e20eda35eafe526e75226e3203007dfb59f426e28a75b0443",
+    "tools/ghidra/fixtures/retail-map-lifetime-release-1.27.json": "afa739a93c820d5bc6716a809094ba504b56e2ec90eedaf853fea09b31b02c62",
+    "tools/ghidra/fixtures/research/MAP-06.1-expected.json": "974810fd91377a9839bb923e397e0e0255c92d67782cbc971a6bb9c41a2dc98f",
+    "tools/ghidra/fixtures/retail-spatial-save-inputs-1.27.json.gz": "a3f7380377488a1e102b59de25d61266dd94fde71d16f8f40f7ec39268ac724f",
+    "tools/ghidra/fixtures/retail-spatial-load-insertion-1.27.json": "2668a49ccced585418e9ac6fa44b97398ab52a230373ed535c91c06736e8efe9",
+    "tools/ghidra/fixtures/research/MAP-06.2-expected.json": "0856f6f36fecb20f81f0b9b17b4e091c926d325632055de94ac952b8937d8249",
+    "tools/ghidra/fixtures/retail-interrupt209-1.27.json": "0fec51d9c8100240dd349659451c846a00779037ae53475f46010ab2cedec368",
+    "tools/ghidra/fixtures/retail-interrupt209-1.27.jsonl.gz": "ee5317349248136bb8f5a9302284781bab4c233fa8e3c34c61f7a29ab42d3a8d",
+    "games/warcraft-3/game/tests/retail_interrupt209_scene.h": "18bf246182b16881c064a195c787b27199d620bfd838a35f782194be565a4472",
+    "tools/ghidra/fixtures/retail-order-pool-growth192-1.27.json": "bf6d37c07337d6ff8017d933e9b4d367122ccf136a3c7b56250c714072b4d692",
+    "tools/ghidra/fixtures/retail-point-pool-lifetimes192-1.27.json": "55f34d0145ac3f50a0ca11c0d10d8b0280a8d6b4fe88ab98d8a8ce720a75db84",
+    "games/warcraft-3/tests/resources-src/Maps/Test/PathingReload.w3m": "9a2b5c51b99ef4b3eaf9ba9f9f5a193411093d22007a492c8522793d7084764b",
+    "games/warcraft-3/tests/resources-src/Maps/Test/PathingChangeLevel.w3m": "9d64e2dc1d4436049abbacccc3551f259ecaa1266f80a06bf860ae5ba6a94fed"
+  },
+  "engine_repeats": 2,
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "boundaries": {
+    "map_shapes": 2,
+    "variants_per_shape": 4,
+    "frames_per_variant": 1400,
+    "frame_msec": 10,
+    "queued_victim_orders": 129,
+    "callback_replacements": 129,
+    "callback_msec": 500,
+    "cold_before_callback_msec": 250,
+    "cold_after_callback_msec": 550,
+    "fresh_spatial_request_serials": 2,
+    "retired_world_observations_per_repeat": 12,
+    "motion_words_per_frame": 23,
+    "unchanged_ownership_words_per_frame": 6,
+    "actor_collision": 16,
+    "cold_hierarchy_collision": 8
+  },
+  "evidence_by_id": {
+    "oracle-map-lifetime": "L",
+    "oracle-spatial-save": "L",
+    "oracle-interrupt209": "L",
+    "oracle-cold-order-pool-growth": "O",
+    "live-point-task-pool-lifetimes": "L"
+  },
+  "categories": [
+    {
+      "id": "map-lifetime",
+      "test": "wc3_e2e213.real_map_callback_pool_pressure_matches_uninterrupted_and_cold_continuations",
+      "entries": [
+        "oracle-map-lifetime"
+      ],
+      "entry_sha256": {
+        "oracle-map-lifetime": "79a9d76a90228ab15dd8b6c886dbe501275edee206c594f88b17310bb4eeebdb"
+      },
+      "scope": "Actual MPQ reload of two terrain shapes, active Move, callback removal with129 queued victim orders,129 synchronous replacements and two queued survivor successors; cold reconstruction before and after the callback.",
+      "completion": "All23 motion and six ownership words match uninterrupted control through final idle; fresh maintenance registrations are explicitly distinguished. All12 outgoing worlds retire borrowed inline/threaded frontiers per repeat."
+    },
+    {
+      "id": "spatial-load",
+      "test": "wc3_e2e213.rebuilt_spatial_order_keeps_native_differences_and_resumed_motion",
+      "entries": [
+        "oracle-spatial-save"
+      ],
+      "entry_sha256": {
+        "oracle-spatial-save": "bd434e9c49af0d483b7abed664b7dfb7a54a2b67bc5a31cdca9ca5c49a229ee8"
+      },
+      "scope": "Save-order rebuild in fine and proximity maps, order-sensitive target observations and four saved active mover continuations.",
+      "completion": "Original chain-order differences remain required while all four movers resume word-identically; no blanket world-state equality is asserted."
+    },
+    {
+      "id": "callbacks",
+      "test": "wc3_e2e213.removal_and_spell_callbacks_retire_old_owners_and_keep_successors",
+      "entries": [
+        "oracle-interrupt209"
+      ],
+      "entry_sha256": {
+        "oracle-interrupt209": "c933dd511468564c1eb9125e359d97877d43d1604cca3363d58f8b6d264fab90"
+      },
+      "scope": "Removal while all three public order shapes are suspended, and actual spell completion replacing owners and releasing removed peers.",
+      "completion": "Old wrappers retire exactly once; successor owners and saved continuation remain valid through public completion."
+    },
+    {
+      "id": "pool-pressure",
+      "test": "wc3_e2e213.queue_and_shared_pool_pressure_keep_saved_payloads_and_reuse",
+      "entries": [
+        "oracle-cold-order-pool-growth",
+        "live-point-task-pool-lifetimes"
+      ],
+      "entry_sha256": {
+        "oracle-cold-order-pool-growth": "983640fffeec0c8144c5ddc6c4863bd514e3da11a0794eff67f8e0adfb9dfd6b",
+        "live-point-task-pool-lifetimes": "e2e62e7420fd434fefb309f9b51a86b280d6fbc3222404e7049abf01c90a8a2b"
+      },
+      "scope": "Cold native payload/wrapper growth, observed public129-unit bursts, engine queue growth/wrap/reuse and saved shared/captain ownership.",
+      "completion": "LIFO storage reuse, payload identity, discarded-target and replacement release, and saved shared pool owners remain exact under repeated pressure."
+    }
+  ],
+  "exclusions": [
+    "The composed MPQ/callback/pressure journey is an engine acceptance scenario, not a new combined retail live capture. Its original components remain independently required.",
+    "Retail save/load rebuilds spatial chains in save order and starts fresh maintenance requests. Those differences remain explicit; absolute process pointers and uninterrupted timer serial equality are not required.",
+    "Original child contracts, literal expectations and failed JASS/-loadfile attempts remain unchanged. Actual retail UI save/load movement evidence covers four Move units.",
+    "Worker teardown is exercised on inline and threaded borrowed frontiers; save during an executing retail fine search and multiplayer/replay are not certified.",
+    "Full spell event timing, arbitrary callback FIFO mutation and whole-world determinism remain outside the child contracts."
+  ]
+}
