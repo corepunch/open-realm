@@ -57,6 +57,11 @@ work closes no additional retail research tasks. See
 
 **268 done / 336 tasks; 68 remaining.**
 
+Payoff202 advances MAP-04.2: next-step collection and moving-peer resolution
+now share one captured spatial-counter scope. Forty-eight complete original
+calls and failing-first production regressions match; the wider exit audit
+remains open. See [combined blocker scope](retail-pathfinding-exclusions.md#collection-and-yielding-share-one-captured-scope-payoff202).
+
 Payoff201 advances SEP-01.2: Mechanical Critter now owns its latent category
 through the real item/buff lifecycle. Repeated retail/control scenes and engine
 RNG/pose/owner/removal/save regressions agree; counted suppression stays open.

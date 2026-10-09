@@ -3383,6 +3383,10 @@ void S_ClearMoveFineRequests(void);
 bool G_IssueGroupPointOrder(groupPointOrder_t const *request);
 vec2_t G_MoveFineRouteDirection(movePathQuery_t const *query, moveFineRoute_t const *route);
 uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *query, float const fine_goal[2], edict_t **out);
+uint32_t G_ResolveUnitMoveStepBlockers(movePathQuery_t const *, float const [2], wc3YieldDecision_t *);
+#ifdef BZ_TESTS
+void S_TestMoveBlockerResolveTrace(void (*)(edict_t const *,uint32_t));
+#endif
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count);
 bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *query, moveFineRoute_t *route, vec2_t *out);
 void G_ReserveMoveRouteBuffer(vec2_t **points, uint32_t *capacity, uint32_t count);

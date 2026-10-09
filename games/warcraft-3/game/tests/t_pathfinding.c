@@ -43,6 +43,7 @@
 #include "retail_coarse_scopes.h"
 #include "retail_exclusion_stages.h"
 #include "retail_exclusion_consumers.h"
+#include "retail_blocker_scope202.h"
 #include "retail_reconstruction.h"
 #include "retail_stale_route.h"
 #include "retail_route_consumers.h"
@@ -1784,6 +1785,93 @@ TEST(pathfinding, fine_consumers_hold_captured_self_and_restore_every_result) {
         G_TestMoveObjectScopeTrace(NULL,NULL);T_EQ(trace.stages,3);T_EQ(self->flags,row->after);
     }
     reset_entities();setup_test_world();
+}
+
+static retailBlockerScope202_t const *blocker_scope202_expected;
+static unsigned blocker_scope202_resolves;
+
+static void check_blocker_scope202_resolver(edict_t const *unit,uint32_t count) {
+    retailBlockerScope202_t const *row=blocker_scope202_expected;
+    T_EQ(count,row->count);
+    T_EQ(G_GetMoveSpatialObject(unit-g_edicts)->flags,row->stages[1]);
+    blocker_scope202_resolves++;
+}
+
+/* Public point admission supplies the actual group/yield policy. Compare
+ * complete original166140 outputs, observing the counter inside168360. */
+TEST(pathfinding, blocker202_holds_captured_self_through_ordered_resolution) {
+    static unsigned const speeds[][2]={{0,0},{1,3},{3,1},{3,1}};
+    FOR_LOOP(i,sizeof(retail_blocker_scope202)/sizeof(*retail_blocker_scope202)) {
+        retailBlockerScope202_t const *row=retail_blocker_scope202+i;
+        reset_entities();setup_test_world();
+        uint8_t cells[16*16]={0};if(row->kind==1)cells[8*16+9]=2;
+        CM_SetupTestWorldBounds(&(box2_t){{0,0},{512,512}});CM_SetupTestPathmap(16,16,cells);
+        vec2_t from={264,264},goal={392,264},fine={8.25f,8.25f};
+        edict_t *unit=make_unit_at(from.x,from.y),*peer=make_unit_at(296,264);
+        unit->collision=peer->collision=8;
+        if(row->profile==1 || row->profile==3) {
+            groupPointOrder_t request={.count=2,.order_id=G_OrderId("move"),.order="move",.point=&goal,
+                .formation_toggle=row->profile==3};
+            request.units[0]=(typeof(request.units[0])){unit,unit->spawn_time};
+            request.units[1]=(typeof(request.units[0])){peer,peer->spawn_time};
+            T_ASSERT(G_IssueGroupPointOrder(&request));T_EQ(unit->movement.group_id,peer->movement.group_id);
+        } else {
+            T_ASSERT(unit_issueorder(unit,"move",&goal));
+            if(row->profile==2)T_ASSERT(unit_issueorder(peer,"move",&goal));
+        }
+        G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(peer);
+        wc3SpatialRecords_t *map=S_GetMoveFineSpatial();
+        wc3RecordObject_t *self=wc3_records_owned(map,unit-g_edicts);
+        /* Original oracle puts exactly one record in the entering cell.
+         * A retained self rectangle may differ from the predicted query pose. */
+        wc3_records_update(map,map->objects[unit-g_edicts],row->kind==3 ?
+            (wc3FineBox_t){{9,8},{10,9}} : (wc3FineBox_t){{8,8},{9,9}});
+        wc3_records_update(map,map->objects[peer-g_edicts],row->kind==2 ?
+            (wc3FineBox_t){{9,8},{10,9}} : (wc3FineBox_t){{14,14},{15,15}});
+        self->flags=row->outer;
+        unit->movement.velocity=(vec2_t){speeds[row->profile][0]*32,0};
+        peer->movement.velocity=(vec2_t){speeds[row->profile][1]*32,0};
+        unit->movement.wait_delay=7;unit->movement.wait_blocker=peer;
+        peer->movement.wait_delay=0;peer->movement.wait_blocker=NULL;
+        movePathQuery_t query={.geometry={&from,&goal,8,2},.mover=unit,.units=true,.fine=&fine};
+        float target[]={12.25f,8.25f};wc3YieldDecision_t decision=WC3_YIELD_SELF;
+        blocker_scope202_expected=row;blocker_scope202_resolves=0;
+        S_TestMoveBlockerResolveTrace(check_blocker_scope202_resolver);
+        uint32_t count=G_ResolveUnitMoveStepBlockers(&query,target,&decision);
+        S_TestMoveBlockerResolveTrace(NULL);
+        T_EQ(blocker_scope202_resolves,1);T_EQ(count,row->count);T_EQ(count==0,row->clear);
+        T_EQ(self->flags,row->stages[3]);T_EQ(unit->movement.wait_delay,row->self_delay);
+        T_EQ(peer->movement.wait_delay,row->peer_delay);
+        T_EQ(unit->movement.wait_blocker,row->self_blocker ? peer : NULL);
+        T_EQ(peer->movement.wait_blocker,row->peer_blocker ? unit : NULL);
+        T_EQ(decision,row->self_blocker ? WC3_YIELD_SELF : row->peer_blocker ? WC3_YIELD_PEER : WC3_YIELD_SKIP);
+        self->flags=0;
+    }
+    blocker_scope202_expected=NULL;reset_entities();setup_test_world();
+}
+
+static unsigned blocker_scope202_public_visits;
+static void check_blocker_scope202_public(edict_t const *unit,uint32_t count) {
+    T_EQ(G_GetMoveSpatialObject(unit-g_edicts)->flags,8);
+    T_ASSERT(count<=32);blocker_scope202_public_visits++;
+}
+
+TEST(pathfinding, blocker202_public_move_keeps_outer_scope_through_resolution) {
+    reset_entities();setup_test_world();
+    uint8_t cells[64*64]={0};
+    CM_SetupTestWorldBounds(&(box2_t){{0,0},{2048,2048}});CM_SetupTestPathmap(64,64,cells);
+    edict_t *unit=make_unit_at(264,264),*peer=make_unit_at(296,264);
+    unit->collision=peer->collision=8;
+    vec2_t goal={1000,264};T_ASSERT(unit_issueorder(unit,"move",&goal));
+    T_ASSERT(unit_issueorder(peer,"move",&goal));
+    G_PublishMoveSpatialObject(unit);G_PublishMoveSpatialObject(peer);
+    wc3RecordObject_t *self=wc3_records_owned(S_GetMoveFineSpatial(),unit-g_edicts);
+    self->flags=7;blocker_scope202_public_visits=0;
+    S_TestMoveBlockerResolveTrace(check_blocker_scope202_public);
+    unit_changeangle(unit);
+    S_TestMoveBlockerResolveTrace(NULL);
+    T_EQ(blocker_scope202_public_visits,1);T_EQ(self->flags,7);
+    self->flags=0;reset_entities();setup_test_world();
 }
 
 void G_TestMoveFineScopeTrace(void (*)(void *,unsigned,movePathQuery_t const *),void *);

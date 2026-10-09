@@ -237,3 +237,70 @@ evidence tests and22 staged corpus contract tests pass; the exact staged corpus
 validates369 entries/652 pins and its fresh strict `oracle-exclusions` entry
 passes. Production/test builds are warning-free. The first staged inventory
 attempts rejected stale pins; only the owned changed files were repinned.
+
+## Collection and yielding share one captured scope (Payoff202)
+
+The remaining resolver composition identified by MAP-04.2 and Payoff148 is
+implemented. Original `166140` captures `path+a0`, increments its spatial
+record at `166265`, collects entering-strip tokens, calls the complete
+`168360` resolver at `1662cc`, and only then decrements the captured record
+at `1662dd`. Its sole `RET8` follows restoration. An early requester-yield
+return belongs to the resolver; it must not release the enclosing hold.
+
+The engine previously released that hold before `S_ResolveMoveBlockers`.
+`G_ResolveUnitMoveStepBlockers` now owns both phases, and normal point movement
+uses it. The collection-only adapter remains available for independent token
+queries and its existing regressions. Ordered tokens, the32-entry cap, prior
+wait preservation, blocker identity clearing and peer wait writes are unchanged.
+No allocation, extra collection pass, map scan, saved field or new task is added.
+This is a scope-fidelity correction, not a measured performance improvement.
+
+The original collector oracle now has an optional, separate48-case export.
+Complete original calls cover clear cells, terrain tokens, a moving peer and
+self records, outer depths0/1/7, same/different/no groups and Alt speed policy.
+Read-only instruction hooks observe the counter before acquisition, inside
+`168360`, before release and at the final return. Original instructions and
+handle resolution execute unchanged. Two corrected exports agree in full;
+`retail_blocker_scope202.h` copies their actual results, with no expected-policy
+model. Existing frozen exclusion, collector and trajectory expectations are
+unchanged.
+
+The production regression supplies groups through actual point-order admission,
+compares all48 final token counts, wait deadlines and blocker identities, and
+observes the authoritative counter inside the real resolver. With corrected
+oracle inputs it fails exactly48 assertions before the fix, one scope violation
+per case; all other results already match. A second regression drives ordinary
+`unit_changeangle` under an existing outer hold, proving that gameplay uses the
+combined owner. Both pass in Classic and TFT.
+
+The fresh exclusion verifier also reconstructs all12 static scope inventories,
+45 fine/coarse requests,18 pending edit cases,8 request exits,96 consumer calls,
+three complete archived Frida captures and322 repeated edit markers. Failed
+archived observers remain rejected. There is no new live capture claim.
+The original full collector verifier retains3072 raw collections,756 composed
+next steps,756 fine advances and72 terminal-waypoint cases. Saved Ghidra
+readback for166140 has no pending changes and its note is mirrored in
+`MapPathfinding.java`.
+
+MAP-04.2 remains open for its broader scope/exit audit. These supplied depths
+are not new public suppression producers, and this chunk does not certify
+all unresolved recovery notification callbacks. Logs and both red/green builds
+are in `/GitHub/wc3-analysis/runtime/payoff202/`. The first new oracle draft
+inherited the preceding terminal test's goal; it correctly visited a different
+entering cell. Those superseded drafts are retained there and rejected. Resetting
+the explicit source/goal before the new matrix resolves the setup error; no
+previously valid frozen expectation was overwritten.
+
+```sh
+/GitHub/wc3-analysis/verify-venv/bin/python tools/ghidra/verify_wc3_pathing_blockers.py --binary /run/media/lofcz/ssd_external/Games/w3/game.dll --report /tmp/blocker202-fresh.json --scope-reference tools/ghidra/fixtures/retail-blocker-scope202-1.27.json --scope-header games/warcraft-3/game/tests/retail_blocker_scope202.h
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'pathfinding.blocker202*'
+```
+
+Final validation passes31 pathfinding tests /3,423,013 assertions and434 movement
+tests /6,250,417 assertions in each of Classic and TFT. The overlapping recovery
+checks are not counted twice. Initial middle-wildcard filters selected zero tests
+and are excluded; the complete movement sweeps replace them. The45 Python
+contract/export tests, fresh strict blocker-scope oracle and439-entry/1156-pin
+staged corpus also pass. Production/test builds are warning-free. Full repository
+validation remains on the agreed cadence; this is implementation commit8/12
+since the full merge checkpoint, with Payoff200 documentation-only.

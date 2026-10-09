@@ -2551,11 +2551,10 @@ static void unit_apply_heading(edict_t *self, vec2_t const *dir, moveAvoidPolicy
             progress=wc3_add(wc3_mul(x,x),wc3_mul(y,y))>wc3_mul(range,range);
         }
         if (progress) self->movement.retry_count=self->movement.wait_delay=0;
-        edict_t *blockers[32];
-        uint32_t count=G_CollectUnitMoveStepBlockers(&query,fine,blockers);
-        /* Original168360 clears the previous blocker even for an empty vector.
-         * A stale identity would suppress another requester's later yield. */
-        wc3YieldDecision_t choice=S_ResolveMoveBlockers(self,blockers,count);
+        /*166140 retains its captured self through collection AND168360.
+         * Empty vectors still clear the previous blocker identity. */
+        wc3YieldDecision_t choice;
+        uint32_t count=G_ResolveUnitMoveStepBlockers(&query,fine,&choice);
         if (count) {
             wait=choice==WC3_YIELD_SELF || self->movement.wait_delay;
             /* Original165ae0 retries every nonempty admitted blocker vector,
@@ -2618,8 +2617,18 @@ void S_FreeMoveRoute(edict_t *self) {
     self->movement.path.valid = false;
 }
 
+#ifdef BZ_TESTS
+static void (*move_blocker_resolve_trace)(edict_t const *,uint32_t);
+void S_TestMoveBlockerResolveTrace(void (*trace)(edict_t const *,uint32_t)) {
+    move_blocker_resolve_trace=trace;
+}
+#endif
+
 /* Original168360 clears the requester identity, keeps prior delay and scans in order. */
 wc3YieldDecision_t S_ResolveMoveBlockers(edict_t *self, edict_t *const *blockers, uint32_t count) {
+#ifdef BZ_TESTS
+    if(move_blocker_resolve_trace)move_blocker_resolve_trace(self,count);
+#endif
     self->movement.wait_blocker=NULL;
     wc3YieldDecision_t result=WC3_YIELD_SKIP;
     float velocity[]={self->movement.velocity.x,self->movement.velocity.y};

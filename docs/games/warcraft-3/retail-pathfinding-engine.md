@@ -14068,3 +14068,14 @@ python3 tools/frida/research/mechanical201_make_map.py --base /GitHub/wc3-analys
 python3 tools/frida/research/mechanical201_verify.py --archive /GitHub/wc3-analysis/reports/pathfinding-1.27/research/SEP-01.2/captures201 --expected tools/ghidra/fixtures/retail-mechanical-critter201-1.27.json --output /tmp/mechanical201-fresh-report.json
 LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 build/bin/openwarcraft3-tests -data build/tests +dedicated 1 +test 'wc3_items.mechanical201*'
 ```
+
+## Next-step collection retains self through yield resolution (Payoff202)
+
+`166140` owns collection and `168360` as one synchronous counter scope.
+The engine now restores its captured spatial record after the complete resolver,
+including requester-wait early returns. Actual point movement uses this combined
+operation; token order, wait deadlines and save state are unchanged. Complete
+original48-case counter/result observations and failing-first Classic/TFT
+regressions accompany the saved Ghidra mapping. Existing frozen fixtures are
+unchanged. See the [scope contract and validation](retail-pathfinding-exclusions.md#collection-and-yielding-share-one-captured-scope-payoff202).
+MAP-04.2 remains open for its broader exit audit;68 TODOs remain.

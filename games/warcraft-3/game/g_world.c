@@ -1308,9 +1308,13 @@ static bool move_collect_blocker_cell(void const *data,wc3FinePoint_t pos) {
 
 /* Original166140 normalizes the native next step and collects every entering
  * cell. Returning true from the callback keeps scanning after a rejection. */
-uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const fine_goal[2], edict_t **out) {
+static uint32_t move_step_blockers(movePathQuery_t const *input,float const fine_goal[2],
+                                   edict_t **out,wc3YieldDecision_t *decision) {
     if (!input || !input->units || !out || !input->geometry.target ||
-        !pathmap.width || !pathmap.height || (input->mover && (input->mover->aiflags&AI_FLYING))) return 0;
+        !pathmap.width || !pathmap.height || (input->mover && (input->mover->aiflags&AI_FLYING))) {
+        if(decision)*decision=S_ResolveMoveBlockers((edict_t *)input->mover,NULL,0);
+        return 0;
+    }
     move_spatial_sync();
     vec2_t source=move_query_source(input), goal=fine_goal ? (vec2_t){fine_goal[0],fine_goal[1]} :
         move_grid_from_world(input->geometry.target->x,input->geometry.target->y);
@@ -1324,9 +1328,28 @@ uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input, float const
     wc3RecordObject_t *self=move_hold_self(input);
     move_trace_object_scope(MOVE_SCOPE_BLOCKERS,1,input);
     wc3_segment_foot(&query,next,code);
+    /*168360 may return early when the requester yields. The captured self
+     * still belongs to166140 until that complete resolver returns. */
+    if(decision)*decision=S_ResolveMoveBlockers((edict_t *)input->mover,out,scan.count);
     move_release_self(self);
     move_trace_object_scope(MOVE_SCOPE_BLOCKERS,2,input);
     return scan.count;
+}
+
+/* The collection adapter exposes tokens for independent query consumers.
+ * Gameplay uses the combined operation below, retaining the same hold. */
+uint32_t G_CollectUnitMoveStepBlockers(movePathQuery_t const *input,float const fine_goal[2],edict_t **out) {
+    return move_step_blockers(input,fine_goal,out,NULL);
+}
+
+/*166140 owns collection and resolution as one synchronous operation. */
+uint32_t G_ResolveUnitMoveStepBlockers(movePathQuery_t const *input,float const fine_goal[2],
+                                     wc3YieldDecision_t *decision) {
+    if(!decision)return 0;
+    *decision=WC3_YIELD_SKIP;
+    if(!input || !input->mover)return 0;
+    edict_t *items[32];
+    return move_step_blockers(input,fine_goal,items,decision);
 }
 
 /* SetUnitPathing changes the member's fine query, not its authored hierarchy

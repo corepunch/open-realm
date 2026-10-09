@@ -1,0 +1,1397 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "cases": [
+    {
+      "kind": "clear",
+      "outer": 0,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 0,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 0,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 0,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 1,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 1,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 1,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 1,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 7,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 7,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 7,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "clear",
+      "outer": 7,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 0,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 0,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 0,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 0,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 1,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 1,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 1,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 1,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 7,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 7,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 7,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "terrain",
+      "outer": 7,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 0,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 0,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": true,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 0,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "peer",
+      "outer": 0,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "peer",
+      "outer": 1,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 1,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": true,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 1,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "peer",
+      "outer": 1,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "peer",
+      "outer": 7,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 7,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": true,
+      "peer_blocker": false
+    },
+    {
+      "kind": "peer",
+      "outer": 7,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "peer",
+      "outer": 7,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 0,
+      "count": 1,
+      "self_delay": 7,
+      "peer_delay": 20,
+      "self_blocker": false,
+      "peer_blocker": true
+    },
+    {
+      "kind": "self",
+      "outer": 0,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 0,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 0,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 0,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          0
+        ],
+        [
+          1475424,
+          1
+        ],
+        [
+          1467101,
+          1
+        ],
+        [
+          1467121,
+          0
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 1,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 1,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 1,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 1,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          1
+        ],
+        [
+          1475424,
+          2
+        ],
+        [
+          1467101,
+          2
+        ],
+        [
+          1467121,
+          1
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 7,
+      "profile": 0,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 7,
+      "profile": 1,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 7,
+      "profile": 2,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    },
+    {
+      "kind": "self",
+      "outer": 7,
+      "profile": 3,
+      "stages": [
+        [
+          1466981,
+          7
+        ],
+        [
+          1475424,
+          8
+        ],
+        [
+          1467101,
+          8
+        ],
+        [
+          1467121,
+          7
+        ]
+      ],
+      "result": 1,
+      "count": 0,
+      "self_delay": 7,
+      "peer_delay": 0,
+      "self_blocker": false,
+      "peer_blocker": false
+    }
+  ]
+}

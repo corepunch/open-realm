@@ -16,11 +16,14 @@ from pathlib import Path
 
 
 def main():
-    from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
+    from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
     from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX, UC_X86_REG_EAX, UC_X86_REG_EDX, UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EBP
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--scope-fixture', type=Path, help='export complete collection/resolution counter boundaries')
+    parser.add_argument('--scope-reference', type=Path, help='compare fresh scope calls with frozen original results')
+    parser.add_argument('--scope-header', type=Path, help='compare literal original outputs with the engine header')
     args = parser.parse_args()
     binary = args.binary.read_bytes()
     digest = hashlib.sha256(binary).hexdigest()
@@ -241,7 +244,51 @@ def main():
         assert read(goal,2)==[0x42a00000,0x42c80000]
         terminal_cases+=1
 
+    if args.scope_fixture or args.scope_reference or args.scope_header:
+        frozen=[]; stages=[]
+        machine.mem_write(point,struct.pack('<2f',8.25,8.25))
+        machine.mem_write(goal,struct.pack('<2f',12.25,8.25))
+        def scope_boundary(uc,address,size,data):
+            stages.append([address-base,read(shapes[0]+0x40)[0]])
+        handles=[machine.hook_add(UC_HOOK_CODE,scope_boundary,begin=base+offset,end=base+offset)
+                 for offset in (0x166265,0x168360,0x1662dd,0x1662f1)]
+        machine.ctl_remove_cache(base,base+size)
+        profiles=[(0,0,'none',0),(1,3,'same',0),(3,1,'different',0),(3,1,'same',8)]
+        for kind,outer,profile in itertools.product(['clear','terrain','peer','self'],[0,1,7],range(4)):
+            speed,peer_speed,group,flags=profiles[profile]
+            write(path+0x88,0);write(peer_path+0x88,0)
+            write(path+0x94,7);write(peer_path+0x94,0)
+            write(path+0x9c,0x02000001,shapes[0]);write(path+0xa8,1,101)
+            write(peer_path+0xa8,-1,-1)
+            write(peer+0x9c,2 if group=='same' else 3 if group=='different' else -1,
+                  102 if group=='same' else 103)
+            write(group_a+0x80,flags)
+            machine.mem_write(self_mover+0x80,struct.pack('<2f',speed,0))
+            machine.mem_write(peer+0x80,struct.pack('<2f',peer_speed,0))
+            write(shapes[0]+0x30,self_mover,0x01000001,0);write(shapes[0]+0x40,outer)
+            write(shapes[1]+0x30,peer,0x01000001,0);write(shapes[1]+0x40,0)
+            write(links,0x01ffffff,shapes[0] if kind=='self' else shapes[1])
+            write(cells+(8*16+9)*4,0xffffff if kind=='clear' else 0x02ffffff if kind=='terrain' else 0)
+            write(grid+0xb4,100);write(fine+0xc8,0)
+            stages.clear();run(0x6f166140,path,point,goal)
+            if stages!=[[0x166265,outer],[0x168360,outer+1],[0x1662dd,outer+1],[0x1662f1,outer]]:
+                raise ValueError(('retail counter scope changed',kind,outer,profile,stages))
+            frozen.append(dict(kind=kind,outer=outer,profile=profile,stages=list(stages),
+                result=machine.reg_read(UC_X86_REG_EAX)&255,count=read(fine+0xc8)[0],
+                self_delay=read(path+0x94)[0],peer_delay=read(peer_path+0x94)[0],
+                self_blocker=read(path+0xa8,2)==[1,101],peer_blocker=read(peer_path+0xa8,2)==[0,100]))
+        for handle in handles:machine.hook_del(handle)
+        scope_result=dict(binary_sha256=digest,cases=frozen)
+        if args.scope_fixture:args.scope_fixture.write_text(json.dumps(scope_result,indent=2)+'\n')
+        if args.scope_reference and scope_result!=json.loads(args.scope_reference.read_text()):
+            raise ValueError('fresh original scope results differ')
+        if args.scope_header:
+            from research.export_blocker_scope202 import header
+            if header(scope_result)!=args.scope_header.read_text():
+                raise ValueError('engine scope fixture differs')
+
     report=dict(binary_sha256=digest,scope=__doc__,passed=True,collector_calls=cases,sequences=1024,composed_next_step_cases=composed,fine_advance_cases=advance_cases,final_waypoint_cases=terminal_cases)
+    if args.scope_fixture or args.scope_reference or args.scope_header:report['resolver_scope_cases']=len(frozen)
     args.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 

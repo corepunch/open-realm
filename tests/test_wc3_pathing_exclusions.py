@@ -55,6 +55,19 @@ class ExclusionEvidenceTests(unittest.TestCase):
             changed=json.loads(raw);mutate(changed)
             with self.assertRaises(ValueError):exporter.header(changed)
 
+    def test_complete_resolver_scope202_exports_only_original_observations(self):
+        spec=importlib.util.spec_from_file_location('export_scope202',ROOT/'tools/ghidra/research/export_blocker_scope202.py')
+        exporter=importlib.util.module_from_spec(spec);spec.loader.exec_module(exporter)
+        raw=(MODULE.FIXTURES/'retail-blocker-scope202-1.27.json').read_bytes()
+        fixture=json.loads(raw)
+        self.assertEqual(exporter.header(fixture),
+            (ROOT/'games/warcraft-3/game/tests/retail_blocker_scope202.h').read_text())
+        for mutate in (lambda f:f['cases'].pop(),
+                       lambda f:f['cases'].__setitem__(0,f['cases'][1]),
+                       lambda f:f['cases'][0]['stages'][1].__setitem__(0,0x1662dd)):
+            changed=json.loads(raw);mutate(changed)
+            with self.assertRaises(ValueError):exporter.header(changed)
+
     def test_frozen_payloads_and_all_retained_inputs_are_unchanged(self):
         for name,digest in MODULE.FROZEN.items():
             self.assertEqual(hashlib.sha256((MODULE.FIXTURES/'research'/name).read_bytes()).hexdigest(),digest)
