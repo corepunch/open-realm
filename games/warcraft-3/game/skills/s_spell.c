@@ -826,6 +826,24 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edi
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
+    if(active_approach) {
+        /* Ground target arrival starts the spell synchronously inside the Move
+         * completion callback. Script replacement owns the next task: do not
+         * stand, spend resources or execute the retired spell after delivery. */
+        edict_t *caster=params->caster,*target=params->target;
+        uint32_t spawn=caster->spawn_time,target_spawn=target->spawn_time;
+        uint32_t order=caster->current_order_id,group=caster->movement.group_id;
+        umove_t *move=caster->currentmove;edict_t *goal=caster->goalentity;
+        G_DispatchUnitEventFamilies(&(gameEventPointParams_t){.edict=caster,
+            .type=EVENT_PLAYER_UNIT_SPELL_CHANNEL,.source=target,.value=params->code},
+            EVENT_UNIT_SPELL_CHANNEL,true);
+        if(!caster->inuse || caster->spawn_time!=spawn || G_IsDeferredFree(caster) ||
+           M_IsDead(caster) || caster->current_order_id!=order || caster->currentmove!=move ||
+           caster->goalentity!=goal || caster->movement.group_id!=group ||
+           !target->inuse || target->spawn_time!=target_spawn || G_IsDeferredFree(target) || M_IsDead(target))
+            return false;
+        unit_stand_no_queue(caster);
+    }
     spell_commit(params->caster, params->code, params->level, active_approach);
     bool const blocked = !S_SpellShieldImpactDeferred(params->code) &&
         S_TryBlockSpellShield(params->caster, params->code, params->target);
@@ -955,7 +973,6 @@ static void spell_finish_target_approach(edict_t *thinker, bool arrived) {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
-    unit_stand_no_queue(caster);
     spell_execute_unit_target(&params, thinker);
     G_FreeEdict(thinker);
 }

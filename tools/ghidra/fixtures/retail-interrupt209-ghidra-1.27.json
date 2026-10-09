@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "task": "ORDER-06.4",
+  "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "functions": [
+    {
+      "address": "6f16d4e0",
+      "name": "PathGroup_FinishMember",
+      "comment": "Payoff209 ORDER-06.4: I209b public Holy Light Channel interrupts the actual ready-member callback at counter1140, removes four moving peers, admits their suspended Stop/Hold/target/point heads and installs a new caster Move. Both complete read-only2768-row streams and152 stored public markers match an observer-free control. There are exactly two ready-member finishes across the interrupted approach and final resumed Move. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f16c390",
+      "name": "PathGroup_CompleteReadyMembers",
+      "comment": "Payoff209 ORDER-06.4: Channel mutation executes inside this forward completion scan. Old member identity is cleared before scripts. The old physical owner survives return; later peer owners retire within their prefetched current frontier, and newly admitted caster owners wait for the next update. Engine synchronously delivers CHANNEL at ground target arrival before stand/resource commit and returns if script replacement changed the captured owner. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f16c150",
+      "name": "PathGroup_TickMovement",
+      "comment": "Payoff209 ORDER-06.4: At1140 visit the original caster followed by all four prefetched peer owners. Deferred undefend callback then replaces the caster again after owner-end. At1141 visit final successor, superseded successor, original caster; end retains only final successor. Engine production callback and release regressions assert the same relative frontier, one release callback, unspent mana and final resumed Move; private member layout remains excluded. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f693490",
+      "name": "Unit_AppendUserOrder",
+      "comment": "Payoff209 ORDER-06.4: I209b removes four moving Footmen from inside spell completion. Stop851972, Hold851993, target Move851986 and point Move851986 all return native true with retained user count1/head=tail and unchanged live removal internal task. No user-order dispatch or issued event happens during those admissions. Engine shares a typed suspended-head helper across the three order shapes, without creating movement paths or replacing release requests. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f67abe0",
+      "name": "Unit_DispatchUserOrderHead",
+      "comment": "Payoff209 ORDER-06.4: I209b has no dispatch for any of the four suspended pending-removal identities. The caster replacement still dispatches immediately; admission is distinct from execution. Engine current-head queries return retained Stop/Hold/Move rather than executing them while release is pending. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f15e0e0",
+      "name": "AgentWrapper_ScheduleRelease",
+      "comment": "Payoff209 ORDER-06.4: I209b records206 schedule boundaries including idempotent repeats. Public pending-order admissions do not replace the existing removal task or release deadline. Engine saved None/point/entity FIFO heads and indexed release deadlines round-trip unchanged; no new sequence is consumed by suspension. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f145c70",
+      "name": "AgentWrapper_Destroy",
+      "comment": "Payoff209 ORDER-06.4: Complete I209b has196 canonical wrapper destructions, all unique. Each of the four removed unit identities is destroyed exactly once after the spell-completion callback and outside the physical owner update. First deferred undefend callback replaces the surviving caster Move; final ownership and only one mutation are retained. This does not assert raw native pool-pointer parity. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f67ccb0",
+      "name": "Unit_FireSpellChannelEvent",
+      "comment": "Payoff209 ORDER-06.4: Instruction scalar xrefs80321 at67cce2/67cdd7 and80310 at67ccf9 identify the unit SPELL_CHANNEL producer. Samples BOTH unit and player subscriber presence before dispatch, constructs counted spell event data, calls player261e20 first, then unit67ae10 only if previously present, then releases the handle/reference. Engine ground-target-arrival delivery uses the existing indexed synchronous family dispatcher with frozen presence and a stack packet before resource commit. Full cast/finish/endcast timing and other target shapes remain excluded. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    },
+    {
+      "address": "6f261e20",
+      "name": "Player_FireUnitSpellChannelEvent",
+      "comment": "Payoff209 ORDER-06.4: Player SPELL_CHANNEL event producer checks80310, constructs counted event data with supplied unit/ability context, and fires through262cb0 before releasing it. Unit67ccb0 invokes this before its frozen80321 unit family. No inferred parameter types are installed. Recovered descriptive names, not original symbols. Original game SHA256 d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236. See retail-pathfinding-engine.md interruption-keeps-successor-ownership-through-completion-and-release-payoff209."
+    }
+  ],
+  "fields": "Existing typed member/canonical Unit user/internal head/tail and request clock prefixes reused. No shared type schema override."
+}

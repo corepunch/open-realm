@@ -2040,3 +2040,32 @@ python tools/ghidra/run_wc3_pathfinding_corpus.py \
 
 The report directory must be new. The inventory now has445 entries; previous
 historical inventory breakdowns remain unchanged.
+
+## Completion and deferred-release interruption (Payoff209)
+
+`oracle-interrupt209` closes ORDER-06.4 using two complete original public
+spell-arrival/removal captures and an observer-free control. It verifies2768
+rows,152 public markers,400 owner intervals, two ready-member finishes and196
+unique wrapper destructions. The original-generated public producer exercises
+actual engine synchronous CHANNEL replacement, suspended None/entity/point
+heads, next-frontier successors, final resumed Move and Save150 continuations
+in Classic/TFT. Missing callbacks, early pending dispatch, duplicate release
+and premature owner visitation have negative checks.
+
+The contract is `retail-interrupt209-1.27.json`, with a complete portable gzip
+and `retail-interrupt209-ghidra-1.27.json` saved annotations. Expectations derive
+from retail and are read-only in validation. Engine minimal/nonstock data
+certifies ownership, not full numerical spell movement. Full spell lifecycle,
+other approach shapes, private tombstones and arbitrary FIFO reentrancy remain
+excluded. See [interruption ownership](retail-pathfinding-engine.md#interruption-keeps-successor-ownership-through-completion-and-release-payoff209).
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+python3 tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-interrupt209 --output /tmp/interrupt209-fresh
+```
+
+The output directory must be new. The inventory now has446 entries; historical
+inventory breakdowns remain unchanged.

@@ -14262,3 +14262,86 @@ degree conversion and a new retail UI save/load remain outside this chunk.
 ORDER-06.3 closes at these public cancellation boundaries. The backlog is
 272/336 done,64 remaining. GROUP-04.6 private layout and ORDER-06.4 interruption
 inside group completion/deferred release retain their separate scopes.
+
+## Interruption keeps successor ownership through completion and release (Payoff209)
+
+Two production gaps are fixed. Pending removal already suspended point orders,
+but immediate Stop/Hold and entity Move could still execute, publish issued
+callbacks and construct movement state behind the removal task. All three
+covered order shapes now use the same typed suspended FIFO admission. They
+retain the public head without dispatch, physical ownership or a new release
+sequence. No entity layout or save contract changes; Save150 retains typed
+heads, target incarnation and the existing deadline/serial.
+
+Ground unit-target spell arrival previously skipped synchronous SPELL_CHANNEL
+and executed the spell despite the callback's replacement order. Spell now
+publishes CHANNEL before stand, resource commit or gameplay execution, then
+checks captured caster/target incarnations and execution ownership. A removed
+or replaced owner cannot finish the old spell. Ghidra instruction xrefs80321
+and80310 identify unit67ccb0 and player261e20: both subscriber-presence tests
+are frozen before the player family runs, followed by the previously present
+unit family. The existing indexed synchronous dispatcher preserves that order.
+This implements the ground target approach boundary; other start shapes and
+CAST/FINISH/ENDCAST timing are not claimed.
+
+The original public **I209b** scene interrupts Holy Light inside the actual
+ready-member completion scan at counter1140. Its CHANNEL callback removes four
+moving Footmen, issues suspended Stop/Hold/entity Move/point Move, and replaces
+the caster with point Move. The first deferred `undefend` cleanup callback
+replaces the caster again. Both replacements use ordinary public natives.
+Pending orders return true with count1/head=tail and the live removal task
+unchanged; none dispatches or emits an issued event. Four initial Move events
+and eight cleanup `undefend` events account for the12 observed peer callbacks.
+
+The owner visits the original caster and four prefetched peer groups at1140.
+The first successor does not enter that frontier. After owner return, deferred
+cleanup installs the final successor. At1141 the final, superseded and original
+caster groups are visited in that order; only the final successor survives.
+Two ready-member finishes cover the interrupted approach and eventual Move,
+without duplicate arrival. All196 canonical wrapper destructions are unique;
+each removed unit is destroyed once after CHANNEL and outside physical update.
+This checks identities and lifetime, not process addresses or private member
+row layout.
+
+Two complete read-only captures match all2768 normalized rows. A separate
+observer-free control matches152 stored public markers. Only the member's raw
+process pointer word is normalized to presence; identity words remain exact.
+The frozen archive includes the map, gameplay producer, capture sources and
+five Ghidra dumps under `runtime/payoff209/`. An initial diagnostic used an
+interior release address and crashed; it was corrected to verified entry15e0e0
+before any accepted capture. That failed run is not acceptance evidence.
+
+Actual engine failing-first regressions exposed pending execution and missing
+CHANNEL. The unchanged gameplay producer then passes **two tests/111 assertions
+per edition**, including next-counter admission, unspent mana, single callback
+mutation, resumed final Move, old-group reclamation and saved suspended heads.
+The minimal SLKs supply missing classifications/mana explicitly and use
+nonstock spell cost/range/heal values. These tests certify lifecycle and
+ownership; they do not replace exact retail motion expectations. Existing
+numerical fixtures are unchanged. Focused neighbors pass per edition:
+spell412/11,321, release19/4,545, reentry8/18, order lifecycle43/15,280,
+spell-arrival1/315, completion5/2,192 and recovery2/2,658.
+
+Nine Ghidra annotations are saved and read back unchanged; two recovered
+CHANNEL function names and the owned comments are mirrored by
+`MapPathfinding.java`. Existing structures and peer annotations are retained.
+`oracle-interrupt209` checks source/binary/archive pins, complete repeats,
+observer-free output, original-generated scene, strict engine identities and
+nonempty fresh reports. Nine negative regression checks reject early dispatch,
+missing boundaries, duplicate/inside-owner release and premature successor
+visits. Full CAST/EFFECT/FINISH/ENDCAST timing, in-range/point/air/structure
+starts, private tombstones and arbitrary reentrant FIFO edits remain outside
+this leaf. ORDER-06.4 closes; the backlog is273/336 done,63 remaining.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+python3 tools/ghidra/verify_wc3_pathing_interrupt.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --report /tmp/interrupt209-fresh.json
+```
+
+Use a fresh report path. Rebuild the public map with archived
+`group032_make_map.py --probe tools/frida/research/interrupt209_probe.j`
+and the original campaign base. `interrupt209_fixture.py` generates only the
+engine test scene from that same probe; no expected retail values are rewritten.

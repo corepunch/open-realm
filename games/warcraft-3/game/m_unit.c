@@ -978,6 +978,21 @@ static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *po
     return false;
 }
 
+/* A removal task still owns execution. Retain the user head in the typed FIFO
+ * until release; common native693490 never dispatches this suspended order. */
+static bool unit_retain_suspended_order(edict_t *self, cstring_t order,
+        unitOrderTargetType_t shape, vec2_t const *point, edict_t *target,
+        bool queue, uint32_t issuer, float speed) {
+    uint32_t const order_id=G_OrderId(order);
+    if(!queue && self->order_queue.count>1) {
+        unitOrder_t head=self->order_queue.entries[self->order_queue.head];
+        G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
+    }
+    if(!G_QueueUnitOrder(self,order,shape,point,target,issuer,speed,order_id))return false;
+    if(!self->current_order_id)self->current_order_id=order_id;
+    return true;
+}
+
 bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
                             bool queue, uint32_t issuer_player) {
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
@@ -985,6 +1000,11 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
+    }
+    if(G_IsDeferredFree(self)) {
+        if(self->aiflags&AI_IMMOBILE ||
+           (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack")))return false;
+        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_ENTITY,NULL,target,queue,issuer_player,0);
     }
     /* Rally owns native admission separately from its direct metadata setters. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
@@ -1073,15 +1093,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
         if(M_IsDead(self) || self->aiflags&AI_IMMOBILE ||
             (strcmp(order,"move") && strcmp(order,"smart") && strcmp(order,"attack") && strcmp(order,"patrol")))
             return false;
-        uint32_t const order_id=G_OrderId(order);
-        if(!queue && self->order_queue.count>1) {
-            unitOrder_t head=self->order_queue.entries[self->order_queue.head];
-            G_ClearUnitOrderQueue(self);G_AppendUnitOrder(self,&head);
-        }
-        if(!G_QueueUnitOrder(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,issuer_player,group_speed,order_id))
-            return false;
-        if(!self->current_order_id)self->current_order_id=order_id;
-        return true;
+        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_POINT,point,NULL,queue,issuer_player,group_speed);
     }
     if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
     /* Rally's owner decides whether this producer replaces active work. */
@@ -1293,6 +1305,10 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
         return false;
+    if(G_IsDeferredFree(self)) {
+        if(strcmp(order,"stop") && strcmp(order,"holdposition"))return false;
+        return unit_retain_suspended_order(self,order,UNIT_ORDER_TARGET_NONE,NULL,NULL,false,self->s.player,0);
+    }
     if (!strcmp(order, "stop")) {
         return S_IssueStopOrder(self);
     }

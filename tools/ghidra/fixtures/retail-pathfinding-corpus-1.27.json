@@ -48482,6 +48482,68 @@
         "Engine Save150 continuations are verified; no new original UI save/load for these cancellation scenes is claimed.",
         "Retail PreloadGen payloads truncate at 259 characters; unhooked comparison certifies that stored payload, while eight-unit full state uses unchanged read-only samples."
       ]
+    },
+    {
+      "id": "oracle-interrupt209",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_interrupt.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "interrupt209.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "removed_units": {
+          "equal": 4
+        },
+        "completed_members": {
+          "equal": 2
+        },
+        "destroyed_wrappers": {
+          "equal": 196
+        },
+        "owner_intervals": {
+          "equal": 400
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "engine": {
+          "length": 2
+        },
+        "original": {
+          "equal": {
+            "observations": 2,
+            "controls": 1,
+            "rows": 2768,
+            "public_markers": 152
+          }
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "ORDER-06.4 public spell-arrival and deferred-release interruption: suspended None/entity/point user heads, synchronous ground target CHANNEL before resource commit, next-frontier successors and unique deferred destruction; actual engine ownership and Save150 continuations in Classic/TFT.",
+      "exclusions": [
+        "Full CAST/EFFECT/FINISH/ENDCAST timing, point/air/structure approaches and in-range spell start are not certified.",
+        "Engine minimal-data/nonstock spell fixture checks lifecycle and ownership; full retail numerical trajectories remain covered separately.",
+        "Private member tombstone representation and arbitrary reentrant FIFO edits are separate leaves."
+      ]
     }
   ],
   "fixtures": [
@@ -49380,7 +49442,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7fe395ca2058406587a4dcbb952a0b3488d1df95cd280ed0a12efcf3bdf13d47"
+      "sha256": "1382722b74b76f5214ccd8d4bf843819726286261ce3e2f5be5c0e394b3e90cf"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50232,7 +50294,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_spell.c",
-      "sha256": "90a18bfc466dbb7b7fd0f7d65351ffa04e4d2f001363dc76bba4a77e567abc56"
+      "sha256": "251eb2d77f388e378c8f68346d8e6485a72140084d6e25e95ee180eff4d58b11"
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
@@ -51172,7 +51234,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "e26c76366e64748294d07d3c58f7c71b119812722e22b240ce91d27aa74985f5"
+      "sha256": "e623b71997749a79539160e2db482ed2ddda63dd6c23cffeb2caba60945aa3bf"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51184,11 +51246,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "9b55ae4737eb337456374f278d8711af6c364af755083119b5b8f668026e8304"
+      "sha256": "5f171755ccd58ddc7315c7297917f6d2ca40d44434825f23f8fbed82e787b31f"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "487e83980cf0ab720e4419b51e0f853adb10dca32db715128153481445936188"
+      "sha256": "18a1531ea945471207d76525425828c6cfefcae8772c60b5f445ec418b9e391f"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52136,7 +52198,7 @@
     },
     {
       "path": "games/warcraft-3/game/m_unit.c",
-      "sha256": "b1819544f2f4942b25f623700f0518e4e0a465a0eb225cce526f227c5be5855f"
+      "sha256": "1f551604906772e59a1acdb145de5c0912303994a761a20b58dd3303368be6d0"
     },
     {
       "path": "games/warcraft-3/game/tests/t_attack_orders.c",
@@ -53321,6 +53383,46 @@
     {
       "path": "tests/test_wc3_pathing_cancel.py",
       "sha256": "bbc52db48246449cd0390e4df021bf48ed287c33329699e56021e5b5aad9d0c8"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_interrupt.c",
+      "sha256": "610e5859444852cfd3f46217054c665ab40f2fb9dd4628ad79b528ef1ef9294d"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_interrupt209_scene.h",
+      "sha256": "18bf246182b16881c064a195c787b27199d620bfd838a35f782194be565a4472"
+    },
+    {
+      "path": "tools/frida/research/interrupt209_fixture.py",
+      "sha256": "6e11fd6814db22441a7284a32645fafbeb8e260d361c285476d4d6f20e3cad43"
+    },
+    {
+      "path": "tools/frida/research/interrupt209_probe.j",
+      "sha256": "8f22c9e90b95eadbfbda729d39d9984383ae6a8b6ea563932574bc3b392a2c4e"
+    },
+    {
+      "path": "tools/frida/research/interrupt209_observer.js",
+      "sha256": "86ec4599bbf240c85c9bfabdea74460e3ae65f42b6267de73bdcd025c2b665b9"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_interrupt.py",
+      "sha256": "5788b02a27a768fdd963f0bd35d9cf826dd696e5cc0371694a9f0263332c9179"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-interrupt209-1.27.json",
+      "sha256": "0fec51d9c8100240dd349659451c846a00779037ae53475f46010ab2cedec368"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-interrupt209-ghidra-1.27.json",
+      "sha256": "9dc0882053a4acb6640667d83c9032b599c3256ffe7fc131ce05a3b74a0f2e3f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-interrupt209-1.27.jsonl.gz",
+      "sha256": "ee5317349248136bb8f5a9302284781bab4c233fa8e3c34c61f7a29ab42d3a8d"
+    },
+    {
+      "path": "tests/test_wc3_pathing_interrupt.py",
+      "sha256": "c3a776e97077849b1c9368842782110f8b3d68597396bc51383c0db1c588994e"
     }
   ]
 }
