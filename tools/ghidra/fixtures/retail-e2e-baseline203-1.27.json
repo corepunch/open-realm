@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "task": "E2E-01.1",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "base": "BASE-06.5",
+  "pins": {
+    "tools/ghidra/fixtures/retail-owner-baseline-1.27.json": "89ff21fecb35e1f459499ae69a7f88095b805c017ae2b132a1b8b71a1c75f481",
+    "tools/ghidra/fixtures/retail-owner-baseline-states-1.27.json": "cdb2e6e146042d40d3983d3be9c7e12145ed20cce606d6a32ec9e919eee1871b",
+    "games/warcraft-3/game/tests/retail_e2e_routes203.h": "004312b12858d78958fb8911728007a83d297f2c604d8e5a59b4f6649e088205",
+    "tools/ghidra/fixtures/retail-primary-owner-route-1.27.json": "9b7a1af492ea0e89af51f75665aa85b086ba9166c39b8ddca751ff7b64f5cc20",
+    "tools/ghidra/fixtures/retail-blocked-goal-1.27.json": "5fcfca356ac49b8935652f1e8793e76be5d0a361d03fbe43dd8125d2b3e2d15d",
+    "tools/ghidra/fixtures/retail-gate-group-wall-live-1.27.json": "6cfe27a0301169c972c86540921085d40b1222ddd625a3690c2ef51a5e086a74"
+  },
+  "scenarios": [
+    {
+      "id": "static-detour",
+      "routes_source": "tools/ghidra/fixtures/retail-primary-owner-route-1.27.json",
+      "test": "wc3_e2e.static_detour_routes_motion_and_final_ownership",
+      "constructed_routes": 1,
+      "motion_commits": 34,
+      "saved_motion_commits": 22,
+      "scope": "Controlled original owner/group/member wall detour under six original 5-ms clock advances per pass. Engine creation/order admission is public; the original supplies a fresh clock-zero callback and adaptive-disabled profile. This is not a live stock admission witness.",
+      "completion": "arrival; retained point head ends and current order becomes zero"
+    },
+    {
+      "id": "blocked-point",
+      "routes_source": "tools/ghidra/fixtures/retail-blocked-goal-1.27.json",
+      "test": "wc3_e2e.blocked_point_routes_retries_and_final_ownership",
+      "constructed_routes": 6,
+      "motion_commits": 207,
+      "saved_motion_commits": 46,
+      "scope": "Repeated public ordinary ground Move into a five-by-five blocked destination. All six constructed routes, partial results, two retries, forced angular arrival and natural cannot-path cleanup.",
+      "completion": "two retries then forced arrival/cannot-path; active order, fine/coarse counts, wait/retry and physical group ownership retire"
+    },
+    {
+      "id": "disconnected-crossing",
+      "routes_source": "tools/ghidra/fixtures/retail-gate-group-wall-live-1.27.json",
+      "test": "wc3_e2e.disconnected_crossing_routes_retries_and_final_ownership",
+      "constructed_routes": 30,
+      "motion_commits": 635,
+      "saved_motion_commits": 6025,
+      "scope": "Repeated public two-member Move across a full-height wall with the sole Way Gate edge disabled on the second approach. Initial active-edge traversal is the paired reachability control. Denied admissions construct no route and stay distinct from thirty actual searches.",
+      "completion": "partial/failure and repeated retry/forced completion; both member current orders end"
+    }
+  ],
+  "repetitions": {
+    "original": 2,
+    "engine_per_edition": 2
+  },
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "route_header": "games/warcraft-3/game/tests/retail_e2e_routes203.h",
+  "exclusions": [
+    "No new live capture; revalidate the complete accepted Frida repeats, their provenance and unchanged literal fixtures.",
+    "The detour is the explicitly controlled original owner fixture, not a full original public spawn-to-order capture.",
+    "Whole-world state, original save/load, full RNG equivalence and other movement lanes remain their own TODOs.",
+    "Saved suffixes retain existing complete motion/retry checks; constructed-route stream comparison covers fresh runs only.",
+    "These three cross-feature variants do not close the remaining dynamic/pursuit/contention/crowd manifests or all-scenario determinism."
+  ]
+}

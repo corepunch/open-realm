@@ -14079,3 +14079,15 @@ original48-case counter/result observations and failing-first Classic/TFT
 regressions accompany the saved Ghidra mapping. Existing frozen fixtures are
 unchanged. See the [scope contract and validation](retail-pathfinding-exclusions.md#collection-and-yielding-share-one-captured-scope-payoff202).
 MAP-04.2 remains open for its broader exit audit;68 TODOs remain.
+
+## Frozen static and disconnected cross-feature variants (Payoff203)
+
+E2E-01.1 now has a three-variant manifest extending BASE-06.5: controlled
+static wall detour, public blocked point and public disconnected sole crossing.
+The production-path game tests compare37 constructed routes/230 point pairs,
+recorded work/partial results and actual retries alongside their complete
+motion, saved suffix and final-order regressions, twice in Classic/TFT. All
+existing original numerical fixtures remain unchanged. This adds a BZ_TESTS-only
+route observer and a strict combined acceptance runner; no gameplay policy or
+performance improvement is claimed. Full scope, negative controls and commands
+are in [cross-feature baselines](retail-pathfinding-e2e-baselines.md).

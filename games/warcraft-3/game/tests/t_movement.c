@@ -89,6 +89,9 @@
 #include "fixtures/retail_ground_air_follow187.h"
 #include "retail_target_fog166.h"
 #include "games/warcraft-3/common/wc3_pathing_speed.h"
+#include "retail_e2e_routes203.h"
+
+static void (*movement_journey_pass)(unsigned pass);
 
 /* Older small movement tests drive one controlled owner interval directly.
  * Public point admission now owns a physical group, so its entity callback
@@ -1792,11 +1795,13 @@ TEST(wc3_movement, retail_primary_owner_wall_trajectory_words) {
     unit->stand=unit_stand; unit->think=monster_think;
     unit->svflags|=SVF_MONSTER; unit->movetype=MOVETYPE_STEP;
     unit_stand(unit); jass_callbyname(level.vm,"go",false);
+    if(movement_journey_pass)movement_journey_pass(0);
     level.scheduled_think=true;S_BeginAbilityOwnerUpdates();S_RunAbilityOwnerUpdates();level.scheduled_think=false;
     level.started=level.scriptsConfigured=level.scriptsStarted=true;
     cstring_t file=Test_TempPath("openwarcraft3-retail-primary-owner-route-save.bin");
     FOR_LOOP(pass,2) {
         int first=pass?12:0;
+        if(pass && movement_journey_pass)movement_journey_pass(pass);
         if (pass) { T_ASSERT(ReadGame(file)); T_NOT_NULL(unit->movement.fine_route.points); }
         for (int i=first;i<34;i++) {
             level.time+=30; globals.RunFrame();
@@ -13853,6 +13858,7 @@ static void public_gate_journey(uint32_t const (*motion)[7],unsigned motion_coun
     if(gate_repulse.rows){gate_repulse.index=0;gate_repulse.mismatch=false;move_test_repulse=record_gate_repulse;}
     FOR_LOOP(i,checkpoint_count)snprintf(files[i],sizeof(files[i]),"%swc3-%s-%u.bin",Test_TempPath(""),name,times[i]);
     FOR_LOOP(pass,checkpoint_count+1) {
+    if(movement_journey_pass)movement_journey_pass(pass);
         if(mismatch)break;
         if(pass){T_ASSERT(ReadGame(files[pass-1]));steps=saved[pass-1];gate_retry.index=retry_saved[pass-1];gate_repulse.index=repulse_saved[pass-1];}
         while(level.time<end_msec && !mismatch) {
@@ -14382,6 +14388,7 @@ static void public_point_goal_journey(unsigned goal_case, uint32_t const (*motio
     if(goal_case==6)memcpy(save_times,(unsigned[]){1200,1500,1995,2010,7035,7050,8580,9060},sizeof(save_times));
     if(far)memcpy(save_times,(unsigned[]){1200,2000,2500,2995,3010,8415,8430,8460},sizeof(save_times));
     FOR_LOOP(pass,saves+1) {
+    if(movement_journey_pass)movement_journey_pass(pass);
     if(pass) {
         bool loaded=ReadGame(files[pass-1]);T_ASSERT(loaded);if(!loaded)break;
         steps=saved_steps[pass-1];
@@ -19902,6 +19909,79 @@ TEST(wc3_movement, entry191_point_publishers_retain_canonical_arrival_range) {
     }
     T_ASSERT(S_ValidateMoveShared());T_ASSERT(S_ValidateCaptainHomeActors(false));
     level.started=false;G_BotStop(0);reset_entities();setup_test_world();
+}
+
+/* Freeze constructed routes as well as motion. Saved suffix motion keeps its
+ * existing literal assertions; route construction is checked on each fresh run. */
+static struct { baseline203Route_t const *rows; unsigned count,index,retries; } baseline203;
+static void baseline203_route(moveRouteTrace_t const *actual) {
+    T_ASSERT(baseline203.index<baseline203.count);
+    if(baseline203.index>=baseline203.count)return;
+    baseline203Route_t const *expected=baseline203.rows+baseline203.index++;
+    T_EQ(actual->kind,expected->kind);T_EQ(actual->budget,expected->budget);
+    T_EQ(actual->count,expected->count);T_EQ(actual->complete,expected->complete);
+    if(expected->pops!=UINT32_MAX)T_EQ(actual->pops,expected->pops);
+    FOR_LOOP(i,MIN(actual->count,expected->count)) {
+        T_EQ(wc3_float_bits(actual->points[i].x),expected->points[i][0]);
+        T_EQ(wc3_float_bits(actual->points[i].y),expected->points[i][1]);
+    }
+}
+/* Observe actual retry returns and owner-stream preservation, without drawing. */
+static void baseline203_retry(edict_t *unit,moveRetryTrace_t const *before) {
+    T_ASSERT(baseline203.retries<sizeof(baseline203_blocked_retries)/sizeof(*baseline203_blocked_retries));
+    if(baseline203.retries>=sizeof(baseline203_blocked_retries)/sizeof(*baseline203_blocked_retries))return;
+    uint32_t actual[]={wc3_float_bits(before->input.source[0]),wc3_float_bits(before->input.source[1]),
+        wc3_float_bits(before->input.goal[0]),wc3_float_bits(before->input.goal[1]),
+        before->count,unit->movement.retry_count,before->result,before->input.members};
+    FOR_LOOP(i,8)T_EQ(actual[i],baseline203_blocked_retries[baseline203.retries][i]);
+    T_EQ(before->owner.sum,level.pathing_random.sum);T_EQ(before->owner.index,level.pathing_random.index);
+    baseline203.retries++;
+}
+static void baseline203_pass(unsigned pass) {
+    if(pass) {
+        T_EQ(baseline203.index,baseline203.count);
+        if(baseline203.rows==baseline203_blocked) {
+            T_EQ(baseline203.retries,2);move_test_retry=NULL;
+        }
+        G_TestMoveRouteTrace(NULL);
+    } else {
+        baseline203.index=baseline203.retries=0;G_TestMoveRouteTrace(baseline203_route);
+        if(baseline203.rows==baseline203_blocked)move_test_retry=baseline203_retry;
+    }
+}
+
+TEST(wc3_e2e, static_detour_routes_motion_and_final_ownership) {
+    FOR_LOOP(repeat,2) {
+        baseline203=(typeof(baseline203)){.rows=baseline203_detour,.count=sizeof(baseline203_detour)/sizeof(*baseline203_detour)};
+        movement_journey_pass=baseline203_pass;
+        wc3_movement_retail_primary_owner_wall_trajectory_words_fn();
+        T_EQ(baseline203.index,baseline203.count);
+        movement_journey_pass=NULL;G_TestMoveRouteTrace(NULL);
+    }
+}
+
+TEST(wc3_e2e, blocked_point_routes_retries_and_final_ownership) {
+    FOR_LOOP(repeat,2) {
+        baseline203=(typeof(baseline203)){.rows=baseline203_blocked,.count=sizeof(baseline203_blocked)/sizeof(*baseline203_blocked)};
+        movement_journey_pass=baseline203_pass;
+        public_point_goal_journey(0,blocked_goal_motion,sizeof(blocked_goal_motion)/sizeof(*blocked_goal_motion),true);
+        T_EQ(baseline203.index,baseline203.count);
+        movement_journey_pass=NULL;G_TestMoveRouteTrace(NULL);
+    }
+}
+
+TEST(wc3_e2e, disconnected_crossing_routes_retries_and_final_ownership) {
+    unsigned const times[]={145,175,1295,1320,1395,1420,5995,6010,6495,6510,8000,20000};
+    FOR_LOOP(repeat,2) {
+        baseline203=(typeof(baseline203)){.rows=baseline203_disconnected,.count=sizeof(baseline203_disconnected)/sizeof(*baseline203_disconnected)};
+        movement_journey_pass=baseline203_pass;
+        gate_retry=(typeof(gate_retry)){.rows=gate_retry_wall,.count=sizeof(gate_retry_wall)/sizeof(*gate_retry_wall)};
+        uint8_t cells[64*64]={0};FOR_LOOP(y,64)cells[y*64+31]=CM_PATHING_UNWALKABLE;
+        public_gate_journey(retail_gate98_wall_motion,sizeof(retail_gate98_wall_motion)/sizeof(*retail_gate98_wall_motion),
+            retail_gate98_wall_script,times,sizeof(times)/sizeof(*times),"gate98-wall",26000,2,cells);
+        T_EQ(baseline203.index,baseline203.count);
+        memset(&gate_retry,0,sizeof(gate_retry));movement_journey_pass=NULL;G_TestMoveRouteTrace(NULL);
+    }
 }
 
 #endif

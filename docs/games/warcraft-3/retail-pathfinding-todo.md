@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**268 done / 336 tasks; 68 remaining.**
+**269 done / 336 tasks; 67 remaining.**
+
+Payoff203 closes E2E-01.1: the frozen cross-feature baseline now joins exact
+static-detour, blocked-point and disconnected-crossing engine journeys. All37
+constructed routes/230 point pairs and actual retry returns are asserted twice
+per edition, with existing saved motion and final-ownership checks. See
+[cross-feature baselines](retail-pathfinding-e2e-baselines.md).
 
 Payoff202 advances MAP-04.2: next-step collection and moving-peer resolution
 now share one captured spatial-counter scope. Forty-eight complete original
@@ -1427,7 +1433,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 
 ### E2E-01 — Cross-feature baseline variants
 
-- [ ] **E2E-01.1** After BASE-06.5, freeze static-detour and disconnected-goal variants; assert route, partial/failure events and final ownership.
+- [x] **E2E-01.1** After BASE-06.5, freeze static-detour and disconnected-goal variants; assert route, partial/failure events and final ownership. Payoff203 freezes the three-variant contract and verifies37 complete constructed routes/230 point pairs, exact partial results/charged work, two actual blocked retry returns, all motion/save suffixes and final order ownership twice in Classic/TFT. The original BASE-06.5 and detour execute fresh; complete public blocked/disconnected Frida repeats are revalidated unchanged. The controlled detour retains its explicit admission/profile exclusions; no new live or full-RNG claim. See [cross-feature baselines](retail-pathfinding-e2e-baselines.md).
 - [ ] **E2E-01.2** Add dynamic blocker and pursuit variants to that manifest; reuse ROUTE-03/TARGET-02 evidence and compare intermediate state.
 - [ ] **E2E-01.3** Add contention, cancellation and next-order variants; reuse SCHED-04/ORDER-06 evidence and assert event/queue order.
 - [ ] **E2E-01.4** Add formation/crowd and gate variants; link FORM-05/SEP-04/GATE evidence and freeze expected cross-feature outputs.

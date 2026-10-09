@@ -757,6 +757,8 @@ static void (*move_fine_scope_trace)(void *,unsigned,movePathQuery_t const *);
 static void *move_fine_scope_data;
 static void (*move_object_scope_trace)(void *,moveScopeTrace_t const *);
 static void *move_object_scope_data;
+static void (*move_route_trace)(moveRouteTrace_t const *);
+void G_TestMoveRouteTrace(void (*trace)(moveRouteTrace_t const *)) { move_route_trace=trace; }
 void G_TestMoveObjectScopeTrace(void (*trace)(void *,moveScopeTrace_t const *),void *data) {
     move_object_scope_trace=trace;move_object_scope_data=data;
 }
@@ -795,6 +797,10 @@ static uint32_t move_build_acc_route(movePathQuery_t const *input,wc3AccRequest_
     move_acc_object_rectangle(input->target,true);
     move_trace_coarse_scope(1,input);
     uint32_t result=wc3_acc_route(&move_acc,request,move_acc_points);
+#ifdef BZ_TESTS
+    if(move_route_trace)move_route_trace(&(moveRouteTrace_t){.kind=1,.budget=request->budget,
+        .pops=move_acc.work.pops,.count=result&0x7fffffffu,.complete=!(result&0x80000000u),.points=move_acc_points});
+#endif
     move_trace_coarse_scope(2,input);
     if(admission)S_ChargeMoveCoarseRequest(admission,move_acc.work.pops);
     move_acc_object_rectangle(self,false);
@@ -1670,6 +1676,10 @@ bool G_BuildUnitMoveLocalRoute(movePathQuery_t const *input, moveFineRoute_t *cu
     move_trace_fine_scope(3,input);
     uint32_t count=wc3_fine_build_route(&move_fine,&req,(wc3FineVector_t){a.x,a.y},
         (wc3FineVector_t){b.x,b.y},move_fine_points,BZ_WC3_FINE_NODES,&complete);
+#ifdef BZ_TESTS
+    if(move_route_trace)move_route_trace(&(moveRouteTrace_t){.budget=req.budget,
+        .pops=move_fine.pops,.count=count,.complete=complete,.points=move_fine_points});
+#endif
     if (input->units && input->mover) S_ChargeUnitMoveFineRequest((edict_t *)input->mover,move_fine.pops);
     if(target_object)target_object->flags--;
     move_trace_fine_scope(4,input);

@@ -48131,6 +48131,65 @@
         "This adds original-code scope observations, not a new live retail capture. Existing MAP-04.2 and composed-blocker archives remain independently verified.",
         "Broader exclusion exits and unresolved recovery notifications remain MAP-04.2."
       ]
+    },
+    {
+      "id": "oracle-e2e-baseline203",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e.py",
+        "--binary",
+        "{binary}",
+        "--engine-library",
+        "{engine}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-baseline203.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "variants": {
+          "equal": 3
+        },
+        "constructed_routes": {
+          "equal": 37
+        },
+        "exact_route_points": {
+          "equal": 230
+        },
+        "original_repeats": {
+          "equal": 2
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-01.1 complete controlled primary wall detour plus public blocked/disconnected Frida repeats; actual Classic/TFT engine construction, full motion/retry, saved suffix and final order ownership twice per edition.",
+      "exclusions": [
+        "The detour has supplied original adaptive-disabled profile and clock-zero callback; retail public spawn/order admission is excluded.",
+        "No new live capture: complete accepted blocked/disconnected Frida repeats are revalidated.",
+        "Charged pops are compared for36 live-recorded searches; the controlled detour fixture does not contain its pop count.",
+        "Fresh constructed-route streams are compared; saved suffixes retain existing complete motion/retry checks.",
+        "Whole-world state, original save/load, full RNG parity, other lanes and remaining cross-feature variants retain their tasks."
+      ]
     }
   ],
   "fixtures": [
@@ -49029,7 +49088,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "15e0c9b5221d88023a9752423f345196518292a6a5e3784a8d53453e16591381"
+      "sha256": "5659c0b15092673c54bbf27e30b3163b21e3e0a02731c17bab6c3216b8403adb"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50317,7 +50376,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_world.c",
-      "sha256": "6f76e105d2c58c12aa5f3dd9153dc626bfdfae53e462e0dca15e6740c978e6a4"
+      "sha256": "c58d9bfd5812933627829352e85343aa9bb46a7ac163414d4ea9ed6d8c491803"
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
@@ -50329,7 +50388,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "b4a5bf0640421f8c6cf183aff9e4e7bdb8336b28ea06fc9f3100707571be3085"
+      "sha256": "72c2df16a2b4366ed27651df1a46233430a8ceaf0064cdf346150561fcc60053"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -50577,7 +50636,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "73ac8f8565dbe230839d31ff774adea329ed5300050215119f1f075046839864"
+      "sha256": "a4ffffd23f7748b4a5d42eb3401c6d72ecb6c35ac593d2dd7f77286bff602f08"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -50821,7 +50880,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "821711f755fd47569f53ea3bc394c54341eaa94c56c14bc746e221b12c476c5b"
+      "sha256": "642188992c4f8e9bfb3f6f108254debc854f23e2ec796d0a6806d60d7bf15673"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50833,11 +50892,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "62dfb5e3a612fa45cea5a5907294801800190808897537835d987988f24f032a"
+      "sha256": "29e0ec89e97ddf6289cdd7fd9a22a8192091b7f4618e379bc59e1c299b46c95e"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "873ce544a081925c9c07267d913c35ad55322ee21847154adcecc25682055488"
+      "sha256": "2bf369c3dde40d32695ec163125390067580f81caad4aad9b82380a75ba26d1a"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52758,6 +52817,30 @@
     {
       "path": "games/warcraft-3/game/tests/retail_blocker_scope202.h",
       "sha256": "057a5253024cc16fc6a3b5f9d84a41f8d3285b7ea7554e54603aec2f672840bd"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e.py",
+      "sha256": "04aa957236a1de2a3e04e20d1e769cfea62c2c4c66d30f76a80203908edb34c6"
+    },
+    {
+      "path": "tools/ghidra/research/e2e203_expected.py",
+      "sha256": "8a66c7782ba3b24619477170b0eabb7af6a45fb08fc4077b23be121079a84266"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+      "sha256": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-baseline203-ghidra-1.27.json",
+      "sha256": "da4aeb7d2b2f1ac48c4c72060b6cb7c71f1dee98ebe4021bce983386da051477"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_e2e_routes203.h",
+      "sha256": "004312b12858d78958fb8911728007a83d297f2c604d8e5a59b4f6649e088205"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e.py",
+      "sha256": "e73570e513c6bbcc82cec132d6cb60c4c0db848778bbcc60c612908144e23d73"
     }
   ]
 }

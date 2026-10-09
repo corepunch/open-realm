@@ -3363,6 +3363,12 @@ typedef struct {
 enum { MOVE_SCOPE_ENDPOINT, MOVE_SCOPE_WAYPOINT, MOVE_SCOPE_BLOCKERS, MOVE_SCOPE_PORTAL };
 typedef struct { movePathQuery_t const *query; unsigned kind,stage; } moveScopeTrace_t;
 void G_TestMoveObjectScopeTrace(void (*)(void *,moveScopeTrace_t const *),void *);
+typedef struct {
+    uint32_t kind,budget,pops,count;
+    bool complete;
+    vec2_t const *points;
+} moveRouteTrace_t;
+void G_TestMoveRouteTrace(void (*)(moveRouteTrace_t const *));
 #endif
 void G_RebindSavedMoveRoutes(void);
 bool G_FindUnitMovePathWaypoint(movePathQuery_t const *query, vec2_t *out);
