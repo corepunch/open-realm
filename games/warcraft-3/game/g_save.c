@@ -89,7 +89,8 @@ static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* Version 74 replaces the byte-wise FNV footer checksum with the word-wise SaveChecksum. */
 /* Version 75 records the per-unit UnitIgnoreAlarm flag in serialized edicts. */
 /* Version 76 persists texttag presentation readiness and slot generations. */
-static uint32_t const save_version = 76;
+/* Version 77 changes cinematic portrait state from a model byte to a presence flag plus 16-bit stat. */
+static uint32_t const save_version = 77;
 #define SAVE_STREAM_BUFFER (1u << 20) // bytes; save files are several MB of field writes, so a large stdio buffer avoids per-4 KB syscalls
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
@@ -1906,10 +1907,6 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
 
     G_ClearPlayerAbilityAvailability(client);
     *client = temp;
-    /* Older saves stored the portrait model index in this byte. Recover the
-     * representable legacy range into the new 16-bit presentation stat. */
-    if (!client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] && client->ps.cinematic_portrait)
-        client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = client->ps.cinematic_portrait;
     client->jass.disabled_abilities = disabled_abilities;
     client->jass.disabled_ability_count = disabled_count;
     client->jass.disabled_ability_capacity = disabled_count;
@@ -2419,6 +2416,27 @@ TEST(wc3_save, rejects_previous_combat_cargo_format_before_restoring_world) {
     T_ASSERT(!ReadGame(old_filename));
     T_EQ(unit->user_data, 777);
     remove(filename); remove(old_filename);
+}
+
+TEST(wc3_save, rejects_version_76_after_cinematic_portrait_format_change) {
+    cstring_t filename = Test_TempPath("save-portrait-format-current.bin");
+    cstring_t previous_filename = Test_TempPath("save-portrait-format-v76.bin");
+    saveHeader_t header;
+    char map[sizeof(((saveHeader_t *)0)->map_path)];
+
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(WriteGame(filename));
+    FILE *f = fopen(filename, "rb");
+    T_NOT_NULL(f);
+    if (!f) return;
+    T_ASSERT(LoadBytes(f, &header, sizeof(header)));
+    fclose(f);
+    T_EQ(header.version, 77);
+    T_ASSERT(write_save_fixture_header(filename, previous_filename, 76, header.edict_size));
+    T_ASSERT(!G_GetSaveMap(previous_filename, map, sizeof(map)));
+    T_ASSERT(!ReadGame(previous_filename));
+    remove(filename); remove(previous_filename);
 }
 
 TEST(wc3_save, rejects_layout_mismatch_before_selecting_map) {
