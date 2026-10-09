@@ -1664,6 +1664,16 @@ static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t
     (void)view; hover_trace_calls++; hover_trace_point = (vec2_t){ x, y }; *number = 7; return true;
 }
 
+TEST(client_input, hover_ring_capability_allows_pointer_highlight_without_name_or_bars) {
+    entityState_t state = { .model = 1, .stats = { [ENT_HEALTH] = 255 }, .flags = EF_HOVER_RING };
+
+    T_ASSERT(CL_EntityAllowsWorldHover(&state));
+    T_EQ(state.name, 0);
+    T_ASSERT(!(state.flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
+    state.flags = 0;
+    T_ASSERT(!CL_EntityAllowsWorldHover(&state));
+}
+
 TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;

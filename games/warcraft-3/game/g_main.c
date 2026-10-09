@@ -1673,6 +1673,12 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
      * limited to debris targets such as gates; walls, bridges, and decorations
      * do not publish a hover name, even when they carry health. */
     if (G_IsDestructable(ent)) {
+        if (G_DestructableIsAttackable(ent) && ent->targtype == TARG_TREE &&
+            !(state->flags & EF_NOT_SELECTABLE) &&
+            !(state->renderfx & RF_HIDDEN) && G_FowPlayerCanHoverEntity(player, ent)) {
+            state->stats[ENT_HEALTH] = compress_stat(&ent->health);
+            state->flags |= EF_NEUTRAL | EF_HOVER_RING;
+        }
         if (G_DestructableIsAttackable(ent) && ent->targtype == TARG_DEBRIS &&
             !(state->flags & EF_NOT_SELECTABLE) &&
             !(state->renderfx & RF_HIDDEN) && G_FowPlayerCanHoverEntity(player, ent)) {
