@@ -2720,6 +2720,7 @@ TEST(wc3_movement, wisp_harvest_move_order_leaves_tree) {
         wisp->collision, M_UnitStaticPathingFlags(wisp)));
 
     for (int i = 0; i < 39; i++) {
+        level.time += FRAMETIME;
         CM_ProcessPathJobs(4096);
         if (wisp->currentmove && wisp->currentmove->think)
             wisp->currentmove->think(wisp);
@@ -2796,6 +2797,7 @@ TEST(wc3_movement, wisp_autoharvest_reaches_tree_from_blocked_approach) {
                                                M_UnitStaticPathingFlags(wisp)));
     T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestlumber"));
     for (int i = 0; i < 256 && strcmp(wisp->currentmove->animation, "stand lumber"); i++) {
+        level.time += FRAMETIME;
         CM_ProcessPathJobs(4096);
         if (wisp->currentmove && wisp->currentmove->think) wisp->currentmove->think(wisp);
     }
