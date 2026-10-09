@@ -14113,3 +14113,14 @@ journeys twice in Classic/TFT, retaining full intermediate word comparisons and
 unfinished crowd orders. This adds combined acceptance, not a gameplay policy
 or new live claim. Scope and commands:
 [cross-feature variants](retail-pathfinding-e2e-baselines.md#formation-crowd-and-gate-variants-payoff205).
+
+## Combined dynamic-blocker and pursuit acceptance (Payoff206)
+
+E2E-01.2 now binds the completed dynamic/yield and ground Smart/fog-follow
+contracts to the static baseline with eight unchanged original source pins and
+three fresh archived-Frida checks. Actual game fresh/save journeys repeat twice
+per edition with full intermediate numerical/route/request/identity comparisons.
+Initial pursuit remains active at capture end; tunnel cannot-path retirement and
+native crowd denial-only limits remain explicit. This adds acceptance coverage,
+not a new policy or live run. Scope and commands:
+[dynamic and pursuit variants](retail-pathfinding-e2e-baselines.md#dynamic-blocker-and-pursuit-variants-payoff206).

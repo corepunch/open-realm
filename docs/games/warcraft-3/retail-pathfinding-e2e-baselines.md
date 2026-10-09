@@ -138,5 +138,63 @@ Ghidra combined-scope comments at `16c150`, `1702f0` and `165f10` are saved and
 mirrored in `MapPathfinding.java`. Logs live in
 `/GitHub/wc3-analysis/runtime/payoff205/`. This is implementation commit 11 of
 the current 12-commit validation batch. No additional full suite or frame-budget
-improvement is claimed. Dynamic/pursuit, contention/cancellation and all-scenario
+improvement is claimed. Contention/cancellation and all-scenario
 determinism remain their open E2E tasks.
+
+## Dynamic blocker and pursuit variants (Payoff206)
+
+E2E-01.2 joins the completed ROUTE-03/ROUTE-05 dynamic and asymmetric-yield
+journeys with TARGET-02 ground Smart pursuit and TARGET-03 fogged cached
+arrival. The combined runner checks eight unchanged source pins and three
+unchanged child contracts before running eight actual game journeys, twice in
+Classic and TFT. Each edition passes854,608 assertions. Shared validation and
+execution reuse Payoff205's runner; its existing formation/crowd/gate contract
+and numerical expectations remain unchanged.
+
+The dynamic category covers all thirteen original engine scenes: insertion
+before/after refill, a slower moving peer, removal during waits/partial travel,
+terrain closure/reopening, same/different-player crossings and tunnels, and
+three-mover convergence. Every observed owner step retains pose, velocity,
+facing, fine/adaptive buffers and indices, delays/retries, blocker identity,
+search timestamps and charged work. Cold loads reproduce the unchanged suffix.
+Tunnel orders retire through cannot-path; the three-mover witness is an acyclic
+yield chain. Final facing without a following observation stays unasserted.
+
+The pursuit category retains235 raw initial Smart owner states and85 saved
+suffix states, plus238 raw25-word fog-follow states and28 saved suffix states.
+Supplemental production tests exercise denied-route refresh/stop/queue recovery,
+discarded target samples through the17-visit cadence, and hidden approach and
+persistent-follow arrival. The initial approach capture ends with an active
+order; its final numerical state is checked without calling it arrival.
+Native crowd captures prove4166 denial visits and723 recovery episodes, not
+full numerical crowd parity. Unpublished buffer destinations and unwritten
+failed-request result words remain excluded.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-e2e-dynamic206 --output /tmp/wc3-e2e206-fresh
+python3 -m unittest tests.test_wc3_pathing_e2e_dynamic tests.test_wc3_pathing_e2e_variants
+```
+
+The negative gates reject missing categories/completion policies, changed
+original source pins, weakened child comparisons and empty/failed/duplicate
+game summaries. Ghidra comments at167e40 and169680 are saved and mirrored in
+`MapPathfinding.java`; saved readback confirms both notes and `changed=false`.
+Captures are freshly evaluated archived Frida observations, not new live runs.
+Scene-specific controls/repeat limitations remain those of the child contracts.
+Saved engine continuations compare with uninterrupted retail, not original
+saves. Wider target families and visibility producers, whole-world/full-RNG
+parity and frame-budget claims remain outside this acceptance chunk. Runtime
+reports and the batch checkpoint are under
+`/GitHub/wc3-analysis/runtime/payoff206/`.
+
+This is implementation commit12/12 of the validation batch. The full
+`make -j6 TEST_JOBS=6 test openwarcraft3` checkpoint passes: Classic and TFT each
+run3,251 tests/15,224,495 assertions; the pathfinding-tools target passes1,011
+Python checks, in addition to the14 focused E2E contract checks. Complete logs,
+JUnit copies and `full-checkpoint.json` are retained in the runtime directory.
+This checkpoint starts the next focused implementation batch.

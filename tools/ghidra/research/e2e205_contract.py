@@ -34,22 +34,26 @@ def fingerprint(entry):
 
 
 def validate(spec, manifest, root=ROOT):
-    if (spec['version'] != 1 or spec['task'] != 'E2E-01.4' or spec['parent'] != SOURCES[0] or
+    return validate_bindings(spec, manifest, CATEGORIES, SOURCES, 'E2E-01.4', root)
+
+
+def validate_bindings(spec, manifest, categories, sources, task, root=ROOT):
+    if (spec['version'] != 1 or spec['task'] != task or spec['parent'] != sources[0] or
         spec['engine_repeats'] != 2 or spec['engine_editions'] != ['classic', 'tft']):
         raise ValueError('unsupported combined baseline contract')
-    base = json.loads((root / SOURCES[0]).read_text())
+    base = json.loads((root / sources[0]).read_text())
     if spec['build'] != base['build'] or spec['build']['game_sha256'] != manifest['target']['game_sha256']:
         raise ValueError('cross-feature binary provenance differs')
-    if set(spec['pins']) != set(SOURCES):
+    if set(spec['pins']) != set(sources):
         raise ValueError('cross-feature literal source inventory differs')
     for path, pin in spec['pins'].items():
         if hashlib.sha256((root / path).read_bytes()).hexdigest() != pin:
             raise ValueError('changed existing retail expectations: ' + path)
-    if len(spec['categories']) != 3:
+    if len(spec['categories']) != len(categories):
         raise ValueError('missing cross-feature category')
     entries = {row['id']: row for row in manifest['entries']}
     selected = []
-    for row, (name, (test, ids)) in zip(spec['categories'], CATEGORIES.items(), strict=True):
+    for row, (name, (test, ids)) in zip(spec['categories'], categories.items(), strict=True):
         if row['id'] != name or row['test'] != test or row['entries'] != ids or not row['scope'] or not row['completion']:
             raise ValueError('cross-feature category mapping differs')
         if set(row['entry_sha256']) != set(ids):
@@ -59,6 +63,7 @@ def validate(spec, manifest, root=ROOT):
             if fingerprint(entry) != row['entry_sha256'][identity] or 'L' not in entry['evidence']:
                 raise ValueError('original sub-contract differs: ' + identity)
             selected.append(entry)
-    if len(selected) != 6 or len({row['id'] for row in selected}) != 6:
+    expected = sum(len(ids) for _, ids in categories.values())
+    if len(selected) != expected or len({row['id'] for row in selected}) != expected:
         raise ValueError('duplicated or omitted retail branch')
     return selected

@@ -48309,6 +48309,64 @@
         "Parent static/disconnected source/route pins are validated; its original full runner remains a separate entry.",
         "No whole-world, original save/load, full-RNG, all-scenario determinism or frame-budget claim."
       ]
+    },
+    {
+      "id": "oracle-e2e-dynamic206",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e_dynamic.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-dynamic206.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "categories": {
+          "equal": 2
+        },
+        "retail_contracts": {
+          "equal": 3
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "length": 3
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-01.2 combined dynamic insertion/removal, moving peers, terrain edits, asymmetric yielding and ground Smart/fog pursuit. Three unchanged original capture contracts plus eight actual game fresh/save journeys repeat twice per edition with complete intermediate comparisons.",
+      "exclusions": [
+        "No new live run or gameplay-policy claim. Complete archived Frida contracts are freshly revalidated unchanged.",
+        "The parent static/disconnected source and route pins are validated; its full original runner is a separate entry.",
+        "Some dynamic scenes have only one observation or no scene-specific observer-free control; child exclusions remain binding.",
+        "Final facing without a following observation and unpublished empty-buffer destinations remain unasserted.",
+        "Pursuit crowd evidence proves native denial/stop/layout ordering, not full crowd numerical engine parity. Unwritten failure-result stack words are excluded.",
+        "Ground Smart approach does not cover all TARGET-02 ability/movement families. Hidden arrival does not close all TARGET-03 visibility/loss producers.",
+        "Saved engine continuations compare with uninterrupted retail captures, not retail saves. No whole-world, full-RNG, all-scenario determinism or frame-budget claim."
+      ]
     }
   ],
   "fixtures": [
@@ -49207,7 +49265,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "c8aa2b4e7a31cc4f0b412c09ff237c0389de06c6f0aee162efd74aff872e4c27"
+      "sha256": "e15bde5a7e1b832af17ae91af1af91d4967f25928081d79cfe8096320b973e86"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50999,7 +51057,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "27ddd40a2c4c61848e5ad733a47f46d79cec91e642ea9157e3d8b6ac68c37c54"
+      "sha256": "7f6d596c9a6393740f18687093da6048a3f08cbfe7724f684519a2c4f4abdf35"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51011,11 +51069,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "5ca29a8c37932061b2cc3f4877ba41d9f4a3f2778123c4d5c3800f14e5dcbcbd"
+      "sha256": "ce80f0d002889edf599295c060031a5b6addc2cbc284d30b1e56eedef1d76d93"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "794bb820914a8bc0e170cbe8966a3f90501f10edcac94bed36e6b0dfada77054"
+      "sha256": "07fc4c6e6f57e51ae6238b509ba000d196a91cf3bc97c000cb3f9f3799ca3ef3"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52999,11 +53057,11 @@
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_e2e_variants.py",
-      "sha256": "13c3b7303980ae504ffec2b7a3951ed4df05eb23f83d80c4a0ac51fee22cce9c"
+      "sha256": "8b80c9ae83489e724f175002896287c4661af250385c908cdbe161bdab1f3a4c"
     },
     {
       "path": "tools/ghidra/research/e2e205_contract.py",
-      "sha256": "46dff8488bec44faa41c06d8e50d4b669d23c785392e8d0dd8ec579d7586251a"
+      "sha256": "bb328fe515f7de87b479b4f97af638c352b280ca1d9064f65ea57ef10d0fed75"
     },
     {
       "path": "tools/ghidra/research/e2e205_expected.py",
@@ -53019,11 +53077,35 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_e2e_variants.c",
-      "sha256": "42ea721946ba271d1911d48f3dcfc44441b2c3f8107c0d09611d89b2f7aeee8f"
+      "sha256": "d7e00d7c613b5c882be576748ea61ea69df891a914348bbd58f2526609364fd3"
     },
     {
       "path": "tests/test_wc3_pathing_e2e_variants.py",
       "sha256": "7b4025bc3c4bacf7879fcc5c13a718ed095edb87a81e8514b3fbb4062ab21045"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e_dynamic.py",
+      "sha256": "53bf1d6107758269fb1f192a8875fb696f9da7623d0985d94eec7d8a8a010a60"
+    },
+    {
+      "path": "tools/ghidra/research/e2e206_contract.py",
+      "sha256": "15269c1041de363d80593c186e14841a1c82445ec2a0e71471c405b33885b368"
+    },
+    {
+      "path": "tools/ghidra/research/e2e206_expected.py",
+      "sha256": "a6755a2506b49bac812b06bc9bc44473d25053d4ad385f42b99406beaf836cca"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-dynamic206-1.27.json",
+      "sha256": "64efcc8cb25d2680cd06900aa55f8d249b77656b8b6cc9568b97f565ecc24cae"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-dynamic206-ghidra-1.27.json",
+      "sha256": "3f8d7a0a92615d25475390b5d564a8cb6bc06b4f937446e7bd87524878710d58"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e_dynamic.py",
+      "sha256": "47ea33b347e5adf8444ade1c78abe09c3d7b5dd1761b8076a4f2fc5c24e52ecd"
     }
   ]
 }

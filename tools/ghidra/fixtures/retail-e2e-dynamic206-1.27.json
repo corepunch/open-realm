@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "task": "E2E-01.2",
+  "parent": "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "pins": {
+    "tools/ghidra/fixtures/retail-e2e-baseline203-1.27.json": "53987a235e33469671b080a68bd645c3ddc2eae94b8f702bc95803050abf8619",
+    "tools/ghidra/fixtures/retail-composed-blocker163-1.27.json": "33209c796ec881a537f2aa953f29ae186ada56721aef09f014fd7d0722d52de5",
+    "games/warcraft-3/game/tests/retail_yield_composed163.h": "358738698630d32c2858d973eab24b656888d4a0bc66eff4a7eea8c207879dd1",
+    "games/warcraft-3/game/tests/retail_dynamic_blocker163.h": "69c6b54c97666acaebc90028151ae3b4acb0286a0af6f40a5e6b0dfcb10ac28a",
+    "tools/ghidra/fixtures/retail-target-delay164-1.27.json": "7f15188b84f2bbf01a5f1b179107a4d3313e7bb78edbd6e43a1536b290dcc539",
+    "games/warcraft-3/game/tests/retail_target_approach164.h": "938f315329149c63cae3418bd4663ae2ffb692a78fa025e7a91fa69af7b7436a",
+    "tools/ghidra/fixtures/retail-target-visibility166-1.27.json": "c934291f69c72d54f236c8df2938ffc16b70dd81cc119793f3c189e7197644b5",
+    "games/warcraft-3/game/tests/retail_target_fog166.h": "a372df58157764dca16fc2b10642ab359e0852850c28c1a72f90797c6879bd62"
+  },
+  "engine_repeats": 2,
+  "engine_editions": [
+    "classic",
+    "tft"
+  ],
+  "categories": [
+    {
+      "id": "dynamic",
+      "test": "wc3_e2e206.dynamic_edits_yielding_and_saved_route_handoffs",
+      "entries": [
+        "live-composed-dynamic-blockers-and-yields"
+      ],
+      "entry_sha256": {
+        "live-composed-dynamic-blockers-and-yields": "8f7627ca4c203fea8b77ad45db9ea9e79f53817615b58514c3ba76486485bf99"
+      },
+      "scope": "ROUTE-03 dynamic insertion/removal, moving peers, terrain closure/reopening; ROUTE-05 asymmetric yielding. Exact poses/velocities/facing, fine/adaptive buffers, waits/retries, blocker roles, timestamps and charged work at every observed owner step.",
+      "completion": "All thirteen engine journeys retain captured order retirement; same/different-player tunnel orders end through cannot-path, rather than arrival. Each cold save matches the uninterrupted retail suffix."
+    },
+    {
+      "id": "pursuit",
+      "test": "wc3_e2e206.pursuit_refresh_visibility_and_saved_owner_state",
+      "entries": [
+        "live-target-destination-delays-and-denied-visits",
+        "live-target-visibility-cached-arrival"
+      ],
+      "entry_sha256": {
+        "live-target-destination-delays-and-denied-visits": "efd328c525dfbe2beed5e1f6da6b94c739f5d79408fafa84c5fd9e46729f5e7a",
+        "live-target-visibility-cached-arrival": "3d4fc3aaf71f9e0dbfdbbfef5e9091cbf32491ca639b2c3c91e11e3aca48aa9e"
+      },
+      "scope": "TARGET-02 walled ground Smart approach:235 raw owner rows and85 saved suffix rows; TARGET-03 fogged cached arrival:238 raw25-word rows and28 saved suffix rows. Supplemental engine tests retain denied-owner stop/refresh/queue recovery and discarded changed-target samples through the17-visit cadence.",
+      "completion": "The initial Smart approach capture ends while the order is active; its final numerical state is checked without claiming arrival. Hidden approach/persistent-follow cases end at the cached arrival and retire the public order."
+    }
+  ],
+  "exclusions": [
+    "No new live run or gameplay-policy claim. Complete archived Frida contracts are freshly revalidated unchanged.",
+    "The parent static/disconnected source and route pins are validated; its full original runner is a separate entry.",
+    "Some dynamic scenes have only one observation or no scene-specific observer-free control; child exclusions remain binding.",
+    "Final facing without a following observation and unpublished empty-buffer destinations remain unasserted.",
+    "Pursuit crowd evidence proves native denial/stop/layout ordering, not full crowd numerical engine parity. Unwritten failure-result stack words are excluded.",
+    "Ground Smart approach does not cover all TARGET-02 ability/movement families. Hidden arrival does not close all TARGET-03 visibility/loss producers.",
+    "Saved engine continuations compare with uninterrupted retail captures, not retail saves. No whole-world, full-RNG, all-scenario determinism or frame-budget claim."
+  ]
+}
