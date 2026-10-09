@@ -509,6 +509,7 @@ static void SP_SpawnDestructable(edict_t *edict) {
     DestructableData_t const *row = edict->data.DestructableData;
     cstring_t path_tex = row->pathingTexture;
     float radius = row->radius;
+    float selection_radius = row->selcircsize > 0.0f ? row->selcircsize * 0.5f : radius;
     PATHSTR buffer;
     cstring_t tex = row->textureFile;
     /* texFile may include an extension; "_" means the model has no replacement texture. */
@@ -521,7 +522,9 @@ static void SP_SpawnDestructable(edict_t *edict) {
     edict->destructable->alive_pathtex = M_LoadPathTex(path_tex);
     edict->destructable->death_pathtex = M_LoadPathTex(row->deathPathingTexture);
     edict->pathtex = edict->destructable->alive_pathtex;
-    edict->s.radius = radius > 0.0f ? radius : 50.0f;  /* selection/UI circle only */
+    /* selcircsize is an authored diameter for the selection circle. The
+     * destructable radius remains the gameplay collision footprint below. */
+    edict->s.radius = selection_radius > 0.0f ? selection_radius : 50.0f;
     /* WC3 trees have collisionSize 0 and block solely via their baked pathing
      * footprint; only destructables with a real radius (bridges, gates) get a
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
