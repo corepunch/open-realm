@@ -30,6 +30,7 @@
 /* Pull in the net types + common types without game state. */
 #include "../client/client.h"
 #include "../client/cl_input_local.h"
+#include "../client/ui_layout.h"
 
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
@@ -1883,7 +1884,7 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     int number;
 
     to.flags.type = FT_BACKDROP;
-    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X;
+    to.flagsvalue |= UIFLAG_EXTEND_WIDESCREEN_X | UIFRAME_DISABLED;
     MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
     sb.readcount = 0;
     number = MSG_ReadEntityBits(&sb, &bits);
@@ -1892,6 +1893,18 @@ TEST(net, ui_frame_delta_preserves_widescreen_extension_flag) {
     T_EQ(number, 8);
     T_EQ(out.flags.type, FT_BACKDROP);
     T_ASSERT(out.flagsvalue & UIFLAG_EXTEND_WIDESCREEN_X);
+    T_ASSERT(out.flagsvalue & UIFRAME_DISABLED);
+}
+
+TEST(client_layout, disabled_control_cannot_issue_click_command) {
+    uiFrame_t frame = { .onclick = "menu" };
+
+    T_ASSERT(SCR_LayoutFrameHasClickCommand(&frame));
+    frame.flagsvalue |= UIFRAME_DISABLED;
+    T_ASSERT(!SCR_LayoutFrameHasClickCommand(&frame));
+    frame.flagsvalue &= ~UIFRAME_DISABLED;
+    frame.onclick = "";
+    T_ASSERT(!SCR_LayoutFrameHasClickCommand(&frame));
 }
 
 TEST(net, ui_frame_delta_preserves_timed_status_binding) {

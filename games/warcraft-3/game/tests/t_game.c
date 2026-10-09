@@ -2366,6 +2366,20 @@ TEST(wc3_game, hud_disabled_button_label_uses_authored_disabled_color) {
     T_EQ(out.color.a, label.Font.DisabledColor.a);
 }
 
+TEST(wc3_game, hud_disabled_button_state_reaches_client_frame) {
+    uint8_t typedata[256];
+    char textbuf[128];
+    uiFrame_t out;
+    frameDef_t button = { .Type = FT_FRAME };
+
+    button.disabled = true;
+    UI_SetOnClick(&button, "menu");
+    T_ASSERT(UI_BuildFrameForWrite(&button, &out, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_ASSERT(out.flagsvalue & UIFRAME_DISABLED);
+    T_STREQ(out.onclick, "menu");
+}
+
 static PATHSTR hud_test_images[MAX_IMAGES];
 static cstring_t hud_test_get_configstring(uint32_t index) {
     if (index >= CS_IMAGES && index < CS_IMAGES + MAX_IMAGES)
