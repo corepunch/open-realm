@@ -13837,3 +13837,62 @@ pass; a fresh strict report verifies24 original cases. All436 entries and1,141
 fixture/source pins are verified in both the worktree and staged index. The full
 repository suite follows the authorized approximately12-commit checkpoint
 cadence; this is implementation commit5 since the merge checkpoint.
+
+## Explicit weapon windups release the shared speed cap (Payoff199)
+
+Retail `49d130` (`Attack_ArmCooldownAndSpeedCapExemption`) takes a duration
+pointer and a swing Boolean (`ECX` Attack, stack4/8, `RET8`, void). A nonzero
+swing invokes `49bc40` **before** querying remaining cooldown and before the
+strict remaining < duration branch. A cooldown poll with swing zero does not
+produce an exemption. `495180` starts a ready target weapon animation through
+`49c440`, then calls this producer; `49a4f0` does the same for a firing ground
+point. `49c440` starts animation, not damage impact.
+
+The engine had exemptions for attacked/ally alerts and automatic acquisition,
+but explicit weapon windups bypassed both. `attack_melee`, `attack_ranged` and
+`attack_ground_ranged` now invoke the same Attack-owned producer. Chase and a
+non-firing point hold do not grant it. Replacement Move retains it until the
+existing primary expiry; subsequent swings use the existing exact half-second
+rearm gate. No new entity scan, timer representation or save version is needed.
+
+Fresh `RS-Swing199.w3m` has four public scenes: Footman Attack, Rifleman
+Attack Once, targeted Mortar and Mortar Attack Ground. Acquisition is disabled;
+the targets are paused, preventing retaliation from supplying the exemption.
+Two read-only Frida repeats match all 127 recorded events: four windups invoke
+`49bc40` through return49d145 and arm a three-second request; seven non-swing
+calls do not. All four exemptions expire after the later Move replacement.
+The observer-free control matches all 83 final Preload markers. The earlier
+setup/start-file markers are cleared deliberately and are not in that final
+Preload file. Captures retain canonical identities and raw scalar words.
+
+`retail-explicit-swing199-1.27.json` freezes these new captures; no historical
+numerical expectation was replaced. The original capture source is archived as
+`swing199_capture-as-run.py`; the checked-in copy has only its introductory
+help text corrected after capture. Ghidra names/comments for `49d130`,
+`495180`, `49a4f0`, `49c440` are saved and reproduced in `MapPathfinding.java`.
+This witness does not establish every `49e130` notification guard, captain
+speed domain, or complete weapon cooldown/backswing numerics. GROUP-03.2 stays
+open for those remaining contracts.
+
+Reproduce from the repository root (use new output names for every launch):
+
+```sh
+R=/GitHub/wc3-analysis/reports/pathfinding-1.27/research/GROUP-03.2/captures199
+E=/GitHub/wc3-analysis/reports/pathfinding-1.27/research/_env
+python3 tools/frida/research/group032_make_map.py --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m --probe tools/frida/research/swing199_probe.j --preload-output rs-swing199.txt --task GROUP-03.2 --output /tmp/RS-Swing199-new.w3m
+$E/install-map.sh /tmp/RS-Swing199-new.w3m
+$E/live.sh /home/lofcz/.local/share/uv/tools/frida-tools/bin/python tools/frida/research/swing199_capture.py --data '{DATA}' --remote '{REMOTE}' --x11-display '{DISPLAY}' --env '{ENV}' --map 'Maps\RS-Swing199-new.w3m' --preload rs-swing199.txt --marker-prefix 'S199 ' --start-file rs-swing199-start.txt --mode observe --seconds 100 --output /tmp/swing199-new.jsonl
+python3 tools/frida/research/swing199_verify.py --archive "$R" --expected tools/ghidra/fixtures/retail-explicit-swing199-1.27.json --output /tmp/swing199-new-report.json
+```
+
+Run the capture twice and once with `--mode control`. The archive verifier pins
+the committed captures, not an arbitrary new launch. The corpus entry
+`live-explicit-swing-exemption199` performs a fresh verification of that archive.
+
+The failing-first `wc3_order_lifecycle.swing199_explicit_weapons_publish_exemption_before_damage`
+regression had 15 failures, covering melee, ranged Attack Once and artillery
+point. It exercises actual issue/ready-range/windup, undamaged target, replacement
+Move and save/load. The repeated-windup regression checks retained and rearmed
+exact deadlines through the same production transitions. Classic/TFT order and
+attack-movement suites pass; broader combat validation is recorded with this
+commit. Full repository validation follows the existing twelve-commit cadence.

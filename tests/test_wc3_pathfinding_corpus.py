@@ -17,6 +17,19 @@ from run_wc3_pathfinding_corpus import (DEFAULT_MANIFEST,load_manifest,check_rep
 
 
 class CorpusTests(unittest.TestCase):
+    def test_explicit_swing199_keeps_windup_and_non_swing_producers_distinct(self):
+        sys.path.insert(0,str(ROOT/'tools/frida/research'))
+        from swing199_verify import stages
+        fixture=json.loads((ROOT/'tools/ghidra/fixtures/retail-explicit-swing199-1.27.json').read_text())
+        self.assertEqual(len(stages(fixture['stages'])),127)
+        self.assertEqual(len(fixture['public_markers']),83)
+        altered=copy.deepcopy(fixture['stages'])
+        next(r for r in altered if r['event']=='cap-arm')['duration']=0
+        with self.assertRaises(ValueError):stages(altered)
+        altered=copy.deepcopy(fixture['stages'])
+        next(r for r in altered if r['event']=='cooldown-begin' and not r['swing'])['swing']=1
+        with self.assertRaises(ValueError):stages(altered)
+
     @classmethod
     def setUpClass(cls):
         # Repository inputs remain fixed during this suite. Verify all pins
@@ -121,7 +134,7 @@ class CorpusTests(unittest.TestCase):
         entries=self.manifest['entries']
         self.assertEqual(sum(e['kind']=='oracle' for e in entries),157)
         self.assertEqual(sum(e['id'].startswith('capture-') for e in entries),121)
-        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),158)
+        self.assertEqual(sum(e['id'].startswith('live-') for e in entries),159)
         rejected=[e for e in entries if e['expected_status']=='archive-rejected']
         self.assertEqual(len(rejected),8)
         self.assertTrue(all(not e['evidence'] for e in rejected))

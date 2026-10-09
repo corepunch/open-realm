@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "154 executable original oracle contracts;431 total entries.",
+  "scope": "157 executable original oracle contracts;437 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -47636,6 +47636,157 @@
         "Supplied canonical order/task identities; virtual d02a5 event receiver controlled. No factory/public long-FIFO trajectory or callback-mutation lifetime claim."
       ],
       "expected_status": "bounded-original-queue-ceiling"
+    },
+    {
+      "id": "live-explicit-swing-exemption199",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/swing199_verify.py",
+        "--archive",
+        "{archive}/research/GROUP-03.2/captures199/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-explicit-swing199-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "explicit-swing-exemption199.json",
+      "expected_exit": 0,
+      "expected_status": "live-explicit-swing-exemption",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 83
+        },
+        "producer_rows": {
+          "equal": 127
+        },
+        "windups": {
+          "equal": 4
+        },
+        "non_swing_calls": {
+          "equal": 7
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Public melee/ranged AttackOnce/targeted artillery/AttackGround windup exemption before cooldown; repeated/control exact streams and engine production windup/replacement/save regressions.",
+      "exclusions": [
+        "No original patches or calls; observer reads only. Complete cooldown/backswing arithmetic,49e130 guards and broader captain target-speed domains remain open.",
+        "Engine production regressions verify producer timing and lifetime, not full live combat trajectory numerics."
+      ],
+      "inputs": {
+        "capture": "research/GROUP-03.2/captures199/live-1.jsonl",
+        "sha256": "00d471c78c4c6ddd47cef6c62098c78421597fb206d224447c5767bfc2150436",
+        "bytes": 31357,
+        "metadata": {
+          "task": "GROUP-03.2 / payoff199",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "swing199_capture.py": "51c4dd89227e1e11b435223bbc0568f29379eddf4768048d470e7cb7cfd81377",
+            "swing199_observer.js": "dd49cf101826890f05833682b6836b74e3aba068eeed1a5f2a67e87420cb9a46",
+            "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+            "swing199_probe.j": "ffc6c338ef56095402280d848125e0718123ebda830ad552b85a412567c3961c",
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "map": "686c7fa77f74d0208d3f5e995c554a5c5fea78c419990dd352c5ae059bf71c4e"
+          },
+          "map": "Maps\\RS-Swing199.w3m",
+          "seconds": 100.0,
+          "continue_at": 30,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "env": "B",
+          "input": [],
+          "input_seconds": null,
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "S199 "
+        }
+      },
+      "capture_complete": true,
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/GROUP-03.2/captures199/live-2.jsonl",
+            "sha256": "bb3dfc959b93893a836f1766c794e9c36e7e326c8c730d6201b99788ba0cb025",
+            "bytes": 31359,
+            "metadata": {
+              "task": "GROUP-03.2 / payoff199",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "swing199_capture.py": "51c4dd89227e1e11b435223bbc0568f29379eddf4768048d470e7cb7cfd81377",
+                "swing199_observer.js": "dd49cf101826890f05833682b6836b74e3aba068eeed1a5f2a67e87420cb9a46",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "swing199_probe.j": "ffc6c338ef56095402280d848125e0718123ebda830ad552b85a412567c3961c",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "686c7fa77f74d0208d3f5e995c554a5c5fea78c419990dd352c5ae059bf71c4e"
+              },
+              "map": "Maps\\RS-Swing199.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "S199 "
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/GROUP-03.2/captures199/control-1.jsonl",
+            "sha256": "9b9d2c5499202c3b02da3d64f7b3a82cf4ec09bbc1f3dda6ddd8571a547606d0",
+            "bytes": 1316,
+            "metadata": {
+              "task": "GROUP-03.2 / payoff199",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "swing199_capture.py": "51c4dd89227e1e11b435223bbc0568f29379eddf4768048d470e7cb7cfd81377",
+                "swing199_observer.js": "dd49cf101826890f05833682b6836b74e3aba068eeed1a5f2a67e87420cb9a46",
+                "group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+                "swing199_probe.j": "ffc6c338ef56095402280d848125e0718123ebda830ad552b85a412567c3961c",
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "map": "686c7fa77f74d0208d3f5e995c554a5c5fea78c419990dd352c5ae059bf71c4e"
+              },
+              "map": "Maps\\RS-Swing199.w3m",
+              "seconds": 100.0,
+              "continue_at": 30,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "env": "B",
+              "input": [],
+              "input_seconds": null,
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "S199 "
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -48534,7 +48685,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "feba798b328bd5f7197e55af7d3e4ceb2dd351cff7dac391719422eb19cdd08d"
+      "sha256": "736db689228eaa36ab21dea9094388cf8bdca7fea1f65660cc9320a4d943310b"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50326,11 +50477,11 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "0ec107905e3ffebe633e95b3769897ccd85bbb132be66bad97c77cee2aad585f"
+      "sha256": "57c89eebf9a49e96de96443515e3fdfbc8467ee0a5a067dc75c2b8fe50bdf434"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
-      "sha256": "d229d483560b6db493d637056b8951f03924d522b1720a055ee987d0ce7f0ec2"
+      "sha256": "f5ce67117e3b84ed5bf9e4ea38e6348f4c678dc258a8660677a79e4e71641a98"
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
@@ -50338,11 +50489,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "6ca598768645acb26d27c165d72ace830eb076ccb1456cf756bd1dd8d20b0336"
+      "sha256": "8015ecf3aa1c7bf792b9dec12371a3970c8418661de3f2b6306e0bba88185ac0"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "f34e1a31a0fe65c768c50ecde5dd551e8dba539a51fb1123f89bfafef6730a67"
+      "sha256": "fc79de477badfa12c36120ec400aa803802b3f201a17734f0f1c064b1a4677f1"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -50350,7 +50501,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_attack.c",
-      "sha256": "067b9b219349368fb3ff21f584268b0230ee304fb7a3454f6376dac473cde16b"
+      "sha256": "b3affc70302efa25958b7e6efb6a6b324ba38a0cf494f5a88ef0e55f9c385d45"
     },
     {
       "path": "games/warcraft-3/game/skills/s_skills.c",
@@ -51426,7 +51577,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_lifecycle.c",
-      "sha256": "f93dc1b23647498dc378b400bab59a9097fd3e7870d6e0eba1e6be36bf46b975"
+      "sha256": "a75633a36e292b6fb407965ca634cb097a30dee27a83171b041a6b1b406a5c1e"
     },
     {
       "path": "games/warcraft-3/game/tests/t_patrol_orders.c",
@@ -52203,6 +52354,26 @@
     {
       "path": "tools/ghidra/fixtures/retail-queue-ceiling198-1.27.json",
       "sha256": "ebf8ed3e99b3af0619a0cb9a4bc992517c7c7fc042b128ca1f9fc147abeb656f"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-explicit-swing199-1.27.json",
+      "sha256": "2b8c33e0211c07a0569f6f1393ec4643e087d88206f0960fc18cb1f8a31d01d1"
+    },
+    {
+      "path": "tools/frida/research/swing199_probe.j",
+      "sha256": "ffc6c338ef56095402280d848125e0718123ebda830ad552b85a412567c3961c"
+    },
+    {
+      "path": "tools/frida/research/swing199_observer.js",
+      "sha256": "dd49cf101826890f05833682b6836b74e3aba068eeed1a5f2a67e87420cb9a46"
+    },
+    {
+      "path": "tools/frida/research/swing199_capture.py",
+      "sha256": "abd4bf8fa1637aa98374dde880f99ce09bc7932a5432a8bf343e93a16f6b7ead"
+    },
+    {
+      "path": "tools/frida/research/swing199_verify.py",
+      "sha256": "f35aecd9fc2a4e3de5f45c2d6f38dac72812049784503b9da4b83ad7bab49cd7"
     }
   ]
 }

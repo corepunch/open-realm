@@ -211,6 +211,57 @@ TEST(wc3_order_lifecycle, queue198_cancel_payload_survives_ring_growth_and_bucke
     reset_entities();setup_test_world();
 }
 
+TEST(wc3_order_lifecycle, swing199_explicit_weapons_publish_exemption_before_damage) {
+    /* Explicit producers do not pass through automatic acquisition or an
+     * attacked/ally-help notification. Chase alone must not release the cap. */
+    FOR_LOOP(mode,3) {
+        reset_entities();setup_test_world();
+        level.timer_clock_valid=false;level.pathing_clock=(wc3Clock_t){8,0,300};
+        edict_t *unit=review_order_unit(0,0),*target=review_order_unit(300,1);
+        unitAttack_t *profile=S_AttackProfileWrite(unit,0);
+        profile->weapon=mode==0 ? WPN_NORMAL : mode==1 ? WPN_MISSILE : WPN_ARTILLERY;
+        profile->range=30;profile->damagePoint=.3f;
+        if(mode==2)T_ASSERT(G_IssueUnitPointOrder(unit,"attackground",&target->s.origin2,false,0,0));
+        else T_ASSERT(G_IssueUnitTargetOrder(unit,mode==1 ? "attackonce" : "attack",target,false,0));
+        T_ASSERT(!unit->attack_speed_cap.active);
+        /* Walk transitions to the weapon windup at the true range gate. */
+        unit->s.origin.x=280;gi.LinkEntity(unit);
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->attack_speed_cap.active);
+        T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_ASSERT(unit->wait>0);T_FEQ(target->health.value,target->health.max_value,0);
+        uint32_t sequence=unit->attack_speed_cap.sequence;
+        T_ASSERT(G_IssueUnitPointOrder(unit,"move",&(vec2_t){600,64},false,0,0));
+        T_ASSERT(unit->attack_speed_cap.active);T_EQ(unit->attack_speed_cap.sequence,sequence);
+        uint32_t number=unit->s.number;
+        cstring_t file=Test_TempPath("wc3-swing199.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);unit=g_edicts+number;
+        T_ASSERT(unit->attack_speed_cap.active);T_FEQ(unit->attack_speed_cap.deadline.time,11,0);
+        T_EQ(unit->attack_speed_cap.sequence,sequence);
+    }
+    reset_entities();setup_test_world();
+}
+
+TEST(wc3_order_lifecycle, swing199_repeated_windups_use_the_existing_exact_rearm_gate) {
+    reset_entities();setup_test_world();level.timer_clock_valid=false;
+    edict_t *unit=review_order_unit(0,0),*target=review_order_unit(20,1);
+    S_AttackProfileWrite(unit,0)->damagePoint=.3f;
+    uint32_t sequence=0;
+    FOR_LOOP(i,3) {
+        level.pathing_clock=(wc3Clock_t){8+i*.25f,0,300};
+        /* Each admitted explicit head reaches a ready weapon windup. */
+        unit->attack_cooldown_active=false;unit->wait=0;
+        T_ASSERT(G_IssueUnitTargetOrder(unit,"attack",target,false,0));
+        unit->currentmove->think(unit);
+        T_ASSERT(unit->attack_speed_cap.active);
+        if(i==1)T_EQ(unit->attack_speed_cap.sequence,sequence);
+        else T_ASSERT(unit->attack_speed_cap.sequence>sequence);
+        T_FEQ(unit->attack_speed_cap.deadline.time,i==2 ? 11.5f : 11,0);
+        sequence=unit->attack_speed_cap.sequence;
+    }
+    reset_entities();setup_test_world();
+}
+
 /* Cold allocation, ordered cancellation and final dispatch must return storage
  * without retaining a bucket on every unit that once received Shift orders. */
 TEST(wc3_order_lifecycle, pool192_empty_queues_release_storage_and_reuse_lifo) {

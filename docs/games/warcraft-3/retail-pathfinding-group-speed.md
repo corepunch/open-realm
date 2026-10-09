@@ -112,7 +112,7 @@ Python evidence regressions and22 corpus checks pass. The staged inventory has
 374 entries/689 pins; four freshly executed original/live contracts pass.
 
 GROUP-03.2 remains open for ally-alert admission, remaining acquisition paths,
-the `49e130`/`49d130` producers, complete notification-state guards and remaining
+the `49e130` producer, complete notification-state guards and remaining
 public target-speed domains. These are retained within the existing task;
 no child TODOs were added. TARGET-02/03 retain their wider policy scopes.
 See the [engine ledger](retail-pathfinding-engine.md) and
@@ -163,3 +163,12 @@ suites. Two complete retail repeats and an observer-free control retain377
 markers and exact enrollment/transfer/radius/delay decisions. Ghidra function
 annotations and player/unit fields are saved and mirrored in the mapper/schema.
 See the [engine evidence and remaining scope](retail-pathfinding-engine.md#town-ai-enrollment-selects-the-help-policy-payoff153).
+
+## Explicit swings (Payoff199)
+
+`49d130(...,1)` is now integrated for explicit target and ground weapon windups.
+It calls the existing exemption producer before its cooldown test; mere chase
+and non-firing ground holds do not grant it. Two fresh Frida repeats plus an
+observer-free control cover melee, ranged Attack Once, targeted artillery and
+Attack Ground. See [evidence and engine regressions](retail-pathfinding-engine.md#explicit-weapon-windups-release-the-shared-speed-cap-payoff199).
+The `49e130` notification guards and broader captain domains remain open.

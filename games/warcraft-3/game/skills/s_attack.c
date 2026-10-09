@@ -1206,6 +1206,9 @@ void attack_melee_cooldown(edict_t *self) {
 void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
+    /* Native49d130(...,1) grants the exemption at weapon windup, before
+     * comparing the cooldown request. Explicit attacks reach this too. */
+    attack_cap_begin(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_melee);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
@@ -1228,6 +1231,7 @@ void attack_ranged_cooldown(edict_t *self) {
 void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
+    attack_cap_begin(self);
     attack_set_cooldown(self, ACTIVE_ATTACK(self)->cooldown / divisor);
     unit_setmove(self, &attack_move_ranged);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
@@ -1374,6 +1378,9 @@ static void attack_ground_ranged(edict_t *ent) {
     if (!attack_ground_fires(ent)) { unit_setmove(ent,&attack_ground_move_hold); ent->wait=0; return; }
     float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
+    /* Native49a4f0 uses the same swing producer for a firing point task;
+     * the non-firing ground hold above must not acquire an exemption. */
+    attack_cap_begin(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
     ent->wait = attack_ground_profile(ent)->damagePoint / divisor;
     if (G_UnitSoundProfile(ent)->attack) G_PlaySound(NULL, ent, CHAN_WEAPON, G_UnitSoundProfile(ent)->attack, 1.0f, 1.0f, 0.0f);
