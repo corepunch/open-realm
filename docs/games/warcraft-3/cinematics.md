@@ -69,22 +69,23 @@ the filter color and uses half of the authored alpha to match the observed
 retail filter opacity. An image-only filter with zero color alpha is normalized
 to white before transmission to avoid turning the texture black.
 
-This is a network protocol change: servers and clients must use a build with
-the same `playerStateFields` layout. Mixed versions can disagree about which
-delta bits and bytes follow, so the filter-bearing player state is not
-wire-compatible with the earlier layout. Coordinate server and client updates
-when merging or deploying these commits. The portrait change is wire-compatible
-because it reinterprets an existing byte, but maps relying on the old 0–63
-truncation behavior should be checked. Cinematic filter state is transient and
-is not persisted in WC3 saves. The portrait stats-slot meaning is part of the
-serialized player contract, so the WC3 save version is 77; version 76 saves are
-rejected rather than migrated, consistent with the repository save policy.
+This is a network protocol change. The filter fields are appended after the
+existing player-state fields, preserving their bit assignments, and protocol
+21 rejects older peers during connection setup. Deploy protocol 21 clients and
+servers together. The portrait model reuses the existing stats slot 29, so it
+does not add a wire field; it changes how that byte is interpreted by WC3.
+Maps relying on the old 0–63 truncation behavior should be checked. Cinematic
+filter state is transient and is not persisted in WC3 saves. The portrait
+stats-slot meaning is part of the serialized player contract, so the WC3 save
+version is 77; version 76 saves are rejected rather than migrated, consistent
+with the repository save policy.
 
 Focused regressions cover filter player-state delta round-trip, viewport-sized
 filter rendering with HUD disabled, portrait model indices above 63 across a
 player-stat delta, and client portrait model lookup. The implementation and
-tests are in the commits after `babd5b3e`; see the branch review note for the
-commit sequence and validation results.
+tests are in the commits after `babd5b3e`; see the [Gul'dan cinematic merge
+review](../../../GULDAN_CINEMATIC_MERGE_REVIEW.md) for the commit sequence,
+validation results, and merge impact.
 
 ### Flow
 
