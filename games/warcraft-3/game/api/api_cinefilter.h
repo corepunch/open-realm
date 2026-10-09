@@ -3,9 +3,18 @@ uint32_t SetCineFilterTexture(jass_t *j) {
     level.cinefilter.texture = (uint32_t)gi.ImageIndex(filename);
     return 0;
 }
+/* JASS blendmode constants have no ADDALPHA entry, so MODULATE and MODULATE_2X
+ * sit one below the engine BLEND_MODE values. */
+BLEND_MODE G_BlendModeFromJass(uint32_t mode) {
+    static BLEND_MODE const modes[] = {
+        BLEND_MODE_NONE, BLEND_MODE_ALPHAKEY, BLEND_MODE_BLEND,
+        BLEND_MODE_ADD, BLEND_MODE_MODULATE, BLEND_MODE_MODULATE_2X,
+    };
+    return mode < sizeof(modes) / sizeof(*modes) ? modes[mode] : BLEND_MODE_BLEND;
+}
 uint32_t SetCineFilterBlendMode(jass_t *j) {
-    BLEND_MODE *whichMode = jass_checkhandle(j, 1, "blendmode");
-    level.cinefilter.blendmode = *whichMode;
+    uint32_t *whichMode = jass_checkhandle(j, 1, "blendmode");
+    level.cinefilter.blendmode = G_BlendModeFromJass(*whichMode);
     return 0;
 }
 uint32_t SetCineFilterTexMapFlags(jass_t *j) {

@@ -231,7 +231,7 @@ decode snapshots with these fields.
 The WC3 cinematic portrait model index reuses player stats slot 29, and
 `cinematic_portrait` is now a presence flag. This changes WC3's use and saved
 meaning of those existing values without changing the generic stats wire
-structure. WC3 save format 77 rejects older saves.
+structure. WC3 save format 78 rejects older saves.
 
 ## Entity heading encoding
 

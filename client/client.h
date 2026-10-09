@@ -302,6 +302,7 @@ bool SCR_LayoutContextValue(uint32_t stat, float *value);
 bool SCR_LayoutContextFrameVisible(uiFrame_t const *frame);
 bool SCR_LayoutWorldHoverRoot(rect_t *root);
 float SCR_UICanvasWidth(void);
+void SCR_SetupViewBlend(viewDef_t *view, player_t const *ps, texture_t const *const *pics);
 vec2_t SCR_ScreenToUI(int x, int y);
 bool SCR_ProjectWorldPoint(vec3_t const *point, vec2_t *screen);
 vec2_t SCR_GetAxisBounds(rect_t const *rect, bool is_x_axis);

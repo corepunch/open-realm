@@ -913,23 +913,38 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     T_EQ(game.clients[0].ps.cinefilter_color.r, 60);
     T_EQ(game.clients[0].ps.cinefilter_color.g, 70);
     T_EQ(game.clients[0].ps.cinefilter_color.b, 80);
-    T_EQ(game.clients[0].ps.cinefilter_color.a, 60);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 120);
 
     level.time = 2000;
     G_RunClients();
     T_EQ(game.clients[0].ps.cinefilter_color.r, 110);
     T_EQ(game.clients[0].ps.cinefilter_color.g, 120);
     T_EQ(game.clients[0].ps.cinefilter_color.b, 130);
-    T_EQ(game.clients[0].ps.cinefilter_color.a, 100);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 200);
 
+    /* CinematicFadeBJ to black must reach opaque. */
+    level.cinefilter.end.color = MAKE(color32_t, 0, 0, 0, 255);
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 255);
+
+    /* An untextured filter still publishes its tint; the client draws it plain. */
+    level.cinefilter.texture = 0;
+    G_RunClients();
+    T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 255);
+    T_EQ(game.clients[0].ps.cinefade, 0.0f);
+
+    level.cinefilter.texture = 73;
     level.cinefilter.displayed = false;
     G_RunClients();
     T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 0);
 
     level.cinefilter.displayed = true;
     gi.CvarString = cinefilter_skip_cvar;
     G_RunClients();
     T_EQ(game.clients[0].ps.cinefilter_image, 0);
+    T_EQ(game.clients[0].ps.cinefilter_color.a, 0);
 
     game.clients[0] = saved_client;
     if (player) player->s.origin = saved_origin;
@@ -937,6 +952,16 @@ TEST(wc3_api, cinefilter_interpolates_and_publishes_player_state) {
     level.time = saved_time;
     level.cinefilter = saved_filter;
     gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, cinefilter_blend_mode_maps_jass_constants) {
+    T_EQ(G_BlendModeFromJass(0), BLEND_MODE_NONE);
+    T_EQ(G_BlendModeFromJass(1), BLEND_MODE_ALPHAKEY);
+    T_EQ(G_BlendModeFromJass(2), BLEND_MODE_BLEND);
+    T_EQ(G_BlendModeFromJass(3), BLEND_MODE_ADD);
+    T_EQ(G_BlendModeFromJass(4), BLEND_MODE_MODULATE);
+    T_EQ(G_BlendModeFromJass(5), BLEND_MODE_MODULATE_2X);
+    T_EQ(G_BlendModeFromJass(99), BLEND_MODE_BLEND);
 }
 
 static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {

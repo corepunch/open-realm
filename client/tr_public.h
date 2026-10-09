@@ -233,6 +233,11 @@ typedef struct {
     float fogStart;
     float fogEnd;
     vec3_t fogColor;
+    /* Optional overlay drawn after the scene, inside the viewport and below
+     * 2D UI. Alpha 0 disables it; a NULL texture draws the tint untextured. */
+    texture_t const *blendTexture;
+    color32_t blendColor;
+    BLEND_MODE blendMode;
 } viewDef_t;
 
 struct modelInfo_s {

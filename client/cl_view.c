@@ -706,6 +706,7 @@ void V_RenderView(void) {
     }
 
     V_UpdateEnvironmentLighting(&cl.viewDef, true);
+    SCR_SetupViewBlend(&cl.viewDef, &cl.playerstate, cl.pics);
     re.RenderFrame(&cl.viewDef);
     CL_DrawTEnts();
     

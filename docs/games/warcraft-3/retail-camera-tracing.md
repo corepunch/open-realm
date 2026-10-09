@@ -310,8 +310,8 @@ to the filter state. The exact timer update and screen-compositing methods are
 inside the stripped `CCinematicFilter`/`CFadeTimer` implementation and still
 need runtime breakpoints or further call-graph analysis.
 
-The corresponding OpenRealm path is `api_cinefilter.h` to `G_Cinefade()` to
-`playerState.cinefade` to `SCR_DrawLayout()`. Compare the overlay alpha at
+The corresponding OpenRealm path is `api_cinefilter.h` to `G_CineFilterColor()` to
+`playerState.cinefilter_color` to the renderer's view overlay. Compare the overlay alpha at
 `t=0`, `t=2.0`, and `t=2.1` through `t=3.1`; the camera may already be
 positioned beneath a fully opaque filter while the scene is black.
 

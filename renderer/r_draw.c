@@ -214,6 +214,19 @@ void R_DrawImageBatch(texture_t const *texture,
     });
 }
 
+/* Runs while the scene viewport and scissor are bound, so the UI-scene quad
+ * fills exactly the 3D view and later 2D UI stays on top. */
+void R_DrawViewBlend(void) {
+    if (!tr.viewDef.blendColor.a) return;
+    R_DrawImageEx(&MAKE(drawImage_t,
+                        .texture = tr.viewDef.blendTexture,
+                        .screen = R_UISceneRect(),
+                        .uv = MAKE(rect_t, 0, 0, 1, 1),
+                        .color = tr.viewDef.blendColor,
+                        .shader = SHADER_UI,
+                        .alphamode = tr.viewDef.blendMode));
+}
+
 void R_DrawImageEx(drawImage_t const *drawImage) {
     vertex_t simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);

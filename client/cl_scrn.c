@@ -152,6 +152,23 @@ void SCR_EndLoadingPlaque(void) {
     cls.disable_screen = 0;
 }
 
+/* Server-authored screen overlay: the textured filter wins; cinefade is the
+ * untextured black overlay for games that only publish a fade alpha. */
+void SCR_SetupViewBlend(viewDef_t *view, player_t const *ps, texture_t const *const *pics) {
+    uint32_t const image = ps->cinefilter_image;
+
+    view->blendTexture = NULL;
+    view->blendColor = MAKE(color32_t, 0, 0, 0, 0);
+    view->blendMode = BLEND_MODE_BLEND;
+    if (ps->cinefilter_color.a > 0) {
+        view->blendTexture = image > 0 && image < MAX_IMAGES ? pics[image] : NULL;
+        view->blendColor = ps->cinefilter_color;
+        view->blendMode = (BLEND_MODE)ps->cinefilter_blendmode;
+    } else if (ps->cinefade > 0) {
+        view->blendColor.a = (uint8_t)(MIN(ps->cinefade, 1.0f) * 255);
+    }
+}
+
 void SCR_DrawScreenField(uint32_t msec) {
     re.BeginFrame();
     if (CL_MovieActive()) {
@@ -177,22 +194,6 @@ void SCR_DrawScreenField(uint32_t msec) {
         break;
     case ca_active:
         V_RenderView();
-        if (cl.playerstate.cinefilter_image > 0 && cl.playerstate.cinefilter_image < MAX_IMAGES &&
-            cl.pics[cl.playerstate.cinefilter_image]) {
-            rect_t const viewport = {
-                .x = cl.viewDef.viewport.x * SCR_UICanvasWidth(),
-                .y = (1.0f - (cl.viewDef.viewport.y + cl.viewDef.viewport.h)) * UI_BASE_HEIGHT,
-                .w = cl.viewDef.viewport.w * SCR_UICanvasWidth(),
-                .h = cl.viewDef.viewport.h * UI_BASE_HEIGHT,
-            };
-            re.DrawImageEx(&MAKE(drawImage_t,
-                                .texture = cl.pics[cl.playerstate.cinefilter_image],
-                                .screen = viewport,
-                                .uv = MAKE(rect_t,0,0,1,1),
-                                .color = cl.playerstate.cinefilter_color,
-                                .shader = SHADER_UI,
-                                .alphamode = (BLEND_MODE)cl.playerstate.cinefilter_blendmode));
-        }
         if (Cvar_Integer("r_hud", 1)) {
             SCR_DrawLayout();
         }
@@ -1456,13 +1457,6 @@ void SCR_LayoutDrawOverlay(handle_t layout) {
 
 void SCR_DrawLayout(void) {
     active_tooltip = NULL;
-
-    if (cl.playerstate.cinefade > 0) {
-        color32_t color = COLOR32_BLACK;
-        rect_t const screen = MAKE(rect_t, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
-        color.a = 255 * cl.playerstate.cinefade;
-        re.DrawImage(cl.pics[0], &screen, &MAKE(rect_t,0,0,1,1), color);
-    }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         uint32_t flags = cl.playerstate.uiflags;

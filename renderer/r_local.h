@@ -492,6 +492,7 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vec3_t *out);
 bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
 rect_t R_UISceneRect(void);
+void R_DrawViewBlend(void);
 void R_SetUIScene(rect_t const *scene);
 
 // r_font.c

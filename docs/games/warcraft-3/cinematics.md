@@ -47,47 +47,36 @@ Pre-rendered campaign movies are a separate client media path driven by `PlayCin
 
 ### Cinematic portrait and filter transport
 
-The cinematic dialogue path sends the portrait through the existing player
-stats slot 29. The payload remains a single byte. It now carries the complete
-model index (`0` through `255`); `cinematic_portrait` is a presence flag, so a
-valid portrait whose index is zero is still distinguishable from no portrait.
-The client indexes its player-model table with that full byte. Do not restore
-the former six-bit mask: model indices above 63 are valid and were truncated by
-that mask. This reuses an existing stats slot and does not add player-state
-delta bits.
+The cinematic dialogue path sends the portrait model through the existing
+16-bit player stat `UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL` (slot 29), so model
+indices above 255 survive; `cinematic_portrait` is only a presence flag. This
+reuses an existing stats slot and does not add player-state delta bits.
 
 Cinematic filters use three player-state fields: `cinefilter_image`,
-`cinefilter_color`, and the authored `cinefilter_blendmode`. These are encoded
-as `NFT_LONG` entries in `playerStateFields`, so each adds a player-state delta
-bit. The image identifies
-the loaded filter texture; the packed color carries RGBA, including opacity.
-The client resolves that texture and draws the filter over the camera's world
-viewport, before the HUD layers. The viewport rectangle follows the scene's
-normalized viewport and the expanded UI canvas, so widescreen side regions are
-not covered and the filter remains below HUD chrome. The server interpolates
-the filter color and uses half of the authored alpha to match the observed
-retail filter opacity. Equal start/end RGB values still draw the texture, which
-is required for constant-color flashes whose alpha changes. The client applies
-the authored blend mode. An image-only filter with zero color alpha is normalized
-to white before transmission to avoid turning the texture black.
+`cinefilter_color`, and `cinefilter_blendmode`, appended to
+`playerStateFields` so existing delta bit assignments stay stable. Every
+`CinematicFadeBJ` and `CinematicFilterGenericBJ` call sets a mask texture
+(`White_mask`, `Black_mask`, `DreamFilter_Mask`, ...), so all WC3 fades go
+through this path; WC3 no longer writes `cinefade`. `G_RunClients()`
+interpolates the authored RGBA and publishes it unscaled, so a fade to black
+reaches opaque. Alpha 0 means hidden (not displayed, or cutscene skipped).
+`SetCineFilterBlendMode` maps the JASS `blendmode` constants onto `BLEND_MODE`
+with `G_BlendModeFromJass()`: JASS has no ADDALPHA entry, so its MODULATE and
+MODULATE_2X values are one below the engine's. Custom UV ranges are not yet
+transmitted; the filter always uses full UVs.
 
-This is a network protocol change. The filter fields are appended after the
-existing player-state fields, preserving their bit assignments, and protocol
-22 rejects older peers during connection setup. Deploy protocol 22 clients and
-servers together. The portrait model reuses the existing stats slot 29, so it
-does not add a wire field; it changes how that byte is interpreted by WC3.
-Maps relying on the old 0–63 truncation behavior should be checked. Cinematic
-filter state is transient and is not persisted in WC3 saves. The portrait
-stats-slot meaning is part of the serialized player contract, so the WC3 save
-version is 77; version 76 saves are rejected rather than migrated, consistent
-with the repository save policy.
+The client turns the filter (or a game's plain `cinefade`) into the generic
+`viewDef` overlay in `SCR_SetupViewBlend()`. Image 0 or an unknown image draws
+the tint untextured. The renderer draws it at the end of `R_RenderView()` while
+the scene viewport and scissor are still bound, so it covers exactly the 3D
+view, stays below every HUD layer, and is unaffected by `r_hud`. Mask
+textures keep their own alpha: `DreamFilter_Mask` is a JPEG BLP whose alpha is
+0 at the centre and about 38% on average, which gives the Gul'dan vignette.
 
-Focused regressions cover filter player-state delta round-trip, viewport-sized
-filter rendering with HUD disabled, portrait model indices above 63 across a
-player-stat delta, and client portrait model lookup. The implementation and
-tests are in the commits after `babd5b3e`; see the [Gul'dan cinematic merge
-review](../../../GULDAN_CINEMATIC_MERGE_REVIEW.md) for the commit sequence,
-validation results, and merge impact.
+This is a network protocol change; protocol 22 rejects older peers. The
+portrait meaning change is part of the serialized player contract, so the WC3
+save version is 78; version 77 saves are rejected rather than migrated.
+Cinematic filter state is transient and is not persisted.
 
 ### Flow
 
@@ -127,7 +116,7 @@ This is separate from the JASS-level ESC skip mechanism.
 | `games/warcraft-3/game/api/api_trigger.h` | `TriggerSleepAction`, `TriggerWaitForSound` |
 | `games/warcraft-3/game/api/api_unit.h` | `IssuePointOrderLoc`, `SetUnitAnimation`, `SetUnitPosition` |
 | `games/warcraft-3/game/g_commands.c` | `CMD_Cancel` — publishes `EVENT_PLAYER_END_CINEMATIC` |
-| `games/warcraft-3/game/g_main.c` | `G_SkipCutscene()` (cvar check), `G_Cinefade()`, `G_RunClients()` (camera lerp) |
+| `games/warcraft-3/game/g_main.c` | `G_SkipCutscene()` (cvar check), `G_CineFilterColor()`, `G_RunClients()` (camera lerp, filter state) |
 | `games/warcraft-3/game/g_ai.c` | `unit_setmove()`, `unit_changeangle()`, `unit_moveindirection()` |
 | `games/warcraft-3/game/g_monster.c` | `M_MoveFrame()` (animation clock), `monster_think()` |
 | `games/warcraft-3/game/skills/s_move.c` | `order_move()`, `ai_move_walk()` |
@@ -406,7 +395,7 @@ A 2880x1620 trace demonstrated the failure mode: canvas width was `1.06667`, HUD
 
 ### Cinefilter
 
-Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. Ordinary fades keep using `G_Cinefade()` and the full-screen color overlay. Color-changing filters register their texture as a shared image configstring; `G_RunClients()` interpolates RGBA and publishes the generic image index plus tint in player state. Textured filters use half-strength tint alpha while preserving the texture's per-pixel alpha, matching the lighter retail appearance of NightElfX03's Gul'dan `DreamFilter_Mask`. The client draws the image over the 3D viewport after `V_RenderView()` and before `SCR_DrawLayout()`, so it stays within the world viewport and below the HUD. This supports the `BLEND_MODE_BLEND`, full-UV color-mask path; other filter blend modes and custom UV ranges are not yet represented in player state.
+Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. `G_RunClients()` publishes the filter image, interpolated RGBA and blend mode in player state; the renderer draws them as the view overlay over the 3D viewport, below the HUD (see [Cinematic portrait and filter transport](#cinematic-portrait-and-filter-transport) above).
 
 The client-side fade is physical-screen presentation, not centered 4:3 HUD content. `SCR_DrawLayout()` must cover `{ x=0, y=0, w=SCR_UICanvasWidth(), h=UI_BASE_HEIGHT }`, the full canvas scene; under the widened (1.30+ data) policy that is wider than the centered HUD root returned by `SCR_LayoutSceneRect()`, under the classic stretched policy both are the authored 0.8 width. Renderer projection and input use that same canvas ([ui-canvas.md](../../architecture/ui-canvas.md)); the world camera retains the physical viewport aspect.
 

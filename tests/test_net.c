@@ -84,11 +84,6 @@ static rect_t test_status_rect;
 static uint32_t test_status_draws;
 static texture_t const *test_status_textures[16];
 static color32_t test_status_colors[16];
-static rect_t test_fade_rect;
-static color32_t test_fade_color;
-static SHADERTYPE test_fade_shader;
-static BLEND_MODE test_fade_blend;
-static uint32_t test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static uint32_t test_sprite_draws;
@@ -138,18 +133,6 @@ static void capture_status_image(texture_t const *texture, rect_t const *screen,
         test_status_colors[test_status_draws] = color;
     }
     test_status_draws++;
-}
-static void capture_fade_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
-    (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
-}
-
-static void capture_fade_image_ex(drawImage_t const *draw) {
-    if (!draw) return;
-    test_fade_rect = draw->screen;
-    test_fade_color = draw->color;
-    test_fade_shader = draw->shader;
-    test_fade_blend = draw->alphamode;
-    test_fade_draws++;
 }
 static texture_t *capture_load_texture(cstring_t name) {
     (void)name; test_tex_loads++; return (texture_t *)(uintptr_t)test_tex_loads;
@@ -1937,57 +1920,46 @@ static vec2_t text_length_mock_size(drawText_t const *text) {
     return MAKE(vec2_t, 0.018f, 0.012f);
 }
 
-TEST(net, cinematic_fade_covers_widescreen_canvas) {
-    test_client_stubs_init();
-    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
-    test_client_stubs_set_window_size(1280, 720);
-    test_fade_draws = 0;
-    cl.playerstate.cinefade = 1.0f;
-    re.DrawImage = capture_fade_image;
+TEST(client_screen, view_blend_maps_cinefade_to_untextured_black) {
+    texture_t const *pics[MAX_IMAGES] = {0};
+    player_t ps = {0};
+    viewDef_t view = {0};
 
-    SCR_DrawLayout();
+    ps.cinefade = 1.0f;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_NULL(view.blendTexture);
+    T_EQ(view.blendColor.r, 0);
+    T_EQ(view.blendColor.a, 255);
+    T_EQ(view.blendMode, BLEND_MODE_BLEND);
 
-    T_EQ(test_fade_draws, 1);
-    T_FEQ(test_fade_rect.x, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.y, 0.0f, 0.0001f);
-    T_FEQ(test_fade_rect.w, UI_BASE_HEIGHT * (1280.0f / 720.0f), 0.0001f);
-    T_FEQ(test_fade_rect.h, UI_BASE_HEIGHT, 0.0001f);
-    T_EQ(test_fade_color.a, 255);
+    ps.cinefade = 0.0f;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_EQ(view.blendColor.a, 0);
 }
 
-TEST(client_screen, cinematic_filter_covers_only_world_viewport) {
-    rect_t const world_viewport = { 0.12f, 0.18f, 0.72f, 0.64f };
-    float const canvas_w = UI_BASE_HEIGHT * (1280.0f / 720.0f);
+TEST(client_screen, view_blend_prefers_textured_filter) {
+    texture_t const *pics[MAX_IMAGES] = {0};
+    player_t ps = {0};
+    viewDef_t view = {0};
 
-    test_client_stubs_init();
-    test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
-    test_client_stubs_set_window_size(1280, 720);
-    test_client_stubs_set_cvar("r_hud", "0");
-    cls.state = ca_active;
-    cls.key_dest = key_game;
-    cl.viewDef.viewport = world_viewport;
-    cl.pics[513] = (texture_t *)(uintptr_t)513;
-    cl.playerstate.cinefilter_image = 513;
-    cl.playerstate.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
-    cl.playerstate.cinefilter_blendmode = BLEND_MODE_MODULATE;
-    test_fade_draws = 0;
-    re.BeginFrame = capture_begin_frame;
-    re.EndFrame = capture_end_frame;
-    re.DrawImageEx = capture_fade_image_ex;
+    pics[513] = (texture_t const *)(uintptr_t)513;
+    ps.cinefade = 1.0f;
+    ps.cinefilter_image = 513;
+    ps.cinefilter_color = MAKE(color32_t, 28, 84, 173, 96);
+    ps.cinefilter_blendmode = BLEND_MODE_MODULATE;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_EQ((uintptr_t)view.blendTexture, 513);
+    T_EQ(view.blendColor.r, 28);
+    T_EQ(view.blendColor.g, 84);
+    T_EQ(view.blendColor.b, 173);
+    T_EQ(view.blendColor.a, 96);
+    T_EQ(view.blendMode, BLEND_MODE_MODULATE);
 
-    SCR_DrawScreenField(16);
-
-    T_EQ(test_fade_draws, 1);
-    T_FEQ(test_fade_rect.x, world_viewport.x * canvas_w, 0.0001f);
-    T_FEQ(test_fade_rect.y, (1.0f - world_viewport.y - world_viewport.h) * UI_BASE_HEIGHT, 0.0001f);
-    T_FEQ(test_fade_rect.w, world_viewport.w * canvas_w, 0.0001f);
-    T_FEQ(test_fade_rect.h, world_viewport.h * UI_BASE_HEIGHT, 0.0001f);
-    T_EQ(test_fade_color.r, 28);
-    T_EQ(test_fade_color.g, 84);
-    T_EQ(test_fade_color.b, 173);
-    T_EQ(test_fade_color.a, 96);
-    T_EQ(test_fade_shader, SHADER_UI);
-    T_EQ(test_fade_blend, BLEND_MODE_MODULATE);
+    /* Out-of-range images still draw the tint rather than indexing past pics. */
+    ps.cinefilter_image = MAX_IMAGES;
+    SCR_SetupViewBlend(&view, &ps, pics);
+    T_NULL(view.blendTexture);
+    T_EQ(view.blendColor.a, 96);
 }
 
 TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
