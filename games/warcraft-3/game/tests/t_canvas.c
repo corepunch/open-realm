@@ -11,6 +11,7 @@ bool run_test_jass(cstring_t src);
 typedef struct {
     PATHSTR images[MAX_IMAGES];
     uint32_t tiles, wide_tiles, console_layouts, unicasts;
+    char cinematic_texture_path[PATH_MAX];
     int32_t layer;
     bool layer_pending, in_console;
     stbIniCache_t saved_theme;
@@ -61,8 +62,12 @@ static void canvas_write(pfWriteType_t type, void const *value) {
         } else if (byte == svc_layout) cap.layer_pending = true;
         return;
     }
-    if (type != PF_UIFRAME || !cap.in_console) return;
+    if (type != PF_UIFRAME || (!cap.in_console && cap.layer != LAYER_CINEMATIC)) return;
     uiFrame_t const *frame = value;
+    if (!cap.in_console && frame->flags.type == FT_TEXTURE && frame->tex.index < MAX_IMAGES) {
+        snprintf(cap.cinematic_texture_path, sizeof(cap.cinematic_texture_path), "%s", cap.images[frame->tex.index]);
+        return;
+    }
     if (frame->flags.type != FT_TEXTURE || !frame->tex.index || frame->tex.index >= MAX_IMAGES) return;
     cstring_t name = cap.images[frame->tex.index];
     if (!strstr(name, "-tile0")) return;
@@ -74,6 +79,8 @@ static void canvas_unicast(edict_t *ent) { (void)ent; cap.unicasts++; cap.in_con
 static void canvas_reset_counts(void) {
     cap.tiles = cap.wide_tiles = cap.console_layouts = cap.unicasts = 0;
     cap.in_console = false;
+    cap.layer_pending = false;
+    cap.cinematic_texture_path[0] = '\0';
 }
 
 /* The fixture archive carries the retail 1.30 ConsoleUI.fdf plus ResourceBar/UpperButtonBar and a skin with
@@ -178,14 +185,54 @@ TEST(wc3_canvas, esc_menu_art_resolves_for_each_race_and_fits_deferred_table) {
 TEST(wc3_canvas, cinematic_layer_restores_previous_skin_context) {
     gameClient_t client = { 0 }, previous = { 0 };
     edict_t ent = { 0 };
+    frameDef_t *root = NULL, *scene = NULL, *portrait = NULL, *texture = NULL;
+    char skin_text[512];
 
     canvas_setup();
+    Stb_IniCacheFree(&game.config.theme);
+    memset(&game.config.theme, 0, sizeof(game.config.theme));
+    snprintf(skin_text, sizeof(skin_text),
+             "[NightElf]\nEscMenuBackground=TestUI\\Textures\\nightelf-cinematic.blp\n"
+             "\n[Undead]\nEscMenuBackground=TestUI\\Textures\\undead-cinematic.blp\n");
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.theme, skin_text));
     client.ps.race = kPlayerRaceNightElf;
     ent.client = &client;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (!frames[i].inuse) {
+            if (!root) root = frames + i;
+            else if (!scene) scene = frames + i;
+            else if (!portrait) portrait = frames + i;
+            else { texture = frames + i; break; }
+        }
+    }
+    T_NOT_NULL(root); T_NOT_NULL(scene); T_NOT_NULL(portrait); T_NOT_NULL(texture);
+    UI_InitFrame(root, FT_FRAME);
+    UI_InitFrame(scene, FT_FRAME);
+    UI_InitFrame(portrait, FT_PORTRAIT);
+    UI_InitFrame(texture, FT_TEXTURE);
+    snprintf(root->Name, sizeof(root->Name), "CinematicPanel");
+    snprintf(scene->Name, sizeof(scene->Name), "CinematicScenePanel");
+    snprintf(portrait->Name, sizeof(portrait->Name), "CinematicPortrait");
+    snprintf(texture->Name, sizeof(texture->Name), "CinematicTestTexture");
+    scene->Parent = root;
+    portrait->Parent = scene;
+    texture->Parent = scene;
+    texture->Texture.Image = UI_LoadTexture("EscMenuBackground", true);
+    hud.cinematic.CinematicPanel = root;
+    hud.cinematic.CinematicScenePanel = scene;
+    hud.cinematic.CinematicPortraitBackground = NULL;
+    hud.cinematic.CinematicPortrait = portrait;
+    hud.cinematic.CinematicPortraitCover = NULL;
+    hud.cinematic.CinematicSpeakerText = NULL;
+    hud.cinematic.CinematicDialogueText = NULL;
+    canvas_reset_counts();
+    client.ps.cinematic_portrait = 1;
     ui_current_client = &previous;
     UI_WriteCinematicLayer(&ent);
+    T_ASSERT(strstr(cap.cinematic_texture_path, "nightelf-cinematic.blp") != NULL);
     T_EQ(ui_current_client, &previous);
     ui_current_client = NULL;
+    memset(&hud.cinematic, 0, sizeof(hud.cinematic));
     canvas_teardown();
 }
 
