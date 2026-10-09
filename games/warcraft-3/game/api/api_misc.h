@@ -1862,6 +1862,14 @@ uint32_t PreloadGenEnd(jass_t *j) {
     //cstring_t filename = jass_checkstring(j, 1);
     return 0;
 }
+uint32_t PreloadRefresh(jass_t *j) {
+    (void)j; /* Native asset preloading is not modeled; keep map-authored preload boundaries executable. */
+    return 0;
+}
+uint32_t PreloadEndEx(jass_t *j) {
+    (void)j; /* Native asset preloading is not modeled; keep map-authored preload boundaries executable. */
+    return 0;
+}
 uint32_t Preloader(jass_t *j) {
     //cstring_t filename = jass_checkstring(j, 1);
     return 0;
