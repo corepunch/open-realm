@@ -1208,6 +1208,8 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
+    source->abilities.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
+    ARRAY_COUNT(source->abilities.added) = 1;
     if (!source->shadowmeld) source->shadowmeld = G_AllocShadowMeld();
     assert(source->shadowmeld);
     source->shadowmeld->active = true;
@@ -1217,6 +1219,8 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
 
+    target->abilities.added[0] = MAKEFOURCC('A', 's', 'h', 'm');
+    ARRAY_COUNT(target->abilities.added) = 1;
     if (!target->shadowmeld) target->shadowmeld = G_AllocShadowMeld();
     assert(target->shadowmeld);
     target->shadowmeld->active = true;
