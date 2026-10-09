@@ -13231,3 +13231,121 @@ both schemas. Seven verifier tests reject missing growth, incomplete reuse,
 live-reference reclaim, unfinished wrapper ownership and missing/duplicated
 public lifetime boundaries. This lifecycle change does not establish the overall
 spawn or pathfinding frame-time target.
+
+## Captain range producers and retained point requests (Payoff193)
+
+GROUP-03.4.6.2.1.2 is complete for the private range producer contract. Its
+public creation inputs were integrated in [Payoff121](#captain-approach-ranges-retain-the-siege-roster-snapshot),
+[Payoff154](#captain-ranges-distinguish-temporary-units-and-removed-attack-payoff154),
+[Payoff155](#counted-attack-prevention-feeds-captain-admission-payoff155),
+[Payoff156](retail-pathfinding-timed-life.md) and
+[Payoff158](retail-pathfinding-captain-enrollment.md). Payoff193 completes their
+actual departure/replacement/save composition and fixes a retained-request bug.
+
+### Request identity owns the captured range
+
+`CaptainAI_UpdateMemberOrders` (`6f9d16c0`) skips a retained target-order head
+whose resolved target is the Captain. Independently, assembly in
+`CaptainAI_ReissueMemberOrder` (`6f9d87d0`) compares the current head command at
+`6f9d8901`, resolves its target at `6f9d8908`, compares that target at
+`6f9d890d` and branches to release/return at `6f9d890f` on equality. The
+unit argument's reused stack slot obscures this retained **order** identity in
+the decompiler. Moving the virtual actor is not a fresh member admission.
+
+`OrderTarget_GetResolvedTarget` (`6f686810`) takes its order prefix in ECX,
+returns the resolved payload pointer in EAX and ends with plain RET. Its
+canonical target is slot/generation at `+58/+5c`; the all-ones identity returns
+NULL. `WC3OrderTargetPrefix` describes only the verified 96-byte prefix, not a
+complete class size. The existing 84-byte `WC3OrderPrefix` is embedded unchanged.
+The schema, method ABI and seven plate annotations are portable in
+`MapPathfinding.java` / `retail-pathfinding-types-1.27.json`; the live Ghidra
+program was saved and its annotations read back under the shared project lock.
+
+Previously `S_ReissueCaptainUnit` replaced a physical Move every time a Captain
+published another point, recalculating the private range from changed weapons.
+Move now retains the existing Move-to-Captain owner when both actor identity
+and generation match. A Stop, point replacement or changed target still admits
+a fresh request. No new allocation, persistent field or save-version change is
+needed. This removes repeated setup on retained requests; it is not a new
+performance-budget measurement.
+
+### Independent public retail scene
+
+The frozen fixture `retail-captain-retained-range193-1.27.json` pins two complete
+read-only Frida captures, an observer-free control, all producers and the exact
+flat map. All three preserve all 770 public markers. Both observed streams have
+15 initial private admissions, four Captain point publications and identical
+ordered normalized head/range/weapon state.
+
+The Rifleman starts with weapon range400 and private physical range
+`412b0000` = `(310+32)/32`. Public Long Rifles changes the weapon to600 at tick11.
+The subsequent `CaptainAttack(500,1800)` retains the same head and range; all15
+members retain their existing heads/ranges and no additional `9d86f0` call runs.
+A later all-entered publication installs the already established shared minimum.
+No writes, in-process game calls or instruction probes inside scalar helpers
+are used. The scene certifies this range/request contract, not a new complete
+engine-versus-retail trajectory comparison.
+
+Captures and Ghidra save/readback evidence are archived under
+`research/GROUP-03.4.6.2.1.2/captures193` and `runtime/payoff193` in the external
+1.27 report tree. Earlier original-terrain/blocked-placement attempts and the
+first flat run with the older observer are retained as diagnostics, excluded
+from the frozen acceptance fixture. The flat map uses matching W3E/WPM/SHD and
+empty doodad/unit records; merely replacing its script did not isolate admission.
+
+Reproduce the bounded native scene using an owned B/C environment:
+
+```sh
+R=/GitHub/wc3-analysis/reports/pathfinding-1.27/research
+P=/home/lofcz/.local/share/uv/tools/frida-tools/bin/python
+python3 tools/frida/research/captain193_make_map.py --base /GitHub/wc3-analysis/reports/pathfinding-1.27/runtime/Human02Interlude-original.w3m --tool build/bin/mpqtool --output /tmp/RS-Captain193c.w3m
+"$R/_env/install-map.sh" /tmp/RS-Captain193c.w3m
+"$R/_env/live.sh" "$P" tools/frida/research/spell184_capture.py --data '{DATA}' --remote '{REMOTE}' --x11-display '{DISPLAY}' --map Maps/RS-Captain193c.w3m --mode observe --seconds 110 --continue-at 20 --prefix 'RSG ' --preload rs-captain193.txt --task payoff193 --observer tools/frida/research/captain193_observer.js --output /tmp/captain193-fresh.jsonl
+python3 tools/frida/research/captain193_verify.py --archive "$R/GROUP-03.4.6.2.1.2/captures193" --expected tools/ghidra/fixtures/retail-captain-retained-range193-1.27.json --output /tmp/captain193-verified.json
+```
+
+Use fresh output names. The last command validates the frozen archive rather
+than accepting new raw capture bytes as equivalent evidence.
+
+### Actual engine composition and save boundaries
+
+`captain_repeated_point_request_retains_member_range_after_upgrade_and_save`
+creates13 real units, recruits through `G_BotAddAssault`, changes authored
+research, publishes Captain points, saves/loads and issues public Stop. Before
+the fix it fails39 assertions; afterward all87 pass. Unchanged member IDs,
+private ranges and listener deadlines survive point updates and saves; after
+Stop the fresh upgraded range is `41670000` = `(430+32)/32`.
+
+`captain_range_producers_retain_walk_and_refresh_on_natural_departure` runs
+actual 5-ms server frames and one-second range listeners. Each of four members
+leaves the outer circle, changes a producer during its private walk, saves,
+returns through shared admission and leaves again. Its next private request
+reads the new state, with eight save/load round-trips total:
+
+| Producer changed during the first walk | First retained word | Next private word |
+|---|---:|---:|
+| Ranged attack prevention | `412b0000` | `404c0000` = `(70+32)/32` |
+| BTLF timed life | `412b0000` | `40240000` = `(50+32)/32` |
+| Removed Attack class | `412b0000` | `41260000` = `(300+32)/32` |
+| Long Rifles | `412b0000` | `41670000` = `(430+32)/32` |
+
+These72 assertions pass both schemas. The new composition invokes the owning
+prevention/timed-life/removal APIs; actual public casts and native factories
+remain covered by the earlier failing-first integration tests. All Captain
+policy/storage tests, existing complete public Captain journeys and save tests
+pass Classic/TFT. Four Python checks reject missing admissions, prematurely
+refreshed range/head state and missing actual upgrade input. Full repository
+validation remains on the authorized approximately12-commit cadence.
+
+The retained-target adjustment is not an omitted public producer: original
+`Attack_SetRetainedTargetUnreferenced` (`6f49c4d0`) has no code/data references,
+construction initializes the identity invalid and all captured callers retain
+that invalid identity. Original load can restore its serialized fields; this
+does not establish a reachable ordinary producer. Do not manufacture a retail
+write to close this domain. Original save/load field evidence and engine
+round-trips cover persistence; this chunk adds no retail save/load capture.
+
+Public Attack re-add remains a preserved, separately documented mismatch.
+Default Town homes, broad idle/combat/transport fallback and complete moving
+Captain lifecycle tasks remain open under their existing leaves. This closure
+covers the listed private range inputs, retention and fresh-admission rules.

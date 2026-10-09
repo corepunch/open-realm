@@ -4811,6 +4811,13 @@ static void move_captain_actor_point(edict_t *actor,vec2_t const *home,float ran
 /* Internal reissue preserves the member's range-listener state. It is not
  * temporary enrollment and must not reset entered/outer flags or deadlines. */
 void S_ReissueCaptainUnit(edict_t *unit,edict_t *actor) {
+    /*9d16c0 skips a retained Captain target;9d87d0 also retains an identical
+     * Move head. Moving that actor does not restart its followers or refresh
+     * their captured approach ranges. Stop/point replacement has no such owner. */
+    moveGroup_t const *group=move_unit_group(unit);
+    if (group && group->target==actor && group->target_spawn==actor->spawn_time &&
+        unit->current_order_id==G_OrderId("move") && unit->currentmove==&move_move_walk)
+        return;
     typeof(unit->movement.captain_home) retained=unit->movement.captain_home;
     unit->movement.captain_home.actor=unit->movement.captain_home.roster_actor=NULL;
     S_TrackMoveTimers(unit);

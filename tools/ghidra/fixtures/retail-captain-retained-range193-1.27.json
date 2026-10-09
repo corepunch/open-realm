@@ -1,0 +1,4176 @@
+{
+  "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+  "map_sha256": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b",
+  "captures": {
+    "live4.jsonl": {
+      "bytes": 501931,
+      "sha256": "a2eb34999aea6de08832f330c25bf7a4fb180b943c357df9c1799b671eaf495f",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff193",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+        },
+        "map": "Maps/RS-Captain193c.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "RSG ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "live5.jsonl": {
+      "bytes": 501933,
+      "sha256": "e7fdf196816afb8a27da1d39721eb428a7d4b62a73a4b6a712f0bde86e743f14",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff193",
+        "mode": "observe",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+        },
+        "map": "Maps/RS-Captain193c.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "RSG ",
+        "always": false,
+        "lite": false
+      }
+    },
+    "control.jsonl": {
+      "bytes": 1442,
+      "sha256": "99d8f6307c787a12df3ce814eb2bcb1ec52eb507845e5a30ac878a0a216e82fc",
+      "metadata": {
+        "event": "metadata",
+        "task": "payoff193",
+        "mode": "control",
+        "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+        "owned": true,
+        "source_sha256": {
+          "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+          "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+          "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+          "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+          "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+          "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+          "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+          "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+        },
+        "map": "Maps/RS-Captain193c.w3m",
+        "seconds": 110.0,
+        "continue_at": 20.0,
+        "display": ":98",
+        "remote": "127.0.0.1:27049",
+        "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+        "frida": "17.18.0",
+        "timestamp": 1481263518,
+        "imageSize": 15130624,
+        "prefix": "RSG ",
+        "always": false,
+        "lite": false
+      }
+    }
+  },
+  "sources": {
+    "tools/frida/research/captain193_make_map.py": "37536a9ad7bea5f2caa38e12565e8c2199508db5cd163c012ec7a52a2591e885",
+    "tools/frida/research/captain193_probe.j": "ab00d952c7e473f0e91009b312106c35f8f2c6598e68d0b4a52c9738d42a66e1",
+    "tools/frida/research/captain193_probe.ai": "cfe45aa8af5a420dc59aa0ad18a3ff2ee6b429b53bd5b311ece949d2ad086f3c",
+    "tools/frida/research/captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+    "tools/frida/research/spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+    "tools/frida/research/target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+    "tools/frida/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf"
+  },
+  "timeline": {
+    "calls": [
+      {
+        "rawcode": 1750221104,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221105,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221106,
+        "range": 1134231552,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1137180672
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221107,
+        "range": 1134231552,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1137180672
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221108,
+        "range": 1134231552,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1137180672
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221109,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221110,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221111,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221112,
+        "range": 1123549184,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1119092736
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221113,
+        "range": 1134231552,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1137180672
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221171,
+        "range": 1128136704,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1128792064
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1750221172,
+        "range": 1128136704,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1128792064
+          ]
+        ],
+        "flags": 517,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1213350192,
+        "range": 1142292480,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1120403456
+          ]
+        ],
+        "flags": 4613,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1213350193,
+        "range": 1142292480,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1146929152
+          ]
+        ],
+        "flags": 4613,
+        "captain_flags": 1
+      },
+      {
+        "rawcode": 1213350194,
+        "range": 1142299033,
+        "trail": [
+          [
+            "slot",
+            0,
+            1
+          ],
+          [
+            "slot",
+            1,
+            0
+          ],
+          [
+            "maximum",
+            1146945536
+          ]
+        ],
+        "flags": 4613,
+        "captain_flags": 1
+      }
+    ],
+    "points": [
+      {
+        "x": 1124073472,
+        "y": 1156579328,
+        "range": 1140457472
+      },
+      {
+        "x": 1124073472,
+        "y": 1155596288,
+        "range": 1128792064
+      },
+      {
+        "x": 1140457472,
+        "y": 1155596288,
+        "range": 1128792064
+      },
+      {
+        "x": 1140457472,
+        "y": 1155596288,
+        "range": 1128792064
+      }
+    ],
+    "snapshots": [
+      {
+        "reason": "captain-point-after",
+        "rows": []
+      },
+      {
+        "reason": "captain-point-after",
+        "rows": [
+          {
+            "rawcode": 1213350192,
+            "head": [
+              1462,
+              1648
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1085276160,
+                1095237632
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1120403456,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350193,
+            "head": [
+              1481,
+              1668
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1091043328,
+                1095237632
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146929152,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350194,
+            "head": [
+              1500,
+              1688
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100880281,
+              "position": [
+                1094189056,
+                1094189056
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146945536,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221104,
+            "head": [
+              1183,
+              1408
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1082130432,
+                1082130432
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221105,
+            "head": [
+              1123,
+              1428
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087373312,
+                1082130432
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221106,
+            "head": [
+              1057,
+              1448
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1091567616,
+                1082130432
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221107,
+            "head": [
+              1024,
+              1468
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1094189056,
+                1082130432
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221108,
+            "head": [
+              971,
+              1488
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1082130432,
+                1087373312
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221109,
+            "head": [
+              906,
+              1508
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087373312,
+                1087373312
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221110,
+            "head": [
+              850,
+              1528
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1091567616,
+                1087373312
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221111,
+            "head": [
+              806,
+              1548
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1094189056,
+                1087373312
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221112,
+            "head": [
+              1386,
+              1568
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1082130432,
+                1091567616
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221113,
+            "head": [
+              1405,
+              1588
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1093337088,
+              "position": [
+                1087373312,
+                1091567616
+              ],
+              "flags": 8192
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                4,
+                0
+              ],
+              "damageTypes": [
+                2,
+                1
+              ],
+              "targets": [
+                318,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221171,
+            "head": [
+              1424,
+              1608
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1091567616,
+                1091567616
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221172,
+            "head": [
+              1443,
+              1628
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1094189056,
+                1091567616
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          }
+        ]
+      },
+      {
+        "reason": "RSG tick=11 label=sample u=0 x=128.411 y=136.089 o=851986 ill=0 hp=420.000",
+        "rows": [
+          {
+            "rawcode": 1213350192,
+            "head": [
+              1462,
+              1648
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1085326090,
+                1096564124
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1120403456,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350193,
+            "head": [
+              1481,
+              1668
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1091093088,
+                1096562374
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146929152,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350194,
+            "head": [
+              1500,
+              1688
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100880281,
+              "position": [
+                1094212898,
+                1095515600
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146945536,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221104,
+            "head": [
+              1183,
+              1408
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1082157387,
+                1082660580
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221105,
+            "head": [
+              1123,
+              1428
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087373312,
+                1082661265
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221106,
+            "head": [
+              1057,
+              1448
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1091572113,
+                1082661188
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221107,
+            "head": [
+              1024,
+              1468
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1094189056,
+                1082661265
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221108,
+            "head": [
+              971,
+              1488
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1082842614,
+                1088797687
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221109,
+            "head": [
+              906,
+              1508
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087373312,
+                1088965811
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221110,
+            "head": [
+              850,
+              1528
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1091805010,
+                1088322894
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221111,
+            "head": [
+              806,
+              1548
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1094189056,
+                1088965811
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221112,
+            "head": [
+              1386,
+              1568
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1082292627,
+                1092892216
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221113,
+            "head": [
+              1405,
+              1588
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1093337088,
+              "position": [
+                1087373312,
+                1091833032
+              ],
+              "flags": 8192
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                4,
+                0
+              ],
+              "damageTypes": [
+                2,
+                1
+              ],
+              "targets": [
+                318,
+                1
+              ],
+              "ranges": [
+                1142292480,
+                1128792064
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221171,
+            "head": [
+              1424,
+              1608
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1091987274,
+                1092826596
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221172,
+            "head": [
+              1443,
+              1628
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1094189056,
+                1091833032
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          }
+        ]
+      },
+      {
+        "reason": "captain-point-after",
+        "rows": [
+          {
+            "rawcode": 1213350192,
+            "head": [
+              1462,
+              1648
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1085361856,
+                1101185064
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1120403456,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350193,
+            "head": [
+              1481,
+              1668
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100873728,
+              "position": [
+                1090812671,
+                1101175127
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146929152,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350194,
+            "head": [
+              1500,
+              1688
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1100880281,
+              "position": [
+                1093793570,
+                1100112222
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146945536,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221104,
+            "head": [
+              1183,
+              1408
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1077357861,
+                1088932642
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221105,
+            "head": [
+              1123,
+              1428
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087553717,
+                1091896777
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221106,
+            "head": [
+              1057,
+              1448
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1094597827,
+                1083945641
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221107,
+            "head": [
+              1024,
+              1468
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1094189056,
+                1091898480
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221108,
+            "head": [
+              971,
+              1488
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1093304320,
+              "position": [
+                1082936134,
+                1090718997
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221109,
+            "head": [
+              906,
+              1508
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1087768810,
+                1095577703
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221110,
+            "head": [
+              850,
+              1528
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1091938268,
+                1092047064
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221111,
+            "head": [
+              806,
+              1548
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1094189056,
+                1095581579
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221112,
+            "head": [
+              1386,
+              1568
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1083899904,
+              "position": [
+                1083168480,
+                1099476352
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221113,
+            "head": [
+              1405,
+              1588
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1093337088,
+              "position": [
+                1088229455,
+                1098715646
+              ],
+              "flags": 8192
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                4,
+                0
+              ],
+              "damageTypes": [
+                2,
+                1
+              ],
+              "targets": [
+                318,
+                1
+              ],
+              "ranges": [
+                1142292480,
+                1128792064
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221171,
+            "head": [
+              1424,
+              1608
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1092017946,
+                1099450211
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221172,
+            "head": [
+              1443,
+              1628
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1088225280,
+              "position": [
+                1094189056,
+                1098733848
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          }
+        ]
+      },
+      {
+        "reason": "captain-point-after",
+        "rows": [
+          {
+            "rawcode": 1213350192,
+            "head": [
+              1452,
+              1748
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1086778402,
+                1109054880
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1120403456,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350193,
+            "head": [
+              1478,
+              1734
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1091437613,
+                1108171605
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146929152,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350194,
+            "head": [
+              1508,
+              1720
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1093972157,
+                1108995046
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146945536,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221104,
+            "head": [
+              1581,
+              1918
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1078940784,
+                1102984327
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221105,
+            "head": [
+              1567,
+              1904
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1085306021,
+                1104689484
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221106,
+            "head": [
+              1553,
+              1890
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1096641106,
+                1105465188
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221107,
+            "head": [
+              1538,
+              1874
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1094770541,
+                1103254078
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221108,
+            "head": [
+              1524,
+              1860
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1082254315,
+                1106574671
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221109,
+            "head": [
+              1162,
+              1846
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1086634594,
+                1106349725
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221110,
+            "head": [
+              1029,
+              1832
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1091146153,
+                1104426657
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221111,
+            "head": [
+              1001,
+              1818
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1090678906,
+                1102673636
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221112,
+            "head": [
+              875,
+              1804
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1083766127,
+                1109607860
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221113,
+            "head": [
+              816,
+              1790
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1089652033,
+                1107391092
+              ],
+              "flags": 8192
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                4,
+                0
+              ],
+              "damageTypes": [
+                2,
+                1
+              ],
+              "targets": [
+                318,
+                1
+              ],
+              "ranges": [
+                1142292480,
+                1128792064
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221171,
+            "head": [
+              1396,
+              1776
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1093076145,
+                1105136008
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221172,
+            "head": [
+              1423,
+              1762
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1096084014,
+                1108447570
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          }
+        ]
+      },
+      {
+        "reason": "RSG tick=50 label=complete",
+        "rows": [
+          {
+            "rawcode": 1213350192,
+            "head": [
+              1452,
+              1748
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1087136615,
+                1109179795
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1120403456,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350193,
+            "head": [
+              1478,
+              1734
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1091437613,
+                1108171605
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146929152,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1213350194,
+            "head": [
+              1508,
+              1720
+            ],
+            "flags": 4612,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1094162833,
+                1109118886
+              ],
+              "flags": 1280
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                2
+              ],
+              "damageTypes": [
+                6,
+                6
+              ],
+              "targets": [
+                314,
+                318
+              ],
+              "ranges": [
+                1146945536,
+                1140457472
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221104,
+            "head": [
+              1581,
+              1918
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1079659216,
+                1103234068
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221105,
+            "head": [
+              1567,
+              1904
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1085896710,
+                1104910002
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221106,
+            "head": [
+              1553,
+              1890
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1096469784,
+                1105716380
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221107,
+            "head": [
+              1538,
+              1874
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1094877115,
+                1103375607
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221108,
+            "head": [
+              1524,
+              1860
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1082492892,
+                1106693210
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                2,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1137180672,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221109,
+            "head": [
+              1162,
+              1846
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1086634594,
+                1106349725
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221110,
+            "head": [
+              1029,
+              1832
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1091119550,
+                1104558687
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221111,
+            "head": [
+              1001,
+              1818
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1090746625,
+                1102801942
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221112,
+            "head": [
+              875,
+              1804
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1083842990,
+                1109673510
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                314,
+                1
+              ],
+              "ranges": [
+                1119092736,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221113,
+            "head": [
+              816,
+              1790
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1065353216,
+              "storedRange": 1056629064,
+              "position": [
+                1089652033,
+                1107391092
+              ],
+              "flags": 8192
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                4,
+                0
+              ],
+              "damageTypes": [
+                2,
+                1
+              ],
+              "targets": [
+                318,
+                1
+              ],
+              "ranges": [
+                1142292480,
+                1128792064
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221171,
+            "head": [
+              1396,
+              1776
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1093305272,
+                1105202971
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          },
+          {
+            "rawcode": 1750221172,
+            "head": [
+              1423,
+              1762
+            ],
+            "flags": 516,
+            "mover": {
+              "radius": 1064828928,
+              "storedRange": 1056629064,
+              "position": [
+                1096084014,
+                1108447570
+              ],
+              "flags": 0
+            },
+            "attack": {
+              "vtable": 11384228,
+              "flags20": 537395346,
+              "suppress": [
+                0,
+                0,
+                0
+              ],
+              "weaponTypes": [
+                1,
+                0
+              ],
+              "damageTypes": [
+                1,
+                1
+              ],
+              "targets": [
+                64,
+                1
+              ],
+              "ranges": [
+                1128792064,
+                0
+              ],
+              "slot2b8": 0,
+              "target": [
+                4294967295,
+                4294967295
+              ],
+              "adjusted": 0,
+              "adjustedVtable": 11132436
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

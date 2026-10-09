@@ -5010,6 +5010,24 @@
           "evidence": "417a70 lazily resolves ability54 through6ac530 then reads row count50/data54."
         }
       ]
+    },
+    {
+      "name": "WC3OrderTargetPrefix",
+      "length": 96,
+      "fields": [
+        {
+          "offset": 0,
+          "name": "base",
+          "type": "WC3OrderPrefix",
+          "evidence": "Existing verified order prefix retained unchanged"
+        },
+        {
+          "offset": 88,
+          "name": "target",
+          "type": "WC3PathIdentity",
+          "evidence": "Payoff193: ECX COrderTarget prefix, plain RET, pointer result EAX. Identity58(slot)/5c(generation); sentinel AND=-1 returnsNULL, otherwise original061320 resolves its payload. Both9d87d0 duplicate admission and9d16c0 member preparation use this actual target identity; physical destination coordinates are not the duplicate key."
+        }
+      ]
     }
   ],
   "methods": [
@@ -16342,6 +16360,20 @@
         }
       ],
       "evidence": "Payoff189 original06a320 and157a59 shared-pool initialization: five raw allocator words precede constructed free-header14/live18/allocation1c. Three64x48 blocks grow through the real original allocator; retained payload reuse makes no Storm allocation."
+    },
+    {
+      "address": "6f686810",
+      "name": "OrderTarget_GetResolvedTarget",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "order",
+          "type": "ptr:WC3OrderTargetPrefix",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff193: ECX COrderTarget prefix, plain RET, pointer result EAX. Identity58(slot)/5c(generation); sentinel AND=-1 returnsNULL, otherwise original061320 resolves its payload. Both9d87d0 duplicate admission and9d16c0 member preparation use this actual target identity; physical destination coordinates are not the duplicate key."
     }
   ],
   "globals": [

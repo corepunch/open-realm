@@ -18,7 +18,7 @@
     "archive": "Local report root containing the frozen JSONL inputs.",
     "engine": "Fresh compiled wc3_pathing_engine_probe.c library."
   },
-  "scope": "154 executable original oracle contracts;429 total entries.",
+  "scope": "154 executable original oracle contracts;430 total entries.",
   "entries": [
     {
       "id": "oracle-adaptive",
@@ -46813,6 +46813,170 @@
           "capture_complete": false
         }
       ]
+    },
+    {
+      "id": "live-captain-retained-range193",
+      "kind": "capture",
+      "command": [
+        "{python}",
+        "tools/frida/research/captain193_verify.py",
+        "--archive",
+        "{archive}/research/GROUP-03.4.6.2.1.2/captures193/",
+        "--expected",
+        "tools/ghidra/fixtures/retail-captain-retained-range193-1.27.json",
+        "--output",
+        "{report}"
+      ],
+      "report": "captain-retained-range193-live.json",
+      "expected_exit": 0,
+      "expected_status": "live-captain-retained-range",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "observations": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "public_markers": {
+          "equal": 770
+        },
+        "private_admissions": {
+          "equal": 15
+        },
+        "point_requests": {
+          "equal": 4
+        },
+        "retained_member_heads": {
+          "equal": 15
+        },
+        "retained_rifle_range": {
+          "equal": 1093337088
+        },
+        "upgraded_weapon_range": {
+          "equal": 1142292480
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "Repeated public mixed15 Captain point publications and Long Rifles: retained member head identities and physical range snapshots with complete observer-free public control.",
+      "exclusions": [
+        "No complete new engine/retail trajectory claim or new retail save/load capture.",
+        "Earlier original-terrain blocked-admission attempts and first flat run with the older observer remain diagnostic captures, excluded.",
+        "Broad combat/transport fallback and public Attack re-add remain separately scoped."
+      ],
+      "capture_complete": true,
+      "inputs": {
+        "capture": "research/GROUP-03.4.6.2.1.2/captures193/live4.jsonl",
+        "sha256": "a2eb34999aea6de08832f330c25bf7a4fb180b943c357df9c1799b671eaf495f",
+        "bytes": 501931,
+        "metadata": {
+          "task": "payoff193",
+          "mode": "observe",
+          "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+          "owned": true,
+          "source_sha256": {
+            "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+            "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+            "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+            "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+            "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+            "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+            "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+            "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+          },
+          "map": "Maps/RS-Captain193c.w3m",
+          "seconds": 110.0,
+          "continue_at": 20.0,
+          "display": ":98",
+          "remote": "127.0.0.1:27049",
+          "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+          "frida": "17.18.0",
+          "timestamp": 1481263518,
+          "imageSize": 15130624,
+          "prefix": "RSG ",
+          "always": false,
+          "lite": false
+        }
+      },
+      "additional_captures": [
+        {
+          "inputs": {
+            "capture": "research/GROUP-03.4.6.2.1.2/captures193/live5.jsonl",
+            "sha256": "e7fdf196816afb8a27da1d39721eb428a7d4b62a73a4b6a712f0bde86e743f14",
+            "bytes": 501933,
+            "metadata": {
+              "task": "payoff193",
+              "mode": "observe",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+              },
+              "map": "Maps/RS-Captain193c.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "RSG ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": true
+        },
+        {
+          "inputs": {
+            "capture": "research/GROUP-03.4.6.2.1.2/captures193/control.jsonl",
+            "sha256": "99d8f6307c787a12df3ce814eb2bcb1ec52eb507845e5a30ac878a0a216e82fc",
+            "bytes": 1442,
+            "metadata": {
+              "task": "payoff193",
+              "mode": "control",
+              "sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+              "owned": true,
+              "source_sha256": {
+                "spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+                "target021_observer.js": "8b3a763bec49930addd09d22b2ce66028cc0504cbf3501468ad06e674cb14644",
+                "spell184_probe.j": "ff3327893b77b70b7f8a18bc45de83ab484c90a12cda258b39da86aa5704d5ed",
+                "spell184_make_map.py": "2d7d2f3afdd2829d8fe9ffa2ffd958f3725863f8435d819919d969ea6282eb8f",
+                "target021_make_map.py": "be9ccaa5ca3789b67aa0405570f580ff2f6114395272d423e8ef29fe2b8e7421",
+                "captain193_observer.js": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9",
+                "target03_probe.j": "5cde406d43b9707e1827feaef1296d64975df3cf40569718a166a2c79eaf1bba",
+                "map": "73cad2537e73093cbbe13b3ef6c3e4abb0392adf23431d68006b3ec8b4e4e98b"
+              },
+              "map": "Maps/RS-Captain193c.w3m",
+              "seconds": 110.0,
+              "continue_at": 20.0,
+              "display": ":98",
+              "remote": "127.0.0.1:27049",
+              "data": "/run/media/lofcz/ssd_external/Games/w3-research2",
+              "frida": "17.18.0",
+              "timestamp": 1481263518,
+              "imageSize": 15130624,
+              "prefix": "RSG ",
+              "always": false,
+              "lite": false
+            }
+          },
+          "capture_complete": false
+        }
+      ]
     }
   ],
   "fixtures": [
@@ -46878,7 +47042,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "b656f418d41d8ddf97907a0b0b57ee461cb8fcda9c44e9dd164cfd97a8cc2535"
+      "sha256": "b172256323cd249d63d0b6d1a2c807c844e7937e20de7bb3b6bbd9ce411ebf23"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -47711,7 +47875,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "548b54cd17329e9a250748729092271c21ae59b897ea03329d3804b70ab9c444"
+      "sha256": "7d0b4b1ced97f0312e0d7a2a61ee73fddcf46186297f9fb3fe3f294ce4109a7c"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -48567,7 +48731,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "506ee195f8e8fc3f2324234148a17ac542e794d4bdf119dec364997fe96bf5c4"
+      "sha256": "a902e0bb5d1c40e598acad6ca0927f17eae2cac28870eeab54ba6beeab82e372"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -49503,7 +49667,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "1f5b739bcd6061f864ee80b56d045cb4787c9ab9b3e1710aa91fcfb359b17cff"
+      "sha256": "6247195e8ed721a5e8d79e87e69ec232db96f7c79b0c3b0fd86b1c011e96d285"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -49515,11 +49679,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "536c459ace47d13d1b947e62c82be8d36de3b411a5a8b8df9dfff83c6e5db955"
+      "sha256": "90b8a243f1500b75c6ed6396d5ad649ecb8e3134f7c8b05a2d299515be0da9d2"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "ed53622e4bb9e117aabc785b30f54eb6fdf031c1d61b58735474383b1639f2a7"
+      "sha256": "2e1340529eb7b87607278d439cd17eddfa2ec5633850a54258bd0e2eda809cf1"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -49891,7 +50055,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_captain_policy.c",
-      "sha256": "aa78d85b905a2e5f52073669b916f1da0c7cd9145feb32f4fb8c1531d12c5db8"
+      "sha256": "ced1c6fd36b828b47d8b40769898f421de63487d8547846ba41119c5071096c3"
     },
     {
       "path": "games/warcraft-3/tests/resources-src/Scripts/test_captain_attack.ai",
@@ -51252,6 +51416,34 @@
     {
       "path": "tests/test_wc3_pathfinding_order_pool.py",
       "sha256": "12317ef04c4535a232c0685db6bd736b7f7a23a3644d8cec7e40831d75cc6372"
+    },
+    {
+      "path": "tools/frida/research/captain193_make_map.py",
+      "sha256": "37536a9ad7bea5f2caa38e12565e8c2199508db5cd163c012ec7a52a2591e885"
+    },
+    {
+      "path": "tools/frida/research/captain193_probe.j",
+      "sha256": "ab00d952c7e473f0e91009b312106c35f8f2c6598e68d0b4a52c9738d42a66e1"
+    },
+    {
+      "path": "tools/frida/research/captain193_probe.ai",
+      "sha256": "cfe45aa8af5a420dc59aa0ad18a3ff2ee6b429b53bd5b311ece949d2ad086f3c"
+    },
+    {
+      "path": "tools/frida/research/captain193_observer.js",
+      "sha256": "2ecebd2fae6a8c00349aa06f6a93cf7cb262b769689b8093bc2b8be53bf835f9"
+    },
+    {
+      "path": "tools/frida/research/captain193_verify.py",
+      "sha256": "8adc4b37024017970e76fdc63df1bfd143bdb8252506b9e7f3e9cfbf595d3804"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-captain-retained-range193-1.27.json",
+      "sha256": "d2b8e1a38a2e13e5766cbbe227e8a04c88860fba509ef7c6835df6be344e4d54"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_captain_retention.py",
+      "sha256": "91d6f303cec6e7d3cbdd32a95a4666ca2445959a2bdad552cf45be1923190f16"
     }
   ]
 }
