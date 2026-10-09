@@ -137,13 +137,14 @@ openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10:27910
 
 ## Entity snapshot flags
 
-`entityState_t.flags` is a `USHORT` serialized as `NFT_SHORT` by `common/msg.c`. Engine-level bits describe generic client
+`entityState_t.flags` is a `uint32_t` serialized as `NFT_LONG` by `common/msg.c`. Engine-level bits describe generic client
 presentation/interaction capabilities; game modules decide when to set them in server-authored snapshots. `EF_HOVER_HEALTH` means the
-client may expose the entity's compressed health/mana through a server-declared world-hover layout. WC3 and WoW author this capability
-per recipient; SC2 currently sends an empty hover layer and does not set it. `EF_HOSTILE` and `EF_NEUTRAL` are recipient-relative
+client may expose the entity's compressed health/mana through a server-declared world-hover layout. `EF_HOVER_RING` lets the client
+highlight an entity on pointer hover without a name or vital bar. WC3 and WoW author hover capabilities per recipient; SC2 currently
+sends an empty hover layer and does not set them. `EF_HOSTILE` and `EF_NEUTRAL` are recipient-relative
 presentation relationships; when neither is set, game-specific renderers may treat the entity as friendly. Any new field, flag, or
-packed value in `entityState_t` requires
-a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_net.c`.
+packed value in `entityState_t` requires a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test; WC3 snapshot flag tests live in
+`games/warcraft-3/tests/test_server_net.c`.
 
 Protocol version 8 adds `entityState_t.hover_value`, an optional recipient-filtered `DWORD` for a live numeric detail attached to a
 server-authored world-hover name frame. Zero means absent; present values are transmitted as the displayed value plus one so a
