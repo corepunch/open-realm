@@ -2013,3 +2013,30 @@ The report directory must be new. The archived evidence lives under
 `runtime/payoff207/` and includes immutable map/source snapshots. Failed and
 exploratory captures are not accepted inputs. The inventory has444 entries
 following this addition; the historical inventory breakdown above is unchanged.
+
+## Public physical cancellation (Payoff208)
+
+`oracle-cancel208` closes ORDER-06.3 with two repeated original public scenes and
+uninstrumented controls. It checks complete source/binary/archive pins,30 timed
+and492 crowd cancellation brackets,326 visual visits,640 raw callback samples
+and737 synchronous search boundaries. Frozen original word headers and the
+public producer drive actual engine Classic/TFT and Save150 continuations;
+the runner only compares expectations. Negative checks reject missing returns,
+weakened counts, interleaved search claims and reordered surviving FIFOs.
+
+The acceptance contract is `retail-cancel208-1.27.json`; saved Ghidra ownership
+notes are `retail-cancel208-ghidra-1.27.json`. Complete small captures are retained
+as `retail-cancel208-{turning,queue}-1.27.jsonl.gz`. Engine contention tests supply
+exhausted budgets and certify cancellation, not full crowd trajectory parity.
+See [physical cancellation](retail-pathfinding-engine.md#stop-cancels-physical-ownership-independently-of-animation-payoff208).
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+python tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-cancel208 --output /tmp/cancel208-fresh
+```
+
+The report directory must be new. The inventory now has445 entries; previous
+historical inventory breakdowns remain unchanged.

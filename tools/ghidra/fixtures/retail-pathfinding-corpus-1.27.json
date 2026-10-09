@@ -48422,6 +48422,66 @@
         "Failed observe3 and exploratory observer variants are excluded from accepted evidence.",
         "Observer-free control records public Preload output only; its historical observer file was not installed."
       ]
+    },
+    {
+      "id": "oracle-cancel208",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_cancel.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "cancel208.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "turn_stops": {
+          "equal": 30
+        },
+        "queue_stops": {
+          "equal": 492
+        },
+        "visual_visits": {
+          "equal": 326
+        },
+        "searches": {
+          "equal": 737
+        },
+        "samples": {
+          "equal": 640
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "C",
+        "L"
+      ],
+      "scope": "ORDER-06.3 public Stop/replacement at waiting, between bounded searches and turning; independent physical cancellation, survivor FIFO, path invalidation and deferred owner reclamation. Actual engine callback samples, visual words and saved continuations in Classic/TFT.",
+      "exclusions": [
+        "Engine waiting tests supply budget exhaustion; this does not certify every numerical crowd trajectory in the 96-unit scene.",
+        "Original canonical and allocation pointer layouts are not imposed on engine storage; engine member rows compact immediately, while old groups remain until their owner update.",
+        "Original public Stop does not interleave a bounded synchronous search. No forced mid-search callback or asynchronous retail cancellation behavior is claimed.",
+        "Private native visual intrusive-list order and exact public degree conversion remain outside this chunk.",
+        "Engine Save150 continuations are verified; no new original UI save/load for these cancellation scenes is claimed.",
+        "Retail PreloadGen payloads truncate at 259 characters; unhooked comparison certifies that stored payload, while eight-unit full state uses unchanged read-only samples."
+      ]
     }
   ],
   "fixtures": [
@@ -49320,7 +49380,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "2b5aa65190d2a6d55023cde5fc6125ffaad46d10317bd770fc5c83a04db1a458"
+      "sha256": "7fe395ca2058406587a4dcbb952a0b3488d1df95cd280ed0a12efcf3bdf13d47"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50176,7 +50236,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "fd04839b88c7c4e4477f07a7201325e1a093038a47d95b86ed996e5f87e92869"
+      "sha256": "51053afb7051bd0b6a1b859971b35cf6b2b02c471eba0939d9b94be8bdaa67ab"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -50620,7 +50680,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "51845fdc9c0246c17d652920f9f84b2d7be5dc47a51301e0e461bf9469bc9871"
+      "sha256": "08911d69e4ccf8bad6212c43d42623777a85b6656ad20ff5907896fcfebc3b79"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51112,7 +51172,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "2c380b945269968400f36841ffac301f280b064cffb70adec50a6b03bc2e79b7"
+      "sha256": "e26c76366e64748294d07d3c58f7c71b119812722e22b240ce91d27aa74985f5"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51124,11 +51184,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "7d416747fe31e08d1af98b12be9c833d76e19373c0b24d2b7edb24b59b64a5cf"
+      "sha256": "9b55ae4737eb337456374f278d8711af6c364af755083119b5b8f668026e8304"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "88675d7adfede01b64969b4b7db4393f6c016a0d695092bc2471ea2612ca0556"
+      "sha256": "487e83980cf0ab720e4419b51e0f853adb10dca32db715128153481445936188"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52340,7 +52400,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_stop.c",
-      "sha256": "9946f31d5dd22ecd016ceda1e1f59c3f64ac9dbaf042a95b3c9771cac48f5bfe"
+      "sha256": "dc7f8d9340e83d64d3dc87a28353d4ac595a37b552930cb6cd9d41cc3e2659fa"
     },
     {
       "path": "games/warcraft-3/game/tests/t_order_reentry.c",
@@ -53201,6 +53261,66 @@
     {
       "path": "games/warcraft-3/game/tests/t_facing.c",
       "sha256": "9d11b0971531d5e652e8bb4258d596bdc3cd87030ae23ae7c80d53ed36df0717"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_cancel.c",
+      "sha256": "1d66319072193d87ba0be01b4c10552e35b62791f3ea72c76fd7c204f755e17a"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_cancel208.h",
+      "sha256": "571abced5b0e0feeae54f3460973324bdbe10093a2bfa23ea24f676f6cf884b8"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/retail_cancel208_scene.h",
+      "sha256": "f5503bd4eb9c0f2243c3eb68cc766c0328df45c1a1f47c32e28ca98a563ef7ec"
+    },
+    {
+      "path": "tools/frida/research/cancel208_fixture.py",
+      "sha256": "7dd065c02f5f68232ef159bf10978515aa17870b1b5113366a6270334444af20"
+    },
+    {
+      "path": "tools/frida/research/cancel208_queue_fixture.py",
+      "sha256": "f1407a3a461050b00733f8d8350b05028717de7b32645c6471a6b4f708f9f0d7"
+    },
+    {
+      "path": "tools/frida/research/cancel208_probe.j",
+      "sha256": "ad445a2498a52e38abce3fbbeb21babbc5f111fbe284f52bc5a8752b5f171157"
+    },
+    {
+      "path": "tools/frida/research/cancel208_observer.js",
+      "sha256": "37b6963d950f7acb6ca86568d6b364c8317ccebb4d61bdb3287273fae7c12eb5"
+    },
+    {
+      "path": "tools/frida/research/cancel208_queue_probe.j",
+      "sha256": "1a3ff56601e292ffa3ec009b14fc281d5cfd08cd41f622098eb4cd199f6ac91e"
+    },
+    {
+      "path": "tools/frida/research/cancel208_queue_observer.js",
+      "sha256": "0f26303cc5718ff125831fe3044df64ad247bf5cded7efed7e1a9b213c213927"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_cancel.py",
+      "sha256": "6c2f3a82ff33fe32d037683f0176d10b3373be89be40fde432a2ab9fa9b5dee2"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cancel208-1.27.json",
+      "sha256": "d4e7daf14eb705e9bfae72d014a1dc0be5f3845688fd24d55eef7a70badaf0c3"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cancel208-ghidra-1.27.json",
+      "sha256": "6dd230ffd2376f75cb607c4c0c051e15a0cc602c836378e462fc523de7fc9f79"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cancel208-turning-1.27.jsonl.gz",
+      "sha256": "05475ec2666a322e9a871b650f0b39744d168df075fa8b92daffab260cbaeed1"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-cancel208-queue-1.27.jsonl.gz",
+      "sha256": "7822bff0d1aacac453485f307f68904a2bebe328157391e0d28a62a45bd100e4"
+    },
+    {
+      "path": "tests/test_wc3_pathing_cancel.py",
+      "sha256": "bbc52db48246449cd0390e4df021bf48ed287c33329699e56021e5b5aad9d0c8"
     }
   ]
 }

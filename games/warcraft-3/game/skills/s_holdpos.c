@@ -39,6 +39,7 @@ static bool hold_position_state(edict_t *unit, bool preserve_queue) {
     /* Hold is an authoritative replacement order just like Stop. Interrupt an
      * active channel before installing the persistent no-chase state. */
     S_SpellCancelChannel(unit);
+    S_StopUnitMovement(unit);
     S_SetMoveGoal(unit, &unit->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_a, NULL);
     S_SetMoveGoal(unit, &unit->movement.patrol_b, NULL);

@@ -43,6 +43,7 @@ static void order_stop_state(edict_t *ent, bool preserve_queue, bool record_guar
         return;
     /* Channeling can retain the idle move, so Stop must cancel even without a move-leave notification. */
     S_SpellCancelChannel(ent);
+    S_StopUnitMovement(ent);
     S_SetMoveGoal(ent, &ent->movement.attackmove_waypoint, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_a, NULL);
     S_SetMoveGoal(ent, &ent->movement.patrol_b, NULL);

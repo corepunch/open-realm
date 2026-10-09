@@ -2018,6 +2018,15 @@ static void move_leave(edict_t *self) {
     self->movement.clock_valid = false;
 }
 
+/* Physical ownership is independent of the current ability's animation move.
+ * Native171340 detaches idle angular requests too. Stop before installing stand:
+ * that transition can synchronously admit a queued successor. */
+void S_StopUnitMovement(edict_t *self) {
+    if (!self) return;
+    move_visual_track(self);
+    move_leave(self);
+}
+
 /* Retail axis setters reproject both coordinates through the predicted fine pose. */
 void S_SetUnitAxisPosition(edict_t *self, uint32_t axis, float value) {
     wc3GridPose_t pose;

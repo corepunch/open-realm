@@ -14190,3 +14190,75 @@ This integrates the angular producer within **FORM-01.3**, which stays open for
 the remaining d0176/captain/static-only producers and broader policy effects.
 The TODO count stays271/336,65 remaining. Failed observe3 and exploratory
 observer variants remain diagnostics, outside accepted evidence.
+
+## Stop cancels physical ownership independently of animation (Payoff208)
+
+Public Stop and Hold now call Move-owned `S_StopUnitMovement` before installing
+stand. This retires physical groups, velocity, pending fine/coarse requests,
+route counts/indices and retry/wait state even when the current animation move
+is idle. Previously a native timed-facing request could survive Stop/Hold
+because idle never dispatched walking `A_MOVE_LEAVE`. Cancellation precedes
+any synchronous queued-successor admission. Existing leave cleanup is
+idempotent; it does not replay ability callbacks. Visual heading continues
+settling independently toward the retained physical heading, including the
+single settled visual visit after stopping an already idle unit.
+
+Two new original public JASS scenes exercise these boundaries. **C208** stops
+idle and moving timed turns, holds an idle timed turn, stops a natural turn and
+replaces natural/timed turns with point Move; an untouched angular unit provides
+the control. Two complete read-only captures match30 paired physical Stops,
+326 visual visits and640 raw unit samples across80 timer callbacks. Every
+sample includes fine pose, velocity, physical/visual heading, visual speed and
+physical binding. A separate uninstrumented run matches all87 stored public
+markers. The engine executes the unchanged gameplay and observation callbacks,
+then repeats the saved suffix in both Classic and TFT. Test observations happen
+inside `Preload`, not after the display frame: the latter can include another
+visual owner update and is a different observation boundary.
+
+**Q208** issues96 independent point Moves over the detour map, then stops the
+pending fine head52, replaces the next head50 with a point at its current
+location, and stops/replaces traveling94/95. Two complete3529-row streams match
+492 paired Stops,917 admissions and737 fine/adaptive searches. All57 stored
+public markers match an uninstrumented control. Cancellation removes exactly
+the old path from the fine FIFO; all eight player/policy queues retain their
+surviving order and work/countdown/counter/clock. Path counts/indices/links
+invalidate immediately, while the old group and its path survive public return
+and retire at the following owner visit. Final Stop leaves no queued requests.
+
+Retail search is bounded synchronous work. Static fine/adaptive cores pop,
+expand and return without dispatching a public order; all737 live search-depth
+brackets complete before public markers or physical Stop. Public cancellation
+therefore acts between search/owner quanta. A forced mid-search callback would
+not prove public retail behavior, and is not part of this acceptance.
+
+Actual engine tests additionally exercise Stop and point replacement under
+supplied fine/coarse budget exhaustion, active movement and idle angular
+ownership. They check canceled queued successors, survivor FIFO and unchanged
+budget, retained unit route storage, empty old-owner lifetime, cold save/load
+and next-owner reclamation. Supplied exhaustion is explicit: these tests do
+not claim all numerical trajectories of the96-unit crowd. Engine member rows
+compact immediately; native private stale-row layout remains GROUP-04.6.
+
+The regression failed first at the two idle physical bindings. A subsequent
+check exposed the missing settled visual visit; both are fixed by physical
+Move ownership, without scenario constants. Final acceptance passes **two tests
+/14,361 assertions per edition**, with eight waiting/active/angular variants
+and Save150 continuations. Neighboring movement434/6,250,417, order lifecycle
+43/15,280 and facing3/14,308 pass in each edition. No old numerical header or
+expectation was changed. The full suite is not repeated between checkpoints.
+
+`oracle-cancel208` verifies archive/source/binary pins, repeated complete
+streams, negative evidence checks, original-generated word/source headers and
+fresh actual-game identities/assertions/save runs. Evidence is frozen under
+`runtime/payoff208/`; small complete turning/queue captures are also retained
+as repository gzip fixtures. Nine existing Ghidra functions now retain these
+annotations, saved/read back with `changed=false`; `MapPathfinding.java`
+mirrors the owned comments. No existing structures or peer mappings were
+replaced. Retail `PreloadGen` stores at most259 payload characters in this
+capture; uninstrumented comparison certifies those stored strings, while full
+eight-unit words come from the unchanged read-only observations. Exact public
+degree conversion and a new retail UI save/load remain outside this chunk.
+
+ORDER-06.3 closes at these public cancellation boundaries. The backlog is
+272/336 done,64 remaining. GROUP-04.6 private layout and ORDER-06.4 interruption
+inside group completion/deferred release retain their separate scopes.

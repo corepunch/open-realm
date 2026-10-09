@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "task": "ORDER-06.3 / payoff208",
+  "build": {
+    "game_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236",
+    "crt_sha256": "86e39b5995af0e042fcdaa85fe2aefd7c9ddc7ad65e6327bd5e7058bc3ab615f"
+  },
+  "engine_tests": [
+    "wc3_cancel.public_stop_and_replacement_match_turning_and_saved_suffix",
+    "wc3_cancel.waiting_and_active_replacements_retain_survivor_fifo_and_storage"
+  ],
+  "visual_count": 326,
+  "turn_stops": 30,
+  "queue_stops": 492,
+  "searches": 737,
+  "public_markers": [
+    87,
+    57
+  ],
+  "samples": 640,
+  "scenes": [
+    {
+      "prefix": "C208",
+      "captures": [
+        "runtime/payoff208/observe-1.jsonl",
+        "runtime/payoff208/observe-2.jsonl"
+      ],
+      "control": "runtime/payoff208/control-1.jsonl",
+      "map": "Cancel208.w3m",
+      "markers": 87,
+      "words_sha256": "0529c4da5b485995fcdeb134b5dbb1eed186b69589ba43b248644eca58c516b3",
+      "counts": {
+        "installed": 1,
+        "marker": 87,
+        "unit-resolve": 8,
+        "visual-begin": 326,
+        "visual-end": 326,
+        "stop-begin": 30,
+        "commit-begin": 266,
+        "commit-end": 266,
+        "stop-end": 30,
+        "cohort": 10,
+        "owner-begin": 243,
+        "owner-end": 243,
+        "api-begin": 5,
+        "getter-out": 5,
+        "turn-request": 5,
+        "api-end": 5
+      },
+      "preload_payload_limit": 259
+    },
+    {
+      "prefix": "Q208",
+      "captures": [
+        "runtime/payoff208/queue-observe-1.jsonl",
+        "runtime/payoff208/queue-observe-2.jsonl"
+      ],
+      "control": "runtime/payoff208/queue-control-1.jsonl",
+      "map": "CancelQueue208.w3m",
+      "markers": 57,
+      "words_sha256": "934ceae583e1d3e33f02ef17e01c9b90b4ad71a436ba98c73988ff557f8103fa",
+      "counts": {
+        "installed": 1,
+        "marker": 57,
+        "actor": 96,
+        "stop-begin": 492,
+        "stop-end": 492,
+        "admission": 917,
+        "search-begin": 737,
+        "search-end": 737
+      },
+      "preload_payload_limit": 259
+    }
+  ],
+  "archive_pins": {
+    "runtime/payoff208/208cancel-code.json": "8baceb65feddd8398ca0e6aa743acaa6866d43d0be47518836132afa276d592e",
+    "runtime/payoff208/208dispatch.json": "573e46d7690b90fb6bf0f06ac7fedd648ae937a00f61fe87214cfc6dd73ea18d",
+    "runtime/payoff208/208initial-ghidra.json": "d700b555df45d432bae735c8848d6374df7e5ea045bedd2e1b5f523cf0f00bf8",
+    "runtime/payoff208/208search-code.json": "b94dc01faaf3cd1aa69e0677267683e7f1ae3999a2bf19f4715adc61aea3b5ab",
+    "runtime/payoff208/Cancel208.j": "440923ca611e8e830c5891b57aec79f56e9f35a10857b191ba1b2e2d9945d2a6",
+    "runtime/payoff208/Cancel208.json": "d97b8d1f989e24a76105e1edf79ebbefba2848d42cdd6949f47c3f5b3a92fced",
+    "runtime/payoff208/Cancel208.w3m": "770d2f626f5207f43ddb8db5f57f4913f91acd8364ab07402370e6546eeee006",
+    "runtime/payoff208/Cancel208.wpm": "166ff49c3509548c9fceaa834b390c0017e88712ab8b47a58760e8ec916203f6",
+    "runtime/payoff208/CancelQueue208.j": "2aba1475f0128ed2cd1777ec8574b4dea50fb15598a874905a81cd41f94b70e5",
+    "runtime/payoff208/CancelQueue208.json": "c8bb0c1ef84f029608abf67ff8b4f96121ce5b5481e1fb3e1806aced51089aa3",
+    "runtime/payoff208/CancelQueue208.w3m": "b497cedefaa7d9ebafc474868882b2558aaacdb0daf88057aca9a78af51e1ca2",
+    "runtime/payoff208/CancelQueue208.wpm": "aca8c213e30bd8c0c5f0efc3d5714ecc80744a5849f6cb67916036df8d0881de",
+    "runtime/payoff208/control-1-preload.txt": "545db0d0a49132a469fe742428c5361b0016bafb4890409ee0d5ad5b1a3ded04",
+    "runtime/payoff208/control-1.jsonl": "33db08fc36bac2f8331e82f1e669d48d9eeb5eb80102ff0a8d614a09b479be65",
+    "runtime/payoff208/observe-1-preload.txt": "92b8e951a9f1871b7e55ccf8adf9258c486e6c12e1d719ecd70612651bfe10c4",
+    "runtime/payoff208/observe-1.jsonl": "e25aaa7fea94ff94effc35666385f4b3de46db5a773c2165c066ff2d3238ec87",
+    "runtime/payoff208/observe-2-preload.txt": "8b9fc1b0e8b316be9e890c2c9b370fb276704b93a987beba8229d92d6036e4ee",
+    "runtime/payoff208/observe-2.jsonl": "8876c18369e8b5645d50b0baa10e04a22de81e4e1538f13594cdc8c92069a91d",
+    "runtime/payoff208/queue-control-1-preload.txt": "96226ecd106e0e699416a5826a63bde3d8cd7c0ec960c74ef2f526cc06ee4b13",
+    "runtime/payoff208/queue-control-1.jsonl": "99a7a74809e005118559b664e2e20681d3b6206b742473fc21d5760290bae78c",
+    "runtime/payoff208/queue-observe-1-preload.txt": "2f66c7b3ccea31c996f832bb03477a68180053466a1f3a7f7a61c188636091b8",
+    "runtime/payoff208/queue-observe-1.jsonl": "8bee46bd7efb90b5e32d116c51638dbf1209bf471e9faa28a8277682d2badeb9",
+    "runtime/payoff208/queue-observe-2-preload.txt": "fdb85613d1923cc18d803bf6ae2fd8146ebc819e5ab60689b31b7fa0bebb57f5",
+    "runtime/payoff208/queue-observe-2.jsonl": "22a986f5795fd4ff9b358ade44bc12f5b5e84a391d9d3d4b6d17ad57e6fe236d",
+    "runtime/payoff208/sources/cancel208_observer.js": "37b6963d950f7acb6ca86568d6b364c8317ccebb4d61bdb3287273fae7c12eb5",
+    "runtime/payoff208/sources/cancel208_probe.j": "ad445a2498a52e38abce3fbbeb21babbc5f111fbe284f52bc5a8752b5f171157",
+    "runtime/payoff208/sources/cancel208_queue_observer.js": "0f26303cc5718ff125831fe3044df64ad247bf5cded7efed7e1a9b213c213927",
+    "runtime/payoff208/sources/cancel208_queue_probe.j": "1a3ff56601e292ffa3ec009b14fc281d5cfd08cd41f622098eb4cd199f6ac91e",
+    "runtime/payoff208/sources/group032_make_map.py": "8225bb31d7a5c11f01eb45b0a6457adef10e387fa9a5e01ca7f7b3f733796ef2",
+    "runtime/payoff208/sources/make_wc3_pathfinding_map.py": "08656832143f7be6662ad58cbc3dbb9b2d048ae6f1283c48651a9049e44b3dbf",
+    "runtime/payoff208/sources/spell184_capture.py": "e5ab64637a967ed7c2bcd24fca66e50d5c5f1fd5d0ff3dc3cca0736126be88e1",
+    "runtime/payoff208/sources/swing199_capture.py": "bc856087b04d78845dba8fdd61da16b4554e6396783130a90835c708d3a610d7",
+    "runtime/payoff208/208-ghidra-saved.json": "f21d07048457a40c5c2f9bc833f270ee472ddbfac75c1f0f166d9f98fc07f0e3"
+  },
+  "pins": {
+    "games/warcraft-3/game/tests/t_cancel.c": "1d66319072193d87ba0be01b4c10552e35b62791f3ea72c76fd7c204f755e17a",
+    "games/warcraft-3/game/tests/retail_cancel208.h": "571abced5b0e0feeae54f3460973324bdbe10093a2bfa23ea24f676f6cf884b8",
+    "games/warcraft-3/game/tests/retail_cancel208_scene.h": "f5503bd4eb9c0f2243c3eb68cc766c0328df45c1a1f47c32e28ca98a563ef7ec",
+    "tools/frida/research/cancel208_fixture.py": "7dd065c02f5f68232ef159bf10978515aa17870b1b5113366a6270334444af20",
+    "tools/frida/research/cancel208_queue_fixture.py": "f1407a3a461050b00733f8d8350b05028717de7b32645c6471a6b4f708f9f0d7",
+    "tools/frida/research/cancel208_probe.j": "ad445a2498a52e38abce3fbbeb21babbc5f111fbe284f52bc5a8752b5f171157",
+    "tools/frida/research/cancel208_observer.js": "37b6963d950f7acb6ca86568d6b364c8317ccebb4d61bdb3287273fae7c12eb5",
+    "tools/frida/research/cancel208_queue_probe.j": "1a3ff56601e292ffa3ec009b14fc281d5cfd08cd41f622098eb4cd199f6ac91e",
+    "tools/frida/research/cancel208_queue_observer.js": "0f26303cc5718ff125831fe3044df64ad247bf5cded7efed7e1a9b213c213927",
+    "tools/ghidra/fixtures/retail-cancel208-turning-1.27.jsonl.gz": "05475ec2666a322e9a871b650f0b39744d168df075fa8b92daffab260cbaeed1",
+    "tools/ghidra/fixtures/retail-cancel208-queue-1.27.jsonl.gz": "7822bff0d1aacac453485f307f68904a2bebe328157391e0d28a62a45bd100e4"
+  },
+  "exclusions": [
+    "Engine waiting tests supply budget exhaustion; this does not certify every numerical crowd trajectory in the 96-unit scene.",
+    "Original canonical and allocation pointer layouts are not imposed on engine storage; engine member rows compact immediately, while old groups remain until their owner update.",
+    "Original public Stop does not interleave a bounded synchronous search. No forced mid-search callback or asynchronous retail cancellation behavior is claimed.",
+    "Private native visual intrusive-list order and exact public degree conversion remain outside this chunk.",
+    "Engine Save150 continuations are verified; no new original UI save/load for these cancellation scenes is claimed.",
+    "Retail PreloadGen payloads truncate at 259 characters; unhooked comparison certifies that stored payload, while eight-unit full state uses unchanged read-only samples."
+  ]
+}
