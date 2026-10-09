@@ -55,7 +55,13 @@ because they did not establish an overall performance win. This performance
 work closes no additional retail research tasks. See
 [performance evidence](performance.md#october-5-synchronous-creation-follow-up).
 
-**269 done / 336 tasks; 67 remaining.**
+**270 done / 336 tasks; 66 remaining.**
+
+Payoff205 closes E2E-01.4: the combined baseline pins the completed formation,
+crowd and gate contracts. Six original checks and all eight actual game
+fresh/save journeys run together, twice in each edition, retaining every child
+scope and unfinished-order exclusion. See
+[combined variants](retail-pathfinding-e2e-baselines.md#formation-crowd-and-gate-variants-payoff205).
 
 Payoff204 advances SEP-01.2: removal now retires separation before target
 callbacks; owner/type/pause refreshes cannot recreate it while removal is
@@ -1442,7 +1448,7 @@ Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and n
 - [x] **E2E-01.1** After BASE-06.5, freeze static-detour and disconnected-goal variants; assert route, partial/failure events and final ownership. Payoff203 freezes the three-variant contract and verifies37 complete constructed routes/230 point pairs, exact partial results/charged work, two actual blocked retry returns, all motion/save suffixes and final order ownership twice in Classic/TFT. The original BASE-06.5 and detour execute fresh; complete public blocked/disconnected Frida repeats are revalidated unchanged. The controlled detour retains its explicit admission/profile exclusions; no new live or full-RNG claim. See [cross-feature baselines](retail-pathfinding-e2e-baselines.md).
 - [ ] **E2E-01.2** Add dynamic blocker and pursuit variants to that manifest; reuse ROUTE-03/TARGET-02 evidence and compare intermediate state.
 - [ ] **E2E-01.3** Add contention, cancellation and next-order variants; reuse SCHED-04/ORDER-06 evidence and assert event/queue order.
-- [ ] **E2E-01.4** Add formation/crowd and gate variants; link FORM-05/SEP-04/GATE evidence and freeze expected cross-feature outputs.
+- [x] **E2E-01.4** Add formation/crowd and gate variants; link FORM-05/SEP-04/GATE evidence and freeze expected cross-feature outputs. Payoff205 binds the FORM-05 selected/independent/passage, SEP-04 mixed/disabled controls and GATE open/disabled/disconnected/chained contracts to the static baseline. Six original contracts execute fresh and eight actual game fresh/save journeys repeat twice in Classic/TFT (2,117,900 assertions per edition). Existing original fixtures remain unchanged; four blocked crowd orders remain unfinished. See [combined variants](retail-pathfinding-e2e-baselines.md#formation-crowd-and-gate-variants-payoff205).
 
 ### E2E-02 — Observer controls
 

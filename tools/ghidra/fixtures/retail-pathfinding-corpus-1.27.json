@@ -48252,6 +48252,63 @@
         "No full RNG/trajectory/arbitrary callback admission or original save/load claim.",
         "Engine duplicate-removal/type-refresh/save assertions have no new retail public witness here."
       ]
+    },
+    {
+      "id": "oracle-e2e-variants205",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_e2e_variants.py",
+        "--binary",
+        "{binary}",
+        "--archive",
+        "{archive}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "e2e-variants205.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "categories": {
+          "equal": 3
+        },
+        "retail_contracts": {
+          "equal": 6
+        },
+        "engine_repeats_per_edition": {
+          "equal": 2
+        },
+        "engine_editions": {
+          "equal": 2
+        },
+        "original": {
+          "length": 6
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "O",
+        "C",
+        "L"
+      ],
+      "scope": "E2E-01.4 complete formation selection/independent/passage, mixed/disabled crowds and grouped/chained gate variants; unchanged original contracts and full actual fresh/save game journeys twice per edition.",
+      "exclusions": [
+        "No new live capture or gameplay policy.",
+        "Formation supplied clocks/WPM, inferred-final-clock and bounded selection no-hook timing exclusions remain unchanged.",
+        "Four blocked mixed-crowd orders remain unfinished at final pre-removal sample.",
+        "Parent static/disconnected source/route pins are validated; its original full runner remains a separate entry.",
+        "No whole-world, original save/load, full-RNG, all-scenario determinism or frame-budget claim."
+      ]
     }
   ],
   "fixtures": [
@@ -49150,7 +49207,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "e527c4764c575e17aad933192840d860a72ff714b15e1a7be5e3dbd23ff44d61"
+      "sha256": "c8aa2b4e7a31cc4f0b412c09ff237c0389de06c6f0aee162efd74aff872e4c27"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50942,7 +50999,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "2dd19a26a88f0a989b763276d317934d8c5146657f6203102abe129fe480e562"
+      "sha256": "27ddd40a2c4c61848e5ad733a47f46d79cec91e642ea9157e3d8b6ac68c37c54"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -50954,11 +51011,11 @@
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "10d9c76dd893a3c0eefb2fc5d077947b420b4599d230607b4b9ac37f8483de3b"
+      "sha256": "5ca29a8c37932061b2cc3f4877ba41d9f4a3f2778123c4d5c3800f14e5dcbcbd"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "c0f6315a86c86534c54a6b1632e5fe76780d25f50548fa3a4b85b059ef42389e"
+      "sha256": "794bb820914a8bc0e170cbe8966a3f90501f10edcac94bed36e6b0dfada77054"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -52939,6 +52996,34 @@
     {
       "path": "tests/test_wc3_pathing_removal.py",
       "sha256": "93c8d0085f0f8d7112b01b6a5e9556ff5b52806e3c45c16fd1a4b270ab9019e9"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_e2e_variants.py",
+      "sha256": "13c3b7303980ae504ffec2b7a3951ed4df05eb23f83d80c4a0ac51fee22cce9c"
+    },
+    {
+      "path": "tools/ghidra/research/e2e205_contract.py",
+      "sha256": "46dff8488bec44faa41c06d8e50d4b669d23c785392e8d0dd8ec579d7586251a"
+    },
+    {
+      "path": "tools/ghidra/research/e2e205_expected.py",
+      "sha256": "4417976060530869b390cb2b18ba1149117a863b7a262311eeef88a531db045a"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-variants205-1.27.json",
+      "sha256": "91e08826777acddede7e98d672a8b493f9fe1ed57cac2f12c1970f710b6e007b"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-e2e-variants205-ghidra-1.27.json",
+      "sha256": "21e2b529f3619d1007eb863dc7ddb8d92e598abe6472d635e73fb8b19a5b0609"
+    },
+    {
+      "path": "games/warcraft-3/game/tests/t_e2e_variants.c",
+      "sha256": "42ea721946ba271d1911d48f3dcfc44441b2c3f8107c0d09611d89b2f7aeee8f"
+    },
+    {
+      "path": "tests/test_wc3_pathing_e2e_variants.py",
+      "sha256": "7b4025bc3c4bacf7879fcc5c13a718ed095edb87a81e8514b3fbb4062ab21045"
     }
   ]
 }

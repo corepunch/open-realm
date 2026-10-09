@@ -14103,3 +14103,13 @@ enabled read-only retail repeats and one observer-free continuation agree at
 the public pending-removal boundary. Retail's later temporary recreation during
 final retirement is retained as an explicit exclusion, so SEP-01.2 remains
 open. Evidence, limits and commands: [removal separation](retail-pathfinding-removal.md).
+
+## Combined formation, crowd and gate acceptance (Payoff205)
+
+E2E-01.4 now binds the completed FORM-05, SEP-04 and GATE child contracts to the
+static/disconnected baseline, with thirteen unchanged literal source pins and
+six fresh original evidence checks. The actual game repeats all eight fresh/save
+journeys twice in Classic/TFT, retaining full intermediate word comparisons and
+unfinished crowd orders. This adds combined acceptance, not a gameplay policy
+or new live claim. Scope and commands:
+[cross-feature variants](retail-pathfinding-e2e-baselines.md#formation-crowd-and-gate-variants-payoff205).

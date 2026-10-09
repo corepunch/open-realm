@@ -79,8 +79,64 @@ its unchanged original sources. Logs and both failing runs are retained in
 `/GitHub/wc3-analysis/runtime/payoff203/`.
 
 This completes the requested static/disconnected baseline variants. Dynamic
-pursuit, contention/cancellation, crowd/gate combinations, whole-world state,
+pursuit, contention/cancellation, whole-world state,
 all-scenario determinism and original save/load remain their existing E2E,
 BASE, MAP and gameplay tasks. Saved suffix motion/retry is compared here;
 constructed-route stream comparison covers fresh runs only. No performance or
 full-retail completion claim follows from this bounded acceptance gate.
+
+## Formation, crowd and gate variants (Payoff205)
+
+E2E-01.4 extends the same baseline through
+`retail-e2e-variants205-1.27.json`. It pins the parent contract, 13 unchanged
+original fixtures/C headers and six complete child evidence contracts. This
+combines existing engine integrations; it adds no gameplay policy or new live
+capture claim. No existing numerical expectation is regenerated.
+
+| Category | Retail contracts | Actual game acceptance |
+|---|---|---|
+| Formation | FORM-05.1 selected/independent controls and FORM-05.2 passage | All owner/member/offset/cap/route/regroup words, final orders/positions and cold-save suffixes |
+| Crowd | SEP-04.2 mixed owner/radius/rank/selector crowd and SEP-04.3 enabled/disabled ground controls | All ordered contributions, PRNG/pose/endpoint/occupancy/retry words, public samples and saved mid-order continuation |
+| Gate | GATE open group crossing/disabled cached skip, sole-edge disconnection and all chained activation combinations | All motion/consumer/retry ordering and 16,339 saved continuation commits |
+
+`wc3_e2e205.*` executes all eight underlying fresh/save game journeys twice
+per edition. It requires every child to execute assertions and propagate any
+failure. Classic and TFT each pass three combined tests /2,117,900 assertions.
+Formation includes 2,739 owner visits /7,194 member commits per fresh repetition;
+gate variants retain 610/635/575 complete motion commits. Mixed and ground crowd
+contracts retain 2,255/1,336 visits, 3,228/1,182 contributions and 76/66 retries.
+The existing child tests continue comparing their full intermediate streams;
+the combined tests do not replace them with end-position checks.
+
+The manifest requires the original completion meanings. Four mixed-crowd orders
+are still blocked at the final pre-removal sample; the complete script is not
+proof that those orders arrived. Formation supplied clocks/WPM, inferred final
+clock and pre-commit capture limits remain inherited. The selected no-hook
+click-timing exclusions are also retained. Engine saved continuations do not
+prove retail save/load, whole-world state or full RNG equivalence.
+
+The fresh combined runner validates the static/disconnected parent and executes
+the two formation capture verifiers, the full original crowd replay and all
+three gate capture verifiers before running the actual game categories. It
+records child report/command hashes and engine binary/library/JUnit hashes.
+The Python gate initially failed because the combined manifest was missing;
+negative controls reject missing/reordered categories, changed literal pins,
+weakened original child checks and empty/failed/duplicate game summaries. This
+is a coverage gate, not a newly discovered gameplay regression.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 \
+/GitHub/wc3-analysis/verify-venv/bin/python \
+  tools/ghidra/run_wc3_pathfinding_corpus.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research2/game.dll \
+  --archive /GitHub/wc3-analysis/reports/pathfinding-1.27 \
+  --only oracle-e2e-variants205 --output /tmp/wc3-e2e205-fresh
+python3 -m unittest tests.test_wc3_pathing_e2e_variants tests.test_wc3_pathfinding_corpus
+```
+
+Ghidra combined-scope comments at `16c150`, `1702f0` and `165f10` are saved and
+mirrored in `MapPathfinding.java`. Logs live in
+`/GitHub/wc3-analysis/runtime/payoff205/`. This is implementation commit 11 of
+the current 12-commit validation batch. No additional full suite or frame-budget
+improvement is claimed. Dynamic/pursuit, contention/cancellation and all-scenario
+determinism remain their open E2E tasks.
