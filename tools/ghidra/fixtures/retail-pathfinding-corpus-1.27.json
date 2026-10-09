@@ -48886,6 +48886,64 @@
         "Other cheats, complete console token grammar, game+3e0 lifecycle, remaining policy callers and reveal producers remain open.",
         "Reveal queries outside the selected policy sequence and PreloadEnd durations vary with presentation; all reveal masks are zero and the complete public marker sequence must match. No complete movement trajectory claim is made."
       ]
+    },
+    {
+      "id": "oracle-target-reissue216",
+      "kind": "oracle",
+      "command": [
+        "{python}",
+        "tools/ghidra/verify_wc3_pathing_target_reissue216.py",
+        "--binary",
+        "{binary}",
+        "--report",
+        "{report}"
+      ],
+      "inputs": {
+        "binary_sha256": "d51e5680243fc90e19c9d6074f7fac433c466d3cf5f46e2364291725574d8236"
+      },
+      "report": "target-reissue216.json",
+      "expected_exit": 0,
+      "expected_status": "verified",
+      "checks": {
+        "passed": {
+          "equal": true
+        },
+        "captures": {
+          "equal": 2
+        },
+        "controls": {
+          "equal": 1
+        },
+        "queries": {
+          "equal": 340
+        },
+        "losses": {
+          "equal": 12
+        },
+        "replacements": {
+          "equal": 4
+        },
+        "public_markers": {
+          "equal": 105
+        },
+        "instructions": {
+          "equal": 1132
+        },
+        "engine": {
+          "length": 2
+        }
+      },
+      "evidence": [
+        "S",
+        "L"
+      ],
+      "scope": "TARGET-03.2 Smart approach point reissue and explicit Move initial task phase. Two original repeats and unhooked control, instruction encodings and actual Classic/TFT save/movement regressions. Wider policy and queued/combat compositions remain open.",
+      "exclusions": [
+        "Only the six public Smart/Move Apiv-loss scenes are live-verified here; queued-head/combat composition, visible lost-target producers and other policy callers remain open.",
+        "Apiv duration0 is controlled object data. Original full public positions agree across controls; full engine numerical trajectory equality is not claimed.",
+        "Existing persistent cancellation and fade timing fixtures remain unchanged. Engine timer tests explicitly use distant Move to exercise persistent cancellation without movement-owner visits.",
+        "Failed startup controls and exploratory observer errors are retained in the external research archive and excluded from the accepted original bundle."
+      ]
     }
   ],
   "fixtures": [
@@ -48951,7 +49009,7 @@
     },
     {
       "path": "tools/ghidra/fixtures/retail-pathfinding-types-1.27.json",
-      "sha256": "dd77a51a052bf63bef1c35ccd12f61b0354656b51b18a6948b99f07b7b7de36c"
+      "sha256": "0e3730b04717f5e1a03709b628e5acba454c3bb9fbef9ac9b6609e84316a4f09"
     },
     {
       "path": "tools/ghidra/fixtures/retail-callback-mutations-1.27.json",
@@ -49784,7 +49842,7 @@
     },
     {
       "path": "tools/ghidra/MapPathfinding.java",
-      "sha256": "7dd21d583cd14c0a526ec4f2068aa0bd5acc3ffc5cced458d31ea2c6f17ba320"
+      "sha256": "5390a418a44281d85692cac3dd0e959ffc66d1735e10e3a690c2f55e9f9c79c5"
     },
     {
       "path": "games/warcraft-3/game/tests/retail_metadata_busy_motion_119.h",
@@ -50640,7 +50698,7 @@
     },
     {
       "path": "games/warcraft-3/game/skills/s_move.c",
-      "sha256": "5458851c739d440bb0796cfcde922a61335c589ddf7acadea40ce10fc281992d"
+      "sha256": "a4fb7ab5835ca2befab0b4aefe5bb69fbb234db6943b264b9ca5c8e115e1d083"
     },
     {
       "path": "tools/ghidra/verify_wc3_pathing_spatial_save.py",
@@ -51076,7 +51134,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_save.c",
-      "sha256": "55a3b7de1c0c45777dc99e28e66f25f4ddea0e26ebb75501bdf8eb557ca73510"
+      "sha256": "441ff6810e22064e1ca9e100391b56b1975fb66b5201af2cebfd55309e4b995a"
     },
     {
       "path": "games/warcraft-3/game/g_destructable.c",
@@ -51084,7 +51142,7 @@
     },
     {
       "path": "games/warcraft-3/game/g_local.h",
-      "sha256": "1f67c9e7535eef6a982bfc7e4ad63bc3ff346da9f8fa47df883d944f7d08afbc"
+      "sha256": "b9fcabe2bb3f53e1ae33b48b9b742b310a94d58c7d145923f38a9832b2b0b802"
     },
     {
       "path": "games/warcraft-3/common/wc3_pathing_regions.h",
@@ -51332,7 +51390,7 @@
     },
     {
       "path": "games/warcraft-3/game/tests/t_movement.c",
-      "sha256": "95af5059995596ed982b0e768c3bc197f128edd1d231f7337e71cb11829b3dc6"
+      "sha256": "57eced5e020bfd947b7cb7c2c4fb8ebbe26879b96a93717b68736c12a7c76364"
     },
     {
       "path": "games/warcraft-3/game/tests/t_repulsion_crowds.c",
@@ -51576,7 +51634,7 @@
     },
     {
       "path": "tests/test_wc3_pathfinding_corpus.py",
-      "sha256": "ab9a52f7f5c68549beffe243025796117885a4de7e117013f4d757dbf1f60ded"
+      "sha256": "ff75570820d07634511f9e482bc524d85d24808e9e7464225605212e5c744e37"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-group-speed.md",
@@ -51584,15 +51642,15 @@
     },
     {
       "path": "docs/games/warcraft-3/save-load.md",
-      "sha256": "b26b75691f75335e814e28d192230459c1a36bdda34ae32a3e7d7d2668c42096"
+      "sha256": "c8bde64efcd684e7c1917801532dccce70c2bd454b00d30fc055f0597332a18c"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-engine.md",
-      "sha256": "6683630cd579e48a03b87eee694a60ac650e15658c11a4ff178e411156ec704a"
+      "sha256": "d4fe5fd288de6cef539d00481c5f7010e7b8a3e593db6f24f5a6f4b8f9defb2a"
     },
     {
       "path": "docs/games/warcraft-3/retail-pathfinding-todo.md",
-      "sha256": "fec0fe2c75f2b46858f9b3a42578ebf794f61761ec2b2422a2426bec375129f1"
+      "sha256": "753ff89274cfa023ae4505e05d07b7d09b948f05d54b246c27ad83ff7d1b10b4"
     },
     {
       "path": "games/warcraft-3/game/g_timer.c",
@@ -53949,6 +54007,42 @@
     {
       "path": "tools/ghidra/fixtures/retail-target-policy215-1.27.json.gz",
       "sha256": "0bc4c53805c1489eee63c135211e51e8607ba0f275d9fbee7f4ed9b379e9a3b2"
+    },
+    {
+      "path": "tools/frida/research/target216_capture.py",
+      "sha256": "b260674291e7ef38386dd86909c078935d6eae109605824265088c5f9d7f8f45"
+    },
+    {
+      "path": "tools/frida/research/target216_observer.js",
+      "sha256": "9e0c512e3c9c2a10f92bfcf91bc3cbc2e8d7962184debf7a9f08cf12abb43b7b"
+    },
+    {
+      "path": "tools/frida/research/target216_make_map.py",
+      "sha256": "ba577e592d57587bfc62d91f9286041554fdf96b23ceea2a38203b9598289446"
+    },
+    {
+      "path": "tools/frida/research/target216_probe.j",
+      "sha256": "02f746abbfc27972bf971c42592dcb86454ce24a910e6d94636931193d8e7bde"
+    },
+    {
+      "path": "tools/ghidra/research/Target216Evidence.java",
+      "sha256": "cb49a936410cc7ee2ec7435890111687b62fb4d994ef1be58f3386e48c9104dd"
+    },
+    {
+      "path": "tools/ghidra/verify_wc3_pathing_target_reissue216.py",
+      "sha256": "935125145053b26a17ba5d2395baf7df92bd734ea46335fd956be90b2853ffaf"
+    },
+    {
+      "path": "tests/test_wc3_pathfinding_target_reissue216.py",
+      "sha256": "80aa99242f6820655e47a8441ccad21743af41a8911f63b7d229e4f6ca930958"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-reissue216-1.27.json",
+      "sha256": "6fcb04e5a06b8533494bde53afa17f9e0ffc6eee3ac66e4706342d58c6c75d6e"
+    },
+    {
+      "path": "tools/ghidra/fixtures/retail-target-reissue216-1.27.json.gz",
+      "sha256": "044bca73fe0869ea7fffd53f47f05dcab1ab2480968198179f3e7d3cc4559b09"
     }
   ]
 }

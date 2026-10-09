@@ -1,5 +1,15 @@
 # Warcraft III Save/Load
 
+Save153 retains `movement.follow_order_point` separately from the live Follow
+target and its sampled group destination. Loading before target loss therefore
+reissues the same original point for an approach; loading afterward resumes the
+ordinary point task. Persistent Follow still cancels on invalid loss. Save152
+and earlier layouts are incompatible. See [target-loss phases](retail-pathfinding-engine.md#target-loss-distinguishes-approach-from-persistent-follow-payoff216).
+
+Save152 retains the independent Show Map visibility policy and pending submitted
+toggles. A loaded pending command applies at the next simulation frame boundary,
+with detection and scripted fog flags independent. See [Show Map policy](retail-pathfinding-engine.md#show-map-retains-a-separate-visibility-policy-payoff215).
+
 Save151 adds the registered Root angular completion receiver and facing stage.
 Single-member angular owners may retain a receiver without a target; generation,
 callback and member validation still applies. Cold saves resume the turn and
@@ -69,7 +79,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 151, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 153, canonical map path, the current `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - mutable fine terrain plus independently published four-lane adaptive hierarchy dimensions/classes;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings and dynamically sized `SetPlayerAbilityAvailable` rawcode list, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;

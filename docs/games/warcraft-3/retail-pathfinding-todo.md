@@ -57,6 +57,12 @@ work closes no additional retail research tasks. See
 
 **277 done / 336 tasks; 59 remaining.**
 
+Payoff216 integrates retained Smart approach point reissue and distant Move's
+initial persistent phase, with two new original repeats, an unhooked control,
+Save153 and failing-first production regressions. Prior persistent cancellation
+and fade timing fixtures are preserved. Wider TARGET-03.1/03.2 remain open; see
+[target-loss phases](retail-pathfinding-engine.md#target-loss-distinguishes-approach-from-persistent-follow-payoff216).
+
 Payoff215 implements the independent Show Map visibility policy, deferred native
 submission and Save152 continuation without bypassing invisibility detection.
 Two original repeats and an unhooked control also expose a retained-approach

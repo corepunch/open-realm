@@ -17323,7 +17323,9 @@ TEST(wc3_movement, persistent_group_commit_matches_moving_target_speed) {
         unit->stand=target->stand=unit_stand;
         unit->collision=target->collision=31;unit_stand(unit);unit_stand(target);
         S_SetUnitMoveSpeed(unit,k==2 ? 150 : 350);S_SetUnitMoveSpeed(target,150);
-        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        /* Keep the nonpersistent control in approach; persistent cases below
+         * explicitly select their tested flags. Distant Move starts Follow. */
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
         T_EQ(ARRAY_COUNT(level.move_groups),1);if(!ARRAY_COUNT(level.move_groups))continue;
         moveGroup_t *group=level.move_groups[0];if(k!=4)group->flags|=0x801u;
         target->movement.velocity=(vec2_t){k==1 ? 0 : 150,0};
@@ -17403,7 +17405,8 @@ TEST(wc3_movement, target_drop_policy_is_captured_by_approach_follow_and_save) {
         unit->svflags=target->svflags=SVF_MONSTER;
         unit->collision=target->collision=8;unit_stand(unit);unit_stand(target);
         if(codes[k])T_ASSERT(G_ActorAddSkill(target,codes[k]));
-        T_ASSERT(unit_issuetargetorder(unit,"move",target));
+        /* Smart owns the approach; distant Move starts persistent (original216). */
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
         T_EQ(ARRAY_COUNT(level.move_groups),1);
         if(!ARRAY_COUNT(level.move_groups))continue;
         moveGroup_t *group=level.move_groups[0];bool blocked=k==1||k==2;
@@ -19099,7 +19102,8 @@ TEST(wc3_movement, target167_approach_handoff_renews_subscription_order) {
     far->svflags=SVF_MONSTER;far->movetype=MOVETYPE_STEP;far->stand=unit_stand;
     unit_stand(far);S_SetUnitMoveSpeed(far,150);
     target167_delivery=(typeof(target167_delivery)){.units={unit,far},.target=target};
-    T_ASSERT(unit_issuetargetorder(unit,"move",target));T_ASSERT(unit_issuetargetorder(far,"move",target));
+    /* Smart owns the approach; distant Move starts persistent (original216). */
+    T_ASSERT(unit_issuetargetorder(unit,"smart",target));T_ASSERT(unit_issuetargetorder(far,"smart",target));
     uint64_t original=unit->movement.follow_sequence;
     FOR_LOOP(i,100) {
         target166_tick();moveGroup_t *group=move_unit_group(unit);
@@ -19175,7 +19179,7 @@ static void target168_invisibility(unsigned policy,bool persistent) {
     T_ASSERT(!jass_rterror_pending(level.vm));T_ASSERT(S_PermanentInvisibilityActive(target));
     T_EQ(level.pathing_counter,counter);T_EQ(move_follow_visits,1);
     if(policy==1) {
-        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);T_EQ(unit->current_order_id,0);
+        T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_LOST);T_EQ(unit->current_order_id,persistent ? 0 : G_OrderId("smart"));
         T_NULL(unit->movement.follow_target);T_EQ(move_find_group(group) ? move_find_group(group)->count : 0,0);
     } else {
         T_EQ(S_MoveTargetStatus(unit,target),MOVE_TARGET_VALID);T_EQ(unit->movement.follow_target,target);
@@ -19183,7 +19187,7 @@ static void target168_invisibility(unsigned policy,bool persistent) {
     }
     move_follow_visits=0;jass_callbyname(level.vm,"add",false);T_EQ(move_follow_visits,0);
     jass_callbyname(level.vm,"undo",false);T_ASSERT(!S_PermanentInvisibilityActive(target));
-    T_EQ(unit->current_order_id,policy==1 ? 0 : G_OrderId("smart"));
+    T_EQ(unit->current_order_id,policy==1 && persistent ? 0 : G_OrderId("smart"));
     T_EQ(move_follow_visits,0);
     G_SetSLKRows("AbilityData",old);free_slk_rows(rows);
     G_FowShutdown();reset_entities();setup_test_world();
@@ -19209,7 +19213,8 @@ TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
             "C;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
             "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"%.9g\"\nE\n",wc3_float(row->duration));
         slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
-        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        /* Exercise native persistent cancellation without advancing movement. */
+        T_ASSERT(unit_issuetargetorder(unit,"move",target));
         move_follow_visits=0;T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
         T_ASSERT(!S_PermanentInvisibilityActive(target));T_EQ(move_follow_visits,0);
         FOR_LOOP(i,row->count) {
@@ -19218,13 +19223,13 @@ TEST(wc3_movement, target168_positive_fades_match_original_listener_requests) {
             if(!found)break;
             T_EQ(next.proc,CAbilityPermanentInvisibility);
             T_EQ(wc3_float_bits(next.deadline.time),row->requests[i][2]);
-            T_EQ(unit->current_order_id,G_OrderId("smart"));
+            T_EQ(unit->current_order_id,G_OrderId("move"));
             level.pathing_clock=next.deadline;level.timer_clock_valid=false;
             abilityCall_t call={.primary_timer=&next};next.proc(NULL,A_PRIMARY_TIMER_FIRE,&call);
             T_EQ(move_follow_visits,i+1==row->count ? 1 : 0);
         }
         T_EQ(S_PermanentInvisibilityActive(target),row->count!=0);T_EQ(move_follow_visits,row->count ? 1 : 0);
-        T_EQ(unit->current_order_id,row->count ? 0 : G_OrderId("smart"));
+        T_EQ(unit->current_order_id,row->count ? 0 : G_OrderId("move"));
         T_EQ(unit->movement.follow_target,row->count ? NULL : target);
         abilityTimerRequest_t next={0};T_ASSERT(!S_NextAbilityPrimaryTimer(&next));
         T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
@@ -19247,7 +19252,8 @@ TEST(wc3_movement, target168_pending_fade_cold_save_and_exact_public_timer_deliv
     char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
         "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
     slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
-    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    /* Exercise native persistent cancellation without advancing movement. */
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
     T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
     abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
     uint16_t id=waypoint_identity(unit),other=waypoint_identity(target);
@@ -19262,7 +19268,7 @@ TEST(wc3_movement, target168_pending_fade_cold_save_and_exact_public_timer_deliv
     T_EQ(unit->movement.follow_target,target);T_ASSERT(!S_PermanentInvisibilityActive(target));
     move_follow_visits=0;target168_loss_clock=(wc3Clock_t){0};move_test_target_lost=target168_loss_observe;
     level.pathing_clock.time=wc3_sub(request.deadline.time,.02f);level.timer_clock_valid=false;target168_run_timers();
-    T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("move"));
     level.pathing_clock.time=request.deadline.time;level.timer_clock_valid=false;target168_run_timers();
     move_test_target_lost=NULL;T_EQ(move_follow_visits,1);T_EQ(unit->current_order_id,0);
     T_EQ(wc3_float_bits(target168_loss_clock.time),wc3_float_bits(request.deadline.time));
@@ -19276,14 +19282,15 @@ TEST(wc3_movement, target168_pending_fade_cancellation_reveal_and_slot_release) 
     char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
         "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"3.25\"\nE\n";
     slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
-    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    /* Exercise native persistent cancellation without advancing movement. */
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
     T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
     abilityPrimaryTimer_t first=target->permanent_invisibility_fade.request;
     level.pathing_clock.time=1;level.timer_clock_valid=false;S_PermanentInvisibilityReveal(target);
     T_EQ(invisibility_count,1);T_ASSERT(target->permanent_invisibility_fade.request.sequence>first.sequence);
     T_ASSERT(target->permanent_invisibility_fade.request.deadline.time>first.deadline.time);
     move_follow_visits=0;T_ASSERT(G_ActorRemoveSkill(target,MAKEFOURCC('A','p','i','v')));
-    T_EQ(invisibility_count,0);T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("smart"));
+    T_EQ(invisibility_count,0);T_EQ(move_follow_visits,0);T_EQ(unit->current_order_id,G_OrderId("move"));
     level.pathing_clock.time=10;level.timer_clock_valid=false;target168_run_timers();T_EQ(move_follow_visits,0);
     T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));T_EQ(invisibility_count,1);
     G_DeferFreeEdict(target);T_EQ(invisibility_count,0);
@@ -19298,7 +19305,8 @@ TEST(wc3_movement, target168_pending_fade_rebases_without_changing_origin) {
     char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
         "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K\"2\"\nE\n";
     slkTestData_t *rows=parse_slk_string(slk),*old=G_SetSLKRows("AbilityData",rows);
-    T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+    /* Exercise native persistent cancellation without advancing movement. */
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
     T_ASSERT(G_ActorAddSkill(target,MAKEFOURCC('A','p','i','v')));
     abilityPrimaryTimer_t request=target->permanent_invisibility_fade.request;
     wc3Clock_t origin=target->permanent_invisibility_fade.origin;
@@ -20164,6 +20172,98 @@ TEST(wc3_movement, target215_paired_submissions_clear_planes_without_leaving_pol
     T_EQ(game.clients[0].ps.rdflags&(RDF_NOFOG|RDF_NOFOGMASK),0);
     G_RunShowMapCheats();T_EQ(level.fow.players[0].explored[index],0);
     G_FowShutdown();reset_entities();setup_test_world();
+}
+
+
+/* Original target216 scenes0/1 reissue Smart to its retained order point;
+ * scenes2..5 lose a persistent task and end instead. */
+static slkTestData_t *target216_setup(edict_t **unit,edict_t **target,slkTestData_t **old) {
+    target166_setup(unit,target);
+    S_SetUnitAxisPosition(*unit,0,320);S_SetUnitAxisPosition(*unit,1,1024);
+    S_SetUnitAxisPosition(*target,0,1760);S_SetUnitAxisPosition(*target,1,1024);
+    (*target)->s.player=PLAYER_NEUTRAL_PASSIVE;
+    level.alliances[0][PLAYER_NEUTRAL_PASSIVE]|=1u<<ALLIANCE_PASSIVE;
+    level.alliances[PLAYER_NEUTRAL_PASSIVE][0]|=1u<<ALLIANCE_PASSIVE;
+    G_FowUpdate();
+    char const slk[]="ID;PWXL;N;E\nC;Y1;X1;K\"alias\"\nC;X2;K\"code\"\nC;X3;K\"levels\"\nC;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Apiv\"\nC;X2;K\"Apiv\"\nC;X3;K1\nC;X4;K0\nE\n";
+    slkTestData_t *rows=parse_slk_string(slk);*old=G_SetSLKRows("AbilityData",rows);
+    T_ASSERT(run_test_jass("globals\nunit target\nendglobals\n"
+        "function add takes nothing returns nothing\ncall UnitAddAbility(target,'Apiv')\nendfunction\n"
+        "function undo takes nothing returns nothing\ncall UnitRemoveAbility(target,'Apiv')\nendfunction\n"
+        "function main takes nothing returns nothing\nlocal group g=CreateGroup()\n"
+        "call GroupEnumUnitsInRange(g,1760,1024,1,null)\nset target=FirstOfGroup(g)\ncall DestroyGroup(g)\nendfunction\n"));
+    return rows;
+}
+
+TEST(wc3_movement, target216_smart_approach_loss_reissues_the_retained_order_point) {
+    FOR_LOOP(active,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target216_setup(&unit,&target,&old);
+        T_ASSERT(unit_issuetargetorder(unit,"smart",target));
+        if(active)FOR_LOOP(i,30)target166_tick();
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)return;
+        T_EQ(group->flags&1,0);uint32_t id=group->id;
+        S_SetUnitAxisPosition(target,1,1280);
+        cstring_t pending=Test_TempPath("wc3-target216-before-loss.bin");
+        T_ASSERT(WriteGame(pending));T_ASSERT(ReadGame(pending));remove(pending);
+        jass_callbyname(level.vm,"add",false);T_ASSERT(!jass_rterror_pending(level.vm));
+        T_EQ(unit->current_order_id,G_OrderId("smart"));T_NULL(unit->movement.follow_target);
+        T_NOT_NULL(unit->goalentity);if(unit->goalentity) {
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.x),0x44dc0000u);
+            T_EQ(wc3_float_bits(unit->goalentity->s.origin2.y),0x44800000u);
+        }
+        T_EQ(move_find_group(id)?move_find_group(id)->count:0,0);
+        T_ASSERT(move_is_active_order_walk(unit));
+        jass_callbyname(level.vm,"undo",false);T_NULL(unit->movement.follow_target);
+        T_EQ(unit->current_order_id,G_OrderId("smart"));
+        cstring_t file=Test_TempPath("wc3-target216-point.bin");T_ASSERT(WriteGame(file));
+        uint32_t expected[40][7];
+        FOR_LOOP(i,40) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            expected[i][0]=wc3_float_bits(pose.grid[0]);expected[i][1]=wc3_float_bits(pose.grid[1]);
+            expected[i][2]=wc3_float_bits(unit->movement.velocity.x);expected[i][3]=wc3_float_bits(unit->movement.velocity.y);
+            expected[i][4]=wc3_float_bits(unit->movement.heading);expected[i][5]=unit->current_order_id;
+            expected[i][6]=unit->movement.group_id;
+        }
+        T_ASSERT(ReadGame(file));remove(file);
+        FOR_LOOP(i,40) {
+            target166_tick();wc3GridPose_t pose;unit_predicted_pose(unit,&pose);
+            T_EQ(wc3_float_bits(pose.grid[0]),expected[i][0]);T_EQ(wc3_float_bits(pose.grid[1]),expected[i][1]);
+            T_EQ(wc3_float_bits(unit->movement.velocity.x),expected[i][2]);T_EQ(wc3_float_bits(unit->movement.velocity.y),expected[i][3]);
+            T_EQ(wc3_float_bits(unit->movement.heading),expected[i][4]);T_EQ(unit->current_order_id,expected[i][5]);
+            T_EQ(unit->movement.group_id,expected[i][6]);T_NULL(unit->movement.follow_target);
+        }
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
+}
+
+TEST(wc3_movement, target216_distant_move_starts_persistent_and_cancels_on_loss) {
+    edict_t *unit,*target;slkTestData_t *old,*rows=target216_setup(&unit,&target,&old);
+    /* Preserve null-caller rejection for visible non-unit widgets as well. */
+    uint32_t flags=target->svflags;target->svflags&=~SVF_MONSTER;
+    T_ASSERT(!S_IssueFollowOrder(NULL,target,G_OrderId("move")));target->svflags=flags;
+    T_ASSERT(unit_issuetargetorder(unit,"move",target));
+    moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)return;
+    T_EQ(group->flags&1,1);jass_callbyname(level.vm,"add",false);
+    T_EQ(unit->current_order_id,0);T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+    G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+}
+TEST(wc3_movement, target216_near_orders_complete_approach_before_loss) {
+    char const *orders[]={"smart","move"};
+    FOR_LOOP(n,2) {
+        edict_t *unit,*target;slkTestData_t *old,*rows=target216_setup(&unit,&target,&old);
+        S_SetUnitAxisPosition(unit,0,1696);
+        T_ASSERT(unit_issuetargetorder(unit,orders[n],target));
+        FOR_LOOP(i,30)target166_tick();
+        moveGroup_t *group=move_unit_group(unit);T_NOT_NULL(group);if(!group)return;
+        T_EQ(group->flags&1,1);S_SetUnitAxisPosition(target,1,1280);
+        cstring_t file=Test_TempPath("wc3-target216-persistent.bin");
+        T_ASSERT(WriteGame(file));T_ASSERT(ReadGame(file));remove(file);
+        jass_callbyname(level.vm,"add",false);T_EQ(unit->current_order_id,0);
+        T_NULL(unit->movement.follow_target);T_NULL(unit->goalentity);
+        jass_callbyname(level.vm,"undo",false);T_EQ(unit->current_order_id,0);
+        G_SetSLKRows("AbilityData",old);free_slk_rows(rows);G_FowShutdown();reset_entities();setup_test_world();
+    }
 }
 
 #endif

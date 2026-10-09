@@ -761,6 +761,7 @@ static void move_detach_group(edict_t *unit) {
 static umove_t move_move_walk;
 static void move_run_group_updates(void);
 static void move_start_follow_group(edict_t *unit, edict_t *target, bool persistent);
+static bool move_follow_in_range(edict_t *unit, edict_t *target);
 static void move_leave(edict_t *self);
 static void move_captain_actor_point(edict_t *,vec2_t const *,float);
 
@@ -4184,7 +4185,7 @@ static bool move_is_following(edict_t const *unit) {
     return unit && (unit->currentmove==&follow_move_walk || unit->currentmove==&follow_move_legacy);
 }
 
-void order_follow_resume(edict_t *self) {
+static void move_follow_resume(edict_t *self, bool persistent) {
     edict_t *target;
 
     if (!self || S_GoldMineWorkerIsInside(self) || (self->aiflags & AI_IMMOBILE)) {
@@ -4207,7 +4208,7 @@ void order_follow_resume(edict_t *self) {
         self->movement.flat_speed_bonus=S_MoveSpeedBonus(self);
         unit_commit_current_pose(self); self->movement.pose_clock=level.pathing_clock;
         self->movement.clock_valid=true;
-        move_start_follow_group(self,target,false);
+        move_start_follow_group(self,target,persistent);
         unit_setanimation(self,"stand");
     }
     /* Native5fd270 chooses physical target tasks for nonstructures regardless
@@ -4215,7 +4216,11 @@ void order_follow_resume(edict_t *self) {
      * TARGET-02.1 on the existing traversal. */
 }
 
-void order_follow(edict_t *self, edict_t *target) {
+void order_follow_resume(edict_t *self) {
+    move_follow_resume(self,false);
+}
+
+static void move_follow_order(edict_t *self, edict_t *target, bool persistent) {
     if (!self || (self->aiflags & AI_IMMOBILE) || S_GoldMineWorkerIsInside(self) ||
         !follow_target_is_valid(self, target)) {
         return;
@@ -4225,14 +4230,24 @@ void order_follow(edict_t *self, edict_t *target) {
     S_SetMoveGoal(self, &self->movement.patrol_b, NULL);
     S_SetMoveGoal(self, &self->movement.patrol_target, NULL);
     S_SetFollowTarget(self,target);
+    wc3GridPose_t point;unit_predicted_pose(target,&point);
+    self->movement.follow_order_point=(vec2_t){point.world[0],point.world[1]};
     self->movement.follow_target_spawn_time = target->spawn_time;
     self->movement.holding_position = false;
-    order_follow_resume(self);
+    move_follow_resume(self,persistent);
+}
+
+void order_follow(edict_t *self, edict_t *target) {
+    move_follow_order(self,target,false);
 }
 
 bool S_IssueFollowOrder(edict_t *self, edict_t *target, uint32_t order_id) {
-    if (S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
-    order_follow(self, target);
+    if (!self || S_MoveTargetStatus(self,target)!=MOVE_TARGET_VALID) return false;
+    /*5fd270: distant target Move enters d0173 directly; Smart retains its
+     * d0174 approach. A nearby Move still owns the half-edge approach. */
+    bool persistent=order_id==G_OrderId("move") && !target->movement.captain_actor_type &&
+        !move_follow_in_range(self,target);
+    move_follow_order(self,target,persistent);
     if (!self || self->goalentity != target || !move_is_following(self))
         return false;
     self->current_order_id = order_id;
@@ -4715,10 +4730,20 @@ static bool move_queue_group_point(groupPointOrder_t const *request) {
 
 static void move_group_seed_route(moveGroup_t *group);
 
-/* Native target Move approaches once, then a persistent Follow task creates
- * another physical owner while the public Smart/Move head remains retained. */
+/* Smart and nearby target Move approach once before persistent Follow.
+ * Distant explicit Move begins persistent without an intermediate owner. */
 /* Original5fd270 admits a nearby target with half its current edge distance;
  * its later persistent task restores the authored FollowRange. */
+static bool move_follow_in_range(edict_t *unit, edict_t *target) {
+    wc3GridPose_t source,point;
+    unit_predicted_pose(unit,&source);unit_predicted_pose(target,&point);
+    float x=wc3_sub(point.grid[0],source.grid[0]),y=wc3_sub(point.grid[1],source.grid[1]);
+    float distance2=wc3_add(wc3_mul(x,x),wc3_mul(y,y));
+    float range=wc3_div(G_FollowStopRange(unit,target),32),range2=wc3_mul(range,range);
+    return distance2<range2 ||
+        wc3_float(wc3_float_bits(wc3_sub(distance2,range2))&0x7fffffffu)<wc3_float(0x3a83126f);
+}
+
 static float move_follow_approach_range(edict_t *unit, edict_t *target, bool persistent) {
     if (target->movement.captain_actor_type) {
         /* Original9d86f0:70 + .6*maximum enabled attack range. The target
@@ -5911,8 +5936,27 @@ BZ_ABILITY_PROC(CAbilityMove) {
         if(!ent) {move_follow_target_lost(call->lost_target);return true;}
         if(ent->movement.follow_target!=call->lost_target ||
            S_MoveTargetStatus(ent,call->lost_target)==MOVE_TARGET_VALID)return false;
-        /* The retained Move parent owns this subscription during automatic
-         * combat as well. Invalid loss retires the parent before completion. */
+        /*5ff490 snapshots the public head and internal task before recovery.
+         * An approach reissues its original point if the lost target cannot be
+         * seen; a persistent Follow has no such successor. Automatic combat
+         * retains a different owner and must retire only its Follow parent. */
+        {
+            moveGroup_t *group=move_unit_group(ent);
+            if(move_is_following(ent) && group && group->target==call->lost_target &&
+               !(group->flags&1) && ent->current_order_id) {
+                vec2_t point=ent->movement.follow_order_point;
+                if(G_FowPlayerCanTrackUnit(ent->s.player,call->lost_target)) {
+                    wc3GridPose_t pose;unit_predicted_pose(call->lost_target,&pose);
+                    point=(vec2_t){pose.world[0],pose.world[1]};
+                }
+                uint32_t order=ent->current_order_id;
+                edict_t *goal=Waypoint_add(&point);
+                if(goal) {
+                    S_IssueMoveOrder(ent,goal,order);
+                    return true;
+                }
+            }
+        }
         return CAbilityMove(ent,A_TARGET_REMOVED,&(abilityCall_t){.removed_target=call->lost_target});
     case A_TARGET_REMOVED:
         if (!call || ent->movement.follow_target != call->removed_target) return false;

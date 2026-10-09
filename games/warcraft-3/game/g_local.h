@@ -2145,6 +2145,7 @@ struct edict_s {
         edict_t *attackmove_waypoint;  // resume attack-move after a combat detour
         edict_t *patrol_a, *patrol_b, *patrol_target;
         edict_t *follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
+        vec2_t follow_order_point; /* Retained user point48/50; target sampling never rewrites it. */
         uint32_t follow_target_spawn_time; /* incarnation captured by the Follow owner */
         uint64_t follow_sequence; /* Target subscription order, retained across save/load. */
         bool holding_position;

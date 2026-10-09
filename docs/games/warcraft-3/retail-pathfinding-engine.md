@@ -14632,3 +14632,77 @@ and compressed raw bundle retain both repeats and the unhooked control. Original
 maps, failed attempts, Ghidra instruction/type exports and focused validation live
 under `/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.1/`.
 See also [remaining target policies](retail-pathfinding-todo.md#target-03--visibility-policies).
+
+
+## Target loss distinguishes approach from persistent Follow (Payoff216)
+
+Retail retains two independent identities: the public user order at Unit19c/1a0
+and the internal task at Unit174/178. `CAbilityMove_OnTargetLost`/5ff490 snapshots
+both before clearing related orders and recovering. A retained public command
+with an internal task other than zero or d0173 creates a replacement through
+OrderTarget_CreateArguments/69bd80 and Unit_AdmitOrder/691c70. The constructor
+receives the original command and stored scalar point48/50 when visibility fails;
+the replacement target is null. A visible target instead contributes its current
+predicted world pose. That latter producer composition remains outside the live
+contract here. Persistent Follow/d0173 cancels rather than taking this successor.
+
+Two read-only six-scene original repeats and one unhooked control now exercise
+the previously missing branch. Immediate and traveling Smart approaches both
+have internal d0174 and reissue Smart to the originally ordered (1760,1024),
+even after the target moves to Y1280. Near Smart after approach completion and
+both distant Move scenes have d0173 and cancel. Removing invisibility does not
+restore any Follow. All105 public markers, including sampled positions, match
+across these runs;340 queries,12 loss events and4 replacement constructors are
+retained. Full engine trajectory equality is not claimed by this bounded result.
+
+The engine now stores the immutable order point separately from the mutable
+Follow target, preserves it in Save153, and selects the initial task from the
+public order and physical range. Original5fd270 sends distant explicit Move
+directly into persistent Follow; Smart owns approach, and nearby Move still owns
+the half-edge approach. Target-loss handling follows that phase distinction
+without unit-type exceptions. Point reissue retires the old physical group and
+subscription, retains the public command, and uses the ordinary point-movement
+owner. Reacquisition cannot silently adopt the old target.
+
+This corrects earlier blanket cancellation wording, not the original persistent
+cancellation captures. Existing frozen motion/fade fixtures are unchanged.
+The group-policy, speed-policy control and subscription-handoff tests now
+issue Smart to exercise approach; timer-only fade tests issue distant Move to
+exercise persistent
+cancellation without advancing movement. Their original flags, timing words,
+subscription ranks and cancellation expectations are retained. Immediate Smart
+invisibility expectations change only where the new original repeats prove
+point reissue. Queued/combat composition and other loss producers remain open.
+
+The first two new regressions failed9 assertions before implementation. Three
+production-path regressions now pass709 assertions in each Classic/TFT edition,
+including save/load before loss, phase persistence, cleanup and80 exact saved
+point-movement continuation visits. Eleven Python mutation tests reject altered
+commands, points, task kinds, provenance, incomplete observers and controls.
+The frozen contract checks1132 original instruction encodings. Three recovered
+names/comments, the qualified H3 handler comment and two explicit operand ABIs
+are saved in Ghidra and mirrored in MapPathfinding.java and its type fixture.
+This is focused validation, the second implementation commit after Payoff214's
+full checkpoint.
+
+The broad TFT movement run exercised440 tests and6,251,178 assertions. Its
+two failures were the nonpersistent speed-policy setup described above; all
+other439 tests passed, including unchanged raw Smart motion fixtures. After
+correcting only that producer, the exact speed test passes20 assertions in both
+editions. Final rebuilt target and save suites pass36/27,637 and206/38,033
+respectively in each edition. The broad movement module was not rerun in full
+for that test-only producer correction and the null-caller admission guard.
+
+```sh
+LD_LIBRARY_PATH=/GitHub/wc3-analysis/native-sdl2 python3 \
+  tools/ghidra/verify_wc3_pathing_target_reissue216.py \
+  --binary /run/media/lofcz/ssd_external/Games/w3-research3/game.dll \
+  --report /tmp/target-reissue216-new.json
+```
+
+The [frozen reissue contract](../../../tools/ghidra/fixtures/retail-target-reissue216-1.27.json)
+and compressed raw bundle retain both repeats and the successful unhooked
+control. Original maps, static/type exports, failed exploratory attempts and
+validation logs live under
+`/GitHub/wc3-analysis/reports/pathfinding-1.27/research/TARGET-03.2/`.
+TARGET-03.1/03.2 remain open for the wider reachable policy/lifetime matrix.

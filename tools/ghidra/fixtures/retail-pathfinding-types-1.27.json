@@ -16796,6 +16796,69 @@
         }
       ],
       "evidence": "Payoff215: registered208237; cdecl stack4 enabled. Calls24f930 on current world vision owner. Does not write TLS show-map policy200."
+    },
+    {
+      "address": "6f69c6a0",
+      "name": "Unit_GetInternalTaskHead",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "unit",
+          "type": "ptr:void",
+          "storage": "ECX"
+        }
+      ],
+      "evidence": "Payoff216: resolves Unit174/178 through061320, independently of user head19c/1a0. Null identity/payload returnsNULL; otherwise task kind is at payload30. Read-only repeated public Smart loss witnesses active approachd0174 versus persistentd0173; distant explicit Move startsd0173 and cancels, Smart approach reissues."
+    },
+    {
+      "address": "6f69bd80",
+      "name": "OrderTarget_CreateArguments",
+      "returns": "ptr:void",
+      "convention": "__fastcall",
+      "parameters": [
+        {
+          "name": "command",
+          "type": "u32",
+          "storage": "ECX"
+        },
+        {
+          "name": "player",
+          "type": "u32",
+          "storage": "EDX"
+        },
+        {
+          "name": "source",
+          "type": "ptr:void",
+          "storage": 4
+        },
+        {
+          "name": "target",
+          "type": "ptr:void",
+          "storage": 8
+        },
+        {
+          "name": "x",
+          "type": "ptr:u32",
+          "storage": 12
+        },
+        {
+          "name": "y",
+          "type": "ptr:u32",
+          "storage": 16
+        },
+        {
+          "name": "association",
+          "type": "ptr:void",
+          "storage": 20
+        },
+        {
+          "name": "retained",
+          "type": "ptr:void",
+          "storage": 24
+        }
+      ],
+      "evidence": "Payoff216: fastcall ECXcommand,EDXplayer; stack4source,8target,c scalarX*,10 scalarY*,14 association,18 retained argument;RET18. Original5ff6eb loss caller supplies retained public command and stored point when flags0 visibility fails, with targetNULL. Pre-pushed0/1 are for691c70, not constructor arguments. Calls689a60 on a newly allocated ordt payload."
     }
   ],
   "globals": [
