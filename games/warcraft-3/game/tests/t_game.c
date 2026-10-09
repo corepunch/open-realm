@@ -3549,6 +3549,33 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_world_items_follow_position_instead_of_default_owner) {
+    edict_t *revealer, *item;
+
+    reset_entities(); setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    item = alloc_test_unit(MAKEFOURCC('I','t','e','m'), 1024.0f, 1024.0f);
+    item->s.player = 0; /* Unowned map items can retain this default owner. */
+    item->targtype = TARG_ITEM;
+    item->item = G_AllocItem();
+    item->item->in_world = true;
+
+    G_FowUpdate();
+
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, item));
+    T_ASSERT(!G_FowPlayerCanHoverEntity(0, item));
+    item->s.origin = revealer->s.origin;
+    item->s.origin2 = revealer->s.origin2;
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, item));
+    T_ASSERT(G_FowPlayerCanHoverEntity(0, item));
+    G_FowShutdown();
+}
+
 TEST(wc3_game, acquisition_range_uses_spawn_cache) {
     edict_t *ent = make_test_unit();
     ent->class_id = MAKEFOURCC('n', 'o', 'n', 'e');
