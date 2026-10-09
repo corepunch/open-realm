@@ -1912,6 +1912,10 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
 
     G_ClearPlayerAbilityAvailability(client);
     *client = temp;
+    /* Older saves stored the portrait model index in this byte. Recover the
+     * representable legacy range into the new 16-bit presentation stat. */
+    if (!client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] && client->ps.cinematic_portrait)
+        client->ps.stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_MODEL] = client->ps.cinematic_portrait;
     client->jass.disabled_abilities = disabled_abilities;
     client->jass.disabled_ability_count = disabled_count;
     client->jass.disabled_ability_capacity = disabled_count;

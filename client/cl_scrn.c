@@ -938,13 +938,12 @@ void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
         screen->w / canvas_w,
         screen->h / UI_BASE_HEIGHT
     };
-    model_t const *port  = cl.portraits[frame->tex.index];
-    model_t const *model = cl.models[frame->tex.index];
+    uint32_t const model_index = frame->tex.index;
+    model_t const *port = model_index < MAX_MODELS ? cl.portraits[model_index] : NULL;
+    model_t const *model = model_index < MAX_MODELS ? cl.models[model_index] : NULL;
     model_t const *draw  = port ? port : model;
-
-    if (!draw) return;
-
     cstring_t anim = (frame->text && *frame->text) ? frame->text : "Portrait";
+    if (!draw) return;
 
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
