@@ -7958,6 +7958,14 @@ TEST(wc3_api, campaign_stub_natives_accept_calls_without_crash) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, preload_refresh_boundaries_are_registered) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PreloadRefresh()\n"
+        "  call PreloadEndEx()\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_api, issue_418_campaign_natives_are_registered) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
